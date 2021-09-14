@@ -62,7 +62,7 @@ func TranslateCPEToCVE(
 		return err
 	}
 
-	cpeList, err := ds.AllCPEs()
+	cpeList, err := ds.AllCPEs(ctx)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func TranslateCPEToCVE(
 							}
 							matchingCPEs = append(matchingCPEs, cpe)
 						}
-						err = ds.InsertCVEForCPE(matches.CVE.ID(), matchingCPEs)
+						err = ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 						}

@@ -109,7 +109,7 @@ func queryCommand() *cli.Command {
 			if flPretty {
 				output = newPrettyWriter()
 			} else {
-				output = newJsonWriter()
+				output = newJsonWriter(c.App.Writer)
 			}
 
 			hosts := strings.Split(flHosts, ",")

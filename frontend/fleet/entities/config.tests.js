@@ -6,7 +6,7 @@ import mocks from "test/mocks";
 
 const { config: configMocks } = mocks;
 
-describe("Kolide - API client (config)", () => {
+describe("Fleet - API client (config)", () => {
   afterEach(() => {
     nock.cleanAll();
     Fleet.setBearerToken(null);
@@ -28,7 +28,7 @@ describe("Kolide - API client (config)", () => {
   describe("#update", () => {
     it("calls the appropriate endpoint with the correct parameters", () => {
       const formData = {
-        org_name: "Kolide",
+        org_name: "Fleet",
         org_logo_url: "0.0.0.0:8080/logo.png",
         server_url: "",
         configured: false,

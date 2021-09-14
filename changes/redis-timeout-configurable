@@ -1,1 +1,0 @@
-* Add fleet serve config to change the redis connection timeout and keep alive interval.

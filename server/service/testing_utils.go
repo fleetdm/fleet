@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -93,7 +94,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
-		user, err = ds.NewUser(user)
+		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
 	}
@@ -136,10 +137,20 @@ type TestServerOpts struct {
 	Logger              kitlog.Logger
 	License             *fleet.LicenseInfo
 	SkipCreateTestUsers bool
+	Rs                  fleet.QueryResultStore
+	Lq                  fleet.LiveQueryStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	svc := newTestService(ds, nil, nil, opts...)
+	var rs fleet.QueryResultStore
+	if len(opts) > 0 && opts[0].Rs != nil {
+		rs = opts[0].Rs
+	}
+	var lq fleet.LiveQueryStore
+	if len(opts) > 0 && opts[0].Lq != nil {
+		lq = opts[0].Lq
+	}
+	svc := newTestService(ds, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)

@@ -300,7 +300,7 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultSortDirection={"asc"}
           onActionButtonClick={toggleAddUserModal}
           actionButtonText={"Add member"}
-          actionButtonVariant={"primary"}
+          actionButtonVariant={"brand"}
           hideActionButton={memberIds.length === 0 && searchString === ""}
           onQueryChange={onQueryChange}
           inputPlaceHolder={"Search"}

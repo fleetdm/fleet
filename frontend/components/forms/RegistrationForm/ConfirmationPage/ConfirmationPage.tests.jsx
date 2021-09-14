@@ -9,7 +9,7 @@ describe("ConfirmationPage - form", () => {
     name: "Rachel Perkins",
     email: "rachel@fleet.com",
     org_name: "Fleet",
-    fleet_web_address: "http://localhost:8080",
+    server_url: "http://localhost:8080",
   };
 
   it("renders the user information", () => {
@@ -20,7 +20,7 @@ describe("ConfirmationPage - form", () => {
     expect(form.text()).toContain(formData.name);
     expect(form.text()).toContain(formData.email);
     expect(form.text()).toContain(formData.org_name);
-    expect(form.text()).toContain(formData.fleet_web_address);
+    expect(form.text()).toContain(formData.server_url);
   });
 
   it("submits the form", () => {

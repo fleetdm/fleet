@@ -118,6 +118,12 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
+  const webhookSettingsAttrs = pick(config, [
+    "enable_host_status_webhook",
+    "destination_url",
+    "host_percentage",
+    "days_count",
+  ]);
   // because agent_options is already an object
   const agentOptionsSettingsAttrs = config.agent_options;
 
@@ -137,6 +143,9 @@ export const formatConfigDataForServer = (config: any): any => {
   const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
     agent_options: yaml.load(agentOptionsSettingsAttrs),
   };
+  const webhookSettings = size(webhookSettingsAttrs) && {
+    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
+  };
 
   if (hostExpirySettings) {
     hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
@@ -151,6 +160,7 @@ export const formatConfigDataForServer = (config: any): any => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...agentOptionsSettings,
+    ...webhookSettings,
   };
 };
 
@@ -162,6 +172,7 @@ export const frontendFormattedConfig = (config: any) => {
     smtp_settings: smtpSettings,
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
+    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
     license,
   } = config;
 
@@ -175,6 +186,7 @@ export const frontendFormattedConfig = (config: any) => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
+    ...webhookSettings,
     ...license,
     agent_options: config.agent_options,
   };

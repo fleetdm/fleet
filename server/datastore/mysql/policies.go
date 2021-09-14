@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (ds *Datastore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
+func (ds *Datastore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
 	res, err := ds.writer.Exec(`INSERT INTO policies (query_id) VALUES (?)`, queryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new policy")
@@ -21,14 +22,14 @@ func (ds *Datastore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
 		return nil, errors.Wrap(err, "getting last id after inserting policy")
 	}
 
-	return policyDB(ds.writer, uint(lastIdInt64))
+	return policyDB(ctx, ds.writer, uint(lastIdInt64))
 }
 
-func (ds *Datastore) Policy(id uint) (*fleet.Policy, error) {
-	return policyDB(ds.reader, id)
+func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
+	return policyDB(ctx, ds.reader, id)
 }
 
-func policyDB(q sqlx.Queryer, id uint) (*fleet.Policy, error) {
+func policyDB(ctx context.Context, q sqlx.Queryer, id uint) (*fleet.Policy, error) {
 	var policy fleet.Policy
 	err := sqlx.Get(q, &policy,
 		`SELECT
@@ -44,7 +45,7 @@ func policyDB(q sqlx.Queryer, id uint) (*fleet.Policy, error) {
 	return &policy, nil
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -76,7 +77,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(host *fleet.Host, results map[u
 	return nil
 }
 
-func (ds *Datastore) ListGlobalPolicies() ([]*fleet.Policy, error) {
+func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
 	var policies []*fleet.Policy
 	err := ds.reader.Select(
 		&policies,
@@ -93,7 +94,7 @@ func (ds *Datastore) ListGlobalPolicies() ([]*fleet.Policy, error) {
 	return policies, nil
 }
 
-func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
+func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	stmt := `DELETE FROM policies WHERE id IN (?)`
 	stmt, args, err := sqlx.In(stmt, ids)
 	if err != nil {
@@ -106,7 +107,7 @@ func (ds *Datastore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
 	return ids, nil
 }
 
-func (ds *Datastore) PolicyQueriesForHost(_ *fleet.Host) (map[string]string, error) {
+func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, _ *fleet.Host) (map[string]string, error) {
 	var rows []struct {
 		Id    string `db:"id"`
 		Query string `db:"query"`

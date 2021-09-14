@@ -19,7 +19,7 @@ const ConfirmationPage = ({
   currentPage,
   formData,
   handleSubmit,
-}: IConfirmationPageProps) => {
+}: IConfirmationPageProps): JSX.Element => {
   useEffect(() => {
     if (currentPage) {
       // Component has a transition duration of 300ms set in
@@ -57,12 +57,7 @@ const ConfirmationPage = ({
     );
   };
 
-  const {
-    email,
-    fleet_web_address: fleetWebAddress,
-    org_name: orgName,
-    name,
-  } = formData;
+  const { email, server_url: serverUrl, org_name: orgName, name } = formData;
   const tabIndex = currentPage ? 1 : -1;
 
   const confirmRegClasses = classnames(className, baseClass);
@@ -88,11 +83,8 @@ const ConfirmationPage = ({
             <tr>
               <th>Fleet URL:</th>
               <td>
-                <span
-                  className={`${baseClass}__table-url`}
-                  title={fleetWebAddress}
-                >
-                  {fleetWebAddress}
+                <span className={`${baseClass}__table-url`} title={serverUrl}>
+                  {serverUrl}
                 </span>
               </td>
             </tr>
@@ -112,7 +104,7 @@ const ConfirmationPage = ({
         disabled={!currentPage}
         className="button button--brand"
       >
-        Finish
+        Confirm
       </Button>
     </form>
   );

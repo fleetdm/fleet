@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ func TestDeleteEntity(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -30,7 +31,7 @@ func TestDeleteEntity(t *testing.T) {
 
 	require.NoError(t, ds.deleteEntity("hosts", host.ID))
 
-	host, err = ds.Host(host.ID)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.Error(t, err)
 	assert.Nil(t, host)
 }
@@ -43,7 +44,7 @@ func TestDeleteEntityByName(t *testing.T) {
 
 	require.NoError(t, ds.deleteEntityByName("queries", query1.Name))
 
-	gotQ, err := ds.Query(query1.ID)
+	gotQ, err := ds.Query(context.Background(), query1.ID)
 	require.Error(t, err)
 	assert.Nil(t, gotQ)
 }
@@ -60,15 +61,15 @@ func TestDeleteEntities(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), count)
 
-	gotQ, err := ds.Query(query1.ID)
+	gotQ, err := ds.Query(context.Background(), query1.ID)
 	require.Error(t, err)
 	assert.Nil(t, gotQ)
 
-	gotQ, err = ds.Query(query2.ID)
+	gotQ, err = ds.Query(context.Background(), query2.ID)
 	require.Error(t, err)
 	assert.Nil(t, gotQ)
 
-	gotQ, err = ds.Query(query3.ID)
+	gotQ, err = ds.Query(context.Background(), query3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, query3.ID, gotQ.ID)
 }

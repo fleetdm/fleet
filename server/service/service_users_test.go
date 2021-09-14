@@ -24,9 +24,9 @@ func TestAuthenticatedUser(t *testing.T) {
 
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
-	admin1, err := ds.UserByEmail("admin1@example.com")
+	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	assert.Nil(t, err)
-	admin1Session, err := ds.NewSession(&fleet.Session{
+	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{
 		UserID: admin1.ID,
 		Key:    "admin1",
 	})
@@ -46,13 +46,13 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -64,7 +64,7 @@ func TestModifyUserEmail(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		// verify this isn't changed yet
 		assert.Equal(t, "foo@bar.com", u.Email)
 		// verify is changed per bug 1123
@@ -93,13 +93,13 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -111,7 +111,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -139,13 +139,13 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -157,7 +157,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -185,13 +185,13 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -203,7 +203,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -496,7 +496,7 @@ func TestResetPassword(t *testing.T) {
 				UserID:    1,
 				Token:     "abcd",
 			}
-			_, err := ds.NewPasswordResetRequest(request)
+			_, err := ds.NewPasswordResetRequest(context.Background(), request)
 			assert.Nil(t, err)
 
 			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)
@@ -518,7 +518,7 @@ func TestRequirePasswordReset(t *testing.T) {
 
 	for _, tt := range testUsers {
 		t.Run(tt.Email, func(t *testing.T) {
-			user, err := ds.UserByEmail(tt.Email)
+			user, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 
 			var sessions []*fleet.Session
@@ -534,7 +534,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err := svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 			assert.True(t, retUser.AdminForcedPasswordReset)
-			checkUser, err := ds.UserByEmail(tt.Email)
+			checkUser, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.True(t, checkUser.AdminForcedPasswordReset)
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
@@ -545,7 +545,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, false)
 			require.Nil(t, err)
 			assert.False(t, retUser.AdminForcedPasswordReset)
-			checkUser, err = ds.UserByEmail(tt.Email)
+			checkUser, err = ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.False(t, checkUser.AdminForcedPasswordReset)
 
@@ -554,7 +554,7 @@ func TestRequirePasswordReset(t *testing.T) {
 }
 
 func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
-	reloadedUser, err := ds.UserByEmail(user.Email)
+	reloadedUser, err := ds.UserByEmail(ctx, user.Email)
 	require.NoError(t, err)
 
 	return viewer.NewContext(ctx, viewer.Viewer{User: reloadedUser, Session: session})
@@ -570,7 +570,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 	for _, tt := range testUsers {
 		t.Run(tt.Email, func(t *testing.T) {
-			user, err := ds.UserByEmail(tt.Email)
+			user, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 
 			ctx := context.Background()
@@ -580,7 +580,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(&fleet.Session{UserID: user.ID})
+			session, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID})
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
 

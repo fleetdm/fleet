@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
@@ -9,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -41,7 +42,7 @@ func (d *Datastore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) 
 	return results, nil
 }
 
-func (d *Datastore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	return insertScheduledQueryDB(d.writer, sq)
 }
 
@@ -97,7 +98,7 @@ func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.Schedu
 	return sq, nil
 }
 
-func (d *Datastore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func (d *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	return saveScheduledQueryDB(d.writer, sq)
 }
 
@@ -121,11 +122,11 @@ func saveScheduledQueryDB(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.Sc
 	return sq, nil
 }
 
-func (d *Datastore) DeleteScheduledQuery(id uint) error {
+func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	return d.deleteEntity("scheduled_queries", id)
 }
 
-func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
+func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -157,7 +158,7 @@ func (d *Datastore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
 	return sq, nil
 }
 
-func (d *Datastore) CleanupOrphanScheduledQueryStats() error {
+func (d *Datastore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
 	_, err := d.writer.Exec(`DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by scheduled_query")

@@ -20,7 +20,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 	}
 
 	// verify that the user with the given email does not already exist
-	_, err := svc.ds.UserByEmail(*payload.Email)
+	_, err := svc.ds.UserByEmail(ctx, *payload.Email)
 	if err == nil {
 		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
 	}
@@ -58,7 +58,7 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
 
-	invite, err = svc.ds.NewInvite(invite)
+	invite, err = svc.ds.NewInvite(ctx, invite)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	return svc.ds.ListInvites(opt)
+	return svc.ds.ListInvites(ctx, opt)
 }
 
 func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {
@@ -106,7 +106,7 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invi
 
 	logging.WithExtras(ctx, "token", token)
 
-	invite, err := svc.ds.InviteByToken(token)
+	invite, err := svc.ds.InviteByToken(ctx, token)
 	if err != nil {
 		return nil, err
 	}
@@ -128,5 +128,5 @@ func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteInvite(id)
+	return svc.ds.DeleteInvite(ctx, id)
 }

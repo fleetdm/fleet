@@ -1,3 +1,8 @@
+import URL_PREFIX from "router/url_prefix";
+
+const { origin } = global.window.location;
+export const BASE_URL = `${origin}${URL_PREFIX}/api`;
+
 export enum PolicyResponse {
   PASSING = "passing",
   FAILING = "failing",
@@ -52,6 +57,64 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.1 +", value: "1.8.1" },
 ];
 
+export const QUERIES_PAGE_STEPS = {
+  1: "EDITOR",
+  2: "TARGETS",
+  3: "RUN",
+};
+
+export const DEFAULT_QUERY = {
+  description: "",
+  name: "New query",
+  query: "SELECT * FROM osquery_info",
+  id: 0,
+  interval: 0,
+  last_excuted: "",
+  observer_can_run: false,
+  author_name: "",
+  updated_at: "",
+  created_at: "",
+  saved: false,
+  author_id: 0,
+  packs: [],
+};
+
+export const DEFAULT_CAMPAIGN = {
+  created_at: "",
+  errors: [],
+  hosts: [],
+  hosts_count: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  id: 0,
+  query_id: 0,
+  query_results: [],
+  status: "",
+  totals: {
+    count: 0,
+    missing_in_action: 0,
+    offline: 0,
+    online: 0,
+  },
+  updated_at: "",
+  user_id: 0,
+};
+
+export const DEFAULT_CAMPAIGN_STATE = {
+  observerShowSql: false,
+  queryIsRunning: false,
+  queryPosition: {},
+  queryResultsToggle: null,
+  runQueryMilliseconds: 0,
+  selectRelatedHostTarget: false,
+  targetsCount: 0,
+  targetsError: null,
+  campaign: { ...DEFAULT_CAMPAIGN },
+};
+
+// as returned by the TARGETS API; based on display_text
 export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
   "All Hosts": "All Hosts",
   "All Linux": "Linux",
@@ -81,7 +144,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "Ubuntu Linux": "platform",
 };
 
-export const PLATFORM_OPTIONS = [
+export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },

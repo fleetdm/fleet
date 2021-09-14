@@ -1,6 +1,5 @@
 import React from "react";
 
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IQueryStats } from "interfaces/query_stats";
@@ -54,7 +53,7 @@ const performanceIndicator = (scheduledQuery: IQueryStats): string => {
     return "Minimal";
   }
   if (indicator >= 2000 && indicator <= 4000) {
-    return "Considerate";
+    return "Considerable";
   }
   return "Excessive";
 };

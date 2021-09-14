@@ -47,7 +47,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		server, ds := runServerWithMockedDS(t)
 		defer server.Close()
 
-		ds.VerifyEnrollSecretFunc = func(secret string) (*fleet.EnrollSecret, error) {
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 			return nil, errors.New("invalid")
 		}
 

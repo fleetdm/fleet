@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,7 +14,7 @@ import (
 var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
-func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
+func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	return user, nil
 }
 
-func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.User, error) {
+func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
 		"SELECT * FROM users "+
 			"WHERE %s = ? LIMIT 1",
@@ -89,7 +90,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
-func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
 		WHERE TRUE
@@ -116,21 +117,21 @@ func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) 
 
 }
 
-func (d *Datastore) UserByEmail(email string) (*fleet.User, error) {
-	return d.findUser("email", email)
+func (d *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
+	return d.findUser(ctx, "email", email)
 }
 
-func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
-	return d.findUser("id", id)
+func (d *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	return d.findUser(ctx, "id", id)
 }
 
-func (d *Datastore) SaveUser(user *fleet.User) error {
+func (d *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
 		return saveUserDB(tx, user)
 	})
 }
 
-func (d *Datastore) SaveUsers(users []*fleet.User) error {
+func (d *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	return d.withTx(func(tx *sqlx.Tx) error {
 		for _, user := range users {
 			err := saveUserDB(tx, user)
@@ -265,6 +266,6 @@ func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
 }
 
 // DeleteUser deletes the associated user
-func (d *Datastore) DeleteUser(id uint) error {
+func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return d.deleteEntity("users", id)
 }

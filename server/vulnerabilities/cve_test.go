@@ -33,14 +33,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func() ([]string, error) {
+			ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
 				return []string{tt.cpe}, nil
 			}
 
 			cveLock := &sync.Mutex{}
 			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(cve string, cpes []string) error {
+			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) error {
 				cveLock.Lock()
 				defer cveLock.Unlock()
 				cveToCPEs[cve] = cpes
