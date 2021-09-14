@@ -422,10 +422,10 @@ type Locker interface {
 	// It returns true, nil if it managed to obtain a lock on the instance.
 	// false and potentially an error otherwise.
 	// This must not be blocking.
-	Lock(name string, owner string, expiration time.Duration) (bool, error)
+	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
-	Unlock(name string, owner string) error
+	Unlock(ctx context.Context, name string, owner string) error
 }
 
 const (
@@ -489,7 +489,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
+		if locked, err := locker.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
@@ -577,7 +577,7 @@ func cronVulnerabilities(
 			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+			if locked, err := locker.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
 				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 				continue
 			}
@@ -617,7 +617,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(lockKeyWebhooks, identifier, interval); err != nil || !locked {
+		if locked, err := locker.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
