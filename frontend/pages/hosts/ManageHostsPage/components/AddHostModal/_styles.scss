@@ -140,4 +140,32 @@
   &__error {
     color: $ui-error;
   }
+
+  &__run-osquery-input {
+    margin-left: 44px;
+  }
+
+  &__run-osquery-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-xxlarge;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 16px;
+    transform: translateY(80%);
+    height: 16px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
 }
