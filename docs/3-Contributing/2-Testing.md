@@ -105,6 +105,14 @@ To run email related integration tests using MailHog set environment as follows:
 MAIL_TEST=1 make test-go
 ```
 
+#### Network tests
+
+A few tests require network access as they make requests to external hosts. Given that the network is unreliable, may not be available, and those hosts may also not be unavailable, those tests are skipped by default and are opt-in via the `NETWORK_TEST` environment variable. To run them:
+
+```
+NETWORK_TEST=1 make test-go
+```
+
 ### Viewing test coverage
 
 When you run `make test` or `make test-go` from the root of the repository, test coverage reports are generated in every subpackage. For example, the `server` subpackage will have a coverage report generated in `./server/server.cover`
