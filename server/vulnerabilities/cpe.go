@@ -208,6 +208,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 }
 
 func TranslateSoftwareToCPE(
+	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
@@ -220,7 +221,7 @@ func TranslateSoftwareToCPE(
 		return errors.Wrap(err, "sync cpe db")
 	}
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {
 		return errors.Wrap(err, "all software iterator")
 	}
@@ -245,7 +246,7 @@ func TranslateSoftwareToCPE(
 		if cpe == "" {
 			continue
 		}
-		err = ds.AddCPEForSoftware(*software, cpe)
+		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {
 			return errors.Wrap(err, "inserting cpe")
 		}

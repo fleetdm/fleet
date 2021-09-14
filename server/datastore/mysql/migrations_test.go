@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"testing"
 	"time"
@@ -18,19 +19,19 @@ func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	defer ds.Close()
 
-	status, err := ds.MigrationStatus()
+	status, err := ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.NoMigrationsCompleted, status)
 
-	require.Nil(t, ds.MigrateTables())
+	require.Nil(t, ds.MigrateTables(context.Background()))
 
-	status, err = ds.MigrationStatus()
+	status, err = ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status)
 
-	require.Nil(t, ds.MigrateData())
+	require.Nil(t, ds.MigrateData(context.Background()))
 
-	status, err = ds.MigrationStatus()
+	status, err = ds.MigrationStatus(context.Background())
 	require.Nil(t, err)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status)
 }
@@ -40,7 +41,7 @@ func TestMigrations(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	defer ds.Close()
 
-	require.NoError(t, ds.MigrateTables())
+	require.NoError(t, ds.MigrateTables(context.Background()))
 
 	// Dump schema to dumpfile
 	cmd := exec.Command(
@@ -105,16 +106,16 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 	host2.HostSoftware = soft2
 	host2.Modified = true
 
-	require.NoError(t, ds.SaveHostSoftware(host1))
-	require.NoError(t, ds.SaveHostSoftware(host2))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
-	require.NoError(t, ds.DeleteHost(host1.ID))
+	require.NoError(t, ds.DeleteHost(context.Background(), host1.ID))
 
 	require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
 
 	// Make sure we don't delete more than we need
-	hostCheck, err := ds.Host(host2.ID)
+	hostCheck, err := ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.NoError(t, ds.LoadHostSoftware(hostCheck))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), hostCheck))
 	require.Len(t, hostCheck.Software, 3)
 }

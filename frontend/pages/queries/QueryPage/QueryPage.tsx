@@ -20,6 +20,7 @@ import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
+  router: any;
   params: Params;
   location: any; // TODO: find Location type
 }
@@ -35,6 +36,7 @@ interface IHostResponse {
 const baseClass = "query-page";
 
 const QueryPage = ({
+  router,
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
@@ -64,7 +66,7 @@ const QueryPage = ({
     data: storedQuery = DEFAULT_QUERY,
     error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    "query",
+    ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
     {
       enabled: !!queryIdForEdit,
@@ -114,7 +116,7 @@ const QueryPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onCloseSidebar = () => {
+  const onCloseSchemaSidebar = () => {
     setIsSidebarOpen(false);
   };
 
@@ -148,10 +150,11 @@ const QueryPage = ({
 
   const renderScreen = () => {
     const step1Opts = {
+      router,
       baseClass,
       storedQuery,
       typedQueryBody,
-      isEditMode: !!queryIdForEdit,
+      queryIdForEdit,
       showOpenSchemaActionText,
       isStoredQueryLoading,
       error: storedQueryError,
@@ -179,6 +182,7 @@ const QueryPage = ({
       storedQuery,
       selectedTargets,
       queryIdForEdit,
+      setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
     };
 
@@ -204,7 +208,7 @@ const QueryPage = ({
         <QuerySidePanel
           onOsqueryTableSelect={onOsqueryTableSelect}
           selectedOsqueryTable={selectedOsqueryTable}
-          onClose={onCloseSidebar}
+          onClose={onCloseSchemaSidebar}
         />
       )}
     </div>

@@ -58,7 +58,7 @@ func TestGetUserRoles(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleList, nil
 	}
 
@@ -118,7 +118,7 @@ func TestGetTeams(t *testing.T) {
 			defer server.Close()
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-			ds.ListTeamsFunc = func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 				require.NoError(t, err)
 				return []*fleet.Team{
@@ -200,7 +200,7 @@ func TestGetHosts(t *testing.T) {
 	defer server.Close()
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		hosts := []*fleet.Host{
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -233,7 +233,7 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.NotEmpty(t, identifier)
 		return &fleet.Host{
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -249,13 +249,13 @@ func TestGetHosts(t *testing.T) {
 			Hostname:        "test_host"}, nil
 	}
 
-	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
-	ds.ListPacksForHostFunc = func(hid uint) (packs []*fleet.Pack, err error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
 
@@ -346,7 +346,7 @@ func TestGetConfig(t *testing.T) {
 	server, ds := runServerWithMockedDS(t)
 	defer server.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},

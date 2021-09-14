@@ -21,6 +21,7 @@ interface IRunQueryProps {
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
   queryIdForEdit: number | null;
+  setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
@@ -29,6 +30,7 @@ const RunQuery = ({
   storedQuery,
   selectedTargets,
   queryIdForEdit,
+  setSelectedTargets,
   goToQueryEditor,
 }: IRunQueryProps) => {
   const dispatch = useDispatch();
@@ -134,7 +136,7 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = queryIdForEdit ? storedQuery?.query : typedQueryBody;
+    const sql = typedQueryBody || storedQuery?.query;
 
     if (!sql) {
       dispatch(
@@ -154,7 +156,7 @@ const RunQuery = ({
     try {
       const returnedCampaign = await queryAPI.run({
         query: sql,
-        queryId: queryIdForEdit,
+        queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
         selected,
       });
 
@@ -207,6 +209,7 @@ const RunQuery = ({
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
       isQueryFinished={isQueryFinished}
+      setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
     />
   );

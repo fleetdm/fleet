@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -10,5 +11,5 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	if err := svc.authz.Authorize(ctx, &fleet.Activity{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	return svc.ds.ListActivities(opt)
+	return svc.ds.ListActivities(ctx, opt)
 }

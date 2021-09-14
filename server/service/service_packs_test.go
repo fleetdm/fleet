@@ -23,7 +23,7 @@ func TestServiceListPacks(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
-	_, err = ds.NewPack(&fleet.Pack{
+	_, err = ds.NewPack(context.Background(), &fleet.Pack{
 		Name: "foo",
 	})
 	assert.Nil(t, err)
@@ -42,7 +42,7 @@ func TestGetPack(t *testing.T) {
 	pack := &fleet.Pack{
 		Name: "foo",
 	}
-	_, err := ds.NewPack(pack)
+	_, err := ds.NewPack(context.Background(), pack)
 	assert.Nil(t, err)
 	assert.NotZero(t, pack.ID)
 
@@ -56,10 +56,10 @@ func TestNewSavesTargets(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.NewPackFunc = func(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+	ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 		return pack, nil
 	}
-	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
 
@@ -87,7 +87,7 @@ func TestService_ModifyPack_GlobalPack(t *testing.T) {
 	test.AddAllHostsLabel(t, ds)
 	users := createTestUsers(t, ds)
 
-	globalPack, err := ds.EnsureGlobalPack()
+	globalPack, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
 
 	labelids := []uint{1, 2, 3}
@@ -116,7 +116,7 @@ func TestService_DeletePackByID_GlobalPack(t *testing.T) {
 	defer ds.Close()
 	test.AddAllHostsLabel(t, ds)
 
-	globalPack, err := ds.EnsureGlobalPack()
+	globalPack, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
 
 	type fields struct {
@@ -159,20 +159,20 @@ func TestService_ApplyPackSpecs(t *testing.T) {
 	defer ds.Close()
 	test.AddAllHostsLabel(t, ds)
 
-	global, err := ds.EnsureGlobalPack()
+	global, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
 
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
 
-	teamPack, err := ds.EnsureTeamPack(team1.ID)
+	teamPack, err := ds.EnsureTeamPack(context.Background(), team1.ID)
 	require.NoError(t, err)
 
 	type fields struct {
@@ -244,20 +244,20 @@ func TestService_DeletePack(t *testing.T) {
 	defer ds.Close()
 	test.AddAllHostsLabel(t, ds)
 
-	gp, err := ds.EnsureGlobalPack()
+	gp, err := ds.EnsureGlobalPack(context.Background())
 	require.NoError(t, err)
 
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
 
-	tp, err := ds.EnsureTeamPack(team1.ID)
+	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
 	require.NoError(t, err)
 
 	type fields struct {

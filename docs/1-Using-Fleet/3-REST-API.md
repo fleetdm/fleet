@@ -2579,7 +2579,7 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 | Name     | Type    | In   | Description                                                                                                                                                |
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL if using a custom query.                                                                                                                           |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
+| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                |
 | selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
 
 One of `query` and `query_id` must be specified.

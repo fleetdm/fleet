@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -21,14 +22,14 @@ func TestUnicode(t *testing.T) {
 		Name:  "測試",
 		Query: "query foo",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1})
 	require.Nil(t, err)
 
-	label, err := ds.Label(l1.ID)
+	label, err := ds.Label(context.Background(), l1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "測試", label.Name)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        "🍌",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -36,11 +37,11 @@ func TestUnicode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	host, err = ds.Host(host.ID)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "🍌", host.Hostname)
 
-	user, err := ds.NewUser(&fleet.User{
+	user, err := ds.NewUser(context.Background(), &fleet.User{
 		Name:       "🍱",
 		Email:      "test@example.com",
 		Password:   []byte{},
@@ -48,13 +49,13 @@ func TestUnicode(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	user, err = ds.UserByID(user.ID)
+	user, err = ds.UserByID(context.Background(), user.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "🍱", user.Name)
 
 	pack := test.NewPack(t, ds, "👨🏾‍🚒")
 
-	pack, err = ds.Pack(pack.ID)
+	pack, err = ds.Pack(context.Background(), pack.ID)
 	require.Nil(t, err)
 	assert.Equal(t, "👨🏾‍🚒", pack.Name)
 }

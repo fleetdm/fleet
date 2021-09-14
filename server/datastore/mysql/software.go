@@ -52,7 +52,7 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	return result
 }
 
-func (d *Datastore) SaveHostSoftware(host *fleet.Host) error {
+func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
 	}
@@ -283,7 +283,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 	return resultWithCVEs, nil
 }
 
-func (d *Datastore) LoadHostSoftware(host *fleet.Host) error {
+func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
 	software, err := listSoftwareDB(d.reader, &host.ID, nil, fleet.ListOptions{})
 	if err != nil {
@@ -318,7 +318,7 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
@@ -329,7 +329,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, err
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error {
+func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
 	if _, err := d.writer.Exec(sql, software.ID, cpe); err != nil {
 		return errors.Wrap(err, "insert software cpe")
@@ -337,7 +337,7 @@ func (d *Datastore) AddCPEForSoftware(software fleet.Software, cpe string) error
 	return nil
 }
 
-func (d *Datastore) AllCPEs() ([]string, error) {
+func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
 	err := d.reader.Select(&cpes, sql)
@@ -347,7 +347,7 @@ func (d *Datastore) AllCPEs() ([]string, error) {
 	return cpes, nil
 }
 
-func (d *Datastore) InsertCVEForCPE(cve string, cpes []string) error {
+func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
 	values := strings.TrimSuffix(strings.Repeat("((SELECT id FROM software_cpe WHERE cpe=?),?),", len(cpes)), ",")
 	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
 	var args []interface{}

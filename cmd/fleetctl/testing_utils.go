@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -18,14 +19,14 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 	ds := new(mock.Store)
 	var users []*fleet.User
 	var admin *fleet.User
-	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
 			admin = user
 		}
 		users = append(users, user)
 		return user, nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              1,
@@ -34,13 +35,13 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 			Key:             key,
 		}, nil
 	}
-	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
 		return nil
 	}
-	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return admin, nil
 	}
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
 	_, server := service.RunServerForTestsWithDS(t, ds, opts...)

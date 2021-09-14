@@ -1,1 +1,0 @@
-* Add `server_settings.debug_host_ids` to gather more detailed information about what the specified hosts are sending to fleet.

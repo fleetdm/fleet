@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -219,7 +220,7 @@ func TestQueryCreationLogsActivity(t *testing.T) {
 
 	admin1 := users["admin1@example.com"]
 	admin1.GravatarURL = "http://iii.com"
-	err := ds.SaveUser(&admin1)
+	err := ds.SaveUser(context.Background(), &admin1)
 	require.NoError(t, err)
 
 	params := fleet.QueryPayload{
@@ -327,7 +328,7 @@ func TestUserRolesSpec(t *testing.T) {
 
 	_, server := RunServerForTestsWithDS(t, ds)
 	defer server.Close()
-	_, err := ds.NewTeam(&fleet.Team{
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -335,7 +336,7 @@ func TestUserRolesSpec(t *testing.T) {
 	require.NoError(t, err)
 	token := getTestAdminToken(t, server)
 
-	user, err := ds.UserByEmail("user1@example.com")
+	user, err := ds.UserByEmail(context.Background(), "user1@example.com")
 	require.NoError(t, err)
 	assert.Len(t, user.Teams, 0)
 
@@ -355,13 +356,13 @@ func TestUserRolesSpec(t *testing.T) {
 	_, closeFunc := doReq(t, userRoleSpec, "POST", server, "/api/v1/fleet/users/roles/spec", token, http.StatusOK)
 	closeFunc()
 
-	user, err = ds.UserByEmail("user1@example.com")
+	user, err = ds.UserByEmail(context.Background(), "user1@example.com")
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
 
 	// But users are not deleted
-	users, err := ds.ListUsers(fleet.UserListOptions{})
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, users, 3)
 }
@@ -380,7 +381,7 @@ func TestGlobalSchedule(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, "/api/v1/fleet/global/schedule", token, http.StatusOK, &gs)
 	assert.Len(t, gs.GlobalSchedule, 0)
 
-	qr, err := ds.NewQuery(&fleet.Query{
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -448,17 +449,17 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	team, err := ds.TeamByName("team1")
+	team, err := ds.TeamByName(context.Background(), "team1")
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
 	require.JSONEq(t, string(agentOpts), string(*team.AgentOptions))
 
 	// creates a team with default agent options
-	user, err := ds.UserByEmail("admin1@example.com")
+	user, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 
-	teams, err := ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, teams, 1)
 
@@ -466,11 +467,11 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	teams, err = ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, teams, 2)
 
-	team, err = ds.TeamByName("team2")
+	team, err = ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
@@ -483,7 +484,7 @@ func TestTeamSpecs(t *testing.T) {
 	_, closeFunc = doReq(t, teamSpecs, "POST", server, "/api/v1/fleet/spec/teams", token, http.StatusOK)
 	defer closeFunc()
 
-	team, err = ds.TeamByName("team2")
+	team, err = ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	require.Len(t, team.Secrets, 1)
@@ -523,7 +524,7 @@ func TestTeamSchedule(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	team1, err := ds.NewTeam(&fleet.Team{
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -534,7 +535,7 @@ func TestTeamSchedule(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), token, http.StatusOK, &ts)
 	assert.Len(t, ts.Scheduled, 0)
 
-	qr, err := ds.NewQuery(&fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
 
 	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
@@ -643,7 +644,7 @@ func TestVulnerableSoftware(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	host, err := ds.NewHost(&fleet.Host{
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -664,16 +665,16 @@ func TestVulnerableSoftware(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, ds.AddCPEForSoftware(soft1, "somecpe"))
-	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
 
 	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID)
 	resp, closeFunc := doReq(t, nil, "GET", server, path, token, http.StatusOK)
@@ -711,7 +712,7 @@ func TestGlobalPolicies(t *testing.T) {
 	token := getTestAdminToken(t, server)
 
 	for i := 0; i < 3; i++ {
-		_, err := ds.NewHost(&fleet.Host{
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
@@ -723,7 +724,7 @@ func TestGlobalPolicies(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	qr, err := ds.NewQuery(&fleet.Query{
+	qr, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -761,8 +762,8 @@ func TestGlobalPolicies(t *testing.T) {
 	doJSONReq(t, nil, "GET", server, listHostsURL, token, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
 
 	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -789,7 +790,7 @@ func TestOsqueryEndpointsLogErrors(t *testing.T) {
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
 	defer server.Close()
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -824,7 +825,7 @@ func TestSubmitStatusLog(t *testing.T) {
 	defer server.Close()
 	token := getTestAdminToken(t, server)
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -860,7 +861,7 @@ func TestEnrollAgentLogsErrors(t *testing.T) {
 	_, server := RunServerForTestsWithDS(t, ds, TestServerOpts{Logger: logger})
 	defer server.Close()
 
-	_, err := ds.NewHost(&fleet.Host{
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -16,7 +17,7 @@ func TestCreateInvite(t *testing.T) {
 	defer ds.Close()
 
 	for i := 0; i < 3; i++ {
-		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
 
@@ -30,10 +31,10 @@ func TestCreateInvite(t *testing.T) {
 		},
 	}
 
-	invite, err := ds.NewInvite(invite)
+	invite, err := ds.NewInvite(context.Background(), invite)
 	require.Nil(t, err)
 
-	verify, err := ds.InviteByEmail(invite.Email)
+	verify, err := ds.InviteByEmail(context.Background(), invite.Email)
 	require.Nil(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
@@ -48,7 +49,7 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 		GlobalRole: null.StringFrom("admin"),
 	}
 
-	admin, err := ds.NewInvite(admin)
+	admin, err := ds.NewInvite(context.Background(), admin)
 	require.NoError(t, err)
 
 	for user := 0; user < 23; user++ {
@@ -60,7 +61,7 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 			GlobalRole: null.StringFrom("observer"),
 		}
 
-		_, err := ds.NewInvite(&i)
+		_, err := ds.NewInvite(context.Background(), &i)
 		require.NoError(t, err, "Failure creating user", user)
 	}
 
@@ -79,7 +80,7 @@ func TestListInvites(t *testing.T) {
 		OrderKey:       "name",
 	}
 
-	result, err := ds.ListInvites(opt)
+	result, err := ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, len(result), 10)
@@ -89,7 +90,7 @@ func TestListInvites(t *testing.T) {
 
 	opt.Page = 2
 	opt.OrderDirection = fleet.OrderDescending
-	result, err = ds.ListInvites(opt)
+	result, err = ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(result)) // allow for admin we created
 	assert.Equal(t, "User00", result[3].Name)
@@ -102,15 +103,15 @@ func TestDeleteInvite(t *testing.T) {
 
 	setupTestInvites(t, ds)
 
-	invite, err := ds.InviteByEmail("user0@foo.com")
+	invite, err := ds.InviteByEmail(context.Background(), "user0@foo.com")
 
 	assert.Nil(t, err)
 	assert.NotNil(t, invite)
 
-	err = ds.DeleteInvite(invite.ID)
+	err = ds.DeleteInvite(context.Background(), invite.ID)
 	assert.Nil(t, err)
 
-	invite, err = ds.InviteByEmail("user0@foo.com")
+	invite, err = ds.InviteByEmail(context.Background(), "user0@foo.com")
 	assert.NotNil(t, err)
 	assert.Nil(t, invite)
 
@@ -137,7 +138,7 @@ func TestInviteByToken(t *testing.T) {
 
 	for _, tt := range inviteTests {
 		t.Run("", func(t *testing.T) {
-			invite, err := ds.InviteByToken(tt.token)
+			invite, err := ds.InviteByToken(context.Background(), tt.token)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
@@ -171,7 +172,7 @@ func TestInviteByEmail(t *testing.T) {
 
 	for _, tt := range inviteTests {
 		t.Run("", func(t *testing.T) {
-			invite, err := ds.InviteByEmail(tt.email)
+			invite, err := ds.InviteByEmail(context.Background(), tt.email)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
@@ -195,10 +196,10 @@ func TestInvite(t *testing.T) {
 		GlobalRole: null.StringFrom("admin"),
 	}
 
-	admin, err := ds.NewInvite(admin)
+	admin, err := ds.NewInvite(context.Background(), admin)
 	require.NoError(t, err)
 
-	gotI, err := ds.Invite(admin.ID)
+	gotI, err := ds.Invite(context.Background(), admin.ID)
 	require.NoError(t, err)
 	assert.Equal(t, admin.ID, gotI.ID)
 }
