@@ -1344,6 +1344,22 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   	current_instance_checks: yes
   ```
 
+###### disable_data_sync
+
+Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
+
+In order to support vulnerability processing in such environments, we allow users to disable automatic sync of data streams with this configuration value.
+
+To download the data streams, you can use `fleetctl vulnerability-data-stream --dir ./somedir`. The contents downloaded can then be reviewed, and finally uploaded to the defined `databases_path` in the fleet instance(s) doing the vulnerability processing.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_DATA_SYNC`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	disable_data_sync: true
+
 ## Managing osquery configurations
 
 We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
