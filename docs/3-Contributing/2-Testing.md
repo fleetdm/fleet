@@ -40,7 +40,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
 Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
-MYSQL_TEST=1 make test
+REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
 It is a good idea to run `make test` before submitting a Pull Request.
@@ -50,7 +50,7 @@ It is a good idea to run `make test` before submitting a Pull Request.
 To run all Go unit tests, run the following:
 
 ```
-make test-go
+REDIS_TEST=1 MYSQL_TEST=1 make test-go
 ```
 
 #### Go linters
