@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -13,7 +14,7 @@ func (d *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pass
 		( user_id, token, expires_at)
 		VALUES (?,?, NOW())
 	`
-	response, err := d.writer.Exec(sqlStatement, req.UserID, req.Token)
+	response, err := d.writer.ExecContext(ctx, sqlStatement, req.UserID, req.Token)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting password reset requests")
 	}
@@ -28,7 +29,7 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 	sqlStatement := `
 		DELETE FROM password_reset_requests WHERE user_id = ?
 	`
-	_, err := d.writer.Exec(sqlStatement, userID)
+	_, err := d.writer.ExecContext(ctx, sqlStatement, userID)
 	if err != nil {
 		return errors.Wrap(err, "deleting password reset request by user")
 	}
@@ -41,7 +42,7 @@ func (d *Datastore) FindPassswordResetByToken(ctx context.Context, token string)
                WHERE token = ? LIMIT 1
        `
 	passwordResetRequest := &fleet.PasswordResetRequest{}
-	err := d.reader.Get(passwordResetRequest, sqlStatement, token)
+	err := sqlx.GetContext(ctx, d.reader, passwordResetRequest, sqlStatement, token)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting password reset requests")
 	}

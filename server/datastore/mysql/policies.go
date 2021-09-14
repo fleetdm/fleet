@@ -13,7 +13,7 @@ import (
 )
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
-	res, err := ds.writer.Exec(`INSERT INTO policies (query_id) VALUES (?)`, queryID)
+	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id) VALUES (?)`, queryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new policy")
 	}
@@ -29,9 +29,9 @@ func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error)
 	return policyDB(ctx, ds.reader, id)
 }
 
-func policyDB(ctx context.Context, q sqlx.Queryer, id uint) (*fleet.Policy, error) {
+func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Policy, error) {
 	var policy fleet.Policy
-	err := sqlx.Get(q, &policy,
+	err := sqlx.GetContext(ctx, q, &policy,
 		`SELECT
        		p.*,
        		q.name as query_name,
@@ -69,7 +69,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		strings.Join(bindvars, ","),
 	)
 
-	_, err := ds.writer.Exec(query, vals...)
+	_, err := ds.writer.ExecContext(ctx, query, vals...)
 	if err != nil {
 		return errors.Wrapf(err, "insert policy_membership (%v)", vals)
 	}
@@ -79,7 +79,9 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
 	var policies []*fleet.Policy
-	err := ds.reader.Select(
+	err := sqlx.SelectContext(
+		ctx,
+		ds.reader,
 		&policies,
 		`SELECT
        		p.*,
@@ -101,7 +103,7 @@ func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]ui
 		return nil, errors.Wrap(err, "IN for DELETE FROM policies")
 	}
 	stmt = ds.writer.Rebind(stmt)
-	if _, err := ds.writer.Exec(stmt, args...); err != nil {
+	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, errors.Wrap(err, "delete policies")
 	}
 	return ids, nil
@@ -112,7 +114,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, _ *fleet.Host) (m
 		Id    string `db:"id"`
 		Query string `db:"query"`
 	}
-	err := ds.reader.Select(&rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
+	err := sqlx.SelectContext(ctx, ds.reader, &rows, `SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id)`)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting policies for host")
 	}

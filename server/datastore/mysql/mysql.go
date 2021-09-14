@@ -40,12 +40,10 @@ var (
 
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
-	sqlx.Queryer
+	sqlx.QueryerContext
 
 	Close() error
 	Rebind(string) string
-	Select(interface{}, string, ...interface{}) error
-	Get(interface{}, string, ...interface{}) error
 }
 
 // Datastore is an implementation of fleet.Datastore interface backed by
@@ -62,7 +60,7 @@ type Datastore struct {
 	readReplicaConfig *config.MysqlConfig
 }
 
-type txFn func(*sqlx.Tx) error
+type txFn func(sqlx.ExtContext) error
 
 // retryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
@@ -81,9 +79,9 @@ func retryableError(err error) bool {
 }
 
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func (d *Datastore) withRetryTxx(fn txFn) (err error) {
+func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
-		tx, err := d.writer.Beginx()
+		tx, err := d.writer.BeginTxx(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "create transaction")
 		}
@@ -131,8 +129,8 @@ func (d *Datastore) withRetryTxx(fn txFn) (err error) {
 }
 
 // withTx provides a common way to commit/rollback a txFn
-func (d *Datastore) withTx(fn txFn) (err error) {
-	tx, err := d.writer.Beginx()
+func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
+	tx, err := d.writer.BeginTxx(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, "create transaction")
 	}
@@ -311,12 +309,15 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (d *Datastore) HealthCheck() error {
-	if _, err := d.writer.Exec("select 1"); err != nil {
+	// NOTE: does not receive a context as argument here, because the HealthCheck
+	// interface potentially affects more than the datastore layer, and I'm not
+	// sure we can safely identify and change them all at this moment.
+	if _, err := d.writer.ExecContext(context.Background(), "select 1"); err != nil {
 		return err
 	}
 	if d.readReplicaConfig != nil {
 		var dst int
-		if err := d.reader.Get(&dst, "select 1"); err != nil {
+		if err := sqlx.GetContext(context.Background(), d.reader, &dst, "select 1"); err != nil {
 			return err
 		}
 	}

@@ -106,10 +106,10 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 
 type alwaysLocker struct{}
 
-func (m *alwaysLocker) Lock(name string, owner string, expiration time.Duration) (bool, error) {
+func (m *alwaysLocker) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 	return true, nil
 }
-func (m *alwaysLocker) Unlock(name string, owner string) error {
+func (m *alwaysLocker) Unlock(ctx context.Context, name string, owner string) error {
 	return nil
 }
 

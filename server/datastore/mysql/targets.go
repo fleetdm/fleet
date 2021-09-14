@@ -53,7 +53,7 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 	}
 
 	res := fleet.TargetMetrics{}
-	err = d.reader.Get(&res, query, args...)
+	err = sqlx.GetContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
 		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
 	}
@@ -99,7 +99,7 @@ func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilte
 	}
 
 	var res []uint
-	err = d.reader.Select(&res, query, args...)
+	err = sqlx.SelectContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "sqlx.Get HostIDsInTargets")
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +16,7 @@ func (d *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityT
 	if err != nil {
 		return errors.Wrap(err, "marshaling activity details")
 	}
-	_, err = d.writer.Exec(
+	_, err = d.writer.ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		user.ID,
 		user.Name,
@@ -36,7 +37,7 @@ func (d *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 			  WHERE true`
 	query = appendListOptionsToSQL(query, opt)
 
-	err := d.reader.Select(&activities, query)
+	err := sqlx.SelectContext(ctx, d.reader, &activities, query)
 	if err == sql.ErrNoRows {
 		return nil, notFound("Activity")
 	} else if err != nil {

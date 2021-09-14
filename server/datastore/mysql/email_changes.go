@@ -16,7 +16,7 @@ func (ds *Datastore) PendingEmailChange(ctx context.Context, uid uint, newEmail,
       new_email
     ) VALUES( ?, ?, ? )
   `
-	_, err := ds.writer.Exec(sqlStatement, uid, token, newEmail)
+	_, err := ds.writer.ExecContext(ctx, sqlStatement, uid, token, newEmail)
 	if err != nil {
 		return errors.Wrap(err, "inserting email change record")
 	}
@@ -34,8 +34,8 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 		NewEmail string `db:"new_email"`
 	}{}
 
-	err = ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		err := tx.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, tx, &changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return notFound("email change with token")
@@ -48,7 +48,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
       			email = ?
     		WHERE id = ?
   `
-		results, err := tx.Exec(query, changeRecord.NewEmail, changeRecord.UserID)
+		results, err := tx.ExecContext(ctx, query, changeRecord.NewEmail, changeRecord.UserID)
 		if err != nil {
 			return errors.Wrap(err, "updating user's email")
 		}
@@ -61,7 +61,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 			return notFound("User").WithID(changeRecord.UserID)
 		}
 
-		_, err = tx.Exec("DELETE FROM email_changes WHERE id = ?", changeRecord.ID)
+		_, err = tx.ExecContext(ctx, "DELETE FROM email_changes WHERE id = ?", changeRecord.ID)
 		if err != nil {
 			return errors.Wrap(err, "deleting email change")
 		}

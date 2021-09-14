@@ -198,8 +198,8 @@ func TestWithRetryTxxSuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	require.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -214,8 +214,8 @@ func TestWithRetryTxxRollbackSuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
 	mock.ExpectRollback()
 
-	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -230,8 +230,8 @@ func TestWithRetryTxxRollbackError(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
 	mock.ExpectRollback().WillReturnError(errors.New("rollback failed"))
 
-	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -250,8 +250,8 @@ func TestWithRetryTxxRetrySuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -270,8 +270,8 @@ func TestWithRetryTxxCommitRetrySuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -287,8 +287,8 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 	// Return a retryable error
 	mock.ExpectCommit().WillReturnError(errors.New("fail"))
 
-	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -532,8 +532,8 @@ func TestWithRetryTxWithRollback(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
 	mock.ExpectRollback()
 
-	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -549,7 +549,7 @@ func TestWithRetryTxWillRollbackWhenPanic(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
 	mock.ExpectRollback()
 
-	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
 		panic("ROLLBACK")
 	}))
 
@@ -564,8 +564,8 @@ func TestWithTxWithRollback(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
 	mock.ExpectRollback()
 
-	assert.Error(t, ds.withTx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.Error(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -581,7 +581,7 @@ func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
 	mock.ExpectRollback()
 
-	assert.Error(t, ds.withTx(func(tx *sqlx.Tx) error {
+	assert.Error(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
 		panic("ROLLBACK")
 	}))
 

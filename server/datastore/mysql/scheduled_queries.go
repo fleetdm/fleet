@@ -35,7 +35,7 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 	query = appendListOptionsToSQL(query, opts)
 	results := []*fleet.ScheduledQuery{}
 
-	if err := d.reader.Select(&results, query, id); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &results, query, id); err != nil {
 		return nil, errors.Wrap(err, "listing scheduled queries")
 	}
 
@@ -43,10 +43,10 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 }
 
 func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	return insertScheduledQueryDB(d.writer, sq)
+	return insertScheduledQueryDB(ctx, d.writer, sq)
 }
 
-func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// This query looks up the query name using the ID (for backwards
 	// compatibility with the UI)
 	query := `
@@ -67,7 +67,7 @@ func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.Schedu
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := q.Exec(query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := q.ExecContext(ctx, query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert scheduled query")
 	}
@@ -81,7 +81,7 @@ func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.Schedu
 		Name  string
 	}{}
 
-	err = sqlx.Select(q, &metadata, query, sq.QueryID)
+	err = sqlx.SelectContext(ctx, q, &metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("Query").WithID(sq.QueryID)
 	} else if err != nil {
@@ -99,16 +99,16 @@ func insertScheduledQueryDB(q sqlx.Ext, sq *fleet.ScheduledQuery) (*fleet.Schedu
 }
 
 func (d *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	return saveScheduledQueryDB(d.writer, sq)
+	return saveScheduledQueryDB(ctx, d.writer, sq)
 }
 
-func saveScheduledQueryDB(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
 			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?
 			WHERE id = ?
 	`
-	result, err := exec.Exec(query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
+	result, err := exec.ExecContext(ctx, query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving a scheduled query")
 	}
@@ -123,7 +123,7 @@ func saveScheduledQueryDB(exec sqlx.Execer, sq *fleet.ScheduledQuery) (*fleet.Sc
 }
 
 func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	return d.deleteEntity("scheduled_queries", id)
+	return d.deleteEntity(ctx, "scheduled_queries", id)
 }
 
 func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
@@ -151,7 +151,7 @@ func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 		WHERE sq.id = ?
 	`
 	sq := &fleet.ScheduledQuery{}
-	if err := d.reader.Get(sq, query, id); err != nil {
+	if err := sqlx.GetContext(ctx, d.reader, sq, query, id); err != nil {
 		return nil, errors.Wrap(err, "select scheduled query")
 	}
 
@@ -159,11 +159,11 @@ func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 }
 
 func (d *Datastore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
-	_, err := d.writer.Exec(`DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
+	_, err := d.writer.ExecContext(ctx, `DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by scheduled_query")
 	}
-	_, err = d.writer.Exec(`DELETE FROM scheduled_query_stats where host_id not in (select id from hosts where id=host_id)`)
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM scheduled_query_stats where host_id not in (select id from hosts where id=host_id)`)
 	if err != nil {
 		return errors.Wrap(err, "cleaning orphan scheduled_query_stats by host")
 	}

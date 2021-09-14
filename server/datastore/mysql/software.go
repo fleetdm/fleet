@@ -57,12 +57,12 @@ func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) erro
 		return nil
 	}
 
-	return d.withRetryTxx(func(tx *sqlx.Tx) error {
-		return saveHostSoftwareDB(tx, host)
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return saveHostSoftwareDB(ctx, tx, host)
 	})
 }
 
-func saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
+func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
 	}
@@ -70,14 +70,14 @@ func saveHostSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
 	if len(host.HostSoftware.Software) == 0 {
 		// Clear join table for this host
 		sql := "DELETE FROM host_software WHERE host_id = ?"
-		if _, err := tx.Exec(sql, host.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, sql, host.ID); err != nil {
 			return errors.Wrap(err, "clear join table entries")
 		}
 
 		return nil
 	}
 
-	if err := applyChangesForNewSoftwareDB(tx, host); err != nil {
+	if err := applyChangesForNewSoftwareDB(ctx, tx, host); err != nil {
 		return err
 	}
 
@@ -103,8 +103,8 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 	return true
 }
 
-func applyChangesForNewSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(tx, &host.ID, nil, fleet.ListOptions{})
+func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, nil, fleet.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -116,11 +116,11 @@ func applyChangesForNewSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
 	current := softwareSliceToIdMap(storedCurrentSoftware)
 	incoming := softwareSliceToSet(host.Software)
 
-	if err = deleteUninstalledHostSoftwareDB(tx, host.ID, current, incoming); err != nil {
+	if err = deleteUninstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
 		return err
 	}
 
-	if err = insertNewInstalledHostSoftwareDB(tx, host.ID, current, incoming); err != nil {
+	if err = insertNewInstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
 		return err
 	}
 
@@ -128,7 +128,8 @@ func applyChangesForNewSoftwareDB(tx *sqlx.Tx, host *fleet.Host) error {
 }
 
 func deleteUninstalledHostSoftwareDB(
-	tx *sqlx.Tx,
+	ctx context.Context,
+	tx sqlx.ExecerContext,
 	hostID uint,
 	currentIdmap map[string]uint,
 	incomingBitmap map[string]bool,
@@ -149,16 +150,16 @@ func deleteUninstalledHostSoftwareDB(
 		`DELETE FROM host_software WHERE host_id = ? AND software_id IN (%s)`,
 		strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
 	)
-	if _, err := tx.Exec(sql, deletesHostSoftware...); err != nil {
+	if _, err := tx.ExecContext(ctx, sql, deletesHostSoftware...); err != nil {
 		return errors.Wrap(err, "delete host software")
 	}
 
 	return nil
 }
 
-func getOrGenerateSoftwareIdDB(tx *sqlx.Tx, s fleet.Software) (uint, error) {
+func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
 	var existingId []int64
-	if err := tx.Select(
+	if err := sqlx.SelectContext(ctx, tx,
 		&existingId,
 		`SELECT id FROM software WHERE name = ? and version = ? and source = ?`,
 		s.Name, s.Version, s.Source,
@@ -169,7 +170,7 @@ func getOrGenerateSoftwareIdDB(tx *sqlx.Tx, s fleet.Software) (uint, error) {
 		return uint(existingId[0]), nil
 	}
 
-	result, err := tx.Exec(
+	result, err := tx.ExecContext(ctx,
 		`INSERT IGNORE INTO software (name, version, source) VALUES (?, ?, ?)`,
 		s.Name, s.Version, s.Source,
 	)
@@ -184,7 +185,8 @@ func getOrGenerateSoftwareIdDB(tx *sqlx.Tx, s fleet.Software) (uint, error) {
 }
 
 func insertNewInstalledHostSoftwareDB(
-	tx *sqlx.Tx,
+	ctx context.Context,
+	tx sqlx.ExtContext,
 	hostID uint,
 	currentIdmap map[string]uint,
 	incomingBitmap map[string]bool,
@@ -192,7 +194,7 @@ func insertNewInstalledHostSoftwareDB(
 	var insertsHostSoftware []interface{}
 	for s := range incomingBitmap {
 		if _, ok := currentIdmap[s]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(tx, uniqueStringToSoftware(s))
+			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
@@ -202,7 +204,7 @@ func insertNewInstalledHostSoftwareDB(
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
-		if _, err := tx.Exec(sql, insertsHostSoftware...); err != nil {
+		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
 			return errors.Wrap(err, "insert host software")
 		}
 	}
@@ -210,7 +212,7 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, teamID *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
 	hostWhere := `hs.host_id=?`
 	if hostID == nil {
 		hostWhere = "TRUE"
@@ -238,7 +240,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 	if teamID != nil {
 		vars = append(vars, teamID)
 	}
-	if err := sqlx.Select(q, &result, sql, vars...); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &result, sql, vars...); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
@@ -252,7 +254,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 		WHERE %s AND %s
 	`, hostWhere, teamWhere)
 
-	rows, err := q.Queryx(sql, vars...)
+	rows, err := q.QueryxContext(ctx, sql, vars...)
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -285,7 +287,7 @@ func listSoftwareDB(q sqlx.Queryer, hostID *uint, teamID *uint, opt fleet.ListOp
 
 func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(d.reader, &host.ID, nil, fleet.ListOptions{})
+	software, err := listSoftwareDB(ctx, d.reader, &host.ID, nil, fleet.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -322,7 +324,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.So
 	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := d.reader.Queryx(sql) //nolint:sqlclosecheck
+	rows, err := d.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -331,7 +333,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.So
 
 func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	if _, err := d.writer.Exec(sql, software.ID, cpe); err != nil {
+	if _, err := d.writer.ExecContext(ctx, sql, software.ID, cpe); err != nil {
 		return errors.Wrap(err, "insert software cpe")
 	}
 	return nil
@@ -340,7 +342,7 @@ func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	sql := `SELECT cpe FROM software_cpe`
 	var cpes []string
-	err := d.reader.Select(&cpes, sql)
+	err := sqlx.SelectContext(ctx, d.reader, &cpes, sql)
 	if err != nil {
 		return nil, errors.Wrap(err, "loads cpes")
 	}
@@ -354,7 +356,7 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	for _, cpe := range cpes {
 		args = append(args, cpe, cve)
 	}
-	_, err := d.writer.Exec(sql, args...)
+	_, err := d.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "insert software cve")
 	}
@@ -362,5 +364,5 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 }
 
 func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(d.reader, nil, teamId, opt)
+	return listSoftwareDB(ctx, d.reader, nil, teamId, opt)
 }
