@@ -133,7 +133,7 @@ export default (WrappedComponent, { fields, validate = defaultValidate }) => {
     getValue = (fieldName) => {
       return this.state.formData[fieldName];
     };
-    
+
     resetField = (fieldName) => {
       const { errors, formData } = this.state;
 

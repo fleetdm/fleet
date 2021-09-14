@@ -171,6 +171,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -384,6 +385,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
+	man.addConfigBool("vulnerabilities.disable_data_sync", false,
+		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -514,6 +517,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
 			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
 		},
 	}
 }

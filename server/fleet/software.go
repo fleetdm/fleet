@@ -21,6 +21,10 @@ type Software struct {
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
 }
 
+func (Software) AuthzType() string {
+	return "software"
+}
+
 type VulnerabilitiesSlice []SoftwareCVE
 
 // HostSoftware is the set of software installed on a specific host

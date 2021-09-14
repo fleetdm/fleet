@@ -393,4 +393,9 @@ type Service interface {
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software
+
+	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
 }

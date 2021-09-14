@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -66,8 +67,16 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 	}, nil
 }
 
-func syncCPEDatabase(client *http.Client, dbPath string, cpeDatabaseURLOverride string) error {
-	url := cpeDatabaseURLOverride
+func SyncCPEDatabase(
+	client *http.Client,
+	dbPath string,
+	config config.FleetConfig,
+) error {
+	if config.Vulnerabilities.DisableDataSync {
+		return nil
+	}
+
+	url := config.Vulnerabilities.CPEDatabaseURL
 	if url == "" {
 		nvdRelease, err := GetLatestNVDRelease(client)
 		if err != nil {
@@ -212,12 +221,12 @@ func TranslateSoftwareToCPE(
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
-	cpeDatabaseURLOverride string,
+	config config.FleetConfig,
 ) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
 	client := &http.Client{}
-	if err := syncCPEDatabase(client, dbPath, cpeDatabaseURLOverride); err != nil {
+	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
 		return errors.Wrap(err, "sync cpe db")
 	}
 

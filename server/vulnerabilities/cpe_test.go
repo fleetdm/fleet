@@ -15,6 +15,7 @@ import (
 
 	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
@@ -70,7 +71,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = syncCPEDatabase(client, dbPath, "")
+	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -94,7 +95,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = syncCPEDatabase(client, dbPath, "")
+	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -115,7 +116,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = syncCPEDatabase(client, dbPath, "")
+	err = SyncCPEDatabase(client, dbPath, config.FleetConfig{})
 	require.NoError(t, err)
 
 	stat, err = os.Stat(dbPath)
@@ -184,7 +185,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger(), "")
+	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger(), config.FleetConfig{})
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
@@ -208,10 +209,28 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
-	err := syncCPEDatabase(client, dbPath, ts.URL)
+	err := SyncCPEDatabase(
+		client, dbPath, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CPEDatabaseURL: ts.URL}})
 	require.NoError(t, err)
 
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
+}
+
+func TestSyncsCPESkipsIfDisableSync(t *testing.T) {
+	client := &http.Client{}
+	tempDir := t.TempDir()
+	dbPath := path.Join(tempDir, "cpe.sqlite")
+
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DisableDataSync: true,
+		},
+	}
+	err := SyncCPEDatabase(client, dbPath, fleetConfig)
+	require.NoError(t, err)
+
+	_, err = os.Stat(dbPath)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }

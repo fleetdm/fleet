@@ -319,8 +319,6 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	//_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
-	//require.NoError(t, err)
 	soft := fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
@@ -363,4 +361,105 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 			assert.Len(t, software.Vulnerabilities, 0)
 		}
 	}
+}
+
+func TestListSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	soft1 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host1.HostSoftware = soft1
+	soft2 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		},
+	}
+	host2.HostSoftware = soft2
+
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+
+	sort.Slice(host1.Software, func(i, j int) bool { return host1.Software[i].Name < host1.Software[j].Name })
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-333-444-555", []string{"somecpe"}))
+
+	foo001 := fleet.Software{
+		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
+		Vulnerabilities: fleet.VulnerabilitiesSlice{
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+		},
+	}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+
+	t.Run("lists everything", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		require.Len(t, software, 4)
+		expected := []fleet.Software{foo001, foo002, foo003, bar003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("limits the results", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo001}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("paginates", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters by team", func(t *testing.T) {
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		require.Len(t, software, 2)
+		expected := []fleet.Software{foo001, foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters by team and paginates", func(t *testing.T) {
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
 }

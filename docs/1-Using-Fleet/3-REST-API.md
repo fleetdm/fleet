@@ -16,6 +16,7 @@
 - [File carving](#file-carving)
 - [Teams](#teams)
 - [Translator](#translator)
+- [Software](#software)
 
 ## Overview
 
@@ -6075,5 +6076,74 @@ _Available in Fleet Premium_
       }
     },
   ]
+}
+```
+
+## Software
+
+### List all software
+
+`GET /api/v1/fleet/software`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+
+#### Example
+
+`GET /api/v1/fleet/software`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    “software”: [
+      {
+        "hosts_count": 124,
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 112,
+        "id": 2,
+        "name": "Figma.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 78,
+        "id": 3,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 78,
+        "id": 4,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+    ]
+  }
 }
 ```
