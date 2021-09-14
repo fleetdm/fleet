@@ -19,14 +19,12 @@ describe(
 
     it("Can perform the appropriate basic global observer actions", () => {
       cy.login("oliver@organization.com", "user123#");
-      cy.visit("/");
-
-      // Ensure page is loaded
-      cy.contains("All hosts");
-
       // Host manage page: Can see team column
       cy.visit("/hosts/manage");
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+      // Ensure page is loaded
+      cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.contains("All hosts");
 
       cy.get("thead").within(() => {
         cy.findByText(/team/i).should("exist");
