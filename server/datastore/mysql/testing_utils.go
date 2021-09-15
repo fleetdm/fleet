@@ -216,6 +216,7 @@ func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		t.Skip("MySQL tests are disabled")
 	}
 
+	fmt.Println(">>>>> created mysql db")
 	t.Parallel()
 
 	if opts == nil {
