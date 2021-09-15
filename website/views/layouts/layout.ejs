@@ -15,7 +15,11 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:title" content="<%= typeof title !== 'undefined' ? title : 'Open source device management' %>" />
-    <meta name="twitter:description" content="<%= description !== 'undefined' ? description : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <%if(typeof description !== 'undefined') { %>
+      <meta name="twitter:description" content="<%= description !== 'undefined' ? description : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <% } else { %>
+      <meta name="twitter:description" content="Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live." />
+    <% } %>
     <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
