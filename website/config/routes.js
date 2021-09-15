@@ -54,7 +54,7 @@ module.exports.routes = {
     action: 'view-query-library',
     locals:{
       title: 'Queries | Fleet for osquery',
-      description: 'A curated collection of commonly used queries for osquery.'
+      description: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
   },
 
@@ -62,7 +62,7 @@ module.exports.routes = {
     action: 'view-query-detail',
     locals:{
       title: 'Query details | Fleet for osquery',
-      description: '',
+      description: 'View more information about a query in Fleet\'s standard query library',
     }
   },
 
