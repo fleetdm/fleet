@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -98,7 +99,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	t := s.T()
 
-	_, err := s.ds.NewHost(&fleet.Host{
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -125,7 +126,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
 	t := s.T()
 
-	_, err := s.ds.NewHost(&fleet.Host{
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -153,7 +154,7 @@ func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	t := s.T()
-	_, err := s.ds.NewHost(&fleet.Host{
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -172,12 +173,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	req, _ := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/enroll", requestBody)
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	require.NoError(t, resp.Body.Close())
+	s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusUnauthorized)
 
 	parts := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
 	require.Len(t, parts, 1)

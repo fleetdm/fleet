@@ -50,8 +50,6 @@ func (ts *withServer) SetupSuite(dbName string) {
 
 func (ts *withServer) TearDownSuite() {
 	ts.withDS.TearDownSuite()
-
-	ts.server.Close()
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int) *http.Response {
@@ -62,25 +60,40 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 
 	resp := ts.DoRaw(verb, path, j, expectedStatusCode)
 
+	t.Cleanup(func() {
+		resp.Body.Close()
+	})
 	return resp
 }
 
-func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
+func (ts *withServer) DoRawWithHeaders(verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string) *http.Response {
 	t := ts.s.T()
 
 	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
 	req, _ := http.NewRequest(verb, ts.server.URL+path, requestBody)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ts.token))
+	for key, val := range headers {
+		req.Header.Add(key, val)
+	}
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, expectedStatusCode, resp.StatusCode)
+
 	return resp
+}
+
+func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
+	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	})
+}
+
+func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
+	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil)
 }
 
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}) {
 	resp := ts.Do(verb, path, params, expectedStatusCode)
-	defer resp.Body.Close()
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {
@@ -120,8 +133,7 @@ func (ts *withServer) applyConfig(spec []byte) {
 	err := yaml.Unmarshal(spec, &appConfigSpec)
 	require.NoError(ts.s.T(), err)
 
-	resp := ts.Do("PATCH", "/api/v1/fleet/config", appConfigSpec, http.StatusOK)
-	resp.Body.Close()
+	ts.Do("PATCH", "/api/v1/fleet/config", appConfigSpec, http.StatusOK)
 }
 
 func (ts *withServer) getConfig() *appConfigResponse {

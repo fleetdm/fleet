@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -42,10 +43,8 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 
-	respFirst := s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusOK)
-	defer respFirst.Body.Close()
+	s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusOK)
 	respSecond := s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusConflict)
-	defer respSecond.Body.Close()
 
 	assertBodyContains(t, respSecond, `Error 1062: Duplicate entry 'email@asd.com'`)
 }
@@ -60,7 +59,6 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	}
 
 	resp := s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	defer resp.Body.Close()
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
 }
 
@@ -74,7 +72,6 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 		GlobalRole: ptr.String("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	defer resp.Body.Close()
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "GlobalRole role can only be admin, observer, or maintainer.")
 }
 
@@ -97,7 +94,6 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/v1/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	defer resp.Body.Close()
 	assertBodyContains(t, resp, `Error 1452: Cannot add or update a child row: a foreign key constraint fails`)
 }
 
@@ -106,15 +102,14 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 
 	admin1 := s.users["admin1@example.com"]
 	admin1.GravatarURL = "http://iii.com"
-	err := s.ds.SaveUser(&admin1)
+	err := s.ds.SaveUser(context.Background(), &admin1)
 	require.NoError(t, err)
 
 	params := fleet.QueryPayload{
 		Name:  ptr.String("user1"),
 		Query: ptr.String("select * from time;"),
 	}
-	resp := s.Do("POST", "/api/v1/fleet/queries", &params, http.StatusOK)
-	defer resp.Body.Close()
+	s.Do("POST", "/api/v1/fleet/queries", &params, http.StatusOK)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &activities)
@@ -165,7 +160,7 @@ func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 func (s *integrationTestSuite) TestUserRolesSpec() {
 	t := s.T()
 
-	_, err := s.ds.NewTeam(&fleet.Team{
+	_, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -180,7 +175,7 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 		GravatarURL: "http://asd.com",
 		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
-	user, err := s.ds.NewUser(u)
+	user, err := s.ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 	assert.Len(t, user.Teams, 0)
 
@@ -198,10 +193,9 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
 	require.NoError(t, err)
 
-	resp := s.Do("POST", "/api/v1/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-	defer resp.Body.Close()
+	s.Do("POST", "/api/v1/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
 
-	user, err = s.ds.UserByEmail(email)
+	user, err = s.ds.UserByEmail(context.Background(), email)
 	require.NoError(t, err)
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
@@ -214,7 +208,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 0)
 
-	qr, err := s.ds.NewQuery(&fleet.Query{
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery1",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -269,7 +263,7 @@ func (s *integrationTestSuite) TestTranslator() {
 func (s *integrationTestSuite) TestVulnerableSoftware() {
 	t := s.T()
 
-	host, err := s.ds.NewHost(&fleet.Host{
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		SeenTime:        time.Now(),
@@ -290,19 +284,18 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, s.ds.SaveHostSoftware(host))
-	require.NoError(t, s.ds.LoadHostSoftware(host))
+	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, s.ds.AddCPEForSoftware(soft1, "somecpe"))
-	require.NoError(t, s.ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	require.NoError(t, s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
 
 	resp := s.Do("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK)
-	defer resp.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 
@@ -331,7 +324,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	t := s.T()
 
 	for i := 0; i < 3; i++ {
-		_, err := s.ds.NewHost(&fleet.Host{
+		_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
@@ -343,7 +336,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 		require.NoError(t, err)
 	}
 
-	qr, err := s.ds.NewQuery(&fleet.Query{
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery3",
 		Description:    "Some description",
 		Query:          "select * from osquery;",
@@ -381,8 +374,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
 
 	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}

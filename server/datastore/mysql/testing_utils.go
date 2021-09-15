@@ -250,5 +250,5 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 	}
 
 	t.Parallel()
-	return initializeDatabase(t, name)
+	return initializeDatabase(t, name, new(DatastoreTestOptions))
 }

@@ -1,10 +1,10 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"context"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -167,6 +167,9 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	limitStore, _ := memstore.New(0)
 	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
 	server := httptest.NewServer(r)
+	t.Cleanup(func() {
+		server.Close()
+	})
 	return users, server
 }
 
@@ -240,11 +243,11 @@ func testStdoutPluginConfig() config.FleetConfig {
 	return c
 }
 
-func assertBodyContains(t *testing.T, resp *http.Response, expectedError string) {
+func assertBodyContains(t *testing.T, resp *http.Response, expected string) {
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	require.Nil(t, err)
 	bodyString := string(bodyBytes)
-	assert.Contains(t, bodyString, expectedError)
+	assert.Contains(t, bodyString, expected)
 }
 
 func getJSON(r *http.Response, target interface{}) error {

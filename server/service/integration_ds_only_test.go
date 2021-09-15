@@ -32,10 +32,10 @@ func (s *integrationDSTestSuite) TestLicenseExpiration() {
 		expiration       time.Time
 		shouldHaveHeader bool
 	}{
-		{"basic expired", fleet.TierBasic, time.Now().Add(-24 * time.Hour), true},
-		{"basic not expired", fleet.TierBasic, time.Now().Add(24 * time.Hour), false},
-		{"core expired", fleet.TierCore, time.Now().Add(-24 * time.Hour), false},
-		{"core not expired", fleet.TierCore, time.Now().Add(24 * time.Hour), false},
+		{"basic expired", fleet.TierPremium, time.Now().Add(-24 * time.Hour), true},
+		{"basic not expired", fleet.TierPremium, time.Now().Add(24 * time.Hour), false},
+		{"core expired", fleet.TierFree, time.Now().Add(-24 * time.Hour), false},
+		{"core not expired", fleet.TierFree, time.Now().Add(24 * time.Hour), false},
 	}
 
 	createTestUsers(s.T(), s.ds)
@@ -45,14 +45,12 @@ func (s *integrationDSTestSuite) TestLicenseExpiration() {
 
 			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
 			_, server := RunServerForTestsWithDS(t, s.ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
-			defer server.Close()
 
 			ts := withServer{server: server}
 			ts.s = &s.Suite
 			ts.token = ts.getTestAdminToken()
 
 			resp := ts.Do("GET", "/api/v1/fleet/config", nil, http.StatusOK)
-			defer resp.Body.Close()
 			if tt.shouldHaveHeader {
 				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
 			} else {

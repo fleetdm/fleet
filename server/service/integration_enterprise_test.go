@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -28,7 +29,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
 	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierBasic}})
+		s.T(), s.ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -44,38 +45,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		Description: "desc team1",
 	}
 
-	resp := s.Do("POST", "/api/v1/fleet/teams", team, http.StatusOK)
-	defer resp.Body.Close()
+	s.Do("POST", "/api/v1/fleet/teams", team, http.StatusOK)
 
 	// updates a team
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
-	respUpdateTeam := s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
-	defer respUpdateTeam.Body.Close()
+	s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	team, err := s.ds.TeamByName(teamName)
+	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 
 	assert.Len(t, team.Secrets, 0)
 	require.JSONEq(t, string(agentOpts), string(*team.AgentOptions))
 
 	// creates a team with default agent options
-	user, err := s.ds.UserByEmail("admin1@example.com")
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 
-	teams, err := s.ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err := s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.True(t, len(teams) >= 1)
 
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2"}}}
-	respUpdateTeam2 := s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
-	defer respUpdateTeam2.Body.Close()
+	s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	teams, err = s.ds.ListTeams(fleet.TeamFilter{User: user}, fleet.ListOptions{})
+	teams, err = s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.True(t, len(teams) >= 2)
 
-	team, err = s.ds.TeamByName("team2")
+	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
@@ -85,10 +83,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	respUpdateSecrets := s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
-	defer respUpdateSecrets.Body.Close()
+	s.Do("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	team, err = s.ds.TeamByName("team2")
+	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
 	require.Len(t, team.Secrets, 1)
@@ -98,7 +95,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	t := s.T()
 
-	team1, err := s.ds.NewTeam(&fleet.Team{
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
 		Name:        "team1",
 		Description: "desc team1",
@@ -109,7 +106,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 0)
 
-	qr, err := s.ds.NewQuery(&fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
 
 	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
