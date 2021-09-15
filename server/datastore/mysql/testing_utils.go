@@ -233,7 +233,9 @@ func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
-	return initializeDatabase(t, cleanName, opts)
+	ds := initializeDatabase(t, cleanName, opts)
+	t.Cleanup(func() { ds.Close() })
+	return ds
 }
 
 func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
@@ -250,5 +252,28 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 	}
 
 	t.Parallel()
-	return initializeDatabase(t, name, new(DatastoreTestOptions))
+	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
+	t.Cleanup(func() { ds.Close() })
+	return ds
+}
+
+// TruncateTables truncates the specified table, in order, using ds.writer.
+// Note that the order is typically not important because FK checks are
+// disabled while truncating.
+func TruncateTables(t *testing.T, ds *Datastore, tables ...string) {
+	ctx := context.Background()
+	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
+			return err
+		}
+		for _, tbl := range tables {
+			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
+			return err
+		}
+		return nil
+	}))
 }
