@@ -266,6 +266,16 @@ allow {
   subject.global_role == maintainer
   action = run
 }
+allow {
+  object.type == "query"
+  subject.global_role == admin
+  action = run_new
+}
+allow {
+  object.type == "query"
+  subject.global_role == maintainer
+  action = run_new
+}
 # Team maintainer running a non-observers_can_run query must have the targets
 # filtered to only teams that they maintain
 allow {
@@ -280,6 +290,14 @@ allow {
   object.type == "query"
   # If role is maintainer on any team
   team_role(subject, subject.teams[_].id) == maintainer
+  action == run_new
+}
+
+# Team admin can run a new query
+allow {
+  object.type == "query"
+  # If role is maintainer on any team
+  team_role(subject, subject.teams[_].id) == admin
   action == run_new
 }
 
