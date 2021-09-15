@@ -13,6 +13,7 @@ import {
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
+import { IQueryStats } from "interfaces/query_stats";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
@@ -590,6 +591,28 @@ export const humanQueryLastRun = (lastRun: string): string => {
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
   return moment(moment()).isAfter(expiration);
+};
+
+// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
+export const performanceIndicator = (scheduledQuery: any): string => {
+  if (scheduledQuery.executions === 0) {
+    return "Undetermined";
+  }
+  if (scheduledQuery.denylisted === true) {
+    return "Denylisted";
+  }
+
+  const indicator =
+    (scheduledQuery.user_time + scheduledQuery.system_time) /
+    scheduledQuery.executions;
+
+  if (indicator < 2000) {
+    return "Minimal";
+  }
+  if (indicator >= 2000 && indicator <= 4000) {
+    return "Considerable";
+  }
+  return "Excessive";
 };
 
 export const secondsToHms = (d: number): string => {

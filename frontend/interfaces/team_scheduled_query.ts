@@ -15,6 +15,12 @@ export default PropTypes.shape({
   shard: PropTypes.number,
   platform: PropTypes.string,
   version: PropTypes.string,
+  denylist: PropTypes.bool,
+  scheduled_query_stats: PropTypes.shape({
+    total_user_time: PropTypes.number,
+    total_system_time: PropTypes.number,
+    executions: PropTypes.number,
+  }),
 });
 
 export interface ITeamScheduledQuery {
@@ -32,4 +38,10 @@ export interface ITeamScheduledQuery {
   platform?: string;
   version?: string;
   shard?: number;
+  denylist?: boolean;
+  scheduled_query_stats: {
+    total_user_time: number;
+    total_system_time: number;
+    executions: number;
+  };
 }

@@ -3,7 +3,11 @@ import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IQueryStats } from "interfaces/query_stats";
-import { humanQueryLastRun, secondsToHms } from "fleet/helpers";
+import {
+  humanQueryLastRun,
+  performanceIndicator,
+  secondsToHms,
+} from "fleet/helpers";
 import IconToolTip from "components/IconToolTip";
 
 interface IHeaderProps {
@@ -36,27 +40,6 @@ interface IPackTable extends IQueryStats {
   last_run: string;
   performance: (string | number)[];
 }
-
-const performanceIndicator = (scheduledQuery: IQueryStats): string => {
-  if (scheduledQuery.executions === 0) {
-    return "Undetermined";
-  }
-  if (scheduledQuery.denylisted === true) {
-    return "Denylisted";
-  }
-
-  const indicator =
-    (scheduledQuery.user_time + scheduledQuery.system_time) /
-    scheduledQuery.executions;
-
-  if (indicator < 2000) {
-    return "Minimal";
-  }
-  if (indicator >= 2000 && indicator <= 4000) {
-    return "Considerable";
-  }
-  return "Excessive";
-};
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
