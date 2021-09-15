@@ -446,13 +446,13 @@ spec:
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident response
   contributors: alphabrevity
-  ---
+---
 apiVersion: v1
 kind: query
 spec:
   name: Get user files matching a specific hash
   platforms: macOS, Linux
-  Description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
   purpose: Informational
   contributors: alphabrevity
@@ -466,13 +466,13 @@ spec:
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   contributors: alphabrevity
-—--
+---
 apiVersion: v1
 kind: query
 spec:
   name: Get all listening ports, by process
   platforms: Linux, macOS, Windows
-  Description: List ports that are listening on all interfaces, along with the process to which they are attached.
+  description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
   purpose: Informational 
   contributors: alphabrevity
@@ -482,7 +482,7 @@ kind: query
 spec:
   name: Get whether TeamViewer is installed/running
   platforms: Windows
-  description: Description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
+  description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
   purpose: Informational
   contributors: alphabrevity
