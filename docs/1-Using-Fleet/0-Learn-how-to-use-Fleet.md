@@ -1,6 +1,6 @@
 # Learn how to use Fleet
 
-> This tutorial assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](../../../README.md#try-fleet) guide for instructions on how to start a preview environment of Fleet.
+> This tutorial assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
 
 In this tutorial, we'll cover the following concepts:
 
@@ -101,7 +101,7 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 
 <img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Clone Orbit repository"/>
 
-3. With [fleetctl preview](http://www.fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
+3. With [fleetctl preview](http://fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
 
 ``` 
 # From within the top-level directory of your cloned Orbit repository…
