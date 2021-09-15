@@ -261,14 +261,27 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 // Note that the order is typically not important because FK checks are
 // disabled while truncating.
 func TruncateTables(t *testing.T, ds *Datastore, tables ...string) {
+	// those tables are seeded with the schema.sql and as such must not
+	// be truncated - a more precise approach must be used for those, e.g.
+	// delete where id > max before test, or something like that.
+	nonEmptyTables := map[string]bool{
+		"app_config_json":         true,
+		"app_configs":             true,
+		"migration_status_tables": true,
+		"osquery_options":         true,
+	}
+
 	ctx := context.Background()
 	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
 			return err
 		}
 		for _, tbl := range tables {
+			if nonEmptyTables[tbl] {
+				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
+			}
 			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
-				t.Fatal(err)
+				return err
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
