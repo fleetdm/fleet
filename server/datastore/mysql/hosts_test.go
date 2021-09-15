@@ -46,10 +46,57 @@ var enrollTests = []struct {
 	},
 }
 
-func TestSaveHosts(t *testing.T) {
+func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Save", testHostsSave},
+		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
+		{"SavePackStats", testHostsSavePackStats},
+		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
+		{"IgnoresTeamPackStats", testHostsIgnoresTeamPackStats},
+		{"Delete", testHostsDelete},
+		{"ListFilterAdditional", testHostsListFilterAdditional},
+		{"ListStatus", testHostsListStatus},
+		{"ListQuery", testHostsListQuery},
+		{"Enroll", testHostsEnroll},
+		{"Authenticate", testHostsAuthenticate},
+		{"AuthenticateCaseSensitive", testHostsAuthenticateCaseSensitive},
+		{"Search", testHostsSearch},
+		{"SearchLimit", testHostsSearchLimit},
+		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"MarkSeen", testHostsMarkSeen},
+		{"MarkSeenMany", testHostsMarkSeenMany},
+		{"CleanupIncoming", testHostsCleanupIncoming},
+		{"IDsByName", testHostsIDsByName},
+		{"Additional", testHostsAdditional},
+		{"ByIdentifier", testHostsByIdentifier},
+		{"AddToTeam", testHostsAddToTeam},
+		{"SaveUsers", testHostsSaveUsers},
+		{"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
+		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
+		{"ListByPolicy", testHostsListByPolicy},
+		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
+		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds,
+				"hosts", "scheduled_query_stats", "software",
+				"host_software", "host_additional", "host_users",
+				"packs", "pack_targets", "scheduled_queries", "queries",
+				"teams", "enroll_secrets", "labels", "label_membership",
+				"policies", "policy_membership_history")
+
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testHostsSave(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -100,10 +147,7 @@ func TestSaveHosts(t *testing.T) {
 	assert.Nil(t, host)
 }
 
-func TestDeleteHostWithSoftware(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -136,10 +180,7 @@ func TestDeleteHostWithSoftware(t *testing.T) {
 	assert.Nil(t, host)
 }
 
-func TestSaveHostPackStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -251,10 +292,7 @@ func TestSaveHostPackStats(t *testing.T) {
 	require.Len(t, host.PackStats, 2)
 }
 
-func TestSaveHostPackStatsOverwrites(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -397,10 +435,7 @@ func TestSaveHostPackStatsOverwrites(t *testing.T) {
 	assert.Equal(t, execTime2, gotHost.PackStats[0].QueryStats[0].LastExecuted)
 }
 
-func TestIgnoresTeamPackStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsIgnoresTeamPackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -479,10 +514,7 @@ func TestIgnoresTeamPackStats(t *testing.T) {
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
 }
 
-func TestDeleteHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsDelete(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -501,10 +533,7 @@ func TestDeleteHost(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestListHostsFilterAdditional(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -541,10 +570,7 @@ func TestListHostsFilterAdditional(t *testing.T) {
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
-func TestListHostsStatus(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListStatus(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -580,10 +606,7 @@ func TestListHostsStatus(t *testing.T) {
 	assert.Equal(t, 10, len(hosts))
 }
 
-func TestListHostsQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListQuery(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -670,10 +693,7 @@ func TestListHostsQuery(t *testing.T) {
 	assert.Equal(t, 1, len(gotHosts))
 }
 
-func TestEnrollHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsEnroll(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -710,10 +730,7 @@ func TestEnrollHost(t *testing.T) {
 	}
 }
 
-func TestAuthenticateHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -731,10 +748,7 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAuthenticateHostCaseSensitive(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -745,10 +759,7 @@ func TestAuthenticateHostCaseSensitive(t *testing.T) {
 	}
 }
 
-func TestSearchHosts(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSearch(t *testing.T, ds *Datastore) {
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
@@ -837,10 +848,7 @@ func TestSearchHosts(t *testing.T) {
 	assert.Equal(t, 1, len(hits))
 }
 
-func TestSearchHostsLimit(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
@@ -861,10 +869,7 @@ func TestSearchHostsLimit(t *testing.T) {
 	assert.Len(t, hosts, 10)
 }
 
-func TestGenerateHostStatusStatistics(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
@@ -943,10 +948,7 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 	assert.Equal(t, uint(4), new)
 }
 
-func TestMarkHostSeen(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
@@ -981,10 +983,7 @@ func TestMarkHostSeen(t *testing.T) {
 	}
 }
 
-func TestMarkHostsSeen(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
@@ -1042,13 +1041,9 @@ func TestMarkHostsSeen(t *testing.T) {
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
 	}
-
 }
 
-func TestCleanupIncomingHosts(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1094,10 +1089,7 @@ func TestCleanupIncomingHosts(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestHostIDsByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1118,10 +1110,7 @@ func TestHostIDsByName(t *testing.T) {
 	assert.Equal(t, hosts, []uint{2, 3, 6})
 }
 
-func TestHostAdditional(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAdditional(t *testing.T, ds *Datastore) {
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1192,10 +1181,7 @@ func TestHostAdditional(t *testing.T) {
 	assert.Equal(t, &additional, h.Additional)
 }
 
-func TestHostByIdentifier(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1233,10 +1219,7 @@ func TestHostByIdentifier(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAddHostsToTeam(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -1283,10 +1266,7 @@ func TestAddHostsToTeam(t *testing.T) {
 	}
 }
 
-func TestSaveHostUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1355,10 +1335,7 @@ func TestSaveHostUsers(t *testing.T) {
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 }
 
-func TestSaveUsersWithoutUid(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1429,10 +1406,7 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	require.NotNil(t, host)
 }
 
-func TestTotalAndUnseenHostsSince(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	addHostSeenLast(t, ds, 1, 0)
 
 	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
@@ -1449,10 +1423,7 @@ func TestTotalAndUnseenHostsSince(t *testing.T) {
 	assert.Equal(t, 2, unseen)
 }
 
-func TestListHostsByPolicy(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1507,10 +1478,7 @@ func TestListHostsByPolicy(t *testing.T) {
 	require.Len(t, hosts, 8)
 }
 
-func TestSaveTonsOfUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1673,10 +1641,7 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	t.Log("Count2", atomic.LoadInt32(&count2))
 }
 
-func TestSaveHostPackStatsConcurrent(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

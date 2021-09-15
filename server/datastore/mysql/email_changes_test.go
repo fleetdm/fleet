@@ -11,10 +11,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChangeEmail(t *testing.T) {
+func TestEmailChanges(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Confirm", testEmailChangesConfirm},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds, "users", "email_changes")
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testEmailChangesConfirm(t *testing.T, ds *Datastore) {
 	user := &fleet.User{
 		Password:   []byte("foobar"),
 		Email:      "bob@bob.com",
@@ -45,5 +59,4 @@ func TestChangeEmail(t *testing.T) {
 	require.Nil(t, err)
 	_, err = ds.ConfirmPendingEmailChange(context.Background(), otheruser.ID, "uniquetoken")
 	assert.NotNil(t, err)
-
 }
