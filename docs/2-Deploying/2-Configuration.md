@@ -289,7 +289,7 @@ Maximum idle connections to database. This value should be equal to or less than
   	max_idle_conns: 50
   ```
 
-###### conn_max_lifetime
+###### mysql_conn_max_lifetime
 
 Maximum amount of time, in seconds, a connection may be reused.
 
@@ -358,7 +358,7 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
 
 ###### redis_connect_timeout
 
-Timeout for redis connection. 
+Timeout for redis connection.
 
 - Default value: 5s
 - Environment variable: `FLEET_REDIS_CONNECT_TIMEOUT`
@@ -380,6 +380,38 @@ Interval between keep alive probes.
   ```
   redis:
     keep_alive: 30s
+  ```
+
+###### redis_connect_retry_attempts
+
+Maximum number of attempts to retry a failed connection to a redis node. Only
+certain type of errors are retried, such as connection timeouts.
+
+- Default value: 0 (no retry)
+- Environment variable: `FLEET_REDIS_CONNECT_RETRY_ATTEMPTS`
+- Config file format:
+
+  ```
+  redis:
+    connect_retry_attempts: 2
+  ```
+
+###### redis_cluster_follow_redirections
+
+Whether or not to automatically follow redirection errors received from the
+Redis server. Applies only to Redis Cluster setups, ignored in standalone
+Redis. In Redis Cluster, keys can be moved around to different nodes when the
+cluster is unstable and reorganizing the data. With this configuration option
+set to true, those (typically short and transient) redirection errors can be
+handled transparently instead of ending in an error.
+
+- Default value: false
+- Environment variable: `FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS`
+- Config file format:
+
+  ```
+  redis:
+    cluster_follow_redirections: true
   ```
 
 ##### Server
