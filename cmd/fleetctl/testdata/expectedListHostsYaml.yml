@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: host
+spec:
+  build: ""
+  code_name: ""
+  computer_name: test_host
+  config_tls_refresh: 0
+  cpu_brand: ""
+  cpu_logical_cores: 0
+  cpu_physical_cores: 0
+  cpu_subtype: ""
+  cpu_type: ""
+  created_at: "0001-01-01T00:00:00Z"
+  detail_updated_at: "0001-01-01T00:00:00Z"
+  display_text: test_host
+  distributed_interval: 0
+  gigs_disk_space_available: 0
+  hardware_model: ""
+  hardware_serial: ""
+  hardware_vendor: ""
+  hardware_version: ""
+  hostname: test_host
+  id: 0
+  label_updated_at: "0001-01-01T00:00:00Z"
+  last_enrolled_at: "0001-01-01T00:00:00Z"
+  logger_tls_period: 0
+  memory: 0
+  os_version: ""
+  osquery_version: ""
+  pack_stats: null
+  percent_disk_space_available: 0
+  platform: ""
+  platform_like: ""
+  primary_ip: ""
+  primary_mac: ""
+  refetch_requested: false
+  seen_time: "0001-01-01T00:00:00Z"
+  status: mia
+  team_id: null
+  team_name: null
+  updated_at: "0001-01-01T00:00:00Z"
+  uptime: 0
+  uuid: ""
+---
+apiVersion: v1
+kind: host
+spec:
+  build: ""
+  code_name: ""
+  computer_name: test_host2
+  config_tls_refresh: 0
+  cpu_brand: ""
+  cpu_logical_cores: 0
+  cpu_physical_cores: 0
+  cpu_subtype: ""
+  cpu_type: ""
+  created_at: "0001-01-01T00:00:00Z"
+  detail_updated_at: "0001-01-01T00:00:00Z"
+  display_text: test_host2
+  distributed_interval: 0
+  gigs_disk_space_available: 0
+  hardware_model: ""
+  hardware_serial: ""
+  hardware_vendor: ""
+  hardware_version: ""
+  hostname: test_host2
+  id: 0
+  label_updated_at: "0001-01-01T00:00:00Z"
+  last_enrolled_at: "0001-01-01T00:00:00Z"
+  logger_tls_period: 0
+  memory: 0
+  os_version: ""
+  osquery_version: ""
+  pack_stats: null
+  percent_disk_space_available: 0
+  platform: ""
+  platform_like: ""
+  primary_ip: ""
+  primary_mac: ""
+  refetch_requested: false
+  seen_time: "0001-01-01T00:00:00Z"
+  status: mia
+  team_id: null
+  team_name: null
+  updated_at: "0001-01-01T00:00:00Z"
+  uptime: 0
+  uuid: ""

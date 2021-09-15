@@ -132,6 +132,16 @@ func printHost(c *cli.Context, host *service.HostResponse) error {
 	return printSpec(c, spec)
 }
 
+func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
+	spec := specGeneric{
+		Kind:    fleet.HostKind,
+		Version: fleet.ApiVersion,
+		Spec:    host,
+	}
+
+	return printSpec(c, spec)
+}
+
 func printConfig(c *cli.Context, config *fleet.AppConfig) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
@@ -227,6 +237,7 @@ func getCommand() *cli.Command {
 			getCarvesCommand(),
 			getUserRolesCommand(),
 			getTeamsCommand(),
+			getSoftwareCommand(),
 		},
 	}
 }
@@ -368,7 +379,7 @@ func getPacksCommand() *cli.Command {
 					return errors.Wrap(err, "could not list packs")
 				}
 
-				if c.Bool(yamlFlagName) {
+				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, pack := range packs {
 						if err := printPack(c, pack); err != nil {
 							return errors.Wrap(err, "unable to print pack")
@@ -625,12 +636,10 @@ func getHostsCommand() *cli.Command {
 				if err != nil {
 					return errors.Wrap(err, "could not get host")
 				}
-				b, err := yaml.Marshal(host)
+				err = printHostDetail(c, host)
 				if err != nil {
 					return err
 				}
-
-				fmt.Print(string(b))
 			}
 			return nil
 		},
@@ -885,6 +894,82 @@ func getTeamsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"Team Name", "Description", "User count"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getSoftwareCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "software",
+		Aliases: []string{"s"},
+		Usage:   "List software",
+		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "Only list software of hosts that belong to the specified team",
+			},
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			if c.Bool(yamlFlagName) && c.Bool(jsonFlagName) {
+				return errors.New("Can't specify both yaml and json flags.")
+			}
+
+			var teamID *uint
+
+			teamIDFlag := c.Uint(teamFlagName)
+			if teamIDFlag != 0 {
+				teamID = &teamIDFlag
+			}
+
+			software, err := client.ListSoftware(teamID)
+			if err != nil {
+				return errors.Wrap(err, "could not list software")
+			}
+
+			if len(software) == 0 {
+				log(c, "No software found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				spec := specGeneric{
+					Kind:    "software",
+					Version: "1",
+					Spec:    software,
+				}
+				err = printSpec(c, spec)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, s := range software {
+				data = append(data, []string{
+					s.Name,
+					s.Version,
+					s.Source,
+					s.GenerateCPE,
+					fmt.Sprint(len(s.Vulnerabilities)),
+				})
+			}
+			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
 			printTable(c, columns, data)
 
 			return nil

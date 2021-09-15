@@ -30,10 +30,10 @@ describe("Setup", () => {
     cy.contains("button:enabled", /next/i).click();
 
     // Page 3
-    cy.contains("button:enabled", /submit/i).click();
+    cy.contains("button:enabled", /next/i).click();
 
     // Page 4
-    cy.contains("button:enabled", /finish/i).click();
+    cy.contains("button:enabled", /confirm/i).click();
 
     cy.url().should("match", /\/hosts\/manage$/i);
     cy.contains(/all hosts/i);

@@ -16,6 +16,7 @@
 - [File carving](#file-carving)
 - [Teams](#teams)
 - [Translator](#translator)
+- [Software](#software)
 
 ## Overview
 
@@ -110,7 +111,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2020-11-13T22:57:12Z",
@@ -480,7 +481,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
@@ -662,14 +663,12 @@ The endpoint returns the host's installed `software` if the software inventory f
     "percent_disk_space_available": 73,
     "users": [
       {
-        "id": 98,
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root"
       },
       {
-        "id": 99,
         "uid": 1,
         "username": "bin",
         "type": "",
@@ -2580,7 +2579,7 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 | Name     | Type    | In   | Description                                                                                                                                                |
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL if using a custom query.                                                                                                                           |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                |
+| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                |
 | selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
 
 One of `query` and `query_id` must be specified.
@@ -2803,7 +2802,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough with example data
 
-##### `webSocket.onopen()`
+##### webSocket.onopen()
 
 ###### Response data
 
@@ -2811,7 +2810,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `webSocket.send()`
+##### webSocket.send()
 
 ###### Request data
 
@@ -2833,7 +2832,7 @@ o
 ]
 ```
 
-##### `webSocket.onmessage()`
+##### webSocket.onmessage()
 
 ###### Response data
 
@@ -2945,7 +2944,7 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### `socket.onopen()`
+##### socket.onopen()
 
 ###### Response data
 
@@ -2953,7 +2952,7 @@ socket.onmessage = ({ data }) => {
 o
 ```
 
-##### `socket.send()`
+##### socket.send()
 
 ###### Request data
 
@@ -4892,7 +4891,7 @@ None.
     }
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "vulnerability_settings": null,
@@ -4918,13 +4917,23 @@ None.
       }
   }
   "license": {
-    "tier": "core",
+    "tier": "free",
     "organization": "fleet",
     "device_count": 100,
     "expiration": "2021-12-31T19:00:00-05:00",
     "note": ""
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
     "debug": false,
     "json": false,
@@ -4948,7 +4957,7 @@ None.
     }
   }
   "update_interval": {
-    "osquery_detail": "1hr"
+    "osquery_detail": 3600000000000
   }
 }
 ```
@@ -5056,11 +5065,11 @@ Modifies the Fleet's configuration with the supplied information.
     "additional_queries": null
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "license": {
-    "tier": "core",
+    "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
@@ -5086,7 +5095,17 @@ Modifies the Fleet's configuration with the supplied information.
       "overrides": {}
     }
   },
-  "vulnerability_settings": null,
+    "vulnerability_settings": {
+    "databases_path": ""
+  },
+  "webhook_settings": {
+    "host_status_webhook": {
+      "enable_host_status_webhook": true,
+       "destination_url": "https://server.com",
+      "host_percentage": 5,
+      "days_count": 7
+    }
+  },
   "logging": {
       "debug": false,
       "json": false,
@@ -6057,5 +6076,74 @@ _Available in Fleet Premium_
       }
     },
   ]
+}
+```
+
+## Software
+
+### List all software
+
+`GET /api/v1/fleet/software`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+
+#### Example
+
+`GET /api/v1/fleet/software`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+    “software”: [
+      {
+        "hosts_count": 124,
+        "id": 1,
+        "name": "Chrome.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 112,
+        "id": 2,
+        "name": "Figma.app",
+        "version": "2.1.11",
+        "source": "Application (macOS)",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 78,
+        "id": 3,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "hosts_count": 78,
+        "id": 4,
+        "name": "osquery",
+        "version": "2.1.11",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+    ]
+  }
 }
 ```

@@ -1,0 +1,2 @@
+* Add redis configuration option to retry failed connections.
+* Add redis configuration option to follow cluster redirections.

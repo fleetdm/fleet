@@ -17,7 +17,7 @@ class AppSettingsPage extends Component {
     appConfig: configInterface,
     dispatch: PropTypes.func.isRequired,
     error: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-    enrollSecret: enrollSecretInterface,
+    enrollSecret: PropTypes.arrayOf(enrollSecretInterface),
   };
 
   onFormSubmit = (formData) => {
@@ -80,6 +80,9 @@ class AppSettingsPage extends Component {
               </li>
               <li>
                 <a href="#agent-options">Global agent options</a>
+              </li>
+              <li>
+                <a href="#host-status-webhook">Host status webhook</a>
               </li>
               <li>
                 <a href="#usage-stats">Usage statistics</a>

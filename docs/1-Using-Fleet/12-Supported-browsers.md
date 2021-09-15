@@ -11,7 +11,6 @@ We test each browser on Windows whenever possible, because our engineering team 
 
 - Chrome 29
 - Firefox 28
-- IE 11
 - Edge 16
 - Safari 13.x (macOS only)
 
@@ -20,4 +19,7 @@ We test each browser on Windows whenever possible, because our engineering team 
 - Mobile Safari on iOS 10
 - Mobile Chrome on Android 6
 
-**Note:** Mobile web is not yet supported in the Fleet Product.
+### Note
+> - Mobile web is not yet supported in the Fleet product.
+> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on Chrome OS
+

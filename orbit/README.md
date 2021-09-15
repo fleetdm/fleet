@@ -11,7 +11,7 @@ Orbit is the recommended agent for Fleet. But Orbit can be used with or without 
 #### With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet) and [Go](https://golang.org/doc/install) 1.16 installed:
 
 ```bash
-# From within the top-level directory of this repo…
+# From within the orbit/ directory in this repo…
 # Generate a macOS installer pointed at your local Fleet
 go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
 ```
@@ -192,7 +192,7 @@ Yes! Orbit is licensed under an MIT license and all uses are encouraged.
 
 ### How does orbit update osquery? And how do the stable and edge channels get triggered to update osquery on a self hosted Fleet instance?
 
-Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/4-fleetctl-agent-updates.md) as part of Fleet Basic (the subscription offering).
+Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/4-fleetctl-agent-updates.md) as part of Fleet Premium (the subscription offering).
 
 ## Community
 

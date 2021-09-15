@@ -235,8 +235,8 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
-	response, err := c.AuthenticatedDo(verb, path, "", params)
+func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, path string, responseDest interface{}, query string) error {
+	response, err := c.AuthenticatedDo(verb, path, query, params)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}
@@ -263,4 +263,8 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	}
 
 	return nil
+}
+
+func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
+	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }

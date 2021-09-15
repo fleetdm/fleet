@@ -1,0 +1,1 @@
+* Add `fleetctl get software` to list all software and the detected vulnerabilities.

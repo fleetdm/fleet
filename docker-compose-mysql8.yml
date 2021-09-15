@@ -1,0 +1,19 @@
+---
+version: '2'
+services:
+  # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
+  mysql:
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8}
+    platform: linux/x86_64
+    volumes:
+      - mysql-persistent-volume:/tmp
+    # see https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_sql_require_primary_key
+    command: mysqld --datadir=/tmp/mysqldata --event-scheduler=ON --sql-require-primary-key=ON
+    environment: &mysql-default-environment
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: insecure
+    ports:
+      - "3306:3306"
+

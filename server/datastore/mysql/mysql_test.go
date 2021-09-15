@@ -1,10 +1,24 @@
 package mysql
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"database/sql"
+	"encoding/pem"
+	"fmt"
+	"math/big"
+	"net"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/VividCortex/mysqlerr"
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -14,6 +28,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDatastoreReplica(t *testing.T) {
+	// a bit unfortunate to create temp databases just for this - could be mixed
+	// with other tests when/if we move to subtests to minimize the number of
+	// databases created for tests (see #1805).
+
+	t.Run("noreplica", func(t *testing.T) {
+		ds := CreateMySQLDSWithOptions(t, nil)
+		defer ds.Close()
+		require.Equal(t, ds.reader, ds.writer)
+	})
+
+	t.Run("replica", func(t *testing.T) {
+		opts := &DatastoreTestOptions{Replica: true}
+		ds := CreateMySQLDSWithOptions(t, opts)
+		defer ds.Close()
+		require.NotEqual(t, ds.reader, ds.writer)
+
+		// create a new host
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         "1",
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+
+		// trying to read it fails, not replicated yet
+		_, err = ds.Host(context.Background(), host.ID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+
+		opts.RunReplication()
+
+		// now it can read it
+		host2, err := ds.Host(context.Background(), host.ID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, host2.ID)
+	})
+}
 
 func TestSanitizeColumn(t *testing.T) {
 	t.Parallel()
@@ -121,8 +180,10 @@ func TestSearchLike(t *testing.T) {
 func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
+	dbmock := sqlx.NewDb(db, "sqlmock")
 	ds := &Datastore{
-		db:     sqlx.NewDb(db, "sqlmock"),
+		writer: dbmock,
+		reader: dbmock,
 		logger: log.NewNopLogger(),
 	}
 
@@ -137,8 +198,8 @@ func TestWithRetryTxxSuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	require.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -153,8 +214,8 @@ func TestWithRetryTxxRollbackSuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
 	mock.ExpectRollback()
 
-	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -169,8 +230,8 @@ func TestWithRetryTxxRollbackError(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
 	mock.ExpectRollback().WillReturnError(errors.New("rollback failed"))
 
-	require.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	require.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -189,8 +250,8 @@ func TestWithRetryTxxRetrySuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -209,8 +270,8 @@ func TestWithRetryTxxCommitRetrySuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
-	assert.NoError(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.NoError(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -226,8 +287,8 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 	// Return a retryable error
 	mock.ExpectCommit().WillReturnError(errors.New("fail"))
 
-	assert.Error(t, ds.withRetryTxx(func(tx *sqlx.Tx) error {
-		_, err := tx.Exec("SELECT 1")
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
 
@@ -458,6 +519,229 @@ func TestWhereOmitIDs(t *testing.T) {
 			t.Parallel()
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestWithRetryTxWithRollback(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryTxWillRollbackWhenPanic(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+	defer func() { recover() }()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		panic("ROLLBACK")
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithTxWithRollback(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithTxWillRollbackWhenPanic(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+	defer func() { recover() }()
+
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
+	mock.ExpectRollback()
+
+	assert.Error(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
+		panic("ROLLBACK")
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewReadsPasswordFromDisk(t *testing.T) {
+	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
+	require.NoError(t, err)
+	_, err = passwordFile.WriteString(testPassword)
+	require.NoError(t, err)
+	passwordPath := passwordFile.Name()
+	require.NoError(t, passwordFile.Close())
+
+	dbName := t.Name()
+
+	// Create a datastore client in order to run migrations as usual
+	mysqlConfig := config.MysqlConfig{
+		Username:     testUsername,
+		Password:     "",
+		PasswordPath: passwordPath,
+		Address:      testAddress,
+		Database:     dbName,
+	}
+	ds, err := newDSWithConfig(t, dbName, mysqlConfig)
+	require.NoError(t, err)
+	defer ds.Close()
+	require.NoError(t, ds.HealthCheck())
+}
+
+func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*Datastore, error) {
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+	)
+	require.NoError(t, err)
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
+	require.NoError(t, err)
+
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	return ds, err
+}
+
+func generateTestCert(t *testing.T) (string, string) {
+	privateKeyCA, err := rsa.GenerateKey(rand.Reader, 1024)
+	require.NoError(t, err)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"aa"},
+		},
+		NotBefore:             time.Now().Add(-1 * time.Duration(24) * time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKeyCA.PublicKey, privateKeyCA)
+	require.NoError(t, err)
+
+	publicPem, err := os.CreateTemp(t.TempDir(), "*-ca.pem")
+	require.NoError(t, err)
+	require.NoError(t, pem.Encode(publicPem, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}))
+	require.NoError(t, publicPem.Close())
+
+	keyPem, err := os.CreateTemp(t.TempDir(), "*-key.pem")
+	require.NoError(t, err)
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKeyCA)
+	require.NoError(t, pem.Encode(keyPem, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privateKeyBytes}))
+	require.NoError(t, keyPem.Close())
+
+	return publicPem.Name(), keyPem.Name()
+}
+
+func TestNewUsesRegisterTLS(t *testing.T) {
+	dbName := t.Name()
+
+	ca, _ := generateTestCert(t)
+	cert, key := generateTestCert(t)
+
+	mysqlConfig := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Address:  testAddress,
+		Database: dbName,
+		TLSCA:    ca,
+		TLSCert:  cert,
+		TLSKey:   key,
+	}
+	// This fails because the certificate mysql is using is different than the one generated here
+	_, err := newDSWithConfig(t, dbName, mysqlConfig)
+	require.Error(t, err)
+	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
+}
+
+func TestWhereFilterTeas(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   fleet.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter:   fleet.TeamFilter{User: nil},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			},
+			expected: "TRUE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "TRUE",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}},
+			expected: "t.id IN (1)",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}},
+			expected: "t.id IN (1)",
+		},
+		{
+			filter:   fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+				IncludeObserver: true,
+			},
+			expected: "t.id IN (1)",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
 		})
 	}

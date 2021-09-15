@@ -2,29 +2,28 @@
   <div class="pb-5">
     <div
       style="max-width: 1260px"
-      class="container-fluid pt-5 px-4 px-sm-5 mx-auto"
+      class="container-fluid pt-5 px-4 mx-auto"
     >
-      <section id="pricing-section" class="pt-5 mx-auto">
+      <section id="pricing-section" class="container-fluid d-flex flex-column justify-content-center pt-5 mx-auto">
         <h1 class="text-center">Choose your plan</h1>
         <p class="text-center mb-5">
           Choose the right plan for where your organization is at today.
         </p>
-        <div style="max-width: 810px">
-          <div class="row">
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
+        <div class="d-flex justify-content-center p-0">
+          <div class="container-fluid d-flex flex-wrap justify-content-center p-0">
+            <div style="max-width: 384px; min-width: 330px;" class="w-100 mx-3">
               <div style="border-radius: 15px" class="card mb-4">
                 <div class="card-body">
                   <div style="min-height: 125px" class="text-center mt-4">
                     <p class="font-weight-bold mb-0">
-                      Core
+                      Free
                     </p>
-                    <h2 style="color: #6b6cfa">FREE</h2>
+                    <h2 style="color: #6b6cfa">$0</h2>
                     <p style="padding-bottom: 28px" class="mb-0">/host/month</p>
                   </div>
                   <a
                     style="max-width: 242px"
                     class="btn btn-block btn-lg btn-info my-3 mx-auto"
-                    target="_blank"
                     href="/get-started"
                     >Get started</a
                   >
@@ -72,12 +71,12 @@
                 </div>
               </div>
             </div>
-            <div style="max-width: 392px" class="col-lg px-1 mx-auto">
+            <div style="max-width: 384px; min-width: 330px;" class="w-100 mx-3">
               <div style="border-radius: 15px" class="card mb-4">
                 <div class="card-body">
                   <div style="min-height: 125px" class="text-center mt-4">
                     <p class="font-weight-bold mb-0">
-                      Basic
+                      Premium
                     </p>
                     <h2 style="color: #6b6cfa">$4</h2>
                     <p class="mb-0">/host/month</p>
@@ -139,24 +138,23 @@
           </div>
         </div>
       </section>
-      <section id="features" class="pt-5 mx-auto">
-        <div style="max-width: 810px">
-          <div class="row">
-            <div class="col-lg px-1 mx-auto" style="max-width: 810px">
+      <section id="features" class="d-flex flex-column justify-content-center p-0 pt-5 mx-auto">
+          <div class="container-fluid d-flex flex-column flex-sm-row flex-wrap justify-content-center p-0">
+            <div style="max-width: 810px" class="w-100 px-1" >
               <div style="border-radius: 15px" class="card mb-4">
-                <div class="card-body py-md-5 px-md-5">
+                <div class="card-body py-md-5 pl-4 px-md-5">
                   <div class="row mb-4">
                     <div class="col-8">
                       <p class="m-0" style="color: #8b8fa2">SUPPORT</p>
                     </div>
                     <div class="col-2 m-0 px-0 px-sm-1 px-md-2">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
-                        <span class="d-none d-md-inline">Fleet </span>Core
+                        <span class="d-none d-md-inline">Fleet </span>Free
                       </p>
                     </div>
                     <div class="col-2 m-0 px-0 px-sm-1 px-md-2 ">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
-                        <span class="d-none d-md-inline">Fleet </span>Basic
+                        <span class="d-none d-md-inline">Fleet </span>Premium
                       </p>
                     </div>
                   </div>
@@ -239,25 +237,6 @@
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
                       <p class="ml-2 my-0">Phone and video call support</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-8 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Dedicated Slack channel</p>
                     </div>
                     <div class="col-2"></div>
                     <div class="col-2">
@@ -1128,11 +1107,10 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <div style="max-width: 800px; color: #192147;" class="pt-5 mx-auto">
+        <div style="color: #192147;" class="container-fluid d-flex flex-column justify-content-center pt-5 mx-auto">
           <h2 class="text-center mb-4">FAQ</h2>
-          <div class="mb-5">
+          <div style="max-width: 800px;" class="container-fluid d-flex flex-column justify-content-center mb-5">
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
               <p id="faq__question1" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
                 Is Fleet MIT licensed?
@@ -1202,7 +1180,7 @@
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
               <p id="faq__answer10" class="collapse" aria-labelledby="faq__question10">
-                Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, their own data center, hybrid cloud, anything).  That's done using a MySQL database, but the bulk of the data is not stored there — instead, it flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+                Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere).  That's done using a MySQL database, but the bulk of the data is not stored there — instead, it flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
               </p>
             </div>
           </div>
@@ -1210,10 +1188,15 @@
 
         <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
           <div style="max-width: 800px" class="mx-auto">
-            <div style="max-width: 800px;" class="position-relative mx-auto">
-              <p>"Fleet is hands down the best osquery platform out there. Zach and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring."</p>
-              <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of <a style="color:#676A7A;" target="_blank" href="https://osquery.io/">osquery</a></p>
-              <a target="_blank" href="https://osquery.io/"><img alt="osquery logo" src="/images/logo-osquery-137x40@2x.png" style="height: 40px; width: 137px;" class="d-inline-block mb-3 mx-auto"/></a>
+            <div style="max-width: 800px;" class="d-flex position-relative px-0 px-md-3 mx-auto">
+              <div class="d-inline-block pr-2">
+                <h1 style="font-size:48px; line-height: 58px;">&#8220;</h1>
+              </div>
+              <div class="d-inline-block pl-2">
+                <p style="font-size: 24px; line-height: 36px;">Fleet is hands down the best osquery platform out there. Zach and I created Fleet as a natural extension to our original vision for osquery and this has manifested in the ease-of-use, flexibility, and adoption it has today. Look to Fleet for the future of open-source endpoint monitoring.</p>
+                <p style="color: #676A7A" class="mb-4">- Mike Arpaia, Co-creator of <a style="color:#676A7A;" target="_blank" href="https://osquery.io/">osquery</a></p>
+                <a target="_blank" href="https://osquery.io/"><img alt="osquery logo" src="/images/logo-osquery-137x40@2x.png" style="height: 40px; width: 137px;" class="d-inline-block my-3 mx-auto"/></a>
+              </div>
             </div>
           </div>
         </div>

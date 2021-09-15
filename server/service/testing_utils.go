@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"context"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -28,7 +29,7 @@ func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.Live
 
 func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := &fleet.LicenseInfo{Tier: "core"}
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, _ := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
@@ -53,7 +54,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	if err != nil {
 		panic(err)
 	}
-	if license.Tier == fleet.TierBasic {
+	if license.IsPremium() {
 		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, clock.C, license)
 		if err != nil {
 			panic(err)
@@ -64,7 +65,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 
 func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: "core"}
+	license := fleet.LicenseInfo{Tier: fleet.TierFree}
 	testConfig := config.TestConfig()
 	writer, err := logging.NewFilesystemLogWriter(
 		testConfig.Filesystem.StatusLogFile,
@@ -97,7 +98,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
-		user, err = ds.NewUser(user)
+		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
 	}
@@ -140,10 +141,20 @@ type TestServerOpts struct {
 	Logger              kitlog.Logger
 	License             *fleet.LicenseInfo
 	SkipCreateTestUsers bool
+	Rs                  fleet.QueryResultStore
+	Lq                  fleet.LiveQueryStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	svc := newTestService(ds, nil, nil, opts...)
+	var rs fleet.QueryResultStore
+	if len(opts) > 0 && opts[0].Rs != nil {
+		rs = opts[0].Rs
+	}
+	var lq fleet.LiveQueryStore
+	if len(opts) > 0 && opts[0].Lq != nil {
+		lq = opts[0].Lq
+	}
+	svc := newTestService(ds, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)

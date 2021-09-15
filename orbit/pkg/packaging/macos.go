@@ -22,11 +22,11 @@ import (
 // Linux.
 func BuildPkg(opt Options) error {
 	// Initialize directories
-
 	tmpDir, err := ioutil.TempDir("", "orbit-package")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
 	}
+	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
@@ -232,7 +232,7 @@ func xarBom(opt Options, rootPath string) error {
 	case "darwin":
 		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
 	case "linux":
-		cmdMkbom = exec.Command("mkbom", "-u", "0", "-g", "80", filepath.Join(rootPath, "flat", "root"), filepath.Join("flat", "base.pkg", "Bom"))
+		cmdMkbom = exec.Command("mkbom", "-u", "0", "-g", "80", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
 	}
 	cmdMkbom.Dir = rootPath
 	cmdMkbom.Stdout = os.Stdout

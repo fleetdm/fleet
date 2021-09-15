@@ -42,7 +42,7 @@ func loadPublicKey() (*ecdsa.PublicKey, error) {
 func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 	// No license key
 	if licenseKey == "" {
-		return &fleet.LicenseInfo{Tier: fleet.TierCore}, nil
+		return &fleet.LicenseInfo{Tier: fleet.TierFree}, nil
 	}
 
 	parsedToken, err := jwt.ParseWithClaims(
@@ -68,6 +68,10 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 		return nil, errors.Wrap(err, "validate license")
 	}
 
+	// Force premium license
+	if license.IsPremium() {
+		license.Tier = fleet.TierPremium
+	}
 	return license, nil
 }
 

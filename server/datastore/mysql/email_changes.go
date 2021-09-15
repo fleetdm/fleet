@@ -1,13 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
-func (ds *Datastore) PendingEmailChange(uid uint, newEmail, token string) error {
+func (ds *Datastore) PendingEmailChange(ctx context.Context, uid uint, newEmail, token string) error {
 	sqlStatement := `
     INSERT INTO email_changes (
       user_id,
@@ -15,7 +16,7 @@ func (ds *Datastore) PendingEmailChange(uid uint, newEmail, token string) error 
       new_email
     ) VALUES( ?, ?, ? )
   `
-	_, err := ds.db.Exec(sqlStatement, uid, token, newEmail)
+	_, err := ds.writer.ExecContext(ctx, sqlStatement, uid, token, newEmail)
 	if err != nil {
 		return errors.Wrap(err, "inserting email change record")
 	}
@@ -25,28 +26,29 @@ func (ds *Datastore) PendingEmailChange(uid uint, newEmail, token string) error 
 
 // ConfirmPendingEmailChange finds email change record, updates user with new email,
 // then deletes change record if everything succeeds.
-func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail string, err error) {
+func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, token string) (newEmail string, err error) {
 	changeRecord := struct {
 		ID       uint
 		UserID   uint `db:"user_id"`
 		Token    string
 		NewEmail string `db:"new_email"`
 	}{}
-	err = ds.db.Get(&changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", notFound("email change with token")
-		}
-		return "", errors.Wrap(err, "email change")
-	}
 
-	err = ds.withRetryTxx(func(tx *sqlx.Tx) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, tx, &changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return notFound("email change with token")
+			}
+			return errors.Wrap(err, "email change")
+		}
+
 		query := `
     		UPDATE users SET
       			email = ?
     		WHERE id = ?
   `
-		results, err := tx.Exec(query, changeRecord.NewEmail, changeRecord.UserID)
+		results, err := tx.ExecContext(ctx, query, changeRecord.NewEmail, changeRecord.UserID)
 		if err != nil {
 			return errors.Wrap(err, "updating user's email")
 		}
@@ -59,7 +61,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
 			return notFound("User").WithID(changeRecord.UserID)
 		}
 
-		_, err = tx.Exec("DELETE FROM email_changes WHERE id = ?", changeRecord.ID)
+		_, err = tx.ExecContext(ctx, "DELETE FROM email_changes WHERE id = ?", changeRecord.ID)
 		if err != nil {
 			return errors.Wrap(err, "deleting email change")
 		}
@@ -71,5 +73,5 @@ func (ds *Datastore) ConfirmPendingEmailChange(id uint, token string) (newEmail 
 		return "", err
 	}
 
-	return changeRecord.NewEmail, err
+	return changeRecord.NewEmail, nil
 }

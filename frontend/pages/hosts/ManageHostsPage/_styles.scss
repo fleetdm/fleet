@@ -4,6 +4,12 @@
     align-items: flex-start;
     justify-content: space-between;
     margin-bottom: $pad-medium;
+
+    .button-wrap {
+      display: flex;
+      justify-content: flex-end;
+      min-width: 266px;
+    }
   }
 
   .ace-fleet {
@@ -13,6 +19,7 @@
   &__header {
     display: flex;
     align-items: center;
+    min-width: 125px;
 
     .form-field {
       margin-bottom: 0;
@@ -53,8 +60,6 @@
   }
 
   &__label-block {
-    margin-top: $pad-medium;
-
     .title {
       display: flex;
       align-items: center;
@@ -94,6 +99,10 @@
         fill: $core-fleet-purple;
       }
     }
+  }
+
+  .table-container {
+    padding-top: $pad-small;
   }
 
   .data-table-container {
@@ -153,9 +162,7 @@
       left: -12px;
       border-radius: 6px;
     }
-  }
 
-  &__header {
     .Select-control {
       background-color: #fff;
       border: 0 !important;
@@ -214,6 +221,21 @@
           }
         }
       }
+    }
+  }
+
+  &__labels-policies-wrap {
+    margin-bottom: $pad-medium;
+  }
+
+  &__policies-filter-block {
+    display: flex;
+    align-items: center;
+
+    p {
+      font-size: $x-small;
+      font-weight: $bold;
+      padding-left: $pad-medium;
     }
   }
 

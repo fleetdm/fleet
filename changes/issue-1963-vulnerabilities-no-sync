@@ -1,0 +1,2 @@
+* Add fleetctl vulnerability-data-stream command to sync the vulnerabilities processing data streams by hand.
+* Add vulnerabilities.disable_data_sync config to fleet serve to avoid downloading the data streams.

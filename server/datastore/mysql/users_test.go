@@ -1,9 +1,13 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server"
+	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/test"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -31,10 +35,10 @@ func TestCreateUser(t *testing.T) {
 			SSOEnabled:               tt.sso,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
-		user, err := ds.NewUser(u)
+		user, err := ds.NewUser(context.Background(), u)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByEmail(tt.email)
+		verify, err := ds.UserByEmail(context.Background(), tt.email)
 		assert.Nil(t, err)
 
 		assert.Equal(t, user.ID, verify.ID)
@@ -50,13 +54,13 @@ func TestUserByID(t *testing.T) {
 
 	users := createTestUsers(t, ds)
 	for _, tt := range users {
-		returned, err := ds.UserByID(tt.ID)
+		returned, err := ds.UserByID(context.Background(), tt.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.ID, returned.ID)
 	}
 
 	// test missing user
-	_, err := ds.UserByID(10000000000)
+	_, err := ds.UserByID(context.Background(), 10000000000)
 	assert.NotNil(t, err)
 }
 
@@ -79,7 +83,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
-		user, err := ds.NewUser(u)
+		user, err := ds.NewUser(context.Background(), u)
 		assert.Nil(t, err)
 
 		users = append(users, user)
@@ -103,10 +107,10 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
-		err = ds.SaveUser(user)
+		err = ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Password, verify.Password)
 	}
@@ -115,10 +119,10 @@ func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.Email = fmt.Sprintf("test.%s", user.Email)
-		err := ds.SaveUser(user)
+		err := ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.Email, verify.Email)
 	}
@@ -127,14 +131,14 @@ func testEmailAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
 		user.GlobalRole = ptr.String("admin")
-		err := ds.SaveUser(user)
+		err := ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
-		verify, err := ds.UserByID(user.ID)
+		verify, err := ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, user.GlobalRole, verify.GlobalRole)
 	}
-	err := ds.SaveUser(&fleet.User{
+	err := ds.SaveUser(context.Background(), &fleet.User{
 		Name:       "some@email.asd",
 		Password:   []byte("asdasd"),
 		Email:      "some@email.asd",
@@ -152,16 +156,16 @@ func TestListUsers(t *testing.T) {
 
 	createTestUsers(t, ds)
 
-	users, err := ds.ListUsers(fleet.UserListOptions{})
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
 	assert.NoError(t, err)
 	require.Len(t, users, 2)
 
-	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "jason"}})
+	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "jason"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "jason@fleet.co", users[0].Email)
 
-	users, err = ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
+	users, err = ds.ListUsers(context.Background(), fleet.UserListOptions{ListOptions: fleet.ListOptions{MatchQuery: "ike"}})
 	assert.NoError(t, err)
 	require.Len(t, users, 1)
 	assert.Equal(t, "mike@fleet.co", users[0].Email)
@@ -172,7 +176,7 @@ func TestUserTeams(t *testing.T) {
 	defer ds.Close()
 
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
 
@@ -188,7 +192,7 @@ func TestUserTeams(t *testing.T) {
 			Role: "foobar",
 		},
 	}
-	err := ds.SaveUser(users[0])
+	err := ds.SaveUser(context.Background(), users[0])
 	require.Error(t, err)
 
 	// Add valid team should succeed
@@ -199,10 +203,11 @@ func TestUserTeams(t *testing.T) {
 		},
 	}
 	users[0].GlobalRole = nil
-	err = ds.SaveUser(users[0])
+	err = ds.SaveUser(context.Background(), users[0])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},
@@ -227,10 +232,11 @@ func TestUserTeams(t *testing.T) {
 		},
 	}
 	users[1].GlobalRole = nil
-	err = ds.SaveUser(users[1])
+	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},
@@ -243,10 +249,11 @@ func TestUserTeams(t *testing.T) {
 	// Clear teams
 	users[1].Teams = []fleet.UserTeam{}
 	users[1].GlobalRole = ptr.String(fleet.RoleObserver)
-	err = ds.SaveUser(users[1])
+	err = ds.SaveUser(context.Background(), users[1])
 	require.NoError(t, err)
 
 	users, err = ds.ListUsers(
+		context.Background(),
 		fleet.UserListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
 		},
@@ -262,7 +269,7 @@ func TestUserCreateWithTeams(t *testing.T) {
 	defer ds.Close()
 
 	for i := 0; i < 10; i++ {
-		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
 
@@ -283,11 +290,11 @@ func TestUserCreateWithTeams(t *testing.T) {
 			},
 		},
 	}
-	user, err := ds.NewUser(u)
+	user, err := ds.NewUser(context.Background(), u)
 	assert.Nil(t, err)
 	assert.Len(t, user.Teams, 3)
 
-	user, err = ds.UserByID(user.ID)
+	user, err = ds.UserByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Len(t, user.Teams, 3)
 
@@ -297,4 +304,31 @@ func TestUserCreateWithTeams(t *testing.T) {
 	assert.Equal(t, "observer", user.Teams[1].Role)
 	assert.Equal(t, uint(9), user.Teams[2].ID)
 	assert.Equal(t, "maintainer", user.Teams[2].Role)
+}
+
+func TestSaveUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	u1 := test.NewUser(t, ds, t.Name()+"Admin1", t.Name()+"admin1@fleet.co", true)
+	u2 := test.NewUser(t, ds, t.Name()+"Admin2", t.Name()+"admin2@fleet.co", true)
+	u3 := test.NewUser(t, ds, t.Name()+"Admin3", t.Name()+"admin3@fleet.co", true)
+
+	u1.Email += "m"
+	u2.Email += "m"
+	u3.Email += "m"
+
+	require.NoError(t, ds.SaveUsers(context.Background(), []*fleet.User{u1, u2, u3}))
+
+	gotU1, err := ds.UserByID(context.Background(), u1.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU1.Email, "fleet.com"))
+
+	gotU2, err := ds.UserByID(context.Background(), u3.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU2.Email, "fleet.com"))
+
+	gotU3, err := ds.UserByID(context.Background(), u3.ID)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
 }

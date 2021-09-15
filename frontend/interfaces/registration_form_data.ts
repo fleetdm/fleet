@@ -20,4 +20,5 @@ export interface IRegistrationFormData {
   org_web_url: string;
   org_logo_url: string;
   fleet_web_address: string;
+  server_url: string;
 }

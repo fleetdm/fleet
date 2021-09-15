@@ -71,6 +71,14 @@ Cypress.Commands.add("seedQueries", () => {
       description: "List authorized_keys for each user on the system.",
       observer_can_run: false,
     },
+    {
+      name:
+        "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+      query:
+        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+      description: "Retrieves the OpenSSL version.",
+      observer_can_run: false,
+    },
   ];
 
   queries.forEach((queryForm) => {
@@ -183,9 +191,9 @@ Cypress.Commands.add("getEmails", () => {
     });
 });
 
-Cypress.Commands.add("seedCore", () => {
+Cypress.Commands.add("seedFree", () => {
   const authToken = window.localStorage.getItem("FLEET::auth_token");
-  cy.exec("bash ./tools/api/fleet/teams/create_core", {
+  cy.exec("bash ./tools/api/fleet/teams/create_free", {
     env: {
       TOKEN: authToken,
       CURL_FLAGS: "-k",
@@ -196,9 +204,9 @@ Cypress.Commands.add("seedCore", () => {
   });
 });
 
-Cypress.Commands.add("seedBasic", () => {
+Cypress.Commands.add("seedPremium", () => {
   const authToken = window.localStorage.getItem("FLEET::auth_token");
-  cy.exec("bash ./tools/api/fleet/teams/create_basic", {
+  cy.exec("bash ./tools/api/fleet/teams/create_premium", {
     env: {
       TOKEN: authToken,
       CURL_FLAGS: "-k",
@@ -234,7 +242,7 @@ Cypress.Commands.add("addUser", (options = {}) => {
   );
 });
 
-// Ability to add a docker host to a team using args if ran after seedBasic()
+// Ability to add a docker host to a team using args if ran after seedPremium()
 Cypress.Commands.add("addDockerHost", (team = "") => {
   const serverPort = new URL(Cypress.config().baseUrl).port;
   // Get enroll secret

@@ -83,7 +83,7 @@ const generateTableHeaders = (
       title: "Query",
       Header: "Query",
       disableSortBy: true,
-      accessor: "name",
+      accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -139,6 +139,7 @@ const enhanceAllScheduledQueryData = (
     (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
       return {
         name: all_scheduled_query.name,
+        query_name: all_scheduled_query.query_name,
         interval: all_scheduled_query.interval,
         actions: generateActionDropdownOptions(),
         id: all_scheduled_query.id,

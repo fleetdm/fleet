@@ -19,7 +19,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 
 	includeObserver := false
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
@@ -30,7 +30,7 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 
 	results := &fleet.TargetSearchResults{}
 
-	hosts, err := svc.ds.SearchHosts(filter, matchQuery, targets.HostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, targets.HostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -39,13 +39,13 @@ func (svc Service) SearchTargets(ctx context.Context, matchQuery string, queryID
 		results.Hosts = append(results.Hosts, h)
 	}
 
-	labels, err := svc.ds.SearchLabels(filter, matchQuery, targets.LabelIDs...)
+	labels, err := svc.ds.SearchLabels(ctx, filter, matchQuery, targets.LabelIDs...)
 	if err != nil {
 		return nil, err
 	}
 	results.Labels = labels
 
-	teams, err := svc.ds.SearchTeams(filter, matchQuery, targets.TeamIDs...)
+	teams, err := svc.ds.SearchTeams(ctx, filter, matchQuery, targets.TeamIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targe
 
 	includeObserver := false
 	if queryID != nil {
-		query, err := svc.ds.Query(*queryID)
+		query, err := svc.ds.Query(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +75,7 @@ func (svc Service) CountHostsInTargets(ctx context.Context, queryID *uint, targe
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
 
-	metrics, err := svc.ds.CountHostsInTargets(filter, targets, svc.clock.Now())
+	metrics, err := svc.ds.CountHostsInTargets(ctx, filter, targets, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}

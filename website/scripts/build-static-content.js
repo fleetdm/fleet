@@ -33,10 +33,12 @@ module.exports = {
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
-          if ((query.remediation !== undefined && !_.isString(query.remediation)) || (query.purpose !== 'Detection' && _.isString(query.remediation))) {
+          if (false) {
+          // if ((query.remediation !== undefined && !_.isString(query.remediation)) || (query.purpose !== 'Detection' && _.isString(query.remediation))) {  TODO: maybe bring this back later
             // console.log(typeof query.remediation);
             queriesWithProblematicRemediations.push(query);
-          } else if (query.remediation === undefined) {
+          // } else if (query.remediation === undefined) {
+          } else { // « For now set remediation to N/A for all queries until we reinstate checks that are commented out above.  TODO: finish that
             query.remediation = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
 

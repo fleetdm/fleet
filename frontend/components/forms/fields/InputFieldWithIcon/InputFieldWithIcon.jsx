@@ -13,6 +13,7 @@ class InputFieldWithIcon extends InputField {
     error: PropTypes.string,
     hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     iconName: PropTypes.string,
+    label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
     placeholder: PropTypes.string,
@@ -20,11 +21,11 @@ class InputFieldWithIcon extends InputField {
     type: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
+    iconPosition: PropTypes.oneOf(["start", "end"]),
   };
 
   renderHeading = () => {
-    const { error, placeholder, name } = this.props;
-
+    const { error, placeholder, name, label } = this.props;
     const labelClasses = classnames(`${baseClass}__label`);
 
     if (error) {
@@ -33,7 +34,7 @@ class InputFieldWithIcon extends InputField {
 
     return (
       <label htmlFor={name} className={labelClasses}>
-        {placeholder}
+        {label || placeholder}
       </label>
     );
   };
@@ -59,15 +60,24 @@ class InputFieldWithIcon extends InputField {
       type,
       value,
       disabled,
+      iconPosition,
     } = this.props;
     const { onInputChange, renderHint } = this;
+
+    const wrapperClasses = classnames(baseClass, {
+      [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
+    });
 
     const inputClasses = classnames(
       `${baseClass}__input`,
       "input-with-icon",
       className,
       { [`${baseClass}__input--error`]: error },
-      { [`${baseClass}__input--password`]: type === "password" && value }
+      { [`${baseClass}__input--password`]: type === "password" && value },
+      {
+        [`${baseClass}__input--icon-start`]:
+          iconPosition && iconPosition === "start",
+      }
     );
 
     const iconClasses = classnames(
@@ -77,7 +87,7 @@ class InputFieldWithIcon extends InputField {
     );
 
     return (
-      <div className={baseClass}>
+      <div className={wrapperClasses}>
         {this.renderHeading()}
         <input
           id={name}

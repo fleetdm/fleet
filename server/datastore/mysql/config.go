@@ -1,6 +1,9 @@
 package mysql
 
-import "github.com/go-kit/kit/log"
+import (
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/go-kit/kit/log"
+)
 
 const defaultMaxAttempts int = 15
 
@@ -9,14 +12,23 @@ type DBOption func(o *dbOptions) error
 
 type dbOptions struct {
 	// maxAttempts configures the number of retries to connect to the DB
-	maxAttempts int
-	logger      log.Logger
+	maxAttempts   int
+	logger        log.Logger
+	replicaConfig *config.MysqlConfig
 }
 
 // Logger adds a logger to the datastore
 func Logger(l log.Logger) DBOption {
 	return func(o *dbOptions) error {
 		o.logger = l
+		return nil
+	}
+}
+
+// Replica sets the configuration of the read replica for the datastore.
+func Replica(conf *config.MysqlConfig) DBOption {
+	return func(o *dbOptions) error {
+		o.replicaConfig = conf
 		return nil
 	}
 }

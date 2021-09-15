@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
-	targets, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
+	targets, err := ds.DistributedQueryCampaignTargetIDs(context.Background(), campaignID)
 	require.Nil(t, err)
 	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
 	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
@@ -32,7 +33,7 @@ func TestDistributedQueryCampaign(t *testing.T) {
 	campaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	{
-		retrieved, err := ds.DistributedQueryCampaign(campaign.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), campaign.ID)
 		require.Nil(t, err)
 		assert.Equal(t, campaign.QueryID, retrieved.QueryID)
 		assert.Equal(t, campaign.Status, retrieved.Status)
@@ -52,7 +53,7 @@ func TestDistributedQueryCampaign(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	checkTargets(t, ds, campaign.ID, fleet.HostTargets{})
@@ -88,18 +89,18 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
-	expired, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err := ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), expired)
 
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, c1.Status, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -111,18 +112,18 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{
 		// c1 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -132,21 +133,44 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
 		// c2 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 
+}
+
+func TestSaveDistributedQueryCampaign(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
+
+	mockClock := clock.NewMockClock()
+
+	query := test.NewQuery(t, ds, t.Name()+"test", "select * from time", user.ID, false)
+
+	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
+	gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryWaiting, gotC.Status)
+
+	c1.Status = fleet.QueryComplete
+	require.NoError(t, ds.SaveDistributedQueryCampaign(context.Background(), c1))
+
+	gotC, err = ds.DistributedQueryCampaign(context.Background(), c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryComplete, gotC.Status)
 }
