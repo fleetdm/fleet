@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -332,15 +333,26 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].Name < host.Software[j].Name })
-	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
-	for i := 0; i < 1000; i++ {
-		part1 := rand.Intn(1000)
-		part2 := rand.Intn(1000)
-		part3 := rand.Intn(1000)
-		cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
-		require.NoError(t, ds.InsertCVEForCPE(context.Background(), cve, []string{"somecpe"}))
-	}
+
+	require.NoError(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
+		somecpeID, err := addCPEForSoftwareDB(context.Background(), tx, host.Software[0], "somecpe")
+		if err != nil {
+			return err
+		}
+		sql := `INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES (?, ?)`
+		for i := 0; i < 1000; i++ {
+			part1 := rand.Intn(1000)
+			part2 := rand.Intn(1000)
+			part3 := rand.Intn(1000)
+			cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
+			if _, err := tx.ExecContext(context.Background(), sql, somecpeID, cve); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1545,7 +1546,12 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	var count1 int32
 	var count2 int32
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
+
 		for {
 			host1, err := ds.Host(context.Background(), host1.ID)
 			if err != nil {
@@ -1584,7 +1590,9 @@ func TestSaveTonsOfUsers(t *testing.T) {
 				errCh <- err
 				return
 			}
-			atomic.AddInt32(&count1, 1)
+			if atomic.AddInt32(&count1, 1) >= 100 {
+				return
+			}
 
 			select {
 			case <-ctx.Done():
@@ -1595,6 +1603,8 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	}()
 
 	go func() {
+		defer wg.Done()
+
 		for {
 			host2, err := ds.Host(context.Background(), host2.ID)
 			if err != nil {
@@ -1633,7 +1643,9 @@ func TestSaveTonsOfUsers(t *testing.T) {
 				errCh <- err
 				return
 			}
-			atomic.AddInt32(&count2, 1)
+			if atomic.AddInt32(&count2, 1) >= 100 {
+				return
+			}
 
 			select {
 			case <-ctx.Done():
@@ -1644,15 +1656,21 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	}()
 
 	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		wg.Wait()
+		cancelFunc()
+	}()
 
 	select {
 	case err := <-errCh:
-		require.NoError(t, err)
 		cancelFunc()
+		require.NoError(t, err)
+	case <-ctx.Done():
 	case <-ticker.C:
+		require.Fail(t, "timed out")
 	}
-	fmt.Println("Count1", atomic.LoadInt32(&count1))
-	fmt.Println("Count2", atomic.LoadInt32(&count2))
+	t.Log("Count1", atomic.LoadInt32(&count1))
+	t.Log("Count2", atomic.LoadInt32(&count2))
 }
 
 func TestSaveHostPackStatsConcurrent(t *testing.T) {
