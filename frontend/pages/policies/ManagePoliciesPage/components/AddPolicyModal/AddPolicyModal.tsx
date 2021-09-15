@@ -61,7 +61,7 @@ const AddPolicyModal = ({
           </p>
 
           <p>
-            To test which hosts return results, it is recommened to first run
+            To test which hosts return results, it is recommended to first run
             your query as a live query by heading to <b>Queries</b> and then
             selecting a query.
           </p>
