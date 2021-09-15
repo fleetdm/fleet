@@ -1761,14 +1761,18 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 				},
 			},
 		}
-		return ds.SaveHost(context.Background(), host1)
+		return ds.SaveHost(context.Background(), host)
 	}
 
 	errCh := make(chan error)
 	var counter int32
-	total := int32(1000)
+	const total = int32(100)
+
+	var wg sync.WaitGroup
 
 	loopAndSaveHost := func(host *fleet.Host) {
+		defer wg.Done()
+
 		for {
 			err := saveHostRandomStats(host)
 			if err != nil {
@@ -1788,10 +1792,13 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 		}
 	}
 
+	wg.Add(3)
 	go loopAndSaveHost(host1)
 	go loopAndSaveHost(host2)
 
 	go func() {
+		defer wg.Done()
+
 		for {
 			specs := []*fleet.PackSpec{
 				{
@@ -1835,13 +1842,14 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 		}
 	}()
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	select {
 	case err := <-errCh:
+		cancelFunc()
 		require.NoError(t, err)
 	case <-ctx.Done():
-		return
+		wg.Wait()
 	case <-ticker.C:
-		t.Fail()
+		require.Fail(t, "timed out")
 	}
 }
