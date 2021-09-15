@@ -7,14 +7,15 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title>Fleet for osquery | Open source device management</title>
+    <title><%= typeof title !== 'undefined' ? title : 'Fleet for osquery | Open source device management' %></title>
+    <meta name="description" content="<%= typeof description !== 'undefined' ? description : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="Open source device management" />
-    <meta name="twitter:description" content="Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live." />
+    <meta name="twitter:title" content="<%= typeof title !== 'undefined' ? title : 'Open source device management' %>" />
+    <meta name="twitter:description" content="<%= description !== 'undefined' ? description : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
     <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
