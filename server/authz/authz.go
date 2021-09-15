@@ -119,6 +119,30 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
+func (a *Authorizer) TeamAuthorize(ctx context.Context, teamID uint, action string) error {
+	subject := UserFromContext(ctx)
+	if subject == nil {
+		return ForbiddenWithInternal("nil subject always forbidden", subject, nil, action)
+	}
+
+	// global admins and maintainers are authorized to work with teams
+	if subject.GlobalRole != nil && *subject.GlobalRole != fleet.RoleObserver {
+		return nil
+	}
+
+	for _, team := range subject.Teams {
+		if teamID == team.ID {
+			if action == fleet.ActionWrite && team.Role == fleet.RoleObserver {
+				return ForbiddenWithInternal("team observer cannot write", subject, nil, action)
+			}
+
+			return nil
+		}
+	}
+
+	return ForbiddenWithInternal("not a member of the team", subject, nil, action)
+}
+
 // AuthzTyper is the interface that may be implemented to get a `type`
 // property added during marshaling for authorization. Any struct that will be
 // used as a subject or object in authorization should implement this interface.

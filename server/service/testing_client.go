@@ -104,9 +104,13 @@ func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStat
 func (ts *withServer) getTestAdminToken() string {
 	testUser := testUsers["admin1"]
 
+	return ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
+}
+
+func (ts *withServer) getTestToken(email string, password string) string {
 	params := loginRequest{
-		Email:    testUser.Email,
-		Password: testUser.PlaintextPassword,
+		Email:    email,
+		Password: password,
 	}
 	j, err := json.Marshal(&params)
 	require.NoError(ts.s.T(), err)
@@ -123,7 +127,8 @@ func (ts *withServer) getTestAdminToken() string {
 		Err   []map[string]string `json:"errors,omitempty"`
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.Nil(ts.s.T(), err)
+	require.NoError(ts.s.T(), err)
+	require.Len(ts.s.T(), jsn.Err, 0)
 
 	return jsn.Token
 }
