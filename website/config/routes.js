@@ -21,25 +21,28 @@ module.exports.routes = {
     action: 'view-contact',
     locals:{
       title: 'Contact us | Fleet for osquery',
+      description: 'Contact our team'
     }
   },
   'GET /get-started': {
     action: 'view-get-started' ,
     locals:{
       title: 'Get Started | Fleet for osquery',
+      description: 'Get started using Fleet for osquery'
     }
   },
   'GET /pricing': {
     action: 'view-pricing',
     locals:{
       title: 'Pricing | Fleet for osquery',
-      description: 'howdy there :o'
+      description: 'View Fleet plans and pricing details'
     }
   },
   'GET /press-kit': {
     action: 'view-press-kit',
     locals:{
       title: 'Press kit | Fleet for osquery',
+      description: 'Download Fleet logos, wallpapers, and screenshots'
     }
   },
 
@@ -47,16 +50,25 @@ module.exports.routes = {
     action: 'view-query-library',
     locals:{
       title: 'Queries | Fleet for osquery',
+      description: 'A library of commonly used queries'
     }
   },
   'GET /queries/:slug': {
     action: 'view-query-detail',
     locals:{
       title: 'Query details | Fleet for osquery',
+      description: '',
     }
   },
 
-  'GET /docs/?*': { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
+  'GET /docs/?*': {
+    skipAssets: false,
+    action: 'docs/view-basic-documentation',
+    locals:{
+      title: 'Documentation | Fleet for osquery',
+      description: 'Documentation for Fleet for osquery',
+    }
+  },// handles /docs and /docs/foo/bar
 
   // 'GET /handbook/?*':  { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
 
@@ -64,6 +76,7 @@ module.exports.routes = {
     action: 'view-transparency',
     locals:{
       title: 'Transparency | Fleet for osquery',
+      description: 'Learn more about what data osquery can see',
     }
   },
 
