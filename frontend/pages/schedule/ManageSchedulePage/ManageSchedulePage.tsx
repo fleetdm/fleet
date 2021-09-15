@@ -169,6 +169,9 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   );
   const allTeamsScheduledQueriesError = allTeamsScheduledQueries.errors;
 
+  const inheritedQueryOrQueries =
+    allTeamsScheduledQueriesList.length === 1 ? "query" : "queries";
+
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
 
@@ -417,7 +420,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
           )}
         </div>
         {/* must use ternary for NaN */}
-        {teamId ? (
+        {teamId && allTeamsScheduledQueriesList.length > 0 ? (
           <>
             <span>
               <Button
@@ -427,8 +430,8 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
                 onClick={toggleInheritedQueries}
               >
                 {showInheritedQueries
-                  ? "Hide inherited queries"
-                  : "Show inherited queries"}
+                  ? `Hide ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
+                  : `Show ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
               </Button>
             </span>
             <div className={`${baseClass}__details`}>

@@ -92,36 +92,6 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     );
   };
 
-  if (inheritedQueries) {
-    const inheritedQueriesTableHeaders = generateInheritedQueriesTableHeaders();
-    const loadingInheritedQueriesTableData = useSelector(
-      (state: IRootState) => {
-        if (teamId) {
-          return state.entities.team_scheduled_queries.isLoading;
-        }
-        return state.entities.global_scheduled_queries.isLoading;
-      }
-    );
-
-    return (
-      <div className={`${baseClass}`}>
-        <TableContainer
-          resultsTitle={"queries"}
-          columns={inheritedQueriesTableHeaders}
-          data={generateDataSet(allScheduledQueriesList, teamId)}
-          isLoading={loadingInheritedQueriesTableData}
-          defaultSortHeader={"query"}
-          defaultSortDirection={"desc"}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          searchable={false}
-          disablePagination
-          disableCount
-          emptyComponent={NoScheduledQueries}
-        />
-      </div>
-    );
-  }
   const onActionSelection = (
     action: string,
     global_scheduled_query: IGlobalScheduledQuery
@@ -158,6 +128,33 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     },
     [dispatch]
   );
+
+  const loadingInheritedQueriesTableData = useSelector((state: IRootState) => {
+    return state.entities.global_scheduled_queries.isLoading;
+  });
+
+  if (inheritedQueries) {
+    const inheritedQueriesTableHeaders = generateInheritedQueriesTableHeaders();
+
+    return (
+      <div className={`${baseClass}`}>
+        <TableContainer
+          resultsTitle={"queries"}
+          columns={inheritedQueriesTableHeaders}
+          data={generateDataSet(allScheduledQueriesList, teamId)}
+          isLoading={loadingInheritedQueriesTableData}
+          defaultSortHeader={"query"}
+          defaultSortDirection={"desc"}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          searchable={false}
+          disablePagination
+          disableCount
+          emptyComponent={NoScheduledQueries}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`${baseClass}`}>
