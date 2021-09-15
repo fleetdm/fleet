@@ -95,7 +95,15 @@ func (svc Service) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*f
 		return nil, err
 	}
 
-	return svc.ds.ListQueries(ctx, opt)
+	queries, err := svc.ds.ListQueries(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	user := authz.UserFromContext(ctx)
+	if (user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver) || () {
+
+	}
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
