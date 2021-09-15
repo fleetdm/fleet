@@ -11,9 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDeleteEntity(t *testing.T) {
+func TestDelete(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Entity", testDeleteEntity},
+		{"EntityByName", testDeleteEntityByName},
+		{"Entities", testDeleteEntities},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testDeleteEntity(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds, "hosts")
 
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -36,9 +53,8 @@ func TestDeleteEntity(t *testing.T) {
 	assert.Nil(t, host)
 }
 
-func TestDeleteEntityByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testDeleteEntityByName(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds, "queries")
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time", "select * from time", 0, true)
 
@@ -49,9 +65,8 @@ func TestDeleteEntityByName(t *testing.T) {
 	assert.Nil(t, gotQ)
 }
 
-func TestDeleteEntities(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testDeleteEntities(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds, "queries")
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time1", "select * from time", 0, true)
 	query2 := test.NewQuery(t, ds, t.Name()+"time2", "select * from time", 0, true)
