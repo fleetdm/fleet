@@ -14,10 +14,28 @@ import (
 
 var mockCreatedAt = time.Now().UTC().Truncate(time.Second)
 
-func TestCarveMetadata(t *testing.T) {
+func TestCarves(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Metadata", testCarvesMetadata},
+		{"Blocks", testCarvesBlocks},
+		{"Cleanup", testCarvesCleanup},
+		{"List", testCarvesList},
+		{"Update", testCarvesUpdate},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds, "hosts", "carve_metadata", "carve_blocks")
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testCarvesMetadata(t *testing.T, ds *Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	expectedCarve := &fleet.CarveMetadata{
@@ -75,10 +93,7 @@ func TestCarveMetadata(t *testing.T) {
 	assert.Equal(t, expectedCarve, carve)
 }
 
-func TestCarveBlocks(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCarvesBlocks(t *testing.T, ds *Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
@@ -116,13 +131,9 @@ func TestCarveBlocks(t *testing.T) {
 		require.NoError(t, err, "get block %d %v", i, expectedBlocks[i])
 		assert.Equal(t, expectedBlocks[i], data)
 	}
-
 }
 
-func TestCarveCleanupCarves(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCarvesCleanup(t *testing.T, ds *Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	blockCount := int64(25)
@@ -174,10 +185,7 @@ func TestCarveCleanupCarves(t *testing.T) {
 	assert.True(t, carve.Expired)
 }
 
-func TestCarveListCarves(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCarvesList(t *testing.T, ds *Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	expectedCarve := &fleet.CarveMetadata{
@@ -235,10 +243,7 @@ func TestCarveListCarves(t *testing.T) {
 	assert.Len(t, carves, 2)
 }
 
-func TestCarveUpdateCarve(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCarvesUpdate(t *testing.T, ds *Datastore) {
 	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
 
 	actualCount := int64(10)
