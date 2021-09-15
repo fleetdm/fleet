@@ -9,7 +9,6 @@ describe(
       cy.login();
     });
 
-    // TODO - Fix tests according to improved query experience - MP
     it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
       cy.visit("/queries/manage");
 
@@ -46,7 +45,7 @@ describe(
 
       cy.findByText(/query updated/i).should("be.visible");
 
-      // Test Schedules
+      // Start e2e test for schedules
       cy.visit("/schedule/manage");
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
@@ -106,7 +105,7 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-      //e2e tests for team schedules
+      // Start e2e tests for team schedules
       cy.visit("/settings/teams");
 
       cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
@@ -131,7 +130,7 @@ describe(
       cy.findByText(/inherited query/i).click();
       cy.findByText(/query all window crashes/i).should("exist");
 
-      //end e2e test for team schedules
+      // End e2e test for team schedules
 
       cy.visit("/schedule/manage");
 
@@ -145,7 +144,7 @@ describe(
 
       cy.findByText(/query all window crashes/i).should("not.exist");
 
-      //   // End Test Schedules
+      // End e2e test for schedules
 
       cy.visit("/queries/manage");
 
