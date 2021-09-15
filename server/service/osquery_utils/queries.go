@@ -340,7 +340,7 @@ var detailQueries = map[string]DetailQuery{
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available, 
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available 
-FROM mounts WHERE path = '/';`,
+FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
 		IngestFunc: ingestDiskSpace,
 	},
@@ -348,7 +348,7 @@ FROM mounts WHERE path = '/';`,
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available, 
        ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available 
-FROM logical_drives WHERE file_system = 'NTFS';`,
+FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},

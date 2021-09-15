@@ -1,3 +1,75 @@
+## Fleet 4.3.0 (Sept 13, 2021)
+
+* Add Policies feature for detecting device compliance with organizational policies.
+
+* Run/edit query experience has been completely redesigned.
+
+* Add support for MySQL read replicas. This allows the Fleet server to scale to more hosts.
+
+* Add configurable webhook to notify when a specified percentage of hosts have been offline for over the specified amount of days.
+
+* Add `fleetctl package` command for building Orbit packages.
+
+* Add enroll secret dialog on host dashboard.
+
+* Expose free disk space in gigs and percentage for hosts.
+
+* Add 15-minute interval option on Schedule page.
+
+* Clean up advanced options UI.
+
+* 404 and 500 page now include buttons for Osquery community Slack and to file an issue
+
+* Update all empty and error states for cleaner UI.
+
+* Add warning banners in Fleet UI and `fleetctl` for license expiration.
+
+* Render query performance information on host vitals page pack section.
+
+* Improved performance for app loading.
+
+* Make team schedule names more user friendly and hide the stats for global and team schedules when showing host pack stats.
+
+* Display `query_name` in when referencing scheduled queries for more consistent UI/UX.
+
+* Query action added for observers on host vitals page.
+
+* Add `server_settings.debug_host_ids` to gather more detailed information about what the specified hosts are sending to fleet.
+
+* Allow deeper linking into the Fleet application by saving filters in URL parameters.
+
+* Rename Basic Tier to Premium Tier, and Core Tier to Free Tier.
+
+* Improve vulnerability detection compatibility with database configurations.
+
+* MariaDB compatibility fixes: add explicit foreign key constraint and on cascade delete for host_software to allow for hosts with software to be deleted.
+
+* Fix migration that was incompatible with MySQL primary key requirements (default on DigitalOcean MySQL 5.8).
+
+* Add 30 second SMTP timeout for mail configuration.
+
+* Fix display of platform Labels on manage hosts page
+
+* Fix a bug recording scheduled query statistics.
+
+* When a label is removed, ignore query executions for that label.
+
+* Add fleet serve config to change the redis connection timeout and keep alive interval.
+
+* Remove hardcoded limits in label searches when targeting queries.
+
+* Allow host users to be readded.
+
+* Move email template images from github to fleetdm.com.
+
+* Fix bug rendering CPU in host vitals.
+
+* Update the schema for host_users to allow for bulk inserts without locking, and allow for users without unique uid.
+
+* When using dynamic vulnerability processing node, try to create the vulnerability.databases-path.
+
+* Fix `fleetctl get host <hostname>` to properly output JSON when the command line flag is supplied i.e `fleetctl get host --json foobar`
+
 ## Fleet 4.2.4 (Sept 2, 2021)
 
 * Fix a bug in which live queries would fail for deployments that use Redis Cluster.

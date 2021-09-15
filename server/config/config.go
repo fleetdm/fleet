@@ -37,13 +37,15 @@ type MysqlConfig struct {
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address          string
-	Password         string
-	Database         int
-	UseTLS           bool          `yaml:"use_tls"`
-	DuplicateResults bool          `yaml:"duplicate_results"`
-	ConnectTimeout   time.Duration `yaml:"connect_timeout"`
-	KeepAlive        time.Duration `yaml:"keep_alive"`
+	Address                   string
+	Password                  string
+	Database                  int
+	UseTLS                    bool          `yaml:"use_tls"`
+	DuplicateResults          bool          `yaml:"duplicate_results"`
+	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
+	KeepAlive                 time.Duration `yaml:"keep_alive"`
+	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
+	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
 }
 
 const (
@@ -171,6 +173,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -242,6 +245,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
+	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
+	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -384,6 +389,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
+	man.addConfigBool("vulnerabilities.disable_data_sync", false,
+		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -414,13 +421,15 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:          man.getConfigString("redis.address"),
-			Password:         man.getConfigString("redis.password"),
-			Database:         man.getConfigInt("redis.database"),
-			UseTLS:           man.getConfigBool("redis.use_tls"),
-			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:   man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:        man.getConfigDuration("redis.keep_alive"),
+			Address:                   man.getConfigString("redis.address"),
+			Password:                  man.getConfigString("redis.password"),
+			Database:                  man.getConfigInt("redis.database"),
+			UseTLS:                    man.getConfigBool("redis.use_tls"),
+			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -514,6 +523,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
 			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
 		},
 	}
 }

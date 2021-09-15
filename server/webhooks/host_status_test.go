@@ -37,7 +37,7 @@ func TestTriggerHostStatusWebhook(t *testing.T) {
 		},
 	}
 
-	ds.TotalAndUnseenHostsSinceFunc = func(daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
 		assert.Equal(t, 2, daysCount)
 		return 10, 6, nil
 	}
@@ -50,7 +50,7 @@ func TestTriggerHostStatusWebhook(t *testing.T) {
 	)
 	requestBody = ""
 
-	ds.TotalAndUnseenHostsSinceFunc = func(daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
 		assert.Equal(t, 2, daysCount)
 		return 10, 1, nil
 	}

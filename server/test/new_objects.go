@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 	if authorID == 0 {
 		authorPtr = nil
 	}
-	query, err := ds.NewQuery(&fleet.Query{
+	query, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:     name,
 		Query:    q,
 		AuthorID: authorPtr,
@@ -24,18 +25,18 @@ func NewQuery(t *testing.T, ds fleet.Datastore, name, q string, authorID uint, s
 	require.NoError(t, err)
 
 	// Loading gives us the timestamps
-	query, err = ds.Query(query.ID)
+	query, err = ds.Query(context.Background(), query.ID)
 	require.NoError(t, err)
 
 	return query
 }
 
 func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
-	err := ds.ApplyPackSpecs([]*fleet.PackSpec{&fleet.PackSpec{Name: name}})
+	err := ds.ApplyPackSpecs(context.Background(), []*fleet.PackSpec{{Name: name}})
 	require.Nil(t, err)
 
 	// Loading gives us the timestamps
-	pack, ok, err := ds.PackByName(name)
+	pack, ok, err := ds.PackByName(context.Background(), name)
 	require.True(t, ok)
 	require.NoError(t, err)
 
@@ -43,7 +44,7 @@ func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
 }
 
 func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.DistributedQueryStatus, now time.Time) *fleet.DistributedQueryCampaign {
-	campaign, err := ds.NewDistributedQueryCampaign(&fleet.DistributedQueryCampaign{
+	campaign, err := ds.NewDistributedQueryCampaign(context.Background(), &fleet.DistributedQueryCampaign{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{
 				CreatedAt: now,
@@ -55,7 +56,7 @@ func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.Di
 	require.NoError(t, err)
 
 	// Loading gives us the timestamps
-	campaign, err = ds.DistributedQueryCampaign(campaign.ID)
+	campaign, err = ds.DistributedQueryCampaign(context.Background(), campaign.ID)
 	require.NoError(t, err)
 
 	return campaign
@@ -63,6 +64,7 @@ func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.Di
 
 func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
+		context.Background(),
 		&fleet.DistributedQueryCampaignTarget{
 			Type:                       fleet.TargetHost,
 			TargetID:                   hostID,
@@ -73,6 +75,7 @@ func AddHostToCampaign(t *testing.T, ds fleet.Datastore, campaignID, hostID uint
 
 func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID uint) {
 	_, err := ds.NewDistributedQueryCampaignTarget(
+		context.Background(),
 		&fleet.DistributedQueryCampaignTarget{
 			Type:                       fleet.TargetLabel,
 			TargetID:                   labelID,
@@ -83,6 +86,7 @@ func AddLabelToCampaign(t *testing.T, ds fleet.Datastore, campaignID, labelID ui
 
 func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	_, err := ds.NewLabel(
+		context.Background(),
 		&fleet.Label{
 			Name:                "All Hosts",
 			Query:               "select 1",
@@ -95,7 +99,7 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 
 func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
-	h, err := ds.NewHost(&fleet.Host{
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        name,
 		NodeKey:         key,
 		UUID:            uuid,
@@ -107,7 +111,7 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 
 	require.NoError(t, err)
 	require.NotZero(t, h.ID)
-	require.NoError(t, ds.MarkHostSeen(h, now))
+	require.NoError(t, ds.MarkHostSeen(context.Background(), h, now))
 
 	return h
 }
@@ -117,7 +121,7 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 	if admin {
 		role = fleet.RoleAdmin
 	}
-	u, err := ds.NewUser(&fleet.User{
+	u, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("garbage"),
 		Salt:       "garbage",
 		Name:       name,
@@ -132,7 +136,7 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 }
 
 func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *fleet.ScheduledQuery {
-	sq, err := ds.NewScheduledQuery(&fleet.ScheduledQuery{
+	sq, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
 		Name:     name,
 		PackID:   pid,
 		QueryID:  qid,

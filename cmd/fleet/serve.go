@@ -167,7 +167,7 @@ the way that the Fleet server works.
 				carveStore = ds
 			}
 
-			migrationStatus, err := ds.MigrationStatus()
+			migrationStatus, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving migration status")
 			}
@@ -200,21 +200,21 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := redis.NewRedisPool(
-				config.Redis.Address,
-				config.Redis.Password,
-				config.Redis.Database,
-				config.Redis.UseTLS,
-				config.Redis.ConnectTimeout,
-				config.Redis.KeepAlive,
-			)
+			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
+				Server:                    config.Redis.Address,
+				Password:                  config.Redis.Password,
+				Database:                  config.Redis.Database,
+				UseTLS:                    config.Redis.UseTLS,
+				ConnTimeout:               config.Redis.ConnectTimeout,
+				KeepAlive:                 config.Redis.KeepAlive,
+				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
+				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
-			// TODO: should that only be done when a certain "migrate" flag is set,
-			// to prevent affecting every startup?
 			if err := liveQueryStore.MigrateKeys(); err != nil {
 				level.Info(logger).Log(
 					"err", err,
@@ -422,10 +422,10 @@ type Locker interface {
 	// It returns true, nil if it managed to obtain a lock on the instance.
 	// false and potentially an error otherwise.
 	// This must not be blocking.
-	Lock(name string, owner string, expiration time.Duration) (bool, error)
+	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
-	Unlock(name string, owner string) error
+	Unlock(ctx context.Context, name string, owner string) error
 }
 
 const (
@@ -434,8 +434,8 @@ const (
 	lockKeyWebhooks        = "webhooks"
 )
 
-func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) error {
-	ac, err := ds.AppConfig()
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string) error {
+	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -443,7 +443,7 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(frequency)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency)
 	if err != nil {
 		return err
 	}
@@ -451,11 +451,11 @@ func trySendStatistics(ds fleet.Datastore, frequency time.Duration, url string) 
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(context.Background(), url, stats)
+	err = server.PostJSONWithTimeout(ctx, url, stats)
 	if err != nil {
 		return err
 	}
-	return ds.RecordStatisticsSent()
+	return ds.RecordStatisticsSent(ctx)
 }
 
 func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
@@ -489,28 +489,28 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(lockKeyLeader, identifier, time.Hour); err != nil || !locked {
+		if locked, err := locker.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
-		_, err := ds.CleanupDistributedQueryCampaigns(time.Now())
+		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
 		}
-		err = ds.CleanupIncomingHosts(time.Now())
+		err = ds.CleanupIncomingHosts(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
 		}
-		_, err = ds.CleanupCarves(time.Now())
+		_, err = ds.CleanupCarves(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
 		}
-		err = ds.CleanupOrphanScheduledQueryStats()
+		err = ds.CleanupOrphanScheduledQueryStats(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
 		}
 
-		err = trySendStatistics(ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
 		if err != nil {
 			level.Error(logger).Log("err", "sending statistics", "details", err)
 		}
@@ -531,7 +531,7 @@ func cronVulnerabilities(
 		return
 	}
 
-	appConfig, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
@@ -577,19 +577,19 @@ func cronVulnerabilities(
 			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := locker.Lock(lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+			if locked, err := locker.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
 				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 				continue
 			}
 		}
 
-		err := vulnerabilities.TranslateSoftwareToCPE(ds, vulnPath, logger, config.Vulnerabilities.CPEDatabaseURL)
+		err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 			continue
 		}
 
-		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config.Vulnerabilities.CVEFeedPrefixURL)
+		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 			continue
@@ -600,7 +600,7 @@ func cronVulnerabilities(
 }
 
 func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
-	appConfig, err := ds.AppConfig()
+	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		return
@@ -617,7 +617,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(lockKeyWebhooks, identifier, interval); err != nil || !locked {
+		if locked, err := locker.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
@@ -629,7 +629,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		}
 
 		// Reread app config to be able to change interval somewhat on the fly
-		appConfig, err = ds.AppConfig()
+		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		} else {

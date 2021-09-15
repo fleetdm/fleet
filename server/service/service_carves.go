@@ -61,7 +61,7 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 		CreatedAt:  now,
 	}
 
-	carve, err = svc.carveStore.NewCarve(carve)
+	carve, err = svc.carveStore.NewCarve(ctx, carve)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: new carve: " + err.Error()}
 	}
@@ -75,7 +75,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	// Note host did not authenticate via node key. We need to authenticate them
 	// by the session ID and request ID
-	carve, err := svc.carveStore.CarveBySessionId(payload.SessionId)
+	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
 	if err != nil {
 		return errors.Wrap(err, "find carve by session_id")
 	}
@@ -98,7 +98,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 		return fmt.Errorf("exceeded declared block size %d: %d", carve.BlockSize, len(payload.Data))
 	}
 
-	if err := svc.carveStore.NewBlock(carve, payload.BlockId, payload.Data); err != nil {
+	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
 		return errors.Wrap(err, "save block data")
 	}
 
@@ -110,7 +110,7 @@ func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadat
 		return nil, err
 	}
 
-	return svc.carveStore.Carve(id)
+	return svc.carveStore.Carve(ctx, id)
 }
 
 func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
@@ -118,7 +118,7 @@ func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) 
 		return nil, err
 	}
 
-	return svc.carveStore.ListCarves(opt)
+	return svc.carveStore.ListCarves(ctx, opt)
 }
 
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
@@ -126,7 +126,7 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 		return nil, err
 	}
 
-	metadata, err := svc.carveStore.Carve(carveId)
+	metadata, err := svc.carveStore.Carve(ctx, carveId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get carve by name")
 	}
@@ -139,7 +139,7 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 		return nil, fmt.Errorf("block %d not yet available", blockId)
 	}
 
-	data, err := svc.carveStore.GetBlock(metadata, blockId)
+	data, err := svc.carveStore.GetBlock(ctx, metadata, blockId)
 	if err != nil {
 		return nil, errors.Wrapf(err, "get block %d", blockId)
 	}

@@ -289,7 +289,7 @@ Maximum idle connections to database. This value should be equal to or less than
   	max_idle_conns: 50
   ```
 
-###### conn_max_lifetime
+###### mysql_conn_max_lifetime
 
 Maximum amount of time, in seconds, a connection may be reused.
 
@@ -358,7 +358,7 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
 
 ###### redis_connect_timeout
 
-Timeout for redis connection. 
+Timeout for redis connection.
 
 - Default value: 5s
 - Environment variable: `FLEET_REDIS_CONNECT_TIMEOUT`
@@ -380,6 +380,38 @@ Interval between keep alive probes.
   ```
   redis:
     keep_alive: 30s
+  ```
+
+###### redis_connect_retry_attempts
+
+Maximum number of attempts to retry a failed connection to a redis node. Only
+certain type of errors are retried, such as connection timeouts.
+
+- Default value: 0 (no retry)
+- Environment variable: `FLEET_REDIS_CONNECT_RETRY_ATTEMPTS`
+- Config file format:
+
+  ```
+  redis:
+    connect_retry_attempts: 2
+  ```
+
+###### redis_cluster_follow_redirections
+
+Whether or not to automatically follow redirection errors received from the
+Redis server. Applies only to Redis Cluster setups, ignored in standalone
+Redis. In Redis Cluster, keys can be moved around to different nodes when the
+cluster is unstable and reorganizing the data. With this configuration option
+set to true, those (typically short and transient) redirection errors can be
+handled transparently instead of ending in an error.
+
+- Default value: false
+- Environment variable: `FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS`
+- Config file format:
+
+  ```
+  redis:
+    cluster_follow_redirections: true
   ```
 
 ##### Server
@@ -1343,6 +1375,22 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   vulnerabilities:
   	current_instance_checks: yes
   ```
+
+###### disable_data_sync
+
+Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
+
+In order to support vulnerability processing in such environments, we allow users to disable automatic sync of data streams with this configuration value.
+
+To download the data streams, you can use `fleetctl vulnerability-data-stream --dir ./somedir`. The contents downloaded can then be reviewed, and finally uploaded to the defined `databases_path` in the fleet instance(s) doing the vulnerability processing.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_DATA_SYNC`
+- Config file format:
+
+  ```
+  vulnerabilities:
+  	disable_data_sync: true
 
 ## Managing osquery configurations
 

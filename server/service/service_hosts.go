@@ -19,7 +19,7 @@ func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListHosts(filter, opt)
+	return svc.ds.ListHosts(ctx, filter, opt)
 }
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
@@ -29,7 +29,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, err
 		return nil, err
 	}
 
-	host, err := svc.ds.Host(id)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host")
 	}
@@ -47,7 +47,7 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fl
 		return nil, err
 	}
 
-	host, err := svc.ds.HostByIdentifier(identifier)
+	host, err := svc.ds.HostByIdentifier(ctx, identifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by identifier")
 	}
@@ -61,16 +61,16 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fl
 }
 
 func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(host); err != nil {
+	if err := svc.ds.LoadHostSoftware(ctx, host); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
-	labels, err := svc.ds.ListLabelsForHost(host.ID)
+	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get labels for host")
 	}
 
-	packs, err := svc.ds.ListPacksForHost(host.ID)
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get packs for host")
 	}
@@ -88,7 +88,7 @@ func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, erro
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(filter, svc.clock.Now())
+	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	host, err := svc.ds.Host(id)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "get host for delete")
 	}
@@ -115,14 +115,14 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteHost(id)
+	return svc.ds.DeleteHost(ctx, id)
 }
 
 func (svc *Service) FlushSeenHosts(ctx context.Context) error {
 	// No authorization check because this is used only internally.
 
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
-	return svc.ds.MarkHostsSeen(hostIDs, svc.clock.Now())
+	return svc.ds.MarkHostsSeen(ctx, hostIDs, svc.clock.Now())
 }
 
 func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
@@ -134,7 +134,7 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 		return err
 	}
 
-	return svc.ds.AddHostsToTeam(teamID, hostIDs)
+	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
 }
 
 func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt fleet.HostListOptions, lid *uint) error {
@@ -161,9 +161,9 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	var hosts []*fleet.Host
 	var err error
 	if lid != nil {
-		hosts, err = svc.ds.ListHostsInLabel(filter, *lid, opt)
+		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
-		hosts, err = svc.ds.ListHosts(filter, opt)
+		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
 		return err
@@ -179,11 +179,11 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	}
 
 	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(teamID, hostIDs)
+	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	host, err := svc.ds.Host(id)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")
 	}
@@ -193,7 +193,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	}
 
 	host.RefetchRequested = true
-	if err := svc.ds.SaveHost(host); err != nil {
+	if err := svc.ds.SaveHost(ctx, host); err != nil {
 		return errors.Wrap(err, "save host")
 	}
 

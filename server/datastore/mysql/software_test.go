@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -39,17 +40,17 @@ func TestSaveHostSoftware(t *testing.T) {
 	}
 	host2.HostSoftware = soft2
 
-	err := ds.SaveHostSoftware(host1)
+	err := ds.SaveHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
-	err = ds.SaveHostSoftware(host2)
+	err = ds.SaveHostSoftware(context.Background(), host2)
 	require.NoError(t, err)
 
-	err = ds.LoadHostSoftware(host1)
+	err = ds.LoadHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(host2)
+	err = ds.LoadHostSoftware(context.Background(), host2)
 	require.NoError(t, err)
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
@@ -69,17 +70,17 @@ func TestSaveHostSoftware(t *testing.T) {
 	}
 	host2.HostSoftware = soft2
 
-	err = ds.SaveHostSoftware(host1)
+	err = ds.SaveHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
-	err = ds.SaveHostSoftware(host2)
+	err = ds.SaveHostSoftware(context.Background(), host2)
 	require.NoError(t, err)
 
-	err = ds.LoadHostSoftware(host1)
+	err = ds.LoadHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(host2)
+	err = ds.LoadHostSoftware(context.Background(), host2)
 	require.NoError(t, err)
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
@@ -93,10 +94,10 @@ func TestSaveHostSoftware(t *testing.T) {
 	}
 	host1.HostSoftware = soft1
 
-	err = ds.SaveHostSoftware(host1)
+	err = ds.SaveHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
 
-	err = ds.LoadHostSoftware(host1)
+	err = ds.LoadHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
@@ -117,10 +118,10 @@ func TestSoftwareCPE(t *testing.T) {
 	}
 	host1.HostSoftware = soft1
 
-	err := ds.SaveHostSoftware(host1)
+	err := ds.SaveHostSoftware(context.Background(), host1)
 	require.NoError(t, err)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator()
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background())
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -146,10 +147,10 @@ func TestSoftwareCPE(t *testing.T) {
 	assert.Equal(t, len(host1.Software), loops)
 	require.NoError(t, iterator.Close())
 
-	err = ds.AddCPEForSoftware(fleet.Software{ID: id}, "some:cpe")
+	err = ds.AddCPEForSoftware(context.Background(), fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
-	iterator, err = ds.AllSoftwareWithoutCPEIterator()
+	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background())
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -189,11 +190,11 @@ func TestInsertCVEs(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
-	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
 }
 
 func TestHostSoftwareDuplicates(t *testing.T) {
@@ -214,7 +215,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 
 	incoming = make(map[string]bool)
@@ -227,7 +228,7 @@ func TestHostSoftwareDuplicates(t *testing.T) {
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(tx, host1.ID, make(map[string]uint), incoming))
+	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 }
 
@@ -246,15 +247,15 @@ func TestLoadSoftwareVulnerabilities(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
-	require.NoError(t, ds.InsertCVEForCPE("cve-123-123-132", []string{"somecpe"}))
-	require.NoError(t, ds.InsertCVEForCPE("cve-321-321-321", []string{"somecpe"}))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-321-321", []string{"somecpe"}))
 
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
 	require.Len(t, host.Software[0].Vulnerabilities, 2)
@@ -284,13 +285,13 @@ func TestAllCPEs(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
 
-	cpes, err := ds.AllCPEs()
+	cpes, err := ds.AllCPEs(context.Background())
 	require.NoError(t, err)
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
 }
@@ -318,8 +319,6 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	//_, err := ds.db.Exec("SET GLOBAL group_concat_max_len = 4194304")
-	//require.NoError(t, err)
 	soft := fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
@@ -329,21 +328,21 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 		},
 	}
 	host.HostSoftware = soft
-	require.NoError(t, ds.SaveHostSoftware(host))
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].Name < host.Software[j].Name })
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[0], "somecpe"))
-	require.NoError(t, ds.AddCPEForSoftware(host.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
 	for i := 0; i < 1000; i++ {
 		part1 := rand.Intn(1000)
 		part2 := rand.Intn(1000)
 		part3 := rand.Intn(1000)
 		cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
-		require.NoError(t, ds.InsertCVEForCPE(cve, []string{"somecpe"}))
+		require.NoError(t, ds.InsertCVEForCPE(context.Background(), cve, []string{"somecpe"}))
 	}
 
-	require.NoError(t, ds.LoadHostSoftware(host))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	for _, software := range host.Software {
 		switch software.Name {
@@ -362,4 +361,105 @@ func TestLoadSupportsTonsOfCVEs(t *testing.T) {
 			assert.Len(t, software.Vulnerabilities, 0)
 		}
 	}
+}
+
+func TestListSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	soft1 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		},
+	}
+	host1.HostSoftware = soft1
+	soft2 := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		},
+	}
+	host2.HostSoftware = soft2
+
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+
+	sort.Slice(host1.Software, func(i, j int) bool { return host1.Software[i].Name < host1.Software[j].Name })
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))
+	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-333-444-555", []string{"somecpe"}))
+
+	foo001 := fleet.Software{
+		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
+		Vulnerabilities: fleet.VulnerabilitiesSlice{
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+		},
+	}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+
+	t.Run("lists everything", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		require.Len(t, software, 4)
+		expected := []fleet.Software{foo001, foo002, foo003, bar003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("limits the results", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo001}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("paginates", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters by team", func(t *testing.T) {
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		require.Len(t, software, 2)
+		expected := []fleet.Software{foo001, foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters by team and paginates", func(t *testing.T) {
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
 }

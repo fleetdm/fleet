@@ -33,11 +33,11 @@ func TestMaybeSendStatistics(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier: "ident",
 			FleetVersion:        "1.2.3",
@@ -45,12 +45,12 @@ func TestMaybeSendStatistics(t *testing.T) {
 		}, true, nil
 	}
 	recorded := false
-	ds.RecordStatisticsSentFunc = func() error {
+	ds.RecordStatisticsSentFunc = func(ctx context.Context) error {
 		recorded = true
 		return nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","numHostsEnrolled":999}`, requestBody)
@@ -66,20 +66,20 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
-	ds.RecordStatisticsSentFunc = func() error {
+	ds.RecordStatisticsSentFunc = func(ctx context.Context) error {
 		recorded = true
 		return nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, called)
@@ -95,21 +95,21 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
 	require.NoError(t, err)
 	assert.False(t, called)
 }
 
 type alwaysLocker struct{}
 
-func (m *alwaysLocker) Lock(name string, owner string, expiration time.Duration) (bool, error) {
+func (m *alwaysLocker) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 	return true, nil
 }
-func (m *alwaysLocker) Unlock(name string, owner string) error {
+func (m *alwaysLocker) Unlock(ctx context.Context, name string, owner string) error {
 	return nil
 }
 
@@ -122,7 +122,7 @@ func TestCronWebhooks(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
 				HostStatusWebhook: fleet.HostStatusWebhookSettings{
@@ -138,7 +138,7 @@ func TestCronWebhooks(t *testing.T) {
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
-	ds.TotalAndUnseenHostsSinceFunc = func(daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
 		defer func() {
 			select {
 			case <-calledOnce:
@@ -171,7 +171,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -201,7 +201,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -228,7 +228,7 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -259,7 +259,7 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 

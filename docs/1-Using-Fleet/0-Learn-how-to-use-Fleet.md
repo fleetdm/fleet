@@ -1,6 +1,6 @@
 # Learn how to use Fleet
 
-> This tutorial assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](../../../README.md#try-fleet) guide for instructions on how to start a preview environment of Fleet.
+> This tutorial assumes that you have a preview environment of Fleet up and running. If you haven't already done so, check out our [Get Started](https://fleetdm.com/get-started) guide for instructions on how to start a preview environment of Fleet.
 
 In this tutorial, we'll cover the following concepts:
 
@@ -14,7 +14,7 @@ Once you log into Fleet, you are presented with the **Hosts** page.
 
 >In Fleet, devices are referred to as "hosts."
 
-<img src="https://user-images.githubusercontent.com/78363703/130040107-02d0161f-0afe-49db-a9b1-116149ed9814.png" alt="Fleet query search" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/130040107-02d0161f-0afe-49db-a9b1-116149ed9814.png" alt="Fleet query search"/>
 
 On this page you'll see 7 hosts by default. These hosts are simulated Linux devices, and like the Fleet preview environment, they're running locally on your computer in Docker.
 
@@ -33,13 +33,13 @@ These questions can easily be answered, by running the following query: "Detect 
 On the **Queries** page, enter the query name, "Detect Linux hosts with high severity vulnerable versions of OpenSSL," in the search box, select the query from the results table, and navigate to the **Edit or run query** page.
 
 
-<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search"/>
 
 
 On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts," to run this query against all hosts enrolled in your Fleet. Then hit the "Run" button to execute the query.  
 
 
-<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets"/>
 
 The query may take several seconds to complete, because Fleet has to wait for the osquery agents to respond with results.
 
@@ -48,7 +48,7 @@ The query may take several seconds to complete, because Fleet has to wait for th
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
 
 
-<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results"/>
 
 
 - The "hostname" column answers: which device responded for a given row of results? 
@@ -95,13 +95,13 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 
 > Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
 
-<img src="https://user-images.githubusercontent.com/78363703/130035034-7363ebe1-f89b-42af-9e88-24db867e8047.png" alt="Clone Orbit repository" width="300"/>
+<img src="https://user-images.githubusercontent.com/78363703/130035034-7363ebe1-f89b-42af-9e88-24db867e8047.png" alt="Clone Orbit repository"/>
 
 2. In Fleet UI's Host page, hit the "Add new host" button, and copy your Fleet enroll secret (you'll need this in the next step.)
 
-<img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Clone Orbit repository" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Clone Orbit repository"/>
 
-3. With [fleetctl preview](http://www.fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
+3. With [fleetctl preview](http://fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
 
 ``` 
 # From within the top-level directory of your cloned Orbit repository…

@@ -1,1 +1,0 @@
-* Fix migration that was incompatible with MySQL primary key requirements (default on DigitalOcean MySQL 5.8)
