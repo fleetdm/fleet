@@ -15,11 +15,7 @@ export default PropTypes.shape({
   platform: PropTypes.string,
   version: PropTypes.string,
   shard: PropTypes.number,
-<<<<<<< HEAD
   denylist: PropTypes.bool,
-=======
-  version: PropTypes.string,
->>>>>>> 5d77518e (Render strings for platform, version, etc)
 });
 
 export interface IScheduledQuery {
@@ -33,14 +29,9 @@ export interface IScheduledQuery {
   query: string;
   interval: number;
   snapshot: boolean;
-<<<<<<< HEAD
   removed: boolean;
   platform?: string;
   version?: string;
   shard: number | null;
   denylist?: boolean;
-=======
-  shard: number;
-  version: string;
->>>>>>> 5d77518e (Render strings for platform, version, etc)
 }
