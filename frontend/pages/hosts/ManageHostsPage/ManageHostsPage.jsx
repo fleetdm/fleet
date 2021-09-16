@@ -223,12 +223,29 @@ export class ManageHostsPage extends PureComponent {
     /* eslint-enable no-alert, react/no-did-mount-set-state */
   }
 
-  componentWillReceiveProps() {
+  /* eslint-disable react/no-did-update-set-state */
+  componentDidUpdate() {
+    // TODO: Very temporary until this component becomes functional
+    // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
+    if (
+      !isEqual(
+        this.context.selectedOsqueryTable,
+        this.state.selectedOsqueryTable
+      )
+    ) {
+      const { selectedOsqueryTable } = this.context;
+      this.setState({ selectedOsqueryTable });
+    }
+
+    // end TODO
+
     const { config, dispatch, isPremiumTier } = this.props;
     const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
+    
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
+
     if (isConfigLoaded && isPremiumTier && !isTeamsLoaded && !isTeamsLoading) {
       this.setState({ isTeamsLoading: true });
       dispatch(teamActions.loadAll({}))
@@ -252,21 +269,6 @@ export class ManageHostsPage extends PureComponent {
             isTeamsLoading: false,
           });
         });
-    }
-  }
-
-  // TODO: Very temporary until this component becomes functional
-  // this was so we could remove redux for selectedOsqueryTable - 8/31/21 - MP
-  /* eslint-disable react/no-did-update-set-state */
-  componentDidUpdate() {
-    if (
-      !isEqual(
-        this.context.selectedOsqueryTable,
-        this.state.selectedOsqueryTable
-      )
-    ) {
-      const { selectedOsqueryTable } = this.context;
-      this.setState({ selectedOsqueryTable });
     }
   }
   /* eslint-enable react/no-did-update-set-state */

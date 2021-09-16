@@ -26,9 +26,15 @@ interface IRootState {
 
 const App = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
-  const { setCurrentUser, setConfig } = useContext(AppContext);
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
+  const { 
+    setCurrentUser, 
+    setConfig, 
+    currentUser,
+    isGlobalObserver,
+    isOnlyObserver,
+  } = useContext(AppContext);
 
   useDeepEffect(() => {
     // on page refresh
@@ -41,9 +47,19 @@ const App = ({ children }: IAppProps) => {
       dispatch(getConfig())
         .then((config: IConfig) => setConfig(config))
         .catch(() => false);
-      dispatch(getEnrollSecret()).catch(() => false);
     }
   }, [user]);
+  
+  useDeepEffect(() => {
+    const canGetEnrollSecret = 
+      currentUser &&
+      (typeof isGlobalObserver !== "undefined" && !isGlobalObserver) &&
+      (typeof isOnlyObserver !== "undefined" && !isOnlyObserver);
+
+    if (canGetEnrollSecret) {
+      dispatch(getEnrollSecret()).catch(() => false);
+    }
+  }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
   const wrapperStyles = classnames("wrapper");
   return (
