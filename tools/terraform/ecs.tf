@@ -40,14 +40,14 @@ resource "aws_alb_target_group" "main" {
 
 resource "aws_alb_listener" "main" {
   load_balancer_arn = aws_alb.main.arn
-  port = 443
-  protocol = "HTTPS"
-  ssl_policy = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn = var.cert_arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetctl_com.certificate_arn
 
   default_action {
     target_group_arn = aws_alb_target_group.main.arn
-    type = "forward"
+    type             = "forward"
   }
 }
 
@@ -57,21 +57,12 @@ resource "aws_alb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_alb_target_group.main.arn
-  }
-}
+    type = "redirect"
 
-resource "aws_alb_listener_rule" "main" {
-  listener_arn = aws_alb_listener.http.arn
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_alb_target_group.main.arn
-  }
-  condition {
-    path_pattern {
-      values = ["*"]
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
     }
   }
 }
@@ -123,8 +114,8 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu    = 256
-  memory = 512
+  cpu                      = 256
+  memory                   = 512
   container_definitions = jsonencode(
     [
       {
@@ -168,7 +159,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql_serverless.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -209,8 +200,8 @@ resource "aws_ecs_task_definition" "migration" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu    = 256
-  memory = 512
+  cpu                      = 256
+  memory                   = 512
   container_definitions = jsonencode(
     [
       {
@@ -255,7 +246,7 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql_serverless.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
