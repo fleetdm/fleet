@@ -6,6 +6,7 @@ import { useTable, useSortBy, useRowSelect, Row } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
 
 import { useDeepEffect } from "utilities/hooks";
+import sort from "utilities/sort";
 
 import Spinner from "components/loaders/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
@@ -109,6 +110,8 @@ const DataTable = ({
             }
             return 0;
           },
+          dateStringsAsc: (a: any, b: any, id: any) =>
+            sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []
       ),
