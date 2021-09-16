@@ -178,10 +178,10 @@ func TestTeamPolicy(t *testing.T) {
 	prevPolicies, err := ds.ListGlobalPolicies(context.Background())
 	require.NoError(t, err)
 
-	p, err := ds.NewTeamPolicy(context.Background(), 99999999, q.ID)
+	_, err = ds.NewTeamPolicy(context.Background(), 99999999, q.ID)
 	require.Error(t, err)
 
-	p, err = ds.NewTeamPolicy(context.Background(), team1.ID, q.ID)
+	p, err := ds.NewTeamPolicy(context.Background(), team1.ID, q.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, "query1", p.QueryName)
