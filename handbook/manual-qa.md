@@ -86,7 +86,7 @@ Edit this query and then delete this query.
 
 `Flow is covered by e2e testing`
 
-Create a new pack.
+Create a new pack. (Under Schedule/advanced.)
 
 Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
