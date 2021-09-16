@@ -124,11 +124,11 @@ To view the deprecated documentation, [click here](./README_deprecated.md).
 ## Patterns
 
 ### Typing
-All Javascript and React files use Typescript, meaning the extensions are `.ts` and `.tsx`. Here are the guidelines on what we type at Fleet:
+All Javascript and React files use Typescript, meaning the extensions are `.ts` and `.tsx`. Here are the guidelines on how we type at Fleet:
 
-- Use [Global entity interfaces](#interfaces) when interfaces are used multiple times across the app
-- Use local interfaces when typing entities limited to the specific page or component
-- Page/Component props (using an interface)
+- Use *[global entity interfaces](#interfaces)* when interfaces are used multiple times across the app
+- Use *local interfaces* when typing entities limited to the specific page or component
+- Local interfaces for page and component props
 
   ```typescript
   // page
@@ -155,7 +155,7 @@ All Javascript and React files use Typescript, meaning the extensions are `.ts` 
 const [item, setItem] = useState<string>("");
 ```
 
-- Fetch function signature (i.e. `react-query`)
+- Fetch function signatures (i.e. `react-query`)
 ```typescript
 useQuery<IHostResponse, Error, IHost>(params)
 ```
