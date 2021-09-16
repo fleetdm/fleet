@@ -1,6 +1,18 @@
 # Fleet Front-End
 
-The Fleet front-end is a Single Page Application using React and Redux.
+The Fleet front-end is a Single Page Application using React with Typescript and Hooks.
+
+## Table of Contents
+- [Running the Fleet web app](#running-the-fleet-web-app)
+- [Directory Structure](#directory-structure)
+- [Deprecated](#deprecated)
+- [Patterns](#patterns)
+  - [Typing](#typing)
+  - [React Hooks (Functional Components)](#react-hooks-functional-components)
+  - [React Context](#react-context)
+  - [Fleet API Calls](#fleet-api-calls)
+  - [Page Routing](#page-routing)
+  - [Other](#other)
 
 ## Running the Fleet web app
 
@@ -10,25 +22,19 @@ consult the [Contributing documentation](../docs/3-Contributing/README.md).
 ## Directory Structure
 
 Component directories in the Fleet front-end application encapsulate the entire
-component, including files for the component, helper functions, styles, and tests. The
+component, including files for the component and its styles. The
 typical directory structure for a component is as follows:
 
 ```
-|-- ComponentName
-|  |-- _styles.scss
-|  |-- ComponentName.jsx
-|  |-- ComponentName.tests.jsx
-|  |-- helpers.js
-|  |-- helpers.tests.js
-|  |-- index.js
+└── ComponentName
+  ├── _styles.scss
+  ├── ComponentName.tsx
+  ├── index.ts
 ```
 
 - `_styles.scss`: The component css styles
-- `ComponentName.jsx`: The React component
-- `ComponentName.tests.jsx`: The React component tests
-- `helpers.js`: Helper functions used by the component
-- `helpers.tests.js`: Tests for the component's helper functions
-- `index.js`: Exports the React component
+- `ComponentName.tsx`: The React component
+- `index.ts`: Exports the React component
   - This file is helpful as it allows other components to import the component
     by it's directory name. Without this file the component name would have to
     be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
@@ -46,40 +52,34 @@ The component directory contains the React components rendered by pages. They
 are typically not connected to the redux state but receive props from their
 parent components to render data and handle user interactions.
 
+### [context](./context)
+
+The context directory contains the React Context API pattern for various entities.
+Only entities that are needed across the app has a global context. For example,
+the [logged in user](./context/app.tsx) (`currentUser`) has multiple pages and components 
+where its information is pulled.
+
 ### [interfaces](./interfaces)
 
-Files in the interfaces directory are used to specify the PropTypes for a reusable Fleet
+Files in the interfaces directory are used to specify the Typescript interface for a reusable Fleet
 entity. This is designed to DRY up the code and increase re-usability. These
-interfaces are imported into component files and implemented when defining the
-component's PropTypes.
+interfaces are imported in to component files and implemented when defining the
+component's props.
 
-### [fleet](./fleet)
-
-The default export of the `fleet` directory is the API client. More info can be
-found at the [API client documentation page](./fleet/README.md).
+**Additionally, local interfaces are used for props of local components.**
 
 ### [layouts](https://github.com/fleetdm/fleet/tree/main/frontend/layouts)
 
 The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
-The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general app UI (header, sidebar) and render child components.
+The Layout is rendered from the [router](./router/index.tsx) and are used to set up the general 
+app UI (header, sidebar) and render child components.
 The child components rendered by the layout are typically page components.
 
 ### [pages](./pages)
 
 Page components are React components typically rendered from the [router](./router).
-These components are connected to redux state and are used to gather data from
-redux and pass that data to child components (located in the [components
-directory](./components). As
-connected components, Pages are also used to dispatch actions. Actions
-dispatched from Pages are intended to update redux state and oftentimes include
-making a call to the Fleet API.
-
-### [redux](./redux)
-
-The redux directory holds all of the application's redux middleware, actions,
-and reducers. The redux directory also creates the [store](./redux/store.js) which is used in the router.
-More information about the redux configuration can be found at the [Redux
-Documentation page](./redux/README.md)
+React Router passed props to these pages in case they are needed. Examples include 
+the `router`, `location`, and `params` objects.
 
 ### [router](./router)
 
@@ -89,6 +89,10 @@ typically located in the [pages directory](./pages). The router directory also h
 file which holds the application paths as string constants for reference
 throughout the app. These paths are typically referenced from the [App
 Constants](./app_constants) object.
+
+### [services](./services)
+
+CRUD functions for all Fleet entities (e.g. `query`) that link directly to the Fleet API.
 
 ### [styles](./styles)
 
@@ -100,22 +104,221 @@ includes variables for the app color hex codes, fonts (families, weights and siz
 The templates directory contains the HTML file that renders the React application via including the `bundle.js`
 and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
 
-### [test](./test)
-
-The test directory includes test helpers, API request mocks, and stubbed data entities for use in test files.
-More on test helpers, stubs, and request mocks [here](./test/README.md).
-
 ### [utilities](./utilities)
 
-The utilities directory contains re-usable functions for use throughout the
+The utilities directory contains re-usable functions and constants for use throughout the
 application. The functions include helpers to convert an array of objects to
 CSV, debounce functions to prevent multiple form submissions, format API errors,
 etc.
 
-## Forms
+## Deprecated
 
-For details on creating a Fleet form visit the [Fleet Form Documentation](./components/forms/README.md).
+These directories and files are still used (as of 9/14/21) but are being replaced by newer code:
 
-## API Client
+- [fleet](./fleet), now using [services](./services)
+- [redux](./redux), now using [services](./services), local states, and various entities directly (e.g. React Router)
+- [Form.jsx Higher Order Component](./components/forms/README.md), now creating forms with local states with React Hooks (i.e. `useState`)
 
-For details on the Fleet API Client visit the [Fleet API Client Documentation](./fleet/README.md).
+To view the deprecated documentation, [click here](./README_deprecated.md).
+
+## Patterns
+
+### Typing
+All Javascript and React files use Typescript, meaning the extensions are `.ts` and `.tsx`. Here are the guidelines on how we type at Fleet:
+
+- Use *[global entity interfaces](#interfaces)* when interfaces are used multiple times across the app
+- Use *local interfaces* when typing entities limited to the specific page or component
+- Local interfaces for page and component props
+
+  ```typescript
+  // page
+  interface IPageProps {
+    prop1: string;
+    prop2: number;
+    ...
+  }
+
+  // Note: Destructure props in page/component signature
+  const PageOrComponent = ({
+    prop1,
+    prop2,
+  }: IPageProps) => {
+    
+    return (
+      // ...
+    );
+  };
+  ```
+
+- Local states 
+```typescript 
+const [item, setItem] = useState<string>("");
+```
+
+- Fetch function signatures (i.e. `react-query`)
+```typescript
+useQuery<IHostResponse, Error, IHost>(params)
+```
+
+- Custom functions, including callbacks
+```typescript
+const functionWithTableName = (tableName: string): boolean => {
+  // do something
+};
+```
+
+### React Hooks (Functional Components)
+
+[Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
+of React. Hooks are only allowed in functional components, which are created like so:
+
+```typescript
+import React, { useState, useEffect } from "React";
+
+const PageOrComponent = (props) => {
+  const [item, setItem] = useState<string>("");
+
+  // runs only on first mount (replaces componentDidMount)
+  useEffect(() => {
+    // do something
+  }, []);
+
+  // runs only when `item` changes (replaces componentDidUpdate) 
+  useEffect(() => {
+    // do something
+  }, [item]);
+  
+  return (
+    // ...
+  );
+};
+```
+
+**Note: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).**
+
+### React Context
+
+[React Context](https://reactjs.org/docs/context.html) is a store similar to Redux. It stores 
+data that is desired and allows for retrieval of that data in whatever component is in need.
+View currently working contexts in the [context directory](./context).
+
+### Fleet API Calls
+
+**Deprecated:** 
+
+Redux was used to make API calls, along with the [fleet](./fleet) directory.
+
+**Current:**
+
+The [services](./services) directory stores all API calls and is to be used in two ways: 
+- A direct `async/await` assignment
+- Using `react-query` if requirements call for loading data right away or based on dependencies. 
+
+Examples below:
+
+*Direct assignment*
+```typescript
+// page
+import ...
+import queryAPI from "services/entities/queries";
+
+const PageOrComponent = (props) => {
+  const doSomething = async () => {
+    const response = await queryAPI.load(param);
+    // do something
+  };
+  
+  return (
+    // ...
+  );
+};
+```
+
+*React Query*
+
+`react-query` ([docs here](https://react-query.tanstack.com/overview)) is a data-fetching library that
+gives us the ability to fetch, cache, sync and update data with a myriad of options and properties.
+
+```typescript
+import ...
+import { useQuery, useMutation } from "react-query";
+import queryAPI from "services/entities/queries";
+
+const PageOrComponent = (props) => {
+  // retrieve the query based on page/component load
+  // and dependencies for when to refetch
+  const {
+    isLoading,
+    data,
+    error,
+    ...otherProps,
+  } = useQuery<IResponse, Error, IData>(
+    "query",
+    () => queryAPI.load(param),
+    {
+      ...options
+    }
+  );
+
+  // `props` is a bucket of properties that can be used when 
+  // updating data. for example, if you need to know whether
+  // a mutation is loading, there is a prop for that.
+  const { ...props } = useMutation((formData: IForm) =>
+    queryAPI.create(formData)
+  );
+  
+  return (
+    // ...
+  );
+};
+```
+
+### Page Routing
+
+**Deprecated:** 
+
+Redux was used to manage redirecting to different pages of the app.
+
+**Current:**
+
+We use React Router directly to navigate between pages. For page components,
+React Router (v3) supplies a `router` prop that can be easily accessed.
+When needed, the `router` object contains a `push` function that redirects
+a user to whatever page desired. For example:
+
+```typescript
+// page
+import PATHS from "router/paths";
+
+interface IPageProps {
+  router: any; // no typing in react-router v3
+}
+
+const PageOrComponent = ({
+  router,
+}: IPageProps) => {
+  const doSomething = async () => {
+    router.push(PATHS.HOME);
+  };
+  
+  return (
+    // ...
+  );
+};
+```
+
+### Other
+
+**Local states**
+
+Our first line of defense for state management is local states (i.e. `useState`). We
+use local states to keep pages/components separate from one another and easy to 
+maintain. If states need to be passed to direct children, then prop-drilling should 
+suffice as long as we do not go more than two levels deep. Otherwise, if states need 
+to be used across multiple unrelated components or 3+ levels from a parent, 
+then the [app's context](#react-context) should be used. 
+
+**File size**
+
+The recommend line limit per page/component is 500 lines. This is only a recommendation.
+Larger files are to be split into multiple files if possible.
