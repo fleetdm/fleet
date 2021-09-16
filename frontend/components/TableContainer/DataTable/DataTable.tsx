@@ -328,7 +328,6 @@ const DataTable = ({
                 "single-row": disableMultiRowSelect,
               });
               return (
-<<<<<<< HEAD
                 <tr
                   className={rowStyles}
                   {...row.getRowProps({
@@ -338,11 +337,7 @@ const DataTable = ({
                     },
                   })}
                 >
-                  {row.cells.map((cell) => {
-=======
-                <tr className={`row-${row.original.id}`} {...row.getRowProps()}>
                   {row.cells.map((cell: any) => {
->>>>>>> 149326c6 (Modify unit tests)
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );

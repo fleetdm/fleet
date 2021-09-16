@@ -199,6 +199,9 @@ const enhancePackQueriesData = (
       shard: query.shard,
       version: query.version,
       versionString: generateVersionString(query.version),
+      created_at: query.created_at,
+      updated_at: query.updated_at,
+      query_name: query.query_name,
     };
   });
 };
