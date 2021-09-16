@@ -68,7 +68,7 @@ found at the [API client documentation page](./fleet/README.md).
 ### [layouts](https://github.com/fleetdm/fleet/tree/main/frontend/layouts)
 
 The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
-The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general app UI (header, sidebar) and render child components.
+The Layout is rendered from the [router](./router/index.tsx) and are used to set up the general app UI (header, sidebar) and render child components.
 The child components rendered by the layout are typically page components.
 
 ### [pages](./pages)
