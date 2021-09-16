@@ -4,6 +4,6 @@ If some of the following don't apply, please write a short explanation why.
 
 - [ ] Changes file added (if needed)
 - [ ] Documented any API changes
-- [ ] Documented any permissions/policy changes
+- [ ] Documented any permissions changes
 - [ ] Added tests for all functionality
 - [ ] Manual QA for all functionality
