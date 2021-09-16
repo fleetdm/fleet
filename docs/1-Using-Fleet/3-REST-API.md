@@ -4521,7 +4521,7 @@ Team policies work the same as policies, but at the team level.
 }
 ```
 
-### Add policy
+### Add team policy
 
 `POST /api/v1/fleet/team/{team_id}/policies`
 
@@ -4560,7 +4560,7 @@ Team policies work the same as policies, but at the team level.
 }
 ```
 
-### Remove policies
+### Remove team policies
 
 `POST /api/v1/fleet/team/{team_id}/policies/delete`
 
