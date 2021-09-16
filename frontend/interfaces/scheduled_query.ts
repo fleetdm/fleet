@@ -16,6 +16,11 @@ export default PropTypes.shape({
   version: PropTypes.string,
   shard: PropTypes.number,
   denylist: PropTypes.bool,
+  scheduled_query_stats: PropTypes.shape({
+    total_user_time: PropTypes.number,
+    total_system_time: PropTypes.number,
+    executions: PropTypes.number,
+  }),
 });
 
 export interface IPackQueryFormData {
@@ -48,4 +53,9 @@ export interface IScheduledQuery {
   shard: number | null;
   denylist?: boolean;
   logging_type?: string;
+  scheduled_query_stats: {
+    total_user_time: number;
+    total_system_time: number;
+    executions: number;
+  };
 }

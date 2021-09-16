@@ -14,6 +14,11 @@ export default PropTypes.shape({
   author_name: PropTypes.string,
   observer_can_run: PropTypes.bool,
   packs: PropTypes.arrayOf(packInterface),
+  scheduled_query_stats: PropTypes.shape({
+    total_user_time: PropTypes.number,
+    total_system_time: PropTypes.number,
+    executions: PropTypes.number,
+  }),
 });
 export interface IQueryFormData {
   description?: string | number | boolean | any[] | undefined;
@@ -34,6 +39,11 @@ export interface IQuery {
   author_name: string;
   observer_can_run: boolean;
   packs: IPack[];
+  scheduled_query_stats: {
+    total_user_time: number;
+    total_system_time: number;
+    executions: number;
+  };
 }
 
 export interface IQueryFormFields {

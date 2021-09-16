@@ -11,6 +11,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
+import { performanceIndicator } from "fleet/helpers";
 
 import PATHS from "router/paths";
 
@@ -57,6 +59,13 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
+interface IQueryTableData {
+  name: string;
+  id: number;
+  author_name: string;
+  updated_at: string;
+  performance: (string | number)[];
+}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -81,6 +90,13 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         />
       ),
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
     },
     {
       title: "Author",
@@ -216,4 +232,26 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   return tableHeaders;
 };
 
-export default generateTableHeaders;
+const enhanceQueryData = (queries: IQuery[]): IQueryTableData[] => {
+  return queries.map((query: IQuery) => {
+    const scheduledQueryPerformance = {
+      denylisted: false, // denylist is only on scheduled queries
+      user_time: query.scheduled_query_stats.total_user_time,
+      system_time: query.scheduled_query_stats.total_system_time,
+      executions: query.scheduled_query_stats.executions,
+    };
+    return {
+      name: query.name,
+      id: query.id,
+      author_name: query.author_name,
+      updated_at: query.updated_at,
+      performance: [performanceIndicator(scheduledQueryPerformance), query.id],
+    };
+  });
+};
+
+const generateDataSet = (queries: IQuery[]): IQueryTableData[] => {
+  return [...enhanceQueryData(queries)];
+};
+
+export { generateTableHeaders, generateDataSet };
