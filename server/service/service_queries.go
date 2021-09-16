@@ -66,7 +66,7 @@ func (svc Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error
 		return nil, err
 	}
 
-	queries, err := svc.ds.ListQueries(ctx, fleet.ListOptions{})
+	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting queries")
 	}
@@ -90,20 +90,39 @@ func (svc Service) GetQuerySpec(ctx context.Context, name string) (*fleet.QueryS
 	return specFromQuery(query), nil
 }
 
+func onlyShowObserverCanRunQueries(user *fleet.User) bool {
+	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
+		return true
+	} else if len(user.Teams) > 0 {
+		allObserver := true
+		for _, team := range user.Teams {
+			if team.Role != fleet.RoleObserver {
+				allObserver = false
+				break
+			}
+		}
+		return allObserver
+	}
+	return false
+}
+
 func (svc Service) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	queries, err := svc.ds.ListQueries(ctx, opt)
+	user := authz.UserFromContext(ctx)
+	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user)
+
+	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+		ListOptions:        opt,
+		OnlyObserverCanRun: onlyShowObserverCanRun,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	user := authz.UserFromContext(ctx)
-	if (user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver) || () {
-
-	}
+	return queries, nil
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {

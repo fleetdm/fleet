@@ -170,7 +170,7 @@ func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 
 // ListQueries returns a list of queries with sort order and results limit
 // determined by passed in fleet.ListOptions
-func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
+func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	sql := `
 		SELECT q.*, COALESCE(u.name, '<deleted>') AS author_name
 		FROM queries q
@@ -178,7 +178,11 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*
 			ON q.author_id = u.id
 		WHERE saved = true
 	`
-	sql = appendListOptionsToSQL(sql, opt)
+	if opt.OnlyObserverCanRun {
+		sql += " AND q.observer_can_run=true"
+	}
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+
 	results := []*fleet.Query{}
 
 	if err := sqlx.SelectContext(ctx, d.reader, &results, sql); err != nil {

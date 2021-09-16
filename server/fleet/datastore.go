@@ -61,7 +61,7 @@ type Datastore interface {
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
-	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
 
