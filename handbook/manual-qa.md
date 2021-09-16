@@ -70,7 +70,9 @@ You should be able to see and select the "Query" button on this host's **Host de
 
 Create a new label by selecting "Add a new label" on the Hosts page. Make sure it correctly filters the host on the hosts page.
 
-Edit this label and then delete this label.
+Edit this label. Confirm users can only edit the "Name" and "Description" fields for a label. Users cannot edit the "Query" field because label queries are immutable.
+
+Delete this label.
 
 ### Query flow
 
