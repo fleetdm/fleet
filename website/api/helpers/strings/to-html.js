@@ -73,8 +73,14 @@ module.exports = {
       smartLists: true,
       smartypants: false,
     };
-
-    if (inputs.addIdsToHeadings === false) {
+    if (inputs.addIdsToHeadings === true) {
+      var headingRenderer = new marked.Renderer();
+      headingRenderer.heading = function (text, level) {
+        var headingID = _.kebabCase(text);
+        return '<span class="docs-heading"><h'+level+' id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="docs-link"></a></h'+level+'></span>';
+      };
+      markedOpts.renderer = headingRenderer;
+    } else  {
       var renderer = new marked.Renderer();
       renderer.heading = function (text, level) {
         return '<h'+level+'>'+text+'</h'+level+'>';
