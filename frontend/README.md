@@ -26,10 +26,10 @@ component, including files for the component and its styles. The
 typical directory structure for a component is as follows:
 
 ```
-|-- ComponentName
-|  |-- _styles.scss
-|  |-- ComponentName.tsx
-|  |-- index.ts
+└── ComponentName
+  ├── _styles.scss
+  ├── ComponentName.tsx
+  ├── index.ts
 ```
 
 - `_styles.scss`: The component css styles
@@ -71,7 +71,7 @@ component's props.
 ### [layouts](https://github.com/fleetdm/fleet/tree/main/frontend/layouts)
 
 The Fleet application has only 1 layout, the [Core Layout](./layouts/CoreLayout/CoreLayout.jsx).
-The Layout is rendered from the [router](./router/index.jsx) and are used to set up the general 
+The Layout is rendered from the [router](./router/index.tsx) and are used to set up the general 
 app UI (header, sidebar) and render child components.
 The child components rendered by the layout are typically page components.
 
@@ -119,16 +119,18 @@ These directories and files are still used (as of 9/14/21) but are being replace
 - [redux](./redux), now using [services](./services), local states, and various entities directly (e.g. React Router)
 - [Form.jsx Higher Order Component](./components/forms/README.md), now creating forms with local states with React Hooks (i.e. `useState`)
 
+To view the deprecated documentation, [click here](./README_deprecated.md).
+
 ## Patterns
 
 ### Typing
-All Javascript and React files are using Typescript, which means the extensions used are `.ts` and `.tsx`.
-The amount of typing across the app is a preference by team. Here are the guidelines on what we type at Fleet:
+All Javascript and React files use Typescript, meaning the extensions are `.ts` and `.tsx`. Here are the guidelines on what we type at Fleet:
 
+- Use [Global entity interfaces](#interfaces) when interfaces are used multiple times across the app
+- Use local interfaces when typing entities limited to the specific page or component
 - Page/Component props (using an interface)
-  - Destructure props in page/component signature
 
-  ```js
+  ```typescript
   // page
   interface IPageProps {
     prop1: string;
@@ -136,6 +138,7 @@ The amount of typing across the app is a preference by team. Here are the guidel
     ...
   }
 
+  // Note: Destructure props in page/component signature
   const PageOrComponent = ({
     prop1,
     prop2,
@@ -148,30 +151,28 @@ The amount of typing across the app is a preference by team. Here are the guidel
   ```
 
 - Local states 
-```js 
+```typescript 
 const [item, setItem] = useState<string>("");
 ```
 
 - Fetch function signature (i.e. `react-query`)
-```js
+```typescript
 useQuery<IHostResponse, Error, IHost>(params)
 ```
 
-- Parameters of a function (including callbacks)
-```js
-const functionWithTableName = (tableName: string) => {
+- Custom functions, including callbacks
+```typescript
+const functionWithTableName = (tableName: string): boolean => {
   // do something
 };
 ```
-
-**Note: Local interfaces are used as well as global entity interfaces.**
 
 ### React Hooks (Functional Components)
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
 
-```js
+```typescript
 import React, { useState, useEffect } from "React";
 
 const PageOrComponent = (props) => {
@@ -179,12 +180,12 @@ const PageOrComponent = (props) => {
 
   // runs only on first mount (replaces componentDidMount)
   useEffect(() => {
-
+    // do something
   }, []);
 
   // runs only when `item` changes (replaces componentDidUpdate) 
   useEffect(() => {
-
+    // do something
   }, [item]);
   
   return (
@@ -192,6 +193,8 @@ const PageOrComponent = (props) => {
   );
 };
 ```
+
+**Note: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).**
 
 ### React Context
 
@@ -201,7 +204,7 @@ View currently working contexts in the [context directory](./context).
 
 ### Fleet API Calls
 
-**Background:** 
+**Deprecated:** 
 
 Redux was used to make API calls, along with the [fleet](./fleet) directory.
 
@@ -214,7 +217,7 @@ The [services](./services) directory stores all API calls and is to be used in t
 Examples below:
 
 *Direct assignment*
-```js
+```typescript
 // page
 import ...
 import queryAPI from "services/entities/queries";
@@ -234,9 +237,9 @@ const PageOrComponent = (props) => {
 *React Query*
 
 `react-query` ([docs here](https://react-query.tanstack.com/overview)) is a data-fetching library that
-gives us the ability to fetch, cache, sync and update data through a myriad of options and properties.
+gives us the ability to fetch, cache, sync and update data with a myriad of options and properties.
 
-```js
+```typescript
 import ...
 import { useQuery, useMutation } from "react-query";
 import queryAPI from "services/entities/queries";
@@ -248,7 +251,7 @@ const PageOrComponent = (props) => {
     isLoading,
     data,
     error,
-    ...otherProps
+    ...otherProps,
   } = useQuery<IResponse, Error, IData>(
     "query",
     () => queryAPI.load(param),
@@ -259,8 +262,8 @@ const PageOrComponent = (props) => {
 
   // `props` is a bucket of properties that can be used when 
   // updating data. for example, if you need to know whether
-  // a mutation is loading, there is a prop for that
-  const { mutateAsync } = useMutation((formData: IForm) =>
+  // a mutation is loading, there is a prop for that.
+  const { ...props } = useMutation((formData: IForm) =>
     queryAPI.create(formData)
   );
   
@@ -271,13 +274,19 @@ const PageOrComponent = (props) => {
 ```
 
 ### Page Routing
-In the past, we used Redux to manage redirecting to different pages
-of the app. Now, we are using React Router directly. For all pages,
+
+**Deprecated:** 
+
+Redux was used to manage redirecting to different pages of the app.
+
+**Current:**
+
+We use React Router directly to navigate between pages. For page components,
 React Router (v3) supplies a `router` prop that can be easily accessed.
 When needed, the `router` object contains a `push` function that redirects
 a user to whatever page desired. For example:
 
-```js
+```typescript
 // page
 import PATHS from "router/paths";
 
@@ -301,6 +310,7 @@ const PageOrComponent = ({
 ### Other
 
 **Local states**
+
 Our first line of defense for state management is local states (i.e. `useState`). We
 use local states to keep pages/components separate from one another and easy to 
 maintain. If states need to be passed to direct children, then prop-drilling should 
@@ -309,5 +319,6 @@ to be used across multiple unrelated components or 3+ levels from a parent,
 then the [app's context](#react-context) should be used. 
 
 **File size**
+
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible.
