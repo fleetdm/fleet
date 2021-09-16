@@ -28,9 +28,9 @@ const App = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
-  const { 
-    setCurrentUser, 
-    setConfig, 
+  const {
+    setCurrentUser,
+    setConfig,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
@@ -49,12 +49,14 @@ const App = ({ children }: IAppProps) => {
         .catch(() => false);
     }
   }, [user]);
-  
+
   useDeepEffect(() => {
-    const canGetEnrollSecret = 
+    const canGetEnrollSecret =
       currentUser &&
-      (typeof isGlobalObserver !== "undefined" && !isGlobalObserver) &&
-      (typeof isOnlyObserver !== "undefined" && !isOnlyObserver);
+      typeof isGlobalObserver !== "undefined" &&
+      !isGlobalObserver &&
+      typeof isOnlyObserver !== "undefined" &&
+      !isOnlyObserver;
 
     if (canGetEnrollSecret) {
       dispatch(getEnrollSecret()).catch(() => false);

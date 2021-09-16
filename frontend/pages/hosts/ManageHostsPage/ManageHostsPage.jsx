@@ -241,7 +241,7 @@ export class ManageHostsPage extends PureComponent {
 
     const { config, dispatch, isPremiumTier } = this.props;
     const { isConfigLoaded, isTeamsLoaded, isTeamsLoading } = this.state;
-    
+
     if (!isConfigLoaded && !isEmpty(config)) {
       this.setState({ isConfigLoaded: true });
     }
