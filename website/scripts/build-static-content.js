@@ -293,12 +293,17 @@ module.exports = {
                 await sails.helpers.fs.write(htmlOutputPath, htmlString);
               }
 
+              // Determine the path of the file in the fleet repo so we can link to
+              // the file on github from fleetdm.com (e.g. 1-Using-Fleet/2-fleetctl-CLI.md)
+              let sectionRelativeRepoPath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
+
               // Append to what will become configuration for the Sails app.
               builtStaticContent.markdownPages.push({
                 url: rootRelativeUrlPath,
                 title: pageTitle,
                 lastModifiedAt: lastModifiedAt,
                 htmlId: htmlId,
+                sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, 'title')
               });
             }
