@@ -1,11 +1,101 @@
 <div id="basic-handbook" v-cloak>
+  <div purpose="handbook-template" style="max-width: 1200px;" class="container-fluid px-lg-3  mb-5">
 
-  <h1>TODO: Implement this page.</h1>
-  <p>(See also <em>assets/styles/pages/handbook/basic-handbook.less</em>, <em>assets/js/pages/handbook/basic-handbook.page.js</em>, and <em>api/controllers/handbook/view-basic-handbook.js</em>.)</p>
+    <div purpose="breadcrumbs-container" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0">
+      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
+        <a :href="'/' + breadcrumbs[0]" class="pr-3" v-if="breadcrumbs.length > 1">
+          {{breadcrumbs[0] === 'handbook' ? 'HandBook' : breadcrumbs[0]}}
+        </a>
+        <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
+          <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+          <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
+            {{getTitleFromUrl(breadcrumbs[1])}}
+          </a>
+        </div>
+        <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
+          <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+          <p class="px-3 m-0">
+            {{thisPage.title}}
+          </p>
+        </div>
+      </div>
+      <div purpose="mobile-handbook-nav" class="d-flex-block d-lg-none">
+        <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
+          <button purpose="handbook-nav-button" class="btn btn-block d-flex align-items-center handbook-nav-button" type="button" @click="toggleHandbookNav">
+            <span class="pr-2 m-0">Handbook</span>
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+            <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
+            <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showHandbookNav"/>
+            <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
+          </button>
+        </div>
+        <div class="border-bottom" v-if="!showHandbookNav"></div>
+        <div class="d-flex px-0 border-bottom mobile-handbook-nav" v-if="showHandbookNav">
+          <div class="container-fluid px-0 pt-4">
+            <ul class="px-0 mb-0">
+              <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
+                <a :href="page.url" class="font-weight-bold">
+                  {{page.title}}
+                </a>
+                <ul class="px-0 pt-3 mb-0" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                  <li class="px-0 mb-2" v-for="subpage in findPagesByUrl(page.url)">
+                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                      {{subpage.title}}
+                    </a>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
 
-  <p>This paragraph, and the content above it, are just here for reference.  The HTML generated from markdown is below.</p>
+      </div>
 
-  <%- partial(path.relative(path.dirname(__filename), path.resolve(sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+    </div>
 
+    <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
+
+    <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
+
+      <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+        <ul class="p-0 pb-2 m-0 left-nav">
+          <li v-for="page in findPagesByUrl()" :key="page.title">
+            <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
+          </li>
+        </ul>
+      </div>
+
+      <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
+
+        <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
+        <div purpose="subtopics">
+          <ul class="p-0 m-0">
+            <li v-for="(subtopic, index) in subtopics" class="pl-lg-3 pb-3 pb-lg-2 subtopic" :key="index">
+              <a :href="subtopic.url">{{subtopic.title}}</a>
+            </li>
+            <li class="d-lg-none pl-lg-3 subtopic">
+              <a href="/support">Help and feedback</a>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+      <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
+        <%- partial(
+          path.relative(
+            path.dirname(__filename),
+            path.resolve(
+              sails.config.appPath,
+              path.join(
+                sails.config.builtStaticContent.compiledPagePartialsAppPath,
+                thisPage.htmlId
+              )
+            )
+          )
+        ) %>
+      </div>
+
+  </div>
+</div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
