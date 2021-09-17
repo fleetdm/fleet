@@ -59,19 +59,20 @@ module "aurora_mysql" {
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.2.0"
 
-  name                   = "${local.name}-mysql-iam"
+  name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
   engine_version        = "5.7.mysql_aurora.2.10.0"
   instance_type         = "db.t4g.medium"
   instance_type_replica = "db.t4g.medium"
 
   iam_database_authentication_enabled = true
-  storage_encrypted      = true
-  username               = "fleet"
-  password               = random_password.database_password.result
-  create_random_password = false
-  database_name          = "fleet"
-  enable_http_endpoint   = false
+  storage_encrypted                   = true
+  username                            = "fleet"
+  password                            = random_password.database_password.result
+  create_random_password              = false
+  database_name                       = "fleet"
+  enable_http_endpoint                = false
+  #performance_insights_enabled        = true
 
   vpc_id                = module.vpc.vpc_id
   subnets               = module.vpc.database_subnets

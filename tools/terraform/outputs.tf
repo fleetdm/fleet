@@ -5,4 +5,3 @@ output "nameservers_fleetctl" {
 output "nameservers_fleetdm" {
   value = aws_route53_zone.dogfood_fleetdm_com.name_servers
 }
-

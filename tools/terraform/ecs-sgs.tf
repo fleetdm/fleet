@@ -61,7 +61,7 @@ resource "aws_security_group_rule" "backend-ingress" {
   to_port                  = "8080"
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.lb.id
-  security_group_id = aws_security_group.backend.id
+  security_group_id        = aws_security_group.backend.id
 }
 
 # Allow outbound traffic from the backends

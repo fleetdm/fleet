@@ -111,7 +111,6 @@ data "aws_secretsmanager_secret" "license" {
   name = "/fleet/license"
 }
 
-
 resource "aws_ecs_task_definition" "backend" {
   family                   = "fleet"
   network_mode             = "awsvpc"
@@ -214,11 +213,11 @@ resource "aws_ecs_task_definition" "backend" {
             value = "false"
           },
           {
-            name = "FLEET_BETA_SOFTWARE_INVENTORY"
+            name  = "FLEET_BETA_SOFTWARE_INVENTORY"
             value = "1"
           },
           {
-            name = "FLEET_VULNERABILITIES_DATABASES_PATH"
+            name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
             value = "/home/fleet"
           }
         ]
