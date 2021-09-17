@@ -45,32 +45,26 @@ module.exports = {
     // console.log('SECTION_URL_PREFIX + "/" + _.trim(pageUrlSuffix, "/"):',SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'));
     // console.log('thisPage:',thisPage);
 
-    // if the url doesn't match any existing page, or the page it matches doesn't match the url provided
-    // then it might have extra slashes or uppercase characters (e.g. fleetdm.com/docs///usiNG-fleet////)
-    // Note: because this also handles the docs landing page and a `pageUrlSuffix` might not have
-    // been provided, we won't be rechecking the url if thisPage.url is '/docs'
-    if (!thisPage || (thisPage.url !== '/docs/'+pageUrlSuffix && thisPage.url !== '/docs')) {
-      // creating a regex to match instances of multiple slashes
+    // Setting a flag if the pageUrlSuffix doesn't match any existing page, or if the page it matches doesn't exactly match the pageUrlSuffix provided
+    // Note: because this also handles the docs landing page and a pageUrlSuffix might not have provided, we set this flag to false if the url is just '/docs'
+    let needsRedirectMaybe = (!thisPage || (thisPage.url !== '/docs/'+pageUrlSuffix && thisPage.url !== '/docs'));
+
+    if (needsRedirectMaybe) {
+      // Creating a lower case, repeating-slashless pageUrlSuffix
       let multipleSlashesRegex = /\/{2,}/g;
-      // Creating a lowercase double-slashless url to search with
       let modifiedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(multipleSlashesRegex, '/');
-      // Finding the appropriate page content using the modified url.
+      // Finding the appropriate page content using the modified pageUrlSuffix.
       let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
         url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(modifiedPageUrlSuffix, '/'), '/')
       });
-      // If we matched a page with the modified url, then redirect to that.
-      if(revisedPage && revisedPage.url) {
+      if(revisedPage.url) {
+        // If we matched a page with the modified pageUrlSuffix, then redirect to that.
         throw {redirect: revisedPage.url};
       } else {
-        // otherwise, throw a 404 error.
+        // If no page was found, throw a 404 error.
         throw 'notFound';
       }
     }
-
-    if (!thisPage) {
-      throw 'notFound';
-    }
-
 
     // Respond with view.
     return {
