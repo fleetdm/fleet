@@ -25,8 +25,10 @@ const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
-  onRemoveScheduledQueryClick?: any;
-  onEditScheduledQueryClick?: any;
+  onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
+  onEditScheduledQueryClick?: (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ) => void;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
   teamId: number;
@@ -98,10 +100,14 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
   ): void => {
     switch (action) {
       case "edit":
-        onEditScheduledQueryClick(global_scheduled_query);
+        if (onEditScheduledQueryClick) {
+          onEditScheduledQueryClick(global_scheduled_query);
+        }
         break;
       default:
-        onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        if (onRemoveScheduledQueryClick) {
+          onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        }
         break;
     }
   };

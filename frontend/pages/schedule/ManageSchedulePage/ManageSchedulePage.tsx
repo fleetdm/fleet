@@ -34,8 +34,10 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
-  onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  onEditScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
+  onRemoveScheduledQueryClick: (selectIds: number[]) => void,
+  onEditScheduledQueryClick: (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ) => void,
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
   allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
@@ -61,7 +63,7 @@ const renderAllTeamsTable = (
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
   allTeamsScheduledQueriesError: { name: string; reason: string }[]
 ): JSX.Element => {
-  if (Object.keys(allTeamsScheduledQueriesError).length !== 0) {
+  if (Object.keys(allTeamsScheduledQueriesError).length > 0) {
     return <TableDataError />;
   }
 
@@ -224,12 +226,16 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): void => {
+  const onRemoveScheduledQueryClick = (
+    selectedTableQueryIds: number[]
+  ): void => {
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
-  const onEditScheduledQueryClick = (selectedQuery: any): void => {
+  const onEditScheduledQueryClick = (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ): void => {
     toggleScheduleEditorModal();
     setSelectedScheduledQuery(selectedQuery); // edit modal renders
   };
