@@ -8,7 +8,7 @@ As new features are added to Fleet, new steps and flows will be added.
 
 ## Collecting bugs
 
-The goal of manual QA is to catch unexpected behavior prior to release. All Manual QA steps should be possible using `fleetctl preview`. Please refer to /docs/3-Contributing/2-Testing.md for flows that cannot be completed using `fleetctl preview`.
+The goal of manual QA is to catch unexpected behavior prior to release. All Manual QA steps should be possible using `fleetctl preview`. Please refer to [docs/3-Contributing/2-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/3-Contributing/2-Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
 
