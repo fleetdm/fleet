@@ -11,14 +11,14 @@ type Props = {
 type InitialStateType = {
   currentUser: IUser | null;
   config: IConfig | null;
-  isFreeTier: boolean;
-  isPremiumTier: boolean;
-  isGlobalAdmin: boolean;
-  isGlobalMaintainer: boolean;
-  isGlobalObserver: boolean;
-  isOnGlobalTeam: boolean;
-  isAnyTeamMaintainer: boolean;
-  isOnlyObserver: boolean;
+  isFreeTier: boolean | undefined;
+  isPremiumTier: boolean | undefined;
+  isGlobalAdmin: boolean | undefined;
+  isGlobalMaintainer: boolean | undefined;
+  isGlobalObserver: boolean | undefined;
+  isOnGlobalTeam: boolean | undefined;
+  isAnyTeamMaintainer: boolean | undefined;
+  isOnlyObserver: boolean | undefined;
   setCurrentUser: (user: IUser) => void;
   setConfig: (config: IConfig) => void;
 };
@@ -26,14 +26,14 @@ type InitialStateType = {
 const initialState = {
   currentUser: null,
   config: null,
-  isFreeTier: false,
-  isPremiumTier: false,
-  isGlobalAdmin: false,
-  isGlobalMaintainer: false,
-  isGlobalObserver: false,
-  isOnGlobalTeam: false,
-  isAnyTeamMaintainer: false,
-  isOnlyObserver: false,
+  isFreeTier: undefined,
+  isPremiumTier: undefined,
+  isGlobalAdmin: undefined,
+  isGlobalMaintainer: undefined,
+  isGlobalObserver: undefined,
+  isOnGlobalTeam: undefined,
+  isAnyTeamMaintainer: undefined,
+  isOnlyObserver: undefined,
   setCurrentUser: () => null,
   setConfig: () => null,
 };

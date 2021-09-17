@@ -101,7 +101,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 ##### Request body
 
-```
+```json
 {
   "email": "janedoe@example.com",
   "password": "VArCjNW7CfsxGp67"
@@ -167,7 +167,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 ##### Request body
 
-```
+```json
 {
   "email": "janedoe@example.com"
 }
@@ -181,7 +181,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
 
 `Status: 500`
 
-```
+```json
 {
   "message": "Unknown Error",
   "errors": [
@@ -214,7 +214,7 @@ Changes the password for the authenticated user.
 
 ##### Request body
 
-```
+```json
 {
   "old_password": "VArCjNW7CfsxGp67",
   "new_password": "zGq7mCLA6z4PzArC"
@@ -229,7 +229,7 @@ Changes the password for the authenticated user.
 
 `Status: 422 Unprocessable entity`
 
-```
+```json
 {
   "message": "Validation Failed",
   "errors": [
@@ -261,7 +261,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 ##### Request body
 
-```
+```json
 {
   "new_password": "abc123"
   "new_password_confirmation": "abc123"
@@ -273,7 +273,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -293,7 +293,7 @@ Retrieves the user data for the authenticated user.
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2020-11-13T22:57:12Z",
@@ -325,7 +325,7 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 ##### Request body
 
-```
+```json
 {
   "new_password": "sdPz8CV5YhzH47nK"
 }
@@ -335,7 +335,7 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2020-11-13T22:57:12Z",
@@ -369,7 +369,7 @@ Gets the current SSO configuration.
 
 `Status: 200`
 
-```
+```json
 {
   "settings": {
     "idp_name": "IDP Vendor 1",
@@ -397,7 +397,7 @@ Gets the current SSO configuration.
 
 ##### Request body
 
-```
+```json
 {
   "relay_url": "/hosts/manage"
 }
@@ -411,7 +411,7 @@ Gets the current SSO configuration.
 
 `Status: 500`
 
-```
+```json
 {
   "message": "Unknown Error",
   "errors": [
@@ -441,7 +441,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ##### Request body
 
-```
+```json
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
@@ -451,7 +451,7 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -495,7 +495,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 ##### Request query parameters
 
-```
+```json
 {
   "page": 0,
   "per_page": 100,
@@ -507,7 +507,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 `Status: 200`
 
-```
+```json
 {
   "hosts": [
     {
@@ -571,7 +571,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "online_count": 2267,
   "offline_count": 141,
@@ -602,7 +602,7 @@ The endpoint returns the host's installed `software` if the software inventory f
 
 `Status: 200`
 
-```
+```json
 {
   "host": {
     "created_at": "2021-08-19T02:02:22Z",
@@ -739,7 +739,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 `Status: 200`
 
-```
+```json
 {
   "host": {
     "created_at": "2020-11-05T05:09:44Z",
@@ -805,7 +805,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -829,7 +829,7 @@ Flags the host details to be refetched the next time the host checks in for live
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -852,7 +852,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "team_id": 1,
   "hosts": [3, 2, 4, 6, 1, 5, 7]
@@ -863,7 +863,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -886,7 +886,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "team_id": 1,
   "filters": {
@@ -899,7 +899,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -939,7 +939,7 @@ Creates a dynamic label.
 
 ##### Request body
 
-```
+```json
 {
   "name": "Ubuntu hosts",
   "description": "Filters ubuntu hosts",
@@ -952,7 +952,7 @@ Creates a dynamic label.
 
 `Status: 200`
 
-```
+```json
 {
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -990,7 +990,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 ##### Request body
 
-```
+```json
 {
   "name": "macOS label",
   "description": "Now this label only includes macOS machines",
@@ -1002,7 +1002,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 `Status: 200`
 
-```
+```json
 {
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -1041,7 +1041,7 @@ Returns the specified label.
 
 `Status: 200`
 
-```
+```json
 {
   "label": {
     "created_at": "2021-02-09T22:09:43Z",
@@ -1081,7 +1081,7 @@ Returns a list of all the labels in Fleet.
 
 `Status: 200`
 
-```
+```json
 {
   "labels": [
     {
@@ -1185,7 +1185,7 @@ Returns a list of the hosts that belong to the specified label.
 
 `Status: 200`
 
-```
+```json
 {
   "hosts": [
     {
@@ -1252,7 +1252,7 @@ Deletes the label specified by name.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -1276,7 +1276,7 @@ Deletes the label specified by ID.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -1302,7 +1302,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ##### Request body
 
-```
+```json
 {
   "specs": [
     {
@@ -1327,7 +1327,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -1347,7 +1347,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "specs": [
     {
@@ -1422,7 +1422,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "specs": {
     "id": 12,
@@ -1481,7 +1481,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "users": [
     {
@@ -1513,7 +1513,7 @@ None.
 
 `Status: 401 Authentication Failed`
 
-```
+```json
 {
   "message": "Authentication Failed",
   "errors": [
@@ -1549,7 +1549,7 @@ Creates a user account after an invited user provides registration information a
 
 ##### Request query parameters
 
-```
+```json
 {
   "email": "janedoe@example.com",
   "invite_token": "SjdReDNuZW5jd3dCbTJtQTQ5WjJTc2txWWlEcGpiM3c=",
@@ -1573,7 +1573,7 @@ Creates a user account after an invited user provides registration information a
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -1595,7 +1595,7 @@ Creates a user account after an invited user provides registration information a
 
 `Status: 401 Authentication Failed`
 
-```
+```json
 {
   "message": "Authentication Failed",
   "errors": [
@@ -1611,7 +1611,7 @@ Creates a user account after an invited user provides registration information a
 
 `Status: 404 Resource Not Found`
 
-```
+```json
 {
   "message": "Resource Not Found",
   "errors": [
@@ -1629,7 +1629,7 @@ Creates a user account after an invited user provides registration information a
 
 The same error will be returned whenever one of the required parameters fails the validation.
 
-```
+```json
 {
   "message": "Validation Failed",
   "errors": [
@@ -1665,7 +1665,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 ##### Request body
 
-```
+```json
 {
   "name": "Jane Doe",
   "email": "janedoe@example.com",
@@ -1687,7 +1687,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -1719,7 +1719,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 
 `Status: 404 Resource Not Found`
 
-```
+```json
 {
   "message": "Resource Not Found",
   "errors": [
@@ -1749,7 +1749,7 @@ Returns all information about a specific user.
 
 ##### Request query parameters
 
-```
+```json
 {
   "id": 1
 }
@@ -1759,7 +1759,7 @@ Returns all information about a specific user.
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2020-12-10T05:20:25Z",
@@ -1781,7 +1781,7 @@ Returns all information about a specific user.
 
 `Status: 404 Resource Not Found`
 
-```
+```json
 {
   "message": "Resource Not Found",
   "errors": [
@@ -1816,7 +1816,7 @@ Returns all information about a specific user.
 
 ##### Request body
 
-```
+```json
 {
   "name": "Jane Doe",
   "global_role": "admin"
@@ -1827,7 +1827,7 @@ Returns all information about a specific user.
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2021-02-03T16:11:06Z",
@@ -1851,7 +1851,7 @@ Returns all information about a specific user.
 
 ##### Request body
 
-```
+```json
 {
   "teams": [
     {
@@ -1870,7 +1870,7 @@ Returns all information about a specific user.
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2021-02-03T16:11:06Z",
@@ -1917,7 +1917,7 @@ Delete the specified user from Fleet.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -1940,7 +1940,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 ##### Request body
 
-```
+```json
 {
   "require": true
 }
@@ -1950,7 +1950,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 `Status: 200`
 
-```
+```json
 {
   "user": {
     "created_at": "2021-02-23T22:23:34Z",
@@ -1985,7 +1985,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "sessions": [
     {
@@ -2027,7 +2027,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2058,7 +2058,7 @@ Returns the session information for the session specified by ID.
 
 `Status: 200`
 
-```
+```json
 {
   "session_id": 1,
   "user_id": 1,
@@ -2086,7 +2086,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2131,7 +2131,7 @@ Returns the query specified by ID.
 
 `Status: 200`
 
-```
+```json
 {
   "query": {
     "created_at": "2021-01-19T17:08:24Z",
@@ -2180,7 +2180,7 @@ Returns a list of all queries in the Fleet instance.
 
 `Status: 200`
 
-```
+```json
 {
 "queries": [
   {
@@ -2251,7 +2251,7 @@ Returns a list of all queries in the Fleet instance.
 
 ##### Request body
 
-```
+```json
 {
   "description": "This is a new query.",
   "name": "new_query",
@@ -2263,7 +2263,7 @@ Returns a list of all queries in the Fleet instance.
 
 `Status: 200`
 
-```
+```json
 {
   "query": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -2303,7 +2303,7 @@ Returns the query specified by ID.
 
 ##### Request body
 
-```
+```json
 {
   "name": "new_title_for_my_query"
 }
@@ -2313,7 +2313,7 @@ Returns the query specified by ID.
 
 `Status: 200`
 
-```
+```json
 {
   "query": {
     "created_at": "2021-01-22T17:23:27Z",
@@ -2351,7 +2351,7 @@ Deletes the query specified by name.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2375,7 +2375,7 @@ Deletes the query specified by ID.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2397,7 +2397,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ##### Request body
 
-```
+```json
 {
   "ids": [
     2, 24, 25
@@ -2409,7 +2409,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 `Status: 200`
 
-```
+```json
 {
   "deleted": 3
 }
@@ -2433,7 +2433,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "specs": [
     {
@@ -2470,7 +2470,7 @@ Returns the name, description, and SQL of the query specified by name.
 
 `Status: 200`
 
-```
+```json
 {
     "specs": {
         "name": "query1",
@@ -2498,7 +2498,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 ##### Request body
 
-```
+```json
 {
   "specs": [
     {
@@ -2519,7 +2519,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2541,7 +2541,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2563,7 +2563,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -2591,7 +2591,7 @@ One of `query` and `query_id` must be specified.
 
 ##### Request body
 
-```
+```json
 {
   "query": "select instance_id from system_info",
   "selected": {
@@ -2604,7 +2604,7 @@ One of `query` and `query_id` must be specified.
 
 `Status: 200`
 
-```
+```json
 {
   "campaign": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -2630,7 +2630,7 @@ One of `query` and `query_id` must be specified.
 
 ##### Request body
 
-```
+```json
 {
   "query": "select instance_id from system_info;",
   "selected": {
@@ -2643,7 +2643,7 @@ One of `query` and `query_id` must be specified.
 
 `Status: 200`
 
-```
+```json
 {
   "campaign": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -2687,7 +2687,7 @@ One of `query` and `query_id` must be specified.
 
 ##### Request body
 
-```
+```json
 {
   "query_id": 1,
   "selected": {
@@ -2702,7 +2702,7 @@ One of `query` and `query_id` must be specified.
 
 `Status: 200`
 
-```
+```json
 {
   "campaign": {
       "created_at": "0001-01-01T00:00:00Z",
@@ -2728,7 +2728,7 @@ One of `query` and `query_id` must be specified.
 
 ##### Request body
 
-```
+```json
 {
   "query": "select instance_id from system_info",
   "selected": {
@@ -2743,7 +2743,7 @@ One of `query` and `query_id` must be specified.
 
 `Status: 200`
 
-```
+```json
 {
   "campaign": {
       "created_at": "0001-01-01T00:00:00Z",
@@ -2807,7 +2807,7 @@ socket.onmessage = ({ data }) => {
 
 ###### Response data
 
-```
+```json
 o
 ```
 
@@ -2815,7 +2815,7 @@ o
 
 ###### Request data
 
-```
+```json
 [
   {
     "type": "auth",
@@ -2824,7 +2824,7 @@ o
 ]
 ```
 
-```
+```json
 [
   {
     "type": "select_campaign",
@@ -2837,7 +2837,7 @@ o
 
 ###### Response data
 
-```
+```json
 // Sends the total number of hosts targeted and segments them by status
 
 [
@@ -2854,7 +2854,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the expected results, actual results so far, and the status of the live query
 
 [
@@ -2870,7 +2870,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the result for a given host
 
 [
@@ -2890,7 +2890,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the status of "finished" when messages with the results for all expected hosts have been sent
 
 [
@@ -2949,7 +2949,7 @@ socket.onmessage = ({ data }) => {
 
 ###### Response data
 
-```
+```json
 o
 ```
 
@@ -2957,7 +2957,7 @@ o
 
 ###### Request data
 
-```
+```json
 [
   {
     "type": "auth",
@@ -2966,7 +2966,7 @@ o
 ]
 ```
 
-```
+```json
 [
   {
     "type": "select_campaign",
@@ -2975,11 +2975,11 @@ o
 ]
 ```
 
-##### `socket.onmessage()`
+##### socket.onmessage()
 
 ###### Response data
 
-```
+```json
 // Sends the total number of hosts targeted and segments them by status
 
 [
@@ -2996,7 +2996,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the expected results, actual results so far, and the status of the live query
 
 [
@@ -3012,7 +3012,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the result for a given host
 
 [
@@ -3032,7 +3032,7 @@ o
 ]
 ```
 
-```
+```json
 // Sends the status of "finished" when messages with the results for all expected hosts have been sent
 
 [
@@ -3079,7 +3079,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "global_schedule": [
     {
@@ -3142,7 +3142,7 @@ None.
 
 ##### Request body
 
-```
+```json
 {
   "interval": 86400,
   "query_id": 2,
@@ -3154,7 +3154,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -3200,7 +3200,7 @@ None.
 
 ##### Request body
 
-```
+```json
 {
   "interval": 604800,
 }
@@ -3210,7 +3210,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "2021-07-16T14:40:15Z",
@@ -3247,7 +3247,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -3286,7 +3286,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": [
     {
@@ -3350,7 +3350,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ##### Request body
 
-```
+```json
 {
   "interval": 86400,
   "query_id": 2,
@@ -3362,7 +3362,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -3405,7 +3405,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ##### Request body
 
-```
+```json
 {
   "interval": 604800,
 }
@@ -3415,7 +3415,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "2021-07-16T14:40:15Z",
@@ -3455,7 +3455,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -3498,7 +3498,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ##### Request query parameters
 
-```
+```json
 {
   "description": "Collects osquery data.",
   "host_ids": [],
@@ -3511,7 +3511,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "pack": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -3551,7 +3551,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ##### Request query parameters
 
-```
+```json
 {
   "description": "MacOS hosts are targeted",
   "host_ids": [],
@@ -3563,7 +3563,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "pack": {
     "created_at": "2021-01-25T22:32:45Z",
@@ -3600,7 +3600,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "pack": {
     "created_at": "2021-01-25T22:32:45Z",
@@ -3638,7 +3638,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "packs": [
     {
@@ -3691,7 +3691,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -3713,7 +3713,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -3735,7 +3735,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": [
     {
@@ -3816,7 +3816,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Request body
 
-```
+```json
 {
   "interval": 120,
   "pack_id": 15,
@@ -3833,7 +3833,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -3872,7 +3872,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -3916,7 +3916,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Request body
 
-```
+```json
 {
   "platform": "",
 }
@@ -3926,7 +3926,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {
   "scheduled": {
     "created_at": "2021-01-28T19:40:04Z",
@@ -3965,7 +3965,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -3983,7 +3983,7 @@ Returns the specs for all packs in the Fleet instance.
 
 `Status: 200`
 
-```
+```json
 {
   "specs": [
     {
@@ -4103,7 +4103,7 @@ Returns the specs for all packs in the Fleet instance.
 
 ##### Request body
 
-```
+```json
 {
   "specs": [
     {
@@ -4194,7 +4194,7 @@ Returns the specs for all packs in the Fleet instance.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -4218,7 +4218,7 @@ Returns the spec for the specified pack by pack name.
 
 `Status: 200`
 
-```
+```json
 {
   "specs": {
     "id": 15,
@@ -4317,7 +4317,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 `Status: 200`
 
-```
+```json
 {
   "policies": [
     {
@@ -4356,7 +4356,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
     "id": 1,
@@ -4384,7 +4384,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 #### Request body
 
-```
+```json
 {
   "query_id": 12
 }
@@ -4394,7 +4394,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
       "id": 2,
@@ -4422,7 +4422,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 #### Request body
 
-```
+```json
 {
   "ids": [ 1 ]
 }
@@ -4432,7 +4432,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 `Status: 200`
 
-```
+```json
 {
   "deleted": 1
 }
@@ -4630,7 +4630,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 ##### Default response
 
-```
+```json
 {
   "activities": [
     {
@@ -4793,7 +4793,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 ##### Request body
 
-```
+```json
 {
   "query": "172",
   "selected": {
@@ -4806,7 +4806,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 ##### Default response
 
-```
+```json
 {
   "targets": {
     "hosts": [
@@ -4956,7 +4956,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "certificate_chain": <certificate_chain>
 }
@@ -4980,7 +4980,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "org_info": {
     "org_name": "fleet",
@@ -5161,7 +5161,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 ##### Request body
 
-```
+```json
 {
   "org_info": {
     "org_name": "Fleet Device Management",
@@ -5179,7 +5179,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 `Status: 200`
 
-```
+```json
 {
   "org_info": {
     "org_name": "Fleet Device Management",
@@ -5304,7 +5304,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "spec": {
     "secrets": [
@@ -5337,7 +5337,7 @@ Replaces the active global enroll secrets with the secrets specified.
 
 ##### Request body
 
-```
+```json
 {
   "spec": {
     "secrets": [
@@ -5355,7 +5355,7 @@ Replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -5377,7 +5377,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "secrets": [
     {
@@ -5407,7 +5407,7 @@ None.
 
 ##### Request body
 
-```
+```json
 {
   "email": "john_appleseed@example.com",
   "name": John,
@@ -5432,7 +5432,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "invite": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -5490,7 +5490,7 @@ Returns a list of the active invitations in Fleet.
 
 `Status: 200`
 
-```
+```json
 {
   "invites": [
     {
@@ -5537,7 +5537,7 @@ Delete the specified invite from Fleet.
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -5561,7 +5561,7 @@ Verify the specified invite.
 
 `Status: 200`
 
-```
+```json
 {
     "invite": {
         "created_at": "2021-01-15T00:58:33Z",
@@ -5580,7 +5580,7 @@ Verify the specified invite.
 
 `Status: 404`
 
-```
+```json
 {
     "message": "Resource Not Found",
     "errors": [
@@ -5610,7 +5610,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "version": "3.9.0-93-g1b67826f-dirty",
   "branch": "version",
@@ -5653,7 +5653,7 @@ None.
 
 `Status: 200`
 
-```
+```json
 {
   "carves": [
     {
@@ -5708,7 +5708,7 @@ Retrieves the specified carve.
 
 `Status: 200`
 
-```
+```json
 {
   "carve": {
     "id": 1,
@@ -5748,7 +5748,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 `Status: 200`
 
-```
+```json
 {
     "data": "aG9zdHMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..."
 }
@@ -5782,7 +5782,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "teams: [
     {
@@ -5880,7 +5880,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "name": "workstations"
 }
@@ -5890,7 +5890,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "teams: [
     {
@@ -5949,7 +5949,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "user_ids": [1, 17, 22, 32],
 }
@@ -5959,7 +5959,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "team": {
     "name": "Workstations",
@@ -6001,7 +6001,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
 }
@@ -6011,7 +6011,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "team": {
     "name": "Workstations",
@@ -6053,7 +6053,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "agent_options": {
     "spec": {
@@ -6085,7 +6085,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "team": {
     "name": "Workstations",
@@ -6141,7 +6141,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {}
 ```
 
@@ -6165,7 +6165,7 @@ _Available in Fleet Premium_
 
 ##### Request body
 
-```
+```json
 {
   "list": [
     {
@@ -6200,7 +6200,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
   "list": [
     {
@@ -6260,7 +6260,7 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```
+```json
 {
     “software”: [
       {

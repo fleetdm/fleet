@@ -95,7 +95,7 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 
 > Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
 
-<img src="https://user-images.githubusercontent.com/78363703/130035034-7363ebe1-f89b-42af-9e88-24db867e8047.png" alt="Clone Orbit repository"/>
+<img src="https://user-images.githubusercontent.com/78363703/133367260-d78d1e11-b8a9-4c36-a39b-b11b2f4d1197.png" alt="Clone Orbit repository"/>
 
 2. In Fleet UI's Host page, hit the "Add new host" button, and copy your Fleet enroll secret (you'll need this in the next step.)
 
