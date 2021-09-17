@@ -38,12 +38,12 @@ resource "aws_alb_target_group" "main" {
   depends_on = [aws_alb.main]
 }
 
-resource "aws_alb_listener" "main" {
+resource "aws_alb_listener" "https-fleetdm" {
   load_balancer_arn = aws_alb.main.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetctl_com.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
 
   default_action {
     target_group_arn = aws_alb_target_group.main.arn
@@ -97,7 +97,7 @@ resource "aws_ecs_service" "fleet" {
     security_groups = [aws_security_group.backend.id]
   }
 
-  depends_on = [aws_alb_listener.http]
+  depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
 }
 
 resource "aws_cloudwatch_log_group" "backend" {
@@ -107,6 +107,10 @@ resource "aws_cloudwatch_log_group" "backend" {
 
 data "aws_region" "current" {}
 
+data "aws_secretsmanager_secret" "license" {
+  name = "/fleet/license"
+}
+
 
 resource "aws_ecs_task_definition" "backend" {
   family                   = "fleet"
@@ -114,15 +118,15 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = 512
+  memory                   = 4096
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
         image       = "fleetdm/fleet"
-        cpu         = 256
-        memory      = 512
+        cpu         = 512
+        memory      = 4096
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -146,6 +150,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
+          },
+          {
+            name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
+            valueFrom = aws_secretsmanager_secret.database_password_secret.arn
+          },
+          {
+            name      = "FLEET_LICENSE_KEY"
+            valueFrom = data.aws_secretsmanager_secret.license.arn
           }
         ]
         environment = [
@@ -160,6 +172,18 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_MYSQL_ADDRESS"
             value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+          },
+          {
+            name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
+            value = "fleet"
+          },
+          {
+            name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
+            value = "fleet"
+          },
+          {
+            name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
+            value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -188,6 +212,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_SERVER_TLS"
             value = "false"
+          },
+          {
+            name = "FLEET_BETA_SOFTWARE_INVENTORY"
+            value = "1"
+          },
+          {
+            name = "FLEET_VULNERABILITIES_DATABASES_PATH"
+            value = "/home/fleet"
           }
         ]
       }

@@ -8,7 +8,7 @@ data "aws_iam_policy_document" "fleet" {
   statement {
     effect = "Allow"
     actions = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.database_password_secret.arn]
+    resources = [aws_secretsmanager_secret.database_password_secret.arn, data.aws_secretsmanager_secret.license.arn]
   }
 
   statement {
