@@ -33,9 +33,19 @@ module.exports = {
     if (!query) {
       throw 'notFound';
     }
-
+    // Setting a generic <title> and description for this page.
+    let title;
+    let description;
+    if(query.name) {
+      title = query.name + ' | Query details';
+    }
+    if(query.description) {
+      description = query.description;
+    }
     // Respond with view.
     return {
+      title,
+      description,
       query,
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath
     };
