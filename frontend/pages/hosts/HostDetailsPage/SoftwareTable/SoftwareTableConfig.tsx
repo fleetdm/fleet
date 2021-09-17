@@ -177,9 +177,19 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "last_opened_at",
       Cell: (cellProps) => {
         const lastUsed = isNaN(Date.parse(cellProps.cell.value))
-          ? "unavailable"
+          ? "Unavailable"
           : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
-        return <TextCell value={lastUsed} />;
+        return (
+          <span
+            className={
+              lastUsed === "Unavailable"
+                ? "software-last-used-muted"
+                : "software-last-used"
+            }
+          >
+            {lastUsed}
+          </span>
+        );
       },
       sortType: "dateStringsAsc",
     },
@@ -200,22 +210,19 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const FAKEID = "foo.app";
-const FAKEDATE = "2021-08-18T15:11:35Z";
+const FAKEDATE = "2021-09-16T15:11:35Z";
+const FAKEID = "com.foo.app";
 
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
   return Object.values(software).map((softwareItem) => {
-    let TIME = new Date(Date.parse(FAKEDATE) + 100000 * softwareItem.id);
-    // if (softwareItem.id % 3) {
-    //   TIME = FAKEDATE;
-    // }
-    // if (softwareItem.id % 2) {
-    //   TIME = "unavailable";
-    // }
+    const TIME = new Date(
+      Date.parse(FAKEDATE) + 100000 * softwareItem.id
+    ).toString();
+
     return {
       ...softwareItem,
-      bundle_identifier: FAKEID,
-      last_opened_at: TIME,
+      bundle_identifier: softwareItem.id % 3 ? FAKEID : null,
+      last_opened_at: softwareItem.id % 2 ? TIME : null,
       linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
     };
