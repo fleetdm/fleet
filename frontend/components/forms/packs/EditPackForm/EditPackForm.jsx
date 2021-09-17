@@ -41,8 +41,8 @@ class EditPackForm extends Component {
         <h1>Edit pack</h1>
         <InputField
           {...fields.name}
-          placeholder="Query pack title"
-          label="Query pack title"
+          placeholder="Name"
+          label="Name"
           inputWrapperClass={`${baseClass}__pack-title`}
         />
         <InputField

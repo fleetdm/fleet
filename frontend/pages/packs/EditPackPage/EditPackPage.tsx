@@ -1,31 +1,198 @@
-import React, { Component } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { useQuery, useMutation } from "react-query";
+import { Params } from "react-router/lib/Router";
+
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { filter, includes, isEqual, noop, size, find } from "lodash";
 import { push } from "react-router-redux";
 
-import permissionUtils from "utilities/permissions";
+// second grouping
+// @ts-ignore
+import { IConfig } from "interfaces/config";
+import { IError } from "interfaces/errors";
+import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { IPack } from "interfaces/pack";
+import { IQuery } from "interfaces/query";
+import { ITeam } from "interfaces/team";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { AppContext } from "context/app";
+
+import configAPI from "services/entities/config";
+import queryAPI from "services/entities/queries";
+import scheduledqueryAPI from "services/entities/scheduled_queries";
+import packAPI from "services/entities/packs";
+import labelAPI from "services/entities/labels";
+
+// import permissionUtils from "utilities/permissions";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
+// @ts-ignore
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
 import hostActions from "redux/nodes/entities/hosts/actions";
-import hostInterface from "interfaces/host";
+// import hostInterface from "interfaces/host";
 import labelActions from "redux/nodes/entities/labels/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
-import labelInterface from "interfaces/label";
-import teamInterface from "interfaces/team";
-import packActions from "redux/nodes/entities/packs/actions";
+// import labelInterface from "interfaces/label";
+// import teamInterface from "interfaces/team";
+// import packActions from "redux/nodes/entities/packs/actions";
+// import queryActions from "redux/nodes/entities/queries/actions";
+
+// import scheduledQueryInterface from "interfaces/scheduled_query";
 import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
-import packInterface from "interfaces/pack";
-import queryActions from "redux/nodes/entities/queries/actions";
-import queryInterface from "interfaces/query";
-import scheduledQueryInterface from "interfaces/scheduled_query";
 import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
-import stateEntityGetter from "redux/utilities/entityGetter";
+// import stateEntityGetter from "redux/utilities/entityGetter";
 import PATHS from "router/paths";
 
+// NEW TSX CODE
+interface IEditPacksPageProps {
+  router: any;
+  params: Params;
+  location: any; // TODO: find Location type
+}
+interface IRootState {
+  app: {
+    config: IConfig;
+  };
+  entities: {
+    packs: {
+      loading: boolean; // done
+      data: IPack[];
+      errors: IError[];
+    };
+    hosts: {
+      isLoading: boolean;
+      data: IHost[];
+      errors: IError[];
+    };
+    queries: {
+      isLoading: boolean;
+      data: IQuery[];
+      errors: IError[];
+    };
+    teams: {
+      isLoading: boolean;
+      data: ITeam[];
+      errors: IError[];
+    };
+    labels: {
+      isLoading: boolean;
+      data: ILabel[];
+      errors: IError[];
+    };
+  };
+}
+
+interface IStoredPackResponse {
+  pack: IPack;
+}
+
+interface IStoredFleetQueriesResponse {
+  fleetQueries: IQuery[];
+}
+
+interface IStoredScheduledQueriesResponse {
+  scheduledQueries: IScheduledQuery[];
+}
+
+interface IStoredPackLabelsResponse {
+  packLabels: ILabel[];
+}
+
 const baseClass = "edit-pack-page";
+
+const EditPacksPage = ({
+  router, // only needed if I need to navigate to another page from this page
+  params: { id: paramsPackId },
+  location: { query: URLQueryString }, // might need this if there's team filters
+}: IEditPacksPageProps): JSX.Element => {
+  const packId = parseInt(paramsPackId, 10);
+
+  const [pack, setPack] = useState<IPack | null>(null);
+
+  // react-query uses your own api and gives you different states of loading data
+  // can set to retreive data based on different properties
+  const {
+    isLoading: isStoredPackLoading,
+    data: storedPack, // only returns pack and not response wrapping
+    error: storedPackError,
+  } = useQuery<IStoredPackResponse, Error, IPack>(
+    ["pack", packId],
+    () => packAPI.load(packId),
+    {
+      enabled: !!packId, // doesn't run unless ID is given, unneeded but extra precaution
+      select: (data: IStoredPackResponse) => data.pack,
+    }
+  );
+
+  const {
+    isLoading: isFleetQueriesLoading,
+    data: fleetQueries,
+    error: fleetQueriesError,
+  } = useQuery<IStoredFleetQueriesResponse, Error, IQuery[]>(
+    ["fleet queries"], // use single string or array of strings can be named anything
+    () => queryAPI.loadAll(),
+    {
+      select: (data: IStoredFleetQueriesResponse) => data.fleetQueries,
+    }
+  );
+
+  if (storedPack) {
+    const {
+      isLoading: isScheduledQueriesLoading,
+      data: scheduledQueries,
+      error: scheduledQueriesError,
+    } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
+      ["scheduled queries"], // use single string or array of strings can be named anything
+      () => scheduledqueryAPI.loadAll(storedPack),
+      {
+        select: (data: IStoredScheduledQueriesResponse) =>
+          data.scheduledQueries,
+      }
+    );
+  }
+
+  if (storedPack) {
+    const {
+      isLoading: isPackLabelsLoading,
+      data: packLabels,
+      error: packLabelsError,
+    } = useQuery<IStoredPackLabelsResponse, Error, ILabel[]>(
+      ["pack labels"], // use single string or array of strings can be named anything
+      () => labelAPI.loadAll(storedPack),
+      {
+        select: (data: IStoredPackLabelsResponse) => data.packLabels,
+      }
+    );
+  }
+
+  const packLabels = pack
+    ? filter(state.entities.labels.data, (label) => {
+        return includes(pack.label_ids, label.id);
+      })
+    : [];
+
+  // USE CONTEXT API
+  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
+    PackContext
+  );
+
+  // USE REDUX
+  const isLoadingPack = useSelector(
+    (state: IRootState) => state.entities.packs.loading
+  );
+  const isLoadingScheduledQueries = useSelector(
+    (state: IRootState) => state.entities.scheduled_queries.loading
+  );
+
+  const { isPremiumTier } = useContext(AppContext);
+};
+
+// EVERYTHING BELOW HERE IS UNTOUCHED CLASS JSX
+
 export class EditPackPage extends Component {
   static propTypes = {
     allQueries: PropTypes.arrayOf(queryInterface),
@@ -342,32 +509,32 @@ export class EditPackPage extends Component {
 }
 
 const mapStateToProps = (state, { params, route }) => {
-  const entityGetter = stateEntityGetter(state);
-  const isLoadingPack = state.entities.packs.loading;
-  const { id: packID } = params;
-  const pack = entityGetter.get("packs").findBy({ id: packID });
-  const { entities: allQueries } = entityGetter.get("queries");
-  const scheduledQueries = entityGetter
-    .get("scheduled_queries")
-    .where({ pack_id: packID });
-  const isLoadingScheduledQueries = state.entities.scheduled_queries.loading;
-  const isEdit = route.path === "edit";
+  // const entityGetter = stateEntityGetter(state); // done
+  // const isLoadingPack = state.entities.packs.loading; // done
+  // const { id: packID } = params; // done
+  // const pack = entityGetter.get("packs").findBy({ id: packID }); //done
+  // const { entities: allQueries } = entityGetter.get("queries"); // done
+  // const scheduledQueries = entityGetter
+  //   .get("scheduled_queries")
+  //   .where({ pack_id: packID }); // done
+  // const isLoadingScheduledQueries = state.entities.scheduled_queries.loading; // done
+  // const isEdit = route.path === "edit"; // no more edit button
   const packHosts = pack
     ? filter(state.entities.hosts.data, (host) => {
         return includes(pack.host_ids, host.id);
       })
     : [];
-  const packLabels = pack
-    ? filter(state.entities.labels.data, (label) => {
-        return includes(pack.label_ids, label.id);
-      })
-    : [];
+  // const packLabels = pack
+  //   ? filter(state.entities.labels.data, (label) => {
+  //       return includes(pack.label_ids, label.id);
+  //     })
+  //   : []; // done
   const packTeams = pack
     ? filter(state.entities.teams.data, (team) => {
         return includes(pack.team_ids, team.id);
       })
-    : [];
-  const isPremiumTier = permissionUtils.isPremiumTier(state.app.config);
+    : []; // done
+  // const isPremiumTier = permissionUtils.isPremiumTier(state.app.config); // done
 
   return {
     allQueries,

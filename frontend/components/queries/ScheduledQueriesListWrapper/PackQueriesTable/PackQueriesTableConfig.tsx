@@ -7,8 +7,9 @@ import { find } from "lodash";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import IconCell from "components/TableContainer/DataTable/IconCell";
+import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 interface IHeaderProps {
   column: {
@@ -46,7 +47,9 @@ interface IPackQueriesTableData extends IScheduledQuery {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (
+  actionSelectHandler: (value: string, scheduled_query: IScheduledQuery) => void
+): IDataColumn[] => {
   return [
     {
       id: "selection",
@@ -99,25 +102,26 @@ const generateTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Osquery Ver.",
-      Header: "Osquery Ver.",
-      disableSortBy: false,
-      accessor: "versionString",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      title: "Shard",
-      Header: "Shard",
-      disableSortBy: false,
-      accessor: "shard",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
       title: "Logging",
       Header: "Logging",
       disableSortBy: false,
       accessor: "loggingTypeString",
-      Cell: (cellProps) => <IconCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: "Actions",
+      Header: "",
+      disableSortBy: true,
+      accessor: "actions",
+      Cell: (cellProps) => (
+        <DropdownCell
+          options={cellProps.cell.value}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder={"Actions"}
+        />
+      ),
     },
   ];
 };
@@ -127,15 +131,15 @@ const generateLoggingTypeString = (
   removed: boolean
 ): string => {
   if (snapshot) {
-    return "camera";
+    return "Snapshot";
   }
 
   // Default is differential with removals, so we treat null as removed = true
   if (removed !== false) {
-    return "plus-minus";
+    return "Differential";
   }
 
-  return "bold-plus";
+  return "Differential (ignore removal)";
 };
 
 const generatePlatformTypeString = (platforms: string | undefined): string => {
@@ -176,6 +180,22 @@ const generateVersionString = (version: string | undefined): string => {
   return "Any";
 };
 
+const generateActionDropdownOptions = (): IDropdownOption[] => {
+  const dropdownOptions = [
+    {
+      label: "Edit",
+      disabled: false,
+      value: "edit",
+    },
+    {
+      label: "Remove",
+      disabled: false,
+      value: "remove",
+    },
+  ];
+  return dropdownOptions;
+};
+
 const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
@@ -202,6 +222,7 @@ const enhancePackQueriesData = (
       created_at: query.created_at,
       updated_at: query.updated_at,
       query_name: query.query_name,
+      actions: generateActionDropdownOptions(),
     };
   });
 };
@@ -209,7 +230,7 @@ const enhancePackQueriesData = (
 const generateDataSet = (
   queries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
-  // Cannot pass undefined to enhanceSoftwareData
+  // Cannot pass undefined to enhancePackQueriesData
   if (!queries) {
     return queries;
   }

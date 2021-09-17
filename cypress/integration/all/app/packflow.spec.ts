@@ -14,9 +14,7 @@ describe(
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
-      cy.findByLabelText(/query pack title/i)
-        .click()
-        .type("Errors and crashes");
+      cy.findByLabelText(/name/i).click().type("Errors and crashes");
 
       cy.findByLabelText(/description/i)
         .click()
@@ -30,7 +28,7 @@ describe(
 
       cy.findByText(/edit pack/i).click();
 
-      cy.findByLabelText(/query pack title/i)
+      cy.findByLabelText(/name/i)
         .click()
         .type("{selectall}{backspace}Server errors");
 

@@ -100,13 +100,14 @@ class ScheduledQueriesListWrapper extends Component {
             defaultSortDirection={"asc"}
             inputPlaceHolder={"Search queries"}
             onQueryChange={onTableQueryChange}
-            onSelectActionClick={onRemoveScheduledQueries}
             resultsTitle={"queries"}
             emptyComponent={EmptySearch}
             showMarkAllPages={false}
-            selectActionButtonText={"Remove"}
+            onPrimarySelectActionClick={onRemoveScheduledQueries}
+            primarySelectActionButtonVariant="text-icon"
+            primarySelectActionButtonIcon="close"
+            primarySelectActionButtonText={"Remove"}
             searchable
-            wideSearch
             disablePagination
           />
         )}
