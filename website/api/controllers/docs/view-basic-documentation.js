@@ -65,13 +65,25 @@ module.exports = {
         throw 'notFound';
       }
     }
+    // Setting the title of this page
+    let pageTitle;
+    if(thisPage && thisPage.title) {
+      // Handle situations where the title is the filename of a markdown file (e.g. the documentation landing page's title is 'Readme.md')
+      if(_.endsWith(thisPage.title, '.md')) {
+        // if the title is a markdown filename, we'll use a generic 'Documentation' title
+        pageTitle = 'Documentation | Fleet for osquery';
+      } else {
+        pageTitle = thisPage.title + ' | Fleet for osquery';
+      }
+    }
 
     // Respond with view.
     return {
       path: require('path'),
       thisPage: thisPage,
       markdownPages: sails.config.builtStaticContent.markdownPages,
-      compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath
+      compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
+      title: pageTitle,
     };
 
   }
