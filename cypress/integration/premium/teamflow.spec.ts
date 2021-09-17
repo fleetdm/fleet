@@ -5,6 +5,9 @@ describe("Teams flow", () => {
     cy.viewport(1200, 660);
   });
 
+  /* TODO fix and reenable
+  This test is causing major flake issues due to the dropdown menu
+
   it("Create, edit, and delete a team successfully", () => {
     cy.visit("/settings/teams");
 
@@ -74,4 +77,5 @@ describe("Teams flow", () => {
 
     cy.findByText(/mystic/i).should("not.exist");
   });
+  */
 });
