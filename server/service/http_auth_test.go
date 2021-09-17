@@ -21,7 +21,6 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, users, server := setupAuthTest(t)
-	defer server.Close()
 	var loginTests = []struct {
 		email    string
 		status   int
@@ -60,7 +59,7 @@ func TestLogin(t *testing.T) {
 		j, err := json.Marshal(&params)
 		assert.Nil(t, err)
 
-		requestBody := &nopCloser{bytes.NewBuffer(j)}
+		requestBody := io.NopCloser(bytes.NewBuffer(j))
 		resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
@@ -173,7 +172,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
 
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
 	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -191,7 +190,6 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 
 func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
-	defer server.Close()
 
 	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
 	client := &http.Client{}
@@ -230,10 +228,3 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 }
 `, string(bodyBytes))
 }
-
-// an io.ReadCloser for new request body
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
