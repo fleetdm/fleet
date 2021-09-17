@@ -60,17 +60,12 @@ module.exports.routes = {
 
   'GET /queries/:slug': {
     action: 'view-query-detail',
-    locals:{
-      title: 'Query details | Fleet for osquery',
-      description: 'View more information about a query in Fleet\'s standard query library',
-    }
   },
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals:{
-      title: 'Documentation | Fleet for osquery',
       description: 'Documentation for Fleet for osquery.',
     }
   },// handles /docs and /docs/foo/bar

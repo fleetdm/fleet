@@ -33,19 +33,20 @@ module.exports = {
     if (!query) {
       throw 'notFound';
     }
-    // Setting a generic <title> and description for this page.
-    let title;
-    let description;
+
+    // Setting a generic default title and description in case something goes wrong and the query is missing a name and description
+    let pageTitle = 'Query details | Fleet for osquery';
+    let pageDescription = 'View more information about a query in Fleet\'s standard query library';
     if(query.name) {
-      title = query.name + ' | Query details';
+      pageTitle = query.name + ' | Query details';
     }
     if(query.description) {
-      description = query.description;
+      pageDescription = query.description;
     }
     // Respond with view.
     return {
-      title,
-      description,
+      title: pageTitle,
+      description: pageDescription,
       query,
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath
     };
