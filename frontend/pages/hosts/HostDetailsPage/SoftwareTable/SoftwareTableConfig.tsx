@@ -1,13 +1,16 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
+import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+
+import PATHS from "router/paths";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
-import { IVulnerability } from "interfaces/vulnerability";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -58,19 +61,6 @@ const TYPE_CONVERSION: Record<string, string> = {
   pkg_packages: "Package (pkg)",
 };
 
-const generateTooltip = (vulnerabilities: IVulnerability[]): string | null => {
-  if (!vulnerabilities) {
-    // Uncomment to test tooltip rendering:
-    // return "0 vulnerabilities detected";
-    return null;
-  }
-
-  const vulText =
-    vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities";
-
-  return `${vulnerabilities.length} ${vulText} detected`;
-};
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (): IDataColumn[] => {
@@ -81,7 +71,8 @@ const generateTableHeaders = (): IDataColumn[] => {
       disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps) => {
-        if (isEmpty(cellProps.cell.value)) {
+        const vulnerabilities = cellProps.cell.value;
+        if (isEmpty(vulnerabilities)) {
           return <></>;
         }
         return (
@@ -92,7 +83,7 @@ const generateTableHeaders = (): IDataColumn[] => {
               data-for={`software-vuln__${cellProps.row.original.id.toString()}`}
               data-tip-disable={false}
             >
-              <img alt="Tooltip icon" src={IssueIcon} />
+              <img alt="software vulnerabilities" src={IssueIcon} />
             </span>
             <ReactTooltip
               place="bottom"
@@ -103,7 +94,9 @@ const generateTableHeaders = (): IDataColumn[] => {
               data-html
             >
               <span className={`tooltip__tooltip-text`}>
-                {generateTooltip(cellProps.cell.value)}
+                {vulnerabilities.length === 1
+                  ? "1 vulnerability detected"
+                  : `${vulnerabilities.length} vulnerabilities detected`}
               </span>
             </ReactTooltip>
           </>
@@ -131,7 +124,7 @@ const generateTableHeaders = (): IDataColumn[] => {
                 data-for={`software-name__${cellProps.row.original.id.toString()}`}
                 data-tip-disable={false}
               >
-                <img alt="Tooltip icon" src={QuestionIcon} />
+                <img alt="bundle identifier" src={QuestionIcon} />
               </span>
               <ReactTooltip
                 place="bottom"
@@ -152,6 +145,7 @@ const generateTableHeaders = (): IDataColumn[] => {
         }
         return <TextCell value={name} />;
       },
+      sortType: "caseInsensitive",
     },
     {
       title: "Type",
@@ -181,8 +175,27 @@ const generateTableHeaders = (): IDataColumn[] => {
         />
       ),
       accessor: "last_opened_at",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => {
+        const lastUsed = isNaN(Date.parse(cellProps.cell.value))
+          ? "unavailable"
+          : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
+        return <TextCell value={lastUsed} />;
+      },
       sortType: "dateStringsAsc",
+    },
+    {
+      title: "",
+      Header: "",
+      disableSortBy: true,
+      accessor: "linkToFilteredHosts",
+      Cell: (cellProps) => {
+        return (
+          <a className={`software-link`} href={cellProps.cell.value}>
+            <img alt="link to hosts filtered by software ID" src={Chevron} />
+          </a>
+        );
+      },
+      disableHidden: true,
     },
   ];
 };
@@ -192,18 +205,18 @@ const FAKEDATE = "2021-08-18T15:11:35Z";
 
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
   return Object.values(software).map((softwareItem) => {
-    let TIME = "unavailable";
-    if (softwareItem.id % 3) {
-      TIME = FAKEDATE;
-    }
-    if (softwareItem.id % 2) {
-      TIME = new Date(Date.now()).toString();
-    }
+    let TIME = new Date(Date.parse(FAKEDATE) + 100000 * softwareItem.id);
+    // if (softwareItem.id % 3) {
+    //   TIME = FAKEDATE;
+    // }
+    // if (softwareItem.id % 2) {
+    //   TIME = "unavailable";
+    // }
     return {
       ...softwareItem,
       bundle_identifier: FAKEID,
       last_opened_at: TIME,
-      vulnerabilitiesTooltip: generateTooltip(softwareItem.vulnerabilities),
+      linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
     };
   });

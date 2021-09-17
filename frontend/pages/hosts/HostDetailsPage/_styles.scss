@@ -344,6 +344,10 @@
         width: 16px;
         padding-right: 0px;
       }
+      &:last-child {
+        width: 90px;
+        padding: 0px;
+      }
     }
     tr {
       td {
@@ -537,5 +541,14 @@
 
   .software-name {
     margin-left: 8px;
+  }
+
+  .software-link {
+    img {
+      transform: rotate(0.75turn);
+      height: 16px;
+      width: auto;
+      vertical-align: middle;
+    }
   }
 }
