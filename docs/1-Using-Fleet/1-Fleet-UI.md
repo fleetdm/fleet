@@ -5,6 +5,7 @@
 ## Scheduling queries
 
 The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet, you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top nav.
+
 ![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
 
 If you select a pack from the list, you can quickly enable and disable the entire pack, or you can configure it further.

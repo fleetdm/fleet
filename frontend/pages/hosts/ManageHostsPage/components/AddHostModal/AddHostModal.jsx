@@ -11,6 +11,8 @@ import permissionUtils from "utilities/permissions";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import FleetIcon from "components/icons/FleetIcon";
 import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import { stringToClipboard } from "utilities/copy_text";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 const baseClass = "add-host-modal";
@@ -55,6 +57,7 @@ class AddHostModal extends Component {
       selectedTeam: null,
       globalSecrets: [],
       selectedEnrollSecrets: [],
+      copyMessage: "",
     };
   }
 
@@ -107,6 +110,19 @@ class AddHostModal extends Component {
     return false;
   };
 
+  onCopyRunCommand = (evt) => {
+    evt.preventDefault();
+
+    stringToClipboard("osqueryd --flagfile=flagfile.txt --verbose")
+      .then(() => this.setState({ copyMessage: "Copied!" }))
+      .catch(() => this.setState({ copyMessage: "Copy failed" }));
+
+    // Clear message after 1 second
+    setTimeout(() => this.setState({ copyMessage: "" }), 1000);
+
+    return false;
+  };
+
   // if isGlobalAdmin or isGlobalMaintainer, we include a "No team" option and reveal globalSecrets
   // if not, we pull secrets for the user's teams from the teamsSecrets
   onChangeSelectTeam = (teamId) => {
@@ -147,6 +163,26 @@ class AddHostModal extends Component {
       : [NO_TEAM_OPTION, ...teamOptions];
   };
 
+  renderRunCommandLabel = () => {
+    const { copyMessage } = this.state;
+    const { onCopyRunCommand } = this;
+
+    return (
+      <span className={`${baseClass}__name`}>
+        <span className="buttons">
+          {copyMessage && <span>{`${copyMessage} `}</span>}
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__run-osquery-copy-icon`}
+            onClick={onCopyRunCommand}
+          >
+            <FleetIcon name="clipboard" />
+          </Button>
+        </span>
+      </span>
+    );
+  };
+
   render() {
     const { config, onReturnToApp } = this.props;
     const { fetchCertificateError, selectedTeam, globalSecrets } = this.state;
@@ -155,6 +191,7 @@ class AddHostModal extends Component {
       currentUserTeams,
       getSelectedEnrollSecrets,
       onChangeSelectTeam,
+      renderRunCommandLabel,
     } = this;
 
     const isPremiumTier = permissionUtils.isPremiumTier(config);
@@ -312,7 +349,16 @@ class AddHostModal extends Component {
                 Run osquery from the directory containing the above files (may
                 require sudo or Run as Administrator privileges):
               </p>
-              <pre>osqueryd --flagfile=flagfile.txt --verbose</pre>
+              <div>
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__run-osquery-input`}
+                  name="run-osquery"
+                  label={renderRunCommandLabel()}
+                  type={"text"}
+                  value={"osqueryd --flagfile=flagfile.txt --verbose"}
+                />
+              </div>
             </li>
           </ol>
         </div>

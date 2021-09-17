@@ -16,8 +16,7 @@ import (
 func TestLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := new(live_query.MockLiveQuery)
-	server, ds := runServerWithMockedDS(t, service.TestServerOpts{Rs: rs, Lq: lq})
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{Rs: rs, Lq: lq})
 
 	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{1234}, nil
