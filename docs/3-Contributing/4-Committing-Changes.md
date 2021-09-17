@@ -12,6 +12,9 @@ For significant changes, it is a good idea to discuss the proposal with the Flee
 
 Please keep in mind that any code merged to the Fleet repository becomes the responsibility of the Fleet team to maintain. Because of this, we are careful to ensure any contributions fit Fleet's vision, are well-tested, and high quality. We will work with contributors to ensure the appropriate standards are met.
 
+## Fleet Device Management team members
+Fleet Device Management team members may not copy queries from external sources except when that content has an explicit license allowing such use, or permission has been granted by the creator.
+
 ## Pull Requests
 
 Each developer (internal or external) creates a fork of the Fleet repository, committing changes to a branch within their fork. Changes are submitted by PR to be merged into Fleet.

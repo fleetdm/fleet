@@ -243,3 +243,12 @@ func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 func CreateMySQLDS(t *testing.T) *Datastore {
 	return createMySQLDSWithOptions(t, nil)
 }
+
+func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+
+	t.Parallel()
+	return initializeDatabase(t, name, new(DatastoreTestOptions))
+}
