@@ -41,7 +41,11 @@ export default {
       throw new Error("Could not load all labels.");
     }
   },
+<<<<<<< HEAD
   update: async (label: ILabel, updatedAttrs: ILabel) => {
+=======
+  update: (label: ILabel, updatedAttrs: ILabel) => {
+>>>>>>> 87b67750 (services/entities updated with all needed EAPIs for EditPacksPage)
     const { LABELS } = endpoints;
     const path = `${LABELS}/${label.id}`;
 
