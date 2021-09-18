@@ -43,7 +43,11 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: latest
-          args: release --snapshot --skip-publish=false --rm-dist -f .goreleaser-snapshot.yml
+          args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
+      - name: Publish Docker images
+        run: docker push fleetdm/fleet
