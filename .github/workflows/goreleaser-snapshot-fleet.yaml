@@ -1,15 +1,10 @@
-name: goreleaser
+name: Docker publish
 
 on:
-  # Trigger the workflow on push or pull request,
-  # but only for the main branch
   push:
     branches:
       - main
   pull_request:
-
-permissions:
-  contents: write
 
 jobs:
   goreleaser:
@@ -46,8 +41,7 @@ jobs:
           args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
-        run: docker push fleetdm/fleet
+        run: docker push fleetdm/fleet --all-tags
