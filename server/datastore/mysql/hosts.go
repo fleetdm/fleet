@@ -285,7 +285,7 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
-	err := d.deleteEntity(ctx, "hosts", hid)
+	err := d.deleteEntity(ctx, hostsTable, hid)
 	if err != nil {
 		return errors.Wrapf(err, "deleting host with id %d", hid)
 	}

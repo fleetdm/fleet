@@ -1,0 +1,1 @@
+* Changed `dbTable` type to `entity` in `mysql.deleteEntit*` functions to avoid using constant strings with typos.
