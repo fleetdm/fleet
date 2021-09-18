@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	stderrors "errors"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -57,6 +59,27 @@ func TestFilesystemLogger(t *testing.T) {
 	// + 1 below is for newlines that should be appended to each log
 	assert.Equal(t, int64(batches*logCount*(logSize+1)), info.Size())
 
+}
+
+// TestFilesystemLoggerPermission tests that NewFilesystemLogWriter fails
+// if the process does not have permissions to write to the provided path.
+func TestFilesystemLoggerPermission(t *testing.T) {
+	tempPath := t.TempDir()
+	require.NoError(t, os.Chmod(tempPath, 0000))
+	fileName := path.Join(tempPath, "filesystemLogWriter")
+	for _, tc := range []struct {
+		name     string
+		rotation bool
+	}{
+		{name: "with-rotation", rotation: true},
+		{name: "without-rotation", rotation: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), tc.rotation, false)
+			require.Error(t, err)
+			require.True(t, stderrors.Is(err, fs.ErrPermission), err)
+		})
+	}
 }
 
 func BenchmarkFilesystemLogger(b *testing.B) {

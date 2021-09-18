@@ -24,8 +24,17 @@ type filesystemLogWriter struct {
 // NewFilesystemLogWriter creates a log file for osquery status/result logs.
 // The logFile can be rotated by sending a `SIGHUP` signal to Fleet if
 // enableRotation is true
+//
+// The enableCompression argument is only used when enableRotation is true.
 func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bool, enableCompression bool) (*filesystemLogWriter, error) {
 	if enableRotation {
+		// Fail early if the process does not have the necessary
+		// permissions to open the file at path.
+		file, err := openFile(path)
+		if err != nil {
+			return nil, errors.Wrap(err, "perm check")
+		}
+		file.Close()
 		// Use lumberjack logger that supports rotation
 		osquerydLogger := &lumberjack.Logger{
 			Filename:   path,
@@ -86,7 +95,7 @@ type rawLogWriter struct {
 }
 
 func newRawLogWriter(path string) (*rawLogWriter, error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	file, err := openFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -140,4 +149,8 @@ func (l *rawLogWriter) Close() error {
 	}
 
 	return nil
+}
+
+func openFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 }
