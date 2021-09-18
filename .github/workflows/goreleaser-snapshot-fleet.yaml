@@ -11,7 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
-      - name: Checkout
+      
+      - name: Checkout (PR)
+        if: ${{ github.event.pull_request.head.sha }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Checkout (main)
+        if: ${{ !github.event.pull_request.head.sha }}
         uses: actions/checkout@v2
 
       - name: Login to Docker Hub

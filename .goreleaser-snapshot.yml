@@ -9,8 +9,8 @@ before:
     - make deps
     - make generate
 
-# gomod:
-#   proxy: true
+gomod:
+  proxy: true
 
 builds:
   - id: fleet
@@ -70,5 +70,5 @@ dockers:
       - fleetctl
     dockerfile: tools/docker/fleetctl.Dockerfile
     image_templates:
-      - 'fleetdm/fleet:{{ .ShortCommit }}'
+      - 'fleetdm/fleetctl:{{ .ShortCommit }}'
 
