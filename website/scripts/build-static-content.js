@@ -25,7 +25,7 @@ module.exports = {
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
-        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml';
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
 
         let queriesWithProblematicRemediations = [];
