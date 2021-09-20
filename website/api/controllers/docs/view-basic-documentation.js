@@ -57,7 +57,7 @@ module.exports = {
       let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
         url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(modifiedPageUrlSuffix, '/'), '/')
       });
-      if(revisedPage.url) {
+      if(revisedPage) {
         // If we matched a page with the modified pageUrlSuffix, then redirect to that.
         throw {redirect: revisedPage.url};
       } else {
