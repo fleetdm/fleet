@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -456,6 +458,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	// Retrieve the label queries that should be updated
 	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
+	if svc.config.Osquery.MaxJitterLabelUpdateInterval.Seconds() > 0 {
+		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(svc.config.Osquery.MaxJitterLabelUpdateInterval.Seconds())))
+		if err == nil {
+			cutoff = cutoff.Add(time.Duration(randDuration.Int64()) * time.Second)
+		}
+	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host, cutoff)
 	if err != nil {
 		return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}

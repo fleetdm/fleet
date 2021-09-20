@@ -95,6 +95,8 @@ type OsqueryConfig struct {
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
+
+	MaxJitterLabelUpdateInterval time.Duration `yaml:"max_jitter_label_update_interval"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -306,6 +308,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.result_log_file) Path for osqueryd result logs")
 	man.addConfigBool("osquery.enable_log_rotation", false,
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
+	man.addConfigDuration("osquery.max_jitter_label_update_interval", 0,
+		"Maximum amount of random time added to the label_update_interval to prevent all hosts from getting labels at the same time")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -463,6 +467,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
+
+			MaxJitterLabelUpdateInterval: man.getConfigDuration("osquery.max_jitter_label_update_interval"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -742,13 +748,14 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 90 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:          24,
-			HostIdentifier:       "instance",
-			EnrollCooldown:       42 * time.Minute,
-			StatusLogPlugin:      "filesystem",
-			ResultLogPlugin:      "filesystem",
-			LabelUpdateInterval:  1 * time.Hour,
-			DetailUpdateInterval: 1 * time.Hour,
+			NodeKeySize:                  24,
+			HostIdentifier:               "instance",
+			EnrollCooldown:               42 * time.Minute,
+			StatusLogPlugin:              "filesystem",
+			ResultLogPlugin:              "filesystem",
+			LabelUpdateInterval:          1 * time.Hour,
+			DetailUpdateInterval:         1 * time.Hour,
+			MaxJitterLabelUpdateInterval: 20 * time.Minute,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

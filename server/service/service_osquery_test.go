@@ -320,11 +320,14 @@ func TestLabelQueries(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
+	var lastCutOffPass time.Time
+
 	host := &fleet.Host{
 		Platform: "darwin",
 	}
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		lastCutOffPass = cutoff
 		return map[string]string{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -347,9 +350,11 @@ func TestLabelQueries(t *testing.T) {
 	// With a new host, we should get the detail queries (and accelerate
 	// should be turned on so that we can quickly fill labels)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
+	assert.NotZero(t, lastCutOffPass)
+	prevCutoff := lastCutOffPass
 
 	// Simulate the detail queries being added
 	host.DetailUpdatedAt = mockClock.Now().Add(-1 * time.Minute)
@@ -357,11 +362,15 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, *host)
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
 	assert.Zero(t, acc)
+	assert.NotZero(t, lastCutOffPass)
+	assert.NotEqual(t, prevCutoff, lastCutOffPass)
+	prevCutoff = lastCutOffPass
 
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+		lastCutOffPass = cutoff
 		return map[string]string{
 			"label1": "query1",
 			"label2": "query2",
@@ -371,9 +380,11 @@ func TestLabelQueries(t *testing.T) {
 
 	// Now we should get the label queries
 	queries, acc, err = svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, 3)
+	require.NoError(t, err)
+	require.Len(t, queries, 3)
 	assert.Zero(t, acc)
+	assert.NotZero(t, lastCutOffPass)
+	assert.NotEqual(t, prevCutoff, lastCutOffPass)
 
 	var gotHost *fleet.Host
 	var gotResults map[uint]*bool
