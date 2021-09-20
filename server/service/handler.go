@@ -705,6 +705,11 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
 
+	e.POST("/api/v1/fleet/team/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
+	e.GET("/api/v1/fleet/team/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
+	e.GET("/api/v1/fleet/team/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
+	e.POST("/api/v1/fleet/team/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 }
 

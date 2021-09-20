@@ -347,6 +347,13 @@ allow {
   action == [read, write][_]
 }
 
+# Team Maintainers can read and write policies
+allow {
+  object.type == "policy"
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == [read, write][_]
+}
+
 ##
 # Software
 ##
