@@ -86,6 +86,11 @@ interface IRootState {
       data: ILabel[];
       errors: IError[];
     };
+    scheduled_queries: {
+      isLoading: boolean;
+      data: IScheduledQuery[];
+      errors: IError[];
+    };
   };
 }
 
@@ -94,11 +99,11 @@ interface IStoredPackResponse {
 }
 
 interface IStoredFleetQueriesResponse {
-  fleetQueries: IQuery[];
+  queries: IQuery[];
 }
 
 interface IStoredScheduledQueriesResponse {
-  scheduledQueries: IScheduledQuery[];
+  scheduled: IScheduledQuery[];
 }
 
 interface IStoredLabelsResponse {
@@ -126,6 +131,7 @@ const EditPacksPage = ({
   const packId: number = parseInt(paramsPackId, 10);
 
   const [targetsCount, setTargetsCount] = useState<number>(0);
+  const [showAddQueryModal, setShowAddQueryModal] = useState<boolean>(false);
   const [showEditQueryModal, setShowEditQueryModal] = useState<boolean>(false);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
@@ -154,7 +160,7 @@ const EditPacksPage = ({
     ["fleet queries"], // use single string or array of strings can be named anything
     () => queryAPI.loadAll(),
     {
-      select: (data: IStoredFleetQueriesResponse) => data.fleetQueries,
+      select: (data: IStoredFleetQueriesResponse) => data.queries,
     }
   );
 
@@ -164,9 +170,9 @@ const EditPacksPage = ({
     error: scheduledQueriesError,
   } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
     ["scheduled queries"], // use single string or array of strings can be named anything
-    () => scheduledqueryAPI.loadAll(packId), // TODO: help with typeds
+    () => scheduledqueryAPI.loadAll(packId), // TODO: help with types
     {
-      select: (data: IStoredScheduledQueriesResponse) => data.scheduledQueries,
+      select: (data: IStoredScheduledQueriesResponse) => data.scheduled,
     }
   );
 
@@ -224,8 +230,17 @@ const EditPacksPage = ({
     : [];
 
   console.log("packLabels", packLabels);
+  console.log("labels", labels);
+  console.log("packLabelsError", packLabelsError);
+  console.log("isLabelsLoading", isLabelsLoading);
   console.log("packHosts", packHosts);
   console.log("packTeams", packTeams);
+  console.log("scheduledQueries", scheduledQueries);
+  console.log("scheduledQueriesError", scheduledQueriesError);
+  console.log("isScheduledQueriesLoading", isScheduledQueriesLoading);
+  console.log("fleetQueries", fleetQueries);
+  console.log("fleetQueriesError", fleetQueriesError);
+  console.log("isFleetQueriesLoading", isFleetQueriesLoading);
 
   const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
@@ -243,6 +258,10 @@ const EditPacksPage = ({
 
     return false;
   };
+
+  const toggleAddQueryModal = useCallback(() => {
+    setShowAddQueryModal(!showAddQueryModal);
+  }, [showAddQueryModal, setShowAddQueryModal]);
 
   const toggleEditQueryModal = useCallback(() => {
     setShowEditQueryModal(!showEditQueryModal);
@@ -277,13 +296,9 @@ const EditPacksPage = ({
         packTargets={packTargets}
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
-        onRemoveScheduledQueries={toggleRemoveQueryModal}
-        onScheduledQueryFormSubmit={toggleRemoveQueryModal}
-        scheduledQueries={scheduledQueries}
-        packId={packId}
-        isLoadingScheduledQueries={isScheduledQueriesLoading}
       />
       <ScheduledQueriesListWrapper
+        onAddScheduledQuery={toggleAddQueryModal}
         onRemoveScheduledQueries={toggleRemoveQueryModal}
         onScheduledQueryFormSubmit={toggleRemoveQueryModal}
         scheduledQueries={scheduledQueries}

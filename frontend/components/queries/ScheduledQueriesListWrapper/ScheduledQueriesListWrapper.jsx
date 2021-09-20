@@ -11,11 +11,12 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./PackQueriesTable/PackQueriesTableConfig";
-import RemoveQueryModal from "./RemoveQueryModal";
+import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "scheduled-queries-list-wrapper";
 class ScheduledQueriesListWrapper extends Component {
   static propTypes = {
+    onAddScheduledQuery: PropTypes.func,
     onRemoveScheduledQueries: PropTypes.func,
     onScheduledQueryFormSubmit: PropTypes.func,
     scheduledQueries: PropTypes.arrayOf(queryInterface),
@@ -74,6 +75,7 @@ class ScheduledQueriesListWrapper extends Component {
   render() {
     const {
       onTableQueryChange,
+      onAddScheduledQuery,
       onRemoveScheduledQueries,
       isLoadingScheduledQueries,
       getQueries,
@@ -85,9 +87,6 @@ class ScheduledQueriesListWrapper extends Component {
 
     return (
       <div className={`${baseClass} body-wrap`}>
-        <div>
-          <h1>Queries</h1>
-        </div>
         {!scheduledQueries || scheduledQueries.length === 0 ? (
           <EmptyPack />
         ) : (
@@ -102,6 +101,10 @@ class ScheduledQueriesListWrapper extends Component {
             resultsTitle={"queries"}
             emptyComponent={EmptySearch}
             showMarkAllPages={false}
+            actionButtonText={"Add query"}
+            actionButtonIcon={AddQueryIcon}
+            actionButtonVariant={"text-icon"}
+            onActionButtonClick={onAddScheduledQuery}
             onPrimarySelectActionClick={onRemoveScheduledQueries}
             primarySelectActionButtonVariant="text-icon"
             primarySelectActionButtonIcon="close"
