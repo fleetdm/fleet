@@ -126,17 +126,26 @@ func (a *Authorizer) TeamAuthorize(ctx context.Context, teamID uint, action stri
 	}
 
 	// global admins and maintainers are authorized to work with teams
-	if subject.GlobalRole != nil && *subject.GlobalRole != fleet.RoleObserver {
-		return nil
+	if subject.GlobalRole != nil {
+		switch *subject.GlobalRole {
+		case fleet.RoleAdmin:
+			return nil
+		case fleet.RoleMaintainer:
+			return nil
+		}
 	}
 
 	for _, team := range subject.Teams {
 		if teamID == team.ID {
-			if action == fleet.ActionWrite && team.Role == fleet.RoleObserver {
+			switch action {
+			case fleet.ActionWrite:
+				if team.Role == fleet.RoleMaintainer {
+					return nil
+				}
 				return ForbiddenWithInternal("team observer cannot write", subject, nil, action)
+			default:
+				return nil
 			}
-
-			return nil
 		}
 	}
 
