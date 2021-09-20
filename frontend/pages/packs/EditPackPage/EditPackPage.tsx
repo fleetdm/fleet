@@ -29,9 +29,9 @@ import teamAPI from "services/entities/teams";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
-import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
-// @ts-ignore
-import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
+import EditPackForm from "components/forms/packs/EditPackForm";
+// // @ts-ignore
+// import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
 // @ts-ignore
 import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
 // @ts-ignore
@@ -51,7 +51,6 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 // import stateEntityGetter from "redux/utilities/entityGetter";
 import PATHS from "router/paths";
 
-// NEW TSX CODE
 interface IEditPacksPageProps {
   router: any;
   params: Params;
@@ -228,10 +227,12 @@ const EditPacksPage = ({
   console.log("packHosts", packHosts);
   console.log("packTeams", packTeams);
 
+  const packTargets = [...packHosts, ...packLabels, ...packTeams];
+
   // // FUNCTIONS
 
   const onCancelEditPack = () => {
-    return dispatch(push(PATHS.PACK(packId)));
+    return dispatch(push(PATHS.MANAGE_PACKS));
   };
 
   const onFetchTargets = (query: IQuery, targetsResponse: any) => {
@@ -251,8 +252,37 @@ const EditPacksPage = ({
     setShowRemoveQueryModal(!showRemoveQueryModal);
   }, [showRemoveQueryModal, setShowRemoveQueryModal]);
 
+  const handlePackFormSubmit = (formData: any) => {
+    const updatedPack = deepDifference(formData, storedPack);
+    packAPI
+      .update(packId, updatedPack)
+      .then(() => {
+        toggleEditQueryModal();
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", `Could not update pack. Please try again.`)
+        );
+      });
+  };
   return (
     <div className={`${baseClass}__content`}>
+      <EditPackForm
+        className={`${baseClass}__pack-form body-wrap`}
+        handleSubmit={handlePackFormSubmit}
+        onCancelEditPack={onCancelEditPack}
+        onEditPack={toggleEditQueryModal}
+        onFetchTargets={onFetchTargets}
+        pack={storedPack}
+        packTargets={packTargets}
+        targetsCount={targetsCount}
+        isPremiumTier={isPremiumTier}
+        onRemoveScheduledQueries={toggleRemoveQueryModal}
+        onScheduledQueryFormSubmit={toggleRemoveQueryModal}
+        scheduledQueries={scheduledQueries}
+        packId={packId}
+        isLoadingScheduledQueries={isScheduledQueriesLoading}
+      />
       <ScheduledQueriesListWrapper
         onRemoveScheduledQueries={toggleRemoveQueryModal}
         onScheduledQueryFormSubmit={toggleRemoveQueryModal}

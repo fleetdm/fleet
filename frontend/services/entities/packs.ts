@@ -48,11 +48,11 @@ export default {
 
     return sendRequest("GET", PACKS);
   },
-  update: (pack: IPack, updatedPack: any) => {
+  update: (packId: number, updatedPack: any) => {
     // TODO: fix any later
     const { PACKS } = endpoints;
     const { targets } = updatedPack;
-    const path = `${PACKS}/${pack.id}`;
+    const path = `${PACKS}/${packId}`;
 
     let packTargets = null;
     if (targets) {
