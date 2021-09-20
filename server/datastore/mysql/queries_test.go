@@ -12,10 +12,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestApplyQueries(t *testing.T) {
+func TestQueries(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Apply", testQueriesApply},
+		{"Delete", testQueriesDelete},
+		{"GetByName", testQueriesGetByName},
+		{"DeleteMany", testQueriesDeleteMany},
+		{"Save", testQueriesSave},
+		{"List", testQueriesList},
+		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
+		{"DuplicateNew", testQueriesDuplicateNew},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testQueriesApply(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
@@ -29,7 +50,7 @@ func TestApplyQueries(t *testing.T) {
 	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries)
 	require.Nil(t, err)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -47,7 +68,7 @@ func TestApplyQueries(t *testing.T) {
 	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries)
 	require.Nil(t, err)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -65,7 +86,7 @@ func TestApplyQueries(t *testing.T) {
 	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]})
 	require.Nil(t, err)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	require.Len(t, queries, len(expectedQueries))
 	for i, q := range queries {
@@ -79,10 +100,7 @@ func TestApplyQueries(t *testing.T) {
 	assert.Equal(t, &zwass.ID, queries[2].AuthorID)
 }
 
-func TestDeleteQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesDelete(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
@@ -103,10 +121,7 @@ func TestDeleteQuery(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGetQueryByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
 	actual, err := ds.QueryByName(context.Background(), "q1")
@@ -119,10 +134,7 @@ func TestGetQueryByName(t *testing.T) {
 	assert.True(t, fleet.IsNotFound(err))
 }
 
-func TestDeleteQueries(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	q1 := test.NewQuery(t, ds, "q1", "select * from time", user.ID, true)
@@ -130,7 +142,7 @@ func TestDeleteQueries(t *testing.T) {
 	q3 := test.NewQuery(t, ds, "q3", "select 1", user.ID, true)
 	q4 := test.NewQuery(t, ds, "q4", "select * from osquery_info", user.ID, true)
 
-	queries, err := ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
 
@@ -138,7 +150,7 @@ func TestDeleteQueries(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
 
@@ -146,7 +158,7 @@ func TestDeleteQueries(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 1)
 
@@ -154,16 +166,12 @@ func TestDeleteQueries(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), deleted)
 
-	queries, err = ds.ListQueries(context.Background(), fleet.ListOptions{})
+	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 0)
-
 }
 
-func TestSaveQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesSave(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	query := &fleet.Query{
@@ -190,10 +198,7 @@ func TestSaveQuery(t *testing.T) {
 	assert.True(t, queryVerify.ObserverCanRun)
 }
 
-func TestListQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesList(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	for i := 0; i < 10; i++ {
@@ -215,16 +220,13 @@ func TestListQuery(t *testing.T) {
 	})
 	require.Nil(t, err)
 
-	opts := fleet.ListOptions{}
+	opts := fleet.ListQueryOptions{}
 	results, err := ds.ListQueries(context.Background(), opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 10, len(results))
 }
 
-func TestLoadPacksForQueries(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "q1", Query: "select * from time"},
@@ -234,9 +236,9 @@ func TestLoadPacksForQueries(t *testing.T) {
 	require.Nil(t, err)
 
 	specs := []*fleet.PackSpec{
-		&fleet.PackSpec{Name: "p1"},
-		&fleet.PackSpec{Name: "p2"},
-		&fleet.PackSpec{Name: "p3"},
+		{Name: "p1"},
+		{Name: "p2"},
+		{Name: "p3"},
 	}
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
@@ -250,10 +252,10 @@ func TestLoadPacksForQueries(t *testing.T) {
 	assert.Empty(t, q1.Packs)
 
 	specs = []*fleet.PackSpec{
-		&fleet.PackSpec{
+		{
 			Name: "p2",
 			Queries: []fleet.PackSpecQuery{
-				fleet.PackSpecQuery{
+				{
 					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
@@ -275,19 +277,19 @@ func TestLoadPacksForQueries(t *testing.T) {
 	assert.Empty(t, q1.Packs)
 
 	specs = []*fleet.PackSpec{
-		&fleet.PackSpec{
+		{
 			Name: "p1",
 			Queries: []fleet.PackSpecQuery{
-				fleet.PackSpecQuery{
+				{
 					QueryName: queries[1].Name,
 					Interval:  60,
 				},
 			},
 		},
-		&fleet.PackSpec{
+		{
 			Name: "p3",
 			Queries: []fleet.PackSpecQuery{
-				fleet.PackSpecQuery{
+				{
 					QueryName: queries[1].Name,
 					Interval:  60,
 				},
@@ -312,15 +314,15 @@ func TestLoadPacksForQueries(t *testing.T) {
 	}
 
 	specs = []*fleet.PackSpec{
-		&fleet.PackSpec{
+		{
 			Name: "p3",
 			Queries: []fleet.PackSpecQuery{
-				fleet.PackSpecQuery{
+				{
 					Name:      "q0",
 					QueryName: queries[0].Name,
 					Interval:  60,
 				},
-				fleet.PackSpecQuery{
+				{
 					Name:      "q1",
 					QueryName: queries[1].Name,
 					Interval:  60,
@@ -348,10 +350,7 @@ func TestLoadPacksForQueries(t *testing.T) {
 	}
 }
 
-func TestDuplicateNewQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Mike Arpaia", "mike@fleet.co", true)
 	q1, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:     "foo",
@@ -369,4 +368,41 @@ func TestDuplicateNewQuery(t *testing.T) {
 	// Note that we can't do the actual type assertion here because existsError
 	// is private to the individual datastore implementations
 	assert.Contains(t, err.Error(), "already exists")
+}
+
+func TestListQueryFiltersObserver(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	_, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:  "query1",
+		Query: "select 1;",
+		Saved: true,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewQuery(context.Background(), &fleet.Query{
+		Name:  "query2",
+		Query: "select 1;",
+		Saved: true,
+	})
+	require.NoError(t, err)
+	query3, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "query3",
+		Query:          "select 1;",
+		Saved:          true,
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, 3)
+
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{OnlyObserverCanRun: true, ListOptions: fleet.ListOptions{PerPage: 1}},
+	)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	assert.Equal(t, query3.ID, queries[0].ID)
 }
