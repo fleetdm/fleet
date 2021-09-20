@@ -320,7 +320,7 @@ const HostDetailsPage = ({
     });
 
     return (
-      <div className="section labels col-25">
+      <div className="section labels col-50">
         <p className="section__header">Labels</p>
         {labels.length === 0 ? (
           <p className="info__item">No labels are associated with this host.</p>
@@ -663,7 +663,7 @@ const HostDetailsPage = ({
         </div>
         {renderActionButtons()}
       </div>
-      <div className="section about col-50">
+      <div className="section about">
         <p className="section__header">About this host</p>
         <div className="info">
           <div className="info__item info__item--about">
@@ -700,7 +700,7 @@ const HostDetailsPage = ({
           </div>
         </div>
       </div>
-      <div className="section osquery col-25">
+      <div className="section osquery col-50">
         <p className="section__header">Agent options</p>
         <div className="info__item info__item--about">
           <div className="info__block">
