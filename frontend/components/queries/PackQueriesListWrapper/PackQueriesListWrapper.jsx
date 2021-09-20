@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 
 import simpleSearch from "utilities/simple_search";
 import TableContainer from "components/TableContainer";
-import helpers from "components/queries/ScheduledQueriesListWrapper/helpers";
+import helpers from "components/queries/PackQueriesListWrapper/helpers";
 import queryInterface from "interfaces/query";
 import EmptyPack from "./EmptyPack";
 import EmptySearch from "./EmptySearch";
@@ -13,8 +13,8 @@ import {
 } from "./PackQueriesTable/PackQueriesTableConfig";
 import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
-const baseClass = "scheduled-queries-list-wrapper";
-class ScheduledQueriesListWrapper extends Component {
+const baseClass = "pack-queries-list-wrapper";
+class PackQueriesListWrapper extends Component {
   static propTypes = {
     onAddScheduledQuery: PropTypes.func,
     onRemoveScheduledQueries: PropTypes.func,

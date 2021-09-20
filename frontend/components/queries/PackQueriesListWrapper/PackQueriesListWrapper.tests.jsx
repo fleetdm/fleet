@@ -4,7 +4,7 @@ import { noop } from "lodash";
 
 import { scheduledQueryStub } from "test/stubs";
 import { fillInFormInput } from "test/helpers";
-import ScheduledQueriesListWrapper from "./index";
+import PackQueriesListWrapper from "./index";
 
 const scheduledQueries = [
   scheduledQueryStub,
@@ -18,7 +18,7 @@ const defaultProps = {
   scheduledQueries,
 };
 
-describe("ScheduledQueriesListWrapper - component", () => {
+describe("PackQueriesListWrapper - component", () => {
   it('renders the "Remove Query" button when queries have been selected', () => {
     const component = mount(<ScheduledQueriesListWrapper {...defaultProps} />);
 

@@ -30,25 +30,13 @@ import teamAPI from "services/entities/teams";
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
-// // @ts-ignore
-// import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
 // @ts-ignore
-import ScheduledQueriesListWrapper from "components/queries/ScheduledQueriesListWrapper";
+import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
+import PackQueryEditorModal from "./components/PackQueryEditorModal";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-
-// import permissionUtils from "utilities/permissions";
-// import hostActions from "redux/nodes/entities/hosts/actions";
-// import hostInterface from "interfaces/host";
-// import labelActions from "redux/nodes/entities/labels/actions";
-// import teamActions from "redux/nodes/entities/teams/actions";
-// import labelInterface from "interfaces/label";
-// import teamInterface from "interfaces/team";
-// import packActions from "redux/nodes/entities/packs/actions";
-// import queryActions from "redux/nodes/entities/queries/actions";
-// import scheduledQueryInterface from "interfaces/scheduled_query";
-// import scheduledQueryActions from "redux/nodes/entities/scheduled_queries/actions";
-// import stateEntityGetter from "redux/utilities/entityGetter";
+// @ts-ignore
+import debounce from "utilities/debounce";
 import PATHS from "router/paths";
 
 interface IEditPacksPageProps {
@@ -94,6 +82,16 @@ interface IRootState {
   };
 }
 
+interface IPackQueryFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  logging_type: string;
+  platform: string;
+  version: string;
+}
 interface IStoredPackResponse {
   pack: IPack;
 }
@@ -131,11 +129,15 @@ const EditPacksPage = ({
   const packId: number = parseInt(paramsPackId, 10);
 
   const [targetsCount, setTargetsCount] = useState<number>(0);
-  const [showAddQueryModal, setShowAddQueryModal] = useState<boolean>(false);
+  const [
+    showPackQueryEditorModal,
+    setShowPackQueryEditorModal,
+  ] = useState<boolean>(false);
   const [showEditQueryModal, setShowEditQueryModal] = useState<boolean>(false);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+  const [selectedPackQuery, setSelectedPackQuery] = useState<IScheduledQuery>();
 
   // react-query uses your own api and gives you different states of loading data
   // can set to retreive data based on different properties
@@ -259,9 +261,15 @@ const EditPacksPage = ({
     return false;
   };
 
-  const toggleAddQueryModal = useCallback(() => {
-    setShowAddQueryModal(!showAddQueryModal);
-  }, [showAddQueryModal, setShowAddQueryModal]);
+  const onEditPackQueryClick = (selectedQuery: any): void => {
+    togglePackQueryEditorModal();
+    setSelectedPackQuery(selectedQuery); // edit modal renders
+  };
+
+  const togglePackQueryEditorModal = useCallback(() => {
+    setSelectedPackQuery(undefined); // create modal renders
+    setShowPackQueryEditorModal(!showPackQueryEditorModal);
+  }, [showPackQueryEditorModal, setShowPackQueryEditorModal]);
 
   const toggleEditQueryModal = useCallback(() => {
     setShowEditQueryModal(!showEditQueryModal);
@@ -284,6 +292,97 @@ const EditPacksPage = ({
         );
       });
   };
+
+  const {
+    mutateAsync: createPackQuery,
+  } = useMutation((formData: IPackQueryFormData) =>
+    scheduledqueryAPI.create(formData)
+  );
+
+  // const onSavePackQueryFormSubmit = debounce(
+  //   async (formData: IPackQueryFormData) => {
+  //     try {
+  //       const { query }: { query: IScheduledQuery } = await createQuery(formData);
+  //       router.push(PATHS.EDIT_QUERY(query));
+  //       dispatch(renderFlash("success", "Query created!"));
+  //     } catch (createError) {
+  //       console.error(createError);
+  //       dispatch(
+  //         renderFlash(
+  //           "error",
+  //           "Something went wrong creating your query. Please try again."
+  //         )
+  //       );
+  //     }
+  //   }
+  // );
+
+  // const onPackQueryEditorSubmit = (formData: IPackQueryFormData) => {
+  // const { dispatch } = this.props;
+  // const { selectedScheduledQuery } = this.state;
+  // const { update } = scheduledQueryActions;
+  // const updatedAttrs = deepDifference(formData, selectedScheduledQuery);
+
+  // dispatch(update(selectedScheduledQuery, updatedAttrs))
+  //   .then(() => {
+  //     this.setState({ selectedScheduledQuery: null, selectedQuery: null });
+  //     dispatch(renderFlash("success", "Scheduled Query updated!"));
+  //   })
+  //   .catch(() => {
+  //     dispatch(
+  //       renderFlash("error", "Unable to update your Scheduled Query.")
+  //     );
+  //   });
+  // };
+
+  const onPackQueryEditorSubmit = useCallback(
+    (formData: IPackQueryFormData, editQuery: IScheduledQuery | undefined) => {
+      // if (editQuery) {
+      //   const updatedAttributes = deepDifference(formData, editQuery);
+      //   dispatch(
+      //     globalScheduledQueryActions.update(editQuery, updatedAttributes)
+      //   )
+      //     .then(() => {
+      //       dispatch(
+      //         renderFlash(
+      //           "success",
+      //           `Successfully updated ${formData.name} in the schedule.`
+      //         )
+      //       );
+      //       dispatch(globalScheduledQueryActions.loadAll());
+      //     })
+      //     .catch(() => {
+      //       dispatch(
+      //         renderFlash(
+      //           "error",
+      //           "Could not update scheduled query. Please try again."
+      //         )
+      //       );
+      //     });
+      // } else {
+      //   dispatch(globalScheduledQueryActions.create({ ...formData }))
+      //     .then(() => {
+      //       dispatch(
+      //         renderFlash(
+      //           "success",
+      //           `Successfully added ${formData.name} to the schedule.`
+      //         )
+      //       );
+      //       dispatch(globalScheduledQueryActions.loadAll());
+      //     })
+      //     .catch(() => {
+      //       dispatch(
+      //         renderFlash(
+      //           "error",
+      //           "Could not schedule query. Please try again."
+      //         )
+      //       );
+      //     });
+      // }
+      togglePackQueryEditorModal();
+    },
+    [dispatch, togglePackQueryEditorModal]
+  );
   return (
     <div className={`${baseClass}__content`}>
       <EditPackFormWrapper
@@ -297,14 +396,22 @@ const EditPacksPage = ({
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
       />
-      <ScheduledQueriesListWrapper
-        onAddScheduledQuery={toggleAddQueryModal}
+      <PackQueriesListWrapper
+        onAddScheduledQuery={togglePackQueryEditorModal}
         onRemoveScheduledQueries={toggleRemoveQueryModal}
         onScheduledQueryFormSubmit={toggleRemoveQueryModal}
         scheduledQueries={scheduledQueries}
         packId={packId}
         isLoadingScheduledQueries={isScheduledQueriesLoading}
       />
+      {showPackQueryEditorModal && fleetQueries && (
+        <PackQueryEditorModal
+          onCancel={togglePackQueryEditorModal}
+          onPackQueryFormSubmit={onPackQueryEditorSubmit}
+          allQueries={fleetQueries}
+          editQuery={selectedPackQuery}
+        />
+      )}
     </div>
   );
 };

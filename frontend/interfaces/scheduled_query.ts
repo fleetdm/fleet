@@ -18,6 +18,16 @@ export default PropTypes.shape({
   denylist: PropTypes.bool,
 });
 
+export interface IPackQueryFormData {
+  interval: number;
+  name?: string | number | boolean | any[] | undefined;;
+  shard: number;
+  query?: string | number | boolean | any[] | undefined;;
+  query_id?: number;
+  logging_type: string;
+  platform: string;
+  version: string;
+}
 export interface IScheduledQuery {
   created_at: string;
   updated_at: string;

@@ -2,7 +2,10 @@ import sendRequest from "services";
 import { omit } from "lodash";
 
 import endpoints from "fleet/endpoints";
-import { IScheduledQuery } from "interfaces/scheduled_query";
+import {
+  IPackQueryFormData,
+  IScheduledQuery,
+} from "interfaces/scheduled_query";
 import { IPack } from "interfaces/pack";
 import helpers from "fleet/helpers";
 
@@ -15,10 +18,10 @@ import helpers from "fleet/helpers";
 // TODO: Restructure this on the front end passing the data through the form
 // logging types and parse ints at the page level -- please see entities/scheduled_queries
 export default {
-  create: (packFormData: IScheduledQuery) => {
+  create: (packQueryFormData: IPackQueryFormData) => {
     const { SCHEDULED_QUERIES } = endpoints;
 
-    return sendRequest("POST", SCHEDULED_QUERIES, packFormData);
+    return sendRequest("POST", SCHEDULED_QUERIES, packQueryFormData);
   },
   destroy: (pack: IPack) => {
     const { SCHEDULED_QUERY } = endpoints;
