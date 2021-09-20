@@ -30,9 +30,7 @@ func TestQueries(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds,
-				"queries", "labels", "users", "packs",
-				"scheduled_queries", "pack_targets")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

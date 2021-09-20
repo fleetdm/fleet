@@ -25,10 +25,7 @@ func TestCampaigns(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds,
-				"users", "hosts", "distributed_query_campaigns",
-				"distributed_query_campaign_targets", "queries",
-				"labels", "label_membership")
+			defer TruncateTables(t, ds)
 
 			c.fn(t, ds)
 		})

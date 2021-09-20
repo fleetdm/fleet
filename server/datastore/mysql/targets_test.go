@@ -28,9 +28,7 @@ func TestTargets(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds,
-				"users", "hosts", "teams", "enroll_secrets",
-				"labels", "label_membership", "host_users", "teams")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

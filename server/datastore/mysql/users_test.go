@@ -32,7 +32,7 @@ func TestUsers(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "users", "user_teams", "teams")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

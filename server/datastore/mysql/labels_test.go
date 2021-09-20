@@ -60,10 +60,7 @@ func TestLabels(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds,
-				"hosts", "labels", "label_membership",
-				"host_software", "software", "host_additional",
-				"host_users", "users", "teams")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

@@ -35,7 +35,7 @@ func TestSoftware(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "hosts", "software", "host_software", "software_cpe", "software_cve")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

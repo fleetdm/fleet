@@ -84,12 +84,7 @@ func TestHosts(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds,
-				"hosts", "scheduled_query_stats", "software",
-				"host_software", "host_additional", "host_users",
-				"packs", "pack_targets", "scheduled_queries", "queries",
-				"teams", "enroll_secrets", "labels", "label_membership",
-				"policies", "policy_membership_history")
+			defer TruncateTables(t, ds)
 
 			c.fn(t, ds)
 		})

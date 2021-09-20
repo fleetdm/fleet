@@ -20,7 +20,7 @@ func TestPasswordReset(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "users", "password_reset_requests")
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

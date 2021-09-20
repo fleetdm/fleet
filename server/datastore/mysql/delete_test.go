@@ -30,7 +30,7 @@ func TestDelete(t *testing.T) {
 }
 
 func testDeleteEntity(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "hosts")
+	defer TruncateTables(t, ds)
 
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -54,7 +54,7 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteEntityByName(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "queries")
+	defer TruncateTables(t, ds)
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time", "select * from time", 0, true)
 
@@ -66,7 +66,7 @@ func testDeleteEntityByName(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteEntities(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "queries")
+	defer TruncateTables(t, ds)
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time1", "select * from time", 0, true)
 	query2 := test.NewQuery(t, ds, t.Name()+"time2", "select * from time", 0, true)

@@ -140,7 +140,7 @@ func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
 }
 
 func testAppConfigEnrollSecrets(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "teams", "enroll_secrets")
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -195,7 +195,7 @@ func testAppConfigEnrollSecrets(t *testing.T, ds *Datastore) {
 }
 
 func testAppConfigEnrollSecretsCaseSensitive(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "enroll_secrets")
+	defer TruncateTables(t, ds)
 
 	err := ds.ApplyEnrollSecrets(
 		context.Background(),
@@ -213,7 +213,7 @@ func testAppConfigEnrollSecretsCaseSensitive(t *testing.T, ds *Datastore) {
 }
 
 func testAppConfigEnrollSecretRoundtrip(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "teams", "enroll_secrets")
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -254,7 +254,7 @@ func testAppConfigEnrollSecretRoundtrip(t *testing.T, ds *Datastore) {
 }
 
 func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds, "teams", "enroll_secrets")
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
