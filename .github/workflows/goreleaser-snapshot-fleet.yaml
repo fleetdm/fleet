@@ -67,6 +67,10 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       
+      - name: Tag Docker image as main
+        if: ${{ !github.event.pull_request.head.sha }}
+        run: docker tag fleetdm/fleet fleetdm/fleet:main
+
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
