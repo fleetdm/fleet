@@ -277,6 +277,14 @@ type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error
 
 type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
 
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error)
+
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
+
+type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+
+type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -676,6 +684,18 @@ type DataStore struct {
 
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
+
+	NewTeamPolicyFunc        NewTeamPolicyFunc
+	NewTeamPolicyFuncInvoked bool
+
+	ListTeamPoliciesFunc        ListTeamPoliciesFunc
+	ListTeamPoliciesFuncInvoked bool
+
+	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
+	DeleteTeamPoliciesFuncInvoked bool
+
+	TeamPolicyFunc        TeamPolicyFunc
+	TeamPolicyFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1341,4 +1361,24 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
 	return s.ListSoftwareFunc(ctx, teamId, opt)
+}
+
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
+	s.NewTeamPolicyFuncInvoked = true
+	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
+}
+
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
+	s.ListTeamPoliciesFuncInvoked = true
+	return s.ListTeamPoliciesFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	s.DeleteTeamPoliciesFuncInvoked = true
+	return s.DeleteTeamPoliciesFunc(ctx, teamID, ids)
+}
+
+func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
+	s.TeamPolicyFuncInvoked = true
+	return s.TeamPolicyFunc(ctx, teamID, policyID)
 }

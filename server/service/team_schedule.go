@@ -39,6 +39,9 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
 	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
@@ -102,6 +105,9 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
 	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
@@ -141,6 +147,9 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 
 func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -183,6 +192,8 @@ func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, 
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	_ = teamID
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
+		return err
+	}
 	return svc.DeleteScheduledQuery(ctx, scheduledQueryID)
 }
