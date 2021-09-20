@@ -10,10 +10,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSessionGetters(t *testing.T) {
+func TestSessions(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Getters", testSessionsGetters},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds, "users", "sessions")
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testSessionsGetters(t *testing.T, ds *Datastore) {
 	user, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:   []byte("supersecret"),
 		Email:      "other@bobcom",
