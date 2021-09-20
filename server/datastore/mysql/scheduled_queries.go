@@ -123,7 +123,7 @@ func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *flee
 }
 
 func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	return d.deleteEntity(ctx, "scheduled_queries", id)
+	return d.deleteEntity(ctx, scheduledQueriesTable, id)
 }
 
 func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {

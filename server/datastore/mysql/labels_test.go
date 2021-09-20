@@ -37,9 +37,36 @@ func TestBatchHostnamesLarge(t *testing.T) {
 }
 
 func TestLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
+	ds := CreateMySQLDS(t)
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"AddAllHosts", testLabelsAddAllHosts},
+		{"Search", testLabelsSearch},
+		{"ListHostsInLabel", testLabelsListHostsInLabel},
+		{"ListHostsInLabelAndStatus", testLabelsListHostsInLabelAndStatus},
+		{"ListHostsInLabelAndTeamFilter", testLabelsListHostsInLabelAndTeamFilter},
+		{"BuiltIn", testLabelsBuiltIn},
+		{"ListUniqueHostsInLabels", testLabelsListUniqueHostsInLabels},
+		{"ChangeDetails", testLabelsChangeDetails},
+		{"GetSpec", testLabelsGetSpec},
+		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
+		{"IDsByName", testLabelsIDsByName},
+		{"Save", testLabelsSave},
+		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
+		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 	hosts := []fleet.Host{}
 	var host *fleet.Host
@@ -185,10 +212,7 @@ func TestLabels(t *testing.T) {
 	assert.Len(t, labels, 1)
 }
 
-func TestSearchLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsSearch(t *testing.T, db *Datastore) {
 	specs := []*fleet.LabelSpec{
 		{ID: 1, Name: "foo"},
 		{ID: 2, Name: "bar"},
@@ -241,10 +265,7 @@ func TestSearchLabels(t *testing.T) {
 	assert.Contains(t, labels, all)
 }
 
-func TestListHostsInLabel(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -306,10 +327,7 @@ func TestListHostsInLabel(t *testing.T) {
 	}
 }
 
-func TestListHostsInLabelAndStatus(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -362,10 +380,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 	}
 }
 
-func TestListHostsInLabelAndTeamFilter(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -439,10 +454,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	}
 }
 
-func TestBuiltInLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsBuiltIn(t *testing.T, db *Datastore) {
 	require.Nil(t, db.MigrateData(context.Background()))
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -456,10 +468,7 @@ func TestBuiltInLabels(t *testing.T) {
 	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
 }
 
-func TestListUniqueHostsInLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 4; i++ {
 		h, err := db.NewHost(context.Background(), &fleet.Host{
@@ -508,13 +517,9 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 	labels, err := db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
-
 }
 
-func TestChangeLabelDetails(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label := fleet.LabelSpec{
 		ID:          1,
 		Name:        "my label",
@@ -583,10 +588,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	return expectedSpecs
 }
 
-func TestGetLabelSpec(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
@@ -596,10 +598,7 @@ func TestGetLabelSpec(t *testing.T) {
 	}
 }
 
-func TestApplyLabelSpecsRoundtrip(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	specs, err := ds.GetLabelSpecs(context.Background())
@@ -614,10 +613,7 @@ func TestApplyLabelSpecsRoundtrip(t *testing.T) {
 	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 }
 
-func TestLabelIDsByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
@@ -626,10 +622,7 @@ func TestLabelIDsByName(t *testing.T) {
 	assert.Equal(t, []uint{1, 2, 3}, labels)
 }
 
-func TestSaveLabel(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsSave(t *testing.T, db *Datastore) {
 	label := &fleet.Label{
 		Name:        "my label",
 		Description: "a label",
@@ -648,10 +641,7 @@ func TestSaveLabel(t *testing.T) {
 	assert.Equal(t, label.Description, saved.Description)
 }
 
-func TestLabelQueriesForCentOSHost(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
 	require.Nil(t, err, "enrollment should succeed")
 	host.Platform = "rhel"
@@ -680,10 +670,7 @@ func TestLabelQueriesForCentOSHost(t *testing.T) {
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
 }
 
-func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

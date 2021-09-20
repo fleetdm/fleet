@@ -1746,6 +1746,63 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
+	ds := new(mock.Store)
+	rs := &mock.QueryResultStore{
+		HealthCheckFunc: func() error {
+			return nil
+		},
+	}
+	lq := &live_query.MockLiveQuery{}
+	mockClock := clock.NewMockClock()
+	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             42,
+			Name:           "query",
+			Query:          "select 1;",
+			ObserverCanRun: false,
+		}, nil
+	}
+	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{ID: 0, Teams: []fleet.UserTeam{{Role: fleet.RoleMaintainer}}},
+	})
+
+	q := "select year, month, day, hour, minutes, seconds from time"
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	//var gotQuery *fleet.Query
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		//gotQuery = query
+		query.ID = 42
+		return query, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		return []uint{1, 3, 5}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
+	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
+	require.NoError(t, err)
+}
+
 func TestPolicyQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)

@@ -11,4 +11,6 @@ const (
 	ActionWriteRole = "write_role"
 	// ActionRun is the action for running a live query.
 	ActionRun = "run"
+	// ActionRunNew is the action for running a new live query.
+	ActionRunNew = "run_new"
 )

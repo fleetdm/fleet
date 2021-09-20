@@ -232,7 +232,7 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 
 // DeleteLabel deletes a fleet.Label
 func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, "labels", name)
+	return d.deleteEntityByName(ctx, labelsTable, name)
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
