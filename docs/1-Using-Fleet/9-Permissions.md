@@ -16,6 +16,8 @@ The following table depicts various permissions levels for each role.
 | ---------------------------------------------------- | -------- | ---------- | ----- |
 | Browse all hosts                                     | ✅       | ✅         | ✅    |
 | Filter hosts using labels                            | ✅       | ✅         | ✅    |
+| Browse all policies                                  | ✅       | ✅         | ✅    |
+| Filter hosts using policies                          | ✅       | ✅         | ✅    |
 | Target hosts using labels                            | ✅       | ✅         | ✅    |
 | Run saved queries as live queries against all hosts  | ✅       | ✅         | ✅    |
 | Run custom queries as live queries against all hosts |          | ✅         | ✅    |
@@ -66,8 +68,11 @@ The following table depicts various permissions levels in a team.
 | Action                                                       | Observer | Maintainer |
 | ------------------------------------------------------------ | -------- | ---------- |
 | Browse hosts assigned to team                                | ✅       | ✅         |
+| Browse policies for hosts assigned to team                   | ✅       | ✅         |
+| Filter hosts assigned to team using policies                 | ✅       | ✅         |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         |
 | Target hosts assigned to team using labels                   | ✅       | ✅         |
+| Browse policies for hosts assigned to team                   | ✅       | ✅         |
 | Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         |
 | Run custom queries as live queries on hosts assigned to team |          | ✅         |
 | Enroll hosts to member team                                  |          | ✅         |
