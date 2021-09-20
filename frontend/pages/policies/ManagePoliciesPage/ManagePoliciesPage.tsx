@@ -1,15 +1,26 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { useQuery, useMutation } from "react-query";
+import { Params } from "react-router/lib/Router";
+
+import PATHS from "router/paths"; // @ts-ignore
+
 import { useDispatch, useSelector } from "react-redux";
 
 // @ts-ignore
 import { IConfig } from "interfaces/config";
-import { IQuery } from "interfaces/query";
 import { IPolicy } from "interfaces/policy";
+import { IQuery } from "interfaces/query";
+import { ITeam } from "interfaces/team";
 
-import configAPI from "services/entities/config";
-import policiesAPI from "services/entities/policies";
-// @ts-ignore
-import queryActions from "redux/nodes/entities/queries/actions";
+import { AppContext } from "context/app";
+
+// import configAPI from "services/entities/config";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
+
+import fleetQueriesAPI from "services/entities/queries";
+import teamsAPI from "services/entities/teams";
+
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -21,6 +32,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
+import TeamsDropdown from "./components/TeamsDropdown";
 
 const baseClass = "manage-policies-page";
 
@@ -48,6 +60,7 @@ const renderTable = (
   if (isLoadingError) {
     return <TableDataError />;
   }
+  console.log("rendering table");
 
   return (
     <PoliciesListWrapper
@@ -59,27 +72,65 @@ const renderTable = (
   );
 };
 
-const ManagePolicyPage = (): JSX.Element => {
+const ManagePolicyPage = (managePoliciesPageProps: {
+  router: any;
+  params: Params;
+  location: any;
+}): JSX.Element => {
+  const { location, params, router } = managePoliciesPageProps;
   const dispatch = useDispatch();
 
-  const queries = useSelector((state: IRootState) => state.entities.queries);
-  const queriesList = Object.values(queries.data);
+  const {
+    config,
+    currentUser,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isOnGlobalTeam,
+    isOnlyObserver,
+    isPremiumTier,
+  } = useContext(AppContext);
+
+  const {
+    isLoading: isTeamsLoading,
+    data: teams,
+    error: teamsError,
+  } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
+    enabled: !!isPremiumTier,
+    select: (data) => data.teams,
+  });
+
+  const {
+    isLoading: isFleetQueriesLoading,
+    data: fleetQueries,
+    error: fleetQueriesError,
+  } = useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
+    // enabled: !!isPremiumTier,
+    select: (data) => data.queries,
+  });
+
+  const [userTeams, setUserTeams] = useState<ITeam[] | never[]>([]);
+
+  const [policyTeamId, setPolicyTeamId] = useState<number | null>(null);
+  const [policyQueryIds, setPolicyQueryIds] = useState<number[] | never[]>([]);
 
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<number[] | never[]>([]);
 
   const [updateInterval, setUpdateInterval] = useState<string>(
     "update interval"
   );
+
   const [policies, setPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);
 
-  const getPolicies = useCallback(async () => {
+  const getPolicies = useCallback(async (teamId = 0) => {
     setIsLoading(true);
+    setIsLoadingError(false);
     try {
-      const response = await policiesAPI.loadAll();
+      const response = teamId
+        ? await teamPoliciesAPI.loadAll(teamId)
+        : await globalPoliciesAPI.loadAll();
       setPolicies(response.policies);
     } catch (error) {
       console.log(error);
@@ -87,34 +138,14 @@ const ManagePolicyPage = (): JSX.Element => {
     } finally {
       setIsLoading(false);
     }
-  }, [dispatch]);
+  }, []);
 
-  const getInterval = useCallback(async () => {
-    try {
-      const response = await configAPI.loadAll();
-      const interval = secondsToHms(
-        inMilliseconds(response.update_interval.osquery_detail) / 1000
-      );
-      setUpdateInterval(interval);
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        renderFlash(
-          "error",
-          "Sorry, we could not retrieve your update interval."
-        )
-      );
-    }
-  }, [dispatch]);
-
-  useEffect(() => {
-    getPolicies();
-    getInterval();
-  }, [getInterval, getPolicies]);
-
-  useEffect(() => {
-    dispatch(queryActions.loadAll());
-  }, [dispatch]);
+  const handleChangeSelectedTeam = useCallback(
+    (id: number) => {
+      router.push(`${PATHS.MANAGE_POLICIES}?team_id=${id}`);
+    },
+    [router]
+  );
 
   const toggleAddPolicyModal = useCallback(() => {
     setShowAddPolicyModal(!showAddPolicyModal);
@@ -124,18 +155,17 @@ const ManagePolicyPage = (): JSX.Element => {
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
   }, [showRemovePoliciesModal, setShowRemovePoliciesModal]);
 
-  // TODO typing for mouse event?
   const onRemovePoliciesClick = useCallback(
     (selectedTableIds: number[]): void => {
       toggleRemovePoliciesModal();
-      setSelectedIds(selectedTableIds);
+      setPolicyQueryIds(selectedTableIds);
     },
     [toggleRemovePoliciesModal]
   );
 
   const onRemovePoliciesSubmit = useCallback(() => {
-    const ids = selectedIds;
-    policiesAPI
+    const ids = policyQueryIds;
+    globalPoliciesAPI
       .destroy(ids)
       .then(() => {
         dispatch(
@@ -161,7 +191,7 @@ const ManagePolicyPage = (): JSX.Element => {
         toggleRemovePoliciesModal();
         getPolicies();
       });
-  }, [dispatch, getPolicies, selectedIds, toggleRemovePoliciesModal]);
+  }, [dispatch, getPolicies, policyQueryIds, toggleRemovePoliciesModal]);
 
   const onAddPolicySubmit = useCallback(
     (query_id: number | undefined) => {
@@ -172,7 +202,7 @@ const ManagePolicyPage = (): JSX.Element => {
         console.log("Missing query id; cannot add policy");
         return false;
       }
-      policiesAPI
+      globalPoliciesAPI
         .create(query_id)
         .then(() => {
           dispatch(renderFlash("success", `Successfully added policy.`));
@@ -191,6 +221,39 @@ const ManagePolicyPage = (): JSX.Element => {
     [dispatch, getPolicies, toggleAddPolicyModal]
   );
 
+  // Parse url query params and set selected team
+  useEffect(() => {
+    const { team_id } = location.query;
+    const teamId = parseInt(team_id, 10) || 0;
+    setPolicyTeamId(teamId);
+  }, [location]);
+
+  useEffect(() => {
+    if (policyTeamId !== null) {
+      getPolicies(policyTeamId);
+    }
+  }, [getPolicies, policyTeamId]);
+
+  // Set list of teams that the current user has permission to view
+  useEffect(() => {
+    if (isOnGlobalTeam) {
+      setUserTeams(teams);
+    } else if (currentUser && currentUser.teams) {
+      setUserTeams(currentUser.teams);
+    }
+  }, [currentUser, isOnGlobalTeam, teams]);
+
+  // Set the update interval value that will be displayed in the InfoBanner element
+  useEffect(() => {
+    console.log("config ", config); // why is context config incomplete and missing update interval?
+    const interval = config?.update_interval?.osquery_detail;
+    if (interval) {
+      setUpdateInterval(secondsToHms(inMilliseconds(interval) / 1000));
+    }
+  }, [config]);
+
+  console.log(location);
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -198,11 +261,19 @@ const ManagePolicyPage = (): JSX.Element => {
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <h1 className={`${baseClass}__title`}>
-                <span>Policies</span>
+                {isPremiumTier && policyTeamId !== null ? (
+                  <TeamsDropdown
+                    currentUserTeams={userTeams}
+                    onChange={handleChangeSelectedTeam}
+                    selectedTeam={policyTeamId}
+                  />
+                ) : (
+                  <span>Policies</span>
+                )}
               </h1>
             </div>
           </div>
-          {policies && policies.length !== 0 && !isLoadingError && (
+          {!isOnlyObserver && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -217,15 +288,19 @@ const ManagePolicyPage = (): JSX.Element => {
         <div className={`${baseClass}__description`}>
           <p>Policy queries report which hosts are compliant.</p>
         </div>
-        {policies && policies.length !== 0 && !isLoadingError && (
+        {config && updateInterval && (
           <InfoBanner className={`${baseClass}__sandbox-info`}>
             <p>
-              Your policies are checked every <b>{updateInterval.trim()}</b>.
-              Check out the Fleet documentation on{" "}
-              <a href={DOCS_LINK} target="_blank" rel="noreferrer">
-                <b>how to edit this frequency</b>
-              </a>
-              .
+              Your policies are checked every <b>{updateInterval.trim()}</b>.{" "}
+              {isGlobalAdmin && (
+                <span>
+                  Check out the Fleet documentation on{" "}
+                  <a href={DOCS_LINK} target="_blank" rel="noreferrer">
+                    <b>how to edit this frequency</b>
+                  </a>
+                  .
+                </span>
+              )}
             </p>
           </InfoBanner>
         )}
@@ -242,7 +317,7 @@ const ManagePolicyPage = (): JSX.Element => {
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
             onSubmit={onAddPolicySubmit}
-            allQueries={queriesList}
+            allQueries={fleetQueries}
           />
         )}
         {showRemovePoliciesModal && (

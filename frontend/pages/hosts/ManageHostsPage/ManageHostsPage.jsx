@@ -28,7 +28,7 @@ import deepDifference from "utilities/deep_difference";
 import { QueryContext } from "context/query";
 
 import hostAPI from "services/entities/hosts";
-import policiesClient from "services/entities/policies";
+import globalPoliciesAPI from "services/entities/global_policies";
 
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
@@ -198,7 +198,7 @@ export class ManageHostsPage extends PureComponent {
     dispatch(getLabels());
 
     if (policyId) {
-      policiesClient
+      globalPoliciesAPI
         .load(policyId)
         .then((response) => {
           const { query_name: policyName } = response.policy;

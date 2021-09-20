@@ -126,4 +126,7 @@ export interface IConfig {
       };
     };
   };
+  update_interval: {
+    osquery_detail: number;
+  };
 }

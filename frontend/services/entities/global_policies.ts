@@ -4,25 +4,25 @@ import endpoints from "fleet/endpoints";
 
 export default {
   create: (query_id: number) => {
-    const { POLICIES } = endpoints;
+    const { GLOBAL_POLICIES } = endpoints;
 
-    return sendRequest("POST", POLICIES, { query_id });
+    return sendRequest("POST", GLOBAL_POLICIES, { query_id });
   },
   destroy: (ids: number[]) => {
-    const { POLICIES } = endpoints;
-    const path = `${POLICIES}/delete`;
+    const { GLOBAL_POLICIES } = endpoints;
+    const path = `${GLOBAL_POLICIES}/delete`;
 
     return sendRequest("POST", path, { ids });
   },
   load: (id: number) => {
-    const { POLICIES } = endpoints;
-    const path = `${POLICIES}/${id}`;
+    const { GLOBAL_POLICIES } = endpoints;
+    const path = `${GLOBAL_POLICIES}/${id}`;
 
     return sendRequest("GET", path);
   },
   loadAll: () => {
-    const { POLICIES } = endpoints;
+    const { GLOBAL_POLICIES } = endpoints;
 
-    return sendRequest("GET", POLICIES);
+    return sendRequest("GET", GLOBAL_POLICIES);
   },
 };
