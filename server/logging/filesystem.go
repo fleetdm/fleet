@@ -27,41 +27,39 @@ type filesystemLogWriter struct {
 //
 // The enableCompression argument is only used when enableRotation is true.
 func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bool, enableCompression bool) (*filesystemLogWriter, error) {
-	if enableRotation {
-		// Fail early if the process does not have the necessary
-		// permissions to open the file at path.
-		file, err := openFile(path)
-		if err != nil {
-			return nil, errors.Wrap(err, "perm check")
-		}
-		file.Close()
-		// Use lumberjack logger that supports rotation
-		osquerydLogger := &lumberjack.Logger{
-			Filename:   path,
-			MaxSize:    500, // megabytes
-			MaxBackups: 3,
-			MaxAge:     28, //days
-			Compress:   enableCompression,
-		}
-		appLogger = log.With(appLogger, "component", "osqueryd-logger")
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGHUP)
-		go func() {
-			for {
-				<-sig //block on signal
-				if err := osquerydLogger.Rotate(); err != nil {
-					appLogger.Log("err", err)
-				}
-			}
-		}()
-		return &filesystemLogWriter{osquerydLogger}, nil
-	}
-	// no log rotation, use "raw" bufio implementation
-	writer, err := newRawLogWriter(path)
+	// Fail early if the process does not have the necessary
+	// permissions to open the file at path.
+	file, err := openFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "create new raw logger")
+		return nil, errors.Wrap(err, "perm check")
 	}
-	return &filesystemLogWriter{writer}, nil
+	if !enableRotation {
+		// no log rotation, use "raw" bufio implementation
+		return &filesystemLogWriter{
+			writer: newRawLogWriter(file),
+		}, nil
+	}
+	// Use lumberjack logger that supports rotation
+	file.Close()
+	osquerydLogger := &lumberjack.Logger{
+		Filename:   path,
+		MaxSize:    500, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, //days
+		Compress:   enableCompression,
+	}
+	appLogger = log.With(appLogger, "component", "osqueryd-logger")
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGHUP)
+	go func() {
+		for {
+			<-sig //block on signal
+			if err := osquerydLogger.Rotate(); err != nil {
+				appLogger.Log("err", err)
+			}
+		}
+	}()
+	return &filesystemLogWriter{osquerydLogger}, nil
 }
 
 // If writer is based on bufio we want to flush after a batch of
@@ -94,13 +92,9 @@ type rawLogWriter struct {
 	mtx  sync.Mutex
 }
 
-func newRawLogWriter(path string) (*rawLogWriter, error) {
-	file, err := openFile(path)
-	if err != nil {
-		return nil, err
-	}
+func newRawLogWriter(file *os.File) *rawLogWriter {
 	buff := bufio.NewWriter(file)
-	return &rawLogWriter{file: file, buff: buff}, nil
+	return &rawLogWriter{file: file, buff: buff}
 }
 
 // Write bytes to file
