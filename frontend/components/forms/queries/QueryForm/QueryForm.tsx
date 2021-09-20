@@ -427,7 +427,7 @@ const QueryForm = ({
   }
 
   if (!isEditMode && isAnyTeamMaintainer) {
-    return renderCreateForTeamMaintainer({ 
+    return renderCreateForTeamMaintainer({
       queryValue,
       queryOnChange,
       queryError,
