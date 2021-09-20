@@ -14,9 +14,7 @@ class EditPackFormWrapper extends Component {
   static propTypes = {
     className: PropTypes.string,
     handleSubmit: PropTypes.func,
-    isEdit: PropTypes.bool.isRequired,
     onCancelEditPack: PropTypes.func.isRequired,
-    onEditPack: PropTypes.func.isRequired,
     onFetchTargets: PropTypes.func,
     pack: packInterface.isRequired,
     packTargets: PropTypes.arrayOf(targetInterface),
@@ -28,9 +26,7 @@ class EditPackFormWrapper extends Component {
     const {
       className,
       handleSubmit,
-      isEdit,
       onCancelEditPack,
-      onEditPack,
       onFetchTargets,
       pack,
       packTargets,
@@ -38,48 +34,16 @@ class EditPackFormWrapper extends Component {
       isPremiumTier,
     } = this.props;
 
-    if (isEdit) {
-      return (
-        <EditPackForm
-          className={className}
-          formData={{ ...pack, targets: packTargets }}
-          handleSubmit={handleSubmit}
-          onCancel={onCancelEditPack}
-          onFetchTargets={onFetchTargets}
-          targetsCount={targetsCount}
-          isPremiumTier={isPremiumTier}
-        />
-      );
-    }
-
     return (
-      <div className={`${className} ${baseClass}`}>
-        <Button
-          onClick={onEditPack}
-          type="button"
-          variant="brand"
-          className={`${baseClass}__edit-btn`}
-        >
-          Edit
-        </Button>
-        <h1 className={`${baseClass}__title`}>
-          <span>{pack.name}</span>
-        </h1>
-        <div className={`${baseClass}__description`}>
-          <p>{pack.description}</p>
-        </div>
-        <SelectTargetsDropdown
-          label="Select pack targets"
-          name="selected-pack-targets"
-          onFetchTargets={onFetchTargets}
-          onSelect={noop}
-          selectedTargets={packTargets}
-          targetsCount={targetsCount}
-          disabled
-          isPremiumTier={isPremiumTier}
-          className={`${baseClass}__select-targets`}
-        />
-      </div>
+      <EditPackForm
+        className={className}
+        formData={{ ...pack, targets: packTargets }}
+        handleSubmit={handleSubmit}
+        onCancel={onCancelEditPack}
+        onFetchTargets={onFetchTargets}
+        targetsCount={targetsCount}
+        isPremiumTier={isPremiumTier}
+      />
     );
   }
 }

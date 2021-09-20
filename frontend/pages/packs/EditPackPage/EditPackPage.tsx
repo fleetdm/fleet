@@ -29,7 +29,7 @@ import teamAPI from "services/entities/teams";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
-import EditPackForm from "components/forms/packs/EditPackForm";
+import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
 // // @ts-ignore
 // import ScheduleQuerySidePanel from "components/side_panels/ScheduleQuerySidePanel";
 // @ts-ignore
@@ -267,7 +267,7 @@ const EditPacksPage = ({
   };
   return (
     <div className={`${baseClass}__content`}>
-      <EditPackForm
+      <EditPackFormWrapper
         className={`${baseClass}__pack-form body-wrap`}
         handleSubmit={handlePackFormSubmit}
         onCancelEditPack={onCancelEditPack}
