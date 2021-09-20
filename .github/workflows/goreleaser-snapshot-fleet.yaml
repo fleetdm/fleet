@@ -16,8 +16,10 @@ jobs:
       available: ${{ steps.check-secrets.outputs.available }}
     steps:
       - name: Check Secrets availability
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          if [ ! -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+          if [ ! -z "$DOCKERHUB_USERNAME" ]; then
             echo "::set-output name=available::true"
           fi
 
