@@ -16,15 +16,15 @@ import { ISoftware } from "interfaces/software";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer"; //@ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions"; //@ts-ignore
+import { ITableSearchData } from "components/TableContainer/TableContainer"; // @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import simpleSearch from "utilities/simple_search";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal"; //@ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; //@ts-ignore
+import Modal from "components/modals/Modal"; // @ts-ignore
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import TableContainer from "components/TableContainer";
 
@@ -43,7 +43,7 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "fleet/helpers"; //@ts-ignore
+} from "fleet/helpers"; // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
 import {
@@ -86,39 +86,46 @@ const HostDetailsPage = ({
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
   const dispatch = useDispatch();
-  const { isGlobalAdmin, isPremiumTier, isOnlyObserver, isGlobalMaintainer } = useContext(AppContext);
-  const canTransferTeam = isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+  const {
+    isGlobalAdmin,
+    isPremiumTier,
+    isOnlyObserver,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
+  const canTransferTeam =
+    isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(false);
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
+    false
+  );
+  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
+    false
+  );
   const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState<boolean>(false);
+  const [
+    showRefetchLoadingSpinner,
+    setShowRefetchLoadingSpinner,
+  ] = useState<boolean>(false);
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
 
-  const {
-    data: fleetQueries,
-    error: fleetQueriesError,
-  } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
-    "fleet queries",
-    () => queryAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL,
-      select: (data: IFleetQueriesResponse) => data.queries,
-    }
-  );
+  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
+    IFleetQueriesResponse,
+    Error,
+    IQuery[]
+  >("fleet queries", () => queryAPI.loadAll(), {
+    enabled: !!hostIdFromURL,
+    select: (data: IFleetQueriesResponse) => data.queries,
+  });
 
-  const {
-    data: teams,
-    error: teamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && canTransferTeam,
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
-  
+  const { data: teams, error: teamsError } = useQuery<
+    ITeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && canTransferTeam,
+    select: (data: ITeamsResponse) => data.teams,
+  });
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -129,16 +136,71 @@ const HostDetailsPage = ({
     {
       enabled: !!hostIdFromURL,
       select: (data: IHostResponse) => data.host,
-      onSuccess: (host) => {
-        setShowRefetchLoadingSpinner(host.refetch_requested);
+      onSuccess: (returnedHost) => {
+        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
       },
       onError: (error) => {
         console.log(error);
         dispatch(
           renderFlash("error", `Unable to load host. Please try again.`)
         );
-      }
+      },
     }
+  );
+
+  // returns a mixture of props from host
+  const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
+    return reduce(
+      hostData,
+      (result, value, key) => {
+        if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+          Object.assign(result, { [key]: value });
+        } else {
+          Object.assign(result, { [key]: "---" });
+        }
+        return result;
+      },
+      {}
+    );
+  };
+
+  const wrapKolideHelper = (
+    helperFn: (value: any) => string,
+    value: string
+  ): any => {
+    return value === "---" ? value : helperFn(value);
+  };
+
+  const titleData = normalizeEmptyValues(
+    pick(host, [
+      "status",
+      "memory",
+      "cpu_type",
+      "os_version",
+      "enroll_secret_name",
+      "detail_updated_at",
+      "percent_disk_space_available",
+      "gigs_disk_space_available",
+    ])
+  );
+
+  const aboutData = normalizeEmptyValues(
+    pick(host, [
+      "seen_time",
+      "uptime",
+      "last_enrolled_at",
+      "hardware_model",
+      "hardware_serial",
+      "primary_ip",
+    ])
+  );
+
+  const osqueryData = normalizeEmptyValues(
+    pick(host, [
+      "config_tls_refresh",
+      "logger_tls_period",
+      "distributed_interval",
+    ])
   );
 
   const onDestroyHost = async () => {
@@ -149,16 +211,13 @@ const HostDetailsPage = ({
           renderFlash(
             "success",
             `Host "${host.hostname}" was successfully deleted.`
-            )
-          );
+          )
+        );
         router.push(PATHS.MANAGE_HOSTS);
-      } catch(error) {
+      } catch (error) {
         console.log(error);
         dispatch(
-          renderFlash(
-            "error",
-            `Host "${host.hostname}" could not be deleted.`
-          )
+          renderFlash("error", `Host "${host.hostname}" could not be deleted.`)
         );
       } finally {
         setShowDeleteHostModal(false);
@@ -171,12 +230,12 @@ const HostDetailsPage = ({
       setShowRefetchLoadingSpinner(true);
       try {
         await hostAPI.refetch(host);
-      } catch(error) {
+      } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
       } finally {
         setShowRefetchLoadingSpinner(false);
-      };
+      }
     }
   };
 
@@ -195,14 +254,14 @@ const HostDetailsPage = ({
       await hostAPI.transferToTeam(teamId, [hostIdFromURL]);
 
       const successMessage =
-          teamId === null
-            ? `Host successfully removed from teams.`
-            : `Host successfully transferred to  ${team.name}.`;
+        teamId === null
+          ? `Host successfully removed from teams.`
+          : `Host successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
       fullyReloadHost();
       setShowTransferHostModal(false);
-    } catch(error) {
+    } catch (error) {
       console.log(error);
       dispatch(
         renderFlash("error", "Could not transfer host. Please try again.")
@@ -237,8 +296,8 @@ const HostDetailsPage = ({
     >
       <>
         <p>
-          This action will delete the host <strong>{host?.hostname}</strong> from
-          your Fleet instance.
+          This action will delete the host <strong>{host?.hostname}</strong>{" "}
+          from your Fleet instance.
         </p>
         <p>
           The host will automatically re-enroll when it checks back into Fleet.
@@ -251,7 +310,10 @@ const HostDetailsPage = ({
           <Button onClick={onDestroyHost} variant="alert">
             Delete
           </Button>
-          <Button onClick={() => setShowDeleteHostModal(false)} variant="inverse-alert">
+          <Button
+            onClick={() => setShowDeleteHostModal(false)}
+            variant="inverse-alert"
+          >
             Cancel
           </Button>
         </div>
@@ -270,7 +332,9 @@ const HostDetailsPage = ({
             variant="text-icon"
             className={`${baseClass}__transfer-button`}
           >
-            <>Transfer <img src={TransferIcon} alt="Transfer host icon" /></>
+            <>
+              Transfer <img src={TransferIcon} alt="Transfer host icon" />
+            </>
           </Button>
         )}
         <div data-tip data-for="query" data-tip-disable={isOnline}>
@@ -280,7 +344,9 @@ const HostDetailsPage = ({
             disabled={!isOnline}
             className={`${baseClass}__query-button`}
           >
-            <>Query <img src={QueryIcon} alt="Query host icon" /></>
+            <>
+              Query <img src={QueryIcon} alt="Query host icon" />
+            </>
           </Button>
         </div>
         <ReactTooltip
@@ -295,8 +361,13 @@ const HostDetailsPage = ({
           </span>
         </ReactTooltip>
         {!isOnlyObserver && (
-          <Button onClick={() => setShowDeleteHostModal(true)} variant="text-icon">
-            <>Delete <img src={DeleteIcon} alt="Delete host icon" /></>
+          <Button
+            onClick={() => setShowDeleteHostModal(true)}
+            variant="text-icon"
+          >
+            <>
+              Delete <img src={DeleteIcon} alt="Delete host icon" />
+            </>
           </Button>
         )}
       </div>
@@ -324,7 +395,9 @@ const HostDetailsPage = ({
       <div className="section labels col-50">
         <p className="section__header">Labels</p>
         {labels.length === 0 ? (
-          <p className="info-flex__item">No labels are associated with this host.</p>
+          <p className="info-flex__item">
+            No labels are associated with this host.
+          </p>
         ) : (
           <ul className="list">{labelItems}</ul>
         )}
@@ -532,21 +605,22 @@ const HostDetailsPage = ({
     if (host?.device_users && host?.device_users.length > 0) {
       return (
         // max width is added here because this is the only div that needs it
-        <div className="info-flex__item info-flex__item--title" style={{ maxWidth: 216 }}>
+        <div
+          className="info-flex__item info-flex__item--title"
+          style={{ maxWidth: 216 }}
+        >
           <span className="info-flex__header">Device user</span>
-          <span className="info-flex__data">
-            {host.device_users[0].email}
-          </span>
+          <span className="info-flex__data">{host.device_users[0].email}</span>
         </div>
       );
     }
-  }
+  };
 
   const renderDiskSpace = () => {
     if (
-      host && 
+      host &&
       (host.gigs_disk_space_available > 0 ||
-      host.percent_disk_space_available > 0)
+        host.percent_disk_space_available > 0)
     ) {
       return (
         <span className="info-flex__data">
@@ -587,15 +661,11 @@ const HostDetailsPage = ({
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Munki errors</span>
-            <span className="info-grid__data">
-              {host.munki.errors_count}
-            </span>
+            <span className="info-grid__data">{host.munki.errors_count}</span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Munki version</span>
-            <span className="info-grid__data">
-              {host.munki.version}
-            </span>
+            <span className="info-grid__data">{host.munki.version}</span>
           </div>
         </>
       );
@@ -608,77 +678,21 @@ const HostDetailsPage = ({
         <>
           <div className="info-grid__block">
             <span className="info-grid__header">MDM health</span>
-            <span className="info-grid__data">
-              {host.mdm?.health}
-            </span>
+            <span className="info-grid__data">{host.mdm?.health}</span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">MDM enrollment URL</span>
-            <span className="info-grid__data">
-              {host.mdm.enrollment_url}
-            </span>
+            <span className="info-grid__data">{host.mdm.enrollment_url}</span>
           </div>
         </>
       );
     }
   };
 
-  // returns a mixture of props from host
-  const normalizeEmptyValues = (hostData: any): {[key: string]: any} => {
-    return reduce(
-      hostData,
-      (result, value, key) => {
-        if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
-          Object.assign(result, { [key]: value });
-        } else {
-          Object.assign(result, { [key]: "---" });
-        }
-        return result;
-      },
-      {}
-    );
-  };
-
-  const wrapKolideHelper = (helperFn: (value: any) => string, value: string): any => {
-    return value === "---" ? value : helperFn(value);
-  };
-
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "status",
-      "memory",
-      "cpu_type",
-      "os_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-    ])
-  );
-
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-    ])
-  );
-
-  const osqueryData = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ])
-  );
-  
   if (isLoadingHost) {
     return <Spinner />;
   }
-  
+
   const statusClassName = classnames("status", `status--${host?.status}`);
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -691,13 +705,12 @@ const HostDetailsPage = ({
       <div className="section title">
         <div className="title__inner">
           <div className="hostname-container">
-            <h1 className="hostname">
-              {host?.hostname || "---"}
-            </h1>
+            <h1 className="hostname">{host?.hostname || "---"}</h1>
             <p className="last-fetched">
               {`Last fetched ${humanHostDetailUpdated(
                 titleData.detail_updated_at
-              )}`}&nbsp;
+              )}`}
+              &nbsp;
             </p>
             {renderRefetch()}
           </div>
@@ -732,26 +745,19 @@ const HostDetailsPage = ({
         </div>
         {renderActionButtons()}
       </div>
-
       <div className="section about">
         <p className="section__header">About this host</p>
         <div className="info-grid">
           <div className="info-grid__block">
             <span className="info-grid__header">Created at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(
-                humanHostEnrolled,
-                aboutData.last_enrolled_at
-              )}
+              {wrapKolideHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Updated at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(
-                humanHostLastSeen,
-                titleData.detail_updated_at
-              )}
+              {wrapKolideHelper(humanHostLastSeen, titleData.detail_updated_at)}
             </span>
           </div>
           <div className="info-grid__block">
@@ -776,8 +782,6 @@ const HostDetailsPage = ({
           {renderMDMData()}
         </div>
       </div>
-
-
       <div className="section osquery col-50">
         <p className="section__header">Agent options</p>
         <div className="info-grid">
@@ -796,10 +800,7 @@ const HostDetailsPage = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Distributed interval</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(
-                secondsToHms,
-                osqueryData.distributed_interval
-              )}
+              {wrapKolideHelper(secondsToHms, osqueryData.distributed_interval)}
             </span>
           </div>
         </div>

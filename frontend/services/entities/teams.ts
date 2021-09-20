@@ -30,7 +30,7 @@ export default {
   destroy: (teamId: number) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
-    
+
     return sendRequest("DELETE", path);
   },
   load: (teamId: number) => {
@@ -67,13 +67,13 @@ export default {
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
     const path = TEAMS_MEMBERS(teamId);
-    
+
     return sendRequest("PATCH", path, newMembers);
   },
   removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
     const path = TEAMS_MEMBERS(teamId);
-    
+
     return sendRequest("DELETE", path, removeMembers);
   },
   transferHosts: (teamId: number, hostIds: number[]) => {
