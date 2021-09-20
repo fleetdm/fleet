@@ -10,7 +10,6 @@ require (
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
-	github.com/apache/thrift v0.13.0 // indirect
 	github.com/aws/aws-sdk-go v1.36.30
 	github.com/beevik/etree v1.1.0
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -46,7 +45,8 @@ require (
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
-	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
+	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
+	github.com/macadmins/osquery-extension v0.0.4 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mitchellh/gon v0.2.3

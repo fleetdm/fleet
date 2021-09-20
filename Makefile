@@ -106,6 +106,9 @@ fleet: .prefix .pre-build .pre-fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	CGO_ENABLED=0 go build -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
+orbit.ext: .prefix .pre-build
+	CGO_ENABLED=1 go build -tags full,fts5 -o build/orbit.ext ./orbit/cmd/extension
+
 lint-js:
 	yarn lint
 
