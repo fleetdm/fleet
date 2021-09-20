@@ -11,14 +11,13 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./PackQueriesTable/PackQueriesTableConfig";
+import RemoveQueryModal from "./RemoveQueryModal";
 
 const baseClass = "scheduled-queries-list-wrapper";
 class ScheduledQueriesListWrapper extends Component {
   static propTypes = {
     onRemoveScheduledQueries: PropTypes.func,
     onScheduledQueryFormSubmit: PropTypes.func,
-    onDblClickScheduledQuery: PropTypes.func,
-    onSelectScheduledQuery: PropTypes.func,
     scheduledQueries: PropTypes.arrayOf(queryInterface),
     packId: PropTypes.number,
     isLoadingScheduledQueries: PropTypes.bool,
@@ -89,7 +88,7 @@ class ScheduledQueriesListWrapper extends Component {
         <div>
           <h1>Queries</h1>
         </div>
-        {scheduledQueries.length === 0 ? (
+        {!scheduledQueries || scheduledQueries.length === 0 ? (
           <EmptyPack />
         ) : (
           <TableContainer

@@ -22,13 +22,13 @@ export default {
   },
   destroy: (pack: IPack) => {
     const { SCHEDULED_QUERY } = endpoints;
-    const path = SCHEDULED_QUERY(pack);
+    const path = SCHEDULED_QUERY(pack.id);
 
     return sendRequest("DELETE", path);
   },
-  loadAll: (pack: IPack) => {
+  loadAll: (packId: number) => {
     const { SCHEDULED_QUERY } = endpoints;
-    const path = SCHEDULED_QUERY(pack);
+    const path = SCHEDULED_QUERY(packId);
 
     return sendRequest("GET", path);
   },
