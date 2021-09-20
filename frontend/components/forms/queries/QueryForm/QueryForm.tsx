@@ -40,9 +40,9 @@ interface IQueryFormProps {
 }
 
 interface IRenderProps {
-  nameText: string;
-  descText: string;
   queryValue: string;
+  nameText?: string;
+  descText?: string;
   queryError?: any;
   queryOnChange?: any;
   name?: IFormField;
@@ -251,6 +251,42 @@ const QueryForm = ({
     </form>
   );
 
+  const renderCreateForTeamMaintainer = ({
+    queryValue,
+    queryOnChange,
+    queryError,
+  }: IRenderProps) => (
+    <>
+      <form className={`${baseClass}__wrapper`}>
+        <h1 className={`${baseClass}__query-name`}>New query</h1>
+        {baseError && <div className="form__base-error">{baseError}</div>}
+        <FleetAce
+          value={queryValue}
+          error={queryError}
+          label="Query:"
+          labelActionComponent={renderLabelComponent()}
+          name="query editor"
+          onLoad={onLoad}
+          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          onChange={queryOnChange}
+          handleSubmit={promptSaveQuery}
+        />
+        {renderLiveQueryWarning()}
+        <div
+          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+        >
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+          >
+            Run query
+          </Button>
+        </div>
+      </form>
+    </>
+  );
+
   const renderForGlobalAdminOrMaintainer = ({
     nameText,
     descText,
@@ -268,7 +304,7 @@ const QueryForm = ({
           <ContentEditable
             className={`${baseClass}__query-name`}
             innerRef={nameEditable}
-            html={nameText}
+            html={nameText || ""}
             tagName="h1"
             onChange={(evt: ContentEditableEvent) =>
               name?.onChange(evt.target.value)
@@ -387,6 +423,14 @@ const QueryForm = ({
       descText,
       queryValue,
       observerCanRun,
+    });
+  }
+
+  if (!isEditMode && isAnyTeamMaintainer) {
+    return renderCreateForTeamMaintainer({ 
+      queryValue,
+      queryOnChange,
+      queryError,
     });
   }
 
