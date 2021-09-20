@@ -267,5 +267,5 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 
 // DeleteUser deletes the associated user
 func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
-	return d.deleteEntity(ctx, "users", id)
+	return d.deleteEntity(ctx, usersTable, id)
 }
