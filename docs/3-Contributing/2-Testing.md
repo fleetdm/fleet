@@ -40,7 +40,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
 Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
-MYSQL_TEST=1 make test
+REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
 It is a good idea to run `make test` before submitting a Pull Request.
@@ -50,7 +50,7 @@ It is a good idea to run `make test` before submitting a Pull Request.
 To run all Go unit tests, run the following:
 
 ```
-make test-go
+REDIS_TEST=1 MYSQL_TEST=1 make test-go
 ```
 
 #### Go linters
@@ -103,6 +103,14 @@ To run email related integration tests using MailHog set environment as follows:
 
 ```
 MAIL_TEST=1 make test-go
+```
+
+#### Network tests
+
+A few tests require network access as they make requests to external hosts. Given that the network is unreliable, may not be available, and those hosts may also not be unavailable, those tests are skipped by default and are opt-in via the `NETWORK_TEST` environment variable. To run them:
+
+```
+NETWORK_TEST=1 make test-go
 ```
 
 ### Viewing test coverage
