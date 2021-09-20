@@ -7,11 +7,28 @@ on:
   pull_request:
 
 jobs:
-  goreleaser:
+  # This check-secrets job is used to gate execution of the main job. External PRs will not have
+  # access to the necessary secrets for pushing an image, so we want to skip that job if the secret
+  # is unavailable.
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check-secrets.outputs.available }}
+    steps:
+      - name: Check Secrets availability
+        run: |
+          if [ ! -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "::set-output name=available::true"
+          fi
+
+  # If the secrets are available, build and publish a Docker image.
+  publish:
+    needs:
+      - check-secrets
+    if: ${{ needs.check-secrets.outputs.available == 'true' }}
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
-      
       - name: Checkout (PR)
         if: ${{ github.event.pull_request.head.sha }}
         uses: actions/checkout@v2
