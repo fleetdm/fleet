@@ -1,0 +1,1 @@
+* Add max_jitter_label_update_interval to add some randomness as to when new labels are presented to hosts.
