@@ -10,6 +10,7 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
+- [Team Policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -4432,6 +4433,161 @@ Hosts that do not return results for a policy's query are "Failing."
 `Status: 200`
 
 ```json
+{
+  "deleted": 1
+}
+```
+
+---
+
+## Team Policies
+
+- [List team policies](#list-team-policies)
+- [Get team policy by ID](#get-team-policy-by-id)
+- [Add team policy](#add-team-policy)
+- [Remove team policies](#remove-team-policies)
+
+_Available in Fleet Premium_
+
+Team policies work the same as policies, but at the team level.
+
+### List team policies
+
+`GET /api/v1/fleet/team/{team_id}/policies`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | url  | Defines what team id to operate on                                                                            |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policies": [
+    {
+      "id": 1,
+      "query_id": 2,
+      "query_name": "Gatekeeper enabled",
+      "passing_host_count": 2000,
+      "failing_host_count": 300,
+    },
+    {
+      "id": 2,
+      "query_id": 3,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+    }
+  ]
+}
+```
+
+### Get team policy by ID
+
+`GET /api/v1/fleet/team/{team_id}/policies/{id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | url  | Defines what team id to operate on                                                                            |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
+### Add team policy
+
+`POST /api/v1/fleet/team/{team_id}/policies`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                         |
+| -------- | ------- | ---- | ----------------------------------- |
+| team_id  | integer | url  | Defines what team id to operate on  |
+| query_id | integer | body | **Required.** The query's ID.       |
+
+#### Example
+
+`POST /api/v1/fleet/team/1/policies`
+
+#### Request body
+
+```
+{
+  "query_id": 12
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+      "id": 2,
+      "query_id": 2,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 0,
+      "failing_host_count": 0,
+    },
+}
+```
+
+### Remove team policies
+
+`POST /api/v1/fleet/team/{team_id}/policies/delete`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                       |
+| -------- | ------- | ---- | ------------------------------------------------- |
+| team_id  | integer | url  | Defines what team id to operate on                |
+| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Request body
+
+```
+{
+  "ids": [ 1 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
 {
   "deleted": 1
 }
