@@ -138,14 +138,14 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 }
 
 func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	var rows []struct {
+	var globalRows, teamRows []struct {
 		Id    string `db:"id"`
 		Query string `db:"query"`
 	}
 	err := sqlx.SelectContext(
 		ctx,
 		ds.reader,
-		&rows,
+		&globalRows,
 		`SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE team_id is NULL`,
 	)
 	if err != nil {
@@ -158,7 +158,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		err := sqlx.SelectContext(
 			ctx,
 			ds.reader,
-			&rows,
+			&teamRows,
 			`SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE team_id = ?`,
 			*host.TeamID,
 		)
@@ -167,7 +167,11 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		}
 	}
 
-	for _, row := range rows {
+	for _, row := range globalRows {
+		results[row.Id] = row.Query
+	}
+
+	for _, row := range teamRows {
 		results[row.Id] = row.Query
 	}
 
