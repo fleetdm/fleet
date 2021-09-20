@@ -36,6 +36,7 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 import {
+  humanTimeAgo,
   humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
@@ -323,7 +324,7 @@ const HostDetailsPage = ({
       <div className="section labels col-50">
         <p className="section__header">Labels</p>
         {labels.length === 0 ? (
-          <p className="info__item">No labels are associated with this host.</p>
+          <p className="info-flex__item">No labels are associated with this host.</p>
         ) : (
           <ul className="list">{labelItems}</ul>
         )}
@@ -514,6 +515,114 @@ const HostDetailsPage = ({
     );
   };
 
+  const renderHostTeam = () => (
+    <div className="info-flex__item info-flex__item--title">
+      <span className="info-flex__header">Team</span>
+      <span className={`info-flex__data`}>
+        {host?.team_name ? (
+          `${host?.team_name}`
+        ) : (
+          <span className="info-flex__no-team">No team</span>
+        )}
+      </span>
+    </div>
+  );
+
+  const renderDeviceUser = () => {
+    if (host?.device_users && host?.device_users.length > 0) {
+      return (
+        // max width is added here because this is the only div that needs it
+        <div className="info-flex__item info-flex__item--title" style={{ maxWidth: 216 }}>
+          <span className="info-flex__header">Device user</span>
+          <span className="info-flex__data">
+            {host.device_users[0].email}
+          </span>
+        </div>
+      );
+    }
+  }
+
+  const renderDiskSpace = () => {
+    if (
+      host && 
+      (host.gigs_disk_space_available > 0 ||
+      host.percent_disk_space_available > 0)
+    ) {
+      return (
+        <span className="info-flex__data">
+          <div className="info-flex__disk-space">
+            <div
+              className={
+                titleData.percent_disk_space_available > 20
+                  ? "info-flex__disk-space-used"
+                  : "info-flex__disk-space-warning"
+              }
+              style={{
+                width: `${100 - titleData.percent_disk_space_available}%`,
+              }}
+            />
+          </div>
+          {titleData.gigs_disk_space_available} GB available
+        </span>
+      );
+    }
+    return <span className="info-flex__data">No data available</span>;
+  };
+
+  const renderMunkiData = () => {
+    if (host?.munki) {
+      return (
+        <>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Munki last run</span>
+            <span className="info-grid__data">
+              {humanTimeAgo(host.munki.last_run_time)} days ago
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Munki packages installed</span>
+            <span className="info-grid__data">
+              {host.munki.packages_intalled_count}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Munki errors</span>
+            <span className="info-grid__data">
+              {host.munki.errors_count}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Munki version</span>
+            <span className="info-grid__data">
+              {host.munki.version}
+            </span>
+          </div>
+        </>
+      );
+    }
+  };
+
+  const renderMDMData = () => {
+    if (host?.mdm) {
+      return (
+        <>
+          <div className="info-grid__block">
+            <span className="info-grid__header">MDM health</span>
+            <span className="info-grid__data">
+              {host.mdm?.health}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">MDM enrollment URL</span>
+            <span className="info-grid__data">
+              {host.mdm.enrollment_url}
+            </span>
+          </div>
+        </>
+      );
+    }
+  };
+
   // returns a mixture of props from host
   const normalizeEmptyValues = (hostData: any): {[key: string]: any} => {
     return reduce(
@@ -546,6 +655,7 @@ const HostDetailsPage = ({
       "gigs_disk_space_available",
     ])
   );
+
   const aboutData = normalizeEmptyValues(
     pick(host, [
       "seen_time",
@@ -556,6 +666,7 @@ const HostDetailsPage = ({
       "primary_ip",
     ])
   );
+
   const osqueryData = normalizeEmptyValues(
     pick(host, [
       "config_tls_refresh",
@@ -563,55 +674,12 @@ const HostDetailsPage = ({
       "distributed_interval",
     ])
   );
-
-  const statusClassName = classnames("status", `status--${host?.status}`);
-
-  const hostTeam = () => {
-    return (
-      <div className="info__item info__item--title">
-        <span className="info__header">Team</span>
-        <span className={`info__data`}>
-          {host?.team_name ? (
-            `${host?.team_name}`
-          ) : (
-            <span className="info__no-team">No team</span>
-          )}
-        </span>
-      </div>
-    );
-  };
-
-  const renderDiskSpace = () => {
-    if (
-      host && 
-      (host.gigs_disk_space_available > 0 ||
-      host.percent_disk_space_available > 0)
-    ) {
-      return (
-        <span className="info__data">
-          <div className="info__disk-space">
-            <div
-              className={
-                titleData.percent_disk_space_available > 20
-                  ? "info__disk-space-used"
-                  : "info__disk-space-warning"
-              }
-              style={{
-                width: `${100 - titleData.percent_disk_space_available}%`,
-              }}
-            />
-          </div>
-          {titleData.gigs_disk_space_available} GB available
-        </span>
-      );
-    }
-    return <span className="info__data">No data available</span>;
-  };
-
+  
   if (isLoadingHost) {
     return <Spinner />;
   }
-
+  
+  const statusClassName = classnames("status", `status--${host?.status}`);
   return (
     <div className={`${baseClass} body-wrap`}>
       <div>
@@ -633,87 +701,101 @@ const HostDetailsPage = ({
             </p>
             {renderRefetch()}
           </div>
-          <div className="info">
-            <div className="info__item info__item--title">
-              <span className="info__header">Status</span>
-              <span className={`${statusClassName} info__data`}>
+          <div className="info-flex">
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Status</span>
+              <span className={`${statusClassName} info-flex__data`}>
                 {titleData.status}
               </span>
             </div>
-            {isPremiumTier && hostTeam()}
-            <div className="info__item info__item--title">
-              <span className="info__header">Disk Space</span>
+            {isPremiumTier && renderHostTeam()}
+            {renderDeviceUser()}
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Disk Space</span>
               {renderDiskSpace()}
             </div>
-            <div className="info__item info__item--title">
-              <span className="info__header">RAM</span>
-              <span className="info__data">
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">RAM</span>
+              <span className="info-flex__data">
                 {wrapKolideHelper(humanHostMemory, titleData.memory)}
               </span>
             </div>
-            <div className="info__item info__item--title">
-              <span className="info__header">CPU</span>
-              <span className="info__data">{titleData.cpu_type}</span>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">CPU</span>
+              <span className="info-flex__data">{titleData.cpu_type}</span>
             </div>
-            <div className="info__item info__item--title">
-              <span className="info__header">OS</span>
-              <span className="info__data">{titleData.os_version}</span>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">OS</span>
+              <span className="info-flex__data">{titleData.os_version}</span>
             </div>
           </div>
         </div>
         {renderActionButtons()}
       </div>
+
       <div className="section about">
         <p className="section__header">About this host</p>
-        <div className="info">
-          <div className="info__item info__item--about">
-            <div className="info__block">
-              <span className="info__header">Created at</span>
-              <span className="info__data">
-                {wrapKolideHelper(
-                  humanHostEnrolled,
-                  aboutData.last_enrolled_at
-                )}
-              </span>
-              <span className="info__header">Updated at</span>
-              <span className="info__data">
-                {wrapKolideHelper(
-                  humanHostLastSeen,
-                  titleData.detail_updated_at
-                )}
-              </span>
-              <span className="info__header">Uptime</span>
-              <span className="info__data">
-                {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
-              </span>
-            </div>
+        <div className="info-grid">
+          <div className="info-grid__block">
+            <span className="info-grid__header">Created at</span>
+            <span className="info-grid__data">
+              {wrapKolideHelper(
+                humanHostEnrolled,
+                aboutData.last_enrolled_at
+              )}
+            </span>
           </div>
-          <div className="info__item info__item--about">
-            <div className="info__block">
-              <span className="info__header">Hardware model</span>
-              <span className="info__data">{aboutData.hardware_model}</span>
-              <span className="info__header">Serial number</span>
-              <span className="info__data">{aboutData.hardware_serial}</span>
-              <span className="info__header">IPv4</span>
-              <span className="info__data">{aboutData.primary_ip}</span>
-            </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Updated at</span>
+            <span className="info-grid__data">
+              {wrapKolideHelper(
+                humanHostLastSeen,
+                titleData.detail_updated_at
+              )}
+            </span>
           </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Uptime</span>
+            <span className="info-grid__data">
+              {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
+            </span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Hardware model</span>
+            <span className="info-grid__data">{aboutData.hardware_model}</span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Serial number</span>
+            <span className="info-grid__data">{aboutData.hardware_serial}</span>
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">IPv4</span>
+            <span className="info-grid__data">{aboutData.primary_ip}</span>
+          </div>
+          {renderMunkiData()}
+          {renderMDMData()}
         </div>
       </div>
+
+
       <div className="section osquery col-50">
         <p className="section__header">Agent options</p>
-        <div className="info__item info__item--about">
-          <div className="info__block">
-            <span className="info__header">Config TLS refresh</span>
-            <span className="info__data">
+        <div className="info-grid">
+          <div className="info-grid__block">
+            <span className="info-grid__header">Config TLS refresh</span>
+            <span className="info-grid__data">
               {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
             </span>
-            <span className="info__header">Logger TLS period</span>
-            <span className="info__data">
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Logger TLS period</span>
+            <span className="info-grid__data">
               {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
             </span>
-            <span className="info__header">Distributed interval</span>
-            <span className="info__data">
+          </div>
+          <div className="info-grid__block">
+            <span className="info-grid__header">Distributed interval</span>
+            <span className="info-grid__data">
               {wrapKolideHelper(
                 secondsToHms,
                 osqueryData.distributed_interval
