@@ -128,9 +128,7 @@ func (a *Authorizer) TeamAuthorize(ctx context.Context, teamID uint, action stri
 	// global admins and maintainers are authorized to work with teams
 	if subject.GlobalRole != nil {
 		switch *subject.GlobalRole {
-		case fleet.RoleAdmin:
-			return nil
-		case fleet.RoleMaintainer:
+		case fleet.RoleAdmin, fleet.RoleMaintainer:
 			return nil
 		}
 	}
