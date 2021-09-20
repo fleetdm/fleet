@@ -11,15 +11,14 @@ jobs:
   # access to the necessary secrets for pushing an image, so we want to skip that job if the secret
   # is unavailable.
   check-secrets:
+    environment: Docker Hub
     runs-on: ubuntu-latest
     outputs:
       available: ${{ steps.check-secrets.outputs.available }}
     steps:
       - name: Check Secrets availability
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          if [ ! -z "$DOCKERHUB_USERNAME" ]; then
+          if [ ! -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
             echo "::set-output name=available::true"
           fi
 
