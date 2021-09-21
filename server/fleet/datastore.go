@@ -287,6 +287,7 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
+	CleanupOrphanLabelMembership(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

@@ -57,6 +57,7 @@ func TestLabels(t *testing.T) {
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"LabelMembershipCleanup", testLabelMembershipCleanup},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -691,4 +692,69 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.Nil(t, err)
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now()))
+}
+
+func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
+	setupTest := func() (*fleet.Host, *fleet.Label) {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         "1",
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			OsqueryHostID:   "1",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+
+		label := &fleet.Label{
+			Name:  "foo",
+			Query: "select * from foo;",
+		}
+		label, err = ds.NewLabel(context.Background(), label)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+		return host, label
+	}
+
+	checkCount := func(before, after int) {
+		var count int
+		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
+		assert.Equal(t, before, count)
+
+		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
+
+		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
+		assert.Equal(t, after, count)
+	}
+
+	t.Run("none gone", func(t *testing.T) {
+		host, label := setupTest()
+		checkCount(1, 1)
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
+	})
+	t.Run("label gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		checkCount(1, 0)
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+	})
+	t.Run("host gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		checkCount(1, 0)
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+	})
+	t.Run("both gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		checkCount(1, 0)
+	})
 }
