@@ -23,9 +23,9 @@ export default {
 
     return sendRequest("POST", SCHEDULED_QUERIES, packQueryFormData);
   },
-  destroy: (pack: IPack) => {
+  destroy: (packId: number) => {
     const { SCHEDULED_QUERY } = endpoints;
-    const path = SCHEDULED_QUERY(pack.id);
+    const path = SCHEDULED_QUERY(packId);
 
     return sendRequest("DELETE", path);
   },

@@ -31,7 +31,6 @@ interface IFormData {
 }
 
 interface IPackQueriesListWrapperProps {
-  onCancel: any;
   onAddPackQuery: any;
   onEditPackQuery: any;
   onRemovePackQueries: any;
@@ -39,21 +38,16 @@ interface IPackQueriesListWrapperProps {
     formData: IFormData,
     editQuery: IScheduledQuery | undefined
   ) => void;
-  scheduledQueries: IScheduledQuery[];
+  scheduledQueries: IScheduledQuery[] | undefined;
   packId: number;
-  allQueries: IQuery[];
-  editQuery: IScheduledQuery;
   isLoadingPackQueries: boolean;
 }
 
 const PackQueriesListWrapper = ({
-  onCancel,
   onAddPackQuery,
   onEditPackQuery,
   onRemovePackQueries,
   onPackQueryFormSubmit,
-  allQueries,
-  editQuery,
   packId,
   scheduledQueries,
   isLoadingPackQueries,
@@ -63,7 +57,6 @@ const PackQueriesListWrapper = ({
     number[]
   >([]);
 
-  // 7/15 ADDED for New table
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onTableQueryChange = (queryData: any) => {

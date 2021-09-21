@@ -279,7 +279,7 @@ const PackQueryEditorModal = ({
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
           >
-            Schedule
+            {editQuery?.name ? "Save" : "Add query"}
           </Button>
           <Button
             className={`${baseClass}__btn`}

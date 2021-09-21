@@ -30,9 +30,9 @@ import teamAPI from "services/entities/teams";
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
-// @ts-ignore
 import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
+import RemovePackQueryModal from "./components/RemovePackQueryModal";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
@@ -143,6 +143,9 @@ const EditPacksPage = ({
     setShowRemovePackQueryModal,
   ] = useState<boolean>(false);
   const [selectedPackQuery, setSelectedPackQuery] = useState<IScheduledQuery>();
+  const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
+    number[] | never[]
+  >([]);
 
   // react-query uses your own api and gives you different states of loading data
   // can set to retreive data based on different properties
@@ -271,6 +274,11 @@ const EditPacksPage = ({
     setSelectedPackQuery(selectedQuery); // edit modal renders
   };
 
+  const onRemovePackQueriesClick = (selectedTableQueryIds: any): void => {
+    toggleRemovePackQueryModal();
+    setSelectedPackQueryIds(selectedTableQueryIds);
+  };
+
   const togglePackQueryEditorModal = useCallback(() => {
     setSelectedPackQuery(undefined); // create modal renders
     setShowPackQueryEditorModal(!showPackQueryEditorModal);
@@ -389,6 +397,42 @@ const EditPacksPage = ({
     },
     [dispatch, togglePackQueryEditorModal]
   );
+
+  const onRemovePackQuerySubmit = useCallback(() => {
+    const ids = selectedPackQueryIds;
+    scheduledqueryAPI
+      .destroy(ids[0]) // TODO: ugh, destroy multiple
+      .then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Successfully removed ${
+              ids && ids.length === 1 ? "policy" : "policies"
+            }.`
+          )
+        );
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Unable to remove ${
+              ids && ids.length === 1 ? "policy" : "policies"
+            }. Please try again.`
+          )
+        );
+      })
+      .finally(() => {
+        toggleRemovePackQueryModal();
+        // getPackQueries();
+      });
+  }, [
+    dispatch,
+    // getPackQueries,
+    selectedPackQueryIds,
+    toggleRemovePackQueryModal,
+  ]);
+
   return (
     <div className={`${baseClass}__content`}>
       {storedPack && (
@@ -407,7 +451,7 @@ const EditPacksPage = ({
       <PackQueriesListWrapper
         onAddPackQuery={togglePackQueryEditorModal}
         onEditPackQuery={onEditPackQueryClick}
-        onRemovePackQueries={toggleRemovePackQueryModal}
+        onRemovePackQueries={onRemovePackQueriesClick}
         onPackQueryFormSubmit={onPackQueryEditorSubmit}
         scheduledQueries={scheduledQueries}
         packId={packId}
@@ -420,6 +464,13 @@ const EditPacksPage = ({
           allQueries={fleetQueries}
           editQuery={selectedPackQuery}
           packId={packId}
+        />
+      )}
+      {showRemovePackQueryModal && fleetQueries && (
+        <RemovePackQueryModal
+          onCancel={toggleRemovePackQueryModal}
+          onSubmit={onRemovePackQuerySubmit}
+          selectedQueries={selectedPackQuery}
         />
       )}
     </div>
