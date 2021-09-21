@@ -753,7 +753,7 @@ func TestConfig() FleetConfig {
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
-			MaxJitterPercent:     10,
+			MaxJitterPercent:     0,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,
