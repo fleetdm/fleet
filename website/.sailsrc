@@ -12,224 +12,264 @@
         "url": "/docs",
         "title": "Readme.md",
         "lastModifiedAt": 1624049901000,
-        "htmlId": "docs--readme--9f534d32b2",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/learn-how-to-use-fleet",
-        "title": "Learn how to use Fleet",
-        "lastModifiedAt": 1631573400000,
-        "htmlId": "docs--0-learn-how-to-use-f--1b80658ae8",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/fleet-ui",
-        "title": "Fleet UI",
-        "lastModifiedAt": 1631640519000,
-        "htmlId": "docs--1-fleet-ui--ed954948be",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/teams",
-        "title": "Teams",
-        "lastModifiedAt": 1629395421000,
-        "htmlId": "docs--10-teams--782f2af710",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/usage-statistics",
-        "title": "Usage statistics",
-        "lastModifiedAt": 1624989594000,
-        "htmlId": "docs--11-usage-statistics--3ed9f3101b",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/supported-browsers",
-        "title": "Supported browsers",
-        "lastModifiedAt": 1630452786000,
-        "htmlId": "docs--12-supported-browser--6f8b591603",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/vulnerability-processing",
-        "title": "Vulnerability processing",
-        "lastModifiedAt": 1629761820000,
-        "htmlId": "docs--13-vulnerability-pro--edb754352c",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/fleetctl-cli",
-        "title": "Fleetctl CLI",
-        "lastModifiedAt": 1631040955000,
-        "htmlId": "docs--2-fleetctl-cli--b4a4f6b08c",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/rest-api",
-        "title": "REST API",
-        "lastModifiedAt": 1631555916000,
-        "htmlId": "docs--3-rest-api--0370e3eaff",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/adding-hosts",
-        "title": "Adding hosts",
-        "lastModifiedAt": 1625588060000,
-        "htmlId": "docs--4-adding-hosts--f25bc11364",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/osquery-logs",
-        "title": "Osquery logs",
-        "lastModifiedAt": 1624631015000,
-        "htmlId": "docs--5-osquery-logs--b2e649cc1f",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/monitoring-fleet",
-        "title": "Monitoring Fleet",
-        "lastModifiedAt": 1630357234000,
-        "htmlId": "docs--6-monitoring-fleet--b1fa6e4a69",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/security-best-practices",
-        "title": "Security best practices",
-        "lastModifiedAt": 1624893322000,
-        "htmlId": "docs--7-security-best-prac--ad931bb00b",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/updating-fleet",
-        "title": "Updating Fleet",
-        "lastModifiedAt": 1630641746000,
-        "htmlId": "docs--8-updating-fleet--1887128e93",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/permissions",
-        "title": "Permissions",
-        "lastModifiedAt": 1630415095000,
-        "htmlId": "docs--9-permissions--905e9c08da",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet/faq",
-        "title": "FAQ",
-        "lastModifiedAt": 1627511403000,
-        "htmlId": "docs--faq--f96c7228ae",
-        "meta": {}
-      },
-      {
-        "url": "/docs/using-fleet",
-        "title": "Using Fleet",
-        "lastModifiedAt": 1626938622000,
-        "htmlId": "docs--readme--b097d08746",
+        "htmlId": "docs--readme--27004f4448",
+        "sectionRelativeRepoPath": "README.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/installation",
         "title": "Installation",
-        "lastModifiedAt": 1625173055000,
-        "htmlId": "docs--1-installation--fe7d4e2e74",
-        "meta": {}
-      },
-      {
-        "url": "/docs/deploying/example-deployment-scenarios",
-        "title": "Example deployment scenarios",
-        "lastModifiedAt": 1625588060000,
-        "htmlId": "docs--3-example-deployment--b850738ae0",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-installation--c1f7b7262d",
+        "sectionRelativeRepoPath": "02-Deploying/01-Installation.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/configuration",
         "title": "Configuration",
-        "lastModifiedAt": 1631134512000,
-        "htmlId": "docs--2-configuration--a242085fa7",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-configuration--25bb47a163",
+        "sectionRelativeRepoPath": "02-Deploying/02-Configuration.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/example-deployment-scenarios",
+        "title": "Example deployment scenarios",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--03-example-deploymen--1d32b988ab",
+        "sectionRelativeRepoPath": "02-Deploying/03-Example-deployment-scenarios.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/fleetctl-agent-updates",
         "title": "Fleetctl agent updates",
-        "lastModifiedAt": 1631165652000,
-        "htmlId": "docs--4-fleetctl-agent-upd--f6d6a601d4",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-fleetctl-agent-up--92c6890fa9",
+        "sectionRelativeRepoPath": "02-Deploying/04-fleetctl-agent-updates.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying/faq",
         "title": "FAQ",
-        "lastModifiedAt": 1627511403000,
-        "htmlId": "docs--faq--7abb678d36",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--3ad91393ce",
+        "sectionRelativeRepoPath": "02-Deploying/FAQ.md",
         "meta": {}
       },
       {
         "url": "/docs/deploying",
         "title": "Deploying",
-        "lastModifiedAt": 1624893322000,
-        "htmlId": "docs--readme--a0a26f55e2",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--fb635b427f",
+        "sectionRelativeRepoPath": "02-Deploying/README.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/building-fleet",
         "title": "Building Fleet",
-        "lastModifiedAt": 1629140343000,
-        "htmlId": "docs--1-building-fleet--a0d05ce171",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-building-fleet--abcea456d8",
+        "sectionRelativeRepoPath": "03-Contributing/01-Building-Fleet.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/testing",
         "title": "Testing",
-        "lastModifiedAt": 1630685123000,
-        "htmlId": "docs--2-testing--20bd58879c",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-testing--2f307719a6",
+        "sectionRelativeRepoPath": "03-Contributing/02-Testing.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/migrations",
         "title": "Migrations",
-        "lastModifiedAt": 1629743194000,
-        "htmlId": "docs--3-migrations--ee672f0676",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--03-migrations--b553b6254f",
+        "sectionRelativeRepoPath": "03-Contributing/03-Migrations.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/committing-changes",
         "title": "Committing changes",
-        "lastModifiedAt": 1629140343000,
-        "htmlId": "docs--4-committing-changes--62d8075df1",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-committing-change--9b92fdc560",
+        "sectionRelativeRepoPath": "03-Contributing/04-Committing-Changes.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/releasing-fleet",
         "title": "Releasing Fleet",
-        "lastModifiedAt": 1629929664000,
-        "htmlId": "docs--5-releasing-fleet--2b2a696ea0",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--05-releasing-fleet--1f39f77c64",
+        "sectionRelativeRepoPath": "03-Contributing/05-Releasing-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/seeding-data",
+        "title": "Seeding data",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--06-seeding-data--af5ac86a99",
+        "sectionRelativeRepoPath": "03-Contributing/06-Seeding-Data.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing/faq",
         "title": "FAQ",
-        "lastModifiedAt": 1624893322000,
-        "htmlId": "docs--faq--92e0006bf2",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--1b33e57806",
+        "sectionRelativeRepoPath": "03-Contributing/FAQ.md",
         "meta": {}
       },
       {
         "url": "/docs/contributing",
         "title": "Contributing",
-        "lastModifiedAt": 1624893322000,
-        "htmlId": "docs--readme--d5e4f68946",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--6de1bc799d",
+        "sectionRelativeRepoPath": "03-Contributing/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleet-ui",
+        "title": "Fleet UI",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-fleet-ui--4b5755ee58",
+        "sectionRelativeRepoPath": "01-Using-Fleet/01-Fleet-UI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleetctl-cli",
+        "title": "Fleetctl CLI",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-fleetctl-cli--2a521b49d6",
+        "sectionRelativeRepoPath": "01-Using-Fleet/02-fleetctl-CLI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/rest-api",
+        "title": "REST API",
+        "lastModifiedAt": 1632174198000,
+        "htmlId": "docs--03-rest-api--f0b4e26bae",
+        "sectionRelativeRepoPath": "01-Using-Fleet/03-REST-API.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/adding-hosts",
+        "title": "Adding hosts",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-adding-hosts--9ffccb2221",
+        "sectionRelativeRepoPath": "01-Using-Fleet/04-Adding-hosts.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/osquery-logs",
+        "title": "Osquery logs",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--05-osquery-logs--7fbf2c5c5a",
+        "sectionRelativeRepoPath": "01-Using-Fleet/05-Osquery-logs.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/monitoring-fleet",
+        "title": "Monitoring Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--06-monitoring-fleet--83f7cca9f9",
+        "sectionRelativeRepoPath": "01-Using-Fleet/06-Monitoring-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/security-best-practices",
+        "title": "Security best practices",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--07-security-best-pra--7ba1af6048",
+        "sectionRelativeRepoPath": "01-Using-Fleet/07-Security-best-practices.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/updating-fleet",
+        "title": "Updating Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--08-updating-fleet--3b4e821ee3",
+        "sectionRelativeRepoPath": "01-Using-Fleet/08-Updating-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/permissions",
+        "title": "Permissions",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--09-permissions--eb9ac05ff5",
+        "sectionRelativeRepoPath": "01-Using-Fleet/09-Permissions.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/teams",
+        "title": "Teams",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--10-teams--bd0bdf9444",
+        "sectionRelativeRepoPath": "01-Using-Fleet/10-Teams.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/usage-statistics",
+        "title": "Usage statistics",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--11-usage-statistics--ccd73f532c",
+        "sectionRelativeRepoPath": "01-Using-Fleet/11-Usage-statistics.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/supported-browsers",
+        "title": "Supported browsers",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--12-supported-browser--c3a9c18d40",
+        "sectionRelativeRepoPath": "01-Using-Fleet/12-Supported-browsers.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/vulnerability-processing",
+        "title": "Vulnerability processing",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--13-vulnerability-pro--7a9b62b621",
+        "sectionRelativeRepoPath": "01-Using-Fleet/13-Vulnerability-Processing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--75e099695e",
+        "sectionRelativeRepoPath": "01-Using-Fleet/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet",
+        "title": "Using Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--0b226f5257",
+        "sectionRelativeRepoPath": "01-Using-Fleet/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/learn-how-to-use-fleet",
+        "title": "Learn how to use Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--00-learn-how-to-use---95b515dfd1",
+        "sectionRelativeRepoPath": "01-Using-Fleet/00-Learn-how-to-use-Fleet.md",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/configuration-files",
         "title": "Configuration files",
-        "lastModifiedAt": 1631296113000,
-        "htmlId": "docs--readme--7908cef8a3",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--dc5df431cb",
+        "sectionRelativeRepoPath": "01-Using-Fleet/configuration-files/README.md",
         "meta": {}
       },
       {
         "url": "/docs/using-fleet/standard-query-library",
         "title": "Standard query library",
-        "lastModifiedAt": 1624049901000,
-        "htmlId": "docs--readme--d3c7d96146",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--db16aa6f37",
+        "sectionRelativeRepoPath": "01-Using-Fleet/standard-query-library/README.md",
         "meta": {}
       }
     ],
@@ -264,11 +304,11 @@
         "remediation": "N/A"
       },
       {
-        "name": "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+        "name": "Get OpenSSL versions",
         "platforms": "Linux",
         "description": "Retrieves the OpenSSL version.",
         "query": "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
-        "purpose": "Detection",
+        "purpose": "Informational",
         "contributors": [
           {
             "name": "Zach Wasserman",
@@ -277,15 +317,15 @@
             "htmlUrl": "https://github.com/zwass"
           }
         ],
-        "slug": "detect-linux-hosts-with-high-severity-vulnerable-versions-of-open-ssl",
+        "slug": "get-open-ssl-versions",
         "remediation": "N/A"
       },
       {
-        "name": "Detect machines with Gatekeeper disabled",
+        "name": "Get whether Gatekeeper is disabled",
         "platforms": "macOS",
         "description": "Gatekeeper tries to ensure only trusted software is run on a mac machine.",
         "query": "SELECT * FROM gatekeeper WHERE assessments_enabled = 0;",
-        "purpose": "Detection",
+        "purpose": "Informational",
         "contributors": [
           {
             "name": "Zach Wasserman",
@@ -294,16 +334,16 @@
             "htmlUrl": "https://github.com/zwass"
           }
         ],
-        "slug": "detect-machines-with-gatekeeper-disabled",
+        "slug": "get-whether-gatekeeper-is-disabled",
         "remediation": "N/A"
       },
       {
-        "name": "Detect presence of authorized SSH keys",
+        "name": "Get authorized SSH keys",
         "platforms": "macOS, Linux",
         "description": "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
         "query": "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);",
-        "purpose": "Detection",
-        "remediation": "Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)",
+        "purpose": "Informational",
+        "remediation": "N/A",
         "contributors": [
           {
             "name": "Mike Thomas",
@@ -312,7 +352,7 @@
             "htmlUrl": "https://github.com/mike-j-thomas"
           }
         ],
-        "slug": "detect-presence-of-authorized-ssh-keys"
+        "slug": "get-authorized-ssh-keys"
       },
       {
         "name": "Get authorized keys for Local Accounts",
@@ -706,12 +746,12 @@
         "remediation": "N/A"
       },
       {
-        "name": "Detect unencrypted SSH keys for local accounts",
+        "name": "Get unencrypted SSH keys for local accounts",
         "platforms": "macOS, Linux, Windows, FreeBSD",
         "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
         "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;",
-        "purpose": "Detection",
-        "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
+        "purpose": "Informational",
+        "remediation": "N/A",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -720,15 +760,15 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-unencrypted-ssh-keys-for-local-accounts"
+        "slug": "get-unencrypted-ssh-keys-for-local-accounts"
       },
       {
-        "name": "Detect unencrypted SSH keys for domain joined accounts",
+        "name": "Get unencrypted SSH keys for domain joined accounts",
         "platforms": "macOS, Linux, Windows, FreeBSD",
         "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
         "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);",
-        "purpose": "Detection",
-        "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
+        "purpose": "Informational",
+        "remediation": "N/A",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -737,7 +777,7 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-unencrypted-ssh-keys-for-domain-joined-accounts"
+        "slug": "get-unencrypted-ssh-keys-for-domain-joined-accounts"
       },
       {
         "name": "Get crontab jobs",
@@ -774,12 +814,12 @@
         "remediation": "N/A"
       },
       {
-        "name": "Detect dynamic linker hijacking on Linux (MITRE. T1574.006)",
+        "name": "Get dynamic linker hijacking on Linux (MITRE. T1574.006)",
         "platforms": "Linux",
         "description": "Detect any processes that run with LD_PRELOAD environment variable",
         "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';",
-        "purpose": "Detection",
-        "remediation": "Identify the process/binary detected and confirm with the system's owner.",
+        "purpose": "Informational",
+        "remediation": "N/A",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -788,15 +828,15 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-dynamic-linker-hijacking-on-linux-mitre-t-1574-006"
+        "slug": "get-dynamic-linker-hijacking-on-linux-mitre-t-1574-006"
       },
       {
-        "name": "Detect dynamic linker hijacking on macOS (MITRE. T1574.006)",
+        "name": "Get dynamic linker hijacking on macOS (MITRE. T1574.006)",
         "platforms": "macOS",
         "description": "Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable",
         "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';",
-        "purpose": "Detection",
-        "remediation": "Identify the process/binary detected and confirm with the system's owner.",
+        "purpose": "Informational",
+        "remediation": "N/A",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -805,7 +845,7 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006"
+        "slug": "get-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006"
       },
       {
         "name": "Get etc hosts entries",
@@ -859,11 +899,11 @@
         "remediation": "N/A"
       },
       {
-        "name": "Detect active user accounts on servers",
+        "name": "Get active user accounts on servers",
         "platforms": "Linux",
         "description": "Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.",
         "query": "SELECT * FROM shadow WHERE password_status='active' and username!='root';",
-        "purpose": "Detection",
+        "purpose": "Informational",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -872,15 +912,15 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-active-user-accounts-on-servers",
+        "slug": "get-active-user-accounts-on-servers",
         "remediation": "N/A"
       },
       {
-        "name": "Detect Nmap scanner",
+        "name": "Get Nmap scanner",
         "platforms": "macOS, Linux, Windows, FreeBSD",
-        "description": "Detect Nmap scanner process, identify the user, parent, process details.",
+        "description": "Get Nmap scanner process, as well as its user, parent, and process details.",
         "query": "SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent, (SELECT name FROM processes WHERE pid=p.parent) AS parent_name, (SELECT username FROM users WHERE uid=p.uid) AS username FROM processes as p WHERE cmdline like 'nmap%';",
-        "purpose": "Detection",
+        "purpose": "Informational",
         "contributors": [
           {
             "name": "Ahmed Elshaer",
@@ -889,7 +929,7 @@
             "htmlUrl": "https://github.com/anelshaer"
           }
         ],
-        "slug": "detect-nmap-scanner",
+        "slug": "get-nmap-scanner",
         "remediation": "N/A"
       },
       {
@@ -944,11 +984,11 @@
         "remediation": "N/A"
       },
       {
-        "name": "Detect Windows print spooler remote code execution vulnerability",
+        "name": "Get Windows print spooler remote code execution vulnerability",
         "platforms": "Windows",
         "description": "Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.",
         "query": "SELECT CASE cnt WHEN 2 THEN \"TRUE\" ELSE \"FALSE\" END \"Vulnerable\" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;",
-        "purpose": "Detection",
+        "purpose": "Informational",
         "contributors": [
           {
             "name": null,
@@ -957,7 +997,7 @@
             "htmlUrl": "https://github.com/maravedi"
           }
         ],
-        "slug": "detect-windows-print-spooler-remote-code-execution-vulnerability",
+        "slug": "get-windows-print-spooler-remote-code-execution-vulnerability",
         "remediation": "N/A"
       },
       {
@@ -978,7 +1018,7 @@
         "remediation": "N/A"
       },
       {
-        "name": "Find deleted files from disk",
+        "name": "Get processes that no longer exist on disk",
         "platforms": "Linux, macOS, Windows",
         "description": "Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.",
         "query": "SELECT name, path, pid FROM processes WHERE on_disk = 0;",
@@ -991,11 +1031,96 @@
             "htmlUrl": "https://github.com/alphabrevity"
           }
         ],
-        "slug": "find-deleted-files-from-disk",
+        "slug": "get-processes-that-no-longer-exist-on-disk",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get user files matching a specific hash",
+        "platforms": "macOS, Linux",
+        "description": "Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)",
+        "query": "SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE \"\"/Users/%/Documents/%%\"\") AND sha256 = \"\"16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75\"\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-user-files-matching-a-specific-hash",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get local administrator accounts on macOS",
+        "platforms": "macOS",
+        "description": "The query allows you to check macOS systems for local administrator accounts.",
+        "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-local-administrator-accounts-on-mac-os",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get all listening ports, by process",
+        "platforms": "Linux, macOS, Windows",
+        "description": "List ports that are listening on all interfaces, along with the process to which they are attached.",
+        "query": "SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = \"0.0.0.0\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-all-listening-ports-by-process",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get whether TeamViewer is installed/running",
+        "platforms": "Windows",
+        "description": "Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.",
+        "query": "SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE \"%teamviewer%\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-whether-team-viewer-is-installed-running",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get malicious Python backdoors",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
+        "query": "select case cnt when 0 then \"NONE_INSTALLED\" else \"INSTALLED\" end as \"Malicious Python Packages\",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-malicious-python-backdoors",
         "remediation": "N/A"
       }
     ],
-    "queryLibraryYmlRepoPath": "docs/1-Using-Fleet/standard-query-library/standard-query-library.yml",
+    "queryLibraryYmlRepoPath": "docs/01-Using-Fleet/standard-query-library/standard-query-library.yml",
     "compiledPagePartialsAppPath": "views/partials/built-from-markdown"
   }
 }
