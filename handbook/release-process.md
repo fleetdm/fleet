@@ -39,3 +39,5 @@ Documentation on conducting the manual QA pass can be found [here](./manual-qa.m
 ## Release day
 
 Documentation on completing the release process can be found [here](../docs/3-Contributing/5-Releasing-Fleet.md).  
+
+<meta name="maintainedBy" value="mike-j-thomas">

@@ -93,3 +93,5 @@ There are several locations in Fleet's public and internal documentation that ca
 1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/1-Using-Fleet/FAQ.md), [Deploying FAQ](../docs/2-Deploying/FAQ.md), and [Contributing FAQ](../docs/3-Contributing/FAQ.md).
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
+
+<meta name="maintainedBy" value="mike-j-thomas">

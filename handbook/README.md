@@ -175,3 +175,5 @@ While this handbook is inspired by [GitLab's handbook](https://about.gitlab.com/
 ## Acknowledgements
 This work, "Fleet Handbook", is licensed under CC BY-SA 4.0 by Fleet Device Management Inc.  It is, in part, a derivative of ["GitLab Handbook"](https://about.gitlab.com/handbook/), by [GitLab](https://about.gitlab.com/company/), used under [CC BY-SA 4.0](https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/96c14468bbd29236dc1c3556bdf9514d966ca3d1/source/includes/cc-license.html.haml).
 
+<meta name="maintainedBy" value="mike-j-thomas">
+

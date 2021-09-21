@@ -171,3 +171,5 @@ Apply organization settings by running the following command:
 Create a new user by running the `fleetctl user create` command.
 
 Logout of your current user and log in with the newly created user.
+
+<meta name="maintainedBy" value="mike-j-thomas">
