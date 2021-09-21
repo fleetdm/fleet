@@ -324,7 +324,7 @@ func TestLabelQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -361,7 +361,7 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, 0)
 	assert.Zero(t, acc)
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{
 			"label1": "query1",
 			"label2": "query2",
@@ -539,7 +539,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -715,7 +715,7 @@ func TestDetailQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
-	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host, time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -920,7 +920,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(ds, rs, lq, mockClock)
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -989,7 +989,7 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -1721,7 +1721,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		}, nil
 	}
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
@@ -1813,7 +1813,7 @@ func TestPolicyQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {

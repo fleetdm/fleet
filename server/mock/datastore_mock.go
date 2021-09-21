@@ -115,7 +115,7 @@ type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
-type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error)
+type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error
 
@@ -963,9 +963,9 @@ func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt
 	return s.ListLabelsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
-	return s.LabelQueriesForHostFunc(ctx, host, cutoff)
+	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
