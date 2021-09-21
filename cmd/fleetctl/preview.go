@@ -22,7 +22,7 @@ import (
 
 const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
-	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/1-Using-Fleet/standard-query-library/standard-query-library.yml"
+	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName      = "license-key"
 )
 
