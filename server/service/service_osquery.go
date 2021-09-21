@@ -443,10 +443,10 @@ func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) bool {
 	var jitter time.Duration
 	if svc.config.Osquery.MaxJitterPercent > 0 {
-		maxJitter := interval / time.Duration(100.0*svc.config.Osquery.MaxJitterPercent)
+		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * interval / time.Duration(100.0)
 		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(maxJitter)))
 		if err == nil {
-			jitter = time.Duration(randDuration.Int64()) * time.Microsecond
+			jitter = time.Duration(randDuration.Int64()) // + min
 		}
 	}
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
