@@ -134,7 +134,7 @@ const EditPacksPage = ({
   const [
     showPackQueryEditorModal,
     setShowPackQueryEditorModal,
-  ] = useState<boolean>(true); // REMOVE to false
+  ] = useState<boolean>(false);
   const [showEditPackQueryModal, setShowEditPackQueryModal] = useState<boolean>(
     false
   );
@@ -391,17 +391,19 @@ const EditPacksPage = ({
   );
   return (
     <div className={`${baseClass}__content`}>
-      <EditPackFormWrapper
-        className={`${baseClass}__pack-form body-wrap`}
-        handleSubmit={handlePackFormSubmit}
-        onCancelEditPack={onCancelEditPack}
-        onEditPack={toggleEditPackQueryModal}
-        onFetchTargets={onFetchTargets}
-        pack={storedPack}
-        packTargets={packTargets}
-        targetsCount={targetsCount}
-        isPremiumTier={isPremiumTier}
-      />
+      {storedPack && (
+        <EditPackFormWrapper
+          className={`${baseClass}__pack-form body-wrap`}
+          handleSubmit={handlePackFormSubmit}
+          onCancelEditPack={onCancelEditPack}
+          onEditPack={toggleEditPackQueryModal}
+          onFetchTargets={onFetchTargets}
+          pack={storedPack}
+          packTargets={packTargets}
+          targetsCount={targetsCount}
+          isPremiumTier={isPremiumTier}
+        />
+      )}
       <PackQueriesListWrapper
         onAddPackQuery={togglePackQueryEditorModal}
         onEditPackQuery={onEditPackQueryClick}

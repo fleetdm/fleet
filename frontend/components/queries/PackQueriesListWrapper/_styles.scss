@@ -35,4 +35,9 @@
   &__search-queries {
     float: left;
   }
+
+  &__no-queries {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
 }
