@@ -20,11 +20,13 @@ export default PropTypes.shape({
 
 export interface IPackQueryFormData {
   interval: number;
-  name?: string | number | boolean | any[] | undefined;;
+  name?: string;
   shard: number;
-  query?: string | number | boolean | any[] | undefined;;
+  query?: string;
   query_id?: number;
-  logging_type: string;
+  logging_type?: string;
+  removed?: boolean;
+  snapshot?: boolean;
   platform: string;
   version: string;
 }

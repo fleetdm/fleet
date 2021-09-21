@@ -1,4 +1,4 @@
-/* This component is used for creating and editing both global and team scheduled queries */
+/* This component is used for creating and editing pack queries */
 
 import React, { useState, useCallback, useEffect } from "react";
 // @ts-ignore
@@ -30,10 +30,11 @@ interface IFormData {
   shard: number;
   query?: string;
   query_id?: number;
-  logging_type: string;
+  snapshot: boolean;
+  removed: boolean;
   platform: string;
   version: string;
-  team_id?: number;
+  pack_id: number;
 }
 
 interface IPackQueryEditorModalProps {
@@ -44,6 +45,7 @@ interface IPackQueryEditorModalProps {
     editQuery: IScheduledQuery | undefined
   ) => void;
   editQuery?: IScheduledQuery;
+  packId: number;
 }
 interface INoQueryOption {
   id: number;
@@ -60,30 +62,12 @@ const generateLoggingType = (query: IScheduledQuery) => {
   return "differential_ignore_removals";
 };
 
-const generateLoggingDestination = (loggingConfig: string): string => {
-  switch (loggingConfig) {
-    case "filesystem":
-      return "the filesystem";
-    case "firehose":
-      return "AWS Kinesis Firehose";
-    case "kinesis":
-      return "AWS Kinesis";
-    case "lambda":
-      return "AWS Lambda";
-    case "pubsub":
-      return "GCP PubSub";
-    case "stdout":
-      return "the standard output stream";
-    default:
-      return loggingConfig;
-  }
-};
-
 const PackQueryEditorModal = ({
   onCancel,
   onPackQueryFormSubmit,
   allQueries,
   editQuery,
+  packId,
 }: IPackQueryEditorModalProps): JSX.Element => {
   const [loggingConfig, setLoggingConfig] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -103,14 +87,11 @@ const PackQueryEditorModal = ({
     getConfigDestination();
   }, []);
 
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
-    false
-  );
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState<number>(
-    editQuery ? editQuery.interval : 86400
+  const [selectedFrequency, setSelectedFrequency] = useState<string>(
+    editQuery ? editQuery.interval.toString() : ""
   );
   const [
     selectedPlatformOptions,
@@ -118,6 +99,12 @@ const PackQueryEditorModal = ({
   ] = useState<string>(editQuery?.platform || "");
   const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
     editQuery ? generateLoggingType(editQuery) : "snapshot"
+  );
+  const [selectedSnapshot, setSelectedSnapshot] = useState<boolean>(
+    selectedLoggingType === "snapshot"
+  );
+  const [selectedRemoved, setSelectedRemoved] = useState<boolean>(
+    selectedLoggingType === "differential"
   );
   const [
     selectedMinOsqueryVersionOptions,
@@ -137,10 +124,6 @@ const PackQueryEditorModal = ({
     return queryOptions;
   };
 
-  const toggleAdvancedOptions = () => {
-    setShowAdvancedOptions(!showAdvancedOptions);
-  };
-
   const onChangeSelectQuery = useCallback(
     (queryId: string) => {
       const queryWithId: IQuery | undefined = allQueries.find(
@@ -151,8 +134,8 @@ const PackQueryEditorModal = ({
     [allQueries, setSelectedQuery]
   );
 
-  const onChangeSelectFrequency = useCallback(
-    (value: number) => {
+  const onChangeFrequency = useCallback(
+    (value: string) => {
       setSelectedFrequency(value);
     },
     [setSelectedFrequency]
@@ -178,8 +161,10 @@ const PackQueryEditorModal = ({
   const onChangeSelectLoggingType = useCallback(
     (value: string) => {
       setSelectedLoggingType(value);
+      setSelectedRemoved(value === "differential");
+      setSelectedSnapshot(value === "snapshot");
     },
-    [setSelectedLoggingType]
+    [setSelectedLoggingType, setSelectedRemoved, setSelectedSnapshot]
   );
 
   const onChangeMinOsqueryVersionOptions = useCallback(
@@ -204,21 +189,23 @@ const PackQueryEditorModal = ({
       return selectedQuery?.id;
     };
 
-    const name = () => {
-      if (editQuery) {
-        return editQuery.name;
-      }
-      return selectedQuery?.name;
-    };
+    // const name = () => {
+    //   if (editQuery) {
+    //     return editQuery.name;
+    //   }
+    //   return selectedQuery?.name;
+    // }; // pretty sure unneeded
 
     onPackQueryFormSubmit(
       {
-        shard: parseInt(selectedShard, 10),
-        interval: selectedFrequency,
-        query_id: query_id(),
-        name: name(),
-        logging_type: selectedLoggingType,
+        interval: parseInt(selectedFrequency, 10),
+        pack_id: packId,
         platform: selectedPlatformOptions,
+        query_id: query_id(),
+        // name: name(), // pretty sure unneeded
+        removed: selectedRemoved,
+        snapshot: selectedSnapshot,
+        shard: parseInt(selectedShard, 10),
         version: selectedMinOsqueryVersionOptions,
       },
       editQuery
@@ -227,7 +214,7 @@ const PackQueryEditorModal = ({
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
+      title={editQuery?.name || "Add query"}
       onExit={onCancel}
       className={baseClass}
     >
@@ -242,84 +229,47 @@ const PackQueryEditorModal = ({
             wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
           />
         )}
-        <Dropdown
-          searchable={false}
-          options={FREQUENCY_DROPDOWN_OPTIONS}
-          onChange={onChangeSelectFrequency}
-          placeholder={"Every day"}
+        <InputField
+          onChange={onChangeFrequency}
+          inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
           value={selectedFrequency}
-          label={"Choose a frequency and then run this query on a schedule"}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          placeholder="- - -"
+          label="Frequency (seconds)"
+          type="number"
         />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p>
-            Your configured log destination is <b>{loggingConfig}</b>.
-          </p>
-          <p>
-            This means that when this query is run on your hosts, the data will
-            be sent to {generateLoggingDestination(loggingConfig)}.
-          </p>
-          <p>
-            Check out the Fleet documentation on&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              how configure a different log destination.&nbsp;
-              <FleetIcon name="external-link" />
-            </a>
-          </p>
-        </InfoBanner>
-        <div>
-          <Button
-            variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
-               ${baseClass}__advanced-options-button`}
-            onClick={toggleAdvancedOptions}
-          >
-            {showAdvancedOptions
-              ? "Hide advanced options"
-              : "Show advanced options"}
-          </Button>
-          {showAdvancedOptions && (
-            <div>
-              <Dropdown
-                options={LOGGING_TYPE_OPTIONS}
-                onChange={onChangeSelectLoggingType}
-                placeholder="Select"
-                value={selectedLoggingType}
-                label="Logging"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
-              />
-              <Dropdown
-                options={PLATFORM_DROPDOWN_OPTIONS}
-                placeholder="Select"
-                label="Platform"
-                onChange={onChangeSelectPlatformOptions}
-                value={selectedPlatformOptions}
-                multi
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              />
-              <Dropdown
-                options={MIN_OSQUERY_VERSION_OPTIONS}
-                onChange={onChangeMinOsqueryVersionOptions}
-                placeholder="Select"
-                value={selectedMinOsqueryVersionOptions}
-                label="Minimum osquery version"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-              />
-              <InputField
-                onChange={onChangeShard}
-                inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
-                value={selectedShard}
-                placeholder="- - -"
-                label="Shard"
-                type="number"
-              />
-            </div>
-          )}
-        </div>
+        <Dropdown
+          options={LOGGING_TYPE_OPTIONS}
+          onChange={onChangeSelectLoggingType}
+          placeholder="Select"
+          value={selectedLoggingType}
+          label="Logging"
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+        />
+        <Dropdown
+          options={PLATFORM_DROPDOWN_OPTIONS}
+          placeholder="Select"
+          label="Platform"
+          onChange={onChangeSelectPlatformOptions}
+          value={selectedPlatformOptions}
+          multi
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+        />
+        <Dropdown
+          options={MIN_OSQUERY_VERSION_OPTIONS}
+          onChange={onChangeMinOsqueryVersionOptions}
+          placeholder="Select"
+          value={selectedMinOsqueryVersionOptions}
+          label="Minimum osquery version"
+          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+        />
+        <InputField
+          onChange={onChangeShard}
+          inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
+          value={selectedShard}
+          placeholder="- - -"
+          label="Shard (percentage)"
+          type="number"
+        />
 
         <div className={`${baseClass}__btn-wrap`}>
           <Button

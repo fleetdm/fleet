@@ -88,7 +88,9 @@ interface IPackQueryFormData {
   shard: number;
   query?: string;
   query_id?: number;
-  logging_type: string;
+  removed: boolean;
+  snapshot: boolean;
+  pack_id: number;
   platform: string;
   version: string;
 }
@@ -132,11 +134,14 @@ const EditPacksPage = ({
   const [
     showPackQueryEditorModal,
     setShowPackQueryEditorModal,
-  ] = useState<boolean>(false);
-  const [showEditQueryModal, setShowEditQueryModal] = useState<boolean>(false);
-  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
+  ] = useState<boolean>(true); // REMOVE to false
+  const [showEditPackQueryModal, setShowEditPackQueryModal] = useState<boolean>(
     false
   );
+  const [
+    showRemovePackQueryModal,
+    setShowRemovePackQueryModal,
+  ] = useState<boolean>(false);
   const [selectedPackQuery, setSelectedPackQuery] = useState<IScheduledQuery>();
 
   // react-query uses your own api and gives you different states of loading data
@@ -269,22 +274,23 @@ const EditPacksPage = ({
   const togglePackQueryEditorModal = useCallback(() => {
     setSelectedPackQuery(undefined); // create modal renders
     setShowPackQueryEditorModal(!showPackQueryEditorModal);
+    console.log("togglePackQueryEditorModal clicked!");
   }, [showPackQueryEditorModal, setShowPackQueryEditorModal]);
 
-  const toggleEditQueryModal = useCallback(() => {
-    setShowEditQueryModal(!showEditQueryModal);
-  }, [showEditQueryModal, setShowEditQueryModal]);
+  const toggleEditPackQueryModal = useCallback(() => {
+    setShowEditPackQueryModal(!showEditPackQueryModal);
+  }, [showEditPackQueryModal, setShowEditPackQueryModal]);
 
-  const toggleRemoveQueryModal = useCallback(() => {
-    setShowRemoveQueryModal(!showRemoveQueryModal);
-  }, [showRemoveQueryModal, setShowRemoveQueryModal]);
+  const toggleRemovePackQueryModal = useCallback(() => {
+    setShowRemovePackQueryModal(!showRemovePackQueryModal);
+  }, [showRemovePackQueryModal, setShowRemovePackQueryModal]);
 
   const handlePackFormSubmit = (formData: any) => {
     const updatedPack = deepDifference(formData, storedPack);
     packAPI
       .update(packId, updatedPack)
       .then(() => {
-        toggleEditQueryModal();
+        toggleEditPackQueryModal();
       })
       .catch(() => {
         dispatch(
@@ -389,7 +395,7 @@ const EditPacksPage = ({
         className={`${baseClass}__pack-form body-wrap`}
         handleSubmit={handlePackFormSubmit}
         onCancelEditPack={onCancelEditPack}
-        onEditPack={toggleEditQueryModal}
+        onEditPack={toggleEditPackQueryModal}
         onFetchTargets={onFetchTargets}
         pack={storedPack}
         packTargets={packTargets}
@@ -397,12 +403,13 @@ const EditPacksPage = ({
         isPremiumTier={isPremiumTier}
       />
       <PackQueriesListWrapper
-        onAddScheduledQuery={togglePackQueryEditorModal}
-        onRemoveScheduledQueries={toggleRemoveQueryModal}
-        onScheduledQueryFormSubmit={toggleRemoveQueryModal}
+        onAddPackQuery={togglePackQueryEditorModal}
+        onEditPackQuery={onEditPackQueryClick}
+        onRemovePackQueries={toggleRemovePackQueryModal}
+        onPackQueryFormSubmit={onPackQueryEditorSubmit}
         scheduledQueries={scheduledQueries}
         packId={packId}
-        isLoadingScheduledQueries={isScheduledQueriesLoading}
+        isLoadingPackQueries={isScheduledQueriesLoading}
       />
       {showPackQueryEditorModal && fleetQueries && (
         <PackQueryEditorModal
@@ -410,6 +417,7 @@ const EditPacksPage = ({
           onPackQueryFormSubmit={onPackQueryEditorSubmit}
           allQueries={fleetQueries}
           editQuery={selectedPackQuery}
+          packId={packId}
         />
       )}
     </div>
