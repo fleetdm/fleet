@@ -234,7 +234,7 @@ module.exports = {
                   // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
                   // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
                   if (isBaseUrl) {
-                    return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="/');
+                    return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
                   } else {
                     return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
                   }
