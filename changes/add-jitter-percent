@@ -1,0 +1,1 @@
+* Add jitter percent for osquery update intervals to prevent all hosts from returning data at roughly the same time.

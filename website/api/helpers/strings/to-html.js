@@ -77,7 +77,7 @@ module.exports = {
       var headingRenderer = new marked.Renderer();
       headingRenderer.heading = function (text, level) {
         var headingID = _.kebabCase(text);
-        return '<span class="docs-heading"><h'+level+' id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="docs-link"></a></h'+level+'></span>';
+        return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
       };
       markedOpts.renderer = headingRenderer;
     } else  {

@@ -15,10 +15,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDeletePack(t *testing.T) {
+func TestPacks(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Delete", testPacksDelete},
+		{"Save", testPacksSave},
+		{"GetByName", testPacksGetByName},
+		{"List", testPacksList},
+		{"ApplySpecRoundtrip", testPacksApplySpecRoundtrip},
+		{"GetSpec", testPacksGetSpec},
+		{"ApplySpecMissingQueries", testPacksApplySpecMissingQueries},
+		{"ApplySpecMissingName", testPacksApplySpecMissingName},
+		{"ListForHost", testPacksListForHost},
+		{"EnsureGlobal", testPacksEnsureGlobal},
+		{"EnsureTeam", testPacksEnsureTeam},
+		{"TeamNameChangesTeamSchedule", testPacksTeamNameChangesTeamSchedule},
+		{"TeamScheduleNamesMigrateToNewFormat", testPacksTeamScheduleNamesMigrateToNewFormat},
+		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
+		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
+		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testPacksDelete(t *testing.T, ds *Datastore) {
 	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
@@ -33,10 +62,7 @@ func TestDeletePack(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestSavePack(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksSave(t *testing.T, ds *Datastore) {
 	expectedPack := &fleet.Pack{
 		Name:     "foo",
 		HostIDs:  []uint{1},
@@ -70,10 +96,7 @@ func TestSavePack(t *testing.T) {
 	test.EqualSkipTimestampsID(t, expectedPack, pack)
 }
 
-func TestGetPackByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksGetByName(t *testing.T, ds *Datastore) {
 	pack := test.NewPack(t, ds, "foo")
 	assert.NotEqual(t, uint(0), pack.ID)
 
@@ -87,13 +110,9 @@ func TestGetPackByName(t *testing.T) {
 	require.Nil(t, err)
 	assert.False(t, ok)
 	assert.Nil(t, pack)
-
 }
 
-func TestListPacks(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksList(t *testing.T, ds *Datastore) {
 	p1 := &fleet.PackSpec{
 		ID:   1,
 		Name: "foo_pack",
@@ -223,10 +242,7 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	return expectedSpecs
 }
 
-func TestApplyPackSpecRoundtrip(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksApplySpecRoundtrip(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupPackSpecsTest(t, ds)
 
 	gotSpec, err := ds.GetPackSpecs(context.Background())
@@ -234,10 +250,7 @@ func TestApplyPackSpecRoundtrip(t *testing.T) {
 	assert.Equal(t, expectedSpecs, gotSpec)
 }
 
-func TestGetPackSpec(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupPackSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
@@ -247,10 +260,7 @@ func TestGetPackSpec(t *testing.T) {
 	}
 }
 
-func TestApplyPackSpecMissingQueries(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksApplySpecMissingQueries(t *testing.T, ds *Datastore) {
 	// Do not define queries mentioned in spec
 	specs := []*fleet.PackSpec{
 		{
@@ -275,10 +285,7 @@ func TestApplyPackSpecMissingQueries(t *testing.T) {
 	}
 }
 
-func TestApplyPackSpecMissingName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksApplySpecMissingName(t *testing.T, ds *Datastore) {
 	setupPackSpecsTest(t, ds)
 
 	specs := []*fleet.PackSpec{
@@ -304,10 +311,7 @@ func TestApplyPackSpecMissingName(t *testing.T) {
 	assert.Equal(t, "foo", spec.Queries[0].Name)
 }
 
-func TestListPacksForHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksListForHost(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	l1 := &fleet.LabelSpec{
@@ -416,10 +420,7 @@ func TestListPacksForHost(t *testing.T) {
 	}
 }
 
-func TestEnsureGlobalPack(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksEnsureGlobal(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	packs, err := ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
@@ -450,10 +451,7 @@ func TestEnsureGlobalPack(t *testing.T) {
 	assert.Equal(t, "global", *gp.Type)
 }
 
-func TestEnsureTeamPack(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksEnsureTeam(t *testing.T, ds *Datastore) {
 	packs, err := ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: true})
 	require.Nil(t, err)
 	assert.Len(t, packs, 0)
@@ -499,10 +497,7 @@ func TestEnsureTeamPack(t *testing.T) {
 	assert.Equal(t, []uint{team2.ID}, tp2.TeamIDs)
 }
 
-func TestTeamNameChangesTeamSchedule(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksTeamNameChangesTeamSchedule(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
@@ -521,10 +516,7 @@ func TestTeamNameChangesTeamSchedule(t *testing.T) {
 	assert.Equal(t, teamScheduleName(team1), tp.Name)
 }
 
-func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksTeamScheduleNamesMigrateToNewFormat(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
@@ -547,10 +539,7 @@ func TestTeamScheduleNamesMigrateToNewFormat(t *testing.T) {
 	require.Equal(t, teamScheduleName(team1), tp.Name)
 }
 
-func TestApplyPackSpecFailsOnTargetIDNull(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 	// Do not define queries mentioned in spec
 	specs := []*fleet.PackSpec{
 		{
@@ -602,11 +591,8 @@ func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.Sched
 	}
 }
 
-func TestPackApplyStatsNotLocking(t *testing.T) {
+func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 	t.Skip("This can be too much for the test db if you're running all tests")
-
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
 	specs := setupPackSpecsTest(t, ds)
 
@@ -650,11 +636,8 @@ func TestPackApplyStatsNotLocking(t *testing.T) {
 	cancelFunc()
 }
 
-func TestPackApplyStatsNotLockingTryTwo(t *testing.T) {
+func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 	t.Skip("This can be too much for the test db if you're running all tests")
-
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
 	setupPackSpecsTest(t, ds)
 

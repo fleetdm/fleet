@@ -146,7 +146,12 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			}
 		}
 
-		if host.HostSoftware.Modified {
+		ac, err := d.AppConfig(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
+		}
+
+		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
@@ -157,8 +162,10 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 				return errors.Wrap(err, "failed to save host additional")
 			}
 
-			if err := saveHostUsersDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host users")
+			if ac.HostSettings.EnableHostUsers {
+				if err := saveHostUsersDB(ctx, tx, host); err != nil {
+					return errors.Wrap(err, "failed to save host users")
+				}
 			}
 		}
 
@@ -285,7 +292,7 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
-	err := d.deleteEntity(ctx, "hosts", hid)
+	err := d.deleteEntity(ctx, hostsTable, hid)
 	if err != nil {
 		return errors.Wrapf(err, "deleting host with id %d", hid)
 	}

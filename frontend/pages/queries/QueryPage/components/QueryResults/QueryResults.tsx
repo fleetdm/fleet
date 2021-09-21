@@ -303,7 +303,6 @@ const QueryResults = ({
             {isQueryFinished && hasNoResults ? (
               <p className="no-results-message">
                 Your live query returned no results.
-                <br />
                 <span>
                   Expecting to see results? Check to see if the hosts you
                   targeted reported &ldquo;Online&rdquo; or check out the

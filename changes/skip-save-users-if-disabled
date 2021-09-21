@@ -1,0 +1,1 @@
+* Completely skip trying to save host users and software inventory if it's disabled.

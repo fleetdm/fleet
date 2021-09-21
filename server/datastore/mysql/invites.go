@@ -138,7 +138,7 @@ func (d *Datastore) InviteByToken(ctx context.Context, token string) (*fleet.Inv
 }
 
 func (d *Datastore) DeleteInvite(ctx context.Context, id uint) error {
-	return d.deleteEntity(ctx, "invites", id)
+	return d.deleteEntity(ctx, invitesTable, id)
 }
 
 func (d *Datastore) loadTeamsForInvites(ctx context.Context, invites []*fleet.Invite) error {

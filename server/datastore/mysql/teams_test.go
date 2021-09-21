@@ -13,10 +13,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTeamGetSetDelete(t *testing.T) {
+func TestTeams(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"GetSetDelete", testTeamsGetSetDelete},
+		{"Users", testTeamsUsers},
+		{"List", testTeamsList},
+		{"Search", testTeamsSearch},
+		{"EnrollSecrets", testTeamsEnrollSecrets},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 	var createTests = []struct {
 		name, description string
 	}{
@@ -25,7 +43,7 @@ func TestTeamGetSetDelete(t *testing.T) {
 	}
 
 	for _, tt := range createTests {
-		t.Run("", func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			team, err := ds.NewTeam(context.Background(), &fleet.Team{
 				Name:        tt.name,
 				Description: tt.description,
@@ -52,10 +70,7 @@ func TestTeamGetSetDelete(t *testing.T) {
 	}
 }
 
-func TestTeamUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTeamsUsers(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID}
 	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID}
@@ -111,10 +126,7 @@ func TestTeamUsers(t *testing.T) {
 	assert.ElementsMatch(t, team2Users, team2.Users)
 }
 
-func TestTeamListTeams(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTeamsList(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	user1 := fleet.User{Name: users[0].Name, Email: users[0].Email, ID: users[0].ID, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	user2 := fleet.User{Name: users[1].Name, Email: users[1].Email, ID: users[1].ID, GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -168,10 +180,7 @@ func TestTeamListTeams(t *testing.T) {
 	assert.Equal(t, 1, teams[1].UserCount)
 }
 
-func TestTeamSearchTeams(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTeamsSearch(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -207,10 +216,7 @@ func TestTeamSearchTeams(t *testing.T) {
 	assert.Len(t, teams, 0)
 }
 
-func TestTeamEnrollSecrets(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTeamsEnrollSecrets(t *testing.T, ds *Datastore) {
 	secrets := []*fleet.EnrollSecret{{Secret: "secret1"}, {Secret: "secret2"}}
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name:    "team1",
