@@ -283,39 +283,12 @@ func platformForHost(host *fleet.Host) string {
 	return host.Platform
 }
 
-func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
 	platform := platformForHost(host)
-	if host.LabelUpdatedAt.Before(cutoff) {
-		// Retrieve all labels (with matching platform) for this host
-		sql := `
-			SELECT id, query
-			FROM labels
-			WHERE platform = ? OR platform = ''
-			AND label_membership_type = ?
-`
-		rows, err = d.reader.QueryContext(ctx, sql, platform, fleet.LabelMembershipTypeDynamic)
-	} else {
-		// Retrieve all labels (with matching platform) iff there is a label
-		// that has been created since this host last reported label query
-		// executions
-		sql := `
-			SELECT id, query
-			FROM labels
-			WHERE ((SELECT max(created_at) FROM labels WHERE platform = ? OR platform = '') > ?)
-			AND (platform = ? OR platform = '')
-			AND label_membership_type = ?
-`
-		rows, err = d.reader.QueryContext(
-			ctx,
-			sql,
-			platform,
-			host.LabelUpdatedAt,
-			platform,
-			fleet.LabelMembershipTypeDynamic,
-		)
-	}
+	query := `SELECT id, query FROM labels WHERE platform = ? OR platform = '' AND label_membership_type = ?`
+	rows, err = d.reader.QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic)
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting label queries for host")

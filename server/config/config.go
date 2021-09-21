@@ -95,6 +95,7 @@ type OsqueryConfig struct {
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -306,6 +307,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.result_log_file) Path for osqueryd result logs")
 	man.addConfigBool("osquery.enable_log_rotation", false,
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
+	man.addConfigInt("osquery.max_jitter_percent", 10,
+		"Maximum percentage of the interval to add as jitter")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -463,6 +466,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -749,6 +753,7 @@ func TestConfig() FleetConfig {
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
+			MaxJitterPercent:     90,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

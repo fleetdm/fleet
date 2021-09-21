@@ -79,10 +79,8 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	host.Platform = "darwin"
 	require.NoError(t, db.SaveHost(context.Background(), host))
 
-	baseTime := time.Now()
-
 	// No labels to check
-	queries, err := db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -126,7 +124,7 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	host.Platform = "darwin"
 
 	// Now queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
@@ -134,6 +132,8 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	labels, err = db.ListLabelsForHost(context.Background(), host.ID)
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
+
+	baseTime := time.Now()
 
 	// Record a query execution
 	err = db.RecordLabelQueryExecutions(
@@ -147,14 +147,6 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 
-	// Now no queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
-
-	// Ensure enough gap in created_at
-	time.Sleep(2 * time.Second)
-
 	// A new label targeting another platform should not effect the labels for
 	// this host
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -165,9 +157,9 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	assert.Len(t, queries, 4)
 
 	// If a new label is added, all labels should be returned
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -179,29 +171,7 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 	expectQueries["7"] = "query6"
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
-	assert.Nil(t, err)
-	assert.Len(t, queries, 5)
-
-	// After expiration, all queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add((2 * time.Minute)))
-	assert.Nil(t, err)
-	assert.Equal(t, expectQueries, queries)
-
-	// Now the two matching labels should be returned
-	labels, err = db.ListLabelsForHost(context.Background(), host.ID)
-	assert.Nil(t, err)
-	if assert.Len(t, labels, 2) {
-		labelNames := []string{labels[0].Name, labels[1].Name}
-		sort.Strings(labelNames)
-		assert.Equal(t, "All Hosts", labelNames[0])
-		assert.Equal(t, "label1", labelNames[1])
-	}
-
-	// A host that hasn't executed any label queries should still be asked
-	// to execute those queries
-	hosts[0].Platform = "darwin"
-	queries, err = db.LabelQueriesForHost(context.Background(), &hosts[0], time.Now())
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 5)
 
@@ -662,9 +632,7 @@ func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	baseTime := time.Now().Add(-5 * time.Minute)
-
-	queries, err := db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
