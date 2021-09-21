@@ -2,12 +2,9 @@ package mysql
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -64,7 +61,7 @@ func TestLabels(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			//defer TruncateTables(t, ds)
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
