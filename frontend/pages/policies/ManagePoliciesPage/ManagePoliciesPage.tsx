@@ -309,6 +309,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               policiesList={policies}
               selectedTeamId={selectedTeamId}
               isLoading={isLoading}
+              isOnlyObserver={isOnlyObserver}
               onRemovePoliciesClick={onRemovePoliciesClick}
               toggleAddPolicyModal={toggleAddPolicyModal}
             />

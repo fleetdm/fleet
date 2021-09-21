@@ -13,6 +13,7 @@ interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
   selectedTeamId: number | null;
   isLoading: boolean;
+  isOnlyObserver: boolean | undefined;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
 }
@@ -22,6 +23,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     policiesList,
     selectedTeamId,
     isLoading,
+    isOnlyObserver,
     onRemovePoliciesClick,
     toggleAddPolicyModal,
   } = props;
@@ -55,7 +57,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
-        columns={generateTableHeaders(selectedTeamId)}
+        columns={generateTableHeaders(selectedTeamId, isOnlyObserver)}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
         defaultSortHeader={"query_name"}
