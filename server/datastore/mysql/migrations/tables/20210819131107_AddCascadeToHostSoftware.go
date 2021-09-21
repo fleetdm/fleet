@@ -31,7 +31,7 @@ func Up_20210819131107(tx *sql.Tx) error {
 	}
 
 	// Clear any orphan software and host_software
-	_, err = tx.Exec(`CREATE TABLE temp_host_software AS SELECT * FROM host_software;`)
+	_, err = tx.Exec(`CREATE TEMPORARY TABLE temp_host_software AS SELECT * FROM host_software;`)
 	if err != nil {
 		return errors.Wrap(err, "save current host software to a temp table")
 	}
