@@ -370,7 +370,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Complete inserts if necessary
 			if len(vals) > 0 {
-				sql := `INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES `
+				sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
 				sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
 				_, err := tx.ExecContext(ctx, sql, vals...)
