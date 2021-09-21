@@ -446,7 +446,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) 
 		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * interval / time.Duration(100.0)
 		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(maxJitter)))
 		if err == nil {
-			jitter = time.Duration(randDuration.Int64()) // + min
+			jitter = time.Duration(randDuration.Int64())
 		}
 	}
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
