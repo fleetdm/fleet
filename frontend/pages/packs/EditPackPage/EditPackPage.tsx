@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
-import { useQuery, useMutation } from "react-query";
+import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 
-import { filter, includes, isEqual, noop, size, find } from "lodash";
+import { filter, includes } from "lodash";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
 // second grouping
 // @ts-ignore
 import { IConfig } from "interfaces/config";
-import { IError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -27,17 +26,17 @@ import scheduledqueryAPI from "services/entities/scheduled_queries";
 import teamAPI from "services/entities/teams";
 
 // @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+// @ts-ignore
+import debounce from "utilities/debounce";
+import PATHS from "router/paths";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
 import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
 import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import debounce from "utilities/debounce";
-import PATHS from "router/paths";
 
 interface IEditPacksPageProps {
   router: any;
@@ -47,38 +46,6 @@ interface IEditPacksPageProps {
 interface IRootState {
   app: {
     config: IConfig;
-  };
-  entities: {
-    packs: {
-      loading: boolean; // done
-      data: IPack[];
-      errors: IError[];
-    };
-    hosts: {
-      isLoading: boolean;
-      data: IHost[];
-      errors: IError[];
-    };
-    queries: {
-      isLoading: boolean;
-      data: IQuery[];
-      errors: IError[];
-    };
-    teams: {
-      isLoading: boolean;
-      data: ITeam[];
-      errors: IError[];
-    };
-    labels: {
-      isLoading: boolean;
-      data: ILabel[];
-      errors: IError[];
-    };
-    scheduled_queries: {
-      isLoading: boolean;
-      data: IScheduledQuery[];
-      errors: IError[];
-    };
   };
 }
 
@@ -94,16 +61,9 @@ interface IPackQueryFormData {
   platform: string;
   version: string;
 }
-interface IStoredPackResponse {
-  pack: IPack;
-}
 
 interface IStoredFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface IStoredScheduledQueriesResponse {
-  scheduled: IScheduledQuery[];
 }
 
 interface IStoredLabelsResponse {
@@ -283,21 +243,11 @@ const EditPacksPage = ({
 
   const onFetchTargets = (query: IQuery, targetsResponse: any) => {
     // TODO: fix type issue
-    const { targets_count: targetsCount } = targetsResponse;
+    const { targets_count } = targetsResponse;
 
-    setTargetsCount(targetsCount);
+    setTargetsCount(targets_count);
 
     return false;
-  };
-
-  const onEditPackQueryClick = (selectedQuery: any): void => {
-    togglePackQueryEditorModal();
-    setSelectedPackQuery(selectedQuery); // edit modal renders
-  };
-
-  const onRemovePackQueriesClick = (selectedTableQueryIds: any): void => {
-    toggleRemovePackQueryModal();
-    setSelectedPackQueryIds(selectedTableQueryIds);
   };
 
   const togglePackQueryEditorModal = useCallback(() => {
@@ -314,6 +264,16 @@ const EditPacksPage = ({
     setShowRemovePackQueryModal(!showRemovePackQueryModal);
   }, [showRemovePackQueryModal, setShowRemovePackQueryModal]);
 
+  const onEditPackQueryClick = (selectedQuery: any): void => {
+    togglePackQueryEditorModal();
+    setSelectedPackQuery(selectedQuery); // edit modal renders
+  };
+
+  const onRemovePackQueriesClick = (selectedTableQueryIds: any): void => {
+    toggleRemovePackQueryModal();
+    setSelectedPackQueryIds(selectedTableQueryIds);
+  };
+
   const handlePackFormSubmit = (formData: any) => {
     const updatedPack = deepDifference(formData, storedPack);
     packAPI
@@ -327,12 +287,6 @@ const EditPacksPage = ({
         );
       });
   };
-
-  const {
-    mutateAsync: createPackQuery,
-  } = useMutation((formData: IPackQueryFormData) =>
-    scheduledqueryAPI.create(formData)
-  );
 
   const onPackQueryEditorSubmit = useCallback(
     (formData: IPackQueryFormData, editQuery: IScheduledQuery | undefined) => {

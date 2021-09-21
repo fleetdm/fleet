@@ -20,6 +20,7 @@ import {
 } from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
+
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
