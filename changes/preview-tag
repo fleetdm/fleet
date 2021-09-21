@@ -1,0 +1,1 @@
+* Allow specifying Fleet version in `fleetctl preview` with `--tag` flag.
