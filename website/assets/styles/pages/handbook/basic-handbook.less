@@ -52,11 +52,54 @@
   }
 
 
-
   .hljs {
     background: #282C40;
   }
+  [purpose='search'] {
 
+    input {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+      } &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+    .input-group {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+    }
+
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+
+    .docsearch-input {
+      height: 100%;
+      width: 98%;
+    }
+
+    .ds-input:focus-visible {
+      outline: rgba(0, 0, 0, 0);
+    }
+
+    .input-group-text {
+      color: @core-fleet-black-50;
+    }
+
+    .form-control {
+      height: 48px;
+      padding: 0px;
+      font-size: 16px;
+    } &:focus {
+      border: none;
+    }
+
+  }
   [purpose='handbook-template'] {
 
     h3 {
@@ -71,6 +114,19 @@
 
       p, a {
         font-size: 14px;
+      }
+
+    }
+
+    [purpose='maintainer'] {
+
+      min-width: 190px;
+      max-width: 210px;
+
+      .maintainer-image {
+        height: 32px;
+        width: 32px;
+        border-radius: 100%;
       }
 
     }
@@ -160,6 +216,8 @@
           color: #6A67FE;
         }
       }
+
+
 
     }
 

@@ -2,27 +2,36 @@
   <div purpose="handbook-template" style="max-width: 1200px;" class="container-fluid px-lg-3  mb-5">
 
     <div purpose="breadcrumbs-container" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0">
-      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
-        <a :href="'/' + breadcrumbs[0]" class="pr-3" v-if="breadcrumbs.length > 1">
-          {{breadcrumbs[0] === 'handbook' ? 'HandBook' : breadcrumbs[0]}}
-        </a>
-        <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
-          <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
-          <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
-            {{getTitleFromUrl(breadcrumbs[1])}}
+      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 pl-5 m-0 align-items-center breadcrumbs">
+        <div class="d-flex" v-if="breadcrumbs.length > 1">
+          <a :href="'/' + breadcrumbs[0]" class="pr-3">
+            {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
           </a>
+          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+            <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
+              {{getTitleFromUrl(breadcrumbs[1])}}
+            </a>
+          </div>
+          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+            <p class="px-3 m-0">
+              {{thisPage.title}}
+            </p>
+          </div>
         </div>
-        <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
-          <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-          <p class="px-3 m-0">
-            {{thisPage.title}}
-          </p>
+        <div v-else>
+          <strong>Introduction</strong>
         </div>
       </div>
+
+
+
+
       <div purpose="mobile-handbook-nav" class="d-flex-block d-lg-none">
         <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
           <button purpose="handbook-nav-button" class="btn btn-block d-flex align-items-center handbook-nav-button" type="button" @click="toggleHandbookNav">
-            <span class="pr-2 m-0">Handbook</span>
+            <span class="pr-2 m-0">Introduction</span>
             <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
             <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
             <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showHandbookNav"/>
@@ -50,23 +59,28 @@
         </div>
 
       </div>
-
+      <div purpose="maintainer">
+        <h4>Maintained by:</h4>
+        <img class="maintainer-image" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
+      </div>
     </div>
-
-    <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
-
+    <div purpose="search" class="p-0 w-60 justify-content-start">
+      <div class="input-group">
+        <div class="input-group-prepend">
+          <span class="input-group-text border-0 bg-transparent pl-3" >
+            <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+          </span>
+        </div>
+        <div class="form-control border-0 ">
+        <input id="docsearch-query-landing" class="docsearch-input pr-1"
+          placeholder="Search the docs..." aria-label="Search the docs"
+          v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+        </div>
+      </div>
+    </div>
     <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
 
-      <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
-        <ul class="p-0 pb-2 m-0 left-nav">
-          <li v-for="page in findPagesByUrl()" :key="page.title">
-            <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
-          </li>
-        </ul>
-      </div>
-
       <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
-
         <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
         <div purpose="subtopics">
           <ul class="p-0 m-0">
