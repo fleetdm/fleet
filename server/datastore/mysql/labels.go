@@ -370,14 +370,8 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Complete inserts if necessary
 			if len(vals) > 0 {
-				sql := `
-        INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES
-        `
-				sql += strings.Join(bindvars, ",") +
-					`
-          ON DUPLICATE KEY UPDATE
-          updated_at = VALUES(updated_at)
-        `
+				sql := `INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES `
+				sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
 				_, err := tx.ExecContext(ctx, sql, vals...)
 				if err != nil {
@@ -387,9 +381,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 
 			// Complete deletions if necessary
 			if len(removes) > 0 {
-				sql := `
-			DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)
-		`
+				sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
 				query, args, err := sqlx.In(sql, host.ID, removes)
 				if err != nil {
 					return errors.Wrap(err, "IN for DELETE FROM label_membership")
@@ -666,5 +658,12 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 	}
 
 	return labelIDs, nil
+}
 
+func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
+	_, err := d.writer.ExecContext(ctx, `DELETE FROM label_membership where not exists (select 1 from labels where id=label_id) or not exists (select 1 from hosts where id=host_id)`)
+	if err != nil {
+		return errors.Wrap(err, "cleaning orphan label_membership by label")
+	}
+	return nil
 }
