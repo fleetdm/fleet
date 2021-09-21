@@ -16,6 +16,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
   secret_string = random_password.database_password.result
 }
 
+// if you want to use RDS Serverless option prefer the following commented block
 //module "aurora_mysql_serverless" {
 //  source  = "terraform-aws-modules/rds-aurora/aws"
 //  version = "5.2.0"
