@@ -147,20 +147,53 @@ const EditPacksPage = ({
     number[] | never[]
   >([]);
 
-  // react-query uses your own api and gives you different states of loading data
-  // can set to retreive data based on different properties
-  const {
-    isLoading: isStoredPackLoading,
-    data: storedPack, // only returns pack and not response wrapping
-    error: storedPackError,
-  } = useQuery<IStoredPackResponse, Error, IPack>(
-    ["pack", packId],
-    () => packAPI.load(packId),
-    {
-      enabled: !!packId, // doesn't run unless ID is given, unneeded but extra precaution
-      select: (data: IStoredPackResponse) => data.pack,
-    }
+  const [storedPack, setStoredPack] = useState<IPack | undefined>();
+  const [isStoredPackLoading, setIsStoredPackLoading] = useState(true);
+  const [isStoredPackLoadingError, setIsStoredPackLoadingError] = useState(
+    false
   );
+
+  const [storedPackQueries, setStoredPackQueries] = useState<
+    IScheduledQuery[] | never[]
+  >([]);
+  const [isStoredPackQueriesLoading, setIsStoredPackQueriesLoading] = useState(
+    true
+  );
+  const [
+    isStoredPackQueriesLoadingError,
+    setIsStoredPackQueriesLoadingError,
+  ] = useState(false);
+
+  const getPack = useCallback(async () => {
+    setIsStoredPackLoading(true);
+    try {
+      const response = await packAPI.load(packId);
+      setStoredPack(response.pack);
+    } catch (error) {
+      console.log(error);
+      setIsStoredPackLoadingError(true);
+    } finally {
+      setIsStoredPackLoading(false);
+    }
+  }, [dispatch]);
+
+  const getPackQueries = useCallback(async () => {
+    setIsStoredPackQueriesLoading(true);
+    try {
+      const response = await scheduledqueryAPI.loadAll(packId);
+      setStoredPackQueries(response.scheduled);
+    } catch (error) {
+      console.log(error);
+      setIsStoredPackQueriesLoadingError(true);
+    } finally {
+      setIsStoredPackQueriesLoading(false);
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    getPack();
+    getPackQueries();
+  }, [getPackQueries, getPack]);
 
   const {
     isLoading: isFleetQueriesLoading,
@@ -171,18 +204,6 @@ const EditPacksPage = ({
     () => queryAPI.loadAll(),
     {
       select: (data: IStoredFleetQueriesResponse) => data.queries,
-    }
-  );
-
-  const {
-    isLoading: isScheduledQueriesLoading,
-    data: scheduledQueries,
-    error: scheduledQueriesError,
-  } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
-    ["scheduled queries"], // use single string or array of strings can be named anything
-    () => scheduledqueryAPI.loadAll(packId), // TODO: help with types
-    {
-      select: (data: IStoredScheduledQueriesResponse) => data.scheduled,
     }
   );
 
@@ -245,16 +266,16 @@ const EditPacksPage = ({
   console.log("isLabelsLoading", isLabelsLoading);
   console.log("packHosts", packHosts);
   console.log("packTeams", packTeams);
-  console.log("scheduledQueries", scheduledQueries);
-  console.log("scheduledQueriesError", scheduledQueriesError);
-  console.log("isScheduledQueriesLoading", isScheduledQueriesLoading);
+  console.log("storedPackQueries", storedPackQueries);
+  console.log("isStoredPackQueriesError", isStoredPackLoadingError);
+  console.log("isStoredPackQueriesLoading", isStoredPackQueriesLoading);
   console.log("fleetQueries", fleetQueries);
   console.log("fleetQueriesError", fleetQueriesError);
   console.log("isFleetQueriesLoading", isFleetQueriesLoading);
 
   const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
-  // // FUNCTIONS
+  // FUNCTIONS
 
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));
@@ -313,102 +334,46 @@ const EditPacksPage = ({
     scheduledqueryAPI.create(formData)
   );
 
-  // const onSavePackQueryFormSubmit = debounce(
-  //   async (formData: IPackQueryFormData) => {
-  //     try {
-  //       const { query }: { query: IScheduledQuery } = await createQuery(formData);
-  //       router.push(PATHS.EDIT_QUERY(query));
-  //       dispatch(renderFlash("success", "Query created!"));
-  //     } catch (createError) {
-  //       console.error(createError);
-  //       dispatch(
-  //         renderFlash(
-  //           "error",
-  //           "Something went wrong creating your query. Please try again."
-  //         )
-  //       );
-  //     }
-  //   }
-  // );
-
-  // const onPackQueryEditorSubmit = (formData: IPackQueryFormData) => {
-  // const { dispatch } = this.props;
-  // const { selectedScheduledQuery } = this.state;
-  // const { update } = scheduledQueryActions;
-  // const updatedAttrs = deepDifference(formData, selectedScheduledQuery);
-
-  // dispatch(update(selectedScheduledQuery, updatedAttrs))
-  //   .then(() => {
-  //     this.setState({ selectedScheduledQuery: null, selectedQuery: null });
-  //     dispatch(renderFlash("success", "Scheduled Query updated!"));
-  //   })
-  //   .catch(() => {
-  //     dispatch(
-  //       renderFlash("error", "Unable to update your Scheduled Query.")
-  //     );
-  //   });
-  // };
-
   const onPackQueryEditorSubmit = useCallback(
     (formData: IPackQueryFormData, editQuery: IScheduledQuery | undefined) => {
-      // if (editQuery) {
-      //   const updatedAttributes = deepDifference(formData, editQuery);
-      //   dispatch(
-      //     globalScheduledQueryActions.update(editQuery, updatedAttributes)
-      //   )
-      //     .then(() => {
-      //       dispatch(
-      //         renderFlash(
-      //           "success",
-      //           `Successfully updated ${formData.name} in the schedule.`
-      //         )
-      //       );
-      //       dispatch(globalScheduledQueryActions.loadAll());
-      //     })
-      //     .catch(() => {
-      //       dispatch(
-      //         renderFlash(
-      //           "error",
-      //           "Could not update scheduled query. Please try again."
-      //         )
-      //       );
-      //     });
-      // } else {
-      //   dispatch(globalScheduledQueryActions.create({ ...formData }))
-      //     .then(() => {
-      //       dispatch(
-      //         renderFlash(
-      //           "success",
-      //           `Successfully added ${formData.name} to the schedule.`
-      //         )
-      //       );
-      //       dispatch(globalScheduledQueryActions.loadAll());
-      //     })
-      //     .catch(() => {
-      //       dispatch(
-      //         renderFlash(
-      //           "error",
-      //           "Could not schedule query. Please try again."
-      //         )
-      //       );
-      //     });
-      // }
-      togglePackQueryEditorModal();
+      const request = editQuery
+        ? scheduledqueryAPI.update(editQuery, formData)
+        : scheduledqueryAPI.create(formData);
+      request
+        .then(() => {
+          dispatch(renderFlash("success", `Successfully updated this pack.`));
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              "Could not update this pack. Please try again."
+            )
+          );
+        })
+        .finally(() => {
+          togglePackQueryEditorModal();
+          getPackQueries();
+        });
+      return false;
     },
-    [dispatch, togglePackQueryEditorModal]
+    [dispatch, getPackQueries, togglePackQueryEditorModal]
   );
 
   const onRemovePackQuerySubmit = useCallback(() => {
-    const ids = selectedPackQueryIds;
-    scheduledqueryAPI
-      .destroy(ids[0]) // TODO: ugh, destroy multiple
+    const queryOrQueries =
+      selectedPackQueryIds.length === 1 ? "query" : "queries";
+
+    const promises = selectedPackQueryIds.map((id: number) => {
+      return scheduledqueryAPI.destroy(id);
+    });
+
+    return Promise.all(promises)
       .then(() => {
         dispatch(
           renderFlash(
             "success",
-            `Successfully removed ${
-              ids && ids.length === 1 ? "policy" : "policies"
-            }.`
+            `Successfully removed ${queryOrQueries} from this pack.`
           )
         );
       })
@@ -416,19 +381,17 @@ const EditPacksPage = ({
         dispatch(
           renderFlash(
             "error",
-            `Unable to remove ${
-              ids && ids.length === 1 ? "policy" : "policies"
-            }. Please try again.`
+            `Unable to remove ${queryOrQueries} from this pack. Please try again.`
           )
         );
       })
       .finally(() => {
         toggleRemovePackQueryModal();
-        // getPackQueries();
+        getPackQueries();
       });
   }, [
     dispatch,
-    // getPackQueries,
+    getPackQueries,
     selectedPackQueryIds,
     toggleRemovePackQueryModal,
   ]);
@@ -453,9 +416,9 @@ const EditPacksPage = ({
         onEditPackQuery={onEditPackQueryClick}
         onRemovePackQueries={onRemovePackQueriesClick}
         onPackQueryFormSubmit={onPackQueryEditorSubmit}
-        scheduledQueries={scheduledQueries}
+        scheduledQueries={storedPackQueries}
         packId={packId}
-        isLoadingPackQueries={isScheduledQueriesLoading}
+        isLoadingPackQueries={isStoredPackQueriesLoading}
       />
       {showPackQueryEditorModal && fleetQueries && (
         <PackQueryEditorModal
