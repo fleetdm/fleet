@@ -727,6 +727,24 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   	result_log_plugin: firehose
   ```
 
+###### osquery_max_jitter_percent
+
+Given an update interval (label, or details), this will add up to the defined percentage in randomness to the interval.
+
+The goal of this is to prevent all hosts from checking in with data at the same time.
+
+So for example, if the label_update_interval is 1h, and this is set to 10. It'll add up a random number between 0 and 6 minutes
+to the amount of time it takes for fleet to give the host the label queries.
+
+- Default value: `10`
+- Environment variable: `FLEET_OSQUERY_MAX_JITTER_PERCENT`
+- Config file format:
+
+  ```
+  osquery:
+  	max_jitter_percent: 10
+  ```
+
 ##### Logging (Fleet server logging)
 
 ###### logging_debug
