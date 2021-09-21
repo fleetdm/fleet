@@ -358,6 +358,7 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
+
 	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -368,6 +369,7 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
+
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
 	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
@@ -375,10 +377,12 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
+
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamScheduleService
+
 	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
 	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
 	ModifyTeamScheduledQueries(
@@ -398,4 +402,12 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Team Policies
+
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 }

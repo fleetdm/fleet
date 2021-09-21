@@ -10,6 +10,7 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
+- [Team Policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -30,7 +31,7 @@ Fleet is powered by a Go API server which serves three types of endpoints:
 
 ### fleetctl
 
-Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./2-fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
+Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./02-fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
 
 ### Current API
 
@@ -262,8 +263,8 @@ Resets a user's password. Which user is determined by the password reset token u
 
 ```json
 {
-  "new_password": "abc123"
-  "new_password_confirmation": "abc123"
+  "new_password": "abc123",
+  "new_password_confirmation": "abc123",
   "password_reset_token": "UU5EK0JhcVpsRkY3NTdsaVliMEZDbHJ6TWdhK3oxQ1Q="
 }
 ```
@@ -272,9 +273,6 @@ Resets a user's password. Which user is determined by the password reset token u
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -450,9 +448,6 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -481,7 +476,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
@@ -583,7 +578,7 @@ None.
 
 Returns the information of the specified host.
 
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../2-Deploying/2-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -804,9 +799,6 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Refetch host
 
@@ -828,9 +820,6 @@ Flags the host details to be refetched the next time the host checks in for live
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Transfer hosts to a team
 
@@ -862,9 +851,6 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Transfer hosts to a team by filter
 
@@ -898,9 +884,6 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -1251,9 +1234,6 @@ Deletes the label specified by name.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Delete label by ID
 
@@ -1275,9 +1255,6 @@ Deletes the label specified by ID.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Apply labels specs
 
@@ -1326,9 +1303,6 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Get labels specs
 
@@ -1703,11 +1677,11 @@ Creates a user account without requiring an invitation, the user is enabled imme
     "teams": [
       {
         "id": 2,
-        "role: "observer"
+        "role": "observer"
       },
       {
         "id": 3,
-        "role: "maintainer"
+        "role": "maintainer"
       },
     ]
   }
@@ -1855,10 +1829,10 @@ Returns all information about a specific user.
   "teams": [
     {
       "id": 1,
-      "role: "observer"
+      "role": "observer"
     },
     {
-      "id": 2
+      "id": 2,
       "role": "maintainer"
     }
   ]
@@ -1881,15 +1855,15 @@ Returns all information about a specific user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "global_role": "admin"
+    "global_role": "admin",
     "teams": [
       {
         "id": 2,
-        "role: "observer"
+        "role": "observer"
       },
       {
         "id": 3,
-        "role: "maintainer"
+        "role": "maintainer"
       },
     ]
   }
@@ -1916,9 +1890,6 @@ Delete the specified user from Fleet.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Require password reset
 
@@ -2026,9 +1997,6 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -2085,9 +2053,6 @@ Deletes the session specified by ID. When the user associated with the session n
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -2350,9 +2315,6 @@ Deletes the query specified by name.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Delete query by ID
 
@@ -2374,9 +2336,6 @@ Deletes the query specified by ID.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Delete queries
 
@@ -2518,9 +2477,6 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Live query health check
 
@@ -2540,9 +2496,6 @@ None.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### live query result store health check
 
@@ -2562,9 +2515,6 @@ None.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Run live query
 
@@ -3246,9 +3196,6 @@ None.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -3454,9 +3401,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 
@@ -3690,9 +3634,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Delete pack by ID
 
@@ -3712,9 +3653,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Get scheduled queries in a pack
 
@@ -3964,9 +3902,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Get packs specs
 
@@ -4193,9 +4128,6 @@ Returns the specs for all packs in the Fleet instance.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Get pack spec by name
 
@@ -4432,6 +4364,161 @@ Hosts that do not return results for a policy's query are "Failing."
 `Status: 200`
 
 ```json
+{
+  "deleted": 1
+}
+```
+
+---
+
+## Team Policies
+
+- [List team policies](#list-team-policies)
+- [Get team policy by ID](#get-team-policy-by-id)
+- [Add team policy](#add-team-policy)
+- [Remove team policies](#remove-team-policies)
+
+_Available in Fleet Premium_
+
+Team policies work the same as policies, but at the team level.
+
+### List team policies
+
+`GET /api/v1/fleet/team/{team_id}/policies`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | url  | Defines what team id to operate on                                                                            |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policies": [
+    {
+      "id": 1,
+      "query_id": 2,
+      "query_name": "Gatekeeper enabled",
+      "passing_host_count": 2000,
+      "failing_host_count": 300,
+    },
+    {
+      "id": 2,
+      "query_id": 3,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 2300,
+      "failing_host_count": 0,
+    }
+  ]
+}
+```
+
+### Get team policy by ID
+
+`GET /api/v1/fleet/team/{team_id}/policies/{id}`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                   |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id            | integer | url  | Defines what team id to operate on                                                                            |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
+
+#### Example
+
+`GET /api/v1/fleet/team/1/policies/1`
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+    "id": 1,
+    "query_id": 2,
+    "query_name": "Gatekeeper enabled",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+  }
+}
+```
+
+### Add team policy
+
+`POST /api/v1/fleet/team/{team_id}/policies`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                         |
+| -------- | ------- | ---- | ----------------------------------- |
+| team_id  | integer | url  | Defines what team id to operate on  |
+| query_id | integer | body | **Required.** The query's ID.       |
+
+#### Example
+
+`POST /api/v1/fleet/team/1/policies`
+
+#### Request body
+
+```
+{
+  "query_id": 12
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+{
+  "policy": {
+      "id": 2,
+      "query_id": 2,
+      "query_name": "Primary disk encrypted",
+      "passing_host_count": 0,
+      "failing_host_count": 0,
+    },
+}
+```
+
+### Remove team policies
+
+`POST /api/v1/fleet/team/{team_id}/policies/delete`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                       |
+| -------- | ------- | ---- | ------------------------------------------------- |
+| team_id  | integer | url  | Defines what team id to operate on                |
+| ids      | list    | body | **Required.** The IDs of the policies to delete.  |
+
+#### Example
+
+`POST /api/v1/fleet/global/policies/delete`
+
+#### Request body
+
+```
+{
+  "ids": [ 1 ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```
 {
   "deleted": 1
 }
@@ -4915,7 +5002,7 @@ None.
               "enable_log_compression": false
           }
       }
-  }
+  },
   "license": {
     "tier": "free",
     "organization": "fleet",
@@ -4955,10 +5042,10 @@ None.
         "enable_log_compression": false
       }
     }
-  }
+  },
   "update_interval": {
     "osquery_detail": 3600000000000
-  }
+  },
 }
 ```
 
@@ -5011,7 +5098,7 @@ Modifies the Fleet's configuration with the supplied information.
     "org_name": "Fleet Device Management",
     "org_logo_url": "https://fleetdm.com/logo.png"
   },
-  "smtp_settings: {
+  "smtp_settings": {
     "enable_smtp": true,
     "server": "localhost",
     "port": "1025"
@@ -5199,9 +5286,6 @@ Replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Get enroll secret for a team
 
@@ -5254,17 +5338,17 @@ None.
 ```json
 {
   "email": "john_appleseed@example.com",
-  "name": John,
+  "name": "John",
   "sso_enabled": false,
-  "global_role": "admin"
+  "global_role": "admin",
   "teams": [
     {
       "id": 2,
-      "role: "observer"
+      "role": "observer"
     },
     {
       "id": 3,
-      "role: "maintainer"
+      "role": "maintainer"
     },
   ]
 }
@@ -5282,7 +5366,7 @@ None.
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "id": 3,
-    "invited_by": 1
+    "invited_by": 1,
     "email": "john_appleseed@example.com",
     "name": "John",
     "sso_enabled": false,
@@ -5381,9 +5465,6 @@ Delete the specified invite from Fleet.
 
 `Status: 200`
 
-```json
-{}
-```
 
 ### Verify invite
 
@@ -5477,7 +5558,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../1-Using-Fleet/2-fleetctl-CLI.md#file-carving-with-fleet).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../01-Using-Fleet/02-fleetctl-CLI.md#file-carving-with-fleet).
 
 ### List carves
 
@@ -5628,7 +5709,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "teams: [
+  "teams": [
     {
       "id": 1.
       "created_at": "2021-07-28T15:58:21Z",
@@ -5736,10 +5817,10 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "teams: [
+  "teams": [
     {
       "name": "workstations",
-      "id": 1
+      "id": 1,
       "user_ids": [],
       "host_ids": [],
       "user_count": 0,
@@ -5807,7 +5888,7 @@ _Available in Fleet Premium_
 {
   "team": {
     "name": "Workstations",
-    "id": 1
+    "id": 1,
     "user_ids": [1, 17, 22, 32],
     "host_ids": [],
     "user_count": 4,
@@ -5859,7 +5940,7 @@ _Available in Fleet Premium_
 {
   "team": {
     "name": "Workstations",
-    "id": 1
+    "id": 1,
     "user_ids": [1, 17, 22, 32],
     "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
@@ -5933,7 +6014,7 @@ _Available in Fleet Premium_
 {
   "team": {
     "name": "Workstations",
-    "id": 1
+    "id": 1,
     "user_ids": [1, 17, 22, 32],
     "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
@@ -5985,9 +6066,6 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
-```json
-{}
-```
 
 ---
 

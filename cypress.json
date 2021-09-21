@@ -2,5 +2,9 @@
   "baseUrl": "https://localhost:8642",
   "fixturesFolder": false,
   "testFiles": "**/*.ts",
-  "defaultCommandTimeout": 8000
+  "defaultCommandTimeout": 8000,
+  "retries": {
+    "runMode": 1,
+    "openMode": 0
+  }
 }
