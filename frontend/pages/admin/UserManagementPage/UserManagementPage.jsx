@@ -177,14 +177,14 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         })
-        .catch(() => {
+        .catch((userErrors) => {
           if (userErrors.base.includes("Duplicate")) {
             this.setState({
               createUserErrors: {
                 ...createUserErrors,
-                email: 'A user with this email address already exists',
-              }
-            })
+                email: "A user with this email address already exists",
+              },
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -213,9 +213,9 @@ export class UserManagementPage extends Component {
             this.setState({
               createUserErrors: {
                 ...createUserErrors,
-                email: 'A user with this email address already exists',
-              }
-            })
+                email: "A user with this email address already exists",
+              },
+            });
           } else {
             dispatch(
               renderFlash("error", "Could not create user. Please try again.")
@@ -366,15 +366,18 @@ export class UserManagementPage extends Component {
 
   toggleCreateUserModal = () => {
     const { showCreateUserModal } = this.state;
-    
-    this.setState({
-      showCreateUserModal: !showCreateUserModal,
-    }, () => {
-      // clear errors on close
-      if (!showCreateUserModal) {
-        this.setState({ createUserErrors: DEFAULT_CREATE_USER_ERRORS });
+
+    this.setState(
+      {
+        showCreateUserModal: !showCreateUserModal,
+      },
+      () => {
+        // clear errors on close
+        if (!showCreateUserModal) {
+          this.setState({ createUserErrors: DEFAULT_CREATE_USER_ERRORS });
+        }
       }
-    });
+    );
   };
 
   toggleEditUserModal = (user) => {
@@ -497,13 +500,12 @@ export class UserManagementPage extends Component {
   };
 
   renderCreateUserModal = () => {
+    const { currentUser, config, teams, isPremiumTier } = this.props;
     const {
-      currentUser,
-      config,
-      teams,
-      isPremiumTier,
-    } = this.props;
-    const { showCreateUserModal, createUserErrors, isFormSubmitting } = this.state;
+      showCreateUserModal,
+      createUserErrors,
+      isFormSubmitting,
+    } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
     if (!showCreateUserModal) return null;
