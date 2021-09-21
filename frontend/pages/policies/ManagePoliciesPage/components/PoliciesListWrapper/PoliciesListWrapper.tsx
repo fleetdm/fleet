@@ -11,6 +11,7 @@ const noPoliciesClass = "no-policies";
 
 interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
+  selectedTeamId: number | null;
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
@@ -19,6 +20,7 @@ interface IPoliciesListWrapperProps {
 const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
   const {
     policiesList,
+    selectedTeamId,
     isLoading,
     onRemovePoliciesClick,
     toggleAddPolicyModal,
@@ -49,13 +51,11 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders();
-
   return (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
-        columns={tableHeaders}
+        columns={generateTableHeaders(selectedTeamId)}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
         defaultSortHeader={"query_name"}

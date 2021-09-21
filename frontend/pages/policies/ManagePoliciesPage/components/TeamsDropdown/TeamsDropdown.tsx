@@ -1,42 +1,35 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { useQuery, useMutation } from "react-query";
+import React, { useContext, useMemo } from "react";
 import { isEmpty } from "lodash";
 import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
 
-import sortUtils from "utilities/sort";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
-const sortDropdownOptions = (
+const generateDropdownOptions = (
   teams: ITeam[] | undefined,
   includeAll: boolean | undefined
 ) => {
   if (!teams) {
     return [];
   }
-  const sortedOptions = teams
-    .map((team) => ({
-      disabled: false,
-      label: team.name,
-      value: team.id,
-    }))
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(b.label, a.label));
+
+  const options = teams.map((team) => ({
+    disabled: false,
+    label: team.name,
+    value: team.id,
+  }));
+
   if (includeAll) {
-    sortedOptions.unshift({
+    options.unshift({
       disabled: false,
       label: "All teams",
       value: 0,
     });
   }
-  return sortedOptions;
+
+  return options;
 };
 
 const TeamsDropdown = (dropdownProps: {
@@ -45,35 +38,31 @@ const TeamsDropdown = (dropdownProps: {
   selectedTeam: number;
 }): JSX.Element | null => {
   const { currentUserTeams, onChange, selectedTeam } = dropdownProps;
-  const {
-    currentUser,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isOnGlobalTeam,
-    isOnlyObserver,
-    isPremiumTier,
-  } = useContext(AppContext);
+  const { isOnGlobalTeam } = useContext(AppContext);
 
   const dropdownOptions = useMemo(
-    () => sortDropdownOptions(currentUserTeams, isOnGlobalTeam),
+    () => generateDropdownOptions(currentUserTeams, isOnGlobalTeam),
     [currentUserTeams, isOnGlobalTeam]
   );
 
-  if (isEmpty(currentUserTeams)) {
-    return <h1>Policies</h1>;
-  }
+  const selectedValue = dropdownOptions.find(
+    (option) => selectedTeam === option.value
+  )
+    ? selectedTeam
+    : dropdownOptions[0]?.value;
 
-  return (
+  return isEmpty(currentUserTeams) ? (
+    <h1>Policies</h1>
+  ) : (
     <div>
       <Dropdown
-        value={selectedTeam}
+        value={selectedValue}
         placeholder={"All teams"}
         className="teams-dropdown"
         options={dropdownOptions}
         searchable={false}
         onChange={onChange}
       />
-      {/* <h1>Policies</h1> */}
     </div>
   );
 };

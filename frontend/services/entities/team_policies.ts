@@ -1,11 +1,12 @@
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+// import endpoints from "fleet/endpoints";
 // import { IPolicyFormData, IPolicy } from "interfaces/policy";
+const endpoints = { TEAMS: "/v1/fleet/team" };
 
 export default {
   create: (teamId: number, query_id: number) => {
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}`;
+    const path = `${TEAMS}/${teamId}/policies`;
 
     return sendRequest("POST", path, { query_id });
   },
@@ -24,7 +25,6 @@ export default {
   loadAll: (teamId: number) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}/policies`;
-
 
     return sendRequest("GET", path);
   },

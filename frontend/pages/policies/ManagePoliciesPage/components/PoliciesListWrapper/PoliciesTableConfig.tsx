@@ -16,8 +16,14 @@ import { PolicyResponse } from "utilities/constants";
 // TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
 
 const TAGGED_TEMPLATES = {
-  hostsByStatusRoute: (id: number, status: PolicyResponse) => {
-    return `?policy_id=${id}&policy_response=${status}`;
+  hostsByPolicyRoute: (
+    policyId: number,
+    policyResponse: PolicyResponse,
+    teamId: number | null
+  ) => {
+    return `?policy_id=${policyId}&policy_response=${policyResponse}${
+      teamId ? `&team_id=${teamId}` : ""
+    }`;
   },
 };
 interface IHeaderProps {
@@ -50,40 +56,14 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-// interface IPoliciesTableData {
-//   name: string;
-//   passing: number;
-//   failing: number;
-//   id: number;
-//   query_id: number;
-//   query_name: string;
-// }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
-  return [
-    {
-      id: "selection",
-      Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
-        };
-        return <Checkbox {...checkboxProps} />;
-      },
-      disableHidden: true,
-    },
+const generateTableHeaders = (
+  selectedTeamId: number | null,
+  isOnlyObserver = true
+): IDataColumn[] => {
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Query",
       Header: "Query",
@@ -104,9 +84,10 @@ const generateTableHeaders = (): IDataColumn[] => {
           value={`${cellProps.cell.value} hosts`}
           path={
             PATHS.MANAGE_HOSTS +
-            TAGGED_TEMPLATES.hostsByStatusRoute(
+            TAGGED_TEMPLATES.hostsByPolicyRoute(
               cellProps.row.original.id,
-              PolicyResponse.PASSING
+              PolicyResponse.PASSING,
+              selectedTeamId
             )
           }
         />
@@ -122,22 +103,47 @@ const generateTableHeaders = (): IDataColumn[] => {
           value={`${cellProps.cell.value} hosts`}
           path={
             PATHS.MANAGE_HOSTS +
-            TAGGED_TEMPLATES.hostsByStatusRoute(
+            TAGGED_TEMPLATES.hostsByPolicyRoute(
               cellProps.row.original.id,
-              PolicyResponse.FAILING
+              PolicyResponse.FAILING,
+              selectedTeamId
             )
           }
         />
       ),
     },
   ];
+  if (!isOnlyObserver) {
+    tableHeaders.splice(0, 0, {
+      id: "selection",
+      Header: (cellProps: IHeaderProps): JSX.Element => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    });
+  }
+  return tableHeaders;
 };
 
-const generateDataSet = memoize((all_policies: IPolicy[] = []): IPolicy[] => {
-  all_policies = all_policies.sort((a, b) =>
+const generateDataSet = memoize((policies: IPolicy[] = []): IPolicy[] => {
+  policies = policies.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
   );
-  return all_policies;
+  return policies;
 });
 
 export { generateTableHeaders, generateDataSet };
