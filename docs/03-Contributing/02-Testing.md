@@ -7,7 +7,7 @@
 - [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Seeding Data](./6-Seeding-Data.md)
+- [Seeding Data](./06-Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
 - [Testing SSO](#testing-sso)
 
@@ -137,7 +137,7 @@ E2E tests are run using Docker and Cypress.
 
 #### Preparation
 
-Make sure dependencies are up to date and the [Fleet binaries are built locally](./1-Building-Fleet.md).
+Make sure dependencies are up to date and the [Fleet binaries are built locally](./01-Building-Fleet.md).
 
 For Fleet Free tests:
 
