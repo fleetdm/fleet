@@ -4,45 +4,45 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Company
 
-##### [About Fleet](./01-Company/company.md)
+##### [About Fleet](./company#about-fleet)
 
-##### [History](./01-Company/company.md)
+##### [History](./company#history)
 
-##### [Culture](./01-Company/company.md)
+##### [Culture](./company#culture)
 
 ### People
 
-##### [Spending company money](./02-People/spending-company-money.md)
+##### [Spending company money](./people#spending-company-money)
 
-##### [Meetings](./02-People/meetings.md)
+##### [Meetings](./people#meetings)
 
 ### Product
 
-##### [Fleet EE](./03-Product/fleet-ee.md)
+##### [Fleet EE](./product#fleet-ee)
 
-##### [Fleet docs](./03-Product/fleet.docs.md)
+##### [Fleet docs](./product#fleet-docs)
 
-##### [Manual QA](./03-Product/manual-qa.md)
+##### [Manual QA](./product#manual-qa)
 
-##### [Release process](./03-Product/release-process.md)
+##### [Release process](./product#release-process)
 
-##### [Support process](./03-Product/support-process.md)
+##### [Support process](./product#release-process)
 
 ### Growth
 
-##### [Website](./04-Growth/fleet-website)
+##### [Website](./growth#website)
 
-##### [Grammar guidelines](./04-Growth/grammar-guidelines)
+##### [Grammar guidelines](./growth#grammar-guidelines)
 
-##### [Culture](./04-Growth/)
+##### [Culture](./growth#culture)
 
 ### Customer first
 
-##### [Customer succcess](./05-Customer-first/customer-success.md)
+##### [Customer succcess](./customer-first#customer-success)
 
 ## Handbook 
 
-##### [About Handbook](./06-handbook/about-handbook.md)
+##### [About Handbook](./handbook#about-handbook)
 
 
 
