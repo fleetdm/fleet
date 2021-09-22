@@ -17,7 +17,7 @@ The Fleet front-end is a Single Page Application using React with Typescript and
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Contributing documentation](../docs/3-Contributing/README.md).
+consult the [Contributing documentation](../docs/03-Contributing/README.md).
 
 ## Directory Structure
 
