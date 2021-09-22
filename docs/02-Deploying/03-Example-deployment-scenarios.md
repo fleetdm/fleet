@@ -48,7 +48,7 @@ vagrant ssh
 
 ### Installing Fleet
 
-To [install Fleet](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/1-Installation.md), download, unzip, and move the latest Fleet binary to your desired install location.
+To [install Fleet](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/1-Installation.md), download, unzip, and move the latest Fleet binary to your desired install location.
 
 For example, after downloading:
 ```sh
@@ -190,7 +190,7 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./2-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](./02-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
@@ -357,11 +357,11 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./2-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](./02-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](../1-Using-Fleet/4-Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](../01-Using-Fleet/4-Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on Ubuntu, you can run the following:
 
@@ -453,14 +453,14 @@ We will use this address when we configure the Kubernetes deployment and databas
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```
-kubectl create -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/01-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
 ```
-kubectl delete -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
-kubectl create -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl delete -f ./docs/01-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/01-Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
@@ -536,7 +536,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
 ```
-kubectl apply -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-service.yml
+kubectl apply -f ./docs/01-Using-Fleet/configuration-files/kubernetes/fleet-service.yml
 ```
 
 #### Configure DNS

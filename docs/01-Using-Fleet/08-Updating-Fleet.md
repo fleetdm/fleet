@@ -7,7 +7,7 @@
 
 ## Overview
 
-This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](../2-Deploying/1-Installation.md).
+This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](../02-Deploying/1-Installation.md).
 
 There are two steps to perform a typical Fleet update. If any other steps are required, they will be noted in the release notes.
 

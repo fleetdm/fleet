@@ -25,7 +25,7 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
-Read the [performance documentation](../1-Using-Fleet/6-Monitoring-Fleet.md#fleet-server-performance) for more.
+Read the [performance documentation](../01-Using-Fleet/6-Monitoring-Fleet.md#fleet-server-performance) for more.
 
 ## Why aren't my osquery agents connecting to Fleet?
 
@@ -71,15 +71,15 @@ These configurations cannot be managed centrally from Fleet.
 
 ## What do I do about "too many open files" errors?
 
-This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./2-Configuration.md#runing-with-systemd) for an example of how to do this with systemd.
+This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./02-Configuration.md#runing-with-systemd) for an example of how to do this with systemd.
 
-Some deployments may benefit by setting the [`--server_keepalive`](./2-Configuration.md#server_keepalive) flag to false.
+Some deployments may benefit by setting the [`--server_keepalive`](./02-Configuration.md#server_keepalive) flag to false.
 
 This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
-This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./2-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./2-Configuration.md#mysql_max_idle_conns) flags appropriately.
+This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./2-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./02-Configuration.md#mysql_max_idle_conns) flags appropriately.
 
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 

@@ -100,7 +100,7 @@ Successfully edit your organization's name in Fleet.
 
 ### Manage users flow
 
-Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/3-Contributing/2-Testing.md#email)
+Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/03-Contributing/02-Testing.md#email)
 
 Logout of your current admin user and accept the invitation for the newly invited user. With your local SMTP server configured, head to https://localhost:8025 to view and select the invitation link.
 
