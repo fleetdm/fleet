@@ -119,26 +119,26 @@ describe(
 
       // // End e2e test for schedules
 
-      // cy.visit("/queries/manage");
+      cy.visit("/queries/manage");
 
-      // cy.findByText(/query all window crashes/i)
-      //   .parent()
-      //   .parent()
-      //   .within(() => {
-      //     cy.get(".fleet-checkbox__input").check({ force: true });
-      //   });
+      cy.findByText(/query all window crashes/i)
+        .parent()
+        .parent()
+        .within(() => {
+          cy.get(".fleet-checkbox__input").check({ force: true });
+        });
 
-      // cy.findByRole("button", { name: /delete/i }).click();
+      cy.findByRole("button", { name: /delete/i }).click();
 
-      // // Can't figure out how attach findByRole onto modal button
-      // // Can't use findByText because delete button under modal
-      // cy.get(".remove-query-modal")
-      //   .contains("button", /delete/i)
-      //   .click();
+      // Can't figure out how attach findByRole onto modal button
+      // Can't use findByText because delete button under modal
+      cy.get(".remove-query-modal")
+        .contains("button", /delete/i)
+        .click();
 
-      // cy.findByText(/successfully removed query/i).should("be.visible");
+      cy.findByText(/successfully removed query/i).should("be.visible");
 
-      // cy.findByText(/query all/i).should("not.exist");
+      cy.findByText(/query all/i).should("not.exist");
     });
   }
 );
