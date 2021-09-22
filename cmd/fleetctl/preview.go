@@ -24,6 +24,7 @@ const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
 	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName      = "license-key"
+	tagFlagName             = "tag"
 )
 
 func previewCommand() *cli.Command {
@@ -44,6 +45,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			&cli.StringFlag{
 				Name:  licenseKeyFlagName,
 				Usage: "License key to enable Fleet Premium (optional)",
+			},
+			&cli.StringFlag{
+				Name:  tagFlagName,
+				Usage: "Run a specific version of Fleet",
+				Value: "latest",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -70,6 +76,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Linux with a non-root user inside the container.
 			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
 				return errors.Wrap(err, "make logs writable")
+			}
+
+			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
+				return errors.Wrap(err, "failed to set Fleet version")
 			}
 
 			fmt.Println("Pulling Docker dependencies...")
