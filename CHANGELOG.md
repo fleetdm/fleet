@@ -259,11 +259,11 @@ The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC
 
 RBAC adds the ability to define a user's access to features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access.
 
-* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/01-Using-Fleet/09-Permissions.md) for a breakdown of the new user roles.
+* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md) for a breakdown of the new user roles.
 
 Teams adds the ability to separate hosts into exclusive groups. This way, users can easily act on consistent groups of hosts. 
 
-* Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/01-Using-Fleet/10-Teams.md).
+* Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/10-Teams.md).
 
 ### New features breakdown
 
@@ -305,7 +305,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * The `username` artifact has been removed in favor of the more recognizable `name` (Full name). As a result the `email` artifact is now used for uniqueness in Fleet. Upon upgrading to Fleet 4.0.0, existing users will have the `name` field populated with `username`. SAML users may need to update their username mapping to match user emails.
 
-* As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous information about your instance. Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet. Read more about the exact information collected [here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/01-Using-Fleet/11-Usage-statistics.md).
+* As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous information about your instance. Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet. Read more about the exact information collected [here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md).
 
 ## Fleet 4.0.0 RC3 (Jun 25, 2021)
 
@@ -317,7 +317,7 @@ The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC
 
 RBAC adds the ability to define a user's access to features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access.
 
-* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/01-Using-Fleet/8-Permissions.md) for a breakdown of the new user roles.
+* Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/5e40afa8ba28fc5cdee813dfca53b84ee0ee65cd/docs/1-Using-Fleet/8-Permissions.md) for a breakdown of the new user roles.
 
 Teams adds the ability to separate hosts into exclusive groups. This way, users can easily act on consistent groups of hosts. 
 
@@ -410,7 +410,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 ## Fleet 3.13.0 (Jun 3, 2021)
 
-* Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/01-Using-Fleet/3-REST-API.md#list-hosts).
+* Improve performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
 
 * Fix a bug in which running a live query in the Fleet UI would return no results and the query would seem "hung" on a small number of devices.
 
