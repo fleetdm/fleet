@@ -6,7 +6,7 @@ describe("Teams flow", () => {
   });
 
   /* TODO fix and reenable
-  This test is causing major flake issues due to the dropdown menu
+  This test is causing major flake issues due to the dropdown menu */
 
   it("Create, edit, and delete a team successfully", () => {
     cy.visit("/settings/teams");
@@ -45,6 +45,25 @@ describe("Teams flow", () => {
     cy.contains(/options:/i).should("be.visible");
 
     // Check team in schedules
+    cy.visit("/queries/manage");
+
+    cy.findByRole("button", { name: /create new query/i }).click();
+
+    // Using class selector because third party element doesn't work with Cypress Testing Selector Library
+    cy.get(".ace_scroller")
+      .click({ force: true })
+      .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
+
+    cy.findByRole("button", { name: /save/i }).click();
+
+    cy.findByLabelText(/name/i).click().type("Query all window crashes");
+
+    cy.findByLabelText(/description/i)
+      .click()
+      .type("See all window crashes");
+
+    cy.findByRole("button", { name: /save query/i }).click();
+
     cy.visit("/schedule/manage");
 
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
@@ -122,5 +141,4 @@ describe("Teams flow", () => {
 
     cy.findByText(/mystic/i).should("not.exist");
   });
-  */
 });
