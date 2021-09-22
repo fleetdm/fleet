@@ -52,7 +52,7 @@ describe("Teams flow", () => {
     // Using class selector because third party element doesn't work with Cypress Testing Selector Library
     cy.get(".ace_scroller")
       .click({ force: true })
-      .type("{selectall}{backspace}SELECT * FROM windows_crashes;");
+      .type("{selectall}SELECT * FROM windows_crashes;");
 
     cy.findByRole("button", { name: /save/i }).click();
 
