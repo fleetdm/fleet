@@ -105,33 +105,6 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-      // Start e2e tests for team schedules
-      cy.visit("/settings/teams");
-
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByRole("button", { name: /create team/i }).click();
-
-      cy.findByLabelText(/team name/i)
-        .click()
-        .type("Apples");
-
-      cy.get(".create-team-modal__btn-wrap")
-        .contains("button", /create/i)
-        .click();
-
-      cy.visit("/schedule/manage");
-
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/all teams/i).click();
-      cy.findByText(/apples/i).click();
-
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/query all window crashes/i).should("not.exist");
-      cy.findByText(/inherited query/i).click();
-      cy.findByText(/query all window crashes/i).should("exist");
-
-      // End e2e test for team schedules
-
       cy.visit("/schedule/manage");
 
       cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting

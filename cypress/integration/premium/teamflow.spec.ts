@@ -44,6 +44,51 @@ describe("Teams flow", () => {
     cy.contains(/config:/i).should("be.visible");
     cy.contains(/options:/i).should("be.visible");
 
+    // Check team in schedules
+    cy.visit("/schedule/manage");
+
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+    cy.findByRole("button", { name: /schedule a query/i }).click();
+
+    cy.findByText(/select query/i).click();
+
+    cy.findByText(/query all window crashes/i).click();
+
+    cy.get(
+      ".schedule-editor-modal__form-field--frequency > .dropdown__select"
+    ).click();
+
+    cy.findByText(/every week/i).click();
+
+    cy.findByText(/show advanced options/i).click();
+
+    cy.get(
+      ".schedule-editor-modal__form-field--logging > .dropdown__select"
+    ).click();
+
+    cy.findByText(/ignore removals/i).click();
+
+    cy.get(".schedule-editor-modal__form-field--shard > .input-field")
+      .click()
+      .type("50");
+
+    cy.get(".schedule-editor-modal__btn-wrap")
+      .contains("button", /schedule/i)
+      .click();
+
+    cy.visit("/schedule/manage");
+
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText(/all teams/i).click();
+    cy.findByText(/valor/i).click();
+
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText(/query all window crashes/i).should("not.exist");
+    cy.findByText(/inherited query/i).click();
+    cy.findByText(/query all window crashes/i).should("exist");
+
+    // Edit Team
     cy.visit("/settings/teams");
 
     cy.contains("Valor").get(".Select-arrow-zone").click();
