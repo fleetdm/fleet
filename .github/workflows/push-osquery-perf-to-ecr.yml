@@ -35,5 +35,5 @@ jobs:
           ECR_REPOSITORY: osquery-perf
           IMAGE_TAG: ${{ github.event.inputs.tag }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG --build-arg ENROLL_SECRET=${{ github.event.inputs.enroll_secret }} --build-arg HOST_COUNT=${{ github.event.inputs.host_count }} --build-arg SERVER_URL=${{ github.event.inputs.url }} .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG --build-arg ENROLL_SECRET=${{ github.event.inputs.enroll_secret }} --build-arg HOST_COUNT=${{ github.event.inputs.host_count }} --build-arg SERVER_URL=${{ github.event.inputs.url }} -f Dockerfile.osquery-perf .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

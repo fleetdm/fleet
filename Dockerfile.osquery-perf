@@ -8,8 +8,8 @@ ENV ENROLL_SECRET ${ENROLL_SECRET}
 ENV HOST_COUNT ${HOST_COUNT}
 ENV SERVER_URL ${SERVER_URL}
 
-COPY ./agent.go ./go.mod ./go.sum ./mac10.14.6.tmpl /osquery-perf/
-WORKDIR "/osquery-perf"
+COPY ./cmd/osquery-perf/agent.go ./go.mod ./go.sum ./cmd/osquery-perf/mac10.14.6.tmpl /osquery-perf/
+WORKDIR /osquery-perf/
 RUN go mod download
 RUN go build -o osquery-perf
 

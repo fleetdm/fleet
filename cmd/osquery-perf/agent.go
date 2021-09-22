@@ -173,7 +173,7 @@ func (a *Agent) DistributedRead() (*distributedReadResponse, error) {
 
 	req, err := http.NewRequest("POST", a.ServerAddress+"/api/v1/osquery/distributed/read", body)
 	if err != nil {
-		return nil, fmt.Errorf("create distributed read request:", err)
+		return nil, fmt.Errorf("create distributed read request: %s", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
@@ -181,17 +181,17 @@ func (a *Agent) DistributedRead() (*distributedReadResponse, error) {
 
 	resp, err := a.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do distributed read request:", err)
+		return nil, fmt.Errorf("do distributed read request: %s", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("distributed read status:", resp.Status)
+		return nil, fmt.Errorf("distributed read status: %s", resp.Status)
 	}
 
 	var parsedResp distributedReadResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsedResp); err != nil {
-		return nil, fmt.Errorf("json parse distributed read response:", err)
+		return nil, fmt.Errorf("json parse distributed read response: %s", err)
 	}
 
 	return &parsedResp, nil
@@ -221,7 +221,7 @@ func (a *Agent) DistributedWrite(queries map[string]string) {
 			NodeKey:  a.NodeKey,
 		}
 
-		for name, _ := range queries {
+		for name := range queries {
 			req.Queries[name] = defaultQueryResult
 			req.Statuses[name] = statusSuccess
 		}
