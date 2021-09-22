@@ -200,7 +200,6 @@ const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
   return packQueries.map((query) => {
-    console.log(query.version);
     return {
       id: query.id,
       name: query.name,

@@ -32,11 +32,12 @@ import debounce from "utilities/debounce";
 import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
-// @ts-ignore
-import EditPackFormWrapper from "components/packs/EditPackFormWrapper";
+
+import EditPackForm from "components/forms/packs/EditPackForm";
 import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
+import { ITargetsAPIResponse } from "interfaces/target";
 
 interface IEditPacksPageProps {
   router: any;
@@ -220,29 +221,16 @@ const EditPacksPage = ({
       })
     : [];
 
-  console.log("packLabels", packLabels);
-  console.log("labels", labels);
-  console.log("packLabelsError", packLabelsError);
-  console.log("isLabelsLoading", isLabelsLoading);
-  console.log("packHosts", packHosts);
-  console.log("packTeams", packTeams);
-  console.log("storedPackQueries", storedPackQueries);
-  console.log("isStoredPackQueriesError", isStoredPackLoadingError);
-  console.log("isStoredPackQueriesLoading", isStoredPackQueriesLoading);
-  console.log("fleetQueries", fleetQueries);
-  console.log("fleetQueriesError", fleetQueriesError);
-  console.log("isFleetQueriesLoading", isFleetQueriesLoading);
-
   const packTargets = [...packHosts, ...packLabels, ...packTeams];
-
-  // FUNCTIONS
 
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));
   };
 
-  const onFetchTargets = (query: IQuery, targetsResponse: any) => {
-    // TODO: fix type issue
+  const onFetchTargets = (
+    query: IQuery,
+    targetsResponse: ITargetsAPIResponse
+  ) => {
     const { targets_count } = targetsResponse;
 
     setTargetsCount(targets_count);
@@ -279,7 +267,7 @@ const EditPacksPage = ({
     packAPI
       .update(packId, updatedPack)
       .then(() => {
-        toggleEditPackQueryModal();
+        dispatch(renderFlash("success", `Successfully updated this pack.`));
       })
       .catch(() => {
         dispatch(
@@ -353,14 +341,12 @@ const EditPacksPage = ({
   return (
     <div className={`${baseClass}__content`}>
       {storedPack && (
-        <EditPackFormWrapper
+        <EditPackForm
           className={`${baseClass}__pack-form body-wrap`}
           handleSubmit={handlePackFormSubmit}
           onCancelEditPack={onCancelEditPack}
-          onEditPack={toggleEditPackQueryModal}
           onFetchTargets={onFetchTargets}
-          pack={storedPack}
-          packTargets={packTargets}
+          formData={{ ...storedPack, targets: packTargets }}
           targetsCount={targetsCount}
           isPremiumTier={isPremiumTier}
         />
