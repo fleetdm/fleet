@@ -421,6 +421,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
 			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
 			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
+			IAMAccess:       man.getConfigBool(prefix + ".iam_access"),
+			Region:          man.getConfigString(prefix + ".region"),
 		}
 	}
 
