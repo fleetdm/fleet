@@ -63,8 +63,14 @@ parasails.registerPage('basic-handbook', {
   },
   mounted: async function() {
     //…
+
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h3').map((_, el) => el.innerText);
+      let subtopics;
+      if(!this.isHandbookLandingPage){
+        subtopics = $('#body-content').find('h3').map((_, el) => el.innerText);
+      } else {
+        subtopics = $('#body-content').find('h5').map((_, el) => el.innerText);
+      }
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
@@ -87,7 +93,16 @@ parasails.registerPage('basic-handbook', {
       }
       return false;
     },
-
+    getTitleFromUrl: function (url) {
+      return _
+        .chain(url.split(/\//))
+        .last()
+        .split(/-/)
+        .map((str) => str === 'fleet' ? 'Fleet' : str)
+        .join(' ')
+        .capitalize()
+        .value();
+    },
     findPagesByUrl: function (url='') {
       let slug;
       // if no url is passed, use the base url as the slug (e.g., 'docs' or 'handbook')

@@ -64,7 +64,7 @@
         <img class="maintainer-image" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
       </div>
     </div>
-    <div purpose="search" class="p-0 w-60 justify-content-start">
+<!--     <div purpose="search" class="p-0 w-60 justify-content-start">
       <div class="input-group">
         <div class="input-group-prepend">
           <span class="input-group-text border-0 bg-transparent pl-3" >
@@ -77,7 +77,7 @@
           v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
         </div>
       </div>
-    </div>
+    </div> -->
     <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
 
       <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
