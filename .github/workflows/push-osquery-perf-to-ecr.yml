@@ -9,6 +9,10 @@ on:
       url:
         description: 'Fleet server URL'
         required: true
+      host_count:
+        description: 'Amount of hosts to emulate'
+        required: true
+        default: 20
       tag:
         description: 'docker image tag'
         required: true
