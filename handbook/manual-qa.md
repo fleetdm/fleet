@@ -94,7 +94,7 @@ Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
 As an admin user, select the "Settings" tab in the top navigation and then select "Organization settings".
 
-Follow [the instructions outlined in the Testing documentation](../docs/3-Contributing/2-Testing.md#email) to set up a local SMTP server.
+Follow [the instructions outlined in the Testing documentation](../docs/03-Contributing/02-Testing.md#email) to set up a local SMTP server.
 
 Successfully edit your organization's name in Fleet.
 

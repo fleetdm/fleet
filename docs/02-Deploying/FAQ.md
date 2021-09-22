@@ -25,7 +25,7 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
-Read the [performance documentation](../01-Using-Fleet/6-Monitoring-Fleet.md#fleet-server-performance) for more.
+Read the [performance documentation](../01-Using-Fleet/06-Monitoring-Fleet.md#fleet-server-performance) for more.
 
 ## Why aren't my osquery agents connecting to Fleet?
 
@@ -79,7 +79,7 @@ This was also seen as a symptom of a different issue: if you're deploying on AWS
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
-This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./2-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./02-Configuration.md#mysql_max_idle_conns) flags appropriately.
+This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./02-Configuration.md#mysql_max_open_conns) and [`--mysql_max_idle_conns`](./02-Configuration.md#mysql_max_idle_conns) flags appropriately.
 
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 

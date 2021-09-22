@@ -7,7 +7,7 @@
 
 ## Overview
 
-This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](../02-Deploying/1-Installation.md).
+This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](../02-Deploying/01-Installation.md).
 
 There are two steps to perform a typical Fleet update. If any other steps are required, they will be noted in the release notes.
 
@@ -18,7 +18,7 @@ As with any enterprise software update, it's a good idea to back up your MySQL d
 
 ## Updating the Fleet binary
 
-To update to a new version of Fleet, follow the [same binary install instructions](../2-Deploying/1-Installation.md) from the original installation method you used to install Fleet.
+To update to a new version of Fleet, follow the [same binary install instructions](../02-Deploying/01-Installation.md) from the original installation method you used to install Fleet.
 
 ### Raw binaries
 

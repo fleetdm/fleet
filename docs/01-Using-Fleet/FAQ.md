@@ -104,7 +104,7 @@ Live query results are never logged to the filesystem of the Fleet server. See [
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
-However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](./3-REST-API.md#list-hosts) and the [`api/v1/fleet/hosts/{id}`](./3-REST-API.md#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
+However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](./03-REST-API.md#list-hosts) and the [`api/v1/fleet/hosts/{id}`](./03-REST-API.md#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
 As an example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
 

@@ -37,6 +37,6 @@ As much as possible, assert that the code is only selecting 1 item or that the f
 
 ## Resources
 
-- [Fleet testing documentation](../docs/3-Contributing/2-Testing.md)
+- [Fleet testing documentation](../docs/03-Contributing/02-Testing.md)
 - [Cypress documentation](https://docs.cypress.io/api/table-of-contents)
 - [React testing-library query documentation](https://testing-library.com/docs/queries/about)
