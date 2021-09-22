@@ -1,3 +1,42 @@
+## Fleet 4.3.1 (Sept 21, 2021)
+
+* Add `fleetctl get software` to list all software and the detected vulnerabilities.
+
+* Add `fleetctl vulnerability-data-stream` command to sync the vulnerabilities processing data streams by hand.
+
+* Add `vulnerabilities.disable_data_sync` config to fleet serve to avoid downloading the data streams.
+
+* Allow specifying Fleet version in `fleetctl preview` with `--tag` flag.
+
+* Allow team maintainers to run new queries in the team hosts.
+
+* Only show observers queries they can run.
+
+* Add redis configuration option to retry failed connections.
+
+* Add redis configuration option to follow cluster redirections.
+
+* Add jitter percent for osquery update intervals to prevent all hosts from returning data at
+  roughly the same time. Note that this improves the Fleet server performance, but it will now take
+  longer for new labels to populate.
+
+* Improve the performance of certain database migrations that were preventing users from updating to
+  4.3.0.
+
+* Reduce database load for label membership recording.
+
+* Add team policies.
+
+* Fix intermittent blank screen for observers on manage hosts page
+
+* Fix sidebar style on query page.
+
+* Fix a bug detecting disk space for hosts.
+
+* Fail early if the process does not have permissions to write to the logging file.
+
+* Completely skip trying to save host users and software inventory if it's disabled.
+
 ## Fleet 4.3.0 (Sept 13, 2021)
 
 * Add Policies feature for detecting device compliance with organizational policies.

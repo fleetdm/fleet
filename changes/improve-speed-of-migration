@@ -1,1 +1,0 @@
-* Improve the performance of certain database migrations that were preventing users from updating.
