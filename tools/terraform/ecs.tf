@@ -123,7 +123,7 @@ resource "aws_ecs_task_definition" "backend" {
     [
       {
         name        = "fleet"
-        image       = "fleetdm/fleet"
+        image       = "fleetdm/fleet:main"
         cpu         = 512
         memory      = 4096
         mountPoints = []
@@ -162,8 +162,17 @@ resource "aws_ecs_task_definition" "backend" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
+# needed for IAM access
+#          {
+#            name  = "FLEET_MYSQL_IAM_ACCESS"
+#            value = "true"
+#          },
+#          {
+#            name  = "FLEET_MYSQL_REGION"
+#            value = data.aws_region.current.name
+#          },
           {
             name  = "FLEET_MYSQL_DATABASE"
             value = "fleet"
@@ -174,7 +183,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
@@ -184,6 +193,15 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
             value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
           },
+# needed for IAM access
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_IAM_ACCESS"
+#            value = "true"
+#          },
+#          {
+#            name  = "FLEET_MYSQL_READ_REPLICA_REGION"
+#            value = data.aws_region.current.name
+#          },
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
@@ -237,7 +255,7 @@ resource "aws_ecs_task_definition" "migration" {
     [
       {
         name        = "fleet-prepare-db"
-        image       = "fleetdm/fleet"
+        image       = "fleetdm/fleet:main"
         cpu         = 256
         memory      = 512
         mountPoints = []
@@ -259,7 +277,7 @@ resource "aws_ecs_task_definition" "migration" {
             awslogs-stream-prefix = "fleet"
           }
         },
-        command = ["fleet", "prepare", "db"]
+        command = ["fleet", "prepare", "--no-prompt=true", "db"]
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"
@@ -269,7 +287,7 @@ resource "aws_ecs_task_definition" "migration" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
@@ -282,7 +300,16 @@ resource "aws_ecs_task_definition" "migration" {
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
-          }
+          },
+# needed for IAM access
+#          {
+#            name  = "FLEET_MYSQL_IAM_ACCESS"
+#            value = "true"
+#          },
+#          {
+#            name  = "FLEET_MYSQL_REGION"
+#            value = data.aws_region.current.name
+#          },
         ]
       }
   ])
