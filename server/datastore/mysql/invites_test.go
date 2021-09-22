@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -11,12 +12,31 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func TestCreateInvite(t *testing.T) {
+func TestInvites(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Create", testInvitesCreate},
+		{"List", testInvitesList},
+		{"Delete", testInvitesDelete},
+		{"ByToken", testInvitesByToken},
+		{"ByEmail", testInvitesByEmail},
+		{"Invite", testInvitesInvite},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testInvitesCreate(t *testing.T, ds *Datastore) {
 	for i := 0; i < 3; i++ {
-		_, err := ds.NewTeam(&fleet.Team{Name: fmt.Sprintf("%d", i)})
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
 
@@ -30,10 +50,10 @@ func TestCreateInvite(t *testing.T) {
 		},
 	}
 
-	invite, err := ds.NewInvite(invite)
+	invite, err := ds.NewInvite(context.Background(), invite)
 	require.Nil(t, err)
 
-	verify, err := ds.InviteByEmail(invite.Email)
+	verify, err := ds.InviteByEmail(context.Background(), invite.Email)
 	require.Nil(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
@@ -41,7 +61,6 @@ func TestCreateInvite(t *testing.T) {
 }
 
 func setupTestInvites(t *testing.T, ds fleet.Datastore) {
-	var err error
 	admin := &fleet.Invite{
 		Email:      "admin@foo.com",
 		Name:       "Xadmin",
@@ -49,8 +68,8 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 		GlobalRole: null.StringFrom("admin"),
 	}
 
-	admin, err = ds.NewInvite(admin)
-	require.Nil(t, err)
+	admin, err := ds.NewInvite(context.Background(), admin)
+	require.NoError(t, err)
 
 	for user := 0; user < 23; user++ {
 		i := fleet.Invite{
@@ -61,16 +80,12 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 			GlobalRole: null.StringFrom("observer"),
 		}
 
-		_, err := ds.NewInvite(&i)
-		assert.Nil(t, err, "Failure creating user", user)
+		_, err := ds.NewInvite(context.Background(), &i)
+		require.NoError(t, err, "Failure creating user", user)
 	}
-
 }
 
-func TestListInvites(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testInvitesList(t *testing.T, ds *Datastore) {
 	setupTestInvites(t, ds)
 
 	opt := fleet.ListOptions{
@@ -80,7 +95,7 @@ func TestListInvites(t *testing.T) {
 		OrderKey:       "name",
 	}
 
-	result, err := ds.ListInvites(opt)
+	result, err := ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, len(result), 10)
@@ -90,37 +105,29 @@ func TestListInvites(t *testing.T) {
 
 	opt.Page = 2
 	opt.OrderDirection = fleet.OrderDescending
-	result, err = ds.ListInvites(opt)
+	result, err = ds.ListInvites(context.Background(), opt)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(result)) // allow for admin we created
 	assert.Equal(t, "User00", result[3].Name)
-
 }
 
-func TestDeleteInvite(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testInvitesDelete(t *testing.T, ds *Datastore) {
 	setupTestInvites(t, ds)
 
-	invite, err := ds.InviteByEmail("user0@foo.com")
+	invite, err := ds.InviteByEmail(context.Background(), "user0@foo.com")
 
 	assert.Nil(t, err)
 	assert.NotNil(t, invite)
 
-	err = ds.DeleteInvite(invite.ID)
+	err = ds.DeleteInvite(context.Background(), invite.ID)
 	assert.Nil(t, err)
 
-	invite, err = ds.InviteByEmail("user0@foo.com")
+	invite, err = ds.InviteByEmail(context.Background(), "user0@foo.com")
 	assert.NotNil(t, err)
 	assert.Nil(t, invite)
-
 }
 
-func TestInviteByToken(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testInvitesByToken(t *testing.T, ds *Datastore) {
 	setupTestInvites(t, ds)
 
 	var inviteTests = []struct {
@@ -137,8 +144,8 @@ func TestInviteByToken(t *testing.T) {
 	}
 
 	for _, tt := range inviteTests {
-		t.Run("", func(t *testing.T) {
-			invite, err := ds.InviteByToken(tt.token)
+		t.Run(tt.token, func(t *testing.T) {
+			invite, err := ds.InviteByToken(context.Background(), tt.token)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
@@ -146,15 +153,11 @@ func TestInviteByToken(t *testing.T) {
 			}
 			require.Nil(t, err)
 			assert.NotEqual(t, invite.ID, 0)
-
 		})
 	}
 }
 
-func TestInviteByEmail(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testInvitesByEmail(t *testing.T, ds *Datastore) {
 	setupTestInvites(t, ds)
 
 	var inviteTests = []struct {
@@ -171,8 +174,8 @@ func TestInviteByEmail(t *testing.T) {
 	}
 
 	for _, tt := range inviteTests {
-		t.Run("", func(t *testing.T) {
-			invite, err := ds.InviteByEmail(tt.email)
+		t.Run(tt.email, func(t *testing.T) {
+			invite, err := ds.InviteByEmail(context.Background(), tt.email)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
 				assert.Equal(t, tt.wantErr.Error(), err.Error())
@@ -180,7 +183,22 @@ func TestInviteByEmail(t *testing.T) {
 			}
 			require.Nil(t, err)
 			assert.NotEqual(t, invite.ID, 0)
-
 		})
 	}
+}
+
+func testInvitesInvite(t *testing.T, ds *Datastore) {
+	admin := &fleet.Invite{
+		Email:      "admin@foo.com",
+		Name:       "Xadmin",
+		Token:      "admin",
+		GlobalRole: null.StringFrom("admin"),
+	}
+
+	admin, err := ds.NewInvite(context.Background(), admin)
+	require.NoError(t, err)
+
+	gotI, err := ds.Invite(context.Background(), admin.ID)
+	require.NoError(t, err)
+	assert.Equal(t, admin.ID, gotI.ID)
 }

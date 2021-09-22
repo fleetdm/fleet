@@ -90,17 +90,27 @@ parasails.registerPage('basic-documentation', {
 
   mounted: async function() {
 
+    // Algolia DocSearch
+    docsearch({
+      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      indexName: 'fleetdm',
+      inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
+      debug: false,
+    });
+
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);
     // console.log(subtopics);
 
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerHTML);
+      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
       subtopics = $.makeArray(subtopics).map((title) => {
+        // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
+        let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
         return {
           title,
-          url: '#' + _.kebabCase(title),
+          url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
         };
       });
       return subtopics;

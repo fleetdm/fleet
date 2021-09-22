@@ -6,6 +6,7 @@ import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
 import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
 import Modal from "components/modals/Modal";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
@@ -62,7 +63,7 @@ export class UserManagementPage extends Component {
       base: PropTypes.string,
       email: PropTypes.string,
     }),
-    isBasicTier: PropTypes.bool,
+    isPremiumTier: PropTypes.bool,
     users: PropTypes.arrayOf(userInterface),
     userErrors: PropTypes.shape({
       base: PropTypes.string,
@@ -86,8 +87,8 @@ export class UserManagementPage extends Component {
   }
 
   componentDidMount() {
-    const { dispatch, isBasicTier } = this.props;
-    if (isBasicTier) {
+    const { dispatch, isPremiumTier } = this.props;
+    if (isPremiumTier) {
       dispatch(teamActions.loadAll({}));
     }
   }
@@ -412,7 +413,7 @@ export class UserManagementPage extends Component {
       inviteErrors,
       config,
       teams,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
     const { showEditUserModal, userEditing } = this.state;
     const { onEditUser, toggleEditUserModal, getUser } = this;
@@ -438,7 +439,7 @@ export class UserManagementPage extends Component {
           onSubmit={onEditUser}
           availableTeams={teams}
           submitText={"Save"}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
           smtpConfigured={config.configured}
           canUseSso={config.enable_sso}
           isSsoEnabled={userData.sso_enabled}
@@ -453,7 +454,7 @@ export class UserManagementPage extends Component {
       inviteErrors,
       config,
       teams,
-      isBasicTier,
+      isPremiumTier,
     } = this.props;
     const { showCreateUserModal } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
@@ -476,7 +477,7 @@ export class UserManagementPage extends Component {
           defaultTeams={[]}
           defaultNewUserType={false}
           submitText={"Create"}
-          isBasicTier={isBasicTier}
+          isPremiumTier={isPremiumTier}
           smtpConfigured={config.configured}
           canUseSso={config.enable_sso}
           isNewUser
@@ -555,10 +556,11 @@ export class UserManagementPage extends Component {
       users,
       invites,
       currentUser,
-      isBasicTier,
+      isPremiumTier,
+      userErrors,
     } = this.props;
 
-    const tableHeaders = generateTableHeaders(onActionSelect, isBasicTier);
+    const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
 
     let tableData = [];
     if (!loadingTableData) {
@@ -577,20 +579,24 @@ export class UserManagementPage extends Component {
           Fleet.
         </p>
         {/* TODO: find a way to move these controls into the table component */}
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search"}
-          actionButtonText={"Create user"}
-          onActionButtonClick={toggleCreateUserModal}
-          onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
-          emptyComponent={EmptyUsers}
-          searchable
-        />
+        {Object.keys(userErrors).length > 0 ? (
+          <TableDataError />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={tableData}
+            isLoading={loadingTableData}
+            defaultSortHeader={"name"}
+            defaultSortDirection={"asc"}
+            inputPlaceHolder={"Search"}
+            actionButtonText={"Create user"}
+            onActionButtonClick={toggleCreateUserModal}
+            onQueryChange={onTableQueryChange}
+            resultsTitle={"users"}
+            emptyComponent={EmptyUsers}
+            searchable
+          />
+        )}
         {renderCreateUserModal()}
         {renderEditUserModal()}
         {renderDeleteUserModal()}
@@ -615,7 +621,7 @@ const mapStateToProps = (state) => {
   } = state.entities.invites;
   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
   const loadingTableData = loadingUsers || loadingInvites;
-  const isBasicTier = permissionUtils.isBasicTier(config);
+  const isPremiumTier = permissionUtils.isPremiumTier(config);
 
   return {
     appConfigLoading,
@@ -625,7 +631,7 @@ const mapStateToProps = (state) => {
     userErrors,
     invites,
     inviteErrors,
-    isBasicTier,
+    isPremiumTier,
     loadingTableData,
     teams,
   };

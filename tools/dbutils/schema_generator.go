@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -53,7 +54,7 @@ func main() {
 	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
 	panicif(err)
 	defer ds.Close()
-	panicif(ds.MigrateTables())
+	panicif(ds.MigrateTables(context.Background()))
 
 	// Set created_at/updated_at for migrations and app_config_json to prevent the schema from being changed every time
 	// This schema is to test anyway

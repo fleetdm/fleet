@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -9,8 +10,7 @@ import (
 )
 
 func TestHostTransferFlagChecks(t *testing.T) {
-	server, _ := runServerWithMockedDS(t)
-	defer server.Close()
+	runServerWithMockedDS(t)
 
 	runAppCheckErr(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--hosts", "host1", "--label", "AAA"},
@@ -23,20 +23,19 @@ func TestHostTransferFlagChecks(t *testing.T) {
 }
 
 func TestHostsTransferByHosts(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{42}, hostIDs)
@@ -47,31 +46,30 @@ func TestHostsTransferByHosts(t *testing.T) {
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsInLabelFunc = func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.HostStatus(""), opt.StatusFilter)
 		require.Equal(t, uint(11), lid)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
@@ -82,30 +80,29 @@ func TestHostsTransferByLabel(t *testing.T) {
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.StatusOnline, opt.StatusFilter)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
@@ -117,31 +114,30 @@ func TestHostsTransferByStatus(t *testing.T) {
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.HostByIdentifierFunc = func(identifier string) (*fleet.Host, error) {
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
 		return &fleet.Host{ID: 42}, nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		require.Equal(t, "team1", name)
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
 		return []uint{uint(11)}, nil
 	}
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		require.Equal(t, fleet.StatusOnline, opt.StatusFilter)
 		require.Equal(t, "somequery", opt.MatchQuery)
 		return []*fleet.Host{{ID: 32}, {ID: 12}}, nil
 	}
 
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)

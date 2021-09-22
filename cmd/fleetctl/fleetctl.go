@@ -46,7 +46,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		logoutCommand(),
 		queryCommand(),
 		getCommand(),
-		&cli.Command{
+		{
 			Name:  "config",
 			Usage: "Modify Fleet server connection settings",
 			Subcommands: []*cli.Command{
@@ -61,6 +61,8 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		previewCommand(),
 		eefleetctl.UpdatesCommand(),
 		hostsCommand(),
+		vulnerabilityDataStreamCommand(),
+		packageCommand(),
 	}
 	return app
 }

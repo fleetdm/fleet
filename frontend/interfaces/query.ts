@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { IFormField } from "./form_field";
 import packInterface, { IPack } from "./pack";
 
 export default PropTypes.shape({
@@ -14,6 +15,13 @@ export default PropTypes.shape({
   observer_can_run: PropTypes.bool,
   packs: PropTypes.arrayOf(packInterface),
 });
+export interface IQueryFormData {
+  description?: string | number | boolean | any[] | undefined;
+  name?: string | number | boolean | any[] | undefined;
+  query?: string | number | boolean | any[] | undefined;
+  observer_can_run?: string | number | boolean | any[] | undefined;
+}
+
 export interface IQuery {
   created_at: string;
   updated_at: string;
@@ -26,4 +34,11 @@ export interface IQuery {
   author_name: string;
   observer_can_run: boolean;
   packs: IPack[];
+}
+
+export interface IQueryFormFields {
+  description: IFormField;
+  name: IFormField;
+  query: IFormField;
+  observer_can_run: IFormField;
 }

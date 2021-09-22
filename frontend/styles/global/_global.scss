@@ -55,29 +55,15 @@ a {
   border-radius: 3px;
   background-color: $core-white;
   border: solid 1px $core-white;
-  min-width: 910px;
-
-  @at-root {
-    .has-sidebar & {
-      margin-right: 0;
-      min-width: calc(#{$app-min-width} - 30px - 30px - #{$sidepanel-width});
-      max-width: calc(
-        100vw - #{$pad-xlarge} - #{$pad-xlarge} - #{$pad-xxsmall} - #{$sidepanel-width}
-      );
-    }
-  }
+  min-width: 798px;
 }
 
 .has-sidebar {
   display: flex;
   flex-grow: 1;
 
-  > * {
-    &:first-child {
-      flex-grow: 1;
-      align-self: flex-start;
-      margin-right: 0;
-    }
+  & > *:first-child {
+    flex-grow: 1;
   }
 }
 
@@ -112,6 +98,7 @@ pre {
   background-color: $core-fleet-black;
   color: $core-white;
   border-radius: 4px;
+  white-space: pre-wrap;
 
   .string {
     color: $rainbow-green;
@@ -128,4 +115,11 @@ pre {
   .key {
     color: $core-white;
   }
+}
+
+hr {
+  margin-top: $pad-xlarge;
+  margin-bottom: $pad-xlarge;
+  border: none;
+  border-bottom: 1px solid $ui-fleet-blue-15;
 }

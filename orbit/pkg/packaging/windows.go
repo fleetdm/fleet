@@ -22,6 +22,7 @@ func BuildMSI(opt Options) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp dir")
 	}
+	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
 	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
@@ -54,6 +55,12 @@ func BuildMSI(opt Options) error {
 
 	if err := writeSecret(opt, orbitRoot); err != nil {
 		return errors.Wrap(err, "write enroll secret")
+	}
+
+	if opt.FleetCertificate != "" {
+		if err := writeCertificate(opt, orbitRoot); err != nil {
+			return errors.Wrap(err, "write fleet certificate")
+		}
 	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {

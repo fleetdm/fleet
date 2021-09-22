@@ -12,7 +12,7 @@ type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
-	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, err error)
+	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in the provided context. These may be
 	// detail queries, label queries, or user-initiated distributed queries. A map from query name to query is returned.
@@ -358,6 +358,7 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
+
 	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -368,6 +369,7 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalScheduleService
+
 	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
 	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
@@ -375,10 +377,12 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
+
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamScheduleService
+
 	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
 	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
 	ModifyTeamScheduledQueries(
@@ -393,4 +397,17 @@ type Service interface {
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Software
+
+	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Team Policies
+
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 }

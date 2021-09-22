@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/pkg/errors"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -115,17 +116,75 @@ type AppConfig struct {
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
+
+	WebhookSettings WebhookSettings `json:"webhook_settings"`
+}
+
+type Duration struct {
+	time.Duration
+}
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
+func (d Duration) ValueOr(t time.Duration) time.Duration {
+	if d.Duration == 0 {
+		return t
+	}
+	return d.Duration
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	switch value := v.(type) {
+	case float64:
+		d.Duration = time.Duration(value)
+		return nil
+	case string:
+		var err error
+		d.Duration, err = time.ParseDuration(value)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.Errorf("invalid duration type: %T", value)
+	}
+}
+
+type WebhookSettings struct {
+	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
+	Interval          Duration                  `json:"interval"`
+}
+
+type HostStatusWebhookSettings struct {
+	Enable         bool    `json:"enable_host_status_webhook"`
+	DestinationURL string  `json:"destination_url"`
+	HostPercentage float64 `json:"host_percentage"`
+	DaysCount      int     `json:"days_count"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
-	c.HostSettings.EnableHostUsers = true
 	c.SMTPSettings.SMTPPort = 587
 	c.SMTPSettings.SMTPEnableStartTLS = true
 	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
 	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
+	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
+	c.AgentOptions = &agentOptions
+
+	c.ApplyDefaults()
+}
+
+func (c *AppConfig) ApplyDefaults() {
+	c.HostSettings.EnableHostUsers = true
+	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
 // OrgInfo contains general info about the organization using Fleet.
@@ -139,6 +198,7 @@ type ServerSettings struct {
 	ServerURL         string `json:"server_url"`
 	LiveQueryDisabled bool   `json:"live_query_disabled"`
 	EnableAnalytics   bool   `json:"enable_analytics"`
+	DebugHostIDs      []uint `json:"debug_host_ids,omitempty"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -183,6 +243,12 @@ type ListOptions struct {
 	MatchQuery string
 }
 
+type ListQueryOptions struct {
+	ListOptions
+
+	OnlyObserverCanRun bool
+}
+
 // EnrollSecret contains information about an enroll secret, name, and active
 // status. Enroll secrets are used for osquery authentication.
 type EnrollSecret struct {
@@ -211,15 +277,18 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// TierBasic is Fleet Basic aka the paid license.
-	TierBasic = "basic"
-	// TierCore is Fleet Core aka the free license.
-	TierCore = "core"
+	// tierBasic is for backward compatibility with previous tier names
+	tierBasic = "basic"
+
+	// TierPremium is Fleet Premium aka the paid license.
+	TierPremium = "premium"
+	// TierFree is Fleet Free aka the free license.
+	TierFree = "free"
 )
 
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
-	// Tier is the license tier (currently "core" or "basic")
+	// Tier is the license tier (currently "free" or "premium")
 	Tier string `json:"tier"`
 	// Organization is the name of the licensed organization.
 	Organization string `json:"organization,omitempty"`
@@ -229,6 +298,14 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+}
+
+func (l *LicenseInfo) IsPremium() bool {
+	return l.Tier == TierPremium || l.Tier == tierBasic
+}
+
+func (l *LicenseInfo) IsExpired() bool {
+	return l.Expiration.Before(time.Now())
 }
 
 const (

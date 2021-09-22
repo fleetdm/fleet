@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Receive usage analytics',
 
 
-  description: '',
+  description: 'Receive anonymous usage analytics from deployments of Fleet running in production.  (Not fleetctl preview or dev-mode deployments.)',
 
 
   inputs: {

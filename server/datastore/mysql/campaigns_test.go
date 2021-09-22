@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,28 +12,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
-	targets, err := ds.DistributedQueryCampaignTargetIDs(campaignID)
-	require.Nil(t, err)
-	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
-	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
-	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
+func TestCampaigns(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"DistributedQuery", testCampaignsDistributedQuery},
+		{"CleanupDistributedQuery", testCampaignsCleanupDistributedQuery},
+		{"SaveDistributedQuery", testCampaignsSaveDistributedQuery},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			c.fn(t, ds)
+		})
+	}
 }
 
-func TestDistributedQueryCampaign(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCampaignsDistributedQuery(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-
 	mockClock := clock.NewMockClock()
-
 	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
-
 	campaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	{
-		retrieved, err := ds.DistributedQueryCampaign(campaign.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), campaign.ID)
 		require.Nil(t, err)
 		assert.Equal(t, campaign.QueryID, retrieved.QueryID)
 		assert.Equal(t, campaign.Status, retrieved.Status)
@@ -52,7 +59,7 @@ func TestDistributedQueryCampaign(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	checkTargets(t, ds, campaign.ID, fleet.HostTargets{})
@@ -70,13 +77,9 @@ func TestDistributedQueryCampaign(t *testing.T) {
 	test.AddHostToCampaign(t, ds, campaign.ID, h3.ID)
 
 	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID, h3.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
-
 }
 
-func TestCleanupDistributedQueryCampaigns(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
@@ -88,18 +91,18 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
-	expired, err := ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err := ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), expired)
 
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, c1.Status, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -111,18 +114,18 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{
 		// c1 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -132,21 +135,48 @@ func TestCleanupDistributedQueryCampaigns(t *testing.T) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(mockClock.Now())
+	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{
-		retrieved, err := ds.DistributedQueryCampaign(c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
 		// c2 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
+}
 
+func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
+
+	mockClock := clock.NewMockClock()
+
+	query := test.NewQuery(t, ds, t.Name()+"test", "select * from time", user.ID, false)
+
+	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
+	gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryWaiting, gotC.Status)
+
+	c1.Status = fleet.QueryComplete
+	require.NoError(t, ds.SaveDistributedQueryCampaign(context.Background(), c1))
+
+	gotC, err = ds.DistributedQueryCampaign(context.Background(), c1.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.QueryComplete, gotC.Status)
+}
+
+func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
+	targets, err := ds.DistributedQueryCampaignTargetIDs(context.Background(), campaignID)
+	require.Nil(t, err)
+	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
+	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
+	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }

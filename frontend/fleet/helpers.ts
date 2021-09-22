@@ -4,6 +4,10 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ITeam } from "interfaces/team";
+import {
+  DEFAULT_GRAVATAR_LINK,
+  PLATFORM_LABEL_DISPLAY_TYPES,
+} from "utilities/constants";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -12,8 +16,9 @@ export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
-  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=blank&size=200`;
-
+  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+    DEFAULT_GRAVATAR_LINK
+  )}&size=200`;
   return {
     ...resource,
     gravatarURL,
@@ -113,6 +118,12 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
+  const webhookSettingsAttrs = pick(config, [
+    "enable_host_status_webhook",
+    "destination_url",
+    "host_percentage",
+    "days_count",
+  ]);
   // because agent_options is already an object
   const agentOptionsSettingsAttrs = config.agent_options;
 
@@ -132,6 +143,9 @@ export const formatConfigDataForServer = (config: any): any => {
   const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
     agent_options: yaml.load(agentOptionsSettingsAttrs),
   };
+  const webhookSettings = size(webhookSettingsAttrs) && {
+    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
+  };
 
   if (hostExpirySettings) {
     hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
@@ -146,6 +160,7 @@ export const formatConfigDataForServer = (config: any): any => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...agentOptionsSettings,
+    ...webhookSettings,
   };
 };
 
@@ -157,6 +172,7 @@ export const frontendFormattedConfig = (config: any) => {
     smtp_settings: smtpSettings,
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
+    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
     license,
   } = config;
 
@@ -170,26 +186,18 @@ export const frontendFormattedConfig = (config: any) => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
+    ...webhookSettings,
     ...license,
     agent_options: config.agent_options,
   };
 };
 
 const formatLabelResponse = (response: any): { [index: string]: any } => {
-  const labelTypeForDisplayText: { [index: string]: any } = {
-    "All Hosts": "all",
-    "MS Windows": "platform",
-    "CentOS Linux": "platform",
-    macOS: "platform",
-    "Ubuntu Linux": "platform",
-    "Red Hat Linux": "platform",
-  };
-
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
-      type: labelTypeForDisplayText[label.display_text] || "custom",
+      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
     };
   });
 
@@ -508,7 +516,7 @@ const inGigaBytes = (bytes: number): string => {
   return (bytes / BYTES_PER_GIGABYTE).toFixed(1);
 };
 
-const inMilliseconds = (nanoseconds: number): number => {
+export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
@@ -553,10 +561,14 @@ export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
   if (lastRun < "2016-07-28T00:00:00Z") {
-    return "Never";
+    return "Has not run";
   }
 
   return moment(lastRun).fromNow();
+};
+
+export const licenseExpirationWarning = (expiration: string): boolean => {
+  return moment(moment()).isAfter(expiration);
 };
 
 export const secondsToHms = (d: number): string => {
@@ -635,6 +647,8 @@ export default {
   humanHostDetailUpdated,
   hostTeamName,
   humanQueryLastRun,
+  inMilliseconds,
+  licenseExpirationWarning,
   secondsToHms,
   secondsToDhms,
   labelSlug,

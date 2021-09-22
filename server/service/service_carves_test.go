@@ -34,7 +34,7 @@ func TestCarveBegin(t *testing.T) {
 		CarveSize:  23 * 64,
 		RequestId:  "carve_request",
 	}
-	ms.NewCarveFunc = func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 		metadata.ID = 7
 		return metadata, nil
 	}
@@ -60,7 +60,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.NewCarveFunc = func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 		return nil, fmt.Errorf("ouch!")
 	}
 
@@ -154,7 +154,7 @@ func TestCarveCarveBlockGetCarveError(t *testing.T) {
 	sessionId := "foobar"
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		return nil, fmt.Errorf("ouch!")
 	}
 
@@ -181,7 +181,7 @@ func TestCarveCarveBlockRequestIdError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
@@ -210,7 +210,7 @@ func TestCarveCarveBlockBlockCountExceedError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
@@ -241,7 +241,7 @@ func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
@@ -272,7 +272,7 @@ func TestCarveCarveBlockBlockSizeError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
@@ -303,11 +303,11 @@ func TestCarveCarveBlockNewBlockError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
-	ms.NewBlockFunc = func(carve *fleet.CarveMetadata, blockId int64, data []byte) error {
+	ms.NewBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64, data []byte) error {
 		return fmt.Errorf("kaboom!")
 	}
 
@@ -343,11 +343,11 @@ func TestCarveCarveBlock(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ms.CarveBySessionIdFunc = func(sessionId string) (*fleet.CarveMetadata, error) {
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
-	ms.NewBlockFunc = func(carve *fleet.CarveMetadata, blockId int64, data []byte) error {
+	ms.NewBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64, data []byte) error {
 		assert.Equal(t, metadata, carve)
 		assert.Equal(t, int64(4), blockId)
 		assert.Equal(t, payload.Data, data)
@@ -373,11 +373,11 @@ func TestCarveGetBlock(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms, authz: authz.Must()}
-	ms.CarveFunc = func(carveId int64) (*fleet.CarveMetadata, error) {
+	ms.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
-	ms.GetBlockFunc = func(carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+	ms.GetBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 		assert.Equal(t, metadata.ID, carve.ID)
 		assert.Equal(t, int64(3), blockId)
 		return []byte("foobar"), nil
@@ -402,7 +402,7 @@ func TestCarveGetBlockNotAvailableError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms, authz: authz.Must()}
-	ms.CarveFunc = func(carveId int64) (*fleet.CarveMetadata, error) {
+	ms.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
@@ -427,11 +427,11 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms, authz: authz.Must()}
-	ms.CarveFunc = func(carveId int64) (*fleet.CarveMetadata, error) {
+	ms.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.ID, carveId)
 		return metadata, nil
 	}
-	ms.GetBlockFunc = func(carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+	ms.GetBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 		assert.Equal(t, metadata.ID, carve.ID)
 		assert.Equal(t, int64(3), blockId)
 		return nil, fmt.Errorf("yow!!")

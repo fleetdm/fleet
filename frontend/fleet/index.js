@@ -17,7 +17,6 @@ import sessionMethods from "fleet/entities/sessions";
 import statusLabelMethods from "fleet/entities/status_labels";
 import targetMethods from "fleet/entities/targets";
 import userMethods from "fleet/entities/users";
-import websocketMethods from "fleet/websockets";
 import statusMethods from "fleet/status";
 import teamMethods from "fleet/entities/teams";
 
@@ -44,7 +43,6 @@ class Fleet extends Base {
     this.statusLabels = statusLabelMethods(this);
     this.targets = targetMethods(this);
     this.users = userMethods(this);
-    this.websockets = websocketMethods(this);
     this.status = statusMethods(this);
     this.teams = teamMethods(this);
   }

@@ -18,18 +18,35 @@
   height: 32px;
   border-radius: 100%;
   border: 4px solid $core-vibrant-blue;
-}
-.ring div {
-  box-sizing: border-box;
-  display: block;
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  margin: -4px;
-  border: 4px solid $core-white;
-  border-radius: 50%;
-  animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-  border-color: $ui-vibrant-blue-25 transparent transparent transparent;
+  
+  div {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    margin: -4px;
+    border: 4px solid $core-white;
+    border-radius: 50%;
+    animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: $ui-vibrant-blue-25 transparent transparent transparent;
+  }
+} 
+
+.ring-for-button {
+  margin-right: $pad-small;
+  width: 16px;
+  height: 16px;
+  border-width: 3px;
+  border-color: rgba(255,255,255,0.25);
+  
+  div {
+    margin: -3px;
+    width: 16px;
+    height: 16px;
+    border-width: 3px;
+    border-color: $core-white transparent transparent transparent;
+  }
 }
 .ring div:nth-child(1) {
   animation-delay: -0.45s;

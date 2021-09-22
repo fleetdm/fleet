@@ -1,17 +1,33 @@
 // lesshint-disable spaceAroundComma, trailingWhitespace
 
-  pre {
-    background: #282C40;
-    padding: 24px;
-    border: 1px solid @core-fleet-black-25;
-    border-radius: 4px;
-    margin: 16px 0px 32px;
+  code:not(.hljs):not(.nohighlight) {
+    background-color: @ui-off-white;
+    border: 1px solid @border-lt-gray;
+    color: @core-fleet-black-75;
+    font-size: 13px;
+    padding: 4px 8px;
+    line-height: 16px;
+  }
 
+  code {
+    font-family: @code-font;
+    display: inline-block;
+    border-radius: 6px;
+  }
+
+
+  pre:not(.algolia-autocomplete):not(.ds-dropdown-menu):not(.json) {
+    padding: 24px;
+    border: 1px solid @border-lt-gray;
+    border-radius: 6px;
+    margin: 16px 0px 32px;
+    font-family: @code-font;
+    background: #282C40;
 
     &.muted {
-      color: @core-fleet-black-50;
+      color: @core-fleet-black-75;
       background: @ui-off-white;
-      margin: 16px 0px 32px;
+      margin: 16px 0px 40px;
     }
   }
 

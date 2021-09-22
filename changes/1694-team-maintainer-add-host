@@ -1,2 +1,0 @@
-Add user role validations to select team dropdown in "Add host" modal
-Remove Redux enrollSecret state from ManageHostsPage and instead handle as local state in "Add host" modal

@@ -35,7 +35,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Po
 		return nil, err
 	}
 
-	return svc.ds.NewGlobalPolicy(queryID)
+	return svc.ds.NewGlobalPolicy(ctx, queryID)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ func (svc Service) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, err
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies()
+	return svc.ds.ListGlobalPolicies(ctx)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +94,7 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 		return nil, err
 	}
 
-	policy, err := svc.ds.Policy(policyID)
+	policy, err := svc.ds.Policy(ctx, policyID)
 	if err != nil {
 		return nil, err
 	}
@@ -131,5 +131,5 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 		return nil, err
 	}
 
-	return svc.ds.DeleteGlobalPolicies(ids)
+	return svc.ds.DeleteGlobalPolicies(ctx, ids)
 }

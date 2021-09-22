@@ -1,1 +1,0 @@
-* MariaDB compatibility fixes: add explicit foreign key constraint and on cascade delete for host_software to allow for hosts with software to be deleted.

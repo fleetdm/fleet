@@ -78,7 +78,7 @@ interface ICreateUserFormProps {
   currentUserId?: number;
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
-  isBasicTier: boolean;
+  isPremiumTier: boolean;
   smtpConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
@@ -121,7 +121,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       isGlobalUser: props.defaultGlobalRole !== null,
     };
 
-    const { isBasicTier } = props;
+    const { isPremiumTier } = props;
   }
 
   onInputChange = (formField: string): ((value: string) => void) => {
@@ -293,17 +293,17 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     const {
       formData: { global_role },
     } = this.state;
-    const { isBasicTier } = this.props;
+    const { isPremiumTier } = this.props;
     return (
       <>
-        {isBasicTier && (
+        {isPremiumTier && (
           <InfoBanner className={`${baseClass}__user-permissions-info`}>
             <p>
               Global users can only be members of the top level team and can
               manage or observe all users, entities, and settings in Fleet.
             </p>
             <a
-              href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#permissions"
+              href="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -347,7 +347,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
   renderTeamsForm = (): JSX.Element => {
     const { onSelectedTeamChange, renderNoTeamsMessage } = this;
-    const { availableTeams, isBasicTier } = this.props;
+    const { availableTeams, isPremiumTier } = this.props;
     const {
       formData: { teams },
     } = this.state;
@@ -360,7 +360,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             observe team-specific users, entities, and settings in Fleet.
           </p>
           <a
-            href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#team-member-permissions"
+            href="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -390,7 +390,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     const {
       onCancel,
       submitText,
-      isBasicTier,
+      isPremiumTier,
       smtpConfigured,
       canUseSso,
       isNewUser,
@@ -405,10 +405,10 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       renderTeamsForm,
     } = this;
 
-    if (!isBasicTier && !isGlobalUser) {
+    if (!isPremiumTier && !isGlobalUser) {
       console.log(
-        `Note: Fleet Core UI does not have teams options.\n
-        User ${name} is already assigned to a team and cannot be reassigned without access to Fleet Basic UI.`
+        `Note: Fleet Free UI does not have teams options.\n
+        User ${name} is already assigned to a team and cannot be reassigned without access to Fleet Premium UI.`
       );
     }
 
@@ -575,7 +575,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             )}
           </div>
         )}
-        {isBasicTier && (
+        {isPremiumTier && (
           <div className={`${baseClass}__selected-teams-container`}>
             <div className={`${baseClass}__team-radios`}>
               <p className={`${baseClass}__label`}>Team</p>
@@ -603,7 +603,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             </div>
           </div>
         )}
-        {!isBasicTier && renderGlobalRoleForm()}
+        {!isPremiumTier && renderGlobalRoleForm()}
 
         <div className={`${baseClass}__btn-wrap`}>
           <Button

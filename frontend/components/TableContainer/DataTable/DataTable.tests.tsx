@@ -30,6 +30,7 @@ describe("DataTable - component", () => {
         isAllPagesSelected={false}
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
       />
     );
 
@@ -71,6 +72,7 @@ describe("DataTable - component", () => {
         isAllPagesSelected={false}
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
       />
     );
 
@@ -96,6 +98,7 @@ describe("DataTable - component", () => {
         isAllPagesSelected={false}
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
       />
     );
 
@@ -129,6 +132,7 @@ describe("DataTable - component", () => {
         isAllPagesSelected={false}
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
       />
     );
 
@@ -151,6 +155,7 @@ describe("DataTable - component", () => {
         isAllPagesSelected={false}
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
+        disableMultiRowSelect={false}
       />
     );
 

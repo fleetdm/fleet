@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,6 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, users, server := setupAuthTest(t)
-	defer server.Close()
 	var loginTests = []struct {
 		email    string
 		status   int
@@ -59,7 +59,7 @@ func TestLogin(t *testing.T) {
 		j, err := json.Marshal(&params)
 		assert.Nil(t, err)
 
-		requestBody := &nopCloser{bytes.NewBuffer(j)}
+		requestBody := io.NopCloser(bytes.NewBuffer(j))
 		resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
@@ -81,7 +81,7 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.email, jsn.User.Email)
 
 		// ensure that a session was created for our test user and stored
-		sessions, err := ds.ListSessionsForUser(testUser.ID)
+		sessions, err := ds.ListSessionsForUser(context.Background(), testUser.ID)
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 1)
 
@@ -100,7 +100,7 @@ func TestLogin(t *testing.T) {
 		assert.Nil(t, err)
 
 		// ensure that our user's session was deleted from the store
-		sessions, err = ds.ListSessionsForUser(testUser.ID)
+		sessions, err = ds.ListSessionsForUser(context.Background(), testUser.ID)
 		assert.Nil(t, err)
 		assert.Len(t, sessions, 0)
 	}
@@ -111,26 +111,26 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 	var users []*fleet.User
 	var admin *fleet.User
 	sessions := make(map[string]*fleet.Session)
-	ds.NewUserFunc = func(user *fleet.User) (*fleet.User, error) {
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
 			admin = user
 		}
 		users = append(users, user)
 		return user, nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return sessions[key], nil
 	}
-	ds.MarkSessionAccessedFunc = func(session *fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
 		return nil
 	}
-	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return admin, nil
 	}
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return users, nil
 	}
-	ds.ListSessionsForUserFunc = func(id uint) ([]*fleet.Session, error) {
+	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
 		for _, session := range sessions {
 			if session.UserID == id {
 				return []*fleet.Session{session}, nil
@@ -138,7 +138,7 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		}
 		return nil, nil
 	}
-	ds.SessionByIDFunc = func(id uint) (*fleet.Session, error) {
+	ds.SessionByIDFunc = func(ctx context.Context, id uint) (*fleet.Session, error) {
 		for _, session := range sessions {
 			if session.ID == id {
 				return session, nil
@@ -146,16 +146,16 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		}
 		return nil, nil
 	}
-	ds.DestroySessionFunc = func(session *fleet.Session) error {
+	ds.DestroySessionFunc = func(ctx context.Context, session *fleet.Session) error {
 		delete(sessions, session.Key)
 		return nil
 	}
 	usersMap, server := RunServerForTestsWithDS(t, ds)
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(session *fleet.Session) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
 		sessions[session.Key] = session
 		return session, nil
 	}
@@ -172,7 +172,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	j, err := json.Marshal(&params)
 	assert.Nil(t, err)
 
-	requestBody := &nopCloser{bytes.NewBuffer(j)}
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
 	resp, err := http.Post(server.URL+"/api/v1/fleet/login", "application/json", requestBody)
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -190,7 +190,6 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 
 func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
-	defer server.Close()
 
 	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
 	client := &http.Client{}
@@ -229,10 +228,3 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 }
 `, string(bodyBytes))
 }
-
-// an io.ReadCloser for new request body
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }

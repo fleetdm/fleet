@@ -25,6 +25,14 @@
         border-bottom: 0;
       }
 
+      &.single-row {
+        cursor: pointer;
+
+        &:hover {
+          background-color: rgba($core-vibrant-blue, 0.1);
+        }
+      }
+
       // override styles of checkbox data cells
       .form-field--checkbox {
         margin-bottom: 0;
@@ -34,6 +42,7 @@
         }
       }
     }
+
 
     thead {
       background-color: $ui-off-white;
@@ -147,6 +156,18 @@
 
     &__hostname {
       color: $core-fleet-black;
+    }
+
+    &__pill {
+      color: $core-fleet-black;
+      font-weight: $bold;
+      padding: 4px 12px;
+      border-radius: 29px;
+
+      span {
+        border-radius: 29px;
+        background-color: $core-fleet-purple;
+      }
     }
 
     &__status {

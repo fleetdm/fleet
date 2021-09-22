@@ -39,13 +39,16 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListScheduledQueriesInPack(gp.ID, opts)
+	return svc.ds.ListScheduledQueriesInPack(ctx, gp.ID, opts)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -102,8 +105,11 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +149,11 @@ func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, 
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
 
-	gp, err := svc.ds.EnsureTeamPack(teamID)
+	gp, err := svc.ds.EnsureTeamPack(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +192,8 @@ func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, 
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	_ = teamID
+	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
+		return err
+	}
 	return svc.DeleteScheduledQuery(ctx, scheduledQueryID)
 }

@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
@@ -23,6 +26,10 @@ var cvetests = []struct {
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
+	if os.Getenv("NETWORK_TEST") == "" {
+		t.Skip("set environment variable NETWORK_TEST=1 to run")
+	}
+
 	tempDir := t.TempDir()
 
 	ds := new(mock.Store)
@@ -30,14 +37,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func() ([]string, error) {
+			ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
 				return []string{tt.cpe}, nil
 			}
 
 			cveLock := &sync.Mutex{}
 			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(cve string, cpes []string) error {
+			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) error {
 				cveLock.Lock()
 				defer cveLock.Unlock()
 				cveToCPEs[cve] = cpes
@@ -45,7 +52,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return nil
 			}
 
-			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), "")
+			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), config.FleetConfig{})
 			require.NoError(t, err)
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
@@ -55,7 +62,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 }
 
 func TestSyncsCVEFromURL(t *testing.T) {
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.RequestURI, ".meta") {
 			fmt.Fprint(w, "lastModifiedDate:2021-08-04T11:10:30-04:00\r\n")
@@ -68,10 +74,32 @@ func TestSyncsCVEFromURL(t *testing.T) {
 	defer ts.Close()
 
 	tempDir := t.TempDir()
-	err := syncCVEData(tempDir, ts.URL)
+	err := SyncCVEData(
+		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL}})
 	require.Error(t, err)
 	require.Equal(t,
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 		err.Error(),
 	)
+}
+
+func TestSyncsCVEFromURLSkipsIfDisableSync(t *testing.T) {
+	tempDir := t.TempDir()
+	fleetConfig := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DisableDataSync: true,
+		},
+	}
+	err := SyncCVEData(tempDir, fleetConfig)
+	require.NoError(t, err)
+	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
+			return nil
+		}
+
+		t.FailNow()
+
+		return nil
+	})
+	require.NoError(t, err)
 }

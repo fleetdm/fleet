@@ -78,6 +78,8 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 				SSOSettings:        ssoSettings,
 				HostExpirySettings: hostExpirySettings,
 				AgentOptions:       agentOptions,
+
+				WebhookSettings: config.WebhookSettings,
 			},
 			UpdateInterval: updateIntervalConfig,
 			License:        license,

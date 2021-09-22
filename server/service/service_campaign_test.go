@@ -26,7 +26,7 @@ import (
 func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	t.Skip("Seems to be a bit problematic in CI")
 
-	store, teardown := pubsub.SetupRedisForTest(t)
+	store, teardown := pubsub.SetupRedisForTest(t, false)
 	defer teardown()
 
 	mockClock := clock.NewMockClock()
@@ -36,34 +36,34 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
-	ds.LabelQueriesForHostFunc = func(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewQueryFunc = func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.NewDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		return camp, nil
 	}
-	ds.NewDistributedQueryCampaignTargetFunc = func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
-	ds.HostIDsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1}, nil
 	}
-	ds.CountHostsInTargetsFunc = func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
-	ds.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              42,
@@ -123,22 +123,22 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ds.MarkSessionAccessedFunc = func(*fleet.Session) error {
+	ds.MarkSessionAccessedFunc = func(context.Context, *fleet.Session) error {
 		return nil
 	}
-	ds.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
 	}
-	ds.DistributedQueryCampaignFunc = func(id uint) (*fleet.DistributedQueryCampaign, error) {
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 		return campaign, nil
 	}
-	ds.SaveDistributedQueryCampaignFunc = func(camp *fleet.DistributedQueryCampaign) error {
+	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	ds.DistributedQueryCampaignTargetIDsFunc = func(id uint) (targets *fleet.HostTargets, err error) {
+	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
 		return &fleet.HostTargets{HostIDs: []uint{1}}, nil
 	}
-	ds.QueryFunc = func(id uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
 

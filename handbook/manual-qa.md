@@ -56,6 +56,14 @@ go run agent.go --host_count 200 --enroll_secret <your enroll secret goes here>
 
 After about 10 seconds, the Fleet UI should be populated with 200 simulated hosts.
 
+### Host details page
+
+Select a host from the "Hosts" table as a global user with the Maintainer role.
+
+You should be able to see and select the "Delete" button on this host's **Host details** page.
+
+You should be able to see and select the "Query" button on this host's **Host details** page.
+
 ### Label flow
 
 `Flow is covered by e2e testing`
@@ -138,11 +146,13 @@ Make sure all queries were successfully added by running the following command:
 
 Run the "Get the version of the resident operating system" query against your local machine by running the following command:
 
-`fleetctl query --hosts <your-local-machine-here> --query Get the version of the resident operating system`
+`fleetctl query --hosts <your-local-machine-here> --query-name "Get the version of the resident operating system"`
 
 ### Pack flow
 
-Apply a pack by running the following command:
+Apply a pack by running the following commands:
+
+`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
 `fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 

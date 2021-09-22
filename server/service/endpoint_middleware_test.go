@@ -8,6 +8,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -191,7 +192,10 @@ func TestAuthenticatedHost(t *testing.T) {
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
-	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.AuthenticateHostFunc = func(ctx context.Context, secret string) (*fleet.Host, error) {
 		switch secret {
 		case goodNodeKey:
 			return &expectedHost, nil
@@ -200,12 +204,13 @@ func TestAuthenticatedHost(t *testing.T) {
 
 		}
 	}
-	ds.MarkHostSeenFunc = func(host *fleet.Host, t time.Time) error {
+	ds.MarkHostSeenFunc = func(ctx context.Context, host *fleet.Host, t time.Time) error {
 		return nil
 	}
 
 	endpoint := authenticatedHost(
 		svc,
+		kitlog.NewNopLogger(),
 		func(ctx context.Context, request interface{}) (interface{}, error) {
 			host, ok := hostctx.FromContext(ctx)
 			assert.True(t, ok)

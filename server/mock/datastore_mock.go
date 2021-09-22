@@ -3,6 +3,7 @@
 package mock
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -10,285 +11,281 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
-type NewCarveFunc func(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
+type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
-type UpdateCarveFunc func(metadata *fleet.CarveMetadata) error
+type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
 
-type CarveFunc func(carveId int64) (*fleet.CarveMetadata, error)
+type CarveFunc func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error)
 
-type CarveBySessionIdFunc func(sessionId string) (*fleet.CarveMetadata, error)
+type CarveBySessionIdFunc func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error)
 
-type CarveByNameFunc func(name string) (*fleet.CarveMetadata, error)
+type CarveByNameFunc func(ctx context.Context, name string) (*fleet.CarveMetadata, error)
 
-type ListCarvesFunc func(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
+type ListCarvesFunc func(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error)
 
-type NewBlockFunc func(metadata *fleet.CarveMetadata, blockId int64, data []byte) error
+type NewBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error
 
-type GetBlockFunc func(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
+type GetBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error)
 
-type CleanupCarvesFunc func(now time.Time) (expired int, err error)
+type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, err error)
 
-type NewUserFunc func(user *fleet.User) (*fleet.User, error)
+type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
-type ListUsersFunc func(opt fleet.UserListOptions) ([]*fleet.User, error)
+type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
-type UserByEmailFunc func(email string) (*fleet.User, error)
+type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
 
-type UserByIDFunc func(id uint) (*fleet.User, error)
+type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
-type SaveUserFunc func(user *fleet.User) error
+type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
-type SaveUsersFunc func(users []*fleet.User) error
+type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
-type DeleteUserFunc func(id uint) error
+type DeleteUserFunc func(ctx context.Context, id uint) error
 
-type PendingEmailChangeFunc func(userID uint, newEmail string, token string) error
+type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
-type ConfirmPendingEmailChangeFunc func(userID uint, token string) (string, error)
+type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
 
-type ApplyQueriesFunc func(authorID uint, queries []*fleet.Query) error
+type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query) error
 
-type NewQueryFunc func(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
+type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type SaveQueryFunc func(query *fleet.Query) error
+type SaveQueryFunc func(ctx context.Context, query *fleet.Query) error
 
-type DeleteQueryFunc func(name string) error
+type DeleteQueryFunc func(ctx context.Context, name string) error
 
-type DeleteQueriesFunc func(ids []uint) (uint, error)
+type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
-type QueryFunc func(id uint) (*fleet.Query, error)
+type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(opt fleet.ListOptions) ([]*fleet.Query, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
 
-type QueryByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
+type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type NewDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
+type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
-type DistributedQueryCampaignFunc func(id uint) (*fleet.DistributedQueryCampaign, error)
+type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
 
-type SaveDistributedQueryCampaignFunc func(camp *fleet.DistributedQueryCampaign) error
+type SaveDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) error
 
-type DistributedQueryCampaignTargetIDsFunc func(id uint) (targets *fleet.HostTargets, err error)
+type DistributedQueryCampaignTargetIDsFunc func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error)
 
-type NewDistributedQueryCampaignTargetFunc func(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
+type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
 
-type CleanupDistributedQueryCampaignsFunc func(now time.Time) (expired uint, err error)
+type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
-type ApplyPackSpecsFunc func(specs []*fleet.PackSpec) error
+type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
 
-type GetPackSpecsFunc func() ([]*fleet.PackSpec, error)
+type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
 
-type GetPackSpecFunc func(name string) (*fleet.PackSpec, error)
+type GetPackSpecFunc func(ctx context.Context, name string) (*fleet.PackSpec, error)
 
-type NewPackFunc func(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error)
+type NewPackFunc func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error)
 
-type SavePackFunc func(pack *fleet.Pack) error
+type SavePackFunc func(ctx context.Context, pack *fleet.Pack) error
 
-type DeletePackFunc func(name string) error
+type DeletePackFunc func(ctx context.Context, name string) error
 
-type PackFunc func(pid uint) (*fleet.Pack, error)
+type PackFunc func(ctx context.Context, pid uint) (*fleet.Pack, error)
 
-type ListPacksFunc func(opt fleet.PackListOptions) ([]*fleet.Pack, error)
+type ListPacksFunc func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error)
 
-type PackByNameFunc func(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
+type PackByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
 
-type ListPacksForHostFunc func(hid uint) (packs []*fleet.Pack, err error)
+type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
 
-type EnsureGlobalPackFunc func() (*fleet.Pack, error)
+type EnsureGlobalPackFunc func(ctx context.Context) (*fleet.Pack, error)
 
-type EnsureTeamPackFunc func(teamID uint) (*fleet.Pack, error)
+type EnsureTeamPackFunc func(ctx context.Context, teamID uint) (*fleet.Pack, error)
 
-type ApplyLabelSpecsFunc func(specs []*fleet.LabelSpec) error
+type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type GetLabelSpecsFunc func() ([]*fleet.LabelSpec, error)
+type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
 
-type NewLabelFunc func(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
+type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(label *fleet.Label) (*fleet.Label, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label) (*fleet.Label, error)
 
-type DeleteLabelFunc func(name string) error
+type DeleteLabelFunc func(ctx context.Context, name string) error
 
-type LabelFunc func(lid uint) (*fleet.Label, error)
+type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
-type ListLabelsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
+type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
-type LabelQueriesForHostFunc func(host *fleet.Host, cutoff time.Time) (map[string]string, error)
+type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error
 
-type ListLabelsForHostFunc func(hid uint) ([]*fleet.Label, error)
+type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
 
-type ListHostsInLabelFunc func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
+type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type ListUniqueHostsInLabelsFunc func(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
+type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error)
 
-type SearchLabelsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
+type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
-type LabelIDsByNameFunc func(labels []string) ([]uint, error)
+type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
 
-type NewHostFunc func(host *fleet.Host) (*fleet.Host, error)
+type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
-type SaveHostFunc func(host *fleet.Host) error
+type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type DeleteHostFunc func(hid uint) error
+type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(id uint) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
-type EnrollHostFunc func(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type ListHostsFunc func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
+type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type AuthenticateHostFunc func(nodeKey string) (*fleet.Host, error)
+type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type MarkHostSeenFunc func(host *fleet.Host, t time.Time) error
+type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
 
-type MarkHostsSeenFunc func(hostIDs []uint, t time.Time) error
+type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SearchHostsFunc func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
+type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
-type CleanupIncomingHostsFunc func(now time.Time) error
+type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
+type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
 
-type HostIDsByNameFunc func(filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
-type HostByIdentifierFunc func(identifier string) (*fleet.Host, error)
+type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
-type AddHostsToTeamFunc func(teamID *uint, hostIDs []uint) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type SaveHostAdditionalFunc func(host *fleet.Host) error
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
-type CountHostsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
+type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
-type HostIDsInTargetsFunc func(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
+type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
 
-type NewPasswordResetRequestFunc func(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error)
+type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error)
 
-type SavePasswordResetRequestFunc func(req *fleet.PasswordResetRequest) error
+type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
-type DeletePasswordResetRequestFunc func(req *fleet.PasswordResetRequest) error
+type FindPassswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
-type DeletePasswordResetRequestsForUserFunc func(userID uint) error
+type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
-type FindPassswordResetByIDFunc func(id uint) (*fleet.PasswordResetRequest, error)
+type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
 
-type FindPassswordResetsByUserIDFunc func(id uint) ([]*fleet.PasswordResetRequest, error)
+type ListSessionsForUserFunc func(ctx context.Context, id uint) ([]*fleet.Session, error)
 
-type FindPassswordResetByTokenFunc func(token string) (*fleet.PasswordResetRequest, error)
+type NewSessionFunc func(ctx context.Context, session *fleet.Session) (*fleet.Session, error)
 
-type FindPassswordResetByTokenAndUserIDFunc func(token string, id uint) (*fleet.PasswordResetRequest, error)
+type DestroySessionFunc func(ctx context.Context, session *fleet.Session) error
 
-type SessionByKeyFunc func(key string) (*fleet.Session, error)
+type DestroyAllSessionsForUserFunc func(ctx context.Context, id uint) error
 
-type SessionByIDFunc func(id uint) (*fleet.Session, error)
+type MarkSessionAccessedFunc func(ctx context.Context, session *fleet.Session) error
 
-type ListSessionsForUserFunc func(id uint) ([]*fleet.Session, error)
+type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
-type NewSessionFunc func(session *fleet.Session) (*fleet.Session, error)
+type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
-type DestroySessionFunc func(session *fleet.Session) error
+type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
-type DestroyAllSessionsForUserFunc func(id uint) error
+type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type MarkSessionAccessedFunc func(session *fleet.Session) error
+type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
 
-type NewAppConfigFunc func(info *fleet.AppConfig) (*fleet.AppConfig, error)
+type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
-type AppConfigFunc func() (*fleet.AppConfig, error)
+type NewInviteFunc func(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error)
 
-type SaveAppConfigFunc func(info *fleet.AppConfig) error
+type ListInvitesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error)
 
-type VerifyEnrollSecretFunc func(secret string) (*fleet.EnrollSecret, error)
+type InviteFunc func(ctx context.Context, id uint) (*fleet.Invite, error)
 
-type GetEnrollSecretsFunc func(teamID *uint) ([]*fleet.EnrollSecret, error)
+type InviteByEmailFunc func(ctx context.Context, email string) (*fleet.Invite, error)
 
-type ApplyEnrollSecretsFunc func(teamID *uint, secrets []*fleet.EnrollSecret) error
+type InviteByTokenFunc func(ctx context.Context, token string) (*fleet.Invite, error)
 
-type NewInviteFunc func(i *fleet.Invite) (*fleet.Invite, error)
+type DeleteInviteFunc func(ctx context.Context, id uint) error
 
-type ListInvitesFunc func(opt fleet.ListOptions) ([]*fleet.Invite, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
-type InviteFunc func(id uint) (*fleet.Invite, error)
+type NewScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
 
-type InviteByEmailFunc func(email string) (*fleet.Invite, error)
+type SaveScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
 
-type InviteByTokenFunc func(token string) (*fleet.Invite, error)
+type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
-type DeleteInviteFunc func(id uint) error
+type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type ListScheduledQueriesInPackFunc func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
+type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
-type NewScheduledQueryFunc func(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
+type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
 
-type SaveScheduledQueryFunc func(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
+type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type DeleteScheduledQueryFunc func(id uint) error
+type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
-type ScheduledQueryFunc func(id uint) (*fleet.ScheduledQuery, error)
+type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
-type CleanupOrphanScheduledQueryStatsFunc func() error
+type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
-type NewTeamFunc func(team *fleet.Team) (*fleet.Team, error)
+type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
-type SaveTeamFunc func(team *fleet.Team) (*fleet.Team, error)
+type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
-type TeamFunc func(tid uint) (*fleet.Team, error)
+type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
 
-type DeleteTeamFunc func(tid uint) error
+type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type TeamByNameFunc func(name string) (*fleet.Team, error)
+type SaveHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
-type ListTeamsFunc func(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
+type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
-type SearchTeamsFunc func(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
+type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
-type TeamEnrollSecretsFunc func(teamID uint) ([]*fleet.EnrollSecret, error)
+type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type SaveHostSoftwareFunc func(host *fleet.Host) error
+type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
-type LoadHostSoftwareFunc func(host *fleet.Host) error
+type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
-type AllSoftwareWithoutCPEIteratorFunc func() (fleet.SoftwareIterator, error)
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
-type AddCPEForSoftwareFunc func(software fleet.Software, cpe string) error
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type AllCPEsFunc func() ([]string, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error)
 
-type InsertCVEForCPEFunc func(cve string, cpes []string) error
+type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewActivityFunc func(user *fleet.User, activityType string, details *map[string]interface{}) error
+type NewGlobalPolicyFunc func(ctx context.Context, queryID uint) (*fleet.Policy, error)
 
-type ListActivitiesFunc func(opt fleet.ListOptions) ([]*fleet.Activity, error)
+type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
-type ShouldSendStatisticsFunc func(frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error
 
-type RecordStatisticsSentFunc func() error
+type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
-type NewGlobalPolicyFunc func(queryID uint) (*fleet.Policy, error)
+type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
-type PolicyFunc func(id uint) (*fleet.Policy, error)
+type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type RecordPolicyQueryExecutionsFunc func(host *fleet.Host, results map[uint]*bool, updated time.Time) error
+type MigrateTablesFunc func(ctx context.Context) error
 
-type ListGlobalPoliciesFunc func() ([]*fleet.Policy, error)
+type MigrateDataFunc func(ctx context.Context) error
 
-type DeleteGlobalPoliciesFunc func(ids []uint) ([]uint, error)
+type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
-type PolicyQueriesForHostFunc func(host *fleet.Host) (map[string]string, error)
+type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
 
-type NameFunc func() string
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error)
 
-type DropFunc func() error
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
-type MigrateTablesFunc func() error
+type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
-type MigrateDataFunc func() error
-
-type MigrationStatusFunc func() (fleet.MigrationStatus, error)
-
-type BeginFunc func() (fleet.Transaction, error)
+type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -513,8 +510,8 @@ type DataStore struct {
 	AddHostsToTeamFunc        AddHostsToTeamFunc
 	AddHostsToTeamFuncInvoked bool
 
-	SaveHostAdditionalFunc        SaveHostAdditionalFunc
-	SaveHostAdditionalFuncInvoked bool
+	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
+	TotalAndUnseenHostsSinceFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -525,26 +522,11 @@ type DataStore struct {
 	NewPasswordResetRequestFunc        NewPasswordResetRequestFunc
 	NewPasswordResetRequestFuncInvoked bool
 
-	SavePasswordResetRequestFunc        SavePasswordResetRequestFunc
-	SavePasswordResetRequestFuncInvoked bool
-
-	DeletePasswordResetRequestFunc        DeletePasswordResetRequestFunc
-	DeletePasswordResetRequestFuncInvoked bool
-
 	DeletePasswordResetRequestsForUserFunc        DeletePasswordResetRequestsForUserFunc
 	DeletePasswordResetRequestsForUserFuncInvoked bool
 
-	FindPassswordResetByIDFunc        FindPassswordResetByIDFunc
-	FindPassswordResetByIDFuncInvoked bool
-
-	FindPassswordResetsByUserIDFunc        FindPassswordResetsByUserIDFunc
-	FindPassswordResetsByUserIDFuncInvoked bool
-
 	FindPassswordResetByTokenFunc        FindPassswordResetByTokenFunc
 	FindPassswordResetByTokenFuncInvoked bool
-
-	FindPassswordResetByTokenAndUserIDFunc        FindPassswordResetByTokenAndUserIDFunc
-	FindPassswordResetByTokenAndUserIDFuncInvoked bool
 
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
@@ -621,6 +603,9 @@ type DataStore struct {
 	CleanupOrphanScheduledQueryStatsFunc        CleanupOrphanScheduledQueryStatsFunc
 	CleanupOrphanScheduledQueryStatsFuncInvoked bool
 
+	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
+	CleanupOrphanLabelMembershipFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -693,12 +678,6 @@ type DataStore struct {
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
 
-	NameFunc        NameFunc
-	NameFuncInvoked bool
-
-	DropFunc        DropFunc
-	DropFuncInvoked bool
-
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
 
@@ -708,706 +687,708 @@ type DataStore struct {
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
 
-	BeginFunc        BeginFunc
-	BeginFuncInvoked bool
+	ListSoftwareFunc        ListSoftwareFunc
+	ListSoftwareFuncInvoked bool
+
+	NewTeamPolicyFunc        NewTeamPolicyFunc
+	NewTeamPolicyFuncInvoked bool
+
+	ListTeamPoliciesFunc        ListTeamPoliciesFunc
+	ListTeamPoliciesFuncInvoked bool
+
+	DeleteTeamPoliciesFunc        DeleteTeamPoliciesFunc
+	DeleteTeamPoliciesFuncInvoked bool
+
+	TeamPolicyFunc        TeamPolicyFunc
+	TeamPolicyFuncInvoked bool
 }
 
-func (s *DataStore) NewCarve(metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	s.NewCarveFuncInvoked = true
-	return s.NewCarveFunc(metadata)
+	return s.NewCarveFunc(ctx, metadata)
 }
 
-func (s *DataStore) UpdateCarve(metadata *fleet.CarveMetadata) error {
+func (s *DataStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
 	s.UpdateCarveFuncInvoked = true
-	return s.UpdateCarveFunc(metadata)
+	return s.UpdateCarveFunc(ctx, metadata)
 }
 
-func (s *DataStore) Carve(carveId int64) (*fleet.CarveMetadata, error) {
+func (s *DataStore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
 	s.CarveFuncInvoked = true
-	return s.CarveFunc(carveId)
+	return s.CarveFunc(ctx, carveId)
 }
 
-func (s *DataStore) CarveBySessionId(sessionId string) (*fleet.CarveMetadata, error) {
+func (s *DataStore) CarveBySessionId(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 	s.CarveBySessionIdFuncInvoked = true
-	return s.CarveBySessionIdFunc(sessionId)
+	return s.CarveBySessionIdFunc(ctx, sessionId)
 }
 
-func (s *DataStore) CarveByName(name string) (*fleet.CarveMetadata, error) {
+func (s *DataStore) CarveByName(ctx context.Context, name string) (*fleet.CarveMetadata, error) {
 	s.CarveByNameFuncInvoked = true
-	return s.CarveByNameFunc(name)
+	return s.CarveByNameFunc(ctx, name)
 }
 
-func (s *DataStore) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+func (s *DataStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 	s.ListCarvesFuncInvoked = true
-	return s.ListCarvesFunc(opt)
+	return s.ListCarvesFunc(ctx, opt)
 }
 
-func (s *DataStore) NewBlock(metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
+func (s *DataStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64, data []byte) error {
 	s.NewBlockFuncInvoked = true
-	return s.NewBlockFunc(metadata, blockId, data)
+	return s.NewBlockFunc(ctx, metadata, blockId, data)
 }
 
-func (s *DataStore) GetBlock(metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+func (s *DataStore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 	s.GetBlockFuncInvoked = true
-	return s.GetBlockFunc(metadata, blockId)
+	return s.GetBlockFunc(ctx, metadata, blockId)
 }
 
-func (s *DataStore) CleanupCarves(now time.Time) (expired int, err error) {
+func (s *DataStore) CleanupCarves(ctx context.Context, now time.Time) (expired int, err error) {
 	s.CleanupCarvesFuncInvoked = true
-	return s.CleanupCarvesFunc(now)
+	return s.CleanupCarvesFunc(ctx, now)
 }
 
-func (s *DataStore) NewUser(user *fleet.User) (*fleet.User, error) {
+func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	s.NewUserFuncInvoked = true
-	return s.NewUserFunc(user)
+	return s.NewUserFunc(ctx, user)
 }
 
-func (s *DataStore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	s.ListUsersFuncInvoked = true
-	return s.ListUsersFunc(opt)
+	return s.ListUsersFunc(ctx, opt)
 }
 
-func (s *DataStore) UserByEmail(email string) (*fleet.User, error) {
+func (s *DataStore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
 	s.UserByEmailFuncInvoked = true
-	return s.UserByEmailFunc(email)
+	return s.UserByEmailFunc(ctx, email)
 }
 
-func (s *DataStore) UserByID(id uint) (*fleet.User, error) {
+func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
 	s.UserByIDFuncInvoked = true
-	return s.UserByIDFunc(id)
+	return s.UserByIDFunc(ctx, id)
 }
 
-func (s *DataStore) SaveUser(user *fleet.User) error {
+func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	s.SaveUserFuncInvoked = true
-	return s.SaveUserFunc(user)
+	return s.SaveUserFunc(ctx, user)
 }
 
-func (s *DataStore) SaveUsers(users []*fleet.User) error {
+func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	s.SaveUsersFuncInvoked = true
-	return s.SaveUsersFunc(users)
+	return s.SaveUsersFunc(ctx, users)
 }
 
-func (s *DataStore) DeleteUser(id uint) error {
+func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	s.DeleteUserFuncInvoked = true
-	return s.DeleteUserFunc(id)
+	return s.DeleteUserFunc(ctx, id)
 }
 
-func (s *DataStore) PendingEmailChange(userID uint, newEmail string, token string) error {
+func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {
 	s.PendingEmailChangeFuncInvoked = true
-	return s.PendingEmailChangeFunc(userID, newEmail, token)
+	return s.PendingEmailChangeFunc(ctx, userID, newEmail, token)
 }
 
-func (s *DataStore) ConfirmPendingEmailChange(userID uint, token string) (string, error) {
+func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, token string) (string, error) {
 	s.ConfirmPendingEmailChangeFuncInvoked = true
-	return s.ConfirmPendingEmailChangeFunc(userID, token)
+	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
 }
 
-func (s *DataStore) ApplyQueries(authorID uint, queries []*fleet.Query) error {
+func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) error {
 	s.ApplyQueriesFuncInvoked = true
-	return s.ApplyQueriesFunc(authorID, queries)
+	return s.ApplyQueriesFunc(ctx, authorID, queries)
 }
 
-func (s *DataStore) NewQuery(query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (s *DataStore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.NewQueryFuncInvoked = true
-	return s.NewQueryFunc(query, opts...)
+	return s.NewQueryFunc(ctx, query, opts...)
 }
 
-func (s *DataStore) SaveQuery(query *fleet.Query) error {
+func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query) error {
 	s.SaveQueryFuncInvoked = true
-	return s.SaveQueryFunc(query)
+	return s.SaveQueryFunc(ctx, query)
 }
 
-func (s *DataStore) DeleteQuery(name string) error {
+func (s *DataStore) DeleteQuery(ctx context.Context, name string) error {
 	s.DeleteQueryFuncInvoked = true
-	return s.DeleteQueryFunc(name)
+	return s.DeleteQueryFunc(ctx, name)
 }
 
-func (s *DataStore) DeleteQueries(ids []uint) (uint, error) {
+func (s *DataStore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	s.DeleteQueriesFuncInvoked = true
-	return s.DeleteQueriesFunc(ids)
+	return s.DeleteQueriesFunc(ctx, ids)
 }
 
-func (s *DataStore) Query(id uint) (*fleet.Query, error) {
+func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	s.QueryFuncInvoked = true
-	return s.QueryFunc(id)
+	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(opt fleet.ListOptions) ([]*fleet.Query, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	s.ListQueriesFuncInvoked = true
-	return s.ListQueriesFunc(opt)
+	return s.ListQueriesFunc(ctx, opt)
 }
 
-func (s *DataStore) QueryByName(name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.QueryByNameFuncInvoked = true
-	return s.QueryByNameFunc(name, opts...)
+	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
-func (s *DataStore) NewDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	s.NewDistributedQueryCampaignFuncInvoked = true
-	return s.NewDistributedQueryCampaignFunc(camp)
+	return s.NewDistributedQueryCampaignFunc(ctx, camp)
 }
 
-func (s *DataStore) DistributedQueryCampaign(id uint) (*fleet.DistributedQueryCampaign, error) {
+func (s *DataStore) DistributedQueryCampaign(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
 	s.DistributedQueryCampaignFuncInvoked = true
-	return s.DistributedQueryCampaignFunc(id)
+	return s.DistributedQueryCampaignFunc(ctx, id)
 }
 
-func (s *DataStore) SaveDistributedQueryCampaign(camp *fleet.DistributedQueryCampaign) error {
+func (s *DataStore) SaveDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
 	s.SaveDistributedQueryCampaignFuncInvoked = true
-	return s.SaveDistributedQueryCampaignFunc(camp)
+	return s.SaveDistributedQueryCampaignFunc(ctx, camp)
 }
 
-func (s *DataStore) DistributedQueryCampaignTargetIDs(id uint) (targets *fleet.HostTargets, err error) {
+func (s *DataStore) DistributedQueryCampaignTargetIDs(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
 	s.DistributedQueryCampaignTargetIDsFuncInvoked = true
-	return s.DistributedQueryCampaignTargetIDsFunc(id)
+	return s.DistributedQueryCampaignTargetIDsFunc(ctx, id)
 }
 
-func (s *DataStore) NewDistributedQueryCampaignTarget(target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+func (s *DataStore) NewDistributedQueryCampaignTarget(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 	s.NewDistributedQueryCampaignTargetFuncInvoked = true
-	return s.NewDistributedQueryCampaignTargetFunc(target)
+	return s.NewDistributedQueryCampaignTargetFunc(ctx, target)
 }
 
-func (s *DataStore) CleanupDistributedQueryCampaigns(now time.Time) (expired uint, err error) {
+func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
-	return s.CleanupDistributedQueryCampaignsFunc(now)
+	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
 }
 
-func (s *DataStore) ApplyPackSpecs(specs []*fleet.PackSpec) error {
+func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
 	s.ApplyPackSpecsFuncInvoked = true
-	return s.ApplyPackSpecsFunc(specs)
+	return s.ApplyPackSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) GetPackSpecs() ([]*fleet.PackSpec, error) {
+func (s *DataStore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
 	s.GetPackSpecsFuncInvoked = true
-	return s.GetPackSpecsFunc()
+	return s.GetPackSpecsFunc(ctx)
 }
 
-func (s *DataStore) GetPackSpec(name string) (*fleet.PackSpec, error) {
+func (s *DataStore) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
 	s.GetPackSpecFuncInvoked = true
-	return s.GetPackSpecFunc(name)
+	return s.GetPackSpecFunc(ctx, name)
 }
 
-func (s *DataStore) NewPack(pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+func (s *DataStore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
 	s.NewPackFuncInvoked = true
-	return s.NewPackFunc(pack, opts...)
+	return s.NewPackFunc(ctx, pack, opts...)
 }
 
-func (s *DataStore) SavePack(pack *fleet.Pack) error {
+func (s *DataStore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 	s.SavePackFuncInvoked = true
-	return s.SavePackFunc(pack)
+	return s.SavePackFunc(ctx, pack)
 }
 
-func (s *DataStore) DeletePack(name string) error {
+func (s *DataStore) DeletePack(ctx context.Context, name string) error {
 	s.DeletePackFuncInvoked = true
-	return s.DeletePackFunc(name)
+	return s.DeletePackFunc(ctx, name)
 }
 
-func (s *DataStore) Pack(pid uint) (*fleet.Pack, error) {
+func (s *DataStore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
 	s.PackFuncInvoked = true
-	return s.PackFunc(pid)
+	return s.PackFunc(ctx, pid)
 }
 
-func (s *DataStore) ListPacks(opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+func (s *DataStore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 	s.ListPacksFuncInvoked = true
-	return s.ListPacksFunc(opt)
+	return s.ListPacksFunc(ctx, opt)
 }
 
-func (s *DataStore) PackByName(name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
+func (s *DataStore) PackByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 	s.PackByNameFuncInvoked = true
-	return s.PackByNameFunc(name, opts...)
+	return s.PackByNameFunc(ctx, name, opts...)
 }
 
-func (s *DataStore) ListPacksForHost(hid uint) (packs []*fleet.Pack, err error) {
+func (s *DataStore) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 	s.ListPacksForHostFuncInvoked = true
-	return s.ListPacksForHostFunc(hid)
+	return s.ListPacksForHostFunc(ctx, hid)
 }
 
-func (s *DataStore) EnsureGlobalPack() (*fleet.Pack, error) {
+func (s *DataStore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
 	s.EnsureGlobalPackFuncInvoked = true
-	return s.EnsureGlobalPackFunc()
+	return s.EnsureGlobalPackFunc(ctx)
 }
 
-func (s *DataStore) EnsureTeamPack(teamID uint) (*fleet.Pack, error) {
+func (s *DataStore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pack, error) {
 	s.EnsureTeamPackFuncInvoked = true
-	return s.EnsureTeamPackFunc(teamID)
+	return s.EnsureTeamPackFunc(ctx, teamID)
 }
 
-func (s *DataStore) ApplyLabelSpecs(specs []*fleet.LabelSpec) error {
+func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
 	s.ApplyLabelSpecsFuncInvoked = true
-	return s.ApplyLabelSpecsFunc(specs)
+	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) GetLabelSpecs() ([]*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	s.GetLabelSpecsFuncInvoked = true
-	return s.GetLabelSpecsFunc()
+	return s.GetLabelSpecsFunc(ctx)
 }
 
-func (s *DataStore) GetLabelSpec(name string) (*fleet.LabelSpec, error) {
+func (s *DataStore) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 	s.GetLabelSpecFuncInvoked = true
-	return s.GetLabelSpecFunc(name)
+	return s.GetLabelSpecFunc(ctx, name)
 }
 
-func (s *DataStore) NewLabel(Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	s.NewLabelFuncInvoked = true
-	return s.NewLabelFunc(Label, opts...)
+	return s.NewLabelFunc(ctx, Label, opts...)
 }
 
-func (s *DataStore) SaveLabel(label *fleet.Label) (*fleet.Label, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
 	s.SaveLabelFuncInvoked = true
-	return s.SaveLabelFunc(label)
+	return s.SaveLabelFunc(ctx, label)
 }
 
-func (s *DataStore) DeleteLabel(name string) error {
+func (s *DataStore) DeleteLabel(ctx context.Context, name string) error {
 	s.DeleteLabelFuncInvoked = true
-	return s.DeleteLabelFunc(name)
+	return s.DeleteLabelFunc(ctx, name)
 }
 
-func (s *DataStore) Label(lid uint) (*fleet.Label, error) {
+func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 	s.LabelFuncInvoked = true
-	return s.LabelFunc(lid)
+	return s.LabelFunc(ctx, lid)
 }
 
-func (s *DataStore) ListLabels(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	s.ListLabelsFuncInvoked = true
-	return s.ListLabelsFunc(filter, opt)
+	return s.ListLabelsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) LabelQueriesForHost(host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
-	return s.LabelQueriesForHostFunc(host, cutoff)
+	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(host *fleet.Host, results map[uint]*bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
-	return s.RecordLabelQueryExecutionsFunc(host, results, t)
+	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t)
 }
 
-func (s *DataStore) ListLabelsForHost(hid uint) ([]*fleet.Label, error) {
+func (s *DataStore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 	s.ListLabelsForHostFuncInvoked = true
-	return s.ListLabelsForHostFunc(hid)
+	return s.ListLabelsForHostFunc(ctx, hid)
 }
 
-func (s *DataStore) ListHostsInLabel(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (s *DataStore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsInLabelFuncInvoked = true
-	return s.ListHostsInLabelFunc(filter, lid, opt)
+	return s.ListHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListUniqueHostsInLabels(filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
+func (s *DataStore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
 	s.ListUniqueHostsInLabelsFuncInvoked = true
-	return s.ListUniqueHostsInLabelsFunc(filter, labels)
+	return s.ListUniqueHostsInLabelsFunc(ctx, filter, labels)
 }
 
-func (s *DataStore) SearchLabels(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 	s.SearchLabelsFuncInvoked = true
-	return s.SearchLabelsFunc(filter, query, omit...)
+	return s.SearchLabelsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) LabelIDsByName(labels []string) ([]uint, error) {
+func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
 	s.LabelIDsByNameFuncInvoked = true
-	return s.LabelIDsByNameFunc(labels)
+	return s.LabelIDsByNameFunc(ctx, labels)
 }
 
-func (s *DataStore) NewHost(host *fleet.Host) (*fleet.Host, error) {
+func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	s.NewHostFuncInvoked = true
-	return s.NewHostFunc(host)
+	return s.NewHostFunc(ctx, host)
 }
 
-func (s *DataStore) SaveHost(host *fleet.Host) error {
+func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostFuncInvoked = true
-	return s.SaveHostFunc(host)
+	return s.SaveHostFunc(ctx, host)
 }
 
-func (s *DataStore) DeleteHost(hid uint) error {
+func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	s.DeleteHostFuncInvoked = true
-	return s.DeleteHostFunc(hid)
+	return s.DeleteHostFunc(ctx, hid)
 }
 
-func (s *DataStore) Host(id uint) (*fleet.Host, error) {
+func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(id)
+	return s.HostFunc(ctx, id)
 }
 
-func (s *DataStore) EnrollHost(osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(osqueryHostId, nodeKey, teamID, cooldown)
+	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) ListHosts(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsFuncInvoked = true
-	return s.ListHostsFunc(filter, opt)
+	return s.ListHostsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) AuthenticateHost(nodeKey string) (*fleet.Host, error) {
+func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	s.AuthenticateHostFuncInvoked = true
-	return s.AuthenticateHostFunc(nodeKey)
+	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *DataStore) MarkHostSeen(host *fleet.Host, t time.Time) error {
+func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
 	s.MarkHostSeenFuncInvoked = true
-	return s.MarkHostSeenFunc(host, t)
+	return s.MarkHostSeenFunc(ctx, host, t)
 }
 
-func (s *DataStore) MarkHostsSeen(hostIDs []uint, t time.Time) error {
+func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
-	return s.MarkHostsSeenFunc(hostIDs, t)
+	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
-func (s *DataStore) SearchHosts(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	s.SearchHostsFuncInvoked = true
-	return s.SearchHostsFunc(filter, query, omit...)
+	return s.SearchHostsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) CleanupIncomingHosts(now time.Time) error {
+func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
 	s.CleanupIncomingHostsFuncInvoked = true
-	return s.CleanupIncomingHostsFunc(now)
+	return s.CleanupIncomingHostsFunc(ctx, now)
 }
 
-func (s *DataStore) GenerateHostStatusStatistics(filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
+func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
-	return s.GenerateHostStatusStatisticsFunc(filter, now)
+	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
 }
 
-func (s *DataStore) HostIDsByName(filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
-	return s.HostIDsByNameFunc(filter, hostnames)
+	return s.HostIDsByNameFunc(ctx, filter, hostnames)
 }
 
-func (s *DataStore) HostByIdentifier(identifier string) (*fleet.Host, error) {
+func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	s.HostByIdentifierFuncInvoked = true
-	return s.HostByIdentifierFunc(identifier)
+	return s.HostByIdentifierFunc(ctx, identifier)
 }
 
-func (s *DataStore) AddHostsToTeam(teamID *uint, hostIDs []uint) error {
+func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.AddHostsToTeamFuncInvoked = true
-	return s.AddHostsToTeamFunc(teamID, hostIDs)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) SaveHostAdditional(host *fleet.Host) error {
-	s.SaveHostAdditionalFuncInvoked = true
-	return s.SaveHostAdditionalFunc(host)
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
+	s.TotalAndUnseenHostsSinceFuncInvoked = true
+	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
 
-func (s *DataStore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
-	return s.CountHostsInTargetsFunc(filter, targets, now)
+	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
 }
 
-func (s *DataStore) HostIDsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+func (s *DataStore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 	s.HostIDsInTargetsFuncInvoked = true
-	return s.HostIDsInTargetsFunc(filter, targets)
+	return s.HostIDsInTargetsFunc(ctx, filter, targets)
 }
 
-func (s *DataStore) NewPasswordResetRequest(req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
+func (s *DataStore) NewPasswordResetRequest(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
 	s.NewPasswordResetRequestFuncInvoked = true
-	return s.NewPasswordResetRequestFunc(req)
+	return s.NewPasswordResetRequestFunc(ctx, req)
 }
 
-func (s *DataStore) SavePasswordResetRequest(req *fleet.PasswordResetRequest) error {
-	s.SavePasswordResetRequestFuncInvoked = true
-	return s.SavePasswordResetRequestFunc(req)
-}
-
-func (s *DataStore) DeletePasswordResetRequest(req *fleet.PasswordResetRequest) error {
-	s.DeletePasswordResetRequestFuncInvoked = true
-	return s.DeletePasswordResetRequestFunc(req)
-}
-
-func (s *DataStore) DeletePasswordResetRequestsForUser(userID uint) error {
+func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error {
 	s.DeletePasswordResetRequestsForUserFuncInvoked = true
-	return s.DeletePasswordResetRequestsForUserFunc(userID)
+	return s.DeletePasswordResetRequestsForUserFunc(ctx, userID)
 }
 
-func (s *DataStore) FindPassswordResetByID(id uint) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByIDFuncInvoked = true
-	return s.FindPassswordResetByIDFunc(id)
-}
-
-func (s *DataStore) FindPassswordResetsByUserID(id uint) ([]*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetsByUserIDFuncInvoked = true
-	return s.FindPassswordResetsByUserIDFunc(id)
-}
-
-func (s *DataStore) FindPassswordResetByToken(token string) (*fleet.PasswordResetRequest, error) {
+func (s *DataStore) FindPassswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	s.FindPassswordResetByTokenFuncInvoked = true
-	return s.FindPassswordResetByTokenFunc(token)
+	return s.FindPassswordResetByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) FindPassswordResetByTokenAndUserID(token string, id uint) (*fleet.PasswordResetRequest, error) {
-	s.FindPassswordResetByTokenAndUserIDFuncInvoked = true
-	return s.FindPassswordResetByTokenAndUserIDFunc(token, id)
-}
-
-func (s *DataStore) SessionByKey(key string) (*fleet.Session, error) {
+func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	s.SessionByKeyFuncInvoked = true
-	return s.SessionByKeyFunc(key)
+	return s.SessionByKeyFunc(ctx, key)
 }
 
-func (s *DataStore) SessionByID(id uint) (*fleet.Session, error) {
+func (s *DataStore) SessionByID(ctx context.Context, id uint) (*fleet.Session, error) {
 	s.SessionByIDFuncInvoked = true
-	return s.SessionByIDFunc(id)
+	return s.SessionByIDFunc(ctx, id)
 }
 
-func (s *DataStore) ListSessionsForUser(id uint) ([]*fleet.Session, error) {
+func (s *DataStore) ListSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
 	s.ListSessionsForUserFuncInvoked = true
-	return s.ListSessionsForUserFunc(id)
+	return s.ListSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) NewSession(session *fleet.Session) (*fleet.Session, error) {
+func (s *DataStore) NewSession(ctx context.Context, session *fleet.Session) (*fleet.Session, error) {
 	s.NewSessionFuncInvoked = true
-	return s.NewSessionFunc(session)
+	return s.NewSessionFunc(ctx, session)
 }
 
-func (s *DataStore) DestroySession(session *fleet.Session) error {
+func (s *DataStore) DestroySession(ctx context.Context, session *fleet.Session) error {
 	s.DestroySessionFuncInvoked = true
-	return s.DestroySessionFunc(session)
+	return s.DestroySessionFunc(ctx, session)
 }
 
-func (s *DataStore) DestroyAllSessionsForUser(id uint) error {
+func (s *DataStore) DestroyAllSessionsForUser(ctx context.Context, id uint) error {
 	s.DestroyAllSessionsForUserFuncInvoked = true
-	return s.DestroyAllSessionsForUserFunc(id)
+	return s.DestroyAllSessionsForUserFunc(ctx, id)
 }
 
-func (s *DataStore) MarkSessionAccessed(session *fleet.Session) error {
+func (s *DataStore) MarkSessionAccessed(ctx context.Context, session *fleet.Session) error {
 	s.MarkSessionAccessedFuncInvoked = true
-	return s.MarkSessionAccessedFunc(session)
+	return s.MarkSessionAccessedFunc(ctx, session)
 }
 
-func (s *DataStore) NewAppConfig(info *fleet.AppConfig) (*fleet.AppConfig, error) {
+func (s *DataStore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	s.NewAppConfigFuncInvoked = true
-	return s.NewAppConfigFunc(info)
+	return s.NewAppConfigFunc(ctx, info)
 }
 
-func (s *DataStore) AppConfig() (*fleet.AppConfig, error) {
+func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
-	return s.AppConfigFunc()
+	return s.AppConfigFunc(ctx)
 }
 
-func (s *DataStore) SaveAppConfig(info *fleet.AppConfig) error {
+func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	s.SaveAppConfigFuncInvoked = true
-	return s.SaveAppConfigFunc(info)
+	return s.SaveAppConfigFunc(ctx, info)
 }
 
-func (s *DataStore) VerifyEnrollSecret(secret string) (*fleet.EnrollSecret, error) {
+func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	s.VerifyEnrollSecretFuncInvoked = true
-	return s.VerifyEnrollSecretFunc(secret)
+	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) GetEnrollSecrets(teamID *uint) ([]*fleet.EnrollSecret, error) {
+func (s *DataStore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	s.GetEnrollSecretsFuncInvoked = true
-	return s.GetEnrollSecretsFunc(teamID)
+	return s.GetEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) ApplyEnrollSecrets(teamID *uint, secrets []*fleet.EnrollSecret) error {
+func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 	s.ApplyEnrollSecretsFuncInvoked = true
-	return s.ApplyEnrollSecretsFunc(teamID, secrets)
+	return s.ApplyEnrollSecretsFunc(ctx, teamID, secrets)
 }
 
-func (s *DataStore) NewInvite(i *fleet.Invite) (*fleet.Invite, error) {
+func (s *DataStore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
 	s.NewInviteFuncInvoked = true
-	return s.NewInviteFunc(i)
+	return s.NewInviteFunc(ctx, i)
 }
 
-func (s *DataStore) ListInvites(opt fleet.ListOptions) ([]*fleet.Invite, error) {
+func (s *DataStore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	s.ListInvitesFuncInvoked = true
-	return s.ListInvitesFunc(opt)
+	return s.ListInvitesFunc(ctx, opt)
 }
 
-func (s *DataStore) Invite(id uint) (*fleet.Invite, error) {
+func (s *DataStore) Invite(ctx context.Context, id uint) (*fleet.Invite, error) {
 	s.InviteFuncInvoked = true
-	return s.InviteFunc(id)
+	return s.InviteFunc(ctx, id)
 }
 
-func (s *DataStore) InviteByEmail(email string) (*fleet.Invite, error) {
+func (s *DataStore) InviteByEmail(ctx context.Context, email string) (*fleet.Invite, error) {
 	s.InviteByEmailFuncInvoked = true
-	return s.InviteByEmailFunc(email)
+	return s.InviteByEmailFunc(ctx, email)
 }
 
-func (s *DataStore) InviteByToken(token string) (*fleet.Invite, error) {
+func (s *DataStore) InviteByToken(ctx context.Context, token string) (*fleet.Invite, error) {
 	s.InviteByTokenFuncInvoked = true
-	return s.InviteByTokenFunc(token)
+	return s.InviteByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) DeleteInvite(id uint) error {
+func (s *DataStore) DeleteInvite(ctx context.Context, id uint) error {
 	s.DeleteInviteFuncInvoked = true
-	return s.DeleteInviteFunc(id)
+	return s.DeleteInviteFunc(ctx, id)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
-	return s.ListScheduledQueriesInPackFunc(id, opts)
+	return s.ListScheduledQueriesInPackFunc(ctx, id, opts)
 }
 
-func (s *DataStore) NewScheduledQuery(sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	s.NewScheduledQueryFuncInvoked = true
-	return s.NewScheduledQueryFunc(sq, opts...)
+	return s.NewScheduledQueryFunc(ctx, sq, opts...)
 }
 
-func (s *DataStore) SaveScheduledQuery(sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	s.SaveScheduledQueryFuncInvoked = true
-	return s.SaveScheduledQueryFunc(sq)
+	return s.SaveScheduledQueryFunc(ctx, sq)
 }
 
-func (s *DataStore) DeleteScheduledQuery(id uint) error {
+func (s *DataStore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	s.DeleteScheduledQueryFuncInvoked = true
-	return s.DeleteScheduledQueryFunc(id)
+	return s.DeleteScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) ScheduledQuery(id uint) (*fleet.ScheduledQuery, error) {
+func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryFuncInvoked = true
-	return s.ScheduledQueryFunc(id)
+	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupOrphanScheduledQueryStats() error {
+func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
 	s.CleanupOrphanScheduledQueryStatsFuncInvoked = true
-	return s.CleanupOrphanScheduledQueryStatsFunc()
+	return s.CleanupOrphanScheduledQueryStatsFunc(ctx)
 }
 
-func (s *DataStore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
+func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
+	s.CleanupOrphanLabelMembershipFuncInvoked = true
+	return s.CleanupOrphanLabelMembershipFunc(ctx)
+}
+
+func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
-	return s.NewTeamFunc(team)
+	return s.NewTeamFunc(ctx, team)
 }
 
-func (s *DataStore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
+func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.SaveTeamFuncInvoked = true
-	return s.SaveTeamFunc(team)
+	return s.SaveTeamFunc(ctx, team)
 }
 
-func (s *DataStore) Team(tid uint) (*fleet.Team, error) {
+func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.TeamFuncInvoked = true
-	return s.TeamFunc(tid)
+	return s.TeamFunc(ctx, tid)
 }
 
-func (s *DataStore) DeleteTeam(tid uint) error {
+func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.DeleteTeamFuncInvoked = true
-	return s.DeleteTeamFunc(tid)
+	return s.DeleteTeamFunc(ctx, tid)
 }
 
-func (s *DataStore) TeamByName(name string) (*fleet.Team, error) {
+func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
 	s.TeamByNameFuncInvoked = true
-	return s.TeamByNameFunc(name)
+	return s.TeamByNameFunc(ctx, name)
 }
 
-func (s *DataStore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	s.ListTeamsFuncInvoked = true
-	return s.ListTeamsFunc(filter, opt)
+	return s.ListTeamsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
+func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	s.SearchTeamsFuncInvoked = true
-	return s.SearchTeamsFunc(filter, matchQuery, omit...)
+	return s.SearchTeamsFunc(ctx, filter, matchQuery, omit...)
 }
 
-func (s *DataStore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
+func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	s.TeamEnrollSecretsFuncInvoked = true
-	return s.TeamEnrollSecretsFunc(teamID)
+	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) SaveHostSoftware(host *fleet.Host) error {
+func (s *DataStore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostSoftwareFuncInvoked = true
-	return s.SaveHostSoftwareFunc(host)
+	return s.SaveHostSoftwareFunc(ctx, host)
 }
 
-func (s *DataStore) LoadHostSoftware(host *fleet.Host) error {
+func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	s.LoadHostSoftwareFuncInvoked = true
-	return s.LoadHostSoftwareFunc(host)
+	return s.LoadHostSoftwareFunc(ctx, host)
 }
 
-func (s *DataStore) AllSoftwareWithoutCPEIterator() (fleet.SoftwareIterator, error) {
+func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
 	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
-	return s.AllSoftwareWithoutCPEIteratorFunc()
+	return s.AllSoftwareWithoutCPEIteratorFunc(ctx)
 }
 
-func (s *DataStore) AddCPEForSoftware(software fleet.Software, cpe string) error {
+func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
 	s.AddCPEForSoftwareFuncInvoked = true
-	return s.AddCPEForSoftwareFunc(software, cpe)
+	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) AllCPEs() ([]string, error) {
+func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 	s.AllCPEsFuncInvoked = true
-	return s.AllCPEsFunc()
+	return s.AllCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertCVEForCPE(cve string, cpes []string) error {
+func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
 	s.InsertCVEForCPEFuncInvoked = true
-	return s.InsertCVEForCPEFunc(cve, cpes)
+	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
-func (s *DataStore) NewActivity(user *fleet.User, activityType string, details *map[string]interface{}) error {
+func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	s.NewActivityFuncInvoked = true
-	return s.NewActivityFunc(user, activityType, details)
+	return s.NewActivityFunc(ctx, user, activityType, details)
 }
 
-func (s *DataStore) ListActivities(opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
 	s.ListActivitiesFuncInvoked = true
-	return s.ListActivitiesFunc(opt)
+	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(frequency)
+	return s.ShouldSendStatisticsFunc(ctx, frequency)
 }
 
-func (s *DataStore) RecordStatisticsSent() error {
+func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	s.RecordStatisticsSentFuncInvoked = true
-	return s.RecordStatisticsSentFunc()
+	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(queryID)
+	return s.NewGlobalPolicyFunc(ctx, queryID)
 }
 
-func (s *DataStore) Policy(id uint) (*fleet.Policy, error) {
+func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	s.PolicyFuncInvoked = true
-	return s.PolicyFunc(id)
+	return s.PolicyFunc(ctx, id)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
-	return s.RecordPolicyQueryExecutionsFunc(host, results, updated)
+	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated)
 }
 
-func (s *DataStore) ListGlobalPolicies() ([]*fleet.Policy, error) {
+func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
 	s.ListGlobalPoliciesFuncInvoked = true
-	return s.ListGlobalPoliciesFunc()
+	return s.ListGlobalPoliciesFunc(ctx)
 }
 
-func (s *DataStore) DeleteGlobalPolicies(ids []uint) ([]uint, error) {
+func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	s.DeleteGlobalPoliciesFuncInvoked = true
-	return s.DeleteGlobalPoliciesFunc(ids)
+	return s.DeleteGlobalPoliciesFunc(ctx, ids)
 }
 
-func (s *DataStore) PolicyQueriesForHost(host *fleet.Host) (map[string]string, error) {
+func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.PolicyQueriesForHostFuncInvoked = true
-	return s.PolicyQueriesForHostFunc(host)
+	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) Name() string {
-	s.NameFuncInvoked = true
-	return s.NameFunc()
-}
-
-func (s *DataStore) Drop() error {
-	s.DropFuncInvoked = true
-	return s.DropFunc()
-}
-
-func (s *DataStore) MigrateTables() error {
+func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
-	return s.MigrateTablesFunc()
+	return s.MigrateTablesFunc(ctx)
 }
 
-func (s *DataStore) MigrateData() error {
+func (s *DataStore) MigrateData(ctx context.Context) error {
 	s.MigrateDataFuncInvoked = true
-	return s.MigrateDataFunc()
+	return s.MigrateDataFunc(ctx)
 }
 
-func (s *DataStore) MigrationStatus() (fleet.MigrationStatus, error) {
+func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
-	return s.MigrationStatusFunc()
+	return s.MigrationStatusFunc(ctx)
 }
 
-func (s *DataStore) Begin() (fleet.Transaction, error) {
-	s.BeginFuncInvoked = true
-	return s.BeginFunc()
+func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+	s.ListSoftwareFuncInvoked = true
+	return s.ListSoftwareFunc(ctx, teamId, opt)
+}
+
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
+	s.NewTeamPolicyFuncInvoked = true
+	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
+}
+
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
+	s.ListTeamPoliciesFuncInvoked = true
+	return s.ListTeamPoliciesFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	s.DeleteTeamPoliciesFuncInvoked = true
+	return s.DeleteTeamPoliciesFunc(ctx, teamID, ids)
+}
+
+func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
+	s.TeamPolicyFuncInvoked = true
+	return s.TeamPolicyFunc(ctx, teamID, policyID)
 }

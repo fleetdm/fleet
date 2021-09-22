@@ -35,7 +35,7 @@ Fleet is [independently backed](https://linkedin.com/company/fleetdm) and active
 
 ## Documentation
 
-Documentation for Fleet can be found [here on GitHub](./docs/README.md).
+Documentation for Fleet can be found [here](https://fleetdm.com/docs).
 
 <!-- TODO: "#### Contributing" as one-liner with link to best jumping off point in docs -->
 <!-- TODO: "#### Production deployment" as one-liner with link to best jumping off point in docs -->

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -12,101 +13,109 @@ import (
 
 var teamSearchColumns = []string{"name"}
 
-func (d *Datastore) NewTeam(team *fleet.Team) (*fleet.Team, error) {
-	query := `
-	INSERT INTO teams (
-		name,
-		agent_options,
-		description
-	) VALUES ( ?, ?, ? )
-	`
-	result, err := d.db.Exec(
-		query,
-		team.Name,
-		team.AgentOptions,
-		team.Description,
-	)
+func (d *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		query := `
+    INSERT INTO teams (
+      name,
+      agent_options,
+      description
+    ) VALUES ( ?, ?, ? )
+    `
+		result, err := tx.ExecContext(
+			ctx,
+			query,
+			team.Name,
+			team.AgentOptions,
+			team.Description,
+		)
+		if err != nil {
+			return errors.Wrap(err, "insert team")
+		}
+
+		id, _ := result.LastInsertId()
+		team.ID = uint(id)
+
+		return saveTeamSecretsDB(ctx, tx, team)
+	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "insert team")
-	}
-
-	id, _ := result.LastInsertId()
-	team.ID = uint(id)
-
-	if err := d.saveTeamSecrets(team); err != nil {
 		return nil, err
 	}
-
 	return team, nil
 }
 
-func (d *Datastore) Team(tid uint) (*fleet.Team, error) {
+func (d *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
+	return teamDB(ctx, d.reader, tid)
+}
+
+func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE id = ?
 	`
 	team := &fleet.Team{}
 
-	if err := d.db.Get(team, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, q, team, sql, tid); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, q, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeamDB(ctx, q, team); err != nil {
 		return nil, err
 	}
 
 	return team, nil
 }
 
-func (d *Datastore) saveTeamSecrets(team *fleet.Team) error {
+func saveTeamSecretsDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
 	if team.Secrets == nil {
 		return nil
 	}
 
-	return d.ApplyEnrollSecrets(&team.ID, team.Secrets)
+	return applyEnrollSecretsDB(ctx, exec, &team.ID, team.Secrets)
 }
 
-func (d *Datastore) DeleteTeam(tid uint) error {
-	if err := d.deleteEntity("teams", tid); err != nil {
+func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
+	if err := d.deleteEntity(ctx, teamsTable, tid); err != nil {
 		return errors.Wrapf(err, "delete team id %d", tid)
 	}
 	return nil
 }
 
-func (d *Datastore) TeamByName(name string) (*fleet.Team, error) {
+func (d *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
 	sql := `
 		SELECT * FROM teams
 			WHERE name = ?
 	`
 	team := &fleet.Team{}
 
-	if err := d.db.Get(team, sql, name); err != nil {
+	if err := sqlx.GetContext(ctx, d.reader, team, sql, name); err != nil {
 		return nil, errors.Wrap(err, "select team")
 	}
 
-	if err := d.loadSecretsForTeams([]*fleet.Team{team}); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, d.reader, []*fleet.Team{team}); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 
-	if err := d.loadUsersForTeam(team); err != nil {
+	if err := loadUsersForTeamDB(ctx, d.reader, team); err != nil {
 		return nil, err
 	}
 
 	return team, nil
 }
 
-func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
+func loadUsersForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.Team) error {
 	sql := `
 		SELECT u.name, u.id, u.email, ut.role
 		FROM user_teams ut JOIN users u ON (ut.user_id = u.id)
 		WHERE ut.team_id = ?
 	`
 	rows := []fleet.TeamUser{}
-	if err := d.db.Select(&rows, sql, team.ID); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &rows, sql, team.ID); err != nil {
 		return errors.Wrap(err, "load users for team")
 	}
 
@@ -114,67 +123,64 @@ func (d *Datastore) loadUsersForTeam(team *fleet.Team) error {
 	return nil
 }
 
-func (d *Datastore) saveUsersForTeam(team *fleet.Team) error {
+func saveUsersForTeamDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
 	// Do a full user update by deleting existing users and then inserting all
 	// the current users in a single transaction.
-	if err := d.withRetryTxx(func(tx *sqlx.Tx) error {
-		// Delete before insert
-		sql := `DELETE FROM user_teams WHERE team_id = ?`
-		if _, err := tx.Exec(sql, team.ID); err != nil {
-			return errors.Wrap(err, "delete existing users")
-		}
+	// Delete before insert
+	sql := `DELETE FROM user_teams WHERE team_id = ?`
+	if _, err := exec.ExecContext(ctx, sql, team.ID); err != nil {
+		return errors.Wrap(err, "delete existing users")
+	}
 
-		if len(team.Users) == 0 {
-			return nil
-		}
-
-		// Bulk insert
-		const valueStr = "(?,?,?),"
-		var args []interface{}
-		for _, teamUser := range team.Users {
-			args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
-		}
-		sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
-			strings.Repeat(valueStr, len(team.Users))
-		sql = strings.TrimSuffix(sql, ",")
-		if _, err := tx.Exec(sql, args...); err != nil {
-			return errors.Wrap(err, "insert users")
-		}
-
+	if len(team.Users) == 0 {
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "save users for team")
+	}
+
+	// Bulk insert
+	const valueStr = "(?,?,?),"
+	var args []interface{}
+	for _, teamUser := range team.Users {
+		args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
+	}
+	sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+		strings.Repeat(valueStr, len(team.Users))
+	sql = strings.TrimSuffix(sql, ",")
+	if _, err := exec.ExecContext(ctx, sql, args...); err != nil {
+		return errors.Wrap(err, "insert users")
 	}
 
 	return nil
 }
 
-func (d *Datastore) SaveTeam(team *fleet.Team) (*fleet.Team, error) {
-	query := `
+func (d *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		query := `
 		UPDATE teams SET
 			name = ?,
 			agent_options = ?,
 			description = ?
 		WHERE id = ?
 	`
-	_, err := d.db.Exec(query, team.Name, team.AgentOptions, team.Description, team.ID)
+		_, err := tx.ExecContext(ctx, query, team.Name, team.AgentOptions, team.Description, team.ID)
+		if err != nil {
+			return errors.Wrap(err, "saving team")
+		}
+
+		if err := saveUsersForTeamDB(ctx, tx, team); err != nil {
+			return err
+		}
+
+		return updateTeamScheduleDB(ctx, tx, team)
+	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "saving team")
-	}
-
-	if err := d.saveUsersForTeam(team); err != nil {
 		return nil, err
 	}
-
-	if err := d.updateTeamSchedule(team); err != nil {
-		return nil, err
-	}
-
 	return team, nil
 }
 
-func (d *Datastore) updateTeamSchedule(team *fleet.Team) error {
-	_, err := d.db.Exec(
+func updateTeamScheduleDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
+	_, err := exec.ExecContext(ctx,
 		`UPDATE packs SET name = ? WHERE pack_type = ?`, teamScheduleName(team), teamSchedulePackType(team),
 	)
 	return err
@@ -182,7 +188,7 @@ func (d *Datastore) updateTeamSchedule(team *fleet.Team) error {
 
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
-func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+func (d *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -195,18 +201,18 @@ func (d *Datastore) ListTeams(filter fleet.TeamFilter, opt fleet.ListOptions) ([
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
 	query = appendListOptionsToSQL(query, opt)
 	teams := []*fleet.Team{}
-	if err := d.db.Select(&teams, query, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &teams, query, params...); err != nil {
 		return nil, errors.Wrap(err, "list teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil
 }
 
-func (d *Datastore) loadSecretsForTeams(teams []*fleet.Team) error {
+func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*fleet.Team) error {
 	for _, team := range teams {
-		secrets, err := d.GetEnrollSecrets(ptr.Uint(team.ID))
+		secrets, err := getEnrollSecretsDB(ctx, q, ptr.Uint(team.ID))
 		if err != nil {
 			return err
 		}
@@ -215,7 +221,7 @@ func (d *Datastore) loadSecretsForTeams(teams []*fleet.Team) error {
 	return nil
 }
 
-func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
+func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
@@ -229,22 +235,22 @@ func (d *Datastore) SearchTeams(filter fleet.TeamFilter, matchQuery string, omit
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
 	sql += "\nLIMIT 5"
 	teams := []*fleet.Team{}
-	if err := d.db.Select(&teams, sql, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &teams, sql, params...); err != nil {
 		return nil, errors.Wrap(err, "search teams")
 	}
-	if err := d.loadSecretsForTeams(teams); err != nil {
+	if err := loadSecretsForTeamsDB(ctx, d.reader, teams); err != nil {
 		return nil, errors.Wrap(err, "getting secrets for teams")
 	}
 	return teams, nil
 }
 
-func (d *Datastore) TeamEnrollSecrets(teamID uint) ([]*fleet.EnrollSecret, error) {
+func (d *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
 		SELECT * FROM enroll_secrets
 		WHERE team_id = ?
 	`
 	var secrets []*fleet.EnrollSecret
-	if err := d.db.Select(&secrets, sql, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &secrets, sql, teamID); err != nil {
 		return nil, errors.Wrap(err, "get secrets")
 	}
 	return secrets, nil
