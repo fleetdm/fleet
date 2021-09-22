@@ -311,7 +311,7 @@ const QueryForm = ({
             }
           />
         ) : (
-          <h1 className={`${baseClass}__query-name`}>New query</h1>
+          <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
         )}
         {isEditMode && (
           <ContentEditable
