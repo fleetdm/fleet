@@ -1,41 +1,32 @@
 ## Fleet 4.3.1 (Sept 21, 2021)
 
-* Add `fleetctl get software` to list all software and the detected vulnerabilities.
+* Add `fleetctl get software` command to list all software and the detected vulnerabilities. The Vulnerable software feature is currently in Beta. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
 
 * Add `fleetctl vulnerability-data-stream` command to sync the vulnerabilities processing data streams by hand.
 
-* Add `vulnerabilities.disable_data_sync` config to fleet serve to avoid downloading the data streams.
+* Add `disable_data_sync` vulnerabilities configuration option to avoid downloading the data streams. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#disable-data-sync).
 
-* Allow specifying Fleet version in `fleetctl preview` with `--tag` flag.
+* Only show observers the queries they have permissions to run on the **Queries** page. In, Fleet 4.0.0, the Admin, Maintainer, and Observer user roles were introduced. Documentation for the permissions associated with each role can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions). 
 
-* Allow team maintainers to run new queries in the team hosts.
+* Add `connect_retry_attempts` Redis configuration option to retry failed connections. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-connect-retry-attempts).
 
-* Only show observers queries they can run.
+* Add `cluster_follow_redirections` Redis configuration option to follow cluster redirections. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-cluster-follow-redirections).
 
-* Add redis configuration option to retry failed connections.
+* Add `max_jitter_percent` osquery configuration option to prevent all hosts from returning data at roughly the same time. Note that this improves the Fleet server performance, but it will now take longer for new labels to populate. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#osquery-max-jitter-percent).
 
-* Add redis configuration option to follow cluster redirections.
-
-* Add jitter percent for osquery update intervals to prevent all hosts from returning data at
-  roughly the same time. Note that this improves the Fleet server performance, but it will now take
-  longer for new labels to populate.
-
-* Improve the performance of certain database migrations that were preventing users from updating to
-  4.3.0.
+* Improve the performance of database migrations.
 
 * Reduce database load for label membership recording.
 
-* Add team policies.
-
-* Fix intermittent blank screen for observers on manage hosts page
-
-* Fix sidebar style on query page.
-
-* Fix a bug detecting disk space for hosts.
-
 * Fail early if the process does not have permissions to write to the logging file.
 
-* Completely skip trying to save host users and software inventory if it's disabled.
+* Completely skip trying to save a host's users and software inventory if it's disabled to reduce database load. 
+
+* Fix a bug in which team maintainers were unable to run live queries against the hosts assigned to their team(s).
+
+* Fix a bug in which a blank screen would intermittently appear on the **Hosts** page.
+
+* Fix a bug detecting disk space for hosts.
 
 ## Fleet 4.3.0 (Sept 13, 2021)
 
