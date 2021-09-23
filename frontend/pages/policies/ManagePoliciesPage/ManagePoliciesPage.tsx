@@ -1,7 +1,8 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-
 import { useDispatch } from "react-redux";
+import { noop } from "lodash";
+
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -33,6 +34,14 @@ const baseClass = "manage-policies-page";
 const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery_detail_update_interval";
 
+const INHERITED_POLICIES_COUNT_HTML = (
+  <span>
+    {" "}
+    inherited from{" "}
+    <span className={`${baseClass}__vibrant-blue`}>All teams policy</span>
+  </span>
+);
+
 const ManagePolicyPage = (managePoliciesPageProps: {
   router: any;
   location: any;
@@ -44,8 +53,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     config,
     currentUser,
     isGlobalAdmin,
+    isGlobalMaintainer,
     isOnGlobalTeam,
+    isAnyTeamMaintainer,
     isOnlyObserver,
+    isFreeTier,
     isPremiumTier,
   } = useContext(AppContext);
 
@@ -66,44 +78,85 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     select: (data) => data.queries,
   });
 
-  const [userTeams, setUserTeams] = useState<ITeam[] | never[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const [globalPolicies, setGlobalPolicies] = useState<IPolicy[] | never[]>([]);
+  const [isLoadingGlobalPolicies, setIsLoadingGlobalPolicies] = useState(true);
+  const [
+    isLoadingGlobalPoliciesError,
+    setIsLoadingGlobalPoliciesError,
+  ] = useState(false);
+
+  const [teamPolicies, setTeamPolicies] = useState<IPolicy[] | never[]>([]);
+  const [isLoadingTeamPolicies, setIsLoadingTeamPolicies] = useState(true);
+  const [isLoadingTeamPoliciesError, setIsLoadingTeamPoliciesError] = useState(
+    false
+  );
+
+  const [userTeams, setUserTeams] = useState<ITeam[] | never[] | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(
+    parseInt(location?.query?.team_id, 10) || null
+  );
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
 
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
+  const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
   const [updateInterval, setUpdateInterval] = useState<string>(
-    "update interval"
+    "osquery detail update interval"
   );
 
-  const [policies, setPolicies] = useState<IPolicy[] | never[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
-
-  const getPolicies = useCallback(async (teamId = 0) => {
-    setIsLoading(true);
-    setIsLoadingError(false);
+  const getGlobalPolicies = useCallback(async () => {
+    setIsLoadingGlobalPolicies(true);
+    setIsLoadingGlobalPoliciesError(false);
+    let result;
     try {
-      const response = teamId
-        ? await teamPoliciesAPI.loadAll(teamId)
-        : await globalPoliciesAPI.loadAll();
-      setPolicies(response.policies);
+      result = await globalPoliciesAPI
+        .loadAll()
+        .then((response) => response.policies);
+      setGlobalPolicies(result);
     } catch (error) {
       console.log(error);
-      setIsLoadingError(true);
+      setIsLoadingGlobalPoliciesError(true);
     } finally {
-      setIsLoading(false);
+      setIsLoadingGlobalPolicies(false);
     }
+    return result;
   }, []);
+
+  const getTeamPolicies = useCallback(async (teamId) => {
+    setIsLoadingTeamPolicies(true);
+    setIsLoadingTeamPoliciesError(false);
+    let result;
+    try {
+      result = await teamPoliciesAPI
+        .loadAll(teamId)
+        .then((response) => response.policies);
+      setTeamPolicies(result);
+    } catch (error) {
+      console.log(error);
+      setIsLoadingTeamPoliciesError(true);
+    } finally {
+      setIsLoadingTeamPolicies(false);
+    }
+    return result;
+  }, []);
+
+  const getPolicies = useCallback(
+    (teamId) => {
+      return teamId ? getTeamPolicies(teamId) : getGlobalPolicies();
+    },
+    [getGlobalPolicies, getTeamPolicies]
+  );
 
   const handleChangeSelectedTeam = useCallback(
     (id: number) => {
       const { MANAGE_POLICIES } = PATHS;
       const path = id ? `${MANAGE_POLICIES}?team_id=${id}` : MANAGE_POLICIES;
       router.replace(path);
+      setShowInheritedPolicies(false);
+      setSelectedPolicyIds([]);
     },
     [router]
   );
@@ -115,6 +168,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const toggleRemovePoliciesModal = useCallback(() => {
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
   }, [showRemovePoliciesModal, setShowRemovePoliciesModal]);
+
+  const toggleShowInheritedPolicies = useCallback(() => {
+    setShowInheritedPolicies(!showInheritedPolicies);
+  }, [showInheritedPolicies, setShowInheritedPolicies]);
 
   const onRemovePoliciesClick = useCallback(
     (selectedTableIds: number[]): void => {
@@ -156,7 +213,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       })
       .finally(() => {
         toggleRemovePoliciesModal();
-        getPolicies();
+        getPolicies(selectedTeamId);
       });
   }, [
     dispatch,
@@ -197,15 +254,39 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     [dispatch, getPolicies, selectedTeamId, toggleAddPolicyModal]
   );
 
-  // Parse url query params and set selected team
+  // Sort list of teams the current user has permission to access and set as userTeams.
   useEffect(() => {
-    const { team_id: param } = location.query;
-    let teamId: number | null = parseInt(param, 10) || 0;
-    if (!userTeams.find((t) => t.id === teamId)) {
+    if (isPremiumTier) {
+      let unsortedTeams: ITeam[] | null = null;
+      if (isOnGlobalTeam && teams) {
+        unsortedTeams = teams;
+      } else if (!isOnGlobalTeam && currentUser && currentUser.teams) {
+        unsortedTeams = currentUser.teams;
+      }
+      if (unsortedTeams !== null) {
+        setUserTeams(
+          unsortedTeams.sort((a, b) =>
+            sortUtils.caseInsensitiveAsc(b.name, a.name)
+          )
+        );
+      }
+    }
+  }, [currentUser, isOnGlobalTeam, isPremiumTier, teams]);
+
+  // Parse url query param and set as selectedTeamId.
+  useEffect(() => {
+    let teamId: number | null = parseInt(location?.query?.team_id, 10) || 0;
+
+    // If the team id does not match one in the user teams list, set a default value.
+    if (userTeams && !userTeams.find((t) => t.id === teamId)) {
       if (isOnGlobalTeam) {
+        // For global users, default to zero (i.e. all teams).
         teamId !== 0 && handleChangeSelectedTeam(0);
         teamId = 0;
       } else {
+        // For non-global users, default to the first team in the list.
+        // If there is no default team, set teamId to null so that getPolicies
+        // API request will not be triggered.
         teamId = userTeams[0]?.id || null;
         teamId && handleChangeSelectedTeam(teamId);
       }
@@ -213,26 +294,17 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     teamId !== null && setSelectedTeamId(teamId);
   }, [handleChangeSelectedTeam, isOnGlobalTeam, location, userTeams]);
 
+  // Watch for selected team changes and call getPolicies to make new policies API request.
   useEffect(() => {
     if (selectedTeamId !== null) {
-      getPolicies(selectedTeamId);
+      getGlobalPolicies();
+      if (selectedTeamId) {
+        getTeamPolicies(selectedTeamId);
+      }
     }
-  }, [getPolicies, selectedTeamId]);
+  }, [getGlobalPolicies, getTeamPolicies, selectedTeamId]);
 
-  // Set list of teams that the current user has permission to view
-  useEffect(() => {
-    const unsortedTeams = [];
-    if (isOnGlobalTeam && teams) {
-      unsortedTeams.push(...teams);
-    } else if (currentUser && currentUser.teams) {
-      unsortedTeams.push(...currentUser.teams);
-    }
-    setUserTeams(
-      unsortedTeams.sort((a, b) => sortUtils.caseInsensitiveAsc(b.name, a.name))
-    );
-  }, [currentUser, isOnGlobalTeam, teams]);
-
-  // Set the update interval value that will be displayed in the InfoBanner element
+  // Pull osquery detal update interval value from config, reformat, and set as updateInterval.
   useEffect(() => {
     if (config) {
       const { osquery_detail: interval } = config;
@@ -248,19 +320,20 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>
-                {isPremiumTier && selectedTeamId !== null ? (
-                  <TeamsDropdown
-                    currentUserTeams={userTeams}
-                    onChange={handleChangeSelectedTeam}
-                    selectedTeam={selectedTeamId}
-                  />
-                ) : (
-                  <h1>Policies</h1>
-                )}
+                {isFreeTier && <h1>Policies</h1>}
+                {isPremiumTier &&
+                  userTeams !== null &&
+                  selectedTeamId !== null && (
+                    <TeamsDropdown
+                      currentUserTeams={userTeams}
+                      onChange={handleChangeSelectedTeam}
+                      selectedTeam={selectedTeamId}
+                    />
+                  )}
               </div>
             </div>
           </div>
-          {!isOnlyObserver && (
+          {(isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainer) && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -273,48 +346,105 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          {!isPremiumTier || !selectedTeamId ? (
-            <p>
-              Add policies for <b>all of your hosts</b> to see which pass your
-              organization’s standards.{" "}
-            </p>
-          ) : (
+          {isPremiumTier && !!selectedTeamId && (
             <p>
               Add additional policies for <b>all hosts assigned to this team</b>
               .
             </p>
           )}
+          {isFreeTier ||
+            (isPremiumTier && !selectedTeamId && selectedTeamId !== null && (
+              <p>
+                Add policies for <b>all of your hosts</b> to see which pass your
+                organization’s standards.{" "}
+              </p>
+            ))}
         </div>
-        {config && updateInterval && (
-          <InfoBanner className={`${baseClass}__sandbox-info`}>
-            <p>
-              Your policies are checked every <b>{updateInterval.trim()}</b>.{" "}
-              {isGlobalAdmin && (
-                <span>
-                  Check out the Fleet documentation on{" "}
-                  <a href={DOCS_LINK} target="_blank" rel="noreferrer">
-                    <b>how to edit this frequency</b>
-                  </a>
-                  .
-                </span>
-              )}
-            </p>
-          </InfoBanner>
-        )}
-        <div>
-          {isLoadingError ? (
-            <TableDataError />
-          ) : (
-            <PoliciesListWrapper
-              policiesList={policies}
-              selectedTeamId={selectedTeamId}
-              isLoading={isLoading}
-              isOnlyObserver={isOnlyObserver}
-              onRemovePoliciesClick={onRemovePoliciesClick}
-              toggleAddPolicyModal={toggleAddPolicyModal}
-            />
+        {updateInterval &&
+          ((selectedTeamId &&
+            !isLoadingTeamPoliciesError &&
+            !!teamPolicies?.length) ||
+            (!selectedTeamId &&
+              selectedTeamId !== null &&
+              !isLoadingGlobalPoliciesError &&
+              !!globalPolicies?.length)) && (
+            <InfoBanner className={`${baseClass}__sandbox-info`}>
+              <p>
+                Your policies are checked every <b>{updateInterval.trim()}</b>.{" "}
+                {isGlobalAdmin && (
+                  <span>
+                    Check out the Fleet documentation on{" "}
+                    <a href={DOCS_LINK} target="_blank" rel="noreferrer">
+                      <b>how to edit this frequency</b>
+                    </a>
+                    .
+                  </span>
+                )}
+              </p>
+            </InfoBanner>
           )}
+        <div>
+          {!!selectedTeamId &&
+            (isLoadingTeamPoliciesError ? (
+              <TableDataError />
+            ) : (
+              <PoliciesListWrapper
+                policiesList={teamPolicies}
+                isLoading={isLoadingTeamPolicies}
+                onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleAddPolicyModal}
+                selectedTeamId={selectedTeamId}
+                showSelectionColumn={!isOnlyObserver}
+              />
+            ))}
+          {!selectedTeamId &&
+            (isLoadingGlobalPoliciesError ? (
+              <TableDataError />
+            ) : (
+              <PoliciesListWrapper
+                policiesList={globalPolicies}
+                isLoading={isLoadingGlobalPolicies}
+                onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleAddPolicyModal}
+                selectedTeamId={selectedTeamId}
+                showSelectionColumn={!isOnlyObserver}
+              />
+            ))}
         </div>
+        {!!selectedTeamId &&
+          !!teamPolicies?.length &&
+          !!globalPolicies?.length && (
+            <span>
+              <Button
+                variant="unstyled"
+                className={`${showInheritedPolicies ? "upcarat" : "rightcarat"} 
+                     ${baseClass}__inherited-policies-button`}
+                onClick={toggleShowInheritedPolicies}
+              >
+                {`${
+                  showInheritedPolicies ? "Hide" : "Show"
+                } inherited policies`}
+              </Button>
+            </span>
+          )}
+        {!!selectedTeamId &&
+          !!teamPolicies?.length &&
+          !!globalPolicies?.length &&
+          showInheritedPolicies && (
+            <div className={`${baseClass}__inherited-policies-table`}>
+              <PoliciesListWrapper
+                isLoading={isLoadingGlobalPolicies}
+                policiesList={globalPolicies}
+                onRemovePoliciesClick={noop}
+                toggleAddPolicyModal={noop}
+                resultsTitle="policies"
+                resultsHtml={INHERITED_POLICIES_COUNT_HTML}
+                selectedTeamId={null}
+                showSelectionColumn
+                tableType="inheritedPolicies"
+              />
+            </div>
+          )}
         {showAddPolicyModal && (
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}

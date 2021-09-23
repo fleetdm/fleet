@@ -11,21 +11,27 @@ const noPoliciesClass = "no-policies";
 
 interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
-  selectedTeamId: number | null;
   isLoading: boolean;
-  isOnlyObserver: boolean | undefined;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
+  resultsTitle?: string;
+  resultsHtml?: JSX.Element;
+  selectedTeamId?: number | undefined | null;
+  showSelectionColumn: boolean | undefined;
+  tableType?: string;
 }
 
 const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
   const {
     policiesList,
-    selectedTeamId,
     isLoading,
-    isOnlyObserver,
     onRemovePoliciesClick,
     toggleAddPolicyModal,
+    resultsTitle,
+    resultsHtml,
+    selectedTeamId,
+    showSelectionColumn,
+    tableType,
   } = props;
 
   const NoPolicies = () => {
@@ -56,8 +62,13 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <TableContainer
-        resultsTitle={"queries"}
-        columns={generateTableHeaders(selectedTeamId, isOnlyObserver)}
+        resultsTitle={resultsTitle || "policies"}
+        resultsHtml={resultsHtml}
+        columns={generateTableHeaders({
+          selectedTeamId,
+          showSelectionColumn,
+          tableType,
+        })}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
         defaultSortHeader={"query_name"}

@@ -33,10 +33,10 @@ const generateDropdownOptions = (
 };
 
 const TeamsDropdown = (dropdownProps: {
-  currentUserTeams: ITeam[] | undefined;
+  currentUserTeams: ITeam[];
   onChange: (id: number) => void;
   selectedTeam: number;
-}): JSX.Element | null => {
+}): JSX.Element => {
   const { currentUserTeams, onChange, selectedTeam } = dropdownProps;
   const { isOnGlobalTeam } = useContext(AppContext);
 

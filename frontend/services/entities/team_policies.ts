@@ -4,27 +4,27 @@ import sendRequest from "services";
 const endpoints = { TEAMS: "/v1/fleet/team" };
 
 export default {
-  create: (teamId: number, query_id: number) => {
+  create: (team_id: number, query_id: number) => {
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}/policies`;
+    const path = `${TEAMS}/${team_id}/policies`;
 
     return sendRequest("POST", path, { query_id });
   },
-  destroy: (teamId: number, policyIds: number[]) => {
+  destroy: (team_id: number, ids: number[]) => {
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}/policies/delete`;
+    const path = `${TEAMS}/${team_id}/policies/delete`;
 
-    return sendRequest("POST", path, { policyIds });
+    return sendRequest("POST", path, { ids });
   },
-  load: (teamId: number, policyId: number) => {
+  load: (team_id: number, id: number) => {
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}/policies/${policyId}`;
+    const path = `${TEAMS}/${team_id}/policies/${id}`;
 
     return sendRequest("GET", path);
   },
-  loadAll: (teamId: number) => {
+  loadAll: (team_id: number) => {
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${teamId}/policies`;
+    const path = `${TEAMS}/${team_id}/policies`;
 
     return sendRequest("GET", path);
   },
