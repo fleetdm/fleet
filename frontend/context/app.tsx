@@ -2,6 +2,7 @@ import React, { createContext, useReducer, ReactNode } from "react";
 
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
+import { ITeam } from "interfaces/team";
 import permissions from "utilities/permissions";
 
 type Props = {
@@ -9,8 +10,9 @@ type Props = {
 };
 
 type InitialStateType = {
-  currentUser: IUser | null;
   config: IConfig | null;
+  currentUser: IUser | null;
+  currentTeam: ITeam | undefined;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -18,14 +20,17 @@ type InitialStateType = {
   isGlobalObserver: boolean | undefined;
   isOnGlobalTeam: boolean | undefined;
   isAnyTeamMaintainer: boolean | undefined;
+  isTeamMaintainer: boolean | undefined;
   isOnlyObserver: boolean | undefined;
   setCurrentUser: (user: IUser) => void;
+  setCurrentTeam: (team: ITeam | undefined) => void;
   setConfig: (config: IConfig) => void;
 };
 
 const initialState = {
-  currentUser: null,
   config: null,
+  currentUser: null,
+  currentTeam: undefined,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -33,19 +38,26 @@ const initialState = {
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
   isAnyTeamMaintainer: undefined,
+  isTeamMaintainer: undefined,
   isOnlyObserver: undefined,
   setCurrentUser: () => null,
+  setCurrentTeam: () => null,
   setConfig: () => null,
 };
 
 const actions = {
   SET_CURRENT_USER: "SET_CURRENT_USER",
+  SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
   SET_CONFIG: "SET_CONFIG",
 };
 
 // helper function - this is run every
 // time currentUser or config is changed
-const setPermissions = (user: IUser, config: IConfig) => {
+const setPermissions = (
+  user: IUser, 
+  config: IConfig, 
+  teamId: number = 0,
+) => {
   if (!user || !config) {
     return {};
   }
@@ -58,6 +70,7 @@ const setPermissions = (user: IUser, config: IConfig) => {
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
+    isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isOnlyObserver: permissions.isOnlyObserver(user),
   };
 };
@@ -69,6 +82,12 @@ const reducer = (state: any, action: any) => {
         ...state,
         currentUser: action.currentUser,
         ...setPermissions(action.currentUser, state.config),
+      };
+    case actions.SET_CURRENT_TEAM:
+      return {
+        ...state,
+        currentTeam: action.currentTeam,
+        ...setPermissions(state.currentUser, state.config, action.currentTeam?.id),
       };
     case actions.SET_CONFIG:
       return {
@@ -87,8 +106,9 @@ const AppProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {
-    currentUser: state.currentUser,
     config: state.config,
+    currentUser: state.currentUser,
+    currentTeam: state.currentTeam,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,
@@ -96,9 +116,13 @@ const AppProvider = ({ children }: Props) => {
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
+    isTeamMaintainer: state.isTeamMaintainer,
     isOnlyObserver: state.isOnlyObserver,
     setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: actions.SET_CURRENT_USER, currentUser });
+    },
+    setCurrentTeam: (currentTeam: ITeam | undefined) => {
+      dispatch({ type: actions.SET_CURRENT_TEAM, currentTeam });
     },
     setConfig: (config: IConfig) => {
       dispatch({ type: actions.SET_CONFIG, config });

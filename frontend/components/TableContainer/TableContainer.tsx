@@ -170,9 +170,11 @@ const TableContainer = ({
         // user can finish typing.
         if (searchQuery !== prevSearchQuery) {
           debounceOnQueryChange(updateQueryData);
-        } else {
-          onQueryChange(updateQueryData);
-        }
+        } 
+        // else {
+        //   console.log({searchQuery, prevSearchQuery})
+        //   onQueryChange(updateQueryData);
+        // }
         setPageIndex(0);
       } else {
         onQueryChange(queryData);

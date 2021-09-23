@@ -1381,6 +1381,7 @@ const mapStateToProps = (state, ownProps) => {
   const { status_labels: statusLabels } = state.components.ManageHostsPage;
   const labelEntities = entityGetter(state).get("labels");
   const { entities: labels } = labelEntities;
+  console.log({ labelEntities });
 
   // eqivalent to old way => const selectedFilter = labelID ? `labels/${labelID}` : activeLabelSlug;
   const slugToFind =

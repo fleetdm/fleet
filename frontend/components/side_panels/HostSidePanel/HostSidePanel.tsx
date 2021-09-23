@@ -18,8 +18,8 @@ const baseClass = "host-side-panel";
 interface IHostSidePanelProps {
   labels: ILabel[];
   onAddLabelClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  onLabelClick: (selectedLabel: ILabel) => boolean;
-  selectedFilter: string;
+  onLabelClick: (selectedLabel: ILabel) => (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  selectedFilter: string | undefined;
   canAddNewLabel: boolean;
 }
 
