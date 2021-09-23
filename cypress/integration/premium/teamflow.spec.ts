@@ -110,7 +110,7 @@ describe("Teams flow", () => {
     // Edit Team
     cy.visit("/settings/teams");
 
-    cy.contains("Valor").get(".Select-arrow-zone").click();
+    cy.findByText(/actions/i).click({ force: true });
 
     // need force:true for dropdown
     cy.findByText(/edit/i).click({ force: true });
