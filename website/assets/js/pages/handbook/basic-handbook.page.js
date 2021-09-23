@@ -30,7 +30,6 @@ parasails.registerPage('basic-handbook', {
     this.pages = _.sortBy(this.markdownPages, 'htmlId');
 
     this.pagesBySectionSlug = (() => {
-      const HANDBOOK_SLUGS = ['handbook'];
 
       let sectionSlugs = _.uniq(_.pluck(this.pages, 'url').map((url) => url.split(/\//).slice(-2)[0]));
       console.log(sectionSlugs);

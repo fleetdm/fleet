@@ -42,7 +42,7 @@
       <div purpose="right-sidebar" class="order-md-last p-0 pb-3 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
         <div purpose="maintainer" class="mb-lg-3">
           <h4>Maintained by:</h4>
-          <img class="maintainer-image" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
+          <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
           <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/tree/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
         </div>
         <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
