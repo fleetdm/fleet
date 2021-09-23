@@ -43,6 +43,9 @@ export default {
   SETUP: "/v1/setup",
   STATUS_LABEL_COUNTS: "/v1/fleet/host_summary",
   TARGETS: "/v1/fleet/targets",
+  TEAM_SCHEDULE: (id: number): string => {
+    return `/v1/fleet/team/${id}/schedule`;
+  },
   USERS: "/v1/fleet/users",
   USERS_ADMIN: "/v1/fleet/users/admin",
   UPDATE_USER_ADMIN: (id: number): string => {
