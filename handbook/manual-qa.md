@@ -2,7 +2,7 @@
 
 This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
 
-All steps should be conducted during each QA pass.
+All steps should be conducted during each QA pass. All steps are possible with `fleetctrl preview`.
 
 As new features are added to Fleet, new steps and flows will be added.
 
@@ -59,6 +59,7 @@ Edit this query and then delete this query.
 Create a new pack (under Schedule/advanced).
 
 Add a query as a saved query to the pack. Remove this query. Delete the pack.
+
 
 ### My account flow
 

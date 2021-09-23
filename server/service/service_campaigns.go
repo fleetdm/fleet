@@ -61,7 +61,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 		queryString = query.Query
 	} else {
-		if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+		if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRunNew); err != nil {
 			return nil, err
 		}
 		query = &fleet.Query{

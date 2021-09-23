@@ -10,10 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestActivityUsernameChange(t *testing.T) {
+func TestActivity(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"UsernameChange", testActivityUsernameChange},
+		{"New", testActivityNew},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:    []byte("asd"),
 		Name:        "fullname",
@@ -52,10 +67,7 @@ func TestActivityUsernameChange(t *testing.T) {
 	assert.Nil(t, activities[0].ActorGravatar)
 }
 
-func TestNewActivity(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testActivityNew(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -86,4 +98,12 @@ func TestNewActivity(t *testing.T) {
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", activities[0].ActorFullName)
 	assert.Equal(t, "test2", activities[0].Type)
+
+	opt = fleet.ListOptions{
+		Page:    0,
+		PerPage: 10,
+	}
+	activities, err = ds.ListActivities(context.Background(), opt)
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
 }
