@@ -110,10 +110,9 @@ describe("Teams flow", () => {
     // Edit Team
     cy.visit("/settings/teams");
 
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/actions/i).click({ force: true });
-
-    // need force:true for dropdown
-    cy.findByText(/edit/i).click({ force: true });
+    cy.findByText(/edit/i).click({ force: true }); // need force:true for dropdown
 
     cy.findByLabelText(/team name/i)
       .click()
