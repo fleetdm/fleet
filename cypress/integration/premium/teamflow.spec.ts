@@ -114,6 +114,7 @@ describe("Teams flow", () => {
     cy.findByText(/actions/i).click({ force: true });
     cy.findByText(/edit/i).click({ force: true }); // need force:true for dropdown
 
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByLabelText(/team name/i)
       .click()
       .type("{selectall}{backspace}Mystic");
@@ -129,6 +130,7 @@ describe("Teams flow", () => {
 
     cy.findByText(/delete/i).click({ force: true });
 
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByRole("button", { name: /delete/i }).click();
 
     cy.findByText(/successfully deleted/i).should("be.visible");
