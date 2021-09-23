@@ -470,7 +470,7 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
+	//go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), locker, ourIdentifier)
