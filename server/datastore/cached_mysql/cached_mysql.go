@@ -28,7 +28,7 @@ func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool)
 }
 
 func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
-	conn := ds.redisPool.Get()
+	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
 	defer conn.Close()
 
 	b, err := json.Marshal(v)
@@ -44,7 +44,7 @@ func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
 }
 
 func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := ds.redisPool.Get()
+	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
 	defer conn.Close()
 
 	data, err := redigo.Bytes(conn.Do("GET", key))
