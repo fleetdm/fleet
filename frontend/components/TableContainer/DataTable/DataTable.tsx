@@ -103,14 +103,14 @@ const DataTable = ({
             valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
 
             if (valueB > valueA) {
-              return 1;
+              return -1;
             }
             if (valueB < valueA) {
-              return -1;
+              return 1;
             }
             return 0;
           },
-          dateStringsAsc: (a: any, b: any, id: any) =>
+          dateStrings: (a: any, b: any, id: any) =>
             sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []

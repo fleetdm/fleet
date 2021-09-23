@@ -191,7 +191,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           </span>
         );
       },
-      sortType: "dateStringsAsc",
+      sortType: "dateStrings",
     },
     {
       title: "",
@@ -210,7 +210,7 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const FAKEDATE = "2021-09-16T15:11:35Z";
+const FAKEDATE = "2021-09-23T08:11:35Z";
 const FAKEID = "com.foo.app";
 
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
