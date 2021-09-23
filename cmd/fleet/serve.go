@@ -8,6 +8,8 @@ import (
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/datastore"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 
@@ -154,10 +156,12 @@ the way that the Fleet server works.
 			if config.MysqlReadReplica.Address != "" {
 				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
 			}
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
+			mysqlDS, err := mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
+			ds = mysqlDS
+
 			if config.S3.Bucket != "" {
 				carveStore, err = s3.New(config.S3, ds)
 				if err != nil {
@@ -213,6 +217,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
+			ds = cached_mysql.New(mysqlDS, redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
@@ -412,22 +417,6 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-// Locker represents an object that can obtain an atomic lock on a resource
-// in a non blocking manner for an owner, with an expiration time.
-type Locker interface {
-	// Lock tries to get an atomic lock on an instance named with `name`
-	// and an `owner` identified by a random string per instance.
-	// Subsequently locking the same resource name for the same owner
-	// renews the lock expiration.
-	// It returns true, nil if it managed to obtain a lock on the instance.
-	// false and potentially an error otherwise.
-	// This must not be blocking.
-	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
-	// Unlock tries to unlock the lock by that `name` for the specified
-	// `owner`. Unlocking when not holding the lock shouldn't error
-	Unlock(ctx context.Context, name string, owner string) error
-}
-
 const (
 	lockKeyLeader          = "leader"
 	lockKeyVulnerabilities = "vulnerabilities"
@@ -459,7 +448,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
-	locker, ok := ds.(Locker)
+	locker, ok := ds.(datastore.Locker)
 	if !ok {
 		initFatal(errors.New("No global locker available"), "")
 	}
@@ -478,7 +467,7 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 	return cancelBackground
 }
 
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker datastore.Locker, identifier string) {
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -526,7 +515,7 @@ func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	locker Locker,
+	locker datastore.Locker,
 	identifier string,
 	config config.FleetConfig,
 ) {
@@ -603,7 +592,7 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker Locker, identifier string) {
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker datastore.Locker, identifier string) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
