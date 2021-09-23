@@ -59,8 +59,8 @@ func newPool(t *testing.T, cluster bool) fleet.RedisPool {
 func TestCachedAppConfig(t *testing.T) {
 	pool := newPool(t, false)
 	conn := pool.Get()
-	data, err := redigo.Bytes(conn.Do("GET", CacheKeyAppConfig))
-	require.Equal(t, redigo.ErrNil, err)
+	_, err := conn.Do("DEL", CacheKeyAppConfig)
+	require.NoError(t, err)
 
 	mockedDS := new(mock.Store)
 	ds := New(mockedDS, nil, pool)
@@ -85,7 +85,7 @@ func TestCachedAppConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("NewAppConfig", func(t *testing.T) {
-		data, err = redigo.Bytes(conn.Do("GET", CacheKeyAppConfig))
+		data, err := redigo.Bytes(conn.Do("GET", CacheKeyAppConfig))
 		require.NoError(t, err)
 
 		require.NotEmpty(t, data)
@@ -104,6 +104,15 @@ func TestCachedAppConfig(t *testing.T) {
 		require.Equal(t, ptr.RawMessage(json.RawMessage(`"TestCachedAppConfig"`)), ac.HostSettings.AdditionalQueries)
 	})
 
+	t.Run("AppConfig uses DS if redis fails", func(t *testing.T) {
+		_, err := conn.Do("DEL", CacheKeyAppConfig)
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		require.True(t, mockedDS.AppConfigFuncInvoked)
+
+		require.Equal(t, ptr.RawMessage(json.RawMessage(`"TestCachedAppConfig"`)), ac.HostSettings.AdditionalQueries)
+	})
+
 	t.Run("SaveAppConfig", func(t *testing.T) {
 		require.NoError(t, ds.SaveAppConfig(context.Background(), &fleet.AppConfig{
 			HostSettings: fleet.HostSettings{
@@ -111,7 +120,7 @@ func TestCachedAppConfig(t *testing.T) {
 			},
 		}))
 
-		data, err = redigo.Bytes(conn.Do("GET", CacheKeyAppConfig))
+		data, err := redigo.Bytes(conn.Do("GET", CacheKeyAppConfig))
 		require.NoError(t, err)
 
 		require.NotEmpty(t, data)
