@@ -434,7 +434,7 @@ const QueryForm = ({
     });
   }
 
-  if (isAnyTeamMaintainer || isGlobalMaintainer) {
+  if (isAnyTeamMaintainer) {
     return renderRunForMaintainer({ nameText, descText, queryValue });
   }
 
