@@ -96,5 +96,5 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return errors.Wrap(err, "calling save app config")
 	}
 
-	return ds.storeInRedis("AppConfig", info)
+	return ds.storeInRedis(CacheKeyAppConfig, info)
 }
