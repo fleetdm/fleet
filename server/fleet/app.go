@@ -119,7 +119,7 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 
-	CacheHosts bool `json:"cache_hosts"`
+	CacheHosts bool `json:"cache_hosts,omitempty"`
 }
 
 type Duration struct {
