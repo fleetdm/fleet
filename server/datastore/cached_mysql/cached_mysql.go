@@ -19,9 +19,13 @@ type cachedMysql struct {
 
 	hashes    map[string][32]byte
 	appConfig *fleet.AppConfig
+	hosts     map[string]*fleet.Host
 }
 
-const CacheKeyAppConfig = "AppConfig"
+const (
+	CacheKeyAppConfig              = "AppConfig"
+	CacheKeyAuthenticateHostPrefix = "AuthenticateHost"
+)
 
 func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool) fleet.Datastore {
 	return &cachedMysql{
@@ -29,6 +33,7 @@ func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool)
 		Locker:    locker,
 		redisPool: redisPool,
 		hashes:    make(map[string][32]byte),
+		hosts:     make(map[string]*fleet.Host),
 	}
 }
 
@@ -117,4 +122,30 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 	err = ds.storeInRedis(CacheKeyAppConfig, info)
 	ds.appConfig = info
 	return err
+}
+
+func (ds *cachedMysql) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	ac, err := ds.AppConfig(ctx)
+	if err != nil || !ac.CacheHosts {
+		return ds.Datastore.AuthenticateHost(ctx, nodeKey)
+	}
+
+	host := &fleet.Host{}
+	err = ds.getFromRedis(CacheKeyAuthenticateHostPrefix+nodeKey, host)
+	if err == errAlreadyGotIt && ds.appConfig != nil {
+		return ds.hosts[nodeKey], nil
+	}
+	if err == nil {
+		return host, nil
+	}
+
+	host, err = ds.Datastore.AuthenticateHost(ctx, nodeKey)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ds.storeInRedis(CacheKeyAuthenticateHostPrefix+nodeKey, host)
+	ds.hosts[nodeKey] = host
+
+	return host, err
 }

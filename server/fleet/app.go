@@ -118,6 +118,8 @@ type AppConfig struct {
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
+
+	CacheHosts bool `json:"cache_hosts"`
 }
 
 type Duration struct {
