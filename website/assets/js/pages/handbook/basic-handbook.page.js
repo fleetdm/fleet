@@ -69,7 +69,7 @@ parasails.registerPage('basic-handbook', {
       if(!this.isHandbookLandingPage){
         subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
       } else {
-        subtopics = $('#body-content').find('h5').map((_, el) => el.innerText);
+        subtopics = $('#body-content').find('h3').map((_, el) => el.innerText);
       }
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
@@ -87,8 +87,8 @@ parasails.registerPage('basic-handbook', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    isCurrentSection: function (section) {
-      if (_.trim(this.thisPage.url, (/\//)).split(/\//).includes(_.last(_.trimRight(section.url, (/\//)).split(/\//)))) {
+    isCurrentSection: function (section, location) {
+      if (location.hash === section.url) {
         return true;
       }
       return false;

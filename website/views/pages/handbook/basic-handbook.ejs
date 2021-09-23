@@ -1,115 +1,113 @@
 <div id="basic-handbook" v-cloak>
-  <div purpose="handbook-template" style="max-width: 1200px;" class="container-fluid px-lg-3  mb-5">
-
-    <div purpose="breadcrumbs-container" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0">
-      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 pl-5 m-0 align-items-center breadcrumbs">
-        <div class="d-flex" v-if="breadcrumbs.length > 1">
-          <a :href="'/' + breadcrumbs[0]" class="pr-3">
-            {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
-          </a>
-          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
-            <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
-              {{getTitleFromUrl(breadcrumbs[1])}}
+  <div purpose="handbook-template" style="max-width: 1200px;" class="container-fluid p-0 px-lg-3 mb-5">
+    <div class="d-flex flex-column flex-md-row pt-lg-4 pb-lg-4 m-0">
+      <div purpose="mobile-breadcrumbs-container" class="d-flex justify-content-lg-between p-0 pt-4 pb-lg-2 m-0">
+        <div purpose="mobile-handbook-nav" class="d-block d-md-none">
+          <div class="d-flex" v-if="breadcrumbs.length > 1">
+            <a :href="'/' + breadcrumbs[0]" class="pr-3">
+              {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
             </a>
+            <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
+              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+              <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
+                {{getTitleFromUrl(breadcrumbs[1])}}
+              </a>
+            </div>
+            <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
+              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+              <p class="px-3 m-0">
+                {{thisPage.title}}
+              </p>
+            </div>
           </div>
-          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-            <p class="px-3 m-0">
-              {{thisPage.title}}
-            </p>
-          </div>
-        </div>
-        <div v-else>
-          <strong>Introduction</strong>
-        </div>
-      </div>
-
-
-
-
-      <div purpose="mobile-handbook-nav" class="d-flex-block d-lg-none">
-        <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
-          <button purpose="handbook-nav-button" class="btn btn-block d-flex align-items-center handbook-nav-button" type="button" @click="toggleHandbookNav">
-            <span class="pr-2 m-0">Introduction</span>
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-            <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
-            <img style="width: 6px; height: 9px;" class="ml-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showHandbookNav"/>
-            <img style="width: 9px; height: 6px;" class="ml-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
-          </button>
-        </div>
-        <div class="border-bottom" v-if="!showHandbookNav"></div>
-        <div class="d-flex px-0 border-bottom mobile-handbook-nav" v-if="showHandbookNav">
-          <div class="container-fluid px-0 pt-4">
-            <ul class="px-0 mb-0">
-              <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
-                <a :href="page.url" class="font-weight-bold">
-                  {{page.title}}
-                </a>
-                <ul class="px-0 pt-3 mb-0" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                  <li class="px-0 mb-2" v-for="subpage in findPagesByUrl(page.url)">
-                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                      {{subpage.title}}
-                    </a>
-                  </li>
-                </ul>
-              </li>
-            </ul>
+          <div v-else>
+            <strong>Introduction</strong>
           </div>
         </div>
-
       </div>
-      <div purpose="maintainer">
-        <h4>Maintained by:</h4>
-        <img class="maintainer-image" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
-      </div>
-    </div>
-<!--     <div purpose="search" class="p-0 w-60 justify-content-start">
-      <div class="input-group">
-        <div class="input-group-prepend">
-          <span class="input-group-text border-0 bg-transparent pl-3" >
-            <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-          </span>
+<!--       <div purpose="search" class="d-block d-md-none">
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text border-0 bg-transparent pl-3" >
+              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+            </span>
+          </div>
+          <div class="form-control border-0 ">
+          <input id="docsearch-query-landing" disabled class="docsearch-input pr-1"
+            placeholder="Search the handbook..." aria-label="Search the handbook"
+            v-model="inputTextValue"/>
+          </div>
         </div>
-        <div class="form-control border-0 ">
-        <input id="docsearch-query-landing" class="docsearch-input pr-1"
-          placeholder="Search the docs..." aria-label="Search the docs"
-          v-model="inputTextValue" @keydown.self="delayInput(setSearchString, 400, 'defaultTimer')()" />
+      </div> -->
+      <div purpose="right-sidebar" class="order-md-last p-0 pb-3 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
+        <div purpose="maintainer" class="mb-lg-3">
+          <h4>Maintained by:</h4>
+          <img class="maintainer-image" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
+          <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/tree/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
         </div>
-      </div>
-    </div> -->
-    <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
-
-      <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
-        <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
+        <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
         <div purpose="subtopics">
           <ul class="p-0 m-0">
-            <li v-for="(subtopic, index) in subtopics" class="pl-lg-3 pb-3 pb-lg-2 subtopic" :key="index">
-              <a :href="subtopic.url">{{subtopic.title}}</a>
-            </li>
-            <li class="d-lg-none pl-lg-3 subtopic">
-              <a href="/support">Help and feedback</a>
+            <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
+              <a :href="subtopic.url" :class="isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
             </li>
           </ul>
         </div>
-
+        <div class="border-bottom py-3 d-flex d-md-none"></div>
       </div>
-      <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
-        <%- partial(
-          path.relative(
-            path.dirname(__filename),
-            path.resolve(
-              sails.config.appPath,
-              path.join(
-                sails.config.builtStaticContent.compiledPagePartialsAppPath,
-                thisPage.htmlId
+      <div class="d-flex flex-column px-lg-5 left-side">
+        <div purpose="breadcrumbs" class="d-none d-md-flex m-0 align-items-center breadcrumbs">
+          <div class="d-flex" v-if="breadcrumbs.length > 1">
+            <a :href="'/' + breadcrumbs[0]" class="pr-3">
+              {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
+            </a>
+            <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
+              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+              <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
+                {{getTitleFromUrl(breadcrumbs[1])}}
+              </a>
+            </div>
+            <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
+              <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
+              <p class="px-3 m-0">
+                {{thisPage.title}}
+              </p>
+            </div>
+          </div>
+          <div v-else>
+            <strong>Introduction</strong>
+          </div>
+        </div>
+        <div purpose="search" class="d-none d-md-flex">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3" >
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0 ">
+            <input id="docsearch-query-landing" disabled class="docsearch-input pr-1"
+              placeholder="Search the handbook..." aria-label="Search the handbook"
+              v-model="inputTextValue"/>
+            </div>
+          </div>
+        </div>
+        <div purpose="content" id="body-content" class="content" parasails-has-no-page-script>
+          <%- partial(
+            path.relative(
+              path.dirname(__filename),
+              path.resolve(
+                sails.config.appPath,
+                path.join(
+                  sails.config.builtStaticContent.compiledPagePartialsAppPath,
+                  thisPage.htmlId
+                )
               )
             )
-          )
-        ) %>
+          ) %>
+        </div>
       </div>
-
+    </div>
   </div>
-</div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
