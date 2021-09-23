@@ -156,11 +156,10 @@ the way that the Fleet server works.
 			if config.MysqlReadReplica.Address != "" {
 				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
 			}
-			mysqlDS, err := mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
+			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
-			ds = mysqlDS
 
 			if config.S3.Bucket != "" {
 				carveStore, err = s3.New(config.S3, ds)
@@ -217,7 +216,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
-			ds = cached_mysql.New(mysqlDS, redisPool)
+			ds = cached_mysql.New(ds, ds.(datastore.Locker), redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
