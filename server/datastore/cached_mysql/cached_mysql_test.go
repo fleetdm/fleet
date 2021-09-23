@@ -105,7 +105,8 @@ func TestCachedAppConfig(t *testing.T) {
 	})
 
 	t.Run("AppConfig uses DS if redis fails", func(t *testing.T) {
-		_, err := conn.Do("DEL", CacheKeyAppConfig)
+		_, err = conn.Do("DEL", CacheKeyAppConfig)
+		require.NoError(t, err)
 		ac, err := ds.AppConfig(context.Background())
 		require.NoError(t, err)
 		require.True(t, mockedDS.AppConfigFuncInvoked)
