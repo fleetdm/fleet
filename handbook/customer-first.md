@@ -1,6 +1,4 @@
 
-# Customer first
-
 ## Customer succcess
 
 ### Next steps after a customer conversation

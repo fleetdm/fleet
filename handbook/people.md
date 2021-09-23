@@ -1,4 +1,3 @@
-# People
 
 ## Spending company money
 As we continue to expand our own company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.

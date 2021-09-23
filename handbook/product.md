@@ -1,7 +1,4 @@
 
-
-# Product
-
 ## Fleet EE
 
 ##### Communicating design changes to Engineering

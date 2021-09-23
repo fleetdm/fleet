@@ -1,7 +1,4 @@
 
-
-# Handbook 
-
 ## About the handbook
 
 #### Why bother?

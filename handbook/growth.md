@@ -1,4 +1,3 @@
-# Growth
 
 ## Fleet website
 
