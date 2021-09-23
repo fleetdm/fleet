@@ -52,10 +52,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const {
     config,
     currentUser,
+    isAnyTeamMaintainer,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isAnyTeamMaintainer,
     isOnlyObserver,
     isFreeTier,
     isPremiumTier,
@@ -80,16 +80,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const [globalPolicies, setGlobalPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoadingGlobalPolicies, setIsLoadingGlobalPolicies] = useState(true);
-  const [
-    isLoadingGlobalPoliciesError,
-    setIsLoadingGlobalPoliciesError,
-  ] = useState(false);
+  const [isGlobalPoliciesError, setIsGlobalPoliciesError] = useState(false);
 
   const [teamPolicies, setTeamPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoadingTeamPolicies, setIsLoadingTeamPolicies] = useState(true);
-  const [isLoadingTeamPoliciesError, setIsLoadingTeamPoliciesError] = useState(
-    false
-  );
+  const [isTeamPoliciesError, setIsTeamPoliciesError] = useState(false);
 
   const [userTeams, setUserTeams] = useState<ITeam[] | never[] | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(
@@ -109,7 +104,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const getGlobalPolicies = useCallback(async () => {
     setIsLoadingGlobalPolicies(true);
-    setIsLoadingGlobalPoliciesError(false);
+    setIsGlobalPoliciesError(false);
     let result;
     try {
       result = await globalPoliciesAPI
@@ -118,7 +113,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       setGlobalPolicies(result);
     } catch (error) {
       console.log(error);
-      setIsLoadingGlobalPoliciesError(true);
+      setIsGlobalPoliciesError(true);
     } finally {
       setIsLoadingGlobalPolicies(false);
     }
@@ -127,7 +122,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const getTeamPolicies = useCallback(async (teamId) => {
     setIsLoadingTeamPolicies(true);
-    setIsLoadingTeamPoliciesError(false);
+    setIsTeamPoliciesError(false);
     let result;
     try {
       result = await teamPoliciesAPI
@@ -136,7 +131,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       setTeamPolicies(result);
     } catch (error) {
       console.log(error);
-      setIsLoadingTeamPoliciesError(true);
+      setIsTeamPoliciesError(true);
     } finally {
       setIsLoadingTeamPolicies(false);
     }
@@ -304,7 +299,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     }
   }, [getGlobalPolicies, getTeamPolicies, selectedTeamId]);
 
-  // Pull osquery detal update interval value from config, reformat, and set as updateInterval.
+  // Pull osquery detail update interval value from config, reformat, and set as updateInterval.
   useEffect(() => {
     if (config) {
       const { osquery_detail: interval } = config;
@@ -361,12 +356,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             ))}
         </div>
         {updateInterval &&
-          ((selectedTeamId &&
-            !isLoadingTeamPoliciesError &&
-            !!teamPolicies?.length) ||
+          ((selectedTeamId && !isTeamPoliciesError && !!teamPolicies?.length) ||
             (!selectedTeamId &&
               selectedTeamId !== null &&
-              !isLoadingGlobalPoliciesError &&
+              !isGlobalPoliciesError &&
               !!globalPolicies?.length)) && (
             <InfoBanner className={`${baseClass}__sandbox-info`}>
               <p>
@@ -385,7 +378,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           )}
         <div>
           {!!selectedTeamId &&
-            (isLoadingTeamPoliciesError ? (
+            (isTeamPoliciesError ? (
               <TableDataError />
             ) : (
               <PoliciesListWrapper
@@ -398,7 +391,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               />
             ))}
           {!selectedTeamId &&
-            (isLoadingGlobalPoliciesError ? (
+            (isGlobalPoliciesError ? (
               <TableDataError />
             ) : (
               <PoliciesListWrapper
