@@ -220,7 +220,7 @@ module.exports = {
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)(\.md)([^/]*$)/, '$1$2$4').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
                   .split(/\//).map((fileOrFolderName) => fileOrFolderName.replace(/^[0-9]+[\-]+/,'')).join('/')
                 ).replace(RX_README_FILENAME, '');
-                console.log(pageRelSourcePath, '»»  '+hrefString+' »»»»    href="'+referencedPageNewUrl+'"');
+                // console.log(pageRelSourcePath, '»»  '+hrefString+' »»»»    href="'+referencedPageNewUrl+'"');
                 // ```
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
                 return `href="${referencedPageNewUrl}"`;
