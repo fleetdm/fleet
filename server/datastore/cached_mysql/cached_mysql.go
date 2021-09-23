@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/blake2b"
 )
 
 type cachedMysql struct {
@@ -15,6 +16,9 @@ type cachedMysql struct {
 	datastore.Locker
 
 	redisPool fleet.RedisPool
+
+	hashes    map[string][32]byte
+	appConfig *fleet.AppConfig
 }
 
 const CacheKeyAppConfig = "AppConfig"
@@ -24,6 +28,7 @@ func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool)
 		Datastore: ds,
 		Locker:    locker,
 		redisPool: redisPool,
+		hashes:    make(map[string][32]byte),
 	}
 }
 
@@ -40,8 +45,12 @@ func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
 		return errors.Wrap(err, "caching object in redis")
 	}
 
+	ds.hashes[key] = blake2b.Sum256(b)
+
 	return nil
 }
+
+var errAlreadyGotIt = errors.New("already have it")
 
 func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
 	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
@@ -50,6 +59,11 @@ func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
 	data, err := redigo.Bytes(conn.Do("GET", key))
 	if err != nil {
 		return errors.Wrap(err, "getting value from cache")
+	}
+
+	gotHash := blake2b.Sum256(data)
+	if ds.hashes[key] == gotHash {
+		return errAlreadyGotIt
 	}
 
 	err = json.Unmarshal(data, v)
@@ -67,6 +81,7 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 	}
 
 	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.appConfig = ac
 
 	return ac, err
 }
@@ -75,6 +90,9 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 	ac.ApplyDefaults()
 
 	err := ds.getFromRedis(CacheKeyAppConfig, ac)
+	if err == errAlreadyGotIt && ds.appConfig != nil {
+		return ds.appConfig, nil
+	}
 	if err == nil {
 		return ac, nil
 	}
@@ -85,6 +103,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 	}
 
 	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.appConfig = ac
 
 	return ac, err
 }
@@ -95,5 +114,7 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return errors.Wrap(err, "calling save app config")
 	}
 
-	return ds.storeInRedis(CacheKeyAppConfig, info)
+	err = ds.storeInRedis(CacheKeyAppConfig, info)
+	ds.appConfig = info
+	return err
 }

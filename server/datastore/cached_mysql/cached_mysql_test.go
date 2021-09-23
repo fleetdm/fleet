@@ -129,5 +129,10 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NoError(t, json.Unmarshal(data, &newAc))
 		require.NotNil(t, newAc.HostSettings.AdditionalQueries)
 		assert.Equal(t, json.RawMessage(`"NewSAVED"`), *newAc.HostSettings.AdditionalQueries)
+
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		require.NotNil(t, ac.HostSettings.AdditionalQueries)
+		assert.Equal(t, json.RawMessage(`"NewSAVED"`), *ac.HostSettings.AdditionalQueries)
 	})
 }
