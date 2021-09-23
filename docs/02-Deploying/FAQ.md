@@ -12,6 +12,7 @@
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
 - [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
+- [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 
 ## How do I get support for working with Fleet?
 
@@ -104,3 +105,7 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 ## Is Fleet compatible with X flavor of MySQL?
 
 Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything below that.
+
+## What are the MySQL user requirements?
+
+The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
