@@ -212,10 +212,6 @@ module.exports = {
                 // -mikermcneil 2021-07-27
                 // ```
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
-                // console.log(referencedPageSourcePath);
-                // console.log(referencedPageSourcePath.replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2'));
-                // console.log(topLvlRepoPath);
-                // console.log(path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2'));
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)(\.md)([^/]*$)/, '$1$2$4').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
                   .split(/\//).map((fileOrFolderName) => fileOrFolderName.replace(/^[0-9]+[\-]+/,'')).join('/')
