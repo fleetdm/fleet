@@ -1,17 +1,16 @@
 import React from "react";
-import { Link } from "react-router";
+// import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
-// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+// import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
-import PATHS from "router/paths";
-
+// import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
+// import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 
 interface IHeaderProps {
   column: {
@@ -167,6 +166,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
+    // TODO: Enable after backend has been updated to provide last_opened_at
     // {
     //   title: "Last used",
     //   Header: (cellProps) => (
@@ -194,35 +194,33 @@ const generateTableHeaders = (): IDataColumn[] => {
     //   },
     //   sortType: "dateStrings",
     // },
-    {
-      title: "",
-      Header: "",
-      disableSortBy: true,
-      accessor: "linkToFilteredHosts",
-      Cell: (cellProps) => {
-        return (
-          <Link to={cellProps.cell.value} className={`software-link`}>
-            <img alt="link to hosts filtered by software ID" src={Chevron} />
-          </Link>
-        );
-      },
-      disableHidden: true,
-    },
+    // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+    // {
+    //   title: "",
+    //   Header: "",
+    //   disableSortBy: true,
+    //   accessor: "linkToFilteredHosts",
+    //   Cell: (cellProps) => {
+    //     return (
+    //       <Link to={cellProps.cell.value} className={`software-link`}>
+    //         <img alt="link to hosts filtered by software ID" src={Chevron} />
+    //       </Link>
+    //     );
+    //   },
+    //   disableHidden: true,
+    // },
   ];
 };
 
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-  const FAKEID = "com.foo.app";
-  // const FAKEDATE = "2021-09-23T08:11:35Z";
+  // const FAKEID = "com.foo.app"; // TODO: Enable for testing
+  // const FAKEDATE = "2020-02-02T20:20:20Z"; // TODO: Enable for testing
   return Object.values(software).map((softwareItem) => {
-    // const TIME = new Date(
-    //   Date.parse(FAKEDATE) + 100000 * softwareItem.id
-    // ).toString();
     return {
       ...softwareItem,
-      bundle_identifier: softwareItem.id % 3 ? FAKEID : null,
-      // last_opened_at: softwareItem.id % 2 ? TIME : null,
-      linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
+      // bundle_identifier: FAKEID, // Enable for testing
+      // last_opened_at: FAKEDATE, // TODO: Enable for testing
+      // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
     };
   });
