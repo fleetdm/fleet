@@ -63,7 +63,7 @@ func TestCachedAppConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, nil, pool)
+	ds := New(mockedDS, pool)
 
 	var appConfigSet *fleet.AppConfig
 	mockedDS.NewAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {

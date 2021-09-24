@@ -8,7 +8,6 @@ import (
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -216,7 +215,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
-			ds = cached_mysql.New(ds, ds.(datastore.Locker), redisPool)
+			ds = cached_mysql.New(ds, redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
@@ -447,10 +446,6 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
-	locker, ok := ds.(datastore.Locker)
-	if !ok {
-		initFatal(errors.New("No global locker available"), "")
-	}
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -458,15 +453,15 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), locker, ourIdentifier)
+	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), locker, ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), locker, ourIdentifier)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier)
 
 	return cancelBackground
 }
 
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker datastore.Locker, identifier string) {
+func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
 	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -477,7 +472,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
+		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
@@ -514,7 +509,6 @@ func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	locker datastore.Locker,
 	identifier string,
 	config config.FleetConfig,
 ) {
@@ -569,7 +563,7 @@ func cronVulnerabilities(
 			return
 		}
 		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := locker.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
+			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
 				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 				continue
 			}
@@ -591,7 +585,7 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, locker datastore.Locker, identifier string) {
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -609,7 +603,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := locker.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
+		if locked, err := ds.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}

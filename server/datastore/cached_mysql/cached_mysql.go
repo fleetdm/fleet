@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/v4/server/datastore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
@@ -12,7 +11,6 @@ import (
 
 type cachedMysql struct {
 	fleet.Datastore
-	datastore.Locker
 
 	redisPool fleet.RedisPool
 }
@@ -21,10 +19,9 @@ const (
 	CacheKeyAppConfig = "AppConfig"
 )
 
-func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool) fleet.Datastore {
+func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
 	return &cachedMysql{
 		Datastore: ds,
-		Locker:    locker,
 		redisPool: redisPool,
 	}
 }

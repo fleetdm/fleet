@@ -104,15 +104,6 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	assert.False(t, called)
 }
 
-type alwaysLocker struct{}
-
-func (m *alwaysLocker) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-	return true, nil
-}
-func (m *alwaysLocker) Unlock(ctx context.Context, name string, owner string) error {
-	return nil
-}
-
 func TestCronWebhooks(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -157,7 +148,7 @@ func TestCronWebhooks(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), &alwaysLocker{}, "1234")
+	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), "1234")
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -174,6 +165,12 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
 	vulnPath := path.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -188,7 +185,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), &alwaysLocker{}, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", fleetConfig)
 
 	require.DirExists(t, vulnPath)
 }
@@ -204,6 +201,12 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
 	fleetConfig := config.FleetConfig{
 		Vulnerabilities: config.VulnerabilitiesConfig{
@@ -215,7 +218,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
 
 	require.Contains(t, buf.String(), `{"level":"debug","waiting":"on ticker"}`)
 }
@@ -230,6 +233,12 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
 	}
 
 	fileVulnPath := path.Join(t.TempDir(), "somefile")
@@ -246,7 +255,7 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
@@ -262,6 +271,12 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
 	vulnPath := path.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -276,7 +291,7 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, &alwaysLocker{}, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
 
 	require.NoDirExists(t, vulnPath)
 }
