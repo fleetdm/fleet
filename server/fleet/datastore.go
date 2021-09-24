@@ -139,10 +139,9 @@ type Datastore interface {
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 
-	// LabelQueriesForHost returns the label queries that should be executed for the given host. The cutoff is the
-	// minimum timestamp a query execution should have to be considered "fresh". Executions that are not fresh will be
-	// repeated. Results are returned in a map of label id -> query
-	LabelQueriesForHost(ctx context.Context, host *Host, cutoff time.Time) (map[string]string, error)
+	// LabelQueriesForHost returns the label queries that should be executed for the given host.
+	// Results are returned in a map of label id -> query
+	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -287,6 +286,7 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
+	CleanupOrphanLabelMembership(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

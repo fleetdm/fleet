@@ -138,13 +138,13 @@ func (d *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 
 // DeleteQuery deletes Query identified by Query.ID.
 func (d *Datastore) DeleteQuery(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, "queries", name)
+	return d.deleteEntityByName(ctx, queriesTable, name)
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
 // number of deleted queries is returned along with any error.
 func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	return d.deleteEntities(ctx, "queries", ids)
+	return d.deleteEntities(ctx, queriesTable, ids)
 }
 
 // Query returns a single Query identified by id, if such exists.

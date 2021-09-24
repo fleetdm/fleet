@@ -28,7 +28,7 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 **More improvements** - Includes each additional feature's name, availability (Free v. Premium), and 1-2 sentences that answer the 'why should the user care?' questions.
 
-**Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/8-Updating-Fleet.md
+**Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/08-Updating-Fleet.md
 
 ### Manual QA
 
@@ -38,4 +38,4 @@ Documentation on conducting the manual QA pass can be found [here](./manual-qa.m
 
 ## Release day
 
-Documentation on completing the release process can be found [here](../docs/3-Contributing/5-Releasing-Fleet.md).  
+Documentation on completing the release process can be found [here](../docs/03-Contributing/05-Releasing-Fleet.md).  
