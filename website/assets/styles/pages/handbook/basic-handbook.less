@@ -1,45 +1,7 @@
 #basic-handbook {
 
-  h1 {
-    font-size: 36px;
-    line-height: 48px;
-  }
-
-  h2 {
-    font-weight: 800;
-    font-size: 24px;
-    line-height: 28px;
-  }
-
-  h3 {
-    font-size: 20px;
-    line-height: 24px;
-    font-weight: 700;
-  }
-  h4 {
-    font-size: 18px;
-    padding-top: 24px;
-  }
-
-  h5 {
-    font-weight: normal;
-    font-size: 14px;
-  }
-
-  h6 {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: @main-font;
-  }
-
   a {
     color: @core-vibrant-blue;
-    word-wrap: break-word;
-  }
-
-  p {
-    font-family: @header-font;
-    font-size: 14px;
   }
 
   ul {
@@ -124,10 +86,9 @@
       p, a, strong {
         font-size: 12px;
       }
-      a {
-        color: @core-vibrant-blue;
-        text-decoration: none;
 
+      a {
+        text-decoration: none;
         &.active {
           color: @core-vibrant-blue;
         }
@@ -163,11 +124,14 @@
     }
 
     h4 {
+      padding-top: 16px;
       font-size: 16px;
     }
 
     [purpose='maintainer'] {
 
+      padding-top: 24px;
+      padding-bottom: 8px;
       .maintainer-image {
         height: 32px;
         width: 32px;
@@ -182,7 +146,6 @@
       h4 {
         font-size: 16px;
         font-weight: 700;
-        padding-top: 16px;
       }
 
     }
@@ -198,7 +161,6 @@
         }
       }
       a {
-        color: @core-vibrant-blue;
         text-decoration: none;
         &:hover {
           color: @core-vibrant-blue;
@@ -223,9 +185,12 @@
       h1 {
         padding-bottom: 16px;
         margin-bottom: 0px;
+        font-size: 36px;
+        line-height: 48px;
       }
 
       h2 {
+        font-weight: 800;
         font-size: 24px;
         line-height: 28px;
         padding-top: 24px;
@@ -238,16 +203,29 @@
         padding-top: 16px;
         padding-bottom: 16px;
         margin-bottom: 0px;
+        font-weight: 700;
       }
 
       h4 {
+        font-size: 18px;
+        padding-top: 24px;
         padding-bottom: 16px;
         margin-bottom: 0px;
       }
 
       h5 {
+        font-weight: normal;
+        font-size: 14px;
         margin-top: 16px;
         margin-bottom: 16px;
+      }
+      a {
+        word-wrap: break-word;
+      }
+
+      p {
+        font-family: @header-font;
+        font-size: 14px;
       }
 
       ul {
@@ -255,27 +233,6 @@
         padding-left: 32px;
       }
 
-      img {
-        display: flex;
-        max-width: 100%;
-        height: auto;
-        margin: auto;
-        padding-top: 24px;
-        padding-bottom: 24px;
-      }
-
-      span + ul {
-        display: none; // Hides links at top of some markdown files
-      }
-
-      h2 + h3 {
-        padding-top: 8px;
-      }
-      .note {
-        background-color: @core-vibrant-blue-10;
-        border-radius: 12px;
-        text-decoration: none;
-      }
       code {
         background-color: @ui-off-white;
         border: 1px solid @border-lt-gray;
@@ -336,7 +293,7 @@
           color: @core-fleet-black;
 
           a {
-            color: @core-vibrant-blue;
+
           }
 
         }
