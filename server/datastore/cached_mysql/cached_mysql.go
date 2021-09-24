@@ -18,8 +18,7 @@ type cachedMysql struct {
 }
 
 const (
-	CacheKeyAppConfig              = "AppConfig"
-	CacheKeyAuthenticateHostPrefix = "AuthenticateHost"
+	CacheKeyAppConfig = "AppConfig"
 )
 
 func New(ds fleet.Datastore, locker datastore.Locker, redisPool fleet.RedisPool) fleet.Datastore {
@@ -100,26 +99,4 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 	}
 
 	return ds.storeInRedis(CacheKeyAppConfig, info)
-}
-
-func (ds *cachedMysql) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	ac, err := ds.AppConfig(ctx)
-	if err != nil || !ac.CacheHosts {
-		return ds.Datastore.AuthenticateHost(ctx, nodeKey)
-	}
-
-	host := &fleet.Host{}
-	err = ds.getFromRedis(CacheKeyAuthenticateHostPrefix+nodeKey, host)
-	if err == nil {
-		return host, nil
-	}
-
-	host, err = ds.Datastore.AuthenticateHost(ctx, nodeKey)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ds.storeInRedis(CacheKeyAuthenticateHostPrefix+nodeKey, host)
-
-	return host, err
 }

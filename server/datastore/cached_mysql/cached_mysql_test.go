@@ -156,29 +156,4 @@ func TestCachedAppConfig(t *testing.T) {
 		require.True(t, mockedDS.AuthenticateHostFuncInvoked)
 		mockedDS.AuthenticateHostFuncInvoked = false
 	})
-
-	t.Run("AuthenticateHost cache hosts", func(t *testing.T) {
-		_, err = conn.Do("DEL", CacheKeyAppConfig)
-		_, err = conn.Do("DEL", CacheKeyAuthenticateHostPrefix+"1234")
-		require.NoError(t, err)
-
-		mockedDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{CacheHosts: true}, nil
-		}
-		mockedDS.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-			return &fleet.Host{ID: 999}, nil
-		}
-		mockedDS.AuthenticateHostFuncInvoked = false
-
-		_, err = ds.AuthenticateHost(context.Background(), "1234")
-		require.NoError(t, err)
-		require.True(t, mockedDS.AuthenticateHostFuncInvoked)
-		mockedDS.AuthenticateHostFuncInvoked = false
-
-		host, err := ds.AuthenticateHost(context.Background(), "1234")
-		require.NoError(t, err)
-		require.False(t, mockedDS.AuthenticateHostFuncInvoked)
-		mockedDS.AuthenticateHostFuncInvoked = false
-		assert.Equal(t, uint(999), host.ID)
-	})
 }
