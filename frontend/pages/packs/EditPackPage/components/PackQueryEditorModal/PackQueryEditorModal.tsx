@@ -190,13 +190,6 @@ const PackQueryEditorModal = ({
       return selectedQuery?.id;
     };
 
-    // const name = () => {
-    //   if (editQuery) {
-    //     return editQuery.name;
-    //   }
-    //   return selectedQuery?.name;
-    // }; // pretty sure unneeded
-
     onPackQueryFormSubmit(
       {
         interval: parseInt(selectedFrequency, 10),
