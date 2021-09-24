@@ -115,6 +115,29 @@ const generateTableHeaders = (
   ];
 };
 
+const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
+  return [
+    {
+      title: "Query",
+      Header: "Query",
+      disableSortBy: true,
+      accessor: "query_name",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      title: "Frequency",
+      Header: "Frequency",
+      disableSortBy: true,
+      accessor: "interval",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={secondsToDhms(cellProps.cell.value)} />
+      ),
+    },
+  ];
+};
+
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   const dropdownOptions = [
     {
@@ -162,4 +185,8 @@ const generateDataSet = (
   return [...enhanceAllScheduledQueryData(all_scheduled_queries, teamId)];
 };
 
-export { generateTableHeaders, generateDataSet };
+export {
+  generateInheritedQueriesTableHeaders,
+  generateTableHeaders,
+  generateDataSet,
+};

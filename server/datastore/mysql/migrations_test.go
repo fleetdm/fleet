@@ -111,7 +111,10 @@ func Test20210819131107_AddCascadeToHostSoftware(t *testing.T) {
 
 	require.NoError(t, ds.DeleteHost(context.Background(), host1.ID))
 
+	t.Log("Done adding software...")
+	startTime := time.Now()
 	require.NoError(t, tables.MigrationClient.UpByOne(ds.writer.DB, ""))
+	t.Log("took", time.Since(startTime))
 
 	// Make sure we don't delete more than we need
 	hostCheck, err := ds.Host(context.Background(), host2.ID)
