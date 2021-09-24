@@ -1,14 +1,14 @@
 resource "aws_route53_zone" "dogfood_fleetctl_com" {
-  name = "dogfood.fleetctl.com"
+  name = var.domain_fleetctl
 }
 
 resource "aws_route53_zone" "dogfood_fleetdm_com" {
-  name = "dogfood.fleetdm.com"
+  name = var.domain_fleetdm
 }
 
 resource "aws_route53_record" "dogfood_fleetctl_com" {
   zone_id = aws_route53_zone.dogfood_fleetctl_com.zone_id
-  name    = "dogfood.fleetctl.com"
+  name    = var.domain_fleetctl
   type    = "A"
 
   alias {
@@ -20,7 +20,7 @@ resource "aws_route53_record" "dogfood_fleetctl_com" {
 
 resource "aws_route53_record" "dogfood_fleetdm_com" {
   zone_id = aws_route53_zone.dogfood_fleetdm_com.zone_id
-  name    = "dogfood.fleetdm.com"
+  name    = var.domain_fleetdm
   type    = "A"
 
   alias {
@@ -31,7 +31,7 @@ resource "aws_route53_record" "dogfood_fleetdm_com" {
 }
 
 resource "aws_acm_certificate" "dogfood_fleetctl_com" {
-  domain_name       = "dogfood.fleetctl.com"
+  domain_name       = var.domain_fleetctl
   validation_method = "DNS"
 
   lifecycle {
@@ -40,7 +40,7 @@ resource "aws_acm_certificate" "dogfood_fleetctl_com" {
 }
 
 resource "aws_acm_certificate" "dogfood_fleetdm_com" {
-  domain_name       = "dogfood.fleetdm.com"
+  domain_name       = var.domain_fleetdm
   validation_method = "DNS"
 
   lifecycle {

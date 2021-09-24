@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "osquery" {
-  bucket = "fleet-osquery-logs-archive"
+  bucket = var.s3_bucket
   acl    = "private"
 
   lifecycle_rule {
