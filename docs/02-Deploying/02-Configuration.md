@@ -131,7 +131,9 @@ All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 ##### MySQL
 
-This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica.
+This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
+periodically.
 
 ###### mysql_address
 
@@ -433,7 +435,7 @@ The address to serve the Fleet webserver.
 
 The TLS cert to use when terminating TLS.
 
-See [TLS certificate considerations](./1-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
+See [TLS certificate considerations](./01-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
 
 - Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
@@ -725,6 +727,24 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   ```
   osquery:
   	result_log_plugin: firehose
+  ```
+
+###### osquery_max_jitter_percent
+
+Given an update interval (label, or details), this will add up to the defined percentage in randomness to the interval.
+
+The goal of this is to prevent all hosts from checking in with data at the same time.
+
+So for example, if the label_update_interval is 1h, and this is set to 10. It'll add up a random number between 0 and 6 minutes
+to the amount of time it takes for fleet to give the host the label queries.
+
+- Default value: `10`
+- Environment variable: `FLEET_OSQUERY_MAX_JITTER_PERCENT`
+- Config file format:
+
+  ```
+  osquery:
+  	max_jitter_percent: 10
   ```
 
 ##### Logging (Fleet server logging)

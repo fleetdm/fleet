@@ -135,4 +135,4 @@ Multiple enroll secrets can be set to allow different groups of hosts to
 authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
 recorded and can be used to segment hosts.
 
-To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../1-Using-Fleet/2-fleetctl-CLI.md#enroll-secrets) 
+To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../01-Using-Fleet/02-fleetctl-CLI.md#enroll-secrets) 

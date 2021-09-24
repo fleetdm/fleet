@@ -11,7 +11,6 @@ import enrollSecretInterface from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/config/EnrollSecretTable";
 import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import Slider from "components/forms/fields/Slider";
 import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";

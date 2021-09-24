@@ -217,17 +217,12 @@ func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 }
 
 func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
-	query := `
-		UPDATE labels SET
-			name = ?,
-			description = ?
-		WHERE id = ?
-	`
+	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := d.writer.ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving label")
 	}
-	return label, nil
+	return labelDB(ctx, label.ID, d.writer)
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -237,13 +232,20 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 // Label returns a fleet.Label identified by lid if one exists.
 func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+	return labelDB(ctx, lid, d.reader)
+}
+
+func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
 	sql := `
-		SELECT * FROM labels
-			WHERE id = ?
+		SELECT 
+		       l.*,
+		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
+		FROM labels l
+		WHERE id = ?
 	`
 	label := &fleet.Label{}
 
-	if err := sqlx.GetContext(ctx, d.reader, label, sql, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
 		return nil, errors.Wrap(err, "selecting label")
 	}
 
@@ -283,39 +285,12 @@ func platformForHost(host *fleet.Host) string {
 	return host.Platform
 }
 
-func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
 	platform := platformForHost(host)
-	if host.LabelUpdatedAt.Before(cutoff) {
-		// Retrieve all labels (with matching platform) for this host
-		sql := `
-			SELECT id, query
-			FROM labels
-			WHERE platform = ? OR platform = ''
-			AND label_membership_type = ?
-`
-		rows, err = d.reader.QueryContext(ctx, sql, platform, fleet.LabelMembershipTypeDynamic)
-	} else {
-		// Retrieve all labels (with matching platform) iff there is a label
-		// that has been created since this host last reported label query
-		// executions
-		sql := `
-			SELECT id, query
-			FROM labels
-			WHERE ((SELECT max(created_at) FROM labels WHERE platform = ? OR platform = '') > ?)
-			AND (platform = ? OR platform = '')
-			AND label_membership_type = ?
-`
-		rows, err = d.reader.QueryContext(
-			ctx,
-			sql,
-			platform,
-			host.LabelUpdatedAt,
-			platform,
-			fleet.LabelMembershipTypeDynamic,
-		)
-	}
+	query := `SELECT id, query FROM labels WHERE platform = ? OR platform = '' AND label_membership_type = ?`
+	rows, err = d.reader.QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic)
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting label queries for host")
@@ -370,14 +345,8 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Complete inserts if necessary
 			if len(vals) > 0 {
-				sql := `
-        INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES
-        `
-				sql += strings.Join(bindvars, ",") +
-					`
-          ON DUPLICATE KEY UPDATE
-          updated_at = VALUES(updated_at)
-        `
+				sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
+				sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
 				_, err := tx.ExecContext(ctx, sql, vals...)
 				if err != nil {
@@ -387,9 +356,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 
 			// Complete deletions if necessary
 			if len(removes) > 0 {
-				sql := `
-			DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)
-		`
+				sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
 				query, args, err := sqlx.In(sql, host.ID, removes)
 				if err != nil {
 					return errors.Wrap(err, "IN for DELETE FROM label_membership")
@@ -666,5 +633,12 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 	}
 
 	return labelIDs, nil
+}
 
+func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
+	_, err := d.writer.ExecContext(ctx, `DELETE FROM label_membership where not exists (select 1 from labels where id=label_id) or not exists (select 1 from hosts where id=host_id)`)
+	if err != nil {
+		return errors.Wrap(err, "cleaning orphan label_membership by label")
+	}
+	return nil
 }
