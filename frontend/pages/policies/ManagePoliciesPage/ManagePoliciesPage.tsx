@@ -61,31 +61,26 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
-  const {
-    isLoading: isTeamsLoading,
-    data: teams,
-    error: teamsError,
-  } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
+  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
     enabled: !!isPremiumTier,
     select: (data) => data.teams,
   });
 
-  const {
-    isLoading: isFleetQueriesLoading,
-    data: fleetQueries,
-    error: fleetQueriesError,
-  } = useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
-    select: (data) => data.queries,
-  });
+  const { data: fleetQueries } = useQuery(
+    ["fleetQueries"],
+    () => fleetQueriesAPI.loadAll(),
+    {
+      select: (data) => data.queries,
+    }
+  );
 
+  // ===== local state
   const [globalPolicies, setGlobalPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoadingGlobalPolicies, setIsLoadingGlobalPolicies] = useState(true);
   const [isGlobalPoliciesError, setIsGlobalPoliciesError] = useState(false);
-
   const [teamPolicies, setTeamPolicies] = useState<IPolicy[] | never[]>([]);
   const [isLoadingTeamPolicies, setIsLoadingTeamPolicies] = useState(true);
   const [isTeamPoliciesError, setIsTeamPoliciesError] = useState(false);
-
   const [userTeams, setUserTeams] = useState<ITeam[] | never[] | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(
     parseInt(location?.query?.team_id, 10) || null
@@ -93,14 +88,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
-
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-
   const [updateInterval, setUpdateInterval] = useState<string>(
     "osquery detail update interval"
   );
+  // ===== local state
 
   const getGlobalPolicies = useCallback(async () => {
     setIsLoadingGlobalPolicies(true);
@@ -156,98 +150,74 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     [router]
   );
 
-  const toggleAddPolicyModal = useCallback(() => {
-    setShowAddPolicyModal(!showAddPolicyModal);
-  }, [showAddPolicyModal, setShowAddPolicyModal]);
+  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
-  const toggleRemovePoliciesModal = useCallback(() => {
+  const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
-  }, [showRemovePoliciesModal, setShowRemovePoliciesModal]);
 
-  const toggleShowInheritedPolicies = useCallback(() => {
+  const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
-  }, [showInheritedPolicies, setShowInheritedPolicies]);
 
-  const onRemovePoliciesClick = useCallback(
-    (selectedTableIds: number[]): void => {
-      toggleRemovePoliciesModal();
-      setSelectedPolicyIds(selectedTableIds);
-    },
-    [toggleRemovePoliciesModal]
-  );
+  const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
+    toggleRemovePoliciesModal();
+    setSelectedPolicyIds(selectedTableIds);
+  };
 
-  const onRemovePoliciesSubmit = useCallback(() => {
-    const request = selectedTeamId
-      ? teamPoliciesAPI.destroy(selectedTeamId, selectedPolicyIds)
-      : globalPoliciesAPI.destroy(selectedPolicyIds);
+  const onRemovePoliciesSubmit = async () => {
+    try {
+      const request = selectedTeamId
+        ? teamPoliciesAPI.destroy(selectedTeamId, selectedPolicyIds)
+        : globalPoliciesAPI.destroy(selectedPolicyIds);
 
-    request
-      .then(() => {
+      await request.then(() => {
         dispatch(
           renderFlash(
             "success",
             `Successfully removed ${
-              selectedPolicyIds && selectedPolicyIds.length === 1
-                ? "policy"
-                : "policies"
+              selectedPolicyIds?.length === 1 ? "policy" : "policies"
             }.`
           )
         );
-      })
-      .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove ${
-              selectedPolicyIds && selectedPolicyIds.length === 1
-                ? "policy"
-                : "policies"
-            }. Please try again.`
-          )
-        );
-      })
-      .finally(() => {
-        toggleRemovePoliciesModal();
-        getPolicies(selectedTeamId);
       });
-  }, [
-    dispatch,
-    getPolicies,
-    selectedPolicyIds,
-    selectedTeamId,
-    toggleRemovePoliciesModal,
-  ]);
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          `Unable to remove ${
+            selectedPolicyIds?.length === 1 ? "policy" : "policies"
+          }. Please try again.`
+        )
+      );
+    } finally {
+      toggleRemovePoliciesModal();
+      getPolicies(selectedTeamId);
+    }
+  };
 
-  const onAddPolicySubmit = useCallback(
-    (query_id: number | undefined) => {
-      if (!query_id) {
-        dispatch(
-          renderFlash("error", "Could not add policy. Please try again.")
-        );
-        console.log("Missing query id; cannot add policy");
-        return false;
-      }
+  const onAddPolicySubmit = async (query_id: number | undefined) => {
+    if (!query_id) {
+      dispatch(renderFlash("error", "Could not add policy. Please try again."));
+
+      return false;
+    }
+
+    try {
       const request = selectedTeamId
         ? teamPoliciesAPI.create(selectedTeamId, query_id)
         : globalPoliciesAPI.create(query_id);
 
-      request
-        .then(() => {
-          dispatch(renderFlash("success", `Successfully added policy.`));
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not add policy. Please try again.")
-          );
-        })
-        .finally(() => {
-          toggleAddPolicyModal();
-          getPolicies(selectedTeamId);
-        });
-      return false;
-    },
-    [dispatch, getPolicies, selectedTeamId, toggleAddPolicyModal]
-  );
+      await request.then(() => {
+        dispatch(renderFlash("success", `Successfully added policy.`));
+      });
+    } catch {
+      dispatch(renderFlash("error", "Could not add policy. Please try again."));
+    } finally {
+      toggleAddPolicyModal();
+      getPolicies(selectedTeamId);
+    }
+
+    return false;
+  };
 
   // Sort list of teams the current user has permission to access and set as userTeams.
   useEffect(() => {
@@ -255,13 +225,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       let unsortedTeams: ITeam[] | null = null;
       if (isOnGlobalTeam && teams) {
         unsortedTeams = teams;
-      } else if (!isOnGlobalTeam && currentUser && currentUser.teams) {
+      } else if (!isOnGlobalTeam && currentUser?.teams) {
         unsortedTeams = currentUser.teams;
       }
       if (unsortedTeams !== null) {
         setUserTeams(
-          unsortedTeams.sort((a, b) =>
-            sortUtils.caseInsensitiveAsc(b.name, a.name)
+          unsortedTeams.sort(
+            (a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name) // TODO: confirm that sortUtils refactor in #2105 has been merged first
           )
         );
       }
@@ -269,6 +239,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   }, [currentUser, isOnGlobalTeam, isPremiumTier, teams]);
 
   // Parse url query param and set as selectedTeamId.
+  // Note 0 is used as the id for the "All teams" option.
+  // Null case is used to represent no valid id has been selected.
   useEffect(() => {
     let teamId: number | null = parseInt(location?.query?.team_id, 10) || 0;
 
@@ -286,11 +258,16 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         teamId && handleChangeSelectedTeam(teamId);
       }
     }
+    // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
+    // so a falsiness check cannot be used here. Null case here allows us to skip API call
+    // that would be triggered on a change to selectedTeamId.
     teamId !== null && setSelectedTeamId(teamId);
   }, [handleChangeSelectedTeam, isOnGlobalTeam, location, userTeams]);
 
   // Watch for selected team changes and call getPolicies to make new policies API request.
   useEffect(() => {
+    // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
+    // so a falsiness check cannot be used here. Null case here allows us to skip API call.
     if (selectedTeamId !== null) {
       getGlobalPolicies();
       if (selectedTeamId) {
