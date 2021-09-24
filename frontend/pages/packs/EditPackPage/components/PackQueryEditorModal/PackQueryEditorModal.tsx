@@ -69,7 +69,6 @@ const PackQueryEditorModal = ({
   editQuery,
   packId,
 }: IPackQueryEditorModalProps): JSX.Element => {
-  // TODO: Do I ever need loggingconfig
   const [loggingConfig, setLoggingConfig] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);

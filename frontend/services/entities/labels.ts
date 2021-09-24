@@ -26,6 +26,7 @@ export default {
     }
 =======
 import { ILabel } from "interfaces/label";
+
 export default {
   create: async (label: ILabel) => {
     const { LABELS } = endpoints;

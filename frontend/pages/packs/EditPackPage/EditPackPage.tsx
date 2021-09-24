@@ -14,21 +14,19 @@ import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
+import { ITargetsAPIResponse } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
 
-import configAPI from "services/entities/config";
-import hostAPI from "services/entities/hosts";
-import labelAPI from "services/entities/labels";
-import packAPI from "services/entities/packs";
-import queryAPI from "services/entities/queries";
-import scheduledqueryAPI from "services/entities/scheduled_queries";
-import teamAPI from "services/entities/teams";
+import hostsAPI from "services/entities/hosts";
+import labelsAPI from "services/entities/labels";
+import packsAPI from "services/entities/packs";
+import queriesAPI from "services/entities/queries";
+import scheduledqueriesAPI from "services/entities/scheduled_queries";
+import teamsAPI from "services/entities/teams";
 
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import debounce from "utilities/debounce";
 import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
@@ -36,17 +34,11 @@ import deepDifference from "utilities/deep_difference";
 import EditPackForm from "components/forms/packs/EditPackForm";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
-import { ITargetsAPIResponse } from "interfaces/target";
 
 interface IEditPacksPageProps {
   router: any;
   params: Params;
   location: any; // TODO: find Location type
-}
-interface IRootState {
-  app: {
-    config: IConfig;
-  };
 }
 
 interface IPackQueryFormData {
@@ -80,11 +72,10 @@ interface IStoredTeamsResponse {
 const baseClass = "edit-pack-page";
 
 const EditPacksPage = ({
-  router, // only needed if I need to navigate to another page from this page
+  router,
   params: { id: paramsPackId },
-  location: { query: URLQueryString }, // might need this if there's team filters
+  location: { query: URLQueryString },
 }: IEditPacksPageProps): JSX.Element => {
-  // DATA AND API CALLS
   const { isPremiumTier } = useContext(AppContext);
 
   const dispatch = useDispatch();
@@ -127,7 +118,7 @@ const EditPacksPage = ({
   const getPack = useCallback(async () => {
     setIsStoredPackLoading(true);
     try {
-      const response = await packAPI.load(packId);
+      const response = await packsAPI.load(packId);
       setStoredPack(response.pack);
     } catch (error) {
       console.log(error);
@@ -140,7 +131,7 @@ const EditPacksPage = ({
   const getPackQueries = useCallback(async () => {
     setIsStoredPackQueriesLoading(true);
     try {
-      const response = await scheduledqueryAPI.loadAll(packId);
+      const response = await scheduledqueriesAPI.loadAll(packId);
       setStoredPackQueries(response.scheduled);
     } catch (error) {
       console.log(error);
@@ -161,7 +152,7 @@ const EditPacksPage = ({
     error: fleetQueriesError,
   } = useQuery<IStoredFleetQueriesResponse, Error, IQuery[]>(
     ["fleet queries"], // use single string or array of strings can be named anything
-    () => queryAPI.loadAll(),
+    () => queriesAPI.loadAll(),
     {
       select: (data: IStoredFleetQueriesResponse) => data.queries,
     }
@@ -173,7 +164,7 @@ const EditPacksPage = ({
     error: packLabelsError,
   } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
     ["pack labels"], // use single string or array of strings can be named anything
-    () => labelAPI.loadAll(),
+    () => labelsAPI.loadAll(),
     {
       select: (data: IStoredLabelsResponse) => data.labels,
     }
@@ -191,7 +182,7 @@ const EditPacksPage = ({
     error: hostsError,
   } = useQuery<IStoredHostsResponse, Error, IHost[]>(
     ["all hosts"], // use single string or array of strings can be named anything
-    () => hostAPI.loadAll(undefined),
+    () => hostsAPI.loadAll(undefined),
     {
       select: (data: IStoredHostsResponse) => data.hosts,
     }
@@ -208,7 +199,7 @@ const EditPacksPage = ({
     error: teamsError,
   } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
     ["pack labels"],
-    () => teamAPI.loadAll(),
+    () => teamsAPI.loadAll(),
     {
       select: (data: IStoredTeamsResponse) => data.teams,
     }
@@ -263,7 +254,7 @@ const EditPacksPage = ({
 
   const handlePackFormSubmit = (formData: any) => {
     const updatedPack = deepDifference(formData, storedPack);
-    packAPI
+    packsAPI
       .update(packId, updatedPack)
       .then(() => {
         dispatch(renderFlash("success", `Successfully updated this pack.`));
@@ -278,8 +269,8 @@ const EditPacksPage = ({
   const onPackQueryEditorSubmit = useCallback(
     (formData: IPackQueryFormData, editQuery: IScheduledQuery | undefined) => {
       const request = editQuery
-        ? scheduledqueryAPI.update(editQuery, formData)
-        : scheduledqueryAPI.create(formData);
+        ? scheduledqueriesAPI.update(editQuery, formData)
+        : scheduledqueriesAPI.create(formData);
       request
         .then(() => {
           dispatch(renderFlash("success", `Successfully updated this pack.`));
@@ -306,7 +297,7 @@ const EditPacksPage = ({
       selectedPackQueryIds.length === 1 ? "query" : "queries";
 
     const promises = selectedPackQueryIds.map((id: number) => {
-      return scheduledqueryAPI.destroy(id);
+      return scheduledqueriesAPI.destroy(id);
     });
 
     return Promise.all(promises)
