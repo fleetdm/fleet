@@ -231,7 +231,6 @@ const EditPacksPage = ({
   const togglePackQueryEditorModal = useCallback(() => {
     setSelectedPackQuery(undefined); // create modal renders
     setShowPackQueryEditorModal(!showPackQueryEditorModal);
-    console.log("togglePackQueryEditorModal clicked!");
   }, [showPackQueryEditorModal, setShowPackQueryEditorModal]);
 
   const toggleEditPackQueryModal = useCallback(() => {

@@ -218,9 +218,13 @@ export const formatSelectedTargetsForApi = (
   console.log("formatSelectedTargetsForAPI selectedTargets", selectedTargets);
 
   const targets = selectedTargets || [];
-  const hosts = flatMap(targets, filterTarget("hosts"));
-  const labels = flatMap(targets, filterTarget("labels"));
-  const teams = flatMap(targets, filterTarget("teams"));
+  // const hosts = flatMap(targets, filterTarget("hosts"));
+  // const labels = flatMap(targets, filterTarget("labels"));
+  // const teams = flatMap(targets, filterTarget("teams"));
+
+  const hosts = targets.hosts;
+  const labels = targets.labels;
+  const teams = targets.teams;
 
   if (appendID) {
     console.log("formatSelectedTargetsForAPI", {
