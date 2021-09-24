@@ -594,22 +594,37 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+
 	label := &fleet.Label{
 		Name:        "my label",
 		Description: "a label",
 		Query:       "select 1 from processes;",
 		Platform:    "darwin",
 	}
-	label, err := db.NewLabel(context.Background(), label)
-	require.Nil(t, err)
+	label, err = db.NewLabel(context.Background(), label)
+	require.NoError(t, err)
 	label.Name = "changed name"
 	label.Description = "changed description"
+
+	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
 	_, err = db.SaveLabel(context.Background(), label)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	saved, err := db.Label(context.Background(), label.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
+	assert.Equal(t, 1, saved.HostCount)
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
