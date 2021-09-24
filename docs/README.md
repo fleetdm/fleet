@@ -2,13 +2,13 @@
 
 Welcome to the documentation for the Fleet osquery fleet manager.
 
-### [Using Fleet](./1-Using-Fleet/README.md)
+### [Using Fleet](./01-Using-Fleet/README.md)
 Resources for using the Fleet UI, fleetctl CLI, and Fleet REST API.
 
-### [Deploying](./2-Deploying/README.md)
+### [Deploying](./02-Deploying/README.md)
 Resources for installing Fleet's infrastructure dependencies, configuring Fleet, deploying osquery to hosts, and viewing example deployment scenarios.
 
-### [Contributing](./3-Contributing/README.md)
+### [Contributing](./03-Contributing/README.md)
 If you're interested in interacting with the Fleet source code, you'll find information on modifying and building the code here.
 
 ---

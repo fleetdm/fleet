@@ -1,1 +1,0 @@
-variable "vpc_id" {}
