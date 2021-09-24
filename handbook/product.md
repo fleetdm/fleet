@@ -209,7 +209,7 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
 
-Documentation on conducting the manual QA pass can be found [here](./manual-qa.md). 
+Documentation on conducting the manual QA pass can be found [here](#manual-qa). 
 
 ### Release day
 
