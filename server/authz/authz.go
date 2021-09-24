@@ -130,6 +130,10 @@ func (a *Authorizer) TeamAuthorize(ctx context.Context, teamID uint, action stri
 		switch *subject.GlobalRole {
 		case fleet.RoleAdmin, fleet.RoleMaintainer:
 			return nil
+		case fleet.RoleObserver:
+			if action == fleet.ActionRead {
+				return nil
+			}
 		}
 	}
 

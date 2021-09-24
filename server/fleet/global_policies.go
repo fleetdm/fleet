@@ -11,6 +11,9 @@ type Policy struct {
 	UpdateCreateTimestamps
 }
 
-func (Policy) AuthzType() string {
+func (p Policy) AuthzType() string {
+	if p.TeamID != nil {
+		return "team_policy"
+	}
 	return "policy"
 }
