@@ -1,7 +1,8 @@
 import React from "react";
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
-import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
 
 import PATHS from "router/paths";
 
@@ -166,33 +167,33 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    {
-      title: "Last used",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "last_opened_at",
-      Cell: (cellProps) => {
-        const lastUsed = isNaN(Date.parse(cellProps.cell.value))
-          ? "Unavailable"
-          : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
-        return (
-          <span
-            className={
-              lastUsed === "Unavailable"
-                ? "software-last-used-muted"
-                : "software-last-used"
-            }
-          >
-            {lastUsed}
-          </span>
-        );
-      },
-      sortType: "dateStrings",
-    },
+    // {
+    //   title: "Last used",
+    //   Header: (cellProps) => (
+    //     <HeaderCell
+    //       value={cellProps.column.title}
+    //       isSortedDesc={cellProps.column.isSortedDesc}
+    //     />
+    //   ),
+    //   accessor: "last_opened_at",
+    //   Cell: (cellProps) => {
+    //     const lastUsed = isNaN(Date.parse(cellProps.cell.value))
+    //       ? "Unavailable"
+    //       : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
+    //     return (
+    //       <span
+    //         className={
+    //           lastUsed === "Unavailable"
+    //             ? "software-last-used-muted"
+    //             : "software-last-used"
+    //         }
+    //       >
+    //         {lastUsed}
+    //       </span>
+    //     );
+    //   },
+    //   sortType: "dateStrings",
+    // },
     {
       title: "",
       Header: "",
@@ -200,9 +201,9 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "linkToFilteredHosts",
       Cell: (cellProps) => {
         return (
-          <a className={`software-link`} href={cellProps.cell.value}>
+          <Link to={cellProps.cell.value} className={`software-link`}>
             <img alt="link to hosts filtered by software ID" src={Chevron} />
-          </a>
+          </Link>
         );
       },
       disableHidden: true,
@@ -210,19 +211,17 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const FAKEDATE = "2021-09-23T08:11:35Z";
-const FAKEID = "com.foo.app";
-
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
+  const FAKEID = "com.foo.app";
+  // const FAKEDATE = "2021-09-23T08:11:35Z";
   return Object.values(software).map((softwareItem) => {
-    const TIME = new Date(
-      Date.parse(FAKEDATE) + 100000 * softwareItem.id
-    ).toString();
-
+    // const TIME = new Date(
+    //   Date.parse(FAKEDATE) + 100000 * softwareItem.id
+    // ).toString();
     return {
       ...softwareItem,
       bundle_identifier: softwareItem.id % 3 ? FAKEID : null,
-      last_opened_at: softwareItem.id % 2 ? TIME : null,
+      // last_opened_at: softwareItem.id % 2 ? TIME : null,
       linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
     };
