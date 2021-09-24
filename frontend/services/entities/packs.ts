@@ -31,9 +31,9 @@ export default {
 
     return sendRequest("POST", PACKS, { name, description, ...packTargets });
   },
-  destroy: (id: number) => {
+  destroy: (packID: number) => {
     const { PACKS } = endpoints;
-    const path = `${PACKS}/id/${id}`;
+    const path = `${PACKS}/id/${packID}`;
 
     return sendRequest("DELETE", path);
   },
@@ -58,6 +58,7 @@ export default {
     if (targets) {
       packTargets = helpers.formatSelectedTargetsForApi(targets, true);
     }
+    debugger;
 
     const packWithoutTargets = omit(updatedPack, "targets");
     const packParams = { ...packWithoutTargets, ...packTargets };

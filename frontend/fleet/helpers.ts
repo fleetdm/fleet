@@ -215,12 +215,21 @@ export const formatSelectedTargetsForApi = (
   selectedTargets: any,
   appendID = false
 ) => {
+  console.log("formatSelectedTargetsForAPI selectedTargets", selectedTargets);
+
   const targets = selectedTargets || [];
   const hosts = flatMap(targets, filterTarget("hosts"));
   const labels = flatMap(targets, filterTarget("labels"));
   const teams = flatMap(targets, filterTarget("teams"));
 
   if (appendID) {
+    console.log("formatSelectedTargetsForAPI", {
+      host_ids: hosts,
+      label_ids: labels,
+      team_ids: teams,
+    });
+    debugger;
+
     return { host_ids: hosts, label_ids: labels, team_ids: teams };
   }
 

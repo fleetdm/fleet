@@ -1,9 +1,7 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React, { useState, useCallback, Component } from "react";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Form from "components/forms/Form";
+
 import { IFormField } from "interfaces/form_field";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
@@ -19,63 +17,120 @@ const baseClass = "edit-pack-form";
 
 interface IEditPackForm {
   className?: string;
-  handleSubmit?: (formData: any) => void;
+  handleSubmit: (formData: any) => void;
   onCancelEditPack: () => void;
   onFetchTargets?: (query: IQuery, targetsResponse: any) => boolean;
   onAddPackQuery: () => void;
-  onEditPackQuery: () => void;
-  onRemovePackQueries: () => void;
-  onPackQueryFormSubmit: (formData: any) => void;
+  onEditPackQuery: (selectedTableQueryIds: any) => void;
+  onRemovePackQueries: (selectedTableQueryIds: any) => void;
+  onPackQueryFormSubmit: (
+    formData: IPackQueryFormData,
+    editQuery: IScheduledQuery | undefined
+  ) => boolean;
   packId: number;
   packTargets?: ITarget[];
   targetsCount?: number;
   isPremiumTier?: boolean;
-  fields: { description: IFormField; name: IFormField; targets: IFormField };
+  formData: any;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
 }
-const EditPackForm = (props: IEditPackForm): JSX.Element => {
-  const {
-    className,
-    handleSubmit,
-    onCancelEditPack,
-    onFetchTargets,
-    onAddPackQuery,
-    onEditPackQuery,
-    onRemovePackQueries,
-    onPackQueryFormSubmit,
-    packId,
-    packTargets,
-    scheduledQueries,
-    isLoadingPackQueries,
-    targetsCount,
-    isPremiumTier,
-    fields,
-  } = props;
+
+interface IPackQueryFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  removed: boolean;
+  snapshot: boolean;
+  pack_id: number;
+  platform: string;
+  version: string;
+}
+
+interface IEditPackFormData {
+  name: string;
+  description: string;
+  targets: ITarget[];
+}
+
+const EditPackForm = ({
+  className,
+  handleSubmit,
+  onCancelEditPack,
+  onFetchTargets,
+  onAddPackQuery,
+  onEditPackQuery,
+  onRemovePackQueries,
+  onPackQueryFormSubmit,
+  packId,
+  packTargets,
+  scheduledQueries,
+  isLoadingPackQueries,
+  targetsCount,
+  isPremiumTier,
+  formData,
+}: IEditPackForm): JSX.Element => {
+  const [packName, setPackName] = useState<string>(formData.name);
+  const [packDescription, setPackDescription] = useState<string>(
+    formData.description
+  );
+  const [packFormTargets, setPackFormTargets] = useState<ITarget[]>(
+    formData.targets
+  );
+
+  const onChangePackName = (value: string) => {
+    setPackName(value);
+  };
+
+  const onChangePackDescription = (value: string) => {
+    setPackDescription(value);
+  };
+
+  const onChangePackTargets = (value: ITarget[]) => {
+    setPackFormTargets(value);
+    console.log("value", value);
+  };
+
+  const onFormSubmit = () => {
+    console.log("handle submit params", {
+      name: packName,
+      description: packDescription,
+      targets: [...packFormTargets],
+    });
+    debugger;
+    handleSubmit({
+      name: packName,
+      description: packDescription,
+      targets: [...packFormTargets],
+    });
+  };
 
   return (
-    <form className={`${baseClass} ${className}`} onSubmit={handleSubmit}>
+    <form className={`${baseClass} ${className}`} onSubmit={onFormSubmit}>
       <h1>Edit pack</h1>
       <InputField
-        {...fields.name}
+        onChange={onChangePackName}
+        value={packName}
         placeholder="Name"
         label="Name"
         inputWrapperClass={`${baseClass}__pack-title`}
       />
       <InputField
-        {...fields.description}
+        onChange={onChangePackDescription}
+        value={packDescription}
         inputWrapperClass={`${baseClass}__pack-description`}
         label="Description"
         placeholder="Add a description of your pack"
         type="textarea"
       />
       <SelectTargetsDropdown
-        {...fields.targets}
         label="Select pack targets"
         name="selected-pack-targets"
         onFetchTargets={onFetchTargets}
-        onSelect={fields.targets.onChange}
-        selectedTargets={fields.targets.value}
+        onSelect={onChangePackTargets}
+        selectedTargets={packFormTargets}
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
       />
@@ -100,6 +155,4 @@ const EditPackForm = (props: IEditPackForm): JSX.Element => {
   );
 };
 
-export default Form(EditPackForm, {
-  fields: fieldNames,
-});
+export default EditPackForm;
