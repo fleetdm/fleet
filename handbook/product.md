@@ -142,13 +142,13 @@ Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
 As an admin user, select the "Settings" tab in the top navigation and then select "Organization settings".
 
-Follow [the instructions outlined in the Testing documentation](../docs/3-Contributing/2-Testing.md#email) to set up a local SMTP server.
+Follow [the instructions outlined in the Testing documentation](../docs/03-Contributing/02-Testing.md#email) to set up a local SMTP server.
 
 Successfully edit your organization's name in Fleet.
 
 #### Manage users flow
 
-Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/3-Contributing/2-Testing.md#email)
+Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/03-Contributing/02-Testing.md#email)
 
 Logout of your current admin user and accept the invitation for the newly invited user. With your local SMTP server configured, head to https://localhost:8025 to view and select the invitation link.
 
@@ -251,7 +251,7 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 **More improvements** - Includes each additional feature's name, availability (Free v. Premium), and 1-2 sentences that answer the 'why should the user care?' questions.
 
-**Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/8-Updating-Fleet.md
+**Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/08-Updating-Fleet.md
 
 #### Manual QA
 
@@ -261,10 +261,10 @@ Documentation on conducting the manual QA pass can be found [here](./manual-qa.m
 
 ### Release day
 
-Documentation on completing the release process can be found [here](../docs/3-Contributing/5-Releasing-Fleet.md).  
+Documentation on completing the release process can be found [here](../docs/03-Contributing/05-Releasing-Fleet.md).  
+
 
 ## Support process
-
 This living document outlines the customer and community support process at Fleet.
 
 The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
@@ -355,7 +355,7 @@ There are four sources that the individual on-call should monitor for activity:
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/1-Using-Fleet/FAQ.md), [Deploying FAQ](../docs/2-Deploying/FAQ.md), and [Contributing FAQ](../docs/3-Contributing/FAQ.md).
+1. The frequently asked question (FAQ) documents in each section found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/01-Using-Fleet/FAQ.md), [Deploying FAQ](../docs/02-Deploying/FAQ.md), and [Contributing FAQ](../docs/03-Contributing/FAQ.md).
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
