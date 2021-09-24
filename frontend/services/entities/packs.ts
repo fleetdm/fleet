@@ -17,7 +17,7 @@ export default {
     const { PACKS } = endpoints;
     const path = `${PACKS}/${packID}/labels/${labelID}`;
 
-    return sendRequest("POST", path); // type of request, path, info (optional)
+    return sendRequest("POST", path);
   },
   addQuery: (packID: number, queryID: number) => {
     const { PACKS } = endpoints;
@@ -29,8 +29,8 @@ export default {
     const { PACKS } = endpoints;
     const packTargets = helpers.formatSelectedTargetsForApi(targets, true);
 
-    return sendRequest("POST", PACKS, { name, description, ...packTargets }); // sendRequest /axios stringifies for you
-  }, // do not need .then((response)), can pull response.pack out on page
+    return sendRequest("POST", PACKS, { name, description, ...packTargets });
+  },
   destroy: (id: number) => {
     const { PACKS } = endpoints;
     const path = `${PACKS}/id/${id}`;
@@ -39,7 +39,7 @@ export default {
   },
   load: (packID: number) => {
     const { PACKS } = endpoints;
-    const path = `${PACKS}/${packID}`; // this had client.baseURL on it... already built into send request in services/index
+    const path = `${PACKS}/${packID}`;
 
     return sendRequest("GET", path);
   },
