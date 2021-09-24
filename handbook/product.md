@@ -6,15 +6,15 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
 2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
 
-<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project" width="300"/>
+<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
 > ___NOTE:__ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
 
 3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
 
-<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards" width="600"/>
+<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
 
-<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me" width="300"/>
+<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
 
 ##### Communicating unplanned design changes
 
@@ -50,63 +50,31 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in th
 
 This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
 
-All steps should be conducted during each QA pass.
+All steps should be conducted during each QA pass. All steps are possible with `fleetctrl preview`.
 
 As new features are added to Fleet, new steps and flows will be added.
 
 ### Collecting bugs
 
-The goal of manual QA is to catch unexpected behavior prior to release.
+The goal of manual QA is to catch unexpected behavior prior to release. All Manual QA steps should be possible using `fleetctl preview`. Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
 
 ### Fleet UI
 
-#### Clear your local MySQL database
-
-Before you fire up your local Fleet server, wipe your local MySQL database by running the following command:
-
-```
-docker volume rm fleet_mysql-persistent-volume
-```
-
-If you receive an error that says "No such volume," double check that the MySQL volume doesn't have a different name by running this command:
-
-```
-docker volume ls
-```
-
-#### Start your development server
-
-Next, fire up your local Fleet server. Check out [this Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) for instructions on starting up your local development environment.
+For all following flows, please refer to the [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) to ensure that actions are limited to the appropriate user type. Any users with access beyond what this document lists as availale should be considered a bug and reported for either documentation updates or investigation.
 
 #### Set up flow
 
-Successfully set up Fleet.
+Successfully set up `fleetctl preview` using the preview steps outlined [here](https://fleetdm.com/get-started)
 
 #### Login and logout flow
 
 Successfully logout and then login to your local Fleet.
 
-#### Enroll host flow
-
-Enroll your local machine to Fleet. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/orbit#orbit-osquery) for instructions on generating and installing an Orbit package.
-
-#### Host page
-
-To populate the Fleet UI with more than just one host you'll need to use the [fleetdm/osquery-perf tool](https://github.com/fleetdm/osquery-perf/tree/629a7efb6097f9108f706ccd45828793ff73cf9c).
-
-First, clone the fleetdm/osquery perf repo and then run the following commands from the top level of the cloned directory:
-
-```
-go run agent.go --host_count 200 --enroll_secret <your enroll secret goes here>
-```
-
-After about 10 seconds, the Fleet UI should be populated with 200 simulated hosts.
-
 #### Host details page
 
-Select a host from the "Hosts" table as a global user with the Maintainer role.
+Select a host from the "Hosts" table as a global user with the Maintainer role. You may create a user with a fake email for this purpose.
 
 You should be able to see and select the "Delete" button on this host's **Host details** page.
 
@@ -118,7 +86,9 @@ You should be able to see and select the "Query" button on this host's **Host de
 
 Create a new label by selecting "Add a new label" on the Hosts page. Make sure it correctly filters the host on the hosts page.
 
-Edit this label and then delete this label.
+Edit this label. Confirm users can only edit the "Name" and "Description" fields for a label. Users cannot edit the "Query" field because label queries are immutable.
+
+Delete this label.
 
 #### Query flow
 
@@ -134,33 +104,15 @@ Edit this query and then delete this query.
 
 `Flow is covered by e2e testing`
 
-Create a new pack.
+Create a new pack (under Schedule/advanced).
 
 Add a query as a saved query to the pack. Remove this query. Delete the pack.
 
-#### Organization settings flow
-
-As an admin user, select the "Settings" tab in the top navigation and then select "Organization settings".
-
-Follow [the instructions outlined in the Testing documentation](../docs/03-Contributing/02-Testing.md#email) to set up a local SMTP server.
-
-Successfully edit your organization's name in Fleet.
-
-#### Manage users flow
-
-Invite a new user. To be able to invite users, you must have your local SMTP server configured. Instructions for setting up a local SMTP server are outlined in [the Testing documentation](../docs/03-Contributing/02-Testing.md#email)
-
-Logout of your current admin user and accept the invitation for the newly invited user. With your local SMTP server configured, head to https://localhost:8025 to view and select the invitation link.
-
-#### Agent options flow
-
-Head to the global agent options page and set the `distributed_iterval` field to `5`.
-
-Refresh the page to confirm that the agent options have been updated.
 
 #### My account flow
 
-Head to the My account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password.
+Head to the My account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password. Please do this with an extra user created for this purpose to maintain accessibility of `fleetctl preview` admin user.
+
 
 ### fleetctl CLI
 
