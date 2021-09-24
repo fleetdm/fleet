@@ -12,6 +12,8 @@ type Software struct {
 	Name string `json:"name" db:"name"`
 	// Version is reported version.
 	Version string `json:"version" db:"version"`
+	// BundleIdentifier is the CFBundleIdentifier label from the info properties
+	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
 
