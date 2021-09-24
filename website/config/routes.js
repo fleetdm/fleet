@@ -75,7 +75,14 @@ module.exports.routes = {
     }
   },// handles /docs and /docs/foo/bar
 
-  'GET /handbook/?*':  { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  'GET /handbook/?*':  {
+    skipAssets: false,
+    action: 'handbook/view-basic-handbook',
+    locals: {
+      title: 'Handbook | Fleet for osquery',
+      description: 'View the Fleet handbook',
+    },
+  },// handles /handbook and /handbook/foo/bar
 
   'GET /transparency': {
     action: 'view-transparency',
@@ -145,7 +152,6 @@ module.exports.routes = {
   'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
-  // 'GET /handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 
