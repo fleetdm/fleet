@@ -617,6 +617,15 @@ The endpoint returns the host's installed `software` if the software inventory f
         "source": "rpm_packages",
         "generated_cpe": "",
         "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "generated_cpe": "",
+        "vulnerabilities": null
       }
     ],
     "id": 1,
