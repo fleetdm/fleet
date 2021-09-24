@@ -159,6 +159,7 @@ func TestCachedAppConfig(t *testing.T) {
 
 	t.Run("AuthenticateHost cache hosts", func(t *testing.T) {
 		_, err = conn.Do("DEL", CacheKeyAppConfig)
+		_, err = conn.Do("DEL", CacheKeyAuthenticateHostPrefix+"1234")
 		require.NoError(t, err)
 
 		mockedDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
