@@ -19,7 +19,7 @@ describe(
 
     it("Can perform the appropriate basic global maintainer actions", () => {
       cy.login("mary@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded
       cy.contains("All hosts");

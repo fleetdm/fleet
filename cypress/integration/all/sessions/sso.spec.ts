@@ -17,8 +17,8 @@ describe("SSO Sessions", () => {
     cy.contains("button", "Login").click();
 
     // Verify dashboard
-    cy.url().should("include", "/hosts/manage");
-    cy.contains("All Hosts");
+    cy.url().should("include", "/dashboard");
+    cy.contains("Hosts");
 
     // Log out
     cy.get(".avatar").first().click();

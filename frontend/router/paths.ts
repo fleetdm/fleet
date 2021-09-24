@@ -18,12 +18,11 @@ export default {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
-  HOME: `${URL_PREFIX}/`,
+  HOME: `${URL_PREFIX}/dashboard`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
-  HOMEPAGE: `${URL_PREFIX}/home/dashboard`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {
