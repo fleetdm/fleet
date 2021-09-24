@@ -18,6 +18,14 @@ variable "fleet_image" {
   default = "fleetdm/fleet"
 }
 
+variable "fleet_min_capacity" {
+  default = 1
+}
+
+variable "fleet_max_capacity" {
+  default = 5
+}
+
 variable "osquery_host_count" {
   default = 50
 }
