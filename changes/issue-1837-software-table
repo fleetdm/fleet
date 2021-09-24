@@ -1,3 +1,1 @@
-* Surface last used and bundle identifier information for software inventory
-* Remove list of vulnerabilities from host details page
-* Add pivot from host details page to manage hosts page filtered by software id with list of vulnerabilities
+* Surface bundle identifier information for software inventory
