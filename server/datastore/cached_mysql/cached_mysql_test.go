@@ -141,7 +141,7 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		mockedDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{CacheHosts: false}, nil
+			return &fleet.AppConfig{}, nil
 		}
 		mockedDS.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 			return &fleet.Host{ID: 999}, nil
