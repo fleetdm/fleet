@@ -195,7 +195,11 @@ export const frontendFormattedConfig = (config: any) => {
   };
 };
 
+<<<<<<< HEAD
 const formatLabelResponse = (response: any): ILabel[] => {
+=======
+const formatLabelResponse = (response: any): any => {
+>>>>>>> eacfaf3d (Move pack queries before action buttons)
   const labels = response.labels.map((label: any) => {
     return {
       ...label,

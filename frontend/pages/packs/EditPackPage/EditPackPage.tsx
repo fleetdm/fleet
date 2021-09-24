@@ -34,7 +34,6 @@ import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
 import EditPackForm from "components/forms/packs/EditPackForm";
-import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 import { ITargetsAPIResponse } from "interfaces/target";
@@ -349,17 +348,15 @@ const EditPacksPage = ({
           formData={{ ...storedPack, targets: packTargets }}
           targetsCount={targetsCount}
           isPremiumTier={isPremiumTier}
+          onAddPackQuery={togglePackQueryEditorModal}
+          onEditPackQuery={onEditPackQueryClick}
+          onRemovePackQueries={onRemovePackQueriesClick}
+          onPackQueryFormSubmit={onPackQueryEditorSubmit}
+          scheduledQueries={storedPackQueries}
+          packId={packId}
+          isLoadingPackQueries={isStoredPackQueriesLoading}
         />
       )}
-      <PackQueriesListWrapper
-        onAddPackQuery={togglePackQueryEditorModal}
-        onEditPackQuery={onEditPackQueryClick}
-        onRemovePackQueries={onRemovePackQueriesClick}
-        onPackQueryFormSubmit={onPackQueryEditorSubmit}
-        scheduledQueries={storedPackQueries}
-        packId={packId}
-        isLoadingPackQueries={isStoredPackQueriesLoading}
-      />
       {showPackQueryEditorModal && fleetQueries && (
         <PackQueryEditorModal
           onCancel={togglePackQueryEditorModal}

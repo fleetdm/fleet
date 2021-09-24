@@ -6,12 +6,13 @@ import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
 import { IFormField } from "interfaces/form_field";
 import { IQuery } from "interfaces/query";
-import { IPack } from "interfaces/pack";
+import { IScheduledQuery } from "interfaces/scheduled_query";
 import { ITarget } from "interfaces/target";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 
 const fieldNames = ["description", "name", "targets"];
 const baseClass = "edit-pack-form";
@@ -20,23 +21,33 @@ interface IEditPackForm {
   className?: string;
   handleSubmit?: (formData: any) => void;
   onCancelEditPack: () => void;
-  onEditPack: () => void;
   onFetchTargets?: (query: IQuery, targetsResponse: any) => boolean;
-  pack: IPack;
+  onAddPackQuery: () => void;
+  onEditPackQuery: () => void;
+  onRemovePackQueries: () => void;
+  onPackQueryFormSubmit: (formData: any) => void;
+  packId: number;
   packTargets?: ITarget[];
   targetsCount?: number;
   isPremiumTier?: boolean;
   fields: { description: IFormField; name: IFormField; targets: IFormField };
+  scheduledQueries: IScheduledQuery[];
+  isLoadingPackQueries: boolean;
 }
 const EditPackForm = (props: IEditPackForm): JSX.Element => {
   const {
     className,
     handleSubmit,
     onCancelEditPack,
-    onEditPack,
     onFetchTargets,
-    pack,
+    onAddPackQuery,
+    onEditPackQuery,
+    onRemovePackQueries,
+    onPackQueryFormSubmit,
+    packId,
     packTargets,
+    scheduledQueries,
+    isLoadingPackQueries,
     targetsCount,
     isPremiumTier,
     fields,
@@ -67,6 +78,15 @@ const EditPackForm = (props: IEditPackForm): JSX.Element => {
         selectedTargets={fields.targets.value}
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
+      />
+      <PackQueriesListWrapper
+        onAddPackQuery={onAddPackQuery}
+        onEditPackQuery={onEditPackQuery}
+        onRemovePackQueries={onRemovePackQueries}
+        onPackQueryFormSubmit={onPackQueryFormSubmit}
+        scheduledQueries={scheduledQueries}
+        packId={packId}
+        isLoadingPackQueries={isLoadingPackQueries}
       />
       <div className={`${baseClass}__pack-buttons`}>
         <Button onClick={onCancelEditPack} type="button" variant="inverse">
