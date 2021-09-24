@@ -40,8 +40,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Customer succcess](./customer-first#customer-success)
 
-
-## About the handbook
+### About the handbook
 
 #### Why bother?
 The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
