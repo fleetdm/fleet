@@ -215,7 +215,7 @@ describe("Teams flow", () => {
     cy.visit("/settings/teams");
     // Allow rendering to settle
     // TODO this might represent a bug in the React code.
-    cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.contains("Mystic").get(".Select-arrow-zone").click();
 
