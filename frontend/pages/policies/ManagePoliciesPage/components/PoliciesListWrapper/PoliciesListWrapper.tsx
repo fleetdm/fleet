@@ -17,7 +17,7 @@ interface IPoliciesListWrapperProps {
   resultsTitle?: string;
   resultsHtml?: JSX.Element;
   selectedTeamId?: number | undefined | null;
-  showSelectionColumn: boolean | undefined;
+  canAddOrRemovePolicy?: boolean;
   tableType?: string;
 }
 
@@ -30,7 +30,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     resultsTitle,
     resultsHtml,
     selectedTeamId,
-    showSelectionColumn,
+    canAddOrRemovePolicy,
     tableType,
   } = props;
 
@@ -44,15 +44,17 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
               Policies allow you to monitor which devices meet a certain
               standard.
             </p>
-            <div className={`${noPoliciesClass}__-cta-buttons`}>
-              <Button
-                variant="brand"
-                className={`${noPoliciesClass}__add-policy-button`}
-                onClick={toggleAddPolicyModal}
-              >
-                Add a policy
-              </Button>
-            </div>
+            {canAddOrRemovePolicy && (
+              <div className={`${noPoliciesClass}__-cta-buttons`}>
+                <Button
+                  variant="brand"
+                  className={`${noPoliciesClass}__add-policy-button`}
+                  onClick={toggleAddPolicyModal}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -60,13 +62,17 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
   };
 
   return (
-    <div className={`${baseClass}`}>
+    <div
+      className={`${baseClass} ${
+        canAddOrRemovePolicy ? "" : "hide-selection-column"
+      }`}
+    >
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         resultsHtml={resultsHtml}
         columns={generateTableHeaders({
           selectedTeamId,
-          showSelectionColumn,
+          showSelectionColumn: canAddOrRemovePolicy,
           tableType,
         })}
         data={generateDataSet(policiesList)}

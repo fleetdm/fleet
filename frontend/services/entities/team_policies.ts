@@ -1,7 +1,6 @@
 import sendRequest from "services";
-// import endpoints from "fleet/endpoints";
-// import { IPolicyFormData, IPolicy } from "interfaces/policy";
-const endpoints = { TEAMS: "/v1/fleet/team" };
+import endpoints from "fleet/endpoints";
+// const endpoints = { TEAMS: "/v1/fleet/team" };
 
 export default {
   create: (team_id: number, query_id: number) => {

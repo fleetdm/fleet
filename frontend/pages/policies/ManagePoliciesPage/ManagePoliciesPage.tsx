@@ -10,6 +10,7 @@ import PATHS from "router/paths";
 
 import { IPolicy } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
 
 import { AppContext } from "context/app";
 
@@ -20,6 +21,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 
 import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import sortUtils from "utilities/sort";
+import permissionsUtils from "utilities/permissions";
 
 import TableDataError from "components/TableDataError";
 import Button from "components/buttons/Button";
@@ -47,19 +49,22 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   location: any;
 }): JSX.Element => {
   const { location, router } = managePoliciesPageProps;
+
   const dispatch = useDispatch();
 
   const {
     config,
     currentUser,
-    isAnyTeamMaintainer,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isOnlyObserver,
     isFreeTier,
     isPremiumTier,
   } = useContext(AppContext);
+
+  const { isTeamMaintainer } = permissionsUtils;
+  const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer(user, teamId);
 
   const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
     enabled: !!isPremiumTier,
@@ -269,12 +274,14 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
     // so a falsiness check cannot be used here. Null case here allows us to skip API call.
     if (selectedTeamId !== null) {
-      getGlobalPolicies();
+      if (isOnGlobalTeam) {
+        getGlobalPolicies();
+      }
       if (selectedTeamId) {
         getTeamPolicies(selectedTeamId);
       }
     }
-  }, [getGlobalPolicies, getTeamPolicies, selectedTeamId]);
+  }, [getGlobalPolicies, getTeamPolicies, isOnGlobalTeam, selectedTeamId]);
 
   // Pull osquery detail update interval value from config, reformat, and set as updateInterval.
   useEffect(() => {
@@ -305,7 +312,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               </div>
             </div>
           </div>
-          {(isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainer) && (
+          {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -364,7 +371,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
                 selectedTeamId={selectedTeamId}
-                showSelectionColumn={!isOnlyObserver}
+                canAddOrRemovePolicy={canAddOrRemovePolicy(
+                  currentUser,
+                  selectedTeamId
+                )}
               />
             ))}
           {!selectedTeamId &&
@@ -377,7 +387,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
                 selectedTeamId={selectedTeamId}
-                showSelectionColumn={!isOnlyObserver}
+                canAddOrRemovePolicy={canAddOrRemovePolicy(
+                  currentUser,
+                  selectedTeamId
+                )}
               />
             ))}
         </div>
@@ -410,7 +423,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 resultsTitle="policies"
                 resultsHtml={INHERITED_POLICIES_COUNT_HTML}
                 selectedTeamId={null}
-                showSelectionColumn
+                canAddOrRemovePolicy={canAddOrRemovePolicy(
+                  currentUser,
+                  selectedTeamId
+                )}
                 tableType="inheritedPolicies"
               />
             </div>
