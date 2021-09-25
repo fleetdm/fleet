@@ -25,8 +25,23 @@ module.exports = {
     let GitHub = require('machinepack-github');
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
-    let GITHUB_USERNAMES_OF_BOTS = [// « Used in multiple places below.
-      'sailsbot'
+    let GITHUB_USERNAMES_OF_BOTS = [// « Used in multiple places below.  (actually, some maintainers too, not just bots)
+      'sailsbot',
+      'noahtalerman',
+      'mike-j-thomas',
+      'mikermcneil',
+      'lukeheath',
+      'zwass',
+      'rlynnj11',
+      'martavis',
+      'rachelelysia',
+      'gillespi314',
+      'chiiph',
+      'mna',
+      'edwardsb',
+      'alphabrevity',
+      'eashaw',
+      'drewbakerfdm'
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
 
