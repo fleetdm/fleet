@@ -1,13 +1,13 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import helpers from "fleet/helpers";
-import { ILabel } from "interfaces/label";
+import { ILabel, ILabelFormData } from "interfaces/label";
 
 export default {
-  create: async (label: ILabel) => {
+  create: async (formData: ILabelFormData) => {
     const { LABELS } = endpoints;
 
-    const { label: createdLabel } = await sendRequest("POST", LABELS, label);
+    const { label: createdLabel } = await sendRequest("POST", LABELS, formData);
     return {
       ...createdLabel,
       slug: helpers.labelSlug(createdLabel),

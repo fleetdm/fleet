@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
 import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries"; // @ts-ignore
@@ -16,7 +17,7 @@ import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {
-  router: any;
+  router: InjectedRouter;
   baseClass: string;
   storedQuery: IQuery | undefined;
   typedQueryBody: string;

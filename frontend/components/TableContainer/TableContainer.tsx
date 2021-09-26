@@ -9,6 +9,7 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
+import { useDeepEffect } from "utilities/hooks";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
@@ -151,7 +152,7 @@ const TableContainer = ({
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
   // different types of query updates, as we handle some of them differently than others.
-  useEffect(() => {
+  useDeepEffect(() => {
     const queryData = {
       searchQuery,
       sortHeader,
@@ -159,6 +160,7 @@ const TableContainer = ({
       pageSize,
       pageIndex,
     };
+    
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
       if (!hasPageIndexChangedRef.current) {
@@ -170,11 +172,9 @@ const TableContainer = ({
         // user can finish typing.
         if (searchQuery !== prevSearchQuery) {
           debounceOnQueryChange(updateQueryData);
-        } 
-        // else {
-        //   console.log({searchQuery, prevSearchQuery})
-        //   onQueryChange(updateQueryData);
-        // }
+        } else {
+          onQueryChange(updateQueryData);
+        }
         setPageIndex(0);
       } else {
         onQueryChange(queryData);

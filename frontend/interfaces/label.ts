@@ -30,4 +30,12 @@ export interface ILabel {
   type: "custom" | "platform" | "status" | "all";
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
+  platform: string;
+}
+
+export interface ILabelFormData {
+  name: string;
+  query: string;
+  description: string;
+  platform: string;
 }

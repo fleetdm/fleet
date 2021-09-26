@@ -294,9 +294,10 @@ a user to whatever page desired. For example:
 ```typescript
 // page
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router/lib/Router";
 
 interface IPageProps {
-  router: any; // no typing in react-router v3
+  router: InjectedRouter; // v3
 }
 
 const PageOrComponent = ({

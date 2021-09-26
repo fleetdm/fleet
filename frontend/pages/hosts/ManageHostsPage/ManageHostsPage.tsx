@@ -1,8 +1,9 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
-import { Params } from "react-router/lib/Router";
-import { find, isEmpty, memoize, omit } from "lodash"
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { RouteProps } from "react-router/lib/Route";
+import { find, isEmpty, isEqual, memoize, omit } from "lodash"
 
 import labelsAPI from "services/entities/labels";
 import statusLabelsAPI from "services/entities/statusLabels";
@@ -16,14 +17,13 @@ import hostsAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { ILabel } from "interfaces/label";
+import { ILabel, ILabelFormData } from "interfaces/label";
 import { IStatusLabels } from "interfaces/status_labels";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 import { IPolicy } from "interfaces/policy";
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
-import sortUtils from "utilities/sort";
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
@@ -52,7 +52,10 @@ import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
   HOST_SELECT_STATUSES,
+  isAcceptableStatus,
   getNextLocationPath,
+  generateTeamFilterDropdownOptions,
+  getValidatedTeamId,
 } from "./helpers";
 import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
 import AddHostModal from "./components/AddHostModal";
@@ -67,8 +70,8 @@ import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 interface IManageHostsProps {
-  route: any;  // no type in react-router v3
-  router: any; // no type in react-router v3
+  route: RouteProps;
+  router: InjectedRouter;
   params: Params;
   location: any; // no type in react-router v3
 }
@@ -135,10 +138,8 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
-  const [labelQueryText, setLabelQueryText] = useState<string>("");
   const [showAddHostModal, setShowAddHostModal] = useState<boolean>(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(false);
-  const [selectedHost, setSelectedHost] = useState<IHost>();
   const [showDeleteLabelModal, setShowDeleteLabelModal] = useState<boolean>(false);
   const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(false);
@@ -151,6 +152,7 @@ const ManageHostsPage = ({
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policyName, setPolicyName] = useState<string>();
+  const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -175,23 +177,16 @@ const ManageHostsPage = ({
     isLoading: isLabelsLoading,
     data: labels,
     error: labelsError,
+    refetch: refetchLabels,
   } = useQuery<ILabelsResponse, Error, ILabel[]>(
     ["labels"],
     () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
-      onSuccess: (labels) => {
-        const slugToFind =
-          (selectedFilters.length > 0 &&
-            selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-          selectedFilters[0];
-          
-        const selected = find(labels, ["slug", slugToFind]) as ILabel;
-        setSelectedLabel(selected);
-      },
     }
   );
 
+  // TODO: add counts to status dropdown
   useQuery<IStatusLabels, Error>(
     ["status labels"],
     () => statusLabelsAPI.getCounts(),
@@ -202,11 +197,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const {
-    isLoading: isTeamsLoading,
-    data: teams,
-    error: teamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
@@ -226,22 +217,40 @@ const ManageHostsPage = ({
     }
   );
 
+  // triggered every time the route is changed
+  // which means every filter click and text search
   useDeepEffect(() => {
+    // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const currentTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(currentTeam);
-  }, [location]);
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
 
-  useEffect(() => {
-    retrieveHosts({
+    // set selected label
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+    
+    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    setSelectedLabel(selected);
+
+    // get the hosts
+    let options: IHostLoadOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
-      teamId: currentTeam?.id,
+      teamId: selectedTeam?.id,
       policyId,
       policyResponse,
-    });
-  }, []);
+    };
+    
+    if (tableQueryData) {
+      options.page = tableQueryData.pageIndex;
+      options.perPage = tableQueryData.pageSize;
+    }
+    
+    retrieveHosts(options);
+  }, [location, tableQueryData, labels]);
 
   const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -287,41 +296,44 @@ const ManageHostsPage = ({
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  const onTableQueryChange = async ({
-    pageIndex,
-    pageSize,
-    searchQuery,
-    sortHeader,
-    sortDirection,
-  }: ITableQueryProps) => {
-    if (queryParams.query === searchQuery) {
+  const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
+    if (isEqual(newTableQuery, tableQueryData)) {
       return false;
     }
     
-    const teamId = getValidatedTeamId(currentTeam?.id as number);
+    setTableQueryData({...newTableQuery});
 
-    if (sortHeader !== "") {
-      setSortBy([
+    const {
+      searchQuery: searchText,
+      sortHeader,
+      sortDirection,
+    } = newTableQuery;
+    const teamId = getValidatedTeamId(
+      teams || [],
+      currentTeam?.id as number,
+      currentUser,
+      isOnGlobalTeam as boolean,
+    );
+    
+    let sort = sortBy;
+    if (!!sortHeader) {
+      sort = [
         { key: sortHeader, direction: sortDirection || DEFAULT_SORT_DIRECTION },
-      ]);
+      ];
     } else if (!sortBy.length) {
-      setSortBy([
+      sort = [
         { key: DEFAULT_SORT_HEADER, direction: DEFAULT_SORT_DIRECTION }
-      ]);
+      ];
+    }
+    
+    if (!isEqual(sort, sortBy)) {
+      setSortBy([...sort]);
     }
 
-    setSearchQuery(searchQuery);
-    retrieveHosts({
-      page: pageIndex,
-      perPage: pageSize,
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      sortBy,
-      teamId: currentTeam?.id,
-      policyId,
-      policyResponse,
-    });
-
+    if (!isEqual(searchText, searchQuery)) {
+      setSearchQuery(searchText);
+    }
+    
     // Rebuild queryParams to dispatch new browser location to react-router
     const newQueryParams:{[key: string]: any} = {};
     if (!isEmpty(searchQuery)) {
@@ -347,6 +359,7 @@ const ManageHostsPage = ({
       newQueryParams.policy_response = policyResponse;
     }
 
+    // triggers useDeepEffect using queryParams
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -357,10 +370,10 @@ const ManageHostsPage = ({
     );
   };
 
-  const onEditLabel = async (formData: ILabel) => {
+  const onEditLabel = async (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.")
-      return false;
+      return;
     }
     
     const updateAttrs = deepDifference(formData, selectedLabel);
@@ -373,7 +386,7 @@ const ManageHostsPage = ({
         )
       );
     } catch(error) {
-      console.log(error);
+      console.error(error);
       dispatch(
         renderFlash("error", "Could not create label. Please try again.")
       );
@@ -391,10 +404,11 @@ const ManageHostsPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const onSaveAddLabel = async (formData: ILabel) => {
+  const onSaveAddLabel = async (formData: ILabelFormData) => {
     try {
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_HOSTS);
+      refetchLabels();
       
       // TODO flash messages are not visible seemingly because of page renders
       dispatch(
@@ -404,7 +418,7 @@ const ManageHostsPage = ({
         )
       );
     } catch(error) {
-      console.log(error);
+      console.error(error);
       dispatch(
         renderFlash("error", "Could not create label. Please try again.")
       );
@@ -421,6 +435,7 @@ const ManageHostsPage = ({
     try {
       await labelsAPI.destroy(selectedLabel);
       toggleDeleteLabelModal();
+      refetchLabels();
 
       router.push(
         getNextLocationPath({
@@ -431,7 +446,7 @@ const ManageHostsPage = ({
         })
       )
     } catch(error) {
-      console.log(error);
+      console.error(error);
       dispatch(
         renderFlash("error", "Could not delete label. Please try again.")
       );
@@ -502,85 +517,30 @@ const ManageHostsPage = ({
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-    teams
-      .map((team) => {
-        return {
-          disabled: false,
-          label: team.name,
-          value: team.id,
-        };
-      })
-      .sort((a, b) => sortUtils.caseInsensitiveAsc(b.label, a.label))
-  );
-
-  const getValidatedTeamId = (teamId: number): number => {
-    let currentUserTeams: ITeam[] = [];
-    if (isOnGlobalTeam) {
-      currentUserTeams = teams || [];
-    } else if (currentUser && currentUser.teams) {
-      currentUserTeams = currentUser.teams;
-    }
-
-    const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-
-    const validatedTeamId =
-      !isNaN(teamId) && 
-      teamId > 0 && 
-      currentUserTeamIds.includes(teamId)
-        ? teamId
-        : 0;
-
-    return validatedTeamId;
-  };
-
-  const generateTeamFilterDropdownOptions = (teams: ITeam[]) => {
-    let currentUserTeams: ITeam[] = [];
-    if (isOnGlobalTeam) {
-      currentUserTeams = teams;
-    } else if (currentUser && currentUser.teams) {
-      currentUserTeams = currentUser.teams;
-    }
-
-    const allTeamsOption = [
-      {
-        disabled: false,
-        label: "All teams",
-        value: 0,
-      },
-    ];
-
-    const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
-
-    return allTeamsOption.concat(sortedCurrentUserTeamOptions);
-  };
+  
 
   const retrieveHosts = async (options: IHostLoadOptions = {}) => {
     setIsHostsLoading(true);
 
     options = {
       ...options,
-      teamId: getValidatedTeamId(options.teamId as number),
+      teamId: getValidatedTeamId(
+        teams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean,
+      ),
     };
 
     try {
       const { hosts } = await hostsAPI.loadAll(options);
       setHosts(hosts);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setHasHostErrors(true);
     } finally {
       setIsHostsLoading(false);
     }
-  };
-
-  const isAcceptableStatus = (filter: string) => {
-    return (
-      filter === "new" ||
-      filter === "online" ||
-      filter === "offline" ||
-      filter === "mia"
-    );
   };
 
   const toggleEnrollSecretModal = () => {
@@ -608,15 +568,6 @@ const ManageHostsPage = ({
   };
 
   const handleChangePoliciesFilter = (policyResponse: PolicyResponse) => {
-    retrieveHosts({
-      globalFilter: searchQuery,
-      policyId,
-      policyResponse,
-      selectedLabels: selectedFilters,
-      sortBy,
-      teamId: currentTeam?.id,
-    });
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -631,13 +582,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearPoliciesFilter = () => {
-    retrieveHosts({
-      globalFilter: searchQuery,
-      selectedLabels: selectedFilters,
-      sortBy,
-      teamId: currentTeam?.id,
-    });
-    
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -649,27 +593,23 @@ const ManageHostsPage = ({
   };
 
   // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
-  const handleChangeSelectedTeamFilter = (selectedTeam: ITeam) => {
+  const handleChangeSelectedTeamFilter = (selectedTeam: number) => {
     const { MANAGE_HOSTS } = PATHS;
-    const teamIdParam = getValidatedTeamId(selectedTeam.id);
-    const hostsOptions = {
-      teamId: teamIdParam,
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      sortBy,
-      policyId,
-      policyResponse,
-    };
-
-    retrieveHosts(hostsOptions);
+    const teamIdParam = getValidatedTeamId(
+      teams || [],
+      selectedTeam,
+      currentUser,
+      isOnGlobalTeam as boolean,
+    );
+    const newQueryParams = !teamIdParam
+      ? omit(queryParams, "team_id")
+      : Object.assign({}, queryParams, { team_id: teamIdParam })
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
       routeTemplate,
       routeParams,
-      queryParams: !teamIdParam
-        ? omit(queryParams, "team_id")
-        : Object.assign({}, queryParams, { team_id: teamIdParam }),
+      queryParams: newQueryParams,
     });
     
     router.replace(nextLocation);
@@ -740,8 +680,13 @@ const ManageHostsPage = ({
       return <h1>Hosts</h1>;
     }
 
-    const teamOptions = generateTeamFilterDropdownOptions(teams);
-    const selectedTeamId = getValidatedTeamId(currentTeam?.id as number);
+    const teamOptions = generateTeamFilterDropdownOptions(teams, currentUser, isOnGlobalTeam as boolean);
+    const selectedTeamId = getValidatedTeamId(
+      teams || [],
+      currentTeam?.id as number,
+      currentUser,
+      isOnGlobalTeam as boolean,
+    );
 
     return (
       <div>
@@ -751,7 +696,7 @@ const ManageHostsPage = ({
           className={`${baseClass}__team-dropdown`}
           options={teamOptions}
           searchable={false}
-          onChange={(newSelectedValue: ITeam) =>
+          onChange={(newSelectedValue: number) =>
             handleChangeSelectedTeamFilter(newSelectedValue)
           }
         />
@@ -796,7 +741,7 @@ const ManageHostsPage = ({
   };
 
   const renderEnrollSecretModal = () => {
-    if (!canEnrollHosts || !showEnrollSecretModal || !teams || !currentTeam) {
+    if (!canEnrollHosts || !showEnrollSecretModal || !teams) {
       return null;
     }
 
@@ -807,7 +752,7 @@ const ManageHostsPage = ({
         className={`${baseClass}__enroll-secret-modal`}
       >
         <EnrollSecretModal
-          selectedTeam={currentTeam.id}
+          selectedTeam={currentTeam?.id || 0}
           teams={teams}
           onReturnToApp={toggleEnrollSecretModal}
           isPremiumTier={isPremiumTier as boolean}
@@ -943,7 +888,7 @@ const ManageHostsPage = ({
             onCancel={onCancelAddLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onSaveAddLabel}
-            serverErrors={labelsError}
+            baseError={labelsError?.message || ""}
           />
         </div>
       );
@@ -953,12 +898,12 @@ const ManageHostsPage = ({
       return (
         <div className="body-wrap">
           <LabelForm
-            formData={selectedLabel}
+            selectedLabel={selectedLabel}
             onCancel={onCancelEditLabel}
             onOsqueryTableSelect={onOsqueryTableSelect}
             handleSubmit={onEditLabel}
+            baseError={labelsError?.message || ""}
             isEdit
-            serverErrors={labelsError}
           />
         </div>
       );
@@ -1011,11 +956,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    // The data has not been fetched yet.
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
+    if (!config || !currentUser || !hosts ||
       selectedFilters.length === 0 ||
       selectedLabel === undefined
     ) {
