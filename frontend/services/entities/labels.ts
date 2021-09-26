@@ -7,12 +7,18 @@ export default {
   create: async (formData: ILabelFormData) => {
     const { LABELS } = endpoints;
 
-    const { label: createdLabel } = await sendRequest("POST", LABELS, formData);
-    return {
-      ...createdLabel,
-      slug: helpers.labelSlug(createdLabel),
-      type: "custom",
-    };
+    try {
+      const { label: createdLabel } = await sendRequest("POST", LABELS, formData);
+
+      return {
+        ...createdLabel,
+        slug: helpers.labelSlug(createdLabel),
+        type: "custom",
+      };
+    } catch(error) {
+      console.error(error);
+      throw new Error("Could not create label.");
+    }
   },
   destroy: (label: ILabel) => {
     const { LABELS } = endpoints;
@@ -23,18 +29,28 @@ export default {
   loadAll: async () => {
     const { LABELS } = endpoints;
 
-    const response = await sendRequest("GET", LABELS);
-    return {labels: helpers.formatLabelResponse(response)};
+    try {
+      const response = await sendRequest("GET", LABELS);
+      return {labels: helpers.formatLabelResponse(response)};
+    } catch(error) {
+      console.error(error);
+      throw new Error("Could not load all labels.");
+    }
   },
   update: async (label: ILabel, updatedAttrs: ILabel) => {
     const { LABELS } = endpoints;
     const path = `${LABELS}/${label.id}`;
 
-    const { label: updatedLabel } = await sendRequest("PATCH", path, updatedAttrs);
-    return {
-      ...updatedLabel,
-      slug: helpers.labelSlug(updatedLabel),
-      type: "custom",
-    };
+    try {
+      const { label: updatedLabel } = await sendRequest("PATCH", path, updatedAttrs);
+      return {
+        ...updatedLabel,
+        slug: helpers.labelSlug(updatedLabel),
+        type: "custom",
+      };
+    } catch(error) {
+      console.error(error);
+      throw new Error("Could not update label.");
+    }
   },
 };
