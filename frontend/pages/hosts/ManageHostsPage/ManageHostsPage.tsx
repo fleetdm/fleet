@@ -379,6 +379,7 @@ const ManageHostsPage = ({
     const updateAttrs = deepDifference(formData, selectedLabel);
     try {
       await labelsAPI.update(selectedLabel, updateAttrs);
+      refetchLabels();
       dispatch(
         renderFlash(
           "success",
@@ -516,8 +517,6 @@ const ManageHostsPage = ({
   const getStatusSelected = () => {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
-
-  
 
   const retrieveHosts = async (options: IHostLoadOptions = {}) => {
     setIsHostsLoading(true);
