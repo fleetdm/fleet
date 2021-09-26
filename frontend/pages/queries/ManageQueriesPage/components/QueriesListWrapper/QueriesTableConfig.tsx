@@ -55,6 +55,16 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const countUserAuthoredQueries = (
+  currentUser: IUser,
+  queries: IQuery[]
+): number => {
+  const userAuthoredQueries = queries.filter(
+    (q: IQuery) => q.author_id === currentUser.id
+  );
+  return userAuthoredQueries.length || 0;
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
@@ -126,7 +136,11 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           // onChange: () => cellProps.toggleAllRowsSelected(),
           onChange: () => {
             console.log("clicked header select checkbox");
-            if (isAnyTeamMaintainer) {
+            if (!isAnyTeamMaintainer) {
+              console.log("not team maintainer so toggled all rows seleted");
+              toggleAllRowsSelected();
+            } else {
+              console.log("team maintainer do some more logic");
               const userAuthoredQueries = rows.filter(
                 (r: any) => r.original.author_id === currentUser.id
               );
@@ -144,9 +158,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
                   toggleRowSelected(r.id)
                 );
               }
-            } else {
-              console.log("not team maintainer so toggled all rows seleted");
-              toggleAllRowsSelected();
             }
           },
         };
@@ -163,7 +174,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         };
         return (
           <>
-            <span
+            <div
               data-tip
               data-for={`${"select-checkbox"}__${row.original.id}`}
               data-tip-disable={
@@ -172,8 +183,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               }
             >
               <Checkbox {...checkboxProps} />
-            </span>{" "}
+            </div>{" "}
             <ReactTooltip
+              className="select-checkbox-tooltip"
               place="bottom"
               type="dark"
               effect="solid"
@@ -181,9 +193,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               id={`${"select-checkbox"}__${row.original.id}`}
               data-html
             >
-              <span className={`tooltip`} style={{ width: "196px" }}>
+              <div style={{ width: "196px", textAlign: "center" }}>
                 You can only delete a<br /> query if you are the author.
-              </span>
+              </div>
             </ReactTooltip>
           </>
         );
@@ -208,4 +220,4 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   return tableHeaders;
 };
 
-export default generateTableHeaders;
+export { countUserAuthoredQueries, generateTableHeaders };
