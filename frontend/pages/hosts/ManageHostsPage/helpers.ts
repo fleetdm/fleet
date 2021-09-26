@@ -1,5 +1,13 @@
 import sortUtils from "utilities/sort";
-import { isString, isPlainObject, isEmpty, reduce, trim, union, memoize } from "lodash";
+import {
+  isString,
+  isPlainObject,
+  isEmpty,
+  reduce,
+  trim,
+  union,
+  memoize,
+} from "lodash";
 
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -7,9 +15,9 @@ import { IUser } from "interfaces/user";
 interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
-  routeParams?: {[key: string]: any};
-  queryParams?: {[key: string]: any};
-};
+  routeParams?: { [key: string]: any };
+  queryParams?: { [key: string]: any };
+}
 
 export const NEW_LABEL_HASH = "#new_label";
 export const EDIT_LABEL_HASH = "#edit_label";
@@ -68,14 +76,9 @@ export const getNextLocationPath = ({
   queryParams = {},
 }: ILocationParams): string => {
   const pathPrefixFinal = isString(pathPrefix) ? pathPrefix : "";
-  const routeTemplateFinal =
-    (isString(routeTemplate) && routeTemplate) || "";
-  const routeParamsFinal = isPlainObject(routeParams)
-    ? routeParams
-    : {};
-  const queryParamsFinal = isPlainObject(queryParams)
-    ? queryParams
-    : {};
+  const routeTemplateFinal = (isString(routeTemplate) && routeTemplate) || "";
+  const routeParamsFinal = isPlainObject(routeParams) ? routeParams : {};
+  const queryParamsFinal = isPlainObject(queryParams) ? queryParams : {};
 
   let routeString = "";
 
@@ -124,7 +127,7 @@ const getSortedTeamOptions = memoize((teams: ITeam[]) =>
 export const generateTeamFilterDropdownOptions = (
   teams: ITeam[],
   currentUser: IUser | null,
-  isOnGlobalTeam: boolean,
+  isOnGlobalTeam: boolean
 ) => {
   let currentUserTeams: ITeam[] = [];
   if (isOnGlobalTeam) {
@@ -150,7 +153,7 @@ export const getValidatedTeamId = (
   teams: ITeam[],
   teamId: number,
   currentUser: IUser | null,
-  isOnGlobalTeam: boolean,
+  isOnGlobalTeam: boolean
 ): number => {
   let currentUserTeams: ITeam[] = [];
   if (isOnGlobalTeam) {
@@ -161,9 +164,7 @@ export const getValidatedTeamId = (
 
   const currentUserTeamIds = currentUserTeams.map((t) => t.id);
   const validatedTeamId =
-    !isNaN(teamId) && 
-    teamId > 0 && 
-    currentUserTeamIds.includes(teamId)
+    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
       ? teamId
       : 0;
 

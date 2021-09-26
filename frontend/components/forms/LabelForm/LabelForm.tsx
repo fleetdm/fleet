@@ -13,14 +13,14 @@ interface ILabelFormProps {
   baseError: string;
   selectedLabel?: ILabel;
   isEdit?: boolean;
-  onCancel: () => void,
-  handleSubmit: (formData: ILabelFormData) => Promise<void>,
-  onOsqueryTableSelect?: (tableName: string) => void,
+  onCancel: () => void;
+  handleSubmit: (formData: ILabelFormData) => Promise<void>;
+  onOsqueryTableSelect?: (tableName: string) => void;
 }
 
 const baseClass = "label-form";
 
-const PLATFORM_STRINGS: {[key: string]: string} = {
+const PLATFORM_STRINGS: { [key: string]: string } = {
   darwin: "macOS",
   windows: "MS Windows",
   ubuntu: "Ubuntu Linux",
@@ -45,11 +45,15 @@ const LabelForm = ({
 }: ILabelFormProps) => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
-  const [description, setDescription] = useState<string>(selectedLabel?.description || "");
+  const [description, setDescription] = useState<string>(
+    selectedLabel?.description || ""
+  );
   const [query, setQuery] = useState<string>(selectedLabel?.query || "");
   const [queryError, setQueryError] = useState<string>("");
-  const [platform, setPlatform] = useState<string>(selectedLabel?.platform || "");
-  
+  const [platform, setPlatform] = useState<string>(
+    selectedLabel?.platform || ""
+  );
+
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
@@ -71,22 +75,22 @@ const LabelForm = ({
   const onQueryChange = (value: string) => {
     setQuery(value);
   };
-  
+
   const onNameChange = (value: string) => {
     setName(value);
   };
-  
+
   const onDescriptionChange = (value: string) => {
     setDescription(value);
   };
-  
+
   const onPlatformChange = (value: string) => {
     setPlatform(value);
   };
 
   const submitForm = (evt: React.FormEvent) => {
     evt.preventDefault();
-    
+
     const { error, valid } = validateQuery(query);
     if (!valid) {
       setQueryError(error);
@@ -109,9 +113,11 @@ const LabelForm = ({
     });
   };
 
-  const isBuiltin = selectedLabel &&
+  const isBuiltin =
+    selectedLabel &&
     (selectedLabel.label_type === "builtin" || selectedLabel.type === "status");
-  const isManual = selectedLabel && selectedLabel.label_membership_type === "manual";
+  const isManual =
+    selectedLabel && selectedLabel.label_membership_type === "manual";
   const headerText = isEdit ? "Edit label" : "New label";
   const saveBtnText = isEdit ? "Update label" : "Save label";
   const aceHintText = isEdit
@@ -166,22 +172,18 @@ const LabelForm = ({
           <label className="form-field__label" htmlFor="platform">
             Platform
           </label>
-          <Dropdown 
+          <Dropdown
             name="platform"
             onChange={onPlatformChange}
             value={platform}
-            options={platformOptions} 
+            options={platformOptions}
           />
         </div>
       )}
       {isEdit && platform && (
         <div className={`${baseClass}__label-platform`}>
           <p className="title">Platform</p>
-          <p>
-            {!platform
-              ? "All platforms"
-              : PLATFORM_STRINGS[platform]}
-          </p>
+          <p>{!platform ? "All platforms" : PLATFORM_STRINGS[platform]}</p>
           <p className="hint">
             Label platforms are immutable. To change the platform, delete this
             label and create a new one.
@@ -206,6 +208,6 @@ const LabelForm = ({
       </div>
     </form>
   );
-}
+};
 
 export default LabelForm;

@@ -160,7 +160,7 @@ const TableContainer = ({
       pageSize,
       pageIndex,
     };
-    
+
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
       if (!hasPageIndexChangedRef.current) {

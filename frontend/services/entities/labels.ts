@@ -8,14 +8,18 @@ export default {
     const { LABELS } = endpoints;
 
     try {
-      const { label: createdLabel } = await sendRequest("POST", LABELS, formData);
+      const { label: createdLabel } = await sendRequest(
+        "POST",
+        LABELS,
+        formData
+      );
 
       return {
         ...createdLabel,
         slug: helpers.labelSlug(createdLabel),
         type: "custom",
       };
-    } catch(error) {
+    } catch (error) {
       console.error(error);
       throw new Error("Could not create label.");
     }
@@ -31,8 +35,8 @@ export default {
 
     try {
       const response = await sendRequest("GET", LABELS);
-      return {labels: helpers.formatLabelResponse(response)};
-    } catch(error) {
+      return { labels: helpers.formatLabelResponse(response) };
+    } catch (error) {
       console.error(error);
       throw new Error("Could not load all labels.");
     }
@@ -42,13 +46,17 @@ export default {
     const path = `${LABELS}/${label.id}`;
 
     try {
-      const { label: updatedLabel } = await sendRequest("PATCH", path, updatedAttrs);
+      const { label: updatedLabel } = await sendRequest(
+        "PATCH",
+        path,
+        updatedAttrs
+      );
       return {
         ...updatedLabel,
         slug: helpers.labelSlug(updatedLabel),
         type: "custom",
       };
-    } catch(error) {
+    } catch (error) {
       console.error(error);
       throw new Error("Could not update label.");
     }

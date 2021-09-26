@@ -26,9 +26,9 @@ const POLICY_RESPONSE_OPTIONS = [
   },
 ];
 
-const PoliciesFilter = ({ 
-  policyResponse, 
-  onChange, 
+const PoliciesFilter = ({
+  policyResponse,
+  onChange,
 }: IPoliciesFilterProps): JSX.Element => {
   const value = policyResponse;
 

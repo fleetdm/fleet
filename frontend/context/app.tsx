@@ -53,11 +53,7 @@ const actions = {
 
 // helper function - this is run every
 // time currentUser or config is changed
-const setPermissions = (
-  user: IUser, 
-  config: IConfig, 
-  teamId: number = 0,
-) => {
+const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
   if (!user || !config) {
     return {};
   }
@@ -87,7 +83,11 @@ const reducer = (state: any, action: any) => {
       return {
         ...state,
         currentTeam: action.currentTeam,
-        ...setPermissions(state.currentUser, state.config, action.currentTeam?.id),
+        ...setPermissions(
+          state.currentUser,
+          state.config,
+          action.currentTeam?.id
+        ),
       };
     case actions.SET_CONFIG:
       return {

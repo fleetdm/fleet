@@ -55,7 +55,7 @@ export default {
           total: 0,
         },
       };
-    } catch(error) {
+    } catch (error) {
       console.error(error);
       throw new Error("Could not run query.");
     }
