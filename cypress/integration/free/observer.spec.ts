@@ -16,8 +16,6 @@ describe("Free tier - Observer user", () => {
     cy.login("oliver@organization.com", "user123#");
     cy.visit("/");
 
-    cy.wait(5000);
-
     // Ensure page is loaded
     cy.contains("All hosts");
 
