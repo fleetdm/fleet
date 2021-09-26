@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import ReactTooltip from "react-tooltip";
 
 import moment from "moment";
 import { capitalize } from "lodash";
@@ -15,6 +16,9 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PATHS from "router/paths";
 
 import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+
+import permissionsUtils from "utilities/permissions";
 
 interface IHeaderProps {
   column: {
@@ -23,6 +27,9 @@ interface IHeaderProps {
   };
   getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
   toggleAllRowsSelected: () => void;
+  toggleRowSelected: (id: string, value?: boolean) => void;
+  rows: any;
+  selectedFlatRows: any;
 }
 
 interface ICellProps {
@@ -34,6 +41,7 @@ interface ICellProps {
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
+  toggleRowSelected: (id: string, value: boolean) => void;
 }
 
 interface IDataColumn {
@@ -49,7 +57,10 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
+const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
+  const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
+  const isAnyTeamMaintainer = permissionsUtils.isAnyTeamMaintainer(currentUser);
+
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
@@ -100,21 +111,82 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
     tableHeaders.splice(0, 0, {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
+        console.log("headercell: ", cellProps);
+        const {
+          getToggleAllRowsSelectedProps,
+          rows,
+          selectedFlatRows,
+          toggleAllRowsSelected,
+          toggleRowSelected,
+        } = cellProps;
+        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
         const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
+          value: checked,
+          indeterminate,
+          // onChange: () => cellProps.toggleAllRowsSelected(),
+          onChange: () => {
+            console.log("clicked header select checkbox");
+            if (isAnyTeamMaintainer) {
+              const userAuthoredQueries = rows.filter(
+                (r: any) => r.original.author_id === currentUser.id
+              );
+              if (
+                selectedFlatRows.length &&
+                selectedFlatRows.length !== userAuthoredQueries.length
+              ) {
+                console.log("some but not all selected");
+                userAuthoredQueries.forEach((r: any) =>
+                  toggleRowSelected(r.id, true)
+                );
+              } else {
+                console.log("all or none selected");
+                userAuthoredQueries.forEach((r: any) =>
+                  toggleRowSelected(r.id)
+                );
+              }
+            } else {
+              console.log("not team maintainer so toggled all rows seleted");
+              toggleAllRowsSelected();
+            }
+          },
         };
         return <Checkbox {...checkboxProps} />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const props = cellProps.row.getToggleRowSelectedProps();
+        const { row } = cellProps;
+        const { checked } = row.getToggleRowSelectedProps();
         const checkboxProps = {
-          value: props.checked,
-          onChange: () => cellProps.row.toggleRowSelected(),
+          value: checked,
+          onChange: () => row.toggleRowSelected(),
+          disabled:
+            isAnyTeamMaintainer && row.original.author_id !== currentUser.id,
         };
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <>
+            <span
+              data-tip
+              data-for={`${"select-checkbox"}__${row.original.id}`}
+              data-tip-disable={
+                !isAnyTeamMaintainer ||
+                row.original.author_id === currentUser.id
+              }
+            >
+              <Checkbox {...checkboxProps} />
+            </span>{" "}
+            <ReactTooltip
+              place="bottom"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`${"select-checkbox"}__${row.original.id}`}
+              data-html
+            >
+              <span className={`tooltip`} style={{ width: "196px" }}>
+                You can only delete a<br /> query if you are the author.
+              </span>
+            </ReactTooltip>
+          </>
+        );
       },
       disableHidden: true,
     });
