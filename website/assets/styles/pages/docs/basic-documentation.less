@@ -207,8 +207,8 @@
         opacity: 0;
         font-size: 12px;
         position: absolute;
-        right: 4px;
-        top: 8px;
+        right: 230px;
+        top: 34px;
         cursor: pointer;
         border: 1px solid @core-vibrant-blue;
         border-radius: 4px;
@@ -498,6 +498,13 @@
 
       padding: 0px 40px;
 
+      .edit-button-container {
+        .edit-button {
+          top: -63px;
+          right: 15px;
+        }
+      }
+
       [purpose='right-sidebar'] {
         width: 100%;
 
@@ -511,10 +518,11 @@
         }
 
       }
-
       [purpose='content'] {
         width: 100%;
-
+        a {
+          word-wrap: break-word;
+        }
         h1:first-of-type {
           display: none;  // hides on mobile
         }
@@ -522,9 +530,18 @@
       }
 
     }
+    @media (max-width: 768px){
+
+      .edit-button-container {
+        .edit-button {
+          top: -2px;
+          right: 0px;
+        }
+      }
+
+    }
     // for mobile
     @media (max-width: 576px) {
-
       padding: 0px 24px;
 
     }
