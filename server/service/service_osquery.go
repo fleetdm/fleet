@@ -490,13 +490,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
-	if err != nil {
-		return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
-	}
+	if svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) {
+		policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
+		if err != nil {
+			return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
+		}
 
-	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name] = query
+		for name, query := range policyQueries {
+			queries[hostPolicyQueryPrefix+name] = query
+		}
 	}
 
 	accelerate := uint(0)
