@@ -369,34 +369,37 @@ allow {
 }
 
 allow {
+  is_null(object.team_id)
   object.type == "policy"
   subject.global_role == maintainer
   action == [read, write][_]
 }
 
 allow {
-  object.type == ["policy","team_policy"][_]
+  object.type == "policy"
   subject.global_role == maintainer
   action == [read][_]
 }
 
 # Global Observer users can read policies
 allow {
-  object.type == ["policy","team_policy"][_]
+  object.type == "policy"
   subject.global_role == observer
   action == [read][_]
 }
 
 # Team Maintainers can read and write policies
 allow {
-  object.type == "team_policy"
+  not is_null(object.team_id)
+  object.type == "policy"
   team_role(subject, subject.teams[_].id) == maintainer
   action == [read, write][_]
 }
 
 # Team Observer can read policies
 allow {
-  object.type == "team_policy"
+  not is_null(object.team_id)
+  object.type == "policy"
   team_role(subject, subject.teams[_].id) == observer
   action == [read][_]
 }
