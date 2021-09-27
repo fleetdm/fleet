@@ -85,18 +85,18 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize          int           `yaml:"node_key_size"`
-	HostIdentifier       string        `yaml:"host_identifier"`
-	EnrollCooldown       time.Duration `yaml:"enroll_cooldown"`
-	StatusLogPlugin      string        `yaml:"status_log_plugin"`
-	ResultLogPlugin      string        `yaml:"result_log_plugin"`
-	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
-	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
-	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
-	StatusLogFile        string        `yaml:"status_log_file"`
-	ResultLogFile        string        `yaml:"result_log_file"`
-	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
+	NodeKeySize               int           `yaml:"node_key_size"`
+	HostIdentifier            string        `yaml:"host_identifier"`
+	EnrollCooldown            time.Duration `yaml:"enroll_cooldown"`
+	StatusLogPlugin           string        `yaml:"status_log_plugin"`
+	ResultLogPlugin           string        `yaml:"result_log_plugin"`
+	LabelUpdateInterval       time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval      time.Duration `yaml:"policy_update_interval"`
+	DetailUpdateInterval      time.Duration `yaml:"detail_update_interval"`
+	StatusLogFile             string        `yaml:"status_log_file"`
+	ResultLogFile             string        `yaml:"result_log_file"`
+	EnableLogRotation         bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent          int           `yaml:"max_jitter_percent"`
 	EnableAsyncHostProcessing bool          `yaml:"enable_async_host_processing"`
 }
 
@@ -462,19 +462,18 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-<<<<<<< HEAD
-			NodeKeySize:          man.getConfigInt("osquery.node_key_size"),
-			HostIdentifier:       man.getConfigString("osquery.host_identifier"),
-			EnrollCooldown:       man.getConfigDuration("osquery.enroll_cooldown"),
-			StatusLogPlugin:      man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:      man.getConfigString("osquery.result_log_plugin"),
-			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
-			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
-			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
-			PolicyUpdateInterval: man.getConfigDuration("osquery.policy_update_interval"),
-			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
-			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
-			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
+			NodeKeySize:               man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:            man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:            man.getConfigDuration("osquery.enroll_cooldown"),
+			StatusLogPlugin:           man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin:           man.getConfigString("osquery.result_log_plugin"),
+			StatusLogFile:             man.getConfigString("osquery.status_log_file"),
+			ResultLogFile:             man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval:       man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval:      man.getConfigDuration("osquery.policy_update_interval"),
+			DetailUpdateInterval:      man.getConfigDuration("osquery.detail_update_interval"),
+			EnableLogRotation:         man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:          man.getConfigInt("osquery.max_jitter_percent"),
 			EnableAsyncHostProcessing: man.getConfigBool("osquery.enable_async_host_processing"),
 		},
 		Logging: LoggingConfig{
