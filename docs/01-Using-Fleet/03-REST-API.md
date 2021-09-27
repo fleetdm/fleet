@@ -6066,6 +6066,74 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
+### Apply team spec
+
+_Available in Fleet Premium_
+
+If the `name` specified is associated with an existing team, this API route, completely replaces this team's existing `agent_options` and `secrets` with those that are specified.
+
+If the `name` is not already associated with an existing team, this API route creates a new team with the specified `name`, `agent_options`, and `secrets`.
+
+`POST /api/v1/fleet/spec/teams`
+
+#### Parameters
+
+| Name | Type   | In   | Description                    |
+| ---- | ------ | ---- | ------------------------------ |
+| name | string | body | **Required.** The team's name. |
+| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)|
+| secrets | list | body | **Required.** A list of plain text strings used as the enroll secrets. |
+
+#### Example
+
+`POST /api/v1/fleet/spec/teams`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Client Platform Engineering",
+      "agent_options": {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        }
+      },
+      "secrets": [
+        {
+         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        },
+        {
+          "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Default response
+
+`Status: 200`
 
 ---
 
