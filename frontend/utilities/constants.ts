@@ -65,7 +65,7 @@ export const QUERIES_PAGE_STEPS = {
 
 export const DEFAULT_QUERY = {
   description: "",
-  name: "New query",
+  name: "",
   query: "SELECT * FROM osquery_info",
   id: 0,
   interval: 0,

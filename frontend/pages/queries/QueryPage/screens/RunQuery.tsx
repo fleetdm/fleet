@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
+import { QueryContext } from "context/query"; 
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -14,11 +15,12 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
+// import { useLastEditedQueryInfo } from "../helpers";
 import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
-  typedQueryBody: string;
-  storedQuery: IQuery | undefined;
+  // typedQueryBody: string;
+  // storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
   queryIdForEdit: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
@@ -26,8 +28,8 @@ interface IRunQueryProps {
 }
 
 const RunQuery = ({
-  typedQueryBody,
-  storedQuery,
+  // typedQueryBody,
+  // storedQuery,
   selectedTargets,
   queryIdForEdit,
   setSelectedTargets,
@@ -39,6 +41,8 @@ const RunQuery = ({
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
+  const { lastEditedQueryBody } = useContext(QueryContext);
+
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -136,9 +140,10 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = typedQueryBody || storedQuery?.query;
+    // const sql = typedQueryBody || storedQuery?.query;
 
-    if (!sql) {
+    // if (!sql) {
+    if (!lastEditedQueryBody) {
       dispatch(
         renderFlash(
           "error",
@@ -154,9 +159,12 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
+      console.log(lastEditedQueryBody)
       const returnedCampaign = await queryAPI.run({
-        query: sql,
-        queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
+        // query: sql,
+        // queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
+        query: lastEditedQueryBody,
+        queryId: lastEditedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
         selected,
       });
 
