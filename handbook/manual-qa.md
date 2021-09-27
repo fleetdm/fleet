@@ -2,7 +2,7 @@
 
 This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
 
-All steps should be conducted during each QA pass. All steps are possible with `fleetctrl preview`.
+All steps should be conducted during each QA pass. All steps are possible with `fleetctrl preview`. In order to target a specific version of `fleetctrl preview`, the tag argument can be used together with the commit you are targeting as long as that commit is represented by a tag in [docker hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated).
 
 As new features are added to Fleet, new steps and flows will be added.
 
