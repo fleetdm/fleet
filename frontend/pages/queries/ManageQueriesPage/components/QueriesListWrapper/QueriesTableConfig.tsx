@@ -55,15 +55,15 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const countUserAuthoredQueries = (
-  currentUser: IUser,
-  queries: IQuery[]
-): number => {
-  const userAuthoredQueries = queries.filter(
-    (q: IQuery) => q.author_id === currentUser.id
-  );
-  return userAuthoredQueries.length || 0;
-};
+// const countUserAuthoredQueries = (
+//   currentUser: IUser,
+//   queries: IQuery[]
+// ): number => {
+//   const userAuthoredQueries = queries.filter(
+//     (q: IQuery) => q.author_id === currentUser.id
+//   );
+//   return userAuthoredQueries.length || 0;
+// };
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -121,7 +121,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
     tableHeaders.splice(0, 0, {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
-        console.log("headercell: ", cellProps);
         const {
           getToggleAllRowsSelectedProps,
           rows,
@@ -133,14 +132,13 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         const checkboxProps = {
           value: checked,
           indeterminate,
-          // onChange: () => cellProps.toggleAllRowsSelected(),
           onChange: () => {
-            console.log("clicked header select checkbox");
             if (!isAnyTeamMaintainer) {
-              console.log("not team maintainer so toggled all rows seleted");
               toggleAllRowsSelected();
             } else {
-              console.log("team maintainer do some more logic");
+              // Team maintainers may only delete the queries that they have authored
+              // so we need to do some filtering and then modify the toggle select all
+              // behavior for the header checkbox
               const userAuthoredQueries = rows.filter(
                 (r: any) => r.original.author_id === currentUser.id
               );
@@ -148,12 +146,13 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
                 selectedFlatRows.length &&
                 selectedFlatRows.length !== userAuthoredQueries.length
               ) {
-                console.log("some but not all selected");
+                // If some but not all of the user authored queries are already selected,
+                // we toggle all of the user's unselected queries to true
                 userAuthoredQueries.forEach((r: any) =>
                   toggleRowSelected(r.id, true)
                 );
               } else {
-                console.log("all or none selected");
+                // Otherwise, we toggle all of the user's queries to the opposite of their current state
                 userAuthoredQueries.forEach((r: any) =>
                   toggleRowSelected(r.id)
                 );
@@ -172,6 +171,8 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           disabled:
             isAnyTeamMaintainer && row.original.author_id !== currentUser.id,
         };
+        // If the user is a team maintainer, we only enable checkboxes for queries
+        // that they authored and we include a tooltip to explain disabled checkboxes
         return (
           <>
             <div
@@ -220,4 +221,5 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   return tableHeaders;
 };
 
-export { countUserAuthoredQueries, generateTableHeaders };
+// export { countUserAuthoredQueries, generateTableHeaders };
+export default generateTableHeaders;
