@@ -62,20 +62,24 @@ const QueryPage = ({
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
-  const { isLoading: isStoredQueryLoading, error: storedQueryError } = useQuery<
-    IStoredQueryResponse,
-    Error,
-    IQuery
-  >(["query", queryIdForEdit], () => queryAPI.load(queryIdForEdit as number), {
-    enabled: !!queryIdForEdit,
-    select: (data: IStoredQueryResponse) => data.query,
-    onSuccess: (returnedQuery) => {
-      setLastEditedQueryName(returnedQuery.name);
-      setLastEditedQueryDescription(returnedQuery.description);
-      setLastEditedQueryBody(returnedQuery.query);
-      setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-    },
-  });
+  const {
+    isLoading: isStoredQueryLoading,
+    data: storedQuery,
+    error: storedQueryError,
+  } = useQuery<IStoredQueryResponse, Error, IQuery>(
+    ["query", queryIdForEdit],
+    () => queryAPI.load(queryIdForEdit as number),
+    {
+      enabled: !!queryIdForEdit,
+      select: (data: IStoredQueryResponse) => data.query,
+      onSuccess: (returnedQuery) => {
+        setLastEditedQueryName(returnedQuery.name);
+        setLastEditedQueryDescription(returnedQuery.description);
+        setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+      },
+    }
+  );
 
   // if URL is like `/queries/1?host_ids=22`, add the host
   // to the selected targets automatically
@@ -181,6 +185,7 @@ const QueryPage = ({
 
     const step3Opts = {
       selectedTargets,
+      storedQuery,
       queryIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),

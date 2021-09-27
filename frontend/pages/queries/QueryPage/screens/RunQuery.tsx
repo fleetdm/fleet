@@ -19,8 +19,7 @@ import { ITarget } from "interfaces/target";
 import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
-  // typedQueryBody: string;
-  // storedQuery: IQuery | undefined;
+  storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
   queryIdForEdit: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
@@ -28,8 +27,7 @@ interface IRunQueryProps {
 }
 
 const RunQuery = ({
-  // typedQueryBody,
-  // storedQuery,
+  storedQuery,
   selectedTargets,
   queryIdForEdit,
   setSelectedTargets,
@@ -139,9 +137,6 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    // const sql = typedQueryBody || storedQuery?.query;
-
-    // if (!sql) {
     if (!lastEditedQueryBody) {
       dispatch(
         renderFlash(
@@ -158,12 +153,13 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      console.log(lastEditedQueryBody);
+      const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
+
+      // because we are not using the saved query id if user edits the SQL
+      const queryId = isStoredQueryEdited ? null : queryIdForEdit;
       const returnedCampaign = await queryAPI.run({
-        // query: sql,
-        // queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
         query: lastEditedQueryBody,
-        queryId: lastEditedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL
+        queryId,
         selected,
       });
 
