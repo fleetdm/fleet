@@ -104,7 +104,7 @@ const PackQueriesListWrapper = ({
 
   return (
     <div className={`${baseClass} body-wrap`}>
-      {!scheduledQueries || scheduledQueries.length === 0 ? (
+      {!scheduledQueries?.length ? (
         <div className={`${baseClass}__no-queries`}>
           <p>Your pack has no queries.</p>
           <Button

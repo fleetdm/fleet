@@ -12,7 +12,10 @@ import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
-import { IScheduledQuery } from "interfaces/scheduled_query";
+import {
+  IPackQueryFormData,
+  IScheduledQuery,
+} from "interfaces/scheduled_query";
 import { ITargetsAPIResponse } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
@@ -38,19 +41,6 @@ interface IEditPacksPageProps {
   router: any;
   params: Params;
   location: any; // TODO: find Location type
-}
-
-interface IPackQueryFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  removed: boolean;
-  snapshot: boolean;
-  pack_id: number;
-  platform: string;
-  version: string;
 }
 
 interface IStoredFleetQueriesResponse {

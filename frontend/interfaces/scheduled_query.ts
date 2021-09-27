@@ -24,6 +24,7 @@ export interface IPackQueryFormData {
   shard: number;
   query?: string;
   query_id?: number;
+  pack_id?: number;
   logging_type?: string;
   removed?: boolean;
   snapshot?: boolean;
@@ -46,4 +47,5 @@ export interface IScheduledQuery {
   version?: string;
   shard: number | null;
   denylist?: boolean;
+  logging_type?: string;
 }

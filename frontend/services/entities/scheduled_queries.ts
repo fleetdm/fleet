@@ -6,7 +6,6 @@ import {
   IPackQueryFormData,
   IScheduledQuery,
 } from "interfaces/scheduled_query";
-import { IPack } from "interfaces/pack";
 import helpers from "fleet/helpers";
 
 export default {
@@ -27,7 +26,10 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (scheduledQuery: IScheduledQuery, updatedAttributes: any) => {
+  update: (
+    scheduledQuery: IScheduledQuery,
+    updatedAttributes: IPackQueryFormData
+  ) => {
     const { SCHEDULED_QUERIES } = endpoints;
     const path = `${SCHEDULED_QUERIES}/${scheduledQuery.id}`;
     const params = helpers.formatScheduledQueryForServer(updatedAttributes);

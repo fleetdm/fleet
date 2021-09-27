@@ -2,7 +2,6 @@ import React, { useState, useCallback, Component } from "react";
 
 import Button from "components/buttons/Button";
 
-import { IFormField } from "interfaces/form_field";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { ITarget } from "interfaces/target";

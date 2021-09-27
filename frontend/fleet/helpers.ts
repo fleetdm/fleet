@@ -4,6 +4,10 @@ import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
 import { ILabel } from "interfaces/label";
+import {
+  IPackQueryFormData,
+  IScheduledQuery,
+} from "interfaces/scheduled_query";
 import { ITeam } from "interfaces/team";
 import {
   DEFAULT_GRAVATAR_LINK,
@@ -245,7 +249,9 @@ export const formatSelectedTargetsForApi = (
   return { hosts, labels, teams };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatScheduledQueryForServer = (
+  scheduledQuery: IPackQueryFormData
+) => {
   const {
     interval,
     logging_type: loggingType,
