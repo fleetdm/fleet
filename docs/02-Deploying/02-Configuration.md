@@ -1348,13 +1348,13 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
 
 How often vulnerabilities are checked.
 
-- Default value: `1hr`
+- Default value: `1h`
 - Environment variable: `FLEET_VULNERABILITIES_PERIODICITY`
 - Config file format:
 
   ```
   vulnerabilities:
-  	periodicity: 1hr
+  	periodicity: 1h
   ```
 
 ###### cpe_database_url
