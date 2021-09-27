@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
-import { QueryContext } from "context/query"; 
+import { QueryContext } from "context/query";
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -42,7 +42,6 @@ const RunQuery = ({
     DEFAULT_CAMPAIGN_STATE
   );
   const { lastEditedQueryBody } = useContext(QueryContext);
-
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -159,7 +158,7 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      console.log(lastEditedQueryBody)
+      console.log(lastEditedQueryBody);
       const returnedCampaign = await queryAPI.run({
         // query: sql,
         // queryId: typedQueryBody ? null : queryIdForEdit, // because we are not using saved query if user edits the SQL

@@ -146,8 +146,12 @@ const QueryForm = ({
 
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name no-hover`}>{lastEditedQueryName}</h1>
-      <p className={`${baseClass}__query-description no-hover`}>{lastEditedQueryDescription}</p>
+      <h1 className={`${baseClass}__query-name no-hover`}>
+        {lastEditedQueryName}
+      </h1>
+      <p className={`${baseClass}__query-description no-hover`}>
+        {lastEditedQueryDescription}
+      </p>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
@@ -184,7 +188,9 @@ const QueryForm = ({
   const renderRunForMaintainer = (
     <form className={`${baseClass}__wrapper`}>
       <h1 className={`${baseClass}__query-name`}>{lastEditedQueryName}</h1>
-      <p className={`${baseClass}__query-description`}>{lastEditedQueryDescription}</p>
+      <p className={`${baseClass}__query-description`}>
+        {lastEditedQueryDescription}
+      </p>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
@@ -282,7 +288,7 @@ const QueryForm = ({
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={(value: string) => {
-            setLastEditedQueryBody(value)
+            setLastEditedQueryBody(value);
           }}
           handleSubmit={promptSaveQuery}
         />
@@ -290,7 +296,9 @@ const QueryForm = ({
           <>
             <Checkbox
               value={lastEditedQueryObserverCanRun}
-              onChange={(value: boolean) => setLastEditedQueryObserverCanRun(value)}
+              onChange={(value: boolean) =>
+                setLastEditedQueryObserverCanRun(value)
+              }
               wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
             >
               Observers can run

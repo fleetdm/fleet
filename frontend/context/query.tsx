@@ -51,10 +51,16 @@ const reducer = (state: any, action: any) => {
     case actions.SET_LAST_EDITED_QUERY_INFO:
       return {
         ...state,
-        lastEditedQueryName: action.lastEditedQueryName || state.lastEditedQueryName,
-        lastEditedQueryDescription: action.lastEditedQueryDescription || state.lastEditedQueryDescription,
-        lastEditedQueryBody: action.lastEditedQueryBody || state.lastEditedQueryBody,
-        lastEditedQueryObserverCanRun: typeof action.lastEditedQueryObserverCanRun === "undefined" ? state.lastEditedQueryObserverCanRun : action.lastEditedQueryObserverCanRun,
+        lastEditedQueryName:
+          action.lastEditedQueryName || state.lastEditedQueryName,
+        lastEditedQueryDescription:
+          action.lastEditedQueryDescription || state.lastEditedQueryDescription,
+        lastEditedQueryBody:
+          action.lastEditedQueryBody || state.lastEditedQueryBody,
+        lastEditedQueryObserverCanRun:
+          typeof action.lastEditedQueryObserverCanRun === "undefined"
+            ? state.lastEditedQueryObserverCanRun
+            : action.lastEditedQueryObserverCanRun,
       };
     default:
       return state;
@@ -73,16 +79,30 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
     setLastEditedQueryName: (lastEditedQueryName: string) => {
-      dispatch({ type: actions.SET_LAST_EDITED_QUERY_INFO, lastEditedQueryName })
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryName,
+      });
     },
     setLastEditedQueryDescription: (lastEditedQueryDescription: string) => {
-      dispatch({ type: actions.SET_LAST_EDITED_QUERY_INFO, lastEditedQueryDescription })
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryDescription,
+      });
     },
     setLastEditedQueryBody: (lastEditedQueryBody: string) => {
-      dispatch({ type: actions.SET_LAST_EDITED_QUERY_INFO, lastEditedQueryBody })
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryBody,
+      });
     },
-    setLastEditedQueryObserverCanRun: (lastEditedQueryObserverCanRun: boolean) => {
-      dispatch({ type: actions.SET_LAST_EDITED_QUERY_INFO, lastEditedQueryObserverCanRun })
+    setLastEditedQueryObserverCanRun: (
+      lastEditedQueryObserverCanRun: boolean
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryObserverCanRun,
+      });
     },
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
