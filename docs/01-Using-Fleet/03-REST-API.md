@@ -5044,7 +5044,8 @@ None.
     }
   },
   "update_interval": {
-    "osquery_detail": 3600000000000
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
   },
 }
 ```

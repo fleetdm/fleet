@@ -681,6 +681,23 @@ Valid time units are `s`, `m`, `h`.
   osquery:
   	label_update_interval: 30m
   ```
+  
+###### osquery_policy_update_interval
+
+The interval at which Fleet will ask osquery agents to update their results for policy queries.
+
+Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
+
+Valid time units are `s`, `m`, `h`.
+
+- Default value: `1h`
+- Environment variable: `FLEET_OSQUERY_POLICY_UPDATE_INTERVAL`
+- Config file format:
+
+  ```
+  osquery:
+  	policy_update_interval: 30m
+  ```
 
 ###### osquery_detail_update_interval
 

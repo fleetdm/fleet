@@ -105,6 +105,7 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 		UUID:            uuid,
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
 		SeenTime:        now,
 		OsqueryHostID:   osqueryHostID,
 	})
