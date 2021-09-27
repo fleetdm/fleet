@@ -3,6 +3,7 @@ package cached_mysql
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
@@ -16,7 +17,7 @@ type cachedMysql struct {
 }
 
 const (
-	CacheKeyAppConfig = "AppConfig"
+	CacheKeyAppConfig = "cache:AppConfig"
 )
 
 func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
@@ -35,7 +36,7 @@ func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
 		return errors.Wrap(err, "marshaling object to cache in redis")
 	}
 
-	if _, err := conn.Do("SET", key, b); err != nil {
+	if _, err := conn.Do("SET", key, b, "EX", (24 * time.Hour).Seconds()); err != nil {
 		return errors.Wrap(err, "caching object in redis")
 	}
 

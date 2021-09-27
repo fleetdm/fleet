@@ -126,6 +126,12 @@ func TestCronWebhooks(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		return true, nil
+	}
+	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
