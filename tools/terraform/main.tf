@@ -7,6 +7,13 @@ provider "aws" {
 }
 
 terraform {
+  // these values are hard-coded to prevent chicken before the egg situations
+  backend "s3" {
+    bucket = "fleet-terraform-remote-state"
+    region = "us-east-2"
+    key = "fleet/"
+    dynamodb_table = "fleet-terraform-state-lock"
+  }
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -37,17 +44,17 @@ resource "aws_s3_bucket_public_access_block" "fleet_terraform_state" {
   block_public_policy = true
 }
 
-#resource "aws_dynamodb_table" "fleet_terraform_state_lock" {
-#  name         = "fleet-terraform-state-lock"
-#  hash_key     = "LockID"
-#  billing_mode = "PAY_PER_REQUEST"
-#
-#  attribute {
-#    name = "LockID"
-#    type = "S"
-#  }
-#
-#  tags = {
-#    Name = "DynamoDB Terraform State Lock Table"
-#  }
-#}
+resource "aws_dynamodb_table" "fleet_terraform_state_lock" {
+  name         = "fleet-terraform-state-lock"
+  hash_key     = "LockID"
+  billing_mode = "PAY_PER_REQUEST"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = {
+    Name = "DynamoDB Terraform State Lock Table"
+  }
+}
