@@ -92,9 +92,11 @@ func TestHosts(t *testing.T) {
 }
 
 func testHostsSave(t *testing.T, ds *Datastore) {
+	policyUpdatedAt := time.Now()
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: policyUpdatedAt,
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -114,6 +116,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
+	assert.Equal(t, policyUpdatedAt, host.PolicyUpdatedAt)
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON

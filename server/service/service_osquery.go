@@ -709,6 +709,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		host.Modified = true
+		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)

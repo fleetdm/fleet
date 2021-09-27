@@ -1819,7 +1819,8 @@ func TestPolicyQueries(t *testing.T) {
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1872,4 +1873,40 @@ func TestPolicyQueries(t *testing.T) {
 	require.NotNil(t, recordedResults[1])
 	require.Equal(t, true, *recordedResults[1])
 	require.Nil(t, recordedResults[2])
+
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies
+	hasAnyPolicy := false
+	for name := range queries {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			hasAnyPolicy = true
+			break
+		}
+	}
+	assert.False(t, hasAnyPolicy)
+
+	// Let's move time forward, there should be policies now
+	mockClock.AddTime(2 * time.Hour)
+
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+
+	hasPolicy1, hasPolicy2 = false, false
+	for name := range queries {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			if name[len(hostPolicyQueryPrefix):] == "1" {
+				hasPolicy1 = true
+			}
+			if name[len(hostPolicyQueryPrefix):] == "2" {
+				hasPolicy2 = true
+			}
+		}
+	}
+	assert.True(t, hasPolicy1)
+	assert.True(t, hasPolicy2)
 }
