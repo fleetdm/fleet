@@ -36,7 +36,7 @@ data "aws_iam_policy_document" "fleet" {
       "firehose:PutRecord",
       "firehose:PutRecordBatch",
     ]
-    resources = [aws_kinesis_firehose_delivery_stream.osquery_logs.arn]
+    resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
   }
 }
 
