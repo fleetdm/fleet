@@ -67,13 +67,16 @@ module.exports = {
     }
     // Setting the title of this page
     let pageTitle;
-    if(thisPage && thisPage.title) {
+    if(thisPage) {
       // Handle situations where the title is the filename of a markdown file (e.g. the documentation landing page's title is 'Readme.md')
       if(_.endsWith(thisPage.title, '.md')) {
         // if the title is a markdown filename, we'll use a generic 'Documentation' title
         pageTitle = 'Documentation | Fleet for osquery';
+      // If this page is a 'FAQ' page, we'll use the pageTitleForMeta property
+      } else if(thisPage.title === 'FAQ' && thisPage.meta.pageTitleForMeta){
+        pageTitle = thisPage.meta.pageTitleForMeta + ' | Fleet for osquery documentation';
       } else {
-        pageTitle = thisPage.title + ' | Fleet for osquery';
+        pageTitle = thisPage.title + ' | Fleet for osquery documentation';
       }
     }
 

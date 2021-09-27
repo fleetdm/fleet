@@ -109,3 +109,5 @@ Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Auro
 ## What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
+
+<meta name="pageTitleForMeta" value="Deployment FAQ">
