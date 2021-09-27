@@ -113,6 +113,6 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ## What is duplicate enrollment and how do I fix it?
 
-Duplicate host enrollment is when more than one host enrolls in Fleet as the same identifier (in osquery terms this is the node key). This can be caused by cloning a VM Image with an already enrolled
+Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier (hardware UUID or osquery generated UUID). This can be caused by cloning a VM Image with an already enrolled
 osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
 [host identifiers here](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#osquery_host_identifier).
