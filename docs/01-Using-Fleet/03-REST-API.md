@@ -6068,11 +6068,11 @@ _Available in Fleet Premium_
 
 ### Apply team spec
 
+_Available in Fleet Premium_
+
 If the `name` specified is associated with an existing team, this API route, completely replaces this team's existing `agent_options` and `secrets` with those that are specified.
 
 If the `name` is not already associated with an existing team, this API route creates a new team with the specified `name`, `agent_options`, and `secrets`.
-
-_Available in Fleet Premium_
 
 `POST /api/v1/fleet/spec/teams`
 
