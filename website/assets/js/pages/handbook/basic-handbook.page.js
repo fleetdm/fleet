@@ -46,13 +46,13 @@ parasails.registerPage('basic-handbook', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    isCurrentSection: function (section, location) {
+    _isCurrentSection: function (section, location) {
       if (location.hash === section.url) {
         return true;
       }
       return false;
     },
-    getTitleFromUrl: function (url) {
+    _getTitleFromUrl: function (url) {
       return _
         .chain(url.split(/\//))
         .last()

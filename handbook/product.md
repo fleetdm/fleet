@@ -8,7 +8,7 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 
 <img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
-> ___NOTE:__ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
 
 3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
 

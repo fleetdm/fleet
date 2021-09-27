@@ -49,7 +49,7 @@
         <div purpose="subtopics">
           <ul class="p-0 m-0">
             <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
-              <a :href="subtopic.url" :class="isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
+              <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
             </li>
           </ul>
         </div>
@@ -64,7 +64,7 @@
             <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
               <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
               <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
-                {{getTitleFromUrl(breadcrumbs[1])}}
+                {{_getTitleFromUrl(breadcrumbs[1])}}
               </a>
             </div>
             <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
