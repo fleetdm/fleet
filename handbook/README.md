@@ -6,39 +6,39 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [About Fleet](./company.md#about-fleet)
 
-[History](./company#history)
+[History](./company.md#history)
 
-[Culture](./company#culture)
+[Culture](./company.md#culture)
 
 ### People
 
-[Spending company money](./people#spending-company-money)
+[Spending company money](./people.md#spending-company-money)
 
-[Meetings](./people#meetings)
+[Meetings](./people.md#meetings)
 
 ### Product
 
-[Fleet EE](./product#fleet-ee)
+[Fleet EE](./product.md#fleet-ee)
 
-[Fleet docs](./product#fleet-docs)
+[Fleet docs](./product.md#fleet-docs)
 
-[Manual QA](./product#manual-qa)
+[Manual QA](./product.md#manual-qa)
 
-[Release process](./product#release-process)
+[Release process](./product.md#release-process)
 
-[Support process](./product#release-process)
+[Support process](./product.md#release-process)
 
 ### Growth
 
-[Website](./growth#website)
+[Website](./growth.md#website)
 
-[Grammar guidelines](./growth#grammar-guidelines)
+[Grammar guidelines](./growth.md#grammar-guidelines)
 
-[Culture](./growth#culture)
+[Culture](./growth.md#culture)
 
 ### Customer first
 
-[Customer succcess](./customer-first#customer-success)
+[Customer succcess](./customer-first.md#customer-success)
 
 ### About the handbook
 

@@ -212,10 +212,14 @@ module.exports = {
                 // -mikermcneil 2021-07-27
                 // ```
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
+                let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
-                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)(\.md)([^/]*$)/, '$1$2$4').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
-                  .split(/\//).map((fileOrFolderName) => fileOrFolderName.replace(/^[0-9]+[\-]+/,'')).join('/')
+                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
+                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
+                if(possibleReferencedUrlHash) {
+                  referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);
+                }
                 // console.log(pageRelSourcePath, '»»  '+hrefString+' »»»»    href="'+referencedPageNewUrl+'"');
                 // ```
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
