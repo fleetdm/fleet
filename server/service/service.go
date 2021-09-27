@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -18,7 +19,9 @@ import (
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
 type Service struct {
-	ds             fleet.Datastore
+	ds fleet.Datastore
+	// TODO: make that an interface, create a generated mock for tests?
+	task           *async.Task
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
@@ -40,6 +43,7 @@ type Service struct {
 // NewService creates a new service from the config struct
 func NewService(
 	ds fleet.Datastore,
+	task *async.Task,
 	resultStore fleet.QueryResultStore,
 	logger kitlog.Logger,
 	osqueryLogger *logging.OsqueryLogger,
@@ -60,6 +64,7 @@ func NewService(
 
 	svc = &Service{
 		ds:               ds,
+		task:             task,
 		carveStore:       carveStore,
 		resultStore:      resultStore,
 		liveQueryStore:   lq,

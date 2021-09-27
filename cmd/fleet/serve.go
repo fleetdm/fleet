@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 
 	"io/ioutil"
@@ -231,7 +232,12 @@ the way that the Fleet server works.
 				initFatal(err, "initializing osquery logging")
 			}
 
-			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			task := &async.Task{
+				Datastore:    ds,
+				Pool:         redisPool,
+				AsyncEnabled: config.Osquery.EnableAsyncHostProcessing,
+			}
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
