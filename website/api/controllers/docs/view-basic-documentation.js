@@ -72,11 +72,11 @@ module.exports = {
       if(_.endsWith(thisPage.title, '.md')) {
         // if the title is a markdown filename, we'll use a generic 'Documentation' title
         pageTitle = 'Documentation | Fleet for osquery';
-      // If this page is a 'FAQ' page, we'll use the pageTitleForMeta property
-      } else if(thisPage.title === 'FAQ' && thisPage.meta.pageTitleForMeta){
-        pageTitle = thisPage.meta.pageTitleForMeta + ' | Fleet for osquery documentation';
+      // If this page has a pageTitleForMeta property we'll use that instead of thisPage.title
+      } else if(thisPage.meta.pageTitleForMeta){
+        pageTitle = thisPage.meta.pageTitleForMeta + ' | Fleet documentation';
       } else {
-        pageTitle = thisPage.title + ' | Fleet for osquery documentation';
+        pageTitle = thisPage.title + ' | Fleet documentation';
       }
     }
 

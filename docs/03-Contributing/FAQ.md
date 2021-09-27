@@ -37,4 +37,4 @@ To start osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the
 cd tools/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
-<meta name="pageTitleForMeta" value="Contributing FAQ">
+<meta name="pageTitleForMeta" value="Contribution FAQ">

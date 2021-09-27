@@ -29,7 +29,7 @@ module.exports.routes = {
   'GET /get-started': {
     action: 'view-get-started' ,
     locals:{
-      title: 'Get Started | Fleet for osquery',
+      title: 'Get started | Fleet for osquery',
       description: 'Learn about getting started with Fleet.'
     }
   },
