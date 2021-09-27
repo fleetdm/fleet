@@ -141,9 +141,9 @@
   
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
 
-      <div class="edit-button-container">
-        <div class="edit-button">
-          <a class="edit-link" :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath"><i class="edit-pencil fa fa-pencil"></i>Edit page</a>
+      <div purpose="edit-button-container">
+        <div purpose="edit-button">
+          <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath"><i class="fa fa-pencil"></i>Edit page</a>
         </div>
       </div>
   
