@@ -470,7 +470,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	}
 
 	// Retrieve the label queries that should be updated
-	if svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval) {
+	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, &host)
+	if svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval) {
 		labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host)
 		if err != nil {
 			return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
