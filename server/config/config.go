@@ -97,6 +97,7 @@ type OsqueryConfig struct {
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
+	EnableAsyncHostProcessing bool          `yaml:"enable_async_host_processing"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -312,6 +313,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
+	man.addConfigBool("osquery.enable_async_host_processing", false,
+		"Enable asynchronous processing of host-reported query results")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -459,6 +462,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
+<<<<<<< HEAD
 			NodeKeySize:          man.getConfigInt("osquery.node_key_size"),
 			HostIdentifier:       man.getConfigString("osquery.host_identifier"),
 			EnrollCooldown:       man.getConfigDuration("osquery.enroll_cooldown"),
@@ -471,6 +475,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
+			EnableAsyncHostProcessing: man.getConfigBool("osquery.enable_async_host_processing"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
