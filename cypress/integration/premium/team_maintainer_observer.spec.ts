@@ -34,12 +34,10 @@ describe(
 
       // Nav restrictions
       cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("not.exist");
+      cy.findByText(/schedule/i).should("exist");
       cy.visit("/settings/organization");
       cy.findByText(/you do not have permissions/i).should("exist");
       cy.visit("/packs/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/schedule/manage");
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // NOT see and select "add label"
@@ -120,7 +118,7 @@ describe(
       cy.get("nav").within(() => {
         cy.findByText(/hosts/i).should("exist");
         cy.findByText(/queries/i).should("exist");
-        cy.findByText(/schedule/i).should("not.exist");
+        cy.findByText(/schedule/i).should("exist");
         cy.findByText(/settings/i).should("not.exist");
       });
 
@@ -190,6 +188,15 @@ describe(
       //       // ^^TODO modify for expected host count once hosts are seeded
       //     });
       // });
+
+      // On the Schedule page, they should
+      // See Oranges (team they maintain) only, not able to reach packs, able to schedule a query
+      cy.visit("/schedule/manage");
+      cy.findByText(/oranges/i).click();
+      cy.findByText(/apples/i).should("not.exist");
+      cy.findByText(/advanced/i).should("not.exist");
+      cy.findByText(/schedule a query/i).click();
+      // TODO: Write e2e test for team maintainer to schedule a query
 
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section
