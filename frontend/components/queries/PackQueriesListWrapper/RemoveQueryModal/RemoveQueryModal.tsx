@@ -10,9 +10,10 @@ interface IRemoveQueryModalProps {
   onSubmit: () => void;
 }
 
-const RemoveQueryModal = (props: IRemoveQueryModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemoveQueryModal = ({
+  onCancel,
+  onSubmit,
+}: IRemoveQueryModalProps): JSX.Element => {
   return (
     <Modal title={"Remove query"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>

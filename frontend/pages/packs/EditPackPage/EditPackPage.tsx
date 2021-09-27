@@ -6,7 +6,6 @@ import { filter, includes } from "lodash";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
-// second grouping
 // @ts-ignore
 import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
@@ -86,9 +85,6 @@ const EditPacksPage = ({
     showPackQueryEditorModal,
     setShowPackQueryEditorModal,
   ] = useState<boolean>(false);
-  const [showEditPackQueryModal, setShowEditPackQueryModal] = useState<boolean>(
-    false
-  );
   const [
     showRemovePackQueryModal,
     setShowRemovePackQueryModal,
@@ -99,21 +95,23 @@ const EditPacksPage = ({
   >([]);
 
   const [storedPack, setStoredPack] = useState<IPack | undefined>();
-  const [isStoredPackLoading, setIsStoredPackLoading] = useState(true);
-  const [isStoredPackLoadingError, setIsStoredPackLoadingError] = useState(
-    false
-  );
+  const [isStoredPackLoading, setIsStoredPackLoading] = useState<boolean>(true);
+  const [
+    isStoredPackLoadingError,
+    setIsStoredPackLoadingError,
+  ] = useState<boolean>(false);
 
   const [storedPackQueries, setStoredPackQueries] = useState<
     IScheduledQuery[] | never[]
   >([]);
-  const [isStoredPackQueriesLoading, setIsStoredPackQueriesLoading] = useState(
-    true
-  );
+  const [
+    isStoredPackQueriesLoading,
+    setIsStoredPackQueriesLoading,
+  ] = useState<boolean>(true);
   const [
     isStoredPackQueriesLoadingError,
     setIsStoredPackQueriesLoadingError,
-  ] = useState(false);
+  ] = useState<boolean>(false);
 
   const getPack = useCallback(async () => {
     setIsStoredPackLoading(true);
@@ -151,7 +149,7 @@ const EditPacksPage = ({
     data: fleetQueries,
     error: fleetQueriesError,
   } = useQuery<IStoredFleetQueriesResponse, Error, IQuery[]>(
-    ["fleet queries"], // use single string or array of strings can be named anything
+    ["fleet queries"],
     () => queriesAPI.loadAll(),
     {
       select: (data: IStoredFleetQueriesResponse) => data.queries,
@@ -163,7 +161,7 @@ const EditPacksPage = ({
     data: labels,
     error: packLabelsError,
   } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
-    ["pack labels"], // use single string or array of strings can be named anything
+    ["pack labels"],
     () => labelsAPI.loadAll(),
     {
       select: (data: IStoredLabelsResponse) => data.labels,
@@ -181,7 +179,7 @@ const EditPacksPage = ({
     data: hosts,
     error: hostsError,
   } = useQuery<IStoredHostsResponse, Error, IHost[]>(
-    ["all hosts"], // use single string or array of strings can be named anything
+    ["all hosts"],
     () => hostsAPI.loadAll(undefined),
     {
       select: (data: IStoredHostsResponse) => data.hosts,
@@ -228,25 +226,21 @@ const EditPacksPage = ({
     return false;
   };
 
-  const togglePackQueryEditorModal = useCallback(() => {
+  const togglePackQueryEditorModal = () => {
     setSelectedPackQuery(undefined); // create modal renders
     setShowPackQueryEditorModal(!showPackQueryEditorModal);
-  }, [showPackQueryEditorModal, setShowPackQueryEditorModal]);
+  };
 
-  const toggleEditPackQueryModal = useCallback(() => {
-    setShowEditPackQueryModal(!showEditPackQueryModal);
-  }, [showEditPackQueryModal, setShowEditPackQueryModal]);
-
-  const toggleRemovePackQueryModal = useCallback(() => {
+  const toggleRemovePackQueryModal = () => {
     setShowRemovePackQueryModal(!showRemovePackQueryModal);
-  }, [showRemovePackQueryModal, setShowRemovePackQueryModal]);
+  };
 
-  const onEditPackQueryClick = (selectedQuery: any): void => {
+  const onEditPackQueryClick = (selectedQuery: IScheduledQuery): void => {
     togglePackQueryEditorModal();
     setSelectedPackQuery(selectedQuery); // edit modal renders
   };
 
-  const onRemovePackQueriesClick = (selectedTableQueryIds: any): void => {
+  const onRemovePackQueriesClick = (selectedTableQueryIds: number[]): void => {
     toggleRemovePackQueryModal();
     setSelectedPackQueryIds(selectedTableQueryIds);
   };
@@ -271,33 +265,30 @@ const EditPacksPage = ({
     [storedPack, packId]
   );
 
-  const onPackQueryEditorSubmit = useCallback(
-    (formData: IPackQueryFormData, editQuery: IScheduledQuery | undefined) => {
-      const request = editQuery
-        ? scheduledqueriesAPI.update(editQuery, formData)
-        : scheduledqueriesAPI.create(formData);
-      request
-        .then(() => {
-          dispatch(renderFlash("success", `Successfully updated this pack.`));
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              "Could not update this pack. Please try again."
-            )
-          );
-        })
-        .finally(() => {
-          togglePackQueryEditorModal();
-          getPackQueries();
-        });
-      return false;
-    },
-    [dispatch, getPackQueries, togglePackQueryEditorModal]
-  );
+  const onPackQueryEditorSubmit = (
+    formData: IPackQueryFormData,
+    editQuery: IScheduledQuery | undefined
+  ) => {
+    const request = editQuery
+      ? scheduledqueriesAPI.update(editQuery, formData)
+      : scheduledqueriesAPI.create(formData);
+    request
+      .then(() => {
+        dispatch(renderFlash("success", `Successfully updated this pack.`));
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", "Could not update this pack. Please try again.")
+        );
+      })
+      .finally(() => {
+        togglePackQueryEditorModal();
+        getPackQueries();
+      });
+    return false;
+  };
 
-  const onRemovePackQuerySubmit = useCallback(() => {
+  const onRemovePackQuerySubmit = () => {
     const queryOrQueries =
       selectedPackQueryIds.length === 1 ? "query" : "queries";
 
@@ -326,12 +317,7 @@ const EditPacksPage = ({
         toggleRemovePackQueryModal();
         getPackQueries();
       });
-  }, [
-    dispatch,
-    getPackQueries,
-    selectedPackQueryIds,
-    toggleRemovePackQueryModal,
-  ]);
+  };
 
   return (
     <div className={`${baseClass}__content`}>

@@ -3,6 +3,7 @@ import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
+import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import {
   DEFAULT_GRAVATAR_LINK,
@@ -196,10 +197,14 @@ export const frontendFormattedConfig = (config: any) => {
 };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const formatLabelResponse = (response: any): ILabel[] => {
 =======
 const formatLabelResponse = (response: any): any => {
 >>>>>>> eacfaf3d (Move pack queries before action buttons)
+=======
+const formatLabelResponse = (response: any): ILabel => {
+>>>>>>> 11868849 (CReview suggested changes)
   const labels = response.labels.map((label: any) => {
     return {
       ...label,

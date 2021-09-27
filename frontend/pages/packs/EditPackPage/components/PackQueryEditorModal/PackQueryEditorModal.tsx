@@ -1,14 +1,11 @@
 /* This component is used for creating and editing pack queries */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 // @ts-ignore
 import Fleet from "fleet";
 import { pull } from "lodash";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
@@ -16,7 +13,6 @@ import InputField from "components/forms/fields/InputField";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
-  FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -73,25 +69,11 @@ const PackQueryEditorModal = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);
 
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
-
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<string>(
-    editQuery ? editQuery.interval.toString() : ""
+    editQuery?.interval.toString() || ""
   );
   const [
     selectedPlatformOptions,
@@ -114,6 +96,20 @@ const PackQueryEditorModal = ({
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
 
+  useEffect((): void => {
+    const getConfigDestination = async (): Promise<void> => {
+      try {
+        const responseConfig = await Fleet.config.loadAll();
+        setIsLoading(false);
+        setLoggingConfig(responseConfig.logging.result.plugin);
+      } catch (err) {
+        setIsLoadingError(true);
+        setIsLoading(false);
+      }
+    };
+    getConfigDestination();
+  }, []);
+
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
       return {
@@ -124,62 +120,44 @@ const PackQueryEditorModal = ({
     return queryOptions;
   };
 
-  const onChangeSelectQuery = useCallback(
-    (queryId: string) => {
-      const queryWithId: IQuery | undefined = allQueries.find(
-        (query: IQuery) => query.id === parseInt(queryId, 10)
-      );
-      setSelectedQuery(queryWithId);
-    },
-    [allQueries, setSelectedQuery]
-  );
+  const onChangeSelectQuery = (queryId: string) => {
+    const queryWithId: IQuery | undefined = allQueries.find(
+      (query: IQuery) => query.id === parseInt(queryId, 10)
+    );
+    setSelectedQuery(queryWithId);
+  };
 
-  const onChangeFrequency = useCallback(
-    (value: string) => {
-      setSelectedFrequency(value);
-    },
-    [setSelectedFrequency]
-  );
+  const onChangeFrequency = (value: string) => {
+    setSelectedFrequency(value);
+  };
 
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
+  const onChangeSelectPlatformOptions = (values: string) => {
+    const valArray = values.split(",");
 
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        setSelectedPlatformOptions(pull(valArray, "").join(","));
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setSelectedPlatformOptions("");
-      } else {
-        setSelectedPlatformOptions(values);
-      }
-    },
-    [setSelectedPlatformOptions]
-  );
+    // Remove All if another OS is chosen
+    // else if Remove OS if All is chosen
+    if (valArray.indexOf("") === 0 && valArray.length > 1) {
+      setSelectedPlatformOptions(pull(valArray, "").join(","));
+    } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
+      setSelectedPlatformOptions("");
+    } else {
+      setSelectedPlatformOptions(values);
+    }
+  };
 
-  const onChangeSelectLoggingType = useCallback(
-    (value: string) => {
-      setSelectedLoggingType(value);
-      setSelectedRemoved(value === "differential");
-      setSelectedSnapshot(value === "snapshot");
-    },
-    [setSelectedLoggingType, setSelectedRemoved, setSelectedSnapshot]
-  );
+  const onChangeSelectLoggingType = (value: string) => {
+    setSelectedLoggingType(value);
+    setSelectedRemoved(value === "differential");
+    setSelectedSnapshot(value === "snapshot");
+  };
 
-  const onChangeMinOsqueryVersionOptions = useCallback(
-    (value: string) => {
-      setSelectedMinOsqueryVersionOptions(value);
-    },
-    [setSelectedMinOsqueryVersionOptions]
-  );
+  const onChangeMinOsqueryVersionOptions = (value: string) => {
+    setSelectedMinOsqueryVersionOptions(value);
+  };
 
-  const onChangeShard = useCallback(
-    (value: string) => {
-      setSelectedShard(value);
-    },
-    [setSelectedShard]
-  );
+  const onChangeShard = (value: string) => {
+    setSelectedShard(value);
+  };
 
   const onFormSubmit = () => {
     const query_id = () => {
