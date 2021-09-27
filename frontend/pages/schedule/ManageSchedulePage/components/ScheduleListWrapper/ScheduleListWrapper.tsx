@@ -33,6 +33,7 @@ interface IScheduleListWrapperProps {
   toggleScheduleEditorModal?: () => void;
   teamId: number;
   inheritedQueries?: boolean;
+  isTeamMaintainer: boolean;
 }
 interface IRootState {
   entities: {
@@ -55,6 +56,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onEditScheduledQueryClick,
     teamId,
     inheritedQueries,
+    isTeamMaintainer,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -80,13 +82,15 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
               >
                 Schedule a query
               </Button>
-              <Button
-                variant="inverse"
-                onClick={handleAdvanced}
-                className={`${baseClass}__advanced-button`}
-              >
-                Advanced
-              </Button>
+              {!isTeamMaintainer && (
+                <Button
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
+                >
+                  Advanced
+                </Button>
+              )}
             </div>
           </div>
         </div>
