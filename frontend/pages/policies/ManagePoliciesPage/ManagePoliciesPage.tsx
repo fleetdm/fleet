@@ -399,7 +399,9 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         </div>
         {!!selectedTeamId &&
           !!teamPolicies?.length &&
-          !!globalPolicies?.length && (
+          !!globalPolicies?.length &&
+          !isGlobalPoliciesError &&
+          !isTeamPoliciesError && (
             <span>
               <Button
                 variant="unstyled"
@@ -416,8 +418,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         {!!selectedTeamId &&
           !!teamPolicies?.length &&
           !!globalPolicies?.length &&
-          !!isGlobalPoliciesError &&
-          !!isTeamPoliciesError &&
+          !isGlobalPoliciesError &&
+          !isTeamPoliciesError &&
           showInheritedPolicies && (
             <div className={`${baseClass}__inherited-policies-table`}>
               <PoliciesListWrapper
