@@ -398,7 +398,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 
 	hosts := s.createHosts(t)
 
-	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
@@ -438,6 +438,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
 
 	req := deleteHostsRequest{
 		Filters: struct {
@@ -455,9 +456,31 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
 	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.Error(t, err)
+
+	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID, hosts[1].ID},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
-	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID, hosts[2].ID})
+	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
 	require.NoError(t, err)
 }
 
