@@ -134,7 +134,12 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	user := authz.UserFromContext(ctx)
+	q := &fleet.Query{}
+	if user != nil {
+		q.AuthorID = ptr.Uint(user.ID)
+	}
+	if err := svc.authz.Authorize(ctx, q, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -186,12 +191,18 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	// First make sure the user can read queries
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+
+	// Then we make sure they can modify them
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -234,7 +245,18 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 }
 
 func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	// First make sure the user can read queries
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	query, err := svc.ds.QueryByName(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	// Then we make sure they can modify them
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -251,13 +273,19 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 }
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	// First make sure the user can read queries
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "lookup query by ID")
+	}
+
+	// Then we make sure they can modify them
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+		return err
 	}
 
 	if err := svc.ds.DeleteQuery(ctx, query.Name); err != nil {
@@ -273,8 +301,21 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	// First make sure the user can read queries
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return 0, err
+	}
+
+	for _, id := range ids {
+		query, err := svc.ds.Query(ctx, id)
+		if err != nil {
+			return 0, errors.Wrap(err, "lookup query by ID")
+		}
+
+		// Then we make sure they can modify them
+		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
+			return 0, err
+		}
 	}
 
 	n, err := svc.ds.DeleteQueries(ctx, ids)
