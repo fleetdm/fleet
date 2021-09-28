@@ -91,6 +91,7 @@ type OsqueryConfig struct {
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
 	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
@@ -299,6 +300,8 @@ func (man Manager) addConfigs() {
 		"Log plugin to use for result logs")
 	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
 		"Interval to update host label membership (i.e. 1h)")
+	man.addConfigDuration("osquery.policy_update_interval", 1*time.Hour,
+		"Interval to update host policy membership (i.e. 1h)")
 	man.addConfigDuration("osquery.detail_update_interval", 1*time.Hour,
 		"Interval to update host details (i.e. 1h)")
 	man.addConfigString("osquery.status_log_file", "",
@@ -464,6 +467,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
 			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval: man.getConfigDuration("osquery.policy_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
@@ -752,6 +756,7 @@ func TestConfig() FleetConfig {
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
+			PolicyUpdateInterval: 1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
 			MaxJitterPercent:     0,
 		},

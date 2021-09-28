@@ -13,6 +13,7 @@
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
 - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
+- [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
@@ -123,6 +124,10 @@ You can accomplish this by adding specific labels as targets of your pack. First
 When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack.
 
 You can also do this by setting the `targets` field in the [YAML configuration file](./02-fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance.
+
+## How do I automatically assign a host to a team when it enrolls with Fleet?
+
+[Team Enroll Secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 

@@ -12,6 +12,8 @@
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
 - [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
+- [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
+- [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 
 ## How do I get support for working with Fleet?
 
@@ -104,3 +106,13 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 ## Is Fleet compatible with X flavor of MySQL?
 
 Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything below that.
+
+## What are the MySQL user requirements?
+
+The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
+
+## What is duplicate enrollment and how do I fix it?
+
+Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier (hardware UUID or osquery generated UUID). This can be caused by cloning a VM Image with an already enrolled
+osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
+[host identifiers here](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#osquery_host_identifier).

@@ -4,6 +4,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
+import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries"; // @ts-ignore
@@ -11,7 +12,6 @@ import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
-import { AppContext } from "context/app";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
@@ -44,35 +44,44 @@ const QueryPage = ({
   const { isGlobalAdmin, isGlobalMaintainer, isAnyTeamMaintainer } = useContext(
     AppContext
   );
-  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
-    QueryContext
-  );
+  const {
+    selectedOsqueryTable,
+    setSelectedOsqueryTable,
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryObserverCanRun,
+  } = useContext(QueryContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [
-    isEditorUsingDefaultQuery,
-    setIsEditorUsingDefaultQuery,
-  ] = useState<boolean>(true);
-  const [typedQueryBody, setTypedQueryBody] = useState<string>("");
-
-  const [
     showOpenSchemaActionText,
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
+  // disabled on page load so we can control the number of renders
+  // else it will re-populate the context on occasion
   const {
     isLoading: isStoredQueryLoading,
-    data: storedQuery = DEFAULT_QUERY,
+    data: storedQuery,
     error: storedQueryError,
+    refetch: refetchStoredQuery,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
     ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
     {
-      enabled: !!queryIdForEdit,
+      enabled: false,
+      refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
+      onSuccess: (returnedQuery) => {
+        setLastEditedQueryName(returnedQuery.name);
+        setLastEditedQueryDescription(returnedQuery.description);
+        setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+      },
     }
   );
 
@@ -108,6 +117,11 @@ const QueryPage = ({
     };
 
     detectIsFleetQueryRunnable();
+    !!queryIdForEdit && refetchStoredQuery();
+    setLastEditedQueryName(DEFAULT_QUERY.name);
+    setLastEditedQueryDescription(DEFAULT_QUERY.description);
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
+    setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
   }, []);
 
   useEffect(() => {
@@ -154,18 +168,13 @@ const QueryPage = ({
     const step1Opts = {
       router,
       baseClass,
-      storedQuery,
-      typedQueryBody,
       queryIdForEdit,
       showOpenSchemaActionText,
       isStoredQueryLoading,
-      error: storedQueryError,
-      isEditorUsingDefaultQuery,
-      setIsEditorUsingDefaultQuery,
+      storedQueryError,
       createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
-      setTypedQueryBody,
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
     };
@@ -180,9 +189,8 @@ const QueryPage = ({
     };
 
     const step3Opts = {
-      typedQueryBody,
-      storedQuery,
       selectedTargets,
+      storedQuery,
       queryIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),

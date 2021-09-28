@@ -521,6 +521,13 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
+export const humanTimeAgo = (dateSince: string): number => {
+  const now = moment();
+  const mDateSince = moment(dateSince);
+
+  return now.diff(mDateSince, "days");
+};
+
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const milliseconds = inMilliseconds(uptimeInNanoseconds);
 

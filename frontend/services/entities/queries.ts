@@ -60,7 +60,7 @@ export default {
       throw new Error("Could not run query.");
     }
   },
-  update: ({ id }: IQuery, updateParams: any) => {
+  update: (id: number, updateParams: any) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 

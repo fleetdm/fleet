@@ -217,17 +217,12 @@ func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 }
 
 func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
-	query := `
-		UPDATE labels SET
-			name = ?,
-			description = ?
-		WHERE id = ?
-	`
+	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := d.writer.ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving label")
 	}
-	return label, nil
+	return labelDB(ctx, label.ID, d.writer)
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -237,13 +232,20 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 // Label returns a fleet.Label identified by lid if one exists.
 func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+	return labelDB(ctx, lid, d.reader)
+}
+
+func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
 	sql := `
-		SELECT * FROM labels
-			WHERE id = ?
+		SELECT 
+		       l.*,
+		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
+		FROM labels l
+		WHERE id = ?
 	`
 	label := &fleet.Label{}
 
-	if err := sqlx.GetContext(ctx, d.reader, label, sql, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
 		return nil, errors.Wrap(err, "selecting label")
 	}
 
