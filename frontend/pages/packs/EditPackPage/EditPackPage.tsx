@@ -235,26 +235,24 @@ const EditPacksPage = ({
     setSelectedPackQueryIds(selectedTableQueryIds);
   };
 
-  const handlePackFormSubmit = useCallback(
-    (formData: any) => {
-      const updatedPack = deepDifference(formData, storedPack);
-      console.log("handlePackFormSubmit formData", formData);
-      console.log("handlePackFormSubmit storedPack", storedPack);
-      console.log("handlePackFormSubmit updatedPack", updatedPack);
-      debugger;
-      packsAPI
-        .update(packId, updatedPack)
-        .then(() => {
-          dispatch(renderFlash("success", `Successfully updated this pack.`));
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", `Could not update pack. Please try again.`)
-          );
-        });
-    },
-    [storedPack, packId]
-  );
+  const handlePackFormSubmit = (formData: any) => {
+    const updatedPack = deepDifference(formData, storedPack);
+    console.log("handlePackFormSubmit formData", formData);
+    console.log("handlePackFormSubmit storedPack", storedPack);
+    console.log("handlePackFormSubmit updatedPack", updatedPack);
+
+    packsAPI
+      .update(packId, updatedPack)
+      .then(() => {
+        dispatch(renderFlash("success", `Successfully updated this pack.`));
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash("error", `Could not update pack. Please try again.`)
+        );
+      });
+    debugger;
+  };
 
   const onPackQueryEditorSubmit = (
     formData: IPackQueryFormData,
