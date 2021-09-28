@@ -421,7 +421,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
-	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
 	require.NoError(t, err)
 }
 
@@ -458,7 +458,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.Error(t, err)
 
-	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
 	require.NoError(t, err)
 }
 
@@ -480,7 +480,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
-	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
 	require.NoError(t, err)
 }
 

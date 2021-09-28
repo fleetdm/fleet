@@ -199,7 +199,7 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
 
-	DeleteHosts(ctx context.Context, ids []uint) ([]uint, error)
+	DeleteHosts(ctx context.Context, ids []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

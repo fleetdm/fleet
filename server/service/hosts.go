@@ -21,8 +21,7 @@ type deleteHostsRequest struct {
 }
 
 type deleteHostsResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r deleteHostsResponse) error() error { return r.Err }
@@ -36,16 +35,16 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		StatusFilter: req.Filters.Status,
 		TeamFilter:   req.Filters.TeamID,
 	}
-	resp, err := svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
+	err := svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
 	if err != nil {
 		return deleteHostsResponse{Err: err}, nil
 	}
-	return deleteHostsResponse{Deleted: resp}, nil
+	return deleteHostsResponse{}, nil
 }
 
-func (svc Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) ([]uint, error) {
+func (svc Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(ids) > 0 {
@@ -54,11 +53,11 @@ func (svc Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostL
 
 	hostIDs, err := svc.hostIDsFromFilters(ctx, opts, lid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(hostIDs) == 0 {
-		return nil, nil
+		return nil
 	}
 	return svc.ds.DeleteHosts(ctx, hostIDs)
 }

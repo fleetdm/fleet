@@ -161,7 +161,7 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
-type DeleteHostsFunc func(ctx context.Context, ids []uint) ([]uint, error)
+type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -1093,7 +1093,7 @@ func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
 
-func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) ([]uint, error) {
+func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
 	s.DeleteHostsFuncInvoked = true
 	return s.DeleteHostsFunc(ctx, ids)
 }
