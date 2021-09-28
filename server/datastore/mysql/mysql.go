@@ -94,6 +94,20 @@ func retryableError(err error) bool {
 	return false
 }
 
+// TODO: The Adhoc family of functions allow packages outside mysql to run
+// adhoc SQL statements, as a sort of escape hatch to the method-oriented
+// Datastore interface. TBD if this should remain in place, as it breaks the
+// isolation of SQL statements inside that package only, although it makes it
+// easy to find where outsiders are in the codebase (and could probably even be
+// enforced so that only certain allowed packages could make those calls). For
+// now, this is used for the asynchronous processing of hosts, as the exact SQL
+// boundaries are not clear and will likely be a moving target for a while, as
+// we test for performance to find the best batching strategy.
+
+func (d *Datastore) AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error {
+	return d.withRetryTxx(ctx, fn)
+}
+
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {

@@ -201,3 +201,30 @@ func isClusterDisabled(err error) bool {
 func isClusterCommandUnknown(err error) bool {
 	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`")
 }
+
+func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error) {
+	var keys []string
+
+	err := EachRedisNode(pool, func(conn redis.Conn) error {
+		cursor := 0
+		for {
+			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern, "COUNT", count))
+			if err != nil {
+				return errors.Wrap(err, "scan keys")
+			}
+			var curKeys []string
+			_, err = redis.Scan(res, &cursor, &curKeys)
+			if err != nil {
+				return errors.Wrap(err, "convert scan results")
+			}
+			keys = append(keys, curKeys...)
+			if cursor == 0 {
+				return nil
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}

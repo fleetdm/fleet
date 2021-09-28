@@ -95,7 +95,7 @@ func extractTargetKeyName(key string) string {
 // should be called at startup and never after that, so for this reason it is
 // not added to the fleet.LiveQueryStore interface.
 func (r *redisLiveQuery) MigrateKeys() error {
-	qkeys, err := scanKeys(r.pool, queryKeyPrefix+"*")
+	qkeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	queryKeys, err := scanKeys(r.pool, queryKeyPrefix+"*")
+	queryKeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
 	if err != nil {
 		return nil, errors.Wrap(err, "scan active queries")
 	}
@@ -313,31 +313,4 @@ func mapBitfield(hostIDs []uint) []byte {
 	}
 
 	return field
-}
-
-func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
-	var keys []string
-
-	err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
-		cursor := 0
-		for {
-			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern))
-			if err != nil {
-				return errors.Wrap(err, "scan keys")
-			}
-			var curKeys []string
-			_, err = redigo.Scan(res, &cursor, &curKeys)
-			if err != nil {
-				return errors.Wrap(err, "convert scan results")
-			}
-			keys = append(keys, curKeys...)
-			if cursor == 0 {
-				return nil
-			}
-		}
-	})
-	if err != nil {
-		return nil, err
-	}
-	return keys, nil
 }

@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type CarveStore interface {
@@ -375,6 +377,9 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+
+	// Adhoc methods allow running adhoc statements using the datastore.
+	AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error
 }
 
 type MigrationStatus int

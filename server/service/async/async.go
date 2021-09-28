@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	labelMembershipHostKey     = "label_membership:{%d}"
-	labelMembershipReportedKey = "label_membership_reported:{%d}"
-	collectorLockKey           = "locks:async_collector:{%s}"
+	labelMembershipHostKeyPattern = "label_membership:{*}"
+	labelMembershipHostKey        = "label_membership:{%d}"
+	labelMembershipReportedKey    = "label_membership_reported:{%d}"
+	collectorLockKey              = "locks:async_collector:{%s}"
 )
 
 type Task struct {
@@ -22,7 +23,7 @@ type Task struct {
 	Pool      fleet.RedisPool
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
-	AsyncEnabled bool // TODO: should this be read in a different way, more dynamically, if config changes while fleet is running?
+	AsyncEnabled bool // TODO: should this be read in a different way, more dynamically, if config changes while fleet is running? Or does that require a restart?
 }
 
 func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
@@ -60,6 +61,18 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 		return err
 	}
 	return nil
+}
+
+func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stats *collectorExecStats) error {
+	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, 1000)
+	if err != nil {
+		return err
+	}
+	stats.Keys = len(keys)
+
+	//for _, key := range keys {
+	//}
+	panic("unimplemented")
 }
 
 func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
