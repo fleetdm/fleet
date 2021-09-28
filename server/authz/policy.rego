@@ -346,6 +346,7 @@ allow {
   action == [read, write][_]
 }
 allow {
+  object.team_ids[_] == subject.teams[_].id
   object.type == "pack"
   team_role(subject, subject.teams[_].id) == maintainer
   action == [read, write][_]
@@ -396,6 +397,7 @@ allow {
 # Team Maintainers can read and write policies
 allow {
   not is_null(object.team_id)
+  object.team_id == subject.teams[_].id
   object.type == "policy"
   team_role(subject, subject.teams[_].id) == maintainer
   action == [read, write][_]
@@ -404,6 +406,7 @@ allow {
 # Team Observer can read policies
 allow {
   not is_null(object.team_id)
+  object.team_id == subject.teams[_].id
   object.type == "policy"
   team_role(subject, subject.teams[_].id) == observer
   action == [read][_]
