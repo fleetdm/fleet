@@ -489,7 +489,7 @@ const HostDetailsPage = ({
                   {users.map((hostUser) => {
                     return (
                       <HostUsersListRow
-                        key={`host-users-row-${hostUser.id}`}
+                        key={`host-users-row-${hostUser.username}`}
                         hostUser={hostUser}
                       />
                     );
