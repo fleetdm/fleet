@@ -135,6 +135,24 @@ go tool cover -func=./server/server.cover
 
 E2E tests are run using Docker and Cypress.
 
+E2E tests are constantly evolving and running them or examining CI results is the best way to understand what they cover, but at a high level they cover:
+1. Setup
+1. Login/out flows
+1. Host page
+    add hosts
+    label flows
+1. Queries flows
+1. Schedule flows
+    scheduling
+    packs
+1. Permissions
+    Admin
+    Observer (global and team)
+    Maintainer
+1. Organizational Settings
+    Settings adjustments
+    Users
+
 #### Preparation
 
 Make sure dependencies are up to date and the [Fleet binaries are built locally](./01-Building-Fleet.md).
