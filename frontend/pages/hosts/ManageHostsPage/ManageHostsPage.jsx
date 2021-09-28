@@ -29,6 +29,7 @@ import { QueryContext } from "context/query";
 
 import hostAPI from "services/entities/hosts";
 import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 
 import permissionUtils from "utilities/permissions";
 import sortUtils from "utilities/sort";
@@ -194,12 +195,14 @@ export class ManageHostsPage extends PureComponent {
   }
 
   componentDidMount() {
-    const { dispatch, policyId } = this.props;
+    const { dispatch, policyId, selectedTeam } = this.props;
     dispatch(getLabels());
 
     if (policyId) {
-      globalPoliciesAPI
-        .load(policyId)
+      const request = selectedTeam
+        ? teamPoliciesAPI.load(selectedTeam, policyId)
+        : globalPoliciesAPI.load(policyId);
+      request
         .then((response) => {
           const { query_name: policyName } = response.policy;
           this.setState({ policyName });
@@ -824,13 +827,19 @@ export class ManageHostsPage extends PureComponent {
     };
     retrieveHosts(hostsOptions);
 
+    const newUrlQueryParams = omit(queryParams, [
+      "policy_id",
+      "policy_response",
+      "team_id",
+    ]);
+
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
       routeTemplate,
       routeParams,
       queryParams: !teamIdParam
-        ? omit(queryParams, "team_id")
-        : Object.assign({}, queryParams, { team_id: teamIdParam }),
+        ? newUrlQueryParams
+        : Object.assign({}, newUrlQueryParams, { team_id: teamIdParam }),
     });
     dispatch(replace(nextLocation));
   };
