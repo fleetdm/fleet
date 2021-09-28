@@ -40,13 +40,13 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 
 	// convert results to ZADD arguments, store as -1 for delete, +1 for insert
 	args := make(redigo.Args, 0, 3+(len(results)*2))
-	args = append(args, keySet, keyTs, ts.Unix())
+	args = args.Add(keySet, keyTs, ts.Unix())
 	for k, v := range results {
 		score := -1
 		if v != nil && *v {
 			score = 1
 		}
-		args = append(args, score, k)
+		args = args.Add(score, k)
 	}
 
 	conn := t.Pool.Get()
