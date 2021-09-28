@@ -255,6 +255,22 @@ allow {
   action == write
 }
 
+# Team maintainers can create new queries
+allow {
+  object.id == 0 # new queries have ID zero
+  object.type == "query"
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == write
+}
+
+# Team maintainers can edit and delete only their own queries
+allow {
+  object.author_id == subject.id
+  object.type == "query"
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == write
+}
+
 # Global admins and (team) maintainers can run any
 allow {
   object.type == "query"
