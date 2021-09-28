@@ -15,7 +15,7 @@ import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
 
-interface ITableQueryData {
+export interface ITableSearchData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
@@ -35,7 +35,7 @@ interface ITableContainerProps {
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?: (queryData: ITableSearchData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -142,7 +142,7 @@ const TableContainer = ({
   const prevSearchQueryRef = useRef(searchQuery);
   const prevSearchQuery = prevSearchQueryRef.current;
   const debounceOnQueryChange = useAsyncDebounce(
-    (queryData: ITableQueryData) => {
+    (queryData: ITableSearchData) => {
       onQueryChange && onQueryChange(queryData);
     },
     DEBOUNCE_QUERY_DELAY
