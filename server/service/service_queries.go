@@ -186,12 +186,18 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionWrite); err != nil {
+	// First make sure the user can read queries
+	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+
+	// Then we make sure they can modify them
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
