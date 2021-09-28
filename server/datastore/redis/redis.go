@@ -109,6 +109,18 @@ func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 	return fn(conn)
 }
 
+// BindConn binds the connection to the redis node that serves those keys.
+// In a Redis Cluster setup, all keys must hash to the same slot, otherwise
+// an error is returned. In a Redis Standalone setup, it is a no-op and never
+// fails. On successful return, the connection is ready to be used with those
+// keys.
+func BindConn(pool fleet.RedisPool, conn redis.Conn, keys ...string) error {
+	if _, isCluster := pool.(*clusterPool); isCluster {
+		return redisc.BindConn(conn, keys...)
+	}
+	return nil
+}
+
 func newCluster(config PoolConfig) *redisc.Cluster {
 	opts := []redis.DialOption{
 		redis.DialDatabase(config.Database),

@@ -213,6 +213,46 @@ func TestEachRedisNode(t *testing.T) {
 	})
 }
 
+func TestBindConn(t *testing.T) {
+	const prefix = "TestBindConn:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := setupRedisForTest(t, false, false)
+
+		conn := pool.Get()
+		defer conn.Close()
+
+		err := BindConn(pool, conn, prefix+"a", prefix+"b", prefix+"c")
+		require.NoError(t, err)
+		_, err = redis.String(conn.Do("GET", prefix+"a"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(conn.Do("GET", prefix+"b"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(conn.Do("GET", prefix+"c"))
+		require.Equal(t, redis.ErrNil, err)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := setupRedisForTest(t, true, false)
+
+		conn := pool.Get()
+		defer conn.Close()
+
+		err := BindConn(pool, conn, prefix+"a", prefix+"b", prefix+"c")
+		require.Error(t, err)
+
+		err = BindConn(pool, conn, prefix+"{z}a", prefix+"{z}b", prefix+"{z}c")
+		require.NoError(t, err)
+
+		_, err = redis.String(conn.Do("GET", prefix+"{z}a"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(conn.Do("GET", prefix+"{z}b"))
+		require.Equal(t, redis.ErrNil, err)
+		_, err = redis.String(conn.Do("GET", prefix+"{z}c"))
+		require.Equal(t, redis.ErrNil, err)
+	})
+}
+
 func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool) {
 	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)

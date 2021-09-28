@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -28,18 +30,34 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts)
 	}
 
-	conn := t.Pool.ConfigureDoer(t.Pool.Get())
-	defer conn.Close()
-
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
 	keyTs := fmt.Sprintf(labelMembershipReportedKey, host.ID)
-	// TODO: prepare results, store as -1 for delete, +1 for insert
-	if _, err := conn.Do("ZADD", keySet); err != nil {
+
+	script := redigo.NewScript(2, `
+    redis.call('ZADD', KEYS[1], unpack(ARGV, 2))
+    return redis.call('SET', KEYS[2], ARGV[1])
+  `)
+
+	// convert results to ZADD arguments, store as -1 for delete, +1 for insert
+	args := make(redigo.Args, 0, 3+(len(results)*2))
+	args = append(args, keySet, keyTs, ts.Unix())
+	for k, v := range results {
+		score := -1
+		if v != nil && *v {
+			score = 1
+		}
+		args = append(args, score, k)
+	}
+
+	conn := t.Pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(t.Pool, conn, keySet, keyTs); err != nil {
+		return errors.Wrap(err, "bind redis connection")
+	}
+
+	if _, err := script.Do(conn, args...); err != nil {
 		return err
 	}
-	// ignore error if only the timestamp setting fails
-	// TODO: could be improved by using a Lua script, atomically run both commands
-	_, _ = conn.Do("SET", keyTs, ts.Unix())
 	return nil
 }
 
@@ -49,7 +67,7 @@ func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) tim
 		defer conn.Close()
 
 		key := fmt.Sprintf(labelMembershipReportedKey, host.ID)
-		epoch, err := redis.Int64(conn.Do("GET", key))
+		epoch, err := redigo.Int64(conn.Do("GET", key))
 		if err == nil {
 			return time.Unix(epoch, 0)
 		}
