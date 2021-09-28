@@ -161,6 +161,8 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
+type DeleteHostsFunc func(ctx context.Context, ids []uint) ([]uint, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -516,6 +518,9 @@ type DataStore struct {
 
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
+
+	DeleteHostsFunc        DeleteHostsFunc
+	DeleteHostsFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1086,6 +1091,11 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
+}
+
+func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) ([]uint, error) {
+	s.DeleteHostsFuncInvoked = true
+	return s.DeleteHostsFunc(ctx, ids)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

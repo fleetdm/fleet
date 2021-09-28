@@ -392,3 +392,91 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
 }
+
+func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+
+	req := deleteHostsRequest{
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{TeamID: ptr.Uint(team1.ID)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.NoError(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.NoError(t, err)
+
+	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	label := &fleet.Label{
+		Name:  "foo",
+		Query: "select * from foo;",
+	}
+	label, err := s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
+	req := deleteHostsRequest{
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{LabelID: ptr.Uint(label.ID)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	require.NoError(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.NoError(t, err)
+
+	_, err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID, hosts[2].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
+	var hosts []*fleet.Host
+
+	for i := 0; i < 3; i++ {
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+	return hosts
+}

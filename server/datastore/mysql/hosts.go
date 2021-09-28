@@ -910,3 +910,11 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 
 	return totalCount, unseenCount, nil
 }
+
+func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) ([]uint, error) {
+	_, err := d.deleteEntities(ctx, hostsTable, ids)
+	if err != nil {
+		return nil, errors.Wrap(err, "deleting hosts")
+	}
+	return ids, nil
+}
