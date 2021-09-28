@@ -47,6 +47,7 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -247,6 +248,7 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 			NodeKey:         strconv.Itoa(hostCount),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 		})
 		require.Nil(t, err)
@@ -325,6 +327,7 @@ func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,

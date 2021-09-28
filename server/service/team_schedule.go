@@ -36,10 +36,7 @@ func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -102,10 +99,7 @@ func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -115,7 +109,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, q *fleet.
 	}
 	q.PackID = gp.ID
 
-	return svc.ScheduleQuery(ctx, q)
+	return svc.unauthorizedScheduleQuery(ctx, q)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -146,10 +140,7 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -160,7 +151,7 @@ func (svc Service) ModifyTeamScheduledQueries(ctx context.Context, teamID uint, 
 
 	query.PackID = ptr.Uint(gp.ID)
 
-	return svc.ModifyScheduledQuery(ctx, scheduledQueryID, query)
+	return svc.unauthorizedModifyScheduledQuery(ctx, scheduledQueryID, query)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -189,11 +180,8 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{TeamIDs: []uint{teamID}}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
-		return err
-	}
-	return svc.DeleteScheduledQuery(ctx, scheduledQueryID)
+	return svc.ds.DeleteScheduledQuery(ctx, scheduledQueryID)
 }
