@@ -1,5 +1,4 @@
 import React, { useState, useRef, useContext, useEffect } from "react";
-import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 import { IAceEditor } from "react-ace/lib/types";
 import { size } from "lodash";
 
@@ -301,26 +300,27 @@ const QueryForm = ({
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
-          <ContentEditable
+          <input
+            type="text"
+            name={nameText}
+            id={nameText}
+            onChange={(evt: any) => name?.onChange(evt.target.value)}
             className={`${baseClass}__query-name`}
-            innerRef={nameEditable}
-            html={nameText || ""}
-            tagName="h1"
-            onChange={(evt: ContentEditableEvent) =>
-              name?.onChange(evt.target.value)
-            }
+            placeholder={nameText}
+            value={nameText}
           />
         ) : (
           <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
         )}
         {isEditMode && (
-          <ContentEditable
+          <input
+            type="text"
+            name={descText}
+            id={descText}
+            onChange={(evt: any) => description?.onChange(evt.target.value)}
             className={`${baseClass}__query-description`}
-            innerRef={descriptionEditable}
-            html={descText || "Add description here."}
-            onChange={(evt: ContentEditableEvent) =>
-              description?.onChange(evt.target.value)
-            }
+            placeholder={descText || "Add description here."}
+            value={descText}
           />
         )}
         {baseError && <div className="form__base-error">{baseError}</div>}
