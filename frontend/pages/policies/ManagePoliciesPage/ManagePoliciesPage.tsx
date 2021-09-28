@@ -246,24 +246,32 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     }
   }, [currentUser, isOnGlobalTeam, isPremiumTier, teams]);
 
-  // Parse url query param and set as selectedTeamId.
+  // Watch the location url and parse team param to set selectedTeamId.
   // Note 0 is used as the id for the "All teams" option.
   // Null case is used to represent no valid id has been selected.
   useEffect(() => {
     let teamId: number | null = parseInt(location?.query?.team_id, 10) || 0;
 
-    // If the team id does not match one in the user teams list, set a default value.
+    // If the team id does not match one in the user teams list,
+    // we use a default value and change call change handler
+    // to update url params with the default value.
+    // We return early to guard against potential invariant condition.
     if (userTeams && !userTeams.find((t) => t.id === teamId)) {
       if (isOnGlobalTeam) {
         // For global users, default to zero (i.e. all teams).
-        teamId !== 0 && handleChangeSelectedTeam(0);
-        teamId = 0;
+        if (teamId !== 0) {
+          handleChangeSelectedTeam(0);
+          return;
+        }
       } else {
         // For non-global users, default to the first team in the list.
         // If there is no default team, set teamId to null so that getPolicies
         // API request will not be triggered.
         teamId = userTeams[0]?.id || null;
-        teamId && handleChangeSelectedTeam(teamId);
+        if (teamId) {
+          handleChangeSelectedTeam(teamId);
+          return;
+        }
       }
     }
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
