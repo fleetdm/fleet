@@ -74,6 +74,7 @@ const QueryPage = ({
     () => queryAPI.load(queryIdForEdit as number),
     {
       enabled: false,
+      refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryName(returnedQuery.name);
