@@ -34,11 +34,14 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 
 func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
 	ctx := context.Background()
-	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
-	}
 	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:             1,
+		Platform:       "linux",
+		LabelUpdatedAt: lastYear,
+	}
+
 	var yes, no = true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
@@ -48,6 +51,10 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 		Pool:         pool,
 		AsyncEnabled: false,
 	}
+
+	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
+	require.True(t, labelReportedAt.Equal(lastYear))
+
 	err := task.RecordLabelQueryExecutions(ctx, host, results, now)
 	require.NoError(t, err)
 	require.True(t, ds.RecordLabelQueryExecutionsFuncInvoked)
@@ -64,15 +71,20 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	n, err = redigo.Int(conn.Do("EXISTS", keyTs))
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
+
+	labelReportedAt = task.GetHostLabelReportedAt(ctx, host)
+	require.True(t, labelReportedAt.Equal(now))
 }
 
 func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
 	ctx := context.Background()
-	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
-	}
 	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:             1,
+		Platform:       "linux",
+		LabelUpdatedAt: lastYear,
+	}
 	var yes, no = true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
@@ -82,6 +94,10 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 		Pool:         pool,
 		AsyncEnabled: true,
 	}
+
+	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
+	require.True(t, labelReportedAt.Equal(lastYear))
+
 	err := task.RecordLabelQueryExecutions(ctx, host, results, now)
 	require.NoError(t, err)
 	require.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
@@ -99,4 +115,11 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	ts, err := redigo.Int64(conn.Do("GET", keyTs))
 	require.NoError(t, err)
 	require.Equal(t, now.Unix(), ts)
+
+	labelReportedAt = task.GetHostLabelReportedAt(ctx, host)
+	// because we transition via unix epoch (seconds), not exactly equal
+	require.WithinDuration(t, now, labelReportedAt, time.Second)
+	// host's LabelUpdatedAt field hasn't been updated yet, because the label
+	// results are in redis, not in mysql yet.
+	require.True(t, host.LabelUpdatedAt.Equal(lastYear))
 }
