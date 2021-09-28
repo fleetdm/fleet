@@ -109,7 +109,7 @@ module.exports = {
 
         let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
           'docs/':     { urlPrefix: '/docs', },
-          // 'handbook/': { urlPrefix: '/handbook', }, // TODO: Bring this back when styles are complete (removed from build in the meantime so that sitemap.xml is not incorrect)
+          'handbook/': { urlPrefix: '/handbook', }
         };
         let rootRelativeUrlPathsSeen = [];
         for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
@@ -212,10 +212,14 @@ module.exports = {
                 // -mikermcneil 2021-07-27
                 // ```
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
+                let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
+                if(possibleReferencedUrlHash) {
+                  referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);
+                }
                 // console.log(pageRelSourcePath, '»»  '+hrefString+' »»»»    href="'+referencedPageNewUrl+'"');
                 // ```
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
