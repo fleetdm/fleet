@@ -68,6 +68,13 @@ export interface IFormData {
   invited_by?: number;
 }
 
+interface IUserFormErrors {
+  email: string | null;
+  name: string | null;
+  password: string | null;
+  sso_enabled: boolean | null;
+}
+
 interface ICreateUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
@@ -83,16 +90,11 @@ interface ICreateUserFormProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
-  validationErrors: any[]; // TODO: proper interface for validationErrors
+  serverErrors?: IUserFormErrors; // "server" because this form does its own client validation
 }
 
 interface ICreateUserFormState {
-  errors: {
-    email: string | null;
-    name: string | null;
-    password: string | null;
-    sso_enabled: boolean | null;
-  };
+  errors: IUserFormErrors;
   formData: IFormData;
   isGlobalUser: boolean;
 }
@@ -394,6 +396,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       smtpConfigured,
       canUseSso,
       isNewUser,
+      serverErrors,
     } = this.props;
     const {
       onFormSubmit,
@@ -430,7 +433,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           data-tip-disable={isNewUser || smtpConfigured}
         >
           <InputFieldWithIcon
-            error={errors.email}
+            error={errors.email || serverErrors?.email}
             name="email"
             onChange={onInputChange("email")}
             placeholder="Email"
