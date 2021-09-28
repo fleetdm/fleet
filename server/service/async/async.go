@@ -14,6 +14,7 @@ import (
 const (
 	labelMembershipHostKey     = "label_membership:{%d}"
 	labelMembershipReportedKey = "label_membership_reported:{%d}"
+	collectorLockKey           = "locks:async_collector:{%s}"
 )
 
 type Task struct {
