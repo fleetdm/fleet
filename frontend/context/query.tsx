@@ -56,7 +56,9 @@ const reducer = (state: any, action: any) => {
         lastEditedQueryDescription:
           action.lastEditedQueryDescription || state.lastEditedQueryDescription,
         lastEditedQueryBody:
-          action.lastEditedQueryBody || state.lastEditedQueryBody,
+          typeof action.lastEditedQueryBody === "undefined"
+            ? state.lastEditedQueryBody
+            : action.lastEditedQueryBody,
         lastEditedQueryObserverCanRun:
           typeof action.lastEditedQueryObserverCanRun === "undefined"
             ? state.lastEditedQueryObserverCanRun
