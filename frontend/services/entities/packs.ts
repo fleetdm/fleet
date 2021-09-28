@@ -58,10 +58,13 @@ export default {
     if (targets) {
       packTargets = helpers.formatSelectedTargetsForApi(targets, true);
     }
-    debugger;
 
     const packWithoutTargets = omit(updatedPack, "targets");
     const packParams = { ...packWithoutTargets, ...packTargets };
+    console.log("packWithoutTargets", packWithoutTargets);
+    console.log("packParams", packParams);
+    console.log("path", path);
+    debugger;
 
     return sendRequest("PATCH", path, packParams);
   },

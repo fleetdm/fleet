@@ -202,6 +202,7 @@ export const frontendFormattedConfig = (config: any) => {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 const formatLabelResponse = (response: any): ILabel[] => {
 =======
 const formatLabelResponse = (response: any): any => {
@@ -209,11 +210,15 @@ const formatLabelResponse = (response: any): any => {
 =======
 const formatLabelResponse = (response: any): ILabel => {
 >>>>>>> 11868849 (CReview suggested changes)
+=======
+const formatLabelResponse = (response: any): ILabel[] => {
+>>>>>>> 3e83977a (Sending target_type to API)
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
       type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      target_type: "labels",
     };
   });
 
@@ -227,13 +232,9 @@ export const formatSelectedTargetsForApi = (
   console.log("formatSelectedTargetsForAPI selectedTargets", selectedTargets);
 
   const targets = selectedTargets || [];
-  // const hosts = flatMap(targets, filterTarget("hosts"));
-  // const labels = flatMap(targets, filterTarget("labels"));
-  // const teams = flatMap(targets, filterTarget("teams"));
-
-  const hosts = targets.hosts;
-  const labels = targets.labels;
-  const teams = targets.teams;
+  const hosts = flatMap(targets, filterTarget("hosts"));
+  const labels = flatMap(targets, filterTarget("labels"));
+  const teams = flatMap(targets, filterTarget("teams"));
 
   if (appendID) {
     console.log("formatSelectedTargetsForAPI", {

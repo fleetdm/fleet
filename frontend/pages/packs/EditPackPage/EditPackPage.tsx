@@ -241,6 +241,7 @@ const EditPacksPage = ({
       console.log("handlePackFormSubmit formData", formData);
       console.log("handlePackFormSubmit storedPack", storedPack);
       console.log("handlePackFormSubmit updatedPack", updatedPack);
+      debugger;
       packsAPI
         .update(packId, updatedPack)
         .then(() => {
