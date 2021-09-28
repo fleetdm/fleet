@@ -334,7 +334,7 @@ allow {
 # Packs
 ##
 
-# Only global admins and maintainers can read/write packs
+# Global admins and maintainers and team maintainers can read/write packs
 allow {
   object.type == "pack"
   subject.global_role == admin
@@ -343,6 +343,11 @@ allow {
 allow {
   object.type == "pack"
   subject.global_role == maintainer
+  action == [read, write][_]
+}
+allow {
+  object.type == "pack"
+  team_role(subject, subject.teams[_].id) == maintainer
   action == [read, write][_]
 }
 
