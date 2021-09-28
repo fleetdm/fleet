@@ -69,6 +69,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
     enabled: !!isPremiumTier,
     select: (data) => data.teams,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const { data: fleetQueries } = useQuery(
@@ -76,6 +78,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     () => fleetQueriesAPI.loadAll(),
     {
       select: (data) => data.queries,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -234,11 +238,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         unsortedTeams = currentUser.teams;
       }
       if (unsortedTeams !== null) {
-        setUserTeams(
-          unsortedTeams.sort(
-            (a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name) // TODO: confirm that sortUtils refactor in #2105 has been merged first
-          )
+        const sortedTeams = unsortedTeams.sort(
+          (a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name) // TODO: confirm that sortUtils refactor in #2105 has been merged first
         );
+        setUserTeams(sortedTeams);
       }
     }
   }, [currentUser, isOnGlobalTeam, isPremiumTier, teams]);
@@ -413,6 +416,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         {!!selectedTeamId &&
           !!teamPolicies?.length &&
           !!globalPolicies?.length &&
+          !!isGlobalPoliciesError &&
           showInheritedPolicies && (
             <div className={`${baseClass}__inherited-policies-table`}>
               <PoliciesListWrapper
