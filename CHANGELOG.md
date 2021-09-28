@@ -1,3 +1,21 @@
+## Fleet 4.3.2 (Sept 29, 2021)
+
+* Improve database performance on agent checkins.
+
+* Fix update handling for Policies (adds `--osquery_policy_update_interval` flag).
+
+* Fix returned label count after modifying a label name.
+
+* Fix text deletion and replacement in SQL editor.
+
+* Fix inconsistencies with form states in query flow.
+
+* Fix create team modal to submit with Enter key.
+
+* Improve error handling for create and edit user form.
+
+* Fix bug preventing global maintainers from saving and editing queries.
+
 ## Fleet 4.3.1 (Sept 21, 2021)
 
 * Add `fleetctl get software` command to list all software and the detected vulnerabilities. The Vulnerable software feature is currently in Beta. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
