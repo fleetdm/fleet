@@ -3,7 +3,6 @@ package redis
 import (
 	"fmt"
 	"io"
-	"runtime"
 	"testing"
 	"time"
 
@@ -120,7 +119,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	const prefix = "TestRedisPoolConfigureDoer:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := setupRedisForTest(t, false, false)
+		pool := SetupRedis(t, false, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -141,7 +140,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := setupRedisForTest(t, true, true)
+		pool := SetupRedis(t, true, true)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -203,12 +202,12 @@ func TestEachRedisNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := setupRedisForTest(t, false, false)
+		pool := SetupRedis(t, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := setupRedisForTest(t, true, false)
+		pool := SetupRedis(t, true, false)
 		runTest(t, pool)
 	})
 }
@@ -217,7 +216,7 @@ func TestBindConn(t *testing.T) {
 	const prefix = "TestBindConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := setupRedisForTest(t, false, false)
+		pool := SetupRedis(t, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -233,7 +232,7 @@ func TestBindConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := setupRedisForTest(t, true, false)
+		pool := SetupRedis(t, true, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -251,49 +250,4 @@ func TestBindConn(t *testing.T) {
 		_, err = redis.String(conn.Do("GET", prefix+"{z}c"))
 		require.Equal(t, redis.ErrNil, err)
 	})
-}
-
-func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool) {
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
-	}
-
-	var (
-		addr     = "127.0.0.1:"
-		password = ""
-		database = 0
-		useTLS   = false
-		port     = "6379"
-	)
-	if cluster {
-		port = "7001"
-	}
-	addr += port
-
-	pool, err := NewRedisPool(PoolConfig{
-		Server:                    addr,
-		Password:                  password,
-		Database:                  database,
-		UseTLS:                    useTLS,
-		ConnTimeout:               5 * time.Second,
-		KeepAlive:                 10 * time.Second,
-		ClusterFollowRedirections: redir,
-	})
-	require.NoError(t, err)
-
-	conn := pool.Get()
-	defer conn.Close()
-	_, err = conn.Do("PING")
-	require.Nil(t, err)
-
-	t.Cleanup(func() {
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
-			_, err := conn.Do("FLUSHDB")
-			return err
-		})
-		require.NoError(t, err)
-		pool.Close()
-	})
-
-	return pool
 }
