@@ -195,15 +195,15 @@ const RunQuery = ({
     }
   });
 
-  useEffect(() => {
-    onRunQuery();
-  }, []);
-
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     return teardownDistributedQuery();
   };
+
+  useEffect(() => {
+    onRunQuery();
+  }, []);
 
   const { campaign } = campaignState;
   return (

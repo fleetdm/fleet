@@ -287,9 +287,7 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(value: string) => {
-            setLastEditedQueryBody(value);
-          }}
+          onChange={(value: string) => setLastEditedQueryBody(value)}
           handleSubmit={promptSaveQuery}
         />
         {isEditMode && (

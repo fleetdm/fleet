@@ -62,15 +62,18 @@ const QueryPage = ({
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
+  // disabled on page load so we can control the number of renders
+  // else it will re-populate the context on occasion
   const {
     isLoading: isStoredQueryLoading,
     data: storedQuery,
     error: storedQueryError,
+    refetch: refetchStoredQuery,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
     ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
     {
-      enabled: !!queryIdForEdit,
+      enabled: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
         setLastEditedQueryName(returnedQuery.name);
@@ -113,6 +116,7 @@ const QueryPage = ({
     };
 
     detectIsFleetQueryRunnable();
+    !!queryIdForEdit && refetchStoredQuery();
     setLastEditedQueryName(DEFAULT_QUERY.name);
     setLastEditedQueryDescription(DEFAULT_QUERY.description);
     setLastEditedQueryBody(DEFAULT_QUERY.query);
