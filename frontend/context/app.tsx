@@ -52,7 +52,7 @@ const actions = {
 };
 
 // helper function - this is run every
-// time currentUser or config is changed
+// time currentUser, config, or teamId is changed
 const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
   if (!user || !config) {
     return {};
