@@ -1,9 +1,9 @@
 .secondary-side-panel-container {
-  align-self: stretch;
   background-color: $core-white;
   box-sizing: border-box;
   border-left: 1px solid $ui-gray;
   overflow: auto;
+  min-width: $sidepanel-width;
   width: $sidepanel-width;
   padding: $pad-xxlarge;
 }

@@ -25,8 +25,8 @@ module.exports = {
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
-        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/1-Using-Fleet/standard-query-library/standard-query-library.yml';
-        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO));
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
 
         let queriesWithProblematicRemediations = [];
         let queriesWithProblematicContributors = [];
@@ -109,7 +109,7 @@ module.exports = {
 
         let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
           'docs/':     { urlPrefix: '/docs', },
-          // 'handbook/': { urlPrefix: '/handbook', }, // TODO: Bring this back when styles are complete (removed from build in the meantime so that sitemap.xml is not incorrect)
+          'handbook/': { urlPrefix: '/handbook', }
         };
         let rootRelativeUrlPathsSeen = [];
         for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
@@ -212,10 +212,14 @@ module.exports = {
                 // -mikermcneil 2021-07-27
                 // ```
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
+                let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/'))
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
+                if(possibleReferencedUrlHash) {
+                  referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);
+                }
                 // console.log(pageRelSourcePath, '»»  '+hrefString+' »»»»    href="'+referencedPageNewUrl+'"');
                 // ```
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -226,13 +230,19 @@ module.exports = {
                 // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
                 // If external, add target="_blank" so the link will open in a new tab.
                 let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+                // Check if this link is to fleetdm.com or www.fleetdm.com.
+                let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
                 if (isExternal) {
                   return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
                 } else {
                   // Otherwise, change the link to be web root relative.
                   // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
                   // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
-                  return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                  if (isBaseUrl) {
+                    return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
+                  } else {
+                    return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                  }
                 }
 
               });//∞

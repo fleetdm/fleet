@@ -62,6 +62,22 @@ type Datastore struct {
 
 type txFn func(sqlx.ExtContext) error
 
+type entity struct {
+	name string
+}
+
+var (
+	hostsTable            = entity{"hosts"}
+	invitesTable          = entity{"invites"}
+	labelsTable           = entity{"labels"}
+	packsTable            = entity{"packs"}
+	queriesTable          = entity{"queries"}
+	scheduledQueriesTable = entity{"scheduled_queries"}
+	sessionsTable         = entity{"sessions"}
+	teamsTable            = entity{"teams"}
+	usersTable            = entity{"users"}
+)
+
 // retryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.

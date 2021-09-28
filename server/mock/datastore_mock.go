@@ -59,7 +59,7 @@ type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
 type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
@@ -115,7 +115,7 @@ type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
-type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error)
+type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error
 
@@ -221,6 +221,8 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 
 type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
+type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -284,6 +286,10 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Polic
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+
+type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
+
+type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -601,6 +607,9 @@ type DataStore struct {
 	CleanupOrphanScheduledQueryStatsFunc        CleanupOrphanScheduledQueryStatsFunc
 	CleanupOrphanScheduledQueryStatsFuncInvoked bool
 
+	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
+	CleanupOrphanLabelMembershipFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -696,6 +705,12 @@ type DataStore struct {
 
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
+
+	LockFunc        LockFunc
+	LockFuncInvoked bool
+
+	UnlockFunc        UnlockFunc
+	UnlockFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -818,7 +833,7 @@ func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Query, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
 	s.ListQueriesFuncInvoked = true
 	return s.ListQueriesFunc(ctx, opt)
 }
@@ -958,9 +973,9 @@ func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt
 	return s.ListLabelsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host, cutoff time.Time) (map[string]string, error) {
+func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
-	return s.LabelQueriesForHostFunc(ctx, host, cutoff)
+	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
@@ -1223,6 +1238,11 @@ func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error 
 	return s.CleanupOrphanScheduledQueryStatsFunc(ctx)
 }
 
+func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
+	s.CleanupOrphanLabelMembershipFuncInvoked = true
+	return s.CleanupOrphanLabelMembershipFunc(ctx)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
 	return s.NewTeamFunc(ctx, team)
@@ -1381,4 +1401,14 @@ func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []u
 func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.TeamPolicyFuncInvoked = true
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
+}
+
+func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+	s.LockFuncInvoked = true
+	return s.LockFunc(ctx, name, owner, expiration)
+}
+
+func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
+	s.UnlockFuncInvoked = true
+	return s.UnlockFunc(ctx, name, owner)
 }

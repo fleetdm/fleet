@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -404,7 +406,7 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 // osqueryd to fill in the host details
 func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map[string]string, error) {
 	queries := make(map[string]string)
-	if host.DetailUpdatedAt.After(svc.clock.Now().Add(-svc.config.Osquery.DetailUpdateInterval)) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
 		// No need to update already fresh details
 		return queries, nil
 	}
@@ -438,6 +440,19 @@ func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map
 	return queries, nil
 }
 
+func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) bool {
+	var jitter time.Duration
+	if svc.config.Osquery.MaxJitterPercent > 0 {
+		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * interval / time.Duration(100.0)
+		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(maxJitter)))
+		if err == nil {
+			jitter = time.Duration(randDuration.Int64())
+		}
+	}
+	cutoff := svc.clock.Now().Add(-(interval + jitter))
+	return lastUpdated.Before(cutoff)
+}
+
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -455,14 +470,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	}
 
 	// Retrieve the label queries that should be updated
-	cutoff := svc.clock.Now().Add(-svc.config.Osquery.LabelUpdateInterval)
-	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host, cutoff)
-	if err != nil {
-		return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
-	}
+	if svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval) {
+		labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host)
+		if err != nil {
+			return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
+		}
 
-	for name, query := range labelQueries {
-		queries[hostLabelQueryPrefix+name] = query
+		for name, query := range labelQueries {
+			queries[hostLabelQueryPrefix+name] = query
+		}
 	}
 
 	liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID)
@@ -474,13 +490,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
-	if err != nil {
-		return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
-	}
+	if svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) {
+		policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
+		if err != nil {
+			return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
+		}
 
-	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name] = query
+		for name, query := range policyQueries {
+			queries[hostPolicyQueryPrefix+name] = query
+		}
 	}
 
 	accelerate := uint(0)
@@ -691,6 +709,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		host.Modified = true
+		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)

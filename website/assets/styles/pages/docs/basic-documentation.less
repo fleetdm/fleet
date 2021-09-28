@@ -38,9 +38,9 @@
     }
 
   }
-  .docs-heading:hover {
+  .markdown-heading:hover {
 
-    .docs-link {
+    .markdown-link {
       height: 16px;
       vertical-align: middle;
       margin-left: 8px;
@@ -199,6 +199,48 @@
       }
 
     }
+    [purpose='edit-button-container'] {
+      position: relative;
+    }
+
+    [purpose='edit-button'] {
+      color: @core-vibrant-blue;
+      opacity: 0;
+      font-size: 12px;
+      position: absolute;
+      right: 230px;
+      top: 34px;
+      cursor: pointer;
+      border: 1px solid @core-vibrant-blue;
+      border-radius: 4px;
+      padding: 4px 8px;
+      text-decoration: none;
+
+      i {
+        height: 16px;
+        padding-right: 5px;
+      }
+
+      &:hover {
+        background: @core-vibrant-blue;
+
+        a {
+          text-decoration: none;
+          color: @accent-white;
+        }
+
+      }
+
+    }
+
+    &:hover {
+
+      [purpose='edit-button'] {
+        opacity: 1;
+
+      }
+
+    }
 
     [purpose='search'] {
 
@@ -352,7 +394,7 @@
         padding-bottom: 24px;
       }
 
-      span + ul {
+      h1 + ul {
         display: none; // Hides links at top of some markdown files
       }
 
@@ -448,6 +490,11 @@
 
       padding: 0px 40px;
 
+      [purpose='edit-button'] {
+        top: -61px;
+        right: 15px;
+      }
+
       [purpose='right-sidebar'] {
         width: 100%;
 
@@ -464,7 +511,9 @@
 
       [purpose='content'] {
         width: 100%;
-
+        a {
+          word-wrap: break-word;
+        }
         h1:first-of-type {
           display: none;  // hides on mobile
         }
@@ -472,9 +521,18 @@
       }
 
     }
+
+    @media (max-width: 768px) {
+
+      [purpose='edit-button'] {
+        top: -2px;
+        right: 0px;
+      }
+
+    }
+
     // for mobile
     @media (max-width: 576px) {
-
       padding: 0px 24px;
 
     }

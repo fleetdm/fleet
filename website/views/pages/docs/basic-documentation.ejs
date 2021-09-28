@@ -140,9 +140,14 @@
       </div>
   
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0">{{thisPage.title}}</h1>
+
+      <div purpose="edit-button-container">
+        <div purpose="edit-button">
+          <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath"><i class="fa fa-pencil"></i>Edit page</a>
+        </div>
+      </div>
   
       <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
-  
         <div purpose="left-sidebar" style="min-width: 190px; max-width: 210px;" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-2 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
@@ -189,6 +194,8 @@
         </div>
 
         <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
+
+
           <%- partial(
             path.relative(
               path.dirname(__filename), 
@@ -202,10 +209,10 @@
             )
           ) %>
 
-          <div class="d-none d-lg-block">
+          <div class="d-block">
             <h3 class="pb-4 m-0">Is there something missing?</h3>
             <p>
-              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.pathInDocsFolder">here</a> to edit this page.
+              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath">here</a> to edit this page.
             </p>
           </div>
 

@@ -12,10 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewGlobalPolicy(t *testing.T) {
+func TestPolicies(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"NewGlobalPolicy", testPoliciesNewGlobalPolicy},
+		{"MembershipView", testPoliciesMembershipView},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testPoliciesNewGlobalPolicy(t *testing.T, ds *Datastore) {
 	q, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:        "query1",
 		Description: "query1 desc",
@@ -58,14 +73,12 @@ func TestNewGlobalPolicy(t *testing.T) {
 	require.NoError(t, ds.DeleteQuery(context.Background(), q.Name))
 }
 
-func TestPolicyMembershipView(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testPoliciesMembershipView(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -77,6 +90,7 @@ func TestPolicyMembershipView(t *testing.T) {
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -222,6 +236,7 @@ func TestPolicyQueriesForHost(t *testing.T) {
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -237,6 +252,7 @@ func TestPolicyQueriesForHost(t *testing.T) {
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
