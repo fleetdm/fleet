@@ -3212,7 +3212,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-`GET /api/v1/fleet/team/{id}/schedule`
+`GET /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -3226,7 +3226,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/team/2/schedule`
+`GET /api/v1/fleet/teams/2/schedule`
 
 ##### Default response
 
@@ -3275,7 +3275,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-`POST /api/v1/fleet/team/{id}/schedule`
+`POST /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -3292,7 +3292,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`POST /api/v1/fleet/team/2/schedule`
+`POST /api/v1/fleet/teams/2/schedule`
 
 ##### Request body
 
@@ -3330,7 +3330,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-`PATCH /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3347,7 +3347,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`PATCH /api/v1/fleet/team/2/schedule/5`
+`PATCH /api/v1/fleet/teams/2/schedule/5`
 
 ##### Request body
 
@@ -3384,7 +3384,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-`DELETE /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3395,7 +3395,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/team/2/schedule/5`
+`DELETE /api/v1/fleet/teams/2/schedule/5`
 
 ##### Default response
 
@@ -4384,7 +4384,7 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/team/{team_id}/policies`
+`GET /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -4394,7 +4394,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/team/1/policies`
+`GET /api/v1/fleet/teams/1/policies`
 
 ##### Default response
 
@@ -4423,7 +4423,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Get team policy by ID
 
-`GET /api/v1/fleet/team/{team_id}/policies/{id}`
+`GET /api/v1/fleet/teams/{team_id}/policies/{id}`
 
 #### Parameters
 
@@ -4434,7 +4434,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/team/1/policies/1`
+`GET /api/v1/fleet/teams/1/policies/1`
 
 ##### Default response
 
@@ -4454,7 +4454,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
-`POST /api/v1/fleet/team/{team_id}/policies`
+`POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -4465,7 +4465,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`POST /api/v1/fleet/team/1/policies`
+`POST /api/v1/fleet/teams/1/policies`
 
 #### Request body
 
@@ -4493,7 +4493,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Remove team policies
 
-`POST /api/v1/fleet/team/{team_id}/policies/delete`
+`POST /api/v1/fleet/teams/{team_id}/policies/delete`
 
 #### Parameters
 
@@ -4504,7 +4504,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`POST /api/v1/fleet/global/policies/delete`
+`POST /api/v1/fleet/teams/1/policies/delete`
 
 #### Request body
 
@@ -5044,7 +5044,8 @@ None.
     }
   },
   "update_interval": {
-    "osquery_detail": 3600000000000
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
   },
 }
 ```
