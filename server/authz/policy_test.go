@@ -392,10 +392,10 @@ func TestAuthorizeQuery(t *testing.T) {
 
 		// Team maintainer can read/write
 		{user: teamMaintainer, object: query, action: read, allow: true},
-		{user: teamMaintainer, object: query, action: write, allow: false},
+		{user: teamMaintainer, object: query, action: write, allow: true},
 		{user: teamMaintainer, object: query, action: run, allow: true},
 		{user: teamMaintainer, object: observerQuery, action: read, allow: true},
-		{user: teamMaintainer, object: observerQuery, action: write, allow: false},
+		{user: teamMaintainer, object: observerQuery, action: write, allow: true},
 		{user: teamMaintainer, object: observerQuery, action: run, allow: true},
 	})
 }
@@ -484,7 +484,6 @@ func runTestCases(t *testing.T, testCases []authTestCase) {
 			}
 		})
 	}
-
 }
 
 func TestJSONToInterfaceUser(t *testing.T) {
