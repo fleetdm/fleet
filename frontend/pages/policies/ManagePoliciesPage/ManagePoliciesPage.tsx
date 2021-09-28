@@ -417,6 +417,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           !!teamPolicies?.length &&
           !!globalPolicies?.length &&
           !!isGlobalPoliciesError &&
+          !!isTeamPoliciesError &&
           showInheritedPolicies && (
             <div className={`${baseClass}__inherited-policies-table`}>
               <PoliciesListWrapper
