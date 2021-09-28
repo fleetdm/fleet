@@ -40,9 +40,7 @@ const (
 	decryptionFailedError = "encrypted: decryption failed"
 )
 
-var (
-	passHandler = newPassphraseHandler()
-)
+var passHandler = newPassphraseHandler()
 
 func UpdatesCommand() *cli.Command {
 	return &cli.Command{
@@ -56,6 +54,7 @@ This functionality is licensed under the Fleet EE License. Usage requires a curr
 			updatesRootsCommand(),
 			updatesAddCommand(),
 			updatesTimestampCommand(),
+			updatesRotateCommand(),
 		},
 	}
 }
@@ -320,6 +319,71 @@ func updatesTimestampFunc(c *cli.Context) error {
 	return nil
 }
 
+func updatesRotateCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "rotate",
+		Usage:     "Rotate signing keys",
+		ArgsUsage: "<role>",
+		Description: `Rotate the signing keys used for updates metadata signing. This should be used when keys are compromised or expiring.
+		
+role must be one of ['root', 'targets', 'timestamp', 'snapshot']
+		`,
+		Flags:  updatesFlags(),
+		Action: updatesRotateFunc,
+	}
+}
+
+func updatesRotateFunc(c *cli.Context) error {
+	if c.NArg() != 1 {
+		return errors.New("role must be provided")
+	}
+	role := c.Args().Get(0)
+
+	repo, err := openRepo(c.String("path"))
+	if err != nil {
+		return err
+	}
+	store, err := openLocalStore(c.String("path"))
+	if err != nil {
+		return err
+	}
+
+	if err := checkKeys(c.String("path"),
+		"root",
+	); err != nil {
+		return err
+	}
+
+	// Get old keys for role
+	keys, err := store.GetSigningKeys(role)
+	if err != nil {
+		return errors.Wrap(err, "get keys for role")
+	}
+
+	// Generate new key for role
+	if err := updatesGenKey(repo, role); err != nil {
+		return err
+	}
+
+	// Delete old keys for role
+	for _, key := range keys {
+		id := key.IDs()[0]
+		if err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration)); err != nil {
+			return errors.Wrap(err, "revoke key")
+		}
+	}
+
+	if err := repo.Sign("root.json"); err != nil {
+		return errors.Wrap(err, "sign root.json")
+	}
+
+	if err := repo.Commit(); err != nil {
+		return errors.Wrap(err, "commit repo")
+	}
+
+	return nil
+}
+
 func checkKeys(repoPath string, keys ...string) error {
 	// Verify we can decrypt necessary role keys
 	store := tuf.FileSystemStore(repoPath, passHandler.getPassphrase)
@@ -370,7 +434,7 @@ func updatesGenKey(repo *tuf.Repo, role string) error {
 	return nil
 }
 
-func openRepo(path string) (*tuf.Repo, error) {
+func openLocalStore(path string) (tuf.LocalStore, error) {
 	store := tuf.FileSystemStore(path, passHandler.getPassphrase)
 	meta, err := store.GetMeta()
 	if err != nil {
@@ -378,6 +442,14 @@ func openRepo(path string) (*tuf.Repo, error) {
 	}
 	if len(meta) == 0 {
 		return nil, errors.Errorf("repo not initialized: %s", path)
+	}
+	return store, nil
+}
+
+func openRepo(path string) (*tuf.Repo, error) {
+	store, err := openLocalStore(path)
+	if err != nil {
+		return nil, err
 	}
 
 	repo, err := tuf.NewRepo(store)
