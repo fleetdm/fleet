@@ -121,6 +121,14 @@ func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stat
 		}
 	}
 
+	runInsertBatch := func(batch [][2]uint) error {
+		return nil
+	}
+
+	runDeleteBatch := func(batch [][2]uint) error {
+		return nil
+	}
+
 	// Based on those pages, the best approach appears to be INSERT with multiple
 	// rows in the VALUES section (short of doing LOAD FILE, which we can't):
 	// https://www.databasejournal.com/features/mysql/optimize-mysql-inserts-using-batch-processing.html
@@ -147,9 +155,15 @@ func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stat
 		deleteBatch = append(deleteBatch, del...)
 
 		if len(insertBatch) >= batchSize {
+			if err := runInsertBatch(insertBatch); err != nil {
+				return err
+			}
 			insertBatch = insertBatch[:0]
 		}
 		if len(deleteBatch) >= batchSize {
+			if err := runDeleteBatch(deleteBatch); err != nil {
+				return err
+			}
 			deleteBatch = deleteBatch[:0]
 		}
 	}
@@ -157,8 +171,14 @@ func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stat
 	// process any remaining batch that did not reach the batchSize limit in the
 	// loop.
 	if len(insertBatch) > 0 {
+		if err := runInsertBatch(insertBatch); err != nil {
+			return err
+		}
 	}
 	if len(deleteBatch) > 0 {
+		if err := runDeleteBatch(deleteBatch); err != nil {
+			return err
+		}
 	}
 
 	return nil
