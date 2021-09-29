@@ -21,11 +21,12 @@ describe(
 
       cy.findByRole("button", { name: /save/i }).click();
 
-      cy.get(".query-form__query-name")
+      // save modal
+      cy.get(".query-form__query-save-modal-name")
         .click()
         .type("Query all window crashes");
 
-      cy.get(".query-form__query-description")
+      cy.get(".query-form__query-save-modal-description")
         .click()
         .type("See all window crashes");
 
