@@ -342,25 +342,6 @@ const QueryForm = ({
     return renderRunForObserver;
   }
 
-  // if (!isEditMode && isAnyTeamMaintainer) {
-  //   return renderCreateForTeamMaintainer({
-  //     queryValue,
-  //     queryOnChange,
-  //     queryError,
-  //   });
-  // }
-
-  // if (isAnyTeamMaintainer) {
-  //   return renderRunForMaintainer({ nameText, descText, queryValue });
-  // }
-  // if (!isEditMode && isAnyTeamMaintainer) {
-  //   return renderCreateForTeamMaintainer;
-  // }
-
-  // if (isAnyTeamMaintainer) {
-  //   return renderRunForMaintainer;
-  // }
-
   return renderForGlobalAdminOrAnyMaintainer;
 };
 
