@@ -65,7 +65,7 @@ module.exports = {
         throw 'notFound';
       }
     }
-    // Setting the title of this page using thisPage.title if it is not a markdown file name, use a generic title.
+    // Setting the title of this page, using thisPage.title, and setting a generic title if thisPage.title is a markdown file.
     let pageTitle = _.endsWith(thisPage.title, '.md') ? 'Documentation | Fleet for osquery' : thisPage.title + ' | Fleet documentation';
     // if this page has pageTitleForMeta <meta> tag use that instead.
     if(thisPage.meta.pageTitleForMeta) {
