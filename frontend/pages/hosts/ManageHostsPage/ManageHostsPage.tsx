@@ -221,18 +221,22 @@ const ManageHostsPage = ({
       select: (data: ITeamsResponse) => data.teams,
     }
   );
-  
-  useQuery<IPolicy, Error>(["policy"], () => {
-    const request = currentTeam
-      ? teamPoliciesAPI.load(currentTeam.id, policyId)
-      : globalPoliciesAPI.load(policyId);
-    return request;
-  }, {
-    enabled: !!policyId,
-    onSuccess: ({ query_name }) => {
-      setPolicyName(query_name);
+
+  useQuery<IPolicy, Error>(
+    ["policy"],
+    () => {
+      const request = currentTeam
+        ? teamPoliciesAPI.load(currentTeam.id, policyId)
+        : globalPoliciesAPI.load(policyId);
+      return request;
     },
-  });
+    {
+      enabled: !!policyId,
+      onSuccess: ({ query_name }) => {
+        setPolicyName(query_name);
+      },
+    }
+  );
 
   const toggleEnrollSecretModal = () => {
     setShowEnrollSecretModal(!showEnrollSecretModal);
@@ -406,13 +410,13 @@ const ManageHostsPage = ({
       currentUser,
       isOnGlobalTeam as boolean
     );
-    
+
     const slimmerParams = omit(queryParams, [
       "policy_id",
       "policy_response",
       "team_id",
     ]);
-    
+
     const newQueryParams = !teamIdParam
       ? slimmerParams
       : Object.assign({}, slimmerParams, { team_id: teamIdParam });
