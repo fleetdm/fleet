@@ -58,23 +58,19 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 		Software: []fleet.Software{
 			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
 		},
 	}
 	host2.HostSoftware = soft2
 
-	err := ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
-	err = ds.SaveHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 
@@ -93,18 +89,14 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	host2.HostSoftware = soft2
 
-	err = ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
-	err = ds.SaveHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 
@@ -117,11 +109,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	host1.HostSoftware = soft1
 
-	err = ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 }

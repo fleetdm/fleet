@@ -3,6 +3,18 @@ import endpoints from "fleet/endpoints";
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 
+interface ILoadAllTeamsResponse {
+  teams: ITeam[];
+}
+
+interface ILoadTeamResponse {
+  team: ITeam;
+}
+
+interface IGetTeamSecretsResponse {
+  secrets: any[]; // TODO: fill this out when API is defined
+}
+
 interface ITeamSearchOptions {
   page?: number;
   perPage?: number;
@@ -34,7 +46,7 @@ export default {
   }: ITeamSearchOptions = {}) => {
     const { TEAMS } = endpoints;
 
-    // TODO: add this query param logic to client class - is this outdated todo 9/17 RP
+    // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
 
     let searchQuery = "";
@@ -46,30 +58,34 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (teamId: number, updatedAttrs: ITeam) => {
+  update: (teamId: number, updateParams: ITeam) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
-    return sendRequest("PATCH", path, updatedAttrs);
+    return sendRequest("PATCH", path, updateParams);
   },
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
-    return sendRequest("PATCH", TEAMS_MEMBERS(teamId), newMembers);
+    const path = TEAMS_MEMBERS(teamId);
+
+    return sendRequest("PATCH", path, newMembers);
   },
   removeMembers: (teamId: number, removeMembers: IRemoveMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
+    const path = TEAMS_MEMBERS(teamId);
 
-    return sendRequest("DELETE", TEAMS_MEMBERS(teamId), removeMembers);
+    return sendRequest("DELETE", path, removeMembers);
   },
   transferHosts: (teamId: number, hostIds: number[]) => {
     const { TEAMS_TRANSFER_HOSTS } = endpoints;
+    const path = TEAMS_TRANSFER_HOSTS(teamId);
 
-    return sendRequest("POST", TEAMS_TRANSFER_HOSTS(teamId), { id: hostIds });
+    return sendRequest("POST", path, { id: hostIds });
   },
   getEnrollSecrets: (teamId: number) => {
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("GET", path, teamId);
+    return sendRequest("GET", path);
   },
 };
