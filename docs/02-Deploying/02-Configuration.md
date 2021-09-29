@@ -1559,15 +1559,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
 
-  ![The Google Workspace Admin Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
+  ![The Google Workspace admin Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
 2. Enter `Fleet` for the _App name_ and click _Continue_.
 
-  <img alt="Screen Shot 2021-09-15 at 2 50 06 PM" src="https://user-images.githubusercontent.com/575602/133530058-95183355-6e6b-4dfd-b622-1b012809a1bd.png">
+  ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
 3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
 
-  <img alt="Screen Shot 2021-09-15 at 2 52 56 PM" src="https://user-images.githubusercontent.com/575602/133530200-af839b88-0eba-4403-b095-2fed4632b6be.png">
+  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML Single Sign On Options_ section.
 
@@ -1580,7 +1580,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   Click _Update settings_ at the bottom of the page.
 
-  <img alt="Screen Shot 2021-09-15 at 5 32 25 PM" src="https://user-images.githubusercontent.com/575602/133530548-4651bf76-e0fc-489d-b84a-755736474dc5.png">
+  ![Fleet's SMAL single sign on options page](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-4.png)
 
 5. In Google Workspace, configure the _Service provider details_.
 
@@ -1592,19 +1592,19 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   Click _Continue_ at the bottom of the page.
 
-  <img alt="Screen Shot 2021-09-15 at 5 36 56 PM" src="https://user-images.githubusercontent.com/575602/133530896-af561c81-ae54-4ee6-acca-5a6473b38b6b.png">
+  ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
 6. Click _Finish_.
 
-  <img alt="Screen Shot 2021-09-15 at 2 57 20 PM" src="https://user-images.githubusercontent.com/575602/133530932-9157c17b-ee84-46d9-9520-8faa864d872b.png">
+  ![Finish configuring the new SMAL app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
 
 7. Click the down arrow on the _User access_ section of the app details page.
 
-  <img alt="Screen Shot 2021-09-15 at 2 57 51 PM" src="https://user-images.githubusercontent.com/575602/133531007-a3a00a3f-65d4-46b0-9d39-eb74abda0901.png">
+  ![The new SMAL app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
 
 8. Check _ON for everyone_. Click _Save_.
 
-  <img alt="Screen Shot 2021-09-15 at 2 58 09 PM" src="https://user-images.githubusercontent.com/575602/133531039-93e29f0f-ef20-423b-bc31-8cef05a61b13.png">
+  ![The new SMAL app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
