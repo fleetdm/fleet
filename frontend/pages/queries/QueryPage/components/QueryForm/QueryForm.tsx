@@ -11,7 +11,8 @@ import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner";
-import NewQueryModal from "../NewQueryModal";
+import NewQueryModal from "../NewQueryModal"; // @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -52,9 +53,6 @@ const QueryForm = ({
   renderLiveQueryWarning,
 }: IQueryFormProps) => {
   const isEditMode = !!queryIdForEdit;
-  const nameEditable = useRef(null);
-  const descriptionEditable = useRef(null);
-
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
@@ -103,6 +101,13 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
+    if (!lastEditedQueryName) {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present"
+      });
+    }
+
     let valid = true;
     const { valid: isValidated, errors: newErrors } = validateQuerySQL(
       lastEditedQueryBody
@@ -113,7 +118,7 @@ const QueryForm = ({
       ...errors,
       ...newErrors,
     });
-
+    
     if (valid) {
       if (!isEditMode || forceNew) {
         setIsSaveModalOpen(true);
@@ -124,6 +129,8 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
         });
+
+        setErrors({});
       }
     }
   };
@@ -256,27 +263,28 @@ const QueryForm = ({
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
-          <input
+          <InputField
+            id="query-name"
             type="text"
             name="query-name"
-            id="query-name"
-            onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setLastEditedQueryName(evt.target.value)}
-            className={`${baseClass}__query-name`}
-            placeholder={lastEditedQueryName}
+            error={errors.name}
             value={lastEditedQueryName}
+            placeholder="Add name here"
+            inputClassName={`${baseClass}__query-name`}
+            onChange={setLastEditedQueryName}
           />
         ) : (
           <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
         )}
         {isEditMode && (
-          <input
+          <InputField
+            id="query-description"
             type="text"
             name="query-description"
-            id="query-description"
-            onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setLastEditedQueryDescription(evt.target.value)}
-            className={`${baseClass}__query-description`}
-            placeholder={lastEditedQueryDescription || "Add description here."}
             value={lastEditedQueryDescription}
+            placeholder="Add description here."
+            inputClassName={`${baseClass}__query-description`}
+            onChange={setLastEditedQueryDescription}
           />
         )}
         <FleetAce

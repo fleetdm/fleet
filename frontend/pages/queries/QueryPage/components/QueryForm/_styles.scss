@@ -7,17 +7,23 @@
       margin: 0;
       margin-top: $pad-large;
     }
+    
+    .form-field--input {
+      margin: 0;
+    }
   }
 
   &__query-name,
   &__query-description {
     width: 100%;
     margin: 0;
+    padding: 0;
     border: 0;
     resize: none;
     height: 30px;
     white-space: nowrap;
     overflow-x: scroll;
+    background-color: transparent;
 
     &:hover:not(.focus-visible):not(.no-hover) {
       color: $core-vibrant-blue;
@@ -32,6 +38,10 @@
   &__query-name {
     margin-top: $pad-large;
     font-size: $large;
+
+    &.input-field--error {
+      border: 1px solid $core-vibrant-red;
+    }
   }
 
   &__query-description {
