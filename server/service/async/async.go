@@ -3,6 +3,7 @@ package async
 import (
 	"context"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -129,7 +130,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		var hostID uint
 		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
 			id, err := strconv.ParseInt(matches[1], 10, 64)
-			if err == nil {
+			if err == nil && id > 0 && id <= math.MaxUint32 { // required for CodeQL vulnerability scanning in CI
 				hostID = uint(id)
 			}
 		}
