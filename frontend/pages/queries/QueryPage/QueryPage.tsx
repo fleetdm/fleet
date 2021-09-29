@@ -170,6 +170,7 @@ const QueryPage = ({
       baseClass,
       queryIdForEdit,
       showOpenSchemaActionText,
+      storedQuery,
       isStoredQueryLoading,
       storedQueryError,
       createQuery,
