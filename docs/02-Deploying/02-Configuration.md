@@ -1425,10 +1425,10 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
 - Environment variable: `FLEET_VULNERABILITIES_DISABLE_DATA_SYNC`
 - Config file format:
 
-```
+  ```
   vulnerabilities:
   	disable_data_sync: true
-```
+  ```
 
 ## Managing osquery configurations
 
