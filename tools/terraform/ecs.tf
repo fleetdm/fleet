@@ -123,7 +123,7 @@ resource "aws_ecs_task_definition" "backend" {
     [
       {
         name        = "fleet"
-        image       = "fleetdm/fleet"
+        image       = var.image
         cpu         = 512
         memory      = 4096
         mountPoints = []
@@ -166,7 +166,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -178,7 +178,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
@@ -214,16 +214,17 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_BETA_SOFTWARE_INVENTORY"
-            value = "1"
+            value = var.software_inventory
           },
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
-            value = "/home/fleet"
+            value = var.vuln_db_path
           }
         ]
       }
   ])
 }
+
 
 resource "aws_ecs_task_definition" "migration" {
   family                   = "fleet-migrate"
@@ -231,15 +232,15 @@ resource "aws_ecs_task_definition" "migration" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = var.cpu_migrate
+  memory                   = var.mem_migrate
   container_definitions = jsonencode(
     [
       {
         name        = "fleet-prepare-db"
-        image       = "fleetdm/fleet"
-        cpu         = 256
-        memory      = 512
+        image       = var.image
+        cpu         = var.cpu_migrate
+        memory      = var.mem_migrate
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -273,7 +274,7 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -289,8 +290,8 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 5
-  min_capacity       = 1
+  max_capacity       = var.fleet_max_capacity
+  min_capacity       = var.fleet_min_capacity
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
@@ -307,7 +308,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
-    target_value = 80
+    target_value = var.memory_tracking_target_value
   }
 }
 
@@ -323,6 +324,14 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    target_value = 60
+    target_value = var.cpu_tracking_target_value
   }
+}
+
+output "fleet_ecs_cluster_arn" {
+  value = aws_ecs_cluster.fleet.arn
+}
+
+output "fleet_ecs_cluster_id" {
+  value = aws_ecs_cluster.fleet.id
 }
