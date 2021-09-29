@@ -30,6 +30,7 @@ import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 import TeamsDropdown from "./components/TeamsDropdown";
+import IconToolTip from "components/IconToolTip";
 
 const baseClass = "manage-policies-page";
 
@@ -55,6 +56,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const {
     config,
     currentUser,
+    isAnyTeamMaintainer,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
@@ -285,7 +287,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
     // so a falsiness check cannot be used here. Null case here allows us to skip API call.
     if (selectedTeamId !== null) {
-      if (isOnGlobalTeam) {
+      if (isOnGlobalTeam || isAnyTeamMaintainer) {
         getGlobalPolicies();
       }
       if (selectedTeamId) {
@@ -417,10 +419,22 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                      ${baseClass}__inherited-policies-button`}
                 onClick={toggleShowInheritedPolicies}
               >
-                {`${
-                  showInheritedPolicies ? "Hide" : "Show"
-                } inherited policies`}
+                {`${showInheritedPolicies ? "Hide" : "Show"} ${
+                  globalPolicies.length
+                } inherited ${
+                  globalPolicies.length > 1 ? "policies" : "policy"
+                }`}
               </Button>
+              <div className={`${baseClass}__details`}>
+                <IconToolTip
+                  isHtml
+                  text={
+                    "\
+              <center><p>“All teams” policies are checked <br/> for this team’s hosts.</p></center>\
+            "
+                  }
+                />
+              </div>
             </span>
           )}
         {!!selectedTeamId &&
