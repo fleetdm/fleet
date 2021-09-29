@@ -95,7 +95,7 @@ module.exports = {
           query.contributors = contributorProfiles;
         }
 
-        // // Attach to what will become configuration for the Sails app.
+        // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
         builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
       },
