@@ -213,13 +213,9 @@ const generateTableHeaders = (): IDataColumn[] => {
 };
 
 const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-  // const FAKEID = "com.foo.app"; // TODO: Enable for testing
-  // const FAKEDATE = "2020-02-02T20:20:20Z"; // TODO: Enable for testing
   return Object.values(software).map((softwareItem) => {
     return {
       ...softwareItem,
-      // bundle_identifier: FAKEID, // Enable for testing
-      // last_opened_at: FAKEDATE, // TODO: Enable for testing
       // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
     };
