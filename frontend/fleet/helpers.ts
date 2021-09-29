@@ -174,6 +174,7 @@ export const frontendFormattedConfig = (config: any) => {
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    update_interval: updateInterval,
     license,
   } = config;
 
@@ -188,6 +189,7 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...webhookSettings,
+    ...updateInterval,
     ...license,
     agent_options: config.agent_options,
   };

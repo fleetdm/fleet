@@ -41,6 +41,7 @@ interface ITableContainerProps {
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
   resultsTitle: string;
+  resultsHtml?: JSX.Element;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -78,6 +79,7 @@ const TableContainer = ({
   additionalQueries,
   onQueryChange,
   resultsTitle,
+  resultsHtml,
   emptyComponent,
   className,
   disableActionButton,
@@ -216,6 +218,7 @@ const TableContainer = ({
               pageSize,
               data.length
             )}
+            {resultsHtml}
           </p>
         ) : (
           <p />

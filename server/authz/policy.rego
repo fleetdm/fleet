@@ -385,7 +385,7 @@ allow {
 
 # Global Admin and Maintainer users can read and write policies
 allow {
-  object.type == "policy"
+  object.type == ["policy","team_policy"][_]
   subject.global_role == admin
   action == [read, write][_]
 }

@@ -8,7 +8,8 @@ import { find, isEmpty, isEqual, memoize, omit } from "lodash";
 import labelsAPI from "services/entities/labels";
 import statusLabelsAPI from "services/entities/statusLabels";
 import teamsAPI from "services/entities/teams";
-import policiesAPI from "services/entities/policies";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
   IHostLoadOptions,
   ISortOption,
@@ -220,8 +221,13 @@ const ManageHostsPage = ({
       select: (data: ITeamsResponse) => data.teams,
     }
   );
-
-  useQuery<IPolicy, Error>(["policy"], () => policiesAPI.load(policyId), {
+  
+  useQuery<IPolicy, Error>(["policy"], () => {
+    const request = currentTeam
+      ? teamPoliciesAPI.load(currentTeam.id, policyId)
+      : globalPoliciesAPI.load(policyId);
+    return request;
+  }, {
     enabled: !!policyId,
     onSuccess: ({ query_name }) => {
       setPolicyName(query_name);
@@ -400,9 +406,16 @@ const ManageHostsPage = ({
       currentUser,
       isOnGlobalTeam as boolean
     );
+    
+    const slimmerParams = omit(queryParams, [
+      "policy_id",
+      "policy_response",
+      "team_id",
+    ]);
+    
     const newQueryParams = !teamIdParam
-      ? omit(queryParams, "team_id")
-      : Object.assign({}, queryParams, { team_id: teamIdParam });
+      ? slimmerParams
+      : Object.assign({}, slimmerParams, { team_id: teamIdParam });
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,

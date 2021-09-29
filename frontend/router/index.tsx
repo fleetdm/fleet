@@ -126,9 +126,6 @@ const routes = (
                   <Route path="edit" component={EditPackPage} />
                 </Route>
               </Route>
-              <Route path="policies" component={PoliciesPageWrapper}>
-                <Route path="manage" component={ManagePoliciesPage} />
-              </Route>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
                 <Route
@@ -143,6 +140,9 @@ const routes = (
                 <Route path="new" component={QueryPage} />
               </Route>
               <Route path=":id" component={QueryPage} />
+            </Route>
+            <Route path="policies" component={PoliciesPageWrapper}>
+              <Route path="manage" component={ManagePoliciesPage} />
             </Route>
             <Route path="profile" component={UserSettingsPage} />
           </Route>
