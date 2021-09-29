@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"testing"
 	"time"
 
@@ -25,6 +24,17 @@ type integrationTestSuite struct {
 
 func (s *integrationTestSuite) SetupSuite() {
 	s.withServer.SetupSuite("integrationTestSuite")
+}
+
+func (s *integrationTestSuite) AfterTest(suiteName, testName string) {
+	u := s.users["admin1@example.com"]
+	filter := fleet.TeamFilter{User: &u}
+	hosts, _ := s.ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
+	var ids []uint
+	for _, host := range hosts {
+		ids = append(ids, host.ID)
+	}
+	s.ds.DeleteHosts(context.Background(), ids)
 }
 
 func TestIntegrations(t *testing.T) {
@@ -330,10 +340,10 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
-			UUID:            fmt.Sprintf("%d", i),
-			Hostname:        fmt.Sprintf("foo.local%d", i),
+			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
+			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
 		require.NoError(t, err)
 	}
@@ -493,10 +503,10 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
-			UUID:            fmt.Sprintf("%d", i),
-			Hostname:        fmt.Sprintf("foo.local%d", i),
+			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
+			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
