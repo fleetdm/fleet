@@ -26,7 +26,7 @@ func (s *integrationTestSuite) SetupSuite() {
 	s.withServer.SetupSuite("integrationTestSuite")
 }
 
-func (s *integrationTestSuite) AfterTest(suiteName, testName string) {
+func (s *integrationTestSuite) TearDownTest() {
 	u := s.users["admin1@example.com"]
 	filter := fleet.TeamFilter{User: &u}
 	hosts, _ := s.ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
