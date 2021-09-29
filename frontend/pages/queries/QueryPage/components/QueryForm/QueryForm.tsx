@@ -10,9 +10,9 @@ import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/loaders/Spinner";
-import NewQueryModal from "../NewQueryModal"; // @ts-ignore
+import Spinner from "components/loaders/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import NewQueryModal from "../NewQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -104,7 +104,7 @@ const QueryForm = ({
     if (!lastEditedQueryName) {
       return setErrors({
         ...errors,
-        name: "Query name must be present"
+        name: "Query name must be present",
       });
     }
 
@@ -118,7 +118,7 @@ const QueryForm = ({
       ...errors,
       ...newErrors,
     });
-    
+
     if (valid) {
       if (!isEditMode || forceNew) {
         setIsSaveModalOpen(true);
