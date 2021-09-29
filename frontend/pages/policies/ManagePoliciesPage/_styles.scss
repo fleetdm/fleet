@@ -110,11 +110,6 @@
     }
   }
 
-  .data-table-container {
-    padding-top: $pad-small;
-    margin-top: $pad-medium;
-  }
-
   &__inherited-policies-button {
     padding-top: $pad-small;
     margin: $pad-large 0 0 0;
@@ -174,6 +169,10 @@
 
     th {
       border-right: 1px solid #e2e4ea !important;
+    }
+
+    .table-container__header {
+      display: none;
     }
   }
 

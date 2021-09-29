@@ -37,14 +37,6 @@ const baseClass = "manage-policies-page";
 const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery_detail_update_interval";
 
-const INHERITED_POLICIES_COUNT_HTML = (
-  <span>
-    {" "}
-    inherited from{" "}
-    <span className={`${baseClass}__vibrant-blue`}>All teams policy</span>
-  </span>
-);
-
 const renderInheritedPoliciesButtonText = (
   showPolicies: boolean,
   policies: IPolicy[]
@@ -305,7 +297,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         getTeamPolicies(selectedTeamId);
       }
     }
-  }, [getGlobalPolicies, getTeamPolicies, isOnGlobalTeam, selectedTeamId]);
+  }, [
+    getGlobalPolicies,
+    getTeamPolicies,
+    isAnyTeamMaintainer,
+    isOnGlobalTeam,
+    selectedTeamId,
+  ]);
 
   // Pull osquery detail update interval value from config, reformat, and set as updateInterval.
   useEffect(() => {
@@ -460,7 +458,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 onRemovePoliciesClick={noop}
                 toggleAddPolicyModal={noop}
                 resultsTitle="policies"
-                resultsHtml={INHERITED_POLICIES_COUNT_HTML}
                 selectedTeamId={null}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
