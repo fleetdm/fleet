@@ -74,7 +74,6 @@ module.exports.routes = {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',
     locals: {
-      title: 'Handbook | Fleet for osquery',
       description: 'View the Fleet handbook',
     },
   },// handles /handbook and /handbook/foo/bar

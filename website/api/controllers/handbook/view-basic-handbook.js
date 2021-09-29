@@ -50,11 +50,15 @@ module.exports = {
       let revisedUrl = 'todo';
       throw {redirect: revisedUrl};
     }
+    // Setting the title of this page, using thisPage.title, and setting a generic title if thisPage.title is a markdown file.
+    let pageTitle = !_.endsWith(thisPage.title, '.md') ? thisPage.title + ' | Fleet handbook' :  'Handbook | Fleet for osquery';
+
 
     // Respond with view.
     return {
       path: require('path'),
       thisPage: thisPage,
+      title: pageTitle,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath
     };
