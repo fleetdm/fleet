@@ -47,6 +47,14 @@ type HostListOptions struct {
 	PolicyResponseFilter *bool
 }
 
+func (h HostListOptions) Empty() bool {
+	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+}
+
+func (l ListOptions) Empty() bool {
+	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
+}
+
 type HostUser struct {
 	Uid       uint   `json:"uid" db:"uid"`
 	Username  string `json:"username" db:"username"`
