@@ -128,7 +128,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	getKeyTuples := func(key string) (inserts, deletes [][2]uint, err error) {
 		var hostID uint
 		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
-			id, err := strconv.ParseUint(matches[1], 10, 64)
+			id, err := strconv.ParseInt(matches[1], 10, 64)
 			if err == nil {
 				hostID = uint(id)
 			}

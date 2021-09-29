@@ -167,35 +167,49 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 		},
 	}
 
+	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
+		conn := pool.ConfigureDoer(pool.Get())
+		defer conn.Close()
+
+		// store the host memberships and prepare the expected stats
+		var wantStats collectorExecStats
+		for hostID, res := range data {
+			if len(res) > 0 {
+				key := fmt.Sprintf(labelMembershipHostKey, hostID)
+				args := make(redigo.Args, 0, 1+(len(res)*2))
+				args = args.Add(key)
+				for lblID, ins := range res {
+					score := -1
+					if ins {
+						score = 1
+					}
+					args = args.Add(score, lblID)
+				}
+				_, err := conn.Do("ZADD", args...)
+				require.NoError(t, err)
+			}
+			wantStats.Keys++
+			if hostID >= 0 {
+				wantStats.Items += len(res)
+			}
+		}
+		return wantStats
+	}
+
+	selectRows := func(t *testing.T) []labelMembership {
+		var rows []labelMembership
+		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
+		})
+		require.NoError(t, err)
+		return rows
+	}
+
 	minUpdatedAt := time.Now()
 	for _, c := range cases {
 		func() {
 			t.Log(c.name)
-			conn := pool.ConfigureDoer(pool.Get())
-			defer conn.Close()
-
-			// store the host memberships and prepare the expected stats
-			var wantStats collectorExecStats
-			for hostID, res := range c.reported {
-				if len(res) > 0 {
-					key := fmt.Sprintf(labelMembershipHostKey, hostID)
-					args := make(redigo.Args, 0, 1+(len(res)*2))
-					args = args.Add(key)
-					for lblID, ins := range res {
-						score := -1
-						if ins {
-							score = 1
-						}
-						args = args.Add(score, lblID)
-					}
-					_, err := conn.Do("ZADD", args...)
-					require.NoError(t, err)
-				}
-				wantStats.Keys++
-				if hostID >= 0 {
-					wantStats.Items += len(res)
-				}
-			}
+			wantStats := setupTest(t, c.reported)
 
 			// run the collection
 			var stats collectorExecStats
@@ -204,11 +218,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 			require.Equal(t, wantStats, stats)
 
 			// check that the table contains the expected rows
-			var rows []labelMembership
-			err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-				return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
-			})
-			require.NoError(t, err)
+			rows := selectRows(t)
 			require.Equal(t, len(c.want), len(rows))
 			for i := range c.want {
 				want, got := c.want[i], rows[i]
@@ -218,9 +228,37 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 			}
 		}()
 	}
-}
 
-// TODO: test the updated_at after insert and update
+	// after all cases, run one last upsert (an update) to make sure that the
+	// updated at column is properly updated. First we need to ensure that this
+	// runs in a distinct second, because the mysql resolution is not precise.
+	time.Sleep(time.Second)
+
+	var h1l1Before labelMembership
+	beforeRows := selectRows(t)
+	for _, row := range beforeRows {
+		if row.HostID == 1 && row.LabelID == 1 {
+			h1l1Before = row
+			break
+		}
+	}
+
+	// update host 1, label 1, already existing
+	setupTest(t, map[int]map[int]bool{1: {1: true}})
+	var stats collectorExecStats
+	err := collectLabelQueryExecutions(ctx, ds, pool, &stats)
+	require.NoError(t, err)
+
+	var h1l1After labelMembership
+	afterRows := selectRows(t)
+	for _, row := range afterRows {
+		if row.HostID == 1 && row.LabelID == 1 {
+			h1l1After = row
+			break
+		}
+	}
+	require.True(t, h1l1Before.UpdatedAt.Before(h1l1After.UpdatedAt))
+}
 
 func TestRecordLabelQueryExecutions(t *testing.T) {
 	ds := new(mock.Store)
