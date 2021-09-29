@@ -5,7 +5,6 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import moment from "moment";
-import { capitalize } from "lodash";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -20,6 +19,10 @@ import { IUser } from "interfaces/user";
 
 import permissionsUtils from "utilities/permissions";
 
+interface IQueryRow {
+  id: string;
+  original: IQuery;
+}
 interface IHeaderProps {
   column: {
     title: string;
@@ -28,8 +31,8 @@ interface IHeaderProps {
   getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
   toggleAllRowsSelected: () => void;
   toggleRowSelected: (id: string, value?: boolean) => void;
-  rows: any;
-  selectedFlatRows: any;
+  rows: IQueryRow[];
+  selectedFlatRows: IQueryRow[];
 }
 
 interface ICellProps {
@@ -54,16 +57,6 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-
-// const countUserAuthoredQueries = (
-//   currentUser: IUser,
-//   queries: IQuery[]
-// ): number => {
-//   const userAuthoredQueries = queries.filter(
-//     (q: IQuery) => q.author_id === currentUser.id
-//   );
-//   return userAuthoredQueries.length || 0;
-// };
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -213,7 +206,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "observer_can_run",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={capitalize(cellProps.cell.value.toString())} />
+        <TextCell
+          value={cellProps.row.original.observer_can_run ? "Yes" : "No"}
+        />
       ),
       sortType: "basic",
     });
@@ -221,5 +216,4 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   return tableHeaders;
 };
 
-// export { countUserAuthoredQueries, generateTableHeaders };
 export default generateTableHeaders;

@@ -5,12 +5,7 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-// import permissionsUtils from "utilities/permissions";
 
-// import {
-//   countUserAuthoredQueries,
-//   generateTableHeaders,
-// } from "./QueriesTableConfig";
 import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
@@ -51,10 +46,6 @@ const QueriesListWrapper = (
 
   const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
   const [searchString, setSearchString] = useState<string>("");
-  // const [
-  //   showUserAuthoredQueriesCount,
-  //   setShowUserAuthoredQueriesCount,
-  // ] = useState<boolean>(false);
 
   useEffect(() => {
     setFilteredQueries(
@@ -67,12 +58,6 @@ const QueriesListWrapper = (
           })
     );
   }, [queriesList, searchString, setFilteredQueries]);
-
-  // useEffect(() => {
-  //   setShowUserAuthoredQueriesCount(
-  //     currentUser && permissionsUtils.isAnyTeamMaintainer(currentUser)
-  //   );
-  // }, [currentUser]);
 
   const onQueryChange = useCallback(
     (queryData) => {
@@ -145,11 +130,6 @@ const QueriesListWrapper = (
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
-        // getCustomCount={
-        //   showUserAuthoredQueriesCount
-        //     ? (data: IQuery[]) => countUserAuthoredQueries(currentUser, data)
-        //     : undefined
-        // }
       />
     </div>
   ) : null;
