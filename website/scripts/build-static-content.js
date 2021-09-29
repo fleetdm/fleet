@@ -72,28 +72,28 @@ module.exports = {
         }, []);
 
         // Talk to GitHub and get additional information about each contributor.
-        // let githubDataByUsername = {};
-        // await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-        //   githubDataByUsername[username] = await sails.helpers.http.get.with({
-        //     url: 'https://api.github.com/users/' + encodeURIComponent(username),
-        //     headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-        //   });
-        // });//∞
+        let githubDataByUsername = {};
+        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+          githubDataByUsername[username] = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/users/' + encodeURIComponent(username),
+            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+          });
+        });//∞
 
-        // // Now expand queries with relevant profile data for the contributors.
-        // for (let query of queries) {
-        //   let usernames = query.contributors.split(',');
-        //   let contributorProfiles = [];
-        //   for (let username of usernames) {
-        //     contributorProfiles.push({
-        //       name: githubDataByUsername[username].name,
-        //       handle: githubDataByUsername[username].login,
-        //       avatarUrl: githubDataByUsername[username].avatar_url,
-        //       htmlUrl: githubDataByUsername[username].html_url,
-        //     });
-        //   }
-        //   query.contributors = contributorProfiles;
-        // }
+        // Now expand queries with relevant profile data for the contributors.
+        for (let query of queries) {
+          let usernames = query.contributors.split(',');
+          let contributorProfiles = [];
+          for (let username of usernames) {
+            contributorProfiles.push({
+              name: githubDataByUsername[username].name,
+              handle: githubDataByUsername[username].login,
+              avatarUrl: githubDataByUsername[username].avatar_url,
+              htmlUrl: githubDataByUsername[username].html_url,
+            });
+          }
+          query.contributors = contributorProfiles;
+        }
 
         // // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
