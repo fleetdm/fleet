@@ -380,6 +380,11 @@
         width: 16px;
         padding-right: 0px;
       }
+      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
+      // &:last-child {
+      //   width: 90px;
+      //   padding: 0px;
+      // }
     }
     tr {
       td {
@@ -561,6 +566,30 @@
       margin-left: $pad-small;
       font-weight: 400;
       text-align: center;
+    }
+  }
+  .tooltip__tooltip-icon {
+    img {
+      vertical-align: middle;
+      height: 16px;
+      width: auto;
+    }
+  }
+
+  .software-name {
+    margin-left: 8px;
+  }
+
+  .software-last-used-muted {
+    color: $ui-fleet-black-50;
+  }
+
+  .software-link {
+    img {
+      transform: rotate(0.75turn);
+      height: 16px;
+      width: auto;
+      vertical-align: middle;
     }
   }
 }

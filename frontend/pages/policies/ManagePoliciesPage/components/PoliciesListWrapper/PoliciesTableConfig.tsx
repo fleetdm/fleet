@@ -160,11 +160,11 @@ const generateTableHeaders = (options: {
   }
 };
 
-const generateDataSet = memoize((policies: IPolicy[] = []): IPolicy[] => {
-  policies = policies.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
+const generateDataSet = memoize((policiesList: IPolicy[] = []): IPolicy[] => {
+  policiesList = policiesList.sort((a, b) =>
+    sortUtils.caseInsensitiveAsc(a.query_name, b.query_name)
   );
-  return policies;
+  return policiesList;
 });
 
 export { generateTableHeaders, generateDataSet };
