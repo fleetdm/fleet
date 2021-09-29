@@ -25,6 +25,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
@@ -33,8 +34,10 @@ import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 const baseClass = "manage-schedule-page";
 
 const renderTable = (
-  onRemoveScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  onEditScheduledQueryClick: React.MouseEventHandler<HTMLButtonElement>,
+  onRemoveScheduledQueryClick: (selectIds: number[]) => void,
+  onEditScheduledQueryClick: (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ) => void,
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
   allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
@@ -52,6 +55,26 @@ const renderTable = (
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       teamId={teamId}
     />
+  );
+};
+
+const renderAllTeamsTable = (
+  teamId: number,
+  allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
+  allTeamsScheduledQueriesError: { name: string; reason: string }[]
+): JSX.Element => {
+  if (Object.keys(allTeamsScheduledQueriesError).length > 0) {
+    return <TableDataError />;
+  }
+
+  return (
+    <div className={`${baseClass}__all-teams-table`}>
+      <ScheduleListWrapper
+        inheritedQueries
+        allScheduledQueriesList={allTeamsScheduledQueriesList}
+        teamId={teamId}
+      />
+    </div>
   );
 };
 
@@ -139,6 +162,18 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
   const allScheduledQueriesList = Object.values(allScheduledQueries.data);
   const allScheduledQueriesError = allScheduledQueries.errors;
 
+  const allTeamsScheduledQueries = useSelector((state: IRootState) => {
+    return state.entities.global_scheduled_queries;
+  });
+
+  const allTeamsScheduledQueriesList = Object.values(
+    allTeamsScheduledQueries.data
+  );
+  const allTeamsScheduledQueriesError = allTeamsScheduledQueries.errors;
+
+  const inheritedQueryOrQueries =
+    allTeamsScheduledQueriesList.length === 1 ? "query" : "queries";
+
   const allTeams = useSelector((state: IRootState) => state.entities.teams);
   const allTeamsList = Object.values(allTeams.data);
 
@@ -148,7 +183,7 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     const teamOptions: ITeamOptions[] = [
       {
         disabled: false,
-        label: "Global",
+        label: "All teams",
         value: "global",
       },
     ];
@@ -163,6 +198,9 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     return teamOptions;
   };
 
+  const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
+    false
+  );
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
@@ -175,6 +213,10 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     IGlobalScheduledQuery | ITeamScheduledQuery
   >();
 
+  const toggleInheritedQueries = () => {
+    setShowInheritedQueries(!showInheritedQueries);
+  };
+
   const toggleScheduleEditorModal = useCallback(() => {
     setSelectedScheduledQuery(undefined); // create modal renders
     setShowScheduleEditorModal(!showScheduleEditorModal);
@@ -184,12 +226,16 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
-  const onRemoveScheduledQueryClick = (selectedTableQueryIds: any): void => {
+  const onRemoveScheduledQueryClick = (
+    selectedTableQueryIds: number[]
+  ): void => {
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
-  const onEditScheduledQueryClick = (selectedQuery: any): void => {
+  const onEditScheduledQueryClick = (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ): void => {
     toggleScheduleEditorModal();
     setSelectedScheduledQuery(selectedQuery); // edit modal renders
   };
@@ -379,6 +425,39 @@ const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
             teamId
           )}
         </div>
+        {/* must use ternary for NaN */}
+        {teamId && allTeamsScheduledQueriesList.length > 0 ? (
+          <>
+            <span>
+              <Button
+                variant="unstyled"
+                className={`${showInheritedQueries ? "upcarat" : "rightcarat"} 
+                     ${baseClass}__inherited-queries-button`}
+                onClick={toggleInheritedQueries}
+              >
+                {showInheritedQueries
+                  ? `Hide ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`
+                  : `Show ${allTeamsScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
+              </Button>
+            </span>
+            <div className={`${baseClass}__details`}>
+              <IconToolTip
+                isHtml
+                text={
+                  "\
+              <center><p>Queries from the “All teams”<br/>schedule run on this team’s hosts.</p></center>\
+            "
+                }
+              />
+            </div>
+          </>
+        ) : null}
+        {showInheritedQueries &&
+          renderAllTeamsTable(
+            teamId,
+            allTeamsScheduledQueriesList,
+            allTeamsScheduledQueriesError
+          )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal
             onCancel={toggleScheduleEditorModal}

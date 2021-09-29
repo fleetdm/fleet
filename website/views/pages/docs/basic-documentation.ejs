@@ -189,6 +189,13 @@
         </div>
 
         <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
+
+          <div class="edit-button-container">
+            <div class="edit-button">
+              <a class="edit-link" :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath"><i class="edit-pencil fa fa-pencil"></i>Edit page</a>
+            </div>
+          </div>
+
           <%- partial(
             path.relative(
               path.dirname(__filename), 
@@ -205,7 +212,7 @@
           <div class="d-none d-lg-block">
             <h3 class="pb-4 m-0">Is there something missing?</h3>
             <p>
-              If you notice something we've missed or could be improved on, please follow <a href="https://github.com/fleetdm/fleet">this link</a> and submit a pull request to the Fleet repo. 
+              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/tree/main/docs/'+thisPage.sectionRelativeRepoPath">here</a> to edit this page.
             </p>
           </div>
 

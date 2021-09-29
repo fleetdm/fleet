@@ -32,6 +32,7 @@ func TestListHosts(t *testing.T) {
 		SeenTime:        storedTime,
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 	})
 	require.NoError(t, err)
 

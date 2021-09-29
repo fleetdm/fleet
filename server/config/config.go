@@ -37,13 +37,15 @@ type MysqlConfig struct {
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address          string
-	Password         string
-	Database         int
-	UseTLS           bool          `yaml:"use_tls"`
-	DuplicateResults bool          `yaml:"duplicate_results"`
-	ConnectTimeout   time.Duration `yaml:"connect_timeout"`
-	KeepAlive        time.Duration `yaml:"keep_alive"`
+	Address                   string
+	Password                  string
+	Database                  int
+	UseTLS                    bool          `yaml:"use_tls"`
+	DuplicateResults          bool          `yaml:"duplicate_results"`
+	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
+	KeepAlive                 time.Duration `yaml:"keep_alive"`
+	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
+	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
 }
 
 const (
@@ -89,10 +91,12 @@ type OsqueryConfig struct {
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
 	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -243,6 +247,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
+	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
+	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -294,6 +300,8 @@ func (man Manager) addConfigs() {
 		"Log plugin to use for result logs")
 	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
 		"Interval to update host label membership (i.e. 1h)")
+	man.addConfigDuration("osquery.policy_update_interval", 1*time.Hour,
+		"Interval to update host policy membership (i.e. 1h)")
 	man.addConfigDuration("osquery.detail_update_interval", 1*time.Hour,
 		"Interval to update host details (i.e. 1h)")
 	man.addConfigString("osquery.status_log_file", "",
@@ -302,6 +310,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.result_log_file) Path for osqueryd result logs")
 	man.addConfigBool("osquery.enable_log_rotation", false,
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
+	man.addConfigInt("osquery.max_jitter_percent", 10,
+		"Maximum percentage of the interval to add as jitter")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -417,13 +427,15 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:          man.getConfigString("redis.address"),
-			Password:         man.getConfigString("redis.password"),
-			Database:         man.getConfigInt("redis.database"),
-			UseTLS:           man.getConfigBool("redis.use_tls"),
-			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:   man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:        man.getConfigDuration("redis.keep_alive"),
+			Address:                   man.getConfigString("redis.address"),
+			Password:                  man.getConfigString("redis.password"),
+			Database:                  man.getConfigInt("redis.database"),
+			UseTLS:                    man.getConfigBool("redis.use_tls"),
+			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -455,8 +467,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
 			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval: man.getConfigDuration("osquery.policy_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -742,7 +756,9 @@ func TestConfig() FleetConfig {
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
+			PolicyUpdateInterval: 1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
+			MaxJitterPercent:     0,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

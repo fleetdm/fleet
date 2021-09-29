@@ -44,8 +44,7 @@ oug6edBNpdhp8r2/4t6n3AouK0/zG2naAlmXV0JoFuEvy2bX0BbbbPg+v4WNZIsC
 
 func TestDebugConnectionCommand(t *testing.T) {
 	t.Run("without certificate", func(t *testing.T) {
-		server, ds := runServerWithMockedDS(t)
-		defer server.Close()
+		_, ds := runServerWithMockedDS(t)
 
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 			return nil, errors.New("invalid")

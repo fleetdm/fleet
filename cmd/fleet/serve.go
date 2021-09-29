@@ -200,21 +200,21 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := redis.NewRedisPool(
-				config.Redis.Address,
-				config.Redis.Password,
-				config.Redis.Database,
-				config.Redis.UseTLS,
-				config.Redis.ConnectTimeout,
-				config.Redis.KeepAlive,
-			)
+			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
+				Server:                    config.Redis.Address,
+				Password:                  config.Redis.Password,
+				Database:                  config.Redis.Database,
+				UseTLS:                    config.Redis.UseTLS,
+				ConnTimeout:               config.Redis.ConnectTimeout,
+				KeepAlive:                 config.Redis.KeepAlive,
+				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
+				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
-			// TODO: should that only be done when a certain "migrate" flag is set,
-			// to prevent affecting every startup?
 			if err := liveQueryStore.MigrateKeys(); err != nil {
 				level.Info(logger).Log(
 					"err", err,
@@ -508,6 +508,10 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		err = ds.CleanupOrphanScheduledQueryStats(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
+		}
+		err = ds.CleanupOrphanLabelMembership(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
 		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
