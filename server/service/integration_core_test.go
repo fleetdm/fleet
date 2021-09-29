@@ -503,3 +503,21 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 	}
 	return hosts
 }
+
+func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID, hosts[1].ID},
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{LabelID: ptr.Uint(1)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
+}

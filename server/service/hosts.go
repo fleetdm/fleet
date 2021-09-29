@@ -47,6 +47,10 @@ func (svc Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostL
 		return err
 	}
 
+	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
+		return &badRequestError{"Cannot specify a list of ids and filters at the same time"}
+	}
+
 	if len(ids) > 0 {
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
