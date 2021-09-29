@@ -88,26 +88,27 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 
 1. Make a clone of [Orbit's GitHub repository](https://github.com/fleetdm/orbit). 
 
-> Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
+	> Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
 
-<img src="https://user-images.githubusercontent.com/78363703/133367260-d78d1e11-b8a9-4c36-a39b-b11b2f4d1197.png" alt="Clone Orbit repository"/>
+	<img src="https://user-images.githubusercontent.com/78363703/133367260-d78d1e11-b8a9-4c36-a39b-b11b2f4d1197.png" alt="Clone Orbit repository"/>
 
 2. In Fleet UI's Host page, hit the "Add new host" button, and copy your Fleet enroll secret (you'll need this in the next step.)
 
-<img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Clone Orbit repository"/>
+	<img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Add new host"/>
 
 3. With [fleetctl preview](http://fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
 
-``` 
-# From within the top-level directory of your cloned Orbit repository…
-# Generate a macOS installer pointed at your local Fleet
-go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE```
-```
-> If you'd like to build a Windows package, set `--type=msi` in the above command. If you'd like to build a Linux package, set `--type=deb` (Debian, Ubuntu, etc.) or `--type=rpm` (RHEL, CentOS, etc.) in the above command.
+	``` 
+	# From within the top-level directory of your cloned Orbit repository…
+	# Generate a macOS installer pointed at your local Fleet
+	go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+	```
 
-A package configured to point at your Fleet instance has now been generated in your local Orbit repository
+	> If you'd like to build a Windows package, set `--type=msi` in the above command. If you'd like to build a Linux package, set `--type=deb` (Debian, Ubuntu, etc.) or `--type=rpm` (RHEL, CentOS, etc.) in the above command.
+
+	A package configured to point at your Fleet instance has now been generated in your local Orbit repository
 
 4. Navigate to your generated package (use ```open .``` from macOS commandline,) then double click on the package, and finally complete the installation walkthrough to enroll your device as a host in Fleet.
 
-> It may take several seconds (≈30s) for your device to enroll. Refresh Fleet UI, and you should now see your local device in your list of hosts.
+	> It may take several seconds (≈30s) for your device to enroll. Refresh Fleet UI, and you should now see your local device in your list of hosts.
 

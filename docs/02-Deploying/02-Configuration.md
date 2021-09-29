@@ -1425,9 +1425,10 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
 - Environment variable: `FLEET_VULNERABILITIES_DISABLE_DATA_SYNC`
 - Config file format:
 
-  ```
+```
   vulnerabilities:
   	disable_data_sync: true
+```
 
 ## Managing osquery configurations
 
@@ -1440,6 +1441,7 @@ Once you've verified that you can run Fleet in your shell, you'll likely want to
 Below is a sample unit file.
 
 ```
+
 [Unit]
 Description=Fleet
 After=network.target
@@ -1557,52 +1559,52 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 47 36 PM" src="https://user-images.githubusercontent.com/575602/133529965-cb067c4a-3d11-460e-aa72-958a6462a6ae.png">
+  ![The Google Workspace Admin Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
 2. Enter `Fleet` for the _App name_ and click _Continue_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 50 06 PM" src="https://user-images.githubusercontent.com/575602/133530058-95183355-6e6b-4dfd-b622-1b012809a1bd.png">
+  <img alt="Screen Shot 2021-09-15 at 2 50 06 PM" src="https://user-images.githubusercontent.com/575602/133530058-95183355-6e6b-4dfd-b622-1b012809a1bd.png">
 
 3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 52 56 PM" src="https://user-images.githubusercontent.com/575602/133530200-af839b88-0eba-4403-b095-2fed4632b6be.png">
+  <img alt="Screen Shot 2021-09-15 at 2 52 56 PM" src="https://user-images.githubusercontent.com/575602/133530200-af839b88-0eba-4403-b095-2fed4632b6be.png">
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML Single Sign On Options_ section.
 
-- Check the _Enable Single Sign On_ checkbox.
-- For _Identity Provider Name_ use `Google`.
-- For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-- For _Issuer URI_, paste the _SSO URL_ copied from step 3.
-- For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
-- All other fields can be left blank.
+  - Check the _Enable Single Sign On_ checkbox.
+  - For _Identity Provider Name_ use `Google`.
+  - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
+  - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
+  - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
+  - All other fields can be left blank.
 
-Click _Update settings_ at the bottom of the page.
+  Click _Update settings_ at the bottom of the page.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 5 32 25 PM" src="https://user-images.githubusercontent.com/575602/133530548-4651bf76-e0fc-489d-b84a-755736474dc5.png">
+  <img alt="Screen Shot 2021-09-15 at 5 32 25 PM" src="https://user-images.githubusercontent.com/575602/133530548-4651bf76-e0fc-489d-b84a-755736474dc5.png">
 
 5. In Google Workspace, configure the _Service provider details_.
 
-- For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
-- For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
-- For _Name ID format_ choose `EMAIL`.
-- For _Name ID_ choose `Basic Information > Primary email`.
-- All other fields can be left blank.
+  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
+  - For _Name ID format_ choose `EMAIL`.
+  - For _Name ID_ choose `Basic Information > Primary email`.
+  - All other fields can be left blank.
 
-Click _Continue_ at the bottom of the page.
+  Click _Continue_ at the bottom of the page.
 
-<img width="1860" alt="Screen Shot 2021-09-15 at 5 36 56 PM" src="https://user-images.githubusercontent.com/575602/133530896-af561c81-ae54-4ee6-acca-5a6473b38b6b.png">
+  <img alt="Screen Shot 2021-09-15 at 5 36 56 PM" src="https://user-images.githubusercontent.com/575602/133530896-af561c81-ae54-4ee6-acca-5a6473b38b6b.png">
 
 6. Click _Finish_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 57 20 PM" src="https://user-images.githubusercontent.com/575602/133530932-9157c17b-ee84-46d9-9520-8faa864d872b.png">
+  <img alt="Screen Shot 2021-09-15 at 2 57 20 PM" src="https://user-images.githubusercontent.com/575602/133530932-9157c17b-ee84-46d9-9520-8faa864d872b.png">
 
 7. Click the down arrow on the _User access_ section of the app details page.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 57 51 PM" src="https://user-images.githubusercontent.com/575602/133531007-a3a00a3f-65d4-46b0-9d39-eb74abda0901.png">
+  <img alt="Screen Shot 2021-09-15 at 2 57 51 PM" src="https://user-images.githubusercontent.com/575602/133531007-a3a00a3f-65d4-46b0-9d39-eb74abda0901.png">
 
 8. Check _ON for everyone_. Click _Save_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 58 09 PM" src="https://user-images.githubusercontent.com/575602/133531039-93e29f0f-ef20-423b-bc31-8cef05a61b13.png">
+  <img alt="Screen Shot 2021-09-15 at 2 58 09 PM" src="https://user-images.githubusercontent.com/575602/133531039-93e29f0f-ef20-423b-bc31-8cef05a61b13.png">
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
@@ -1616,7 +1618,7 @@ Feature flags on the server are controlled by environment variables prefixed wit
 
 Enable by setting the environment variable `FLEET_BETA_SOFTWARE_INVENTORY=1`.
 
-When enabled, Fleet will store a "software inventory" for hosts, updated along with the other host vitals. Note that it will take some time for the data to be available after setting this flag (it will be updated when the host details are next updated, configurable by [--osquery_detail_update_interval](#osquery_detail_update_interval)).
+When enabled, Fleet will store a "software inventory" for hosts, updated along with the other host vitals. Note that it will take some time for the data to be available after setting this flag (it will be updated when the host details are next updated, configurable by [--osquery_detail_update_interval](#osquery-detail-update-interval)).
 
 This is currently feature flagged because we would like to evaluate the performance characteristics on larger deployments.
 
