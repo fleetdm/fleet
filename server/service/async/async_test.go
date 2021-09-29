@@ -16,8 +16,29 @@ import (
 )
 
 func TestCollectLabelQueryExecutions(t *testing.T) {
-	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
+
+	oldInsBatch, oldDelBatch, oldRedisPop := insertBatchSize, deleteBatchSize, redisPopCount
+	insertBatchSize, deleteBatchSize, redisPopCount = 3, 3, 3
+	t.Cleanup(func() {
+		insertBatchSize, deleteBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldRedisPop
+	})
+
+	t.Run("standalone", func(t *testing.T) {
+		defer mysql.TruncateTables(t, ds)
+		pool := redis.SetupRedis(t, false, false)
+		testCollectLabelQueryExecutions(t, ds, pool)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		defer mysql.TruncateTables(t, ds)
+		pool := redis.SetupRedis(t, true, true)
+		testCollectLabelQueryExecutions(t, ds, pool)
+	})
+}
+
+func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool fleet.RedisPool) {
+	ctx := context.Background()
 
 	type labelMembership struct {
 		HostID    uint      `db:"host_id"`
@@ -100,70 +121,103 @@ func TestCollectLabelQueryExecutions(t *testing.T) {
 				{HostID: 2, LabelID: 3},
 			},
 		},
+		{
+			"report host 1 labels -99, non-existing",
+			map[int]map[int]bool{1: {99: false}},
+			[]labelMembership{
+				{HostID: 1, LabelID: 1},
+				{HostID: 1, LabelID: 2},
+				{HostID: 2, LabelID: 2},
+				{HostID: 2, LabelID: 3},
+			},
+		},
+		{
+			"report host -99 labels 1, ignored",
+			map[int]map[int]bool{-99: {1: true}},
+			[]labelMembership{
+				{HostID: 1, LabelID: 1},
+				{HostID: 1, LabelID: 2},
+				{HostID: 2, LabelID: 2},
+				{HostID: 2, LabelID: 3},
+			},
+		},
+		{
+			"report hosts 1, 2, 3, 4, -99 labels 1, 2, -3, 4",
+			map[int]map[int]bool{
+				1:   {1: true, 2: true, 3: false, 4: true},
+				2:   {1: true, 2: true, 3: false, 4: true},
+				3:   {1: true, 2: true, 3: false, 4: true},
+				4:   {1: true, 2: true, 3: false, 4: true},
+				-99: {1: true, 2: true, 3: false, 4: true},
+			},
+			[]labelMembership{
+				{HostID: 1, LabelID: 1},
+				{HostID: 1, LabelID: 2},
+				{HostID: 1, LabelID: 4},
+				{HostID: 2, LabelID: 1},
+				{HostID: 2, LabelID: 2},
+				{HostID: 2, LabelID: 4},
+				{HostID: 3, LabelID: 1},
+				{HostID: 3, LabelID: 2},
+				{HostID: 3, LabelID: 4},
+				{HostID: 4, LabelID: 1},
+				{HostID: 4, LabelID: 2},
+				{HostID: 4, LabelID: 4},
+			},
+		},
 	}
 
-	oldInsBatch, oldDelBatch, oldRedisPop := insertBatchSize, deleteBatchSize, redisPopCount
-	insertBatchSize, deleteBatchSize, redisPopCount = 3, 3, 3
-	t.Cleanup(func() {
-		insertBatchSize, deleteBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldRedisPop
-	})
+	minUpdatedAt := time.Now()
+	for _, c := range cases {
+		func() {
+			t.Log(c.name)
+			conn := pool.ConfigureDoer(pool.Get())
+			defer conn.Close()
 
-	t.Run("standalone", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
-		pool := redis.SetupRedis(t, false, false)
-
-		minUpdatedAt := time.Now()
-		for _, c := range cases {
-			func() {
-				t.Log(c.name)
-				conn := pool.Get()
-				defer conn.Close()
-
-				// store the host memberships and prepare the expected stats
-				var wantStats collectorExecStats
-				for hostID, res := range c.reported {
-					if len(res) > 0 {
-						key := fmt.Sprintf(labelMembershipHostKey, hostID)
-						args := make(redigo.Args, 0, 1+(len(res)*2))
-						args = args.Add(key)
-						for lblID, ins := range res {
-							score := -1
-							if ins {
-								score = 1
-							}
-							args = args.Add(score, lblID)
+			// store the host memberships and prepare the expected stats
+			var wantStats collectorExecStats
+			for hostID, res := range c.reported {
+				if len(res) > 0 {
+					key := fmt.Sprintf(labelMembershipHostKey, hostID)
+					args := make(redigo.Args, 0, 1+(len(res)*2))
+					args = args.Add(key)
+					for lblID, ins := range res {
+						score := -1
+						if ins {
+							score = 1
 						}
-						_, err := conn.Do("ZADD", args...)
-						require.NoError(t, err)
+						args = args.Add(score, lblID)
 					}
-					if hostID >= 0 {
-						wantStats.Keys++
-						wantStats.Items += len(res)
-					}
+					_, err := conn.Do("ZADD", args...)
+					require.NoError(t, err)
 				}
-
-				// run the collection
-				var stats collectorExecStats
-				err := collectLabelQueryExecutions(ctx, ds, pool, &stats)
-				require.NoError(t, err)
-				require.Equal(t, wantStats, stats)
-
-				// check that the table contains the expected rows
-				var rows []labelMembership
-				err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-					return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
-				})
-				require.NoError(t, err)
-				require.Equal(t, len(c.want), len(rows))
-				for i := range c.want {
-					want, got := c.want[i], rows[i]
-					require.Equal(t, want.HostID, got.HostID)
-					require.Equal(t, want.LabelID, got.LabelID)
-					require.WithinDuration(t, minUpdatedAt, got.UpdatedAt, 10*time.Second)
+				wantStats.Keys++
+				if hostID >= 0 {
+					wantStats.Items += len(res)
 				}
-			}()
-		}
-	})
+			}
+
+			// run the collection
+			var stats collectorExecStats
+			err := collectLabelQueryExecutions(ctx, ds, pool, &stats)
+			require.NoError(t, err)
+			require.Equal(t, wantStats, stats)
+
+			// check that the table contains the expected rows
+			var rows []labelMembership
+			err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
+			})
+			require.NoError(t, err)
+			require.Equal(t, len(c.want), len(rows))
+			for i := range c.want {
+				want, got := c.want[i], rows[i]
+				require.Equal(t, want.HostID, got.HostID)
+				require.Equal(t, want.LabelID, got.LabelID)
+				require.WithinDuration(t, minUpdatedAt, got.UpdatedAt, 10*time.Second)
+			}
+		}()
+	}
 }
 
 // TODO: test the updated_at after insert and update
