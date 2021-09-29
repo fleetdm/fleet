@@ -18,11 +18,9 @@ func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		bearer := token.FromHTTPRequest(r)
 		ctx = token.NewContext(ctx, bearer)
-		if bearer != "" {
-			v, err := authViewer(ctx, string(bearer), svc)
-			if err == nil {
-				ctx = viewer.NewContext(ctx, *v)
-			}
+		v, err := authViewer(ctx, string(bearer), svc)
+		if err == nil {
+			ctx = viewer.NewContext(ctx, *v)
 		}
 
 		// get the user-id for request

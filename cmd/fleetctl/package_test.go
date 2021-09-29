@@ -1,16 +1,12 @@
 package main
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestPackage(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
 
 	// --type is required
 	runAppCheckErr(t, []string{"package", "deb"}, "Required flag \"type\" not set")

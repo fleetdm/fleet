@@ -243,12 +243,6 @@ type ListOptions struct {
 	MatchQuery string
 }
 
-type ListQueryOptions struct {
-	ListOptions
-
-	OnlyObserverCanRun bool
-}
-
 // EnrollSecret contains information about an enroll secret, name, and active
 // status. Enroll secrets are used for osquery authentication.
 type EnrollSecret struct {
@@ -322,7 +316,6 @@ type Logging struct {
 
 type UpdateIntervalConfig struct {
 	OSQueryDetail time.Duration `json:"osquery_detail"`
-	OSQueryPolicy time.Duration `json:"osquery_policy"`
 }
 
 type LoggingPlugin struct {

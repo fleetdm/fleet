@@ -6,11 +6,10 @@ type Policy struct {
 	QueryName        string `json:"query_name" db:"query_name"`
 	PassingHostCount uint   `json:"passing_host_count" db:"passing_host_count"`
 	FailingHostCount uint   `json:"failing_host_count" db:"failing_host_count"`
-	TeamID           *uint  `json:"team_id" db:"team_id"`
 
 	UpdateCreateTimestamps
 }
 
-func (p Policy) AuthzType() string {
+func (Policy) AuthzType() string {
 	return "policy"
 }

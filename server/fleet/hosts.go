@@ -64,7 +64,6 @@ type Host struct {
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdatedAt  time.Time     `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
 	LabelUpdatedAt   time.Time     `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time     `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt   time.Time     `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
 	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`

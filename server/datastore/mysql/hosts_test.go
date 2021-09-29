@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -46,57 +45,13 @@ var enrollTests = []struct {
 	},
 }
 
-func TestHosts(t *testing.T) {
+func TestSaveHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"Save", testHostsSave},
-		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
-		{"SavePackStats", testHostsSavePackStats},
-		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
-		{"IgnoresTeamPackStats", testHostsIgnoresTeamPackStats},
-		{"Delete", testHostsDelete},
-		{"ListFilterAdditional", testHostsListFilterAdditional},
-		{"ListStatus", testHostsListStatus},
-		{"ListQuery", testHostsListQuery},
-		{"Enroll", testHostsEnroll},
-		{"Authenticate", testHostsAuthenticate},
-		{"AuthenticateCaseSensitive", testHostsAuthenticateCaseSensitive},
-		{"Search", testHostsSearch},
-		{"SearchLimit", testHostsSearchLimit},
-		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
-		{"MarkSeen", testHostsMarkSeen},
-		{"MarkSeenMany", testHostsMarkSeenMany},
-		{"CleanupIncoming", testHostsCleanupIncoming},
-		{"IDsByName", testHostsIDsByName},
-		{"Additional", testHostsAdditional},
-		{"ByIdentifier", testHostsByIdentifier},
-		{"AddToTeam", testHostsAddToTeam},
-		{"SaveUsers", testHostsSaveUsers},
-		{"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
-		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
-		{"ListByPolicy", testHostsListByPolicy},
-		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
-		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-
-			c.fn(t, ds)
-		})
-	}
-}
-
-func testHostsSave(t *testing.T, ds *Datastore) {
-	policyUpdatedAt := time.Now().UTC().Truncate(time.Second)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: policyUpdatedAt,
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -116,7 +71,6 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
-	assert.Equal(t, policyUpdatedAt.UTC(), host.PolicyUpdatedAt)
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
@@ -145,11 +99,13 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	assert.Nil(t, host)
 }
 
-func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
+func TestDeleteHostWithSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -179,11 +135,13 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	assert.Nil(t, host)
 }
 
-func testHostsSavePackStats(t *testing.T, ds *Datastore) {
+func TestSaveHostPackStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -292,11 +250,13 @@ func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 	require.Len(t, host.PackStats, 2)
 }
 
-func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
+func TestSaveHostPackStatsOverwrites(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -436,11 +396,13 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	assert.Equal(t, execTime2, gotHost.PackStats[0].QueryStats[0].LastExecuted)
 }
 
-func testHostsIgnoresTeamPackStats(t *testing.T, ds *Datastore) {
+func TestIgnoresTeamPackStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -516,11 +478,13 @@ func testHostsIgnoresTeamPackStats(t *testing.T, ds *Datastore) {
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
 }
 
-func testHostsDelete(t *testing.T, ds *Datastore) {
+func TestDeleteHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -536,11 +500,13 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, err)
 }
 
-func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
+func TestListHostsFilterAdditional(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
@@ -574,12 +540,14 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
-func testHostsListStatus(t *testing.T, ds *Datastore) {
+func TestListHostsStatus(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -611,13 +579,15 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 10, len(hosts))
 }
 
-func testHostsListQuery(t *testing.T, ds *Datastore) {
+func TestListHostsQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -699,7 +669,10 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, len(gotHosts))
 }
 
-func testHostsEnroll(t *testing.T, ds *Datastore) {
+func TestEnrollHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -736,7 +709,10 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHostsAuthenticate(t *testing.T, ds *Datastore) {
+func TestAuthenticateHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -754,7 +730,10 @@ func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 }
 
-func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
+func TestAuthenticateHostCaseSensitive(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -765,12 +744,14 @@ func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHostsSearch(t *testing.T, ds *Datastore) {
+func TestSearchHosts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -782,7 +763,6 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -794,7 +774,6 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		OsqueryHostID:   "99999",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "3",
 		UUID:            "abc-def-ghi",
@@ -857,14 +836,16 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, len(hits))
 }
 
-func testHostsSearchLimit(t *testing.T, ds *Datastore) {
+func TestSearchHostsLimit(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -879,7 +860,10 @@ func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 	assert.Len(t, hosts, 10)
 }
 
-func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
+func TestGenerateHostStatusStatistics(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
@@ -897,7 +881,6 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
-		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
 	})
 	require.Nil(t, err)
@@ -912,7 +895,6 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "2",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
-		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:        mockClock.Now().Add(-1 * time.Minute),
 	})
 	require.Nil(t, err)
@@ -927,7 +909,6 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "3",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
-		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:        mockClock.Now().Add(-1 * time.Hour),
 	})
 	require.Nil(t, err)
@@ -942,7 +923,6 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "4",
 		DetailUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
-		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
 	})
 	require.Nil(t, err)
@@ -962,7 +942,10 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(4), new)
 }
 
-func testHostsMarkSeen(t *testing.T, ds *Datastore) {
+func TestMarkHostSeen(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
@@ -975,7 +958,6 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
-		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	assert.Nil(t, err)
@@ -998,7 +980,10 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
+func TestMarkHostsSeen(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
@@ -1012,7 +997,6 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
-		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
@@ -1024,7 +1008,6 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 		NodeKey:         "2",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
-		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
@@ -1058,9 +1041,13 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
 	}
+
 }
 
-func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
+func TestCleanupIncomingHosts(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	mockClock := clock.NewMockClock()
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1070,7 +1057,6 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
-		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -1084,7 +1070,6 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 		OsqueryVersion:  "3.2.3",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
-		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -1108,12 +1093,14 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 }
 
-func testHostsIDsByName(t *testing.T, ds *Datastore) {
+func TestHostIDsByName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -1130,11 +1117,13 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hosts, []uint{2, 3, 6})
 }
 
-func testHostsAdditional(t *testing.T, ds *Datastore) {
+func TestHostAdditional(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
@@ -1202,12 +1191,14 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, &additional, h.Additional)
 }
 
-func testHostsByIdentifier(t *testing.T, ds *Datastore) {
+func TestHostByIdentifier(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
 			NodeKey:         fmt.Sprintf("node_key_%d", i),
@@ -1241,7 +1232,10 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
-func testHostsAddToTeam(t *testing.T, ds *Datastore) {
+func TestAddHostsToTeam(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -1288,11 +1282,13 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHostsSaveUsers(t *testing.T, ds *Datastore) {
+func TestSaveHostUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1358,11 +1354,13 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 }
 
-func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
+func TestSaveUsersWithoutUid(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1418,7 +1416,6 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
 		OsqueryHostID:   fmt.Sprintf("%d", i),
 		NodeKey:         fmt.Sprintf("%d", i),
@@ -1431,7 +1428,10 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	require.NotNil(t, host)
 }
 
-func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
+func TestTotalAndUnseenHostsSince(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	addHostSeenLast(t, ds, 1, 0)
 
 	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
@@ -1448,12 +1448,14 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, unseen)
 }
 
-func testHostsListByPolicy(t *testing.T, ds *Datastore) {
+func TestListHostsByPolicy(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -1504,11 +1506,13 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 8)
 }
 
-func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
+func TestSaveTonsOfUsers(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1523,7 +1527,6 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -1542,12 +1545,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	var count1 int32
 	var count2 int32
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	go func() {
-		defer wg.Done()
-
 		for {
 			host1, err := ds.Host(context.Background(), host1.ID)
 			if err != nil {
@@ -1586,9 +1584,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if atomic.AddInt32(&count1, 1) >= 100 {
-				return
-			}
+			atomic.AddInt32(&count1, 1)
 
 			select {
 			case <-ctx.Done():
@@ -1599,8 +1595,6 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	}()
 
 	go func() {
-		defer wg.Done()
-
 		for {
 			host2, err := ds.Host(context.Background(), host2.ID)
 			if err != nil {
@@ -1639,9 +1633,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				errCh <- err
 				return
 			}
-			if atomic.AddInt32(&count2, 1) >= 100 {
-				return
-			}
+			atomic.AddInt32(&count2, 1)
 
 			select {
 			case <-ctx.Done():
@@ -1652,28 +1644,24 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	}()
 
 	ticker := time.NewTicker(10 * time.Second)
-	go func() {
-		wg.Wait()
-		cancelFunc()
-	}()
 
 	select {
 	case err := <-errCh:
-		cancelFunc()
 		require.NoError(t, err)
-	case <-ctx.Done():
+		cancelFunc()
 	case <-ticker.C:
-		require.Fail(t, "timed out")
 	}
-	t.Log("Count1", atomic.LoadInt32(&count1))
-	t.Log("Count2", atomic.LoadInt32(&count2))
+	fmt.Println("Count1", atomic.LoadInt32(&count1))
+	fmt.Println("Count2", atomic.LoadInt32(&count2))
 }
 
-func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
+func TestSaveHostPackStatsConcurrent(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1688,7 +1676,6 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -1756,18 +1743,14 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 				},
 			},
 		}
-		return ds.SaveHost(context.Background(), host)
+		return ds.SaveHost(context.Background(), host1)
 	}
 
 	errCh := make(chan error)
 	var counter int32
-	const total = int32(100)
-
-	var wg sync.WaitGroup
+	total := int32(1000)
 
 	loopAndSaveHost := func(host *fleet.Host) {
-		defer wg.Done()
-
 		for {
 			err := saveHostRandomStats(host)
 			if err != nil {
@@ -1787,13 +1770,10 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	wg.Add(3)
 	go loopAndSaveHost(host1)
 	go loopAndSaveHost(host2)
 
 	go func() {
-		defer wg.Done()
-
 		for {
 			specs := []*fleet.PackSpec{
 				{
@@ -1837,14 +1817,13 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 		}
 	}()
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	select {
 	case err := <-errCh:
-		cancelFunc()
 		require.NoError(t, err)
 	case <-ctx.Done():
-		wg.Wait()
+		return
 	case <-ticker.C:
-		require.Fail(t, "timed out")
+		t.Fail()
 	}
 }

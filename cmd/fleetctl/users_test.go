@@ -9,7 +9,8 @@ import (
 )
 
 func TestUserDelete(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{

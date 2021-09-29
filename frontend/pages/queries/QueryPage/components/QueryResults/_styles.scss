@@ -122,20 +122,6 @@
         font-weight: $bold;
       }
     }
-    &__tab-panel {
-      .no-results-message {
-        margin-top: $pad-xxlarge;
-        font-size: $small;
-        font-weight: $bold;
-
-        span {
-          margin-top: $pad-medium;
-          font-size: $x-small;
-          font-weight: $regular;
-          display: block;
-        }
-      }
-    }
   }
 
   &__results-table-container,
@@ -151,6 +137,17 @@
     margin-top: $pad-large;
     box-sizing: border-box;
     overflow: auto;
+
+    .kolide-spinner {
+      align-self: center;
+    }
+
+    .no-results-message {
+      flex-grow: 1;
+      align-self: center;
+      text-align: center;
+      font-size: $x-small;
+    }
   }
 
   &__table {

@@ -41,7 +41,8 @@ var userRoleSpecList = []*fleet.User{
 }
 
 func TestApplyUserRoles(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -101,10 +102,11 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+	server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+	defer server.Close()
 
 	teamsByName := map[string]*fleet.Team{
-		"team1": {
+		"team1": &fleet.Team{
 			ID:          42,
 			Name:        "team1",
 			Description: "team1 description",
@@ -183,7 +185,8 @@ func writeTmpYml(t *testing.T, contents string) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil

@@ -11,37 +11,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSoftware(t *testing.T) {
+func TestSaveHostSoftware(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"SaveHost", testSoftwareSaveHost},
-		{"CPE", testSoftwareCPE},
-		{"InsertCVEs", testSoftwareInsertCVEs},
-		{"HostDuplicates", testSoftwareHostDuplicates},
-		{"LoadVulnerabilities", testSoftwareLoadVulnerabilities},
-		{"AllCPEs", testSoftwareAllCPEs},
-		{"NothingChanged", testSoftwareNothingChanged},
-		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
-		{"List", testSoftwareList},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-			c.fn(t, ds)
-		})
-	}
-}
-
-func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
@@ -126,7 +103,10 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 }
 
-func testSoftwareCPE(t *testing.T, ds *Datastore) {
+func TestSoftwareCPE(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	soft1 := fleet.HostSoftware{
@@ -196,7 +176,10 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	require.NoError(t, iterator.Close())
 }
 
-func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
+func TestInsertCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	soft := fleet.HostSoftware{
@@ -214,7 +197,10 @@ func testSoftwareInsertCVEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"}))
 }
 
-func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
+func TestHostSoftwareDuplicates(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	longName := strings.Repeat("a", 260)
@@ -246,7 +232,10 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.NoError(t, tx.Commit())
 }
 
-func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
+func TestLoadSoftwareVulnerabilities(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	soft := fleet.HostSoftware{
@@ -281,7 +270,10 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }
 
-func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
+func TestAllCPEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	soft := fleet.HostSoftware{
@@ -304,7 +296,7 @@ func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
 	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
 }
 
-func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
+func TestNothingChanged(t *testing.T) {
 	assert.False(t, nothingChanged(nil, []fleet.Software{{}}))
 	assert.True(t, nothingChanged(nil, nil))
 	assert.True(t, nothingChanged(
@@ -321,7 +313,10 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	))
 }
 
-func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
+func TestLoadSupportsTonsOfCVEs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	soft := fleet.HostSoftware{
@@ -337,26 +332,15 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
 	sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].Name < host.Software[j].Name })
-
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
-
-	require.NoError(t, ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
-		somecpeID, err := addCPEForSoftwareDB(context.Background(), tx, host.Software[0], "somecpe")
-		if err != nil {
-			return err
-		}
-		sql := `INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES (?, ?)`
-		for i := 0; i < 1000; i++ {
-			part1 := rand.Intn(1000)
-			part2 := rand.Intn(1000)
-			part3 := rand.Intn(1000)
-			cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
-			if _, err := tx.ExecContext(context.Background(), sql, somecpeID, cve); err != nil {
-				return err
-			}
-		}
-		return nil
-	}))
+	for i := 0; i < 1000; i++ {
+		part1 := rand.Intn(1000)
+		part2 := rand.Intn(1000)
+		part3 := rand.Intn(1000)
+		cve := fmt.Sprintf("cve-%d-%d-%d", part1, part2, part3)
+		require.NoError(t, ds.InsertCVEForCPE(context.Background(), cve, []string{"somecpe"}))
+	}
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
@@ -379,7 +363,10 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testSoftwareList(t *testing.T, ds *Datastore) {
+func TestListSoftware(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 

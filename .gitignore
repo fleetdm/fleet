@@ -50,11 +50,5 @@ backup.sql.gz
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
 
-# infra
-.terraform
-.terraform.tfstate*
-.terraform.lock*
-terraform.tfstate*
-
 # generated installers
 orbit-osquery*

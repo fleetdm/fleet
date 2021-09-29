@@ -38,19 +38,10 @@ type Service struct {
 }
 
 // NewService creates a new service from the config struct
-func NewService(
-	ds fleet.Datastore,
-	resultStore fleet.QueryResultStore,
-	logger kitlog.Logger,
-	osqueryLogger *logging.OsqueryLogger,
-	config config.FleetConfig,
-	mailService fleet.MailService,
-	c clock.Clock,
-	sso sso.SessionStore,
-	lq fleet.LiveQueryStore,
-	carveStore fleet.CarveStore,
-	license fleet.LicenseInfo,
-) (fleet.Service, error) {
+func NewService(ds fleet.Datastore, resultStore fleet.QueryResultStore,
+	logger kitlog.Logger, osqueryLogger *logging.OsqueryLogger, config config.FleetConfig, mailService fleet.MailService,
+	c clock.Clock, sso sso.SessionStore, lq fleet.LiveQueryStore, carveStore fleet.CarveStore,
+	license fleet.LicenseInfo) (fleet.Service, error) {
 	var svc fleet.Service
 
 	authorizer, err := authz.NewAuthorizer()

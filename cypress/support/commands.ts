@@ -285,7 +285,3 @@ Cypress.Commands.add("stopDockerHost", () => {
     },
   });
 });
-
-Cypress.Commands.add("clearDownloads", () => {
-  cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`);
-});

@@ -9,25 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPasswordReset(t *testing.T) {
-	ds := CreateMySQLDS(t)
+func TestPasswordResetRequests(t *testing.T) {
+	db := CreateMySQLDS(t)
+	defer db.Close()
 
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"Requests", testPasswordResetRequests},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-			c.fn(t, ds)
-		})
-	}
-}
-
-func testPasswordResetRequests(t *testing.T, ds *Datastore) {
-	createTestUsers(t, ds)
+	createTestUsers(t, db)
 	now := time.Now().UTC()
 	tomorrow := now.Add(time.Hour * 24)
 	var passwordResetTests = []struct {
@@ -44,7 +30,7 @@ func testPasswordResetRequests(t *testing.T, ds *Datastore) {
 			ExpiresAt: tt.expires,
 			Token:     tt.token,
 		}
-		req, err := ds.NewPasswordResetRequest(context.Background(), r)
+		req, err := db.NewPasswordResetRequest(context.Background(), r)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.userID, req.UserID)
 	}

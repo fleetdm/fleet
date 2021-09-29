@@ -12,29 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestScheduledQueries(t *testing.T) {
+func TestListScheduledQueriesInPack(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"ListInPack", testScheduledQueriesListInPack},
-		{"New", testScheduledQueriesNew},
-		{"Get", testScheduledQueriesGet},
-		{"Delete", testScheduledQueriesDelete},
-		{"CascadingDelete", testScheduledQueriesCascadingDelete},
-		{"CleanupOrphanStats", testScheduledQueriesCleanupOrphanStats},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-			c.fn(t, ds)
-		})
-	}
-}
-
-func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
@@ -100,7 +81,10 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	require.Len(t, gotQueries, 3)
 }
 
-func testScheduledQueriesNew(t *testing.T, ds *Datastore) {
+func TestNewScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -116,7 +100,10 @@ func testScheduledQueriesNew(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "select * from time;", query.Query)
 }
 
-func testScheduledQueriesGet(t *testing.T, ds *Datastore) {
+func TestScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -140,7 +127,10 @@ func testScheduledQueriesGet(t *testing.T, ds *Datastore) {
 	assert.False(t, *query.Denylist)
 }
 
-func testScheduledQueriesDelete(t *testing.T, ds *Datastore) {
+func TestDeleteScheduledQuery(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -157,7 +147,10 @@ func testScheduledQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NotNil(t, err)
 }
 
-func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
+func TestCascadingDeletionOfQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
@@ -206,7 +199,10 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	require.Len(t, gotQueries, 1)
 }
 
-func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
+func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")

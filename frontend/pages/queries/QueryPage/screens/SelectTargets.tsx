@@ -47,30 +47,17 @@ const TargetPillSelector = ({
   entity,
   isSelected,
   onClick,
-}: ITargetPillSelectorProps): JSX.Element => {
-  const displayText = () => {
-    switch (entity.display_text) {
-      case "All Hosts":
-        return "All hosts";
-      case "All Linux":
-        return "Linux";
-      default:
-        return entity.display_text;
-    }
-  };
-
-  return (
-    <button
-      className="target-pill-selector"
-      data-selected={isSelected}
-      onClick={(e) => onClick(entity)(e)}
-    >
-      <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
-      <span className="selector-name">{displayText()}</span>
-      <span className="selector-count">{entity.count}</span>
-    </button>
-  );
-};
+}: ITargetPillSelectorProps): JSX.Element => (
+  <button
+    className="target-pill-selector"
+    data-selected={isSelected}
+    onClick={(e) => onClick(entity)(e)}
+  >
+    <img alt="" src={isSelected ? CheckIcon : PlusIcon} />
+    <span className="selector-name">{entity.display_text}</span>
+    <span className="selector-count">{entity.count}</span>
+  </button>
+);
 
 const SelectTargets = ({
   baseClass,
@@ -241,7 +228,7 @@ const SelectTargets = ({
   if (isEmpty(searchText) && isTargetsLoading) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <h1>Select targets</h1>
+        <h1>Select Targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
         </div>
@@ -252,7 +239,7 @@ const SelectTargets = ({
   if (isEmpty(searchText) && isTargetsError) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
-        <h1>Select targets</h1>
+        <h1>Select Targets</h1>
         <div className={`${baseClass}__page-error`}>
           <h4>
             <img alt="" src={ErrorIcon} />
@@ -277,7 +264,7 @@ const SelectTargets = ({
 
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>
-      <h1>Select targets</h1>
+      <h1>Select Targets</h1>
       <div className={`${baseClass}__target-selectors`}>
         {allHostsLabels &&
           allHostsLabels.length > 0 &&

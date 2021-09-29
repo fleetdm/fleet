@@ -332,18 +332,11 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.So
 }
 
 func (d *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
-	_, err := addCPEForSoftwareDB(ctx, d.writer, software, cpe)
-	return err
-}
-
-func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software fleet.Software, cpe string) (uint, error) {
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	res, err := exec.ExecContext(ctx, sql, software.ID, cpe)
-	if err != nil {
-		return 0, errors.Wrap(err, "insert software cpe")
+	if _, err := d.writer.ExecContext(ctx, sql, software.ID, cpe); err != nil {
+		return errors.Wrap(err, "insert software cpe")
 	}
-	id, _ := res.LastInsertId() // cannot fail with the mysql driver
-	return uint(id), nil
+	return nil
 }
 
 func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {

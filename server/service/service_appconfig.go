@@ -181,10 +181,7 @@ func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
 }
 
 func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateIntervalConfig, error) {
-	return &fleet.UpdateIntervalConfig{
-		OSQueryDetail: svc.config.Osquery.DetailUpdateInterval,
-		OSQueryPolicy: svc.config.Osquery.PolicyUpdateInterval,
-	}, nil
+	return &fleet.UpdateIntervalConfig{OSQueryDetail: svc.config.Osquery.DetailUpdateInterval}, nil
 }
 
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {

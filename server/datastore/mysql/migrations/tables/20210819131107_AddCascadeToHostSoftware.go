@@ -31,13 +31,13 @@ func Up_20210819131107(tx *sql.Tx) error {
 	}
 
 	// Clear any orphan software and host_software
-	_, err = tx.Exec(`CREATE TEMPORARY TABLE temp_host_software AS SELECT * FROM host_software;`)
+	_, err = tx.Exec(`DELETE FROM host_software WHERE NOT EXISTS (select 1 from hosts h where h.id=host_software.host_id)`)
 	if err != nil {
-		return errors.Wrap(err, "save current host software to a temp table")
+		return errors.Wrap(err, "clearing orphan host_software")
 	}
-	_, err = tx.Exec(`DELETE FROM host_software;`)
+	_, err = tx.Exec(`DELETE FROM software WHERE NOT EXISTS (select 1 from host_software hs where hs.software_id=software.id)`)
 	if err != nil {
-		return errors.Wrap(err, "clear all host software")
+		return errors.Wrap(err, "clearing orphan software")
 	}
 
 	if _, err := tx.Exec(`
@@ -46,16 +46,6 @@ func Up_20210819131107(tx *sql.Tx) error {
 		ADD FOREIGN KEY host_software_software_fk(software_id) REFERENCES software (id) ON DELETE CASCADE
 	`); err != nil {
 		return errors.Wrap(err, "add fk on host_software hosts & software")
-	}
-
-	_, err = tx.Exec(`INSERT IGNORE INTO host_software SELECT * FROM temp_host_software;`)
-	if err != nil {
-		return errors.Wrap(err, "reinserting host software")
-	}
-
-	_, err = tx.Exec(`DROP TABLE temp_host_software;`)
-	if err != nil {
-		return errors.Wrap(err, "dropping temp table")
 	}
 
 	return nil

@@ -41,9 +41,7 @@ const QueryPage = ({
   location: { query: URLQuerySearch },
 }: IQueryPageProps) => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const { isGlobalAdmin, isGlobalMaintainer, isAnyTeamMaintainer } = useContext(
-    AppContext
-  );
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -201,9 +199,7 @@ const QueryPage = ({
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
   const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   const showSidebar =
-    isFirstStep &&
-    isSidebarOpen &&
-    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainer);
+    isFirstStep && isSidebarOpen && (isGlobalAdmin || isGlobalMaintainer);
 
   return (
     <div className={`${baseClass} ${sidebarClass}`}>

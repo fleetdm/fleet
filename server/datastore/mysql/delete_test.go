@@ -11,31 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDelete(t *testing.T) {
+func TestDeleteEntity(t *testing.T) {
 	ds := CreateMySQLDS(t)
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"Entity", testDeleteEntity},
-		{"EntityByName", testDeleteEntityByName},
-		{"Entities", testDeleteEntities},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			c.fn(t, ds)
-		})
-	}
-}
-
-func testDeleteEntity(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds)
+	defer ds.Close()
 
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1",
 		UUID:            t.Name() + "1",
@@ -47,33 +29,35 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	require.NoError(t, ds.deleteEntity(context.Background(), hostsTable, host.ID))
+	require.NoError(t, ds.deleteEntity(context.Background(), "hosts", host.ID))
 
 	host, err = ds.Host(context.Background(), host.ID)
 	require.Error(t, err)
 	assert.Nil(t, host)
 }
 
-func testDeleteEntityByName(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds)
+func TestDeleteEntityByName(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time", "select * from time", 0, true)
 
-	require.NoError(t, ds.deleteEntityByName(context.Background(), queriesTable, query1.Name))
+	require.NoError(t, ds.deleteEntityByName(context.Background(), "queries", query1.Name))
 
 	gotQ, err := ds.Query(context.Background(), query1.ID)
 	require.Error(t, err)
 	assert.Nil(t, gotQ)
 }
 
-func testDeleteEntities(t *testing.T, ds *Datastore) {
-	defer TruncateTables(t, ds)
+func TestDeleteEntities(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
 
 	query1 := test.NewQuery(t, ds, t.Name()+"time1", "select * from time", 0, true)
 	query2 := test.NewQuery(t, ds, t.Name()+"time2", "select * from time", 0, true)
 	query3 := test.NewQuery(t, ds, t.Name()+"time3", "select * from time", 0, true)
 
-	count, err := ds.deleteEntities(context.Background(), queriesTable, []uint{query1.ID, query2.ID})
+	count, err := ds.deleteEntities(context.Background(), "queries", []uint{query1.ID, query2.ID})
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), count)
 

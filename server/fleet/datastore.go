@@ -61,7 +61,7 @@ type Datastore interface {
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
-	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
 
@@ -139,9 +139,10 @@ type Datastore interface {
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 
-	// LabelQueriesForHost returns the label queries that should be executed for the given host.
-	// Results are returned in a map of label id -> query
-	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
+	// LabelQueriesForHost returns the label queries that should be executed for the given host. The cutoff is the
+	// minimum timestamp a query execution should have to be considered "fresh". Executions that are not fresh will be
+	// repeated. Results are returned in a map of label id -> query
+	LabelQueriesForHost(ctx context.Context, host *Host, cutoff time.Time) (map[string]string, error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -286,7 +287,6 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
-	CleanupOrphanLabelMembership(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -331,8 +331,7 @@ type Datastore interface {
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
-	// GlobalPoliciesStore
-
+	// GlobalPoliciesStore interface {
 	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
@@ -350,14 +349,6 @@ type Datastore interface {
 	MigrationStatus(ctx context.Context) (MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, teamId *uint, opt ListOptions) ([]Software, error)
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Team Policies
-
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
-	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
-	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 }
 
 type MigrationStatus int

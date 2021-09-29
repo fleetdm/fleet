@@ -493,7 +493,7 @@ export class HostDetailsPage extends Component {
                   {users.map((hostUser) => {
                     return (
                       <HostUsersListRow
-                        key={`host-users-row-${hostUser.username}`}
+                        key={`host-users-row-${hostUser.id}`}
                         hostUser={hostUser}
                       />
                     );

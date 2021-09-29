@@ -25,7 +25,7 @@ import RemovePoliciesModal from "./components/RemovePoliciesModal";
 const baseClass = "manage-policies-page";
 
 const DOCS_LINK =
-  "https://fleetdm.com/docs/deploying/configuration#osquery_policy_update_interval";
+  "https://fleetdm.com/docs/deploying/configuration#osquery_detail_update_interval";
 interface IRootState {
   app: {
     config: IConfig;
@@ -93,7 +93,7 @@ const ManagePolicyPage = (): JSX.Element => {
     try {
       const response = await configAPI.loadAll();
       const interval = secondsToHms(
-        inMilliseconds(response.update_interval.osquery_policy) / 1000
+        inMilliseconds(response.update_interval.osquery_detail) / 1000
       );
       setUpdateInterval(interval);
     } catch (error) {

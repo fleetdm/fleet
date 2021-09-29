@@ -55,7 +55,8 @@ var userRoleList = []*fleet.User{
 }
 
 func TestGetUserRoles(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleList, nil
@@ -113,7 +114,8 @@ func TestGetTeams(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			license := tt.license
-			_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			defer server.Close()
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -194,7 +196,8 @@ spec:
 }
 
 func TestGetHosts(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -340,7 +343,8 @@ func TestGetHosts(t *testing.T) {
 }
 
 func TestGetConfig(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -408,7 +412,8 @@ spec:
 }
 
 func TestGetSoftawre(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",

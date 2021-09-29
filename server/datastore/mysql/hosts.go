@@ -21,7 +21,6 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		osquery_host_id,
 		detail_updated_at,
 		label_updated_at,
-		policy_updated_at,
 		node_key,
 		hostname,
 		uuid,
@@ -33,7 +32,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		seen_time,
 		team_id
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.writer.ExecContext(
 		ctx,
@@ -41,7 +40,6 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		host.OsqueryHostID,
 		host.DetailUpdatedAt,
 		host.LabelUpdatedAt,
-		host.PolicyUpdatedAt,
 		host.NodeKey,
 		host.Hostname,
 		host.UUID,
@@ -67,7 +65,6 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
-			policy_updated_at = ?,
 			node_key = ?,
 			hostname = ?,
 			uuid = ?,
@@ -104,7 +101,6 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 		_, err := tx.ExecContext(ctx, sqlStatement,
 			host.DetailUpdatedAt,
 			host.LabelUpdatedAt,
-			host.PolicyUpdatedAt,
 			host.NodeKey,
 			host.Hostname,
 			host.UUID,
@@ -150,12 +146,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			}
 		}
 
-		ac, err := d.AppConfig(ctx)
-		if err != nil {
-			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
-		}
-
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory {
+		if host.HostSoftware.Modified {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
@@ -166,10 +157,8 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 				return errors.Wrap(err, "failed to save host additional")
 			}
 
-			if ac.HostSettings.EnableHostUsers {
-				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return errors.Wrap(err, "failed to save host users")
-				}
+			if err := saveHostUsersDB(ctx, tx, host); err != nil {
+				return errors.Wrap(err, "failed to save host users")
 			}
 		}
 
@@ -296,7 +285,7 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
-	err := d.deleteEntity(ctx, hostsTable, hid)
+	err := d.deleteEntity(ctx, "hosts", hid)
 	if err != nil {
 		return errors.Wrapf(err, "deleting host with id %d", hid)
 	}
@@ -496,14 +485,13 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 				INSERT INTO hosts (
 					detail_updated_at,
 					label_updated_at,
-					policy_updated_at,
 					osquery_host_id,
 					seen_time,
 					node_key,
 					team_id
-				) VALUES (?, ?, ?, ?, ?, ?, ?)
+				) VALUES (?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
 
 			if err != nil {
 				return errors.Wrap(err, "insert host")
@@ -566,7 +554,6 @@ func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 			updated_at,
 			detail_updated_at,
 			label_updated_at,
-			policy_updated_at,
 			node_key,
 			hostname,
 			uuid,

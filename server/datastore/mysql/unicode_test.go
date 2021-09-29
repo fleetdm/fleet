@@ -33,7 +33,6 @@ func TestUnicode(t *testing.T) {
 		Hostname:        "🍌",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 	})
 	require.Nil(t, err)

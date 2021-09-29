@@ -65,11 +65,20 @@ describe("Free tier - Observer user", () => {
     cy.findByText(/show sql/i).click();
     cy.findByRole("button", { name: /run query/i }).should("exist");
 
+    cy.visit("/queries/manage");
+
+    cy.findByText(/get authorized/i).click();
+    cy.findByText(/packs/i).should("not.exist");
+    cy.findByLabelText(/query name/i).should("not.exist");
+    cy.findByLabelText(/sql/i).should("not.exist");
+    cy.findByLabelText(/description/i).should("not.exist");
+    cy.findByLabelText(/observer can run/i).should("not.exist");
+    cy.findByText(/show sql/i).click();
+    cy.findByRole("button", { name: /run query/i }).should("not.exist");
+
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section
     cy.visit("/profile");
-
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/teams/i).should("not.exist");
     cy.findByText("Role")
       .next()

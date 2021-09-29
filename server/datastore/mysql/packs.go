@@ -365,7 +365,7 @@ func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 
 // DeletePack deletes a fleet.Pack so that it won't show up in results.
 func (d *Datastore) DeletePack(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, packsTable, name)
+	return d.deleteEntityByName(ctx, "packs", name)
 }
 
 // Pack fetch fleet.Pack with matching ID

@@ -12,30 +12,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCampaigns(t *testing.T) {
-	ds := CreateMySQLDS(t)
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"DistributedQuery", testCampaignsDistributedQuery},
-		{"CleanupDistributedQuery", testCampaignsCleanupDistributedQuery},
-		{"SaveDistributedQuery", testCampaignsSaveDistributedQuery},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-
-			c.fn(t, ds)
-		})
-	}
+func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
+	targets, err := ds.DistributedQueryCampaignTargetIDs(context.Background(), campaignID)
+	require.Nil(t, err)
+	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
+	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
+	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }
 
-func testCampaignsDistributedQuery(t *testing.T, ds *Datastore) {
+func TestDistributedQueryCampaign(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
 	mockClock := clock.NewMockClock()
+
 	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
+
 	campaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	{
@@ -77,9 +71,13 @@ func testCampaignsDistributedQuery(t *testing.T, ds *Datastore) {
 	test.AddHostToCampaign(t, ds, campaign.ID, h3.ID)
 
 	checkTargets(t, ds, campaign.ID, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID, h3.ID}, LabelIDs: []uint{l1.ID, l2.ID}})
+
 }
 
-func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
+func TestCleanupDistributedQueryCampaigns(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
@@ -151,9 +149,13 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
+
 }
 
-func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
+func TestSaveDistributedQueryCampaign(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
 	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
 
 	mockClock := clock.NewMockClock()
@@ -171,12 +173,4 @@ func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
 	gotC, err = ds.DistributedQueryCampaign(context.Background(), c1.ID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.QueryComplete, gotC.Status)
-}
-
-func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTargets fleet.HostTargets) {
-	targets, err := ds.DistributedQueryCampaignTargetIDs(context.Background(), campaignID)
-	require.Nil(t, err)
-	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
-	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
-	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
 }

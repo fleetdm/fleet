@@ -34,7 +34,6 @@ spec:
   percent_disk_space_available: 0
   platform: ""
   platform_like: ""
-  policy_updated_at: "0001-01-01T00:00:00Z"
   primary_ip: ""
   primary_mac: ""
   refetch_requested: false

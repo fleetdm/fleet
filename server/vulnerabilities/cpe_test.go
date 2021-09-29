@@ -53,10 +53,6 @@ func TestCpeFromSoftware(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
-
 	// Disabling vcr because the resulting file exceeds the 100mb limit for github
 	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, http.DefaultTransport)
 	require.NoError(t, err)
@@ -148,10 +144,6 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
-
 	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)

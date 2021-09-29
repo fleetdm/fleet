@@ -13,9 +13,6 @@
             "pattern": "fleet.corp.example.com"
         },
         {
-            "pattern": "fleet.example.com"
-        },
-        {
             "pattern": "/server/datastore/mysql/migrations/"
         },
         {

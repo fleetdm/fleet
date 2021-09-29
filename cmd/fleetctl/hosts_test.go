@@ -10,7 +10,8 @@ import (
 )
 
 func TestHostTransferFlagChecks(t *testing.T) {
-	runServerWithMockedDS(t)
+	server, _ := runServerWithMockedDS(t)
+	defer server.Close()
 
 	runAppCheckErr(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--hosts", "host1", "--label", "AAA"},
@@ -23,7 +24,8 @@ func TestHostTransferFlagChecks(t *testing.T) {
 }
 
 func TestHostsTransferByHosts(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -46,7 +48,8 @@ func TestHostsTransferByHosts(t *testing.T) {
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -80,7 +83,8 @@ func TestHostsTransferByLabel(t *testing.T) {
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -114,7 +118,8 @@ func TestHostsTransferByStatus(t *testing.T) {
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	server, ds := runServerWithMockedDS(t)
+	defer server.Close()
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
