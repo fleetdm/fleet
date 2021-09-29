@@ -25,7 +25,9 @@ describe(
         .click()
         .type("Query all window crashes");
 
-      cy.get(".query-form__query-description").click().type("See all window crashes");
+      cy.get(".query-form__query-description")
+        .click()
+        .type("See all window crashes");
 
       cy.findByRole("button", { name: /save query/i }).click();
 
