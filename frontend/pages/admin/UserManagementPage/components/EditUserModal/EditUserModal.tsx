@@ -13,7 +13,6 @@ interface IEditUserModalProps {
   defaultGlobalRole?: string | null;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
-  validationErrors: any[];
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
@@ -32,7 +31,6 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
     defaultTeams,
     availableTeams,
     isPremiumTier,
-    validationErrors,
     smtpConfigured,
     canUseSso,
     isSsoEnabled,
@@ -45,7 +43,6 @@ const EditUserModal = (props: IEditUserModalProps): JSX.Element => {
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        validationErrors={validationErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}

@@ -240,6 +240,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -251,6 +252,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -262,6 +264,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h3, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "3",
 		NodeKey:         "3",
@@ -302,6 +305,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -314,6 +318,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -355,6 +360,7 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -367,6 +373,7 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -445,6 +452,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 		h, err := db.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -515,6 +523,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -594,22 +603,38 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+
 	label := &fleet.Label{
 		Name:        "my label",
 		Description: "a label",
 		Query:       "select 1 from processes;",
 		Platform:    "darwin",
 	}
-	label, err := db.NewLabel(context.Background(), label)
-	require.Nil(t, err)
+	label, err = db.NewLabel(context.Background(), label)
+	require.NoError(t, err)
 	label.Name = "changed name"
 	label.Description = "changed description"
+
+	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
 	_, err = db.SaveLabel(context.Background(), label)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	saved, err := db.Label(context.Background(), label.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
+	assert.Equal(t, 1, saved.HostCount)
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
@@ -643,6 +668,7 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -667,6 +693,7 @@ func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			NodeKey:         "1",
 			UUID:            "1",

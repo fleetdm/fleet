@@ -92,9 +92,11 @@ func TestHosts(t *testing.T) {
 }
 
 func testHostsSave(t *testing.T, ds *Datastore) {
+	policyUpdatedAt := time.Now().UTC().Truncate(time.Second)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: policyUpdatedAt,
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -114,6 +116,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
+	assert.Equal(t, policyUpdatedAt.UTC(), host.PolicyUpdatedAt)
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
@@ -146,6 +149,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -179,6 +183,7 @@ func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -291,6 +296,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -434,6 +440,7 @@ func testHostsIgnoresTeamPackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -513,6 +520,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -532,6 +540,7 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
@@ -570,6 +579,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -607,6 +617,7 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -759,6 +770,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -770,6 +782,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -781,6 +794,7 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 		OsqueryHostID:   "99999",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "3",
 		UUID:            "abc-def-ghi",
@@ -850,6 +864,7 @@ func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -882,6 +897,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
+		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
 	})
 	require.Nil(t, err)
@@ -896,6 +912,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "2",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
+		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:        mockClock.Now().Add(-1 * time.Minute),
 	})
 	require.Nil(t, err)
@@ -910,6 +927,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "3",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
+		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:        mockClock.Now().Add(-1 * time.Hour),
 	})
 	require.Nil(t, err)
@@ -924,6 +942,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		NodeKey:         "4",
 		DetailUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
+		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
 	})
 	require.Nil(t, err)
@@ -956,6 +975,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	assert.Nil(t, err)
@@ -992,6 +1012,7 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
@@ -1003,6 +1024,7 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 		NodeKey:         "2",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	require.Nil(t, err)
@@ -1048,6 +1070,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
+		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -1061,6 +1084,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 		OsqueryVersion:  "3.2.3",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
+		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
 	require.Nil(t, err)
@@ -1089,6 +1113,7 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -1109,6 +1134,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
@@ -1181,6 +1207,7 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
 			NodeKey:         fmt.Sprintf("node_key_%d", i),
@@ -1265,6 +1292,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1334,6 +1362,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1389,6 +1418,7 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
 		OsqueryHostID:   fmt.Sprintf("%d", i),
 		NodeKey:         fmt.Sprintf("%d", i),
@@ -1423,6 +1453,7 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -1477,6 +1508,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1491,6 +1523,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -1640,6 +1673,7 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1654,6 +1688,7 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
