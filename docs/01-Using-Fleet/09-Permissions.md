@@ -80,3 +80,5 @@ The following table depicts various permissions levels in a team.
 | Run custom queries as live queries on hosts assigned to team |          | ✅         |
 | Enroll hosts to member team                                  |          | ✅         |
 | Delete hosts belonging to member team                        |          | ✅         |
+| Edit queries they authored                                   |          | ✅         |
+| Delete queries they authored                                 |          | ✅         |

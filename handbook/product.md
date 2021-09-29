@@ -1,7 +1,7 @@
 
 ## Fleet EE
 
-##### Communicating design changes to Engineering
+#### Communicating design changes to Engineering
 For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
 2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
@@ -16,7 +16,7 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 
 <img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
 
-##### Communicating unplanned design changes
+#### Communicating unplanned design changes
 
 For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g, padding/spacing inconsistency etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
 
@@ -50,7 +50,7 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in th
 
 This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
 
-All steps should be conducted during each QA pass. All steps are possible with `fleetctrl preview`.
+All steps should be conducted during each QA pass. All steps are possible with `fleetctl preview`. In order to target a specific version of `fleetctl preview`, the tag argument can be used together with the commit you are targeting as long as that commit is represented by a tag in [docker hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated). Without tag argument, `fleetctl preview` defaults to latest stable.
 
 As new features are added to Fleet, new steps and flows will be added.
 

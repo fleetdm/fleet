@@ -55,7 +55,7 @@ export default {
       },
     };
   },
-  update: ({ id }: IQuery, updateParams: any) => {
+  update: (id: number, updateParams: any) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 

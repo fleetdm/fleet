@@ -20,11 +20,11 @@
 
     &__header {
       font-size: $medium;
-      font-weight: bold;
+      font-weight: $bold;
       margin: 0 0 $pad-large 0;
     }
 
-    .info {
+    .info-flex {
       display: flex;
 
       &__item {
@@ -35,6 +35,12 @@
 
         &--title {
           margin-right: $pad-xxlarge;
+
+          .info__data {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
         }
       }
 
@@ -65,6 +71,36 @@
 
       &__no-team {
         color: $ui-fleet-black-50;
+      }
+    }
+
+    .info-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-columns: repeat(4, max-content);
+      grid-template-rows: repeat(3, 1fr);
+      column-gap: $pad-xxlarge;
+      row-gap: $pad-medium;
+
+      &__block {
+        font-size: $x-small;
+        display: flex;
+        flex-direction: column;
+        white-space: nowrap;
+
+        &--title {
+          margin-right: $pad-xxlarge;
+
+          .info__data {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+      &__header {
+        color: $core-fleet-black;
+        font-weight: $bold;
       }
     }
 
