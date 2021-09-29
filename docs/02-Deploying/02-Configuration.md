@@ -1559,7 +1559,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
 
-  ![The Google Workspace admin Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
+  ![The Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
 2. Enter `Fleet` for the _App name_ and click _Continue_.
 
