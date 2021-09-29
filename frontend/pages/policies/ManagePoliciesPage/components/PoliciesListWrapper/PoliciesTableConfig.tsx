@@ -135,7 +135,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 
 const generateDataSet = memoize((all_policies: IPolicy[] = []): IPolicy[] => {
   all_policies = all_policies.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(b.query_name, a.query_name)
+    sortUtils.caseInsensitiveAsc(a.query_name, b.query_name)
   );
   return all_policies;
 });
