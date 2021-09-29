@@ -17,10 +17,11 @@ type collector struct {
 	// immutable after creation
 	name         string
 	pool         fleet.RedisPool
+	ds           fleet.Datastore
 	execInterval time.Duration
 	jitterPct    int
 	lockTimeout  time.Duration
-	handler      func(context.Context, fleet.RedisPool, *collectorExecStats) error
+	handler      func(context.Context, fleet.Datastore, fleet.RedisPool, *collectorExecStats) error
 	errHandler   func(string, error)
 
 	// mutable, must be protected by mutex
@@ -84,7 +85,7 @@ func (c *collector) exec(ctx context.Context) {
 
 	var stats collectorExecStats
 	start := time.Now()
-	if err := c.handler(ctx, c.pool, &stats); err != nil && c.errHandler != nil {
+	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil && c.errHandler != nil {
 		stats.Failed = true
 		c.errHandler(c.name, err)
 	}

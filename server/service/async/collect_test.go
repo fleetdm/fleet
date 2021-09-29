@@ -28,7 +28,7 @@ func TestCollector(t *testing.T) {
 			execInterval: 10 * time.Millisecond,
 			jitterPct:    10,
 			lockTimeout:  time.Second,
-			handler: func(ctx context.Context, pool fleet.RedisPool, stats *collectorExecStats) error {
+			handler: func(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
 				countHandler++
 				simulKeys++
 				simulItems--

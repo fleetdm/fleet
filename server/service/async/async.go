@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -67,7 +69,7 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 
 var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
 
-func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stats *collectorExecStats) error {
+func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
 	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, 1000)
 	if err != nil {
 		return err
@@ -122,7 +124,19 @@ func collectLabelQueryExecutions(ctx context.Context, pool fleet.RedisPool, stat
 	}
 
 	runInsertBatch := func(batch [][2]uint) error {
-		return nil
+		sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
+		sql += strings.Repeat(`(?, ?),`, len(batch))
+		sql = strings.TrimSuffix(sql, ",")
+		sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+
+		vals := make([]interface{}, 0, len(batch)*2)
+		for _, tup := range batch {
+			vals = append(vals, tup[0], tup[1])
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return err
+		})
 	}
 
 	runDeleteBatch := func(batch [][2]uint) error {

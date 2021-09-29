@@ -265,7 +265,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t *testing.T, ds *Datastore, tables ...string) {
+func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
