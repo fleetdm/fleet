@@ -361,6 +361,15 @@ allow {
   subject.global_role == maintainer
   action == [read, write][_]
 }
+
+# Team maintainers can read global packs
+allow {
+  is_null(object.team_ids)
+  object.type == "pack"
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == read
+}
+
 allow {
   object.team_ids[_] == subject.teams[_].id
   object.type == "pack"
@@ -417,6 +426,15 @@ allow {
   object.type == "policy"
   team_role(subject, subject.teams[_].id) == maintainer
   action == [read, write][_]
+}
+
+# Team maintainers can read global policies
+
+allow {
+  is_null(object.team_id)
+  object.type == "policy"
+  team_role(subject, subject.teams[_].id) == maintainer
+  action == read
 }
 
 # Team Observer can read policies
