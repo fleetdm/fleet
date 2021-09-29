@@ -10,6 +10,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -28,6 +30,46 @@ type Task struct {
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
 	AsyncEnabled bool // TODO: should this be read in a different way, more dynamically, if config changes while fleet is running? Or does that require a restart?
+}
+
+// Collect runs the various collectors as distinct background goroutines if
+// async processing is enabled.  Each collector will stop processing when ctx
+// is done.
+func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitterPct int, logger kitlog.Logger) {
+	if !t.AsyncEnabled {
+		level.Debug(logger).Log("task", "async disabled, not starting collectors")
+		return
+	}
+	level.Debug(logger).Log("task", "async enabled, starting collectors")
+
+	labelColl := &collector{
+		name:         "collect_labels",
+		pool:         t.Pool,
+		ds:           t.Datastore,
+		execInterval: interval,
+		jitterPct:    jitterPct,
+		lockTimeout:  time.Minute,
+		handler:      collectLabelQueryExecutions,
+		errHandler: func(name string, err error) {
+			level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		},
+	}
+	go labelColl.Start(ctx)
+
+	// log stats at regular intervals
+	// TODO: TBD if it stays that way for prod, but will be useful for load testing
+	go func() {
+		tick := time.Tick(time.Minute)
+		for {
+			select {
+			case <-tick:
+				stats := labelColl.ReadStats()
+				level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", labelColl.name)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
@@ -67,9 +109,9 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
-var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
-
 var (
+	reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
+
 	// those are variables so they can be set differently for tests
 	insertBatchSize = 2000
 	deleteBatchSize = 2000

@@ -249,7 +249,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"), config)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config)
 
 			// Flush seen hosts every second
 			go func() {
@@ -451,13 +451,19 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
+
+	// StartCollectors starts a goroutine per collector, using ctx to cancel.
+	// TODO: for now, use 30s, so that the overall potential delay (except in
+	// case of a crash where the lock timeout comes into play) is ~30s. Should
+	// probably make that a config option.
+	task.StartCollectors(ctx, 30*time.Second, 10, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
 	go cronVulnerabilities(
