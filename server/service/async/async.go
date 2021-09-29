@@ -69,6 +69,13 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 
 var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
 
+var (
+	// those are variables so they can be set differently for tests
+	insertBatchSize = 2000
+	deleteBatchSize = 2000
+	redisPopCount   = 1000
+)
+
 func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
 	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, 1000)
 	if err != nil {
@@ -93,11 +100,10 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		conn := pool.ConfigureDoer(pool.Get())
 		defer conn.Close()
 
-		const popCount = 1000
 		for {
-			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, "COUNT", popCount))
+			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, redisPopCount))
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, errors.Wrap(err, "redis ZPOPMIN")
 			}
 			items := len(vals) / 2 // each item has the label id and the score (-1=delete, +1=insert)
 			stats.Items += items
@@ -117,30 +123,10 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 					deletes = append(deletes, [2]uint{uint(labelID), hostID})
 				}
 			}
-			if items < popCount {
+			if items < redisPopCount {
 				return inserts, deletes, nil
 			}
 		}
-	}
-
-	runInsertBatch := func(batch [][2]uint) error {
-		sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
-		sql += strings.Repeat(`(?, ?),`, len(batch))
-		sql = strings.TrimSuffix(sql, ",")
-		sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
-
-		vals := make([]interface{}, 0, len(batch)*2)
-		for _, tup := range batch {
-			vals = append(vals, tup[0], tup[1])
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, sql, vals...)
-			return err
-		})
-	}
-
-	runDeleteBatch := func(batch [][2]uint) error {
-		return nil
 	}
 
 	// Based on those pages, the best approach appears to be INSERT with multiple
@@ -156,10 +142,48 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	//
 	// However, in label_membership, updated_at defaults to the current timestamp
 	// both on INSERT and when UPDATEd, so it does not need to be provided.
-	const batchSize = 10000
 
-	insertBatch := make([][2]uint, 0, batchSize)
-	deleteBatch := make([][2]uint, 0, batchSize)
+	runInsertBatch := func(batch [][2]uint) error {
+		sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
+		sql += strings.Repeat(`(?, ?),`, len(batch))
+		sql = strings.TrimSuffix(sql, ",")
+		sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+
+		vals := make([]interface{}, 0, len(batch)*2)
+		for _, tup := range batch {
+			vals = append(vals, tup[0], tup[1])
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return errors.Wrap(err, "insert into label_membership")
+		})
+	}
+
+	runDeleteBatch := func(batch [][2]uint) error {
+		rest := strings.Repeat(`UNION ALL SELECT ?, ? `, len(batch)-1)
+		sql := fmt.Sprintf(`
+    DELETE
+      lm
+    FROM
+      label_membership lm
+    JOIN
+      (SELECT ? label_id, ? host_id %s) del_list
+    ON
+      lm.label_id = del_list.label_id AND
+      lm.host_id = del_list.host_id`, rest)
+
+		vals := make([]interface{}, 0, len(batch)*2)
+		for _, tup := range batch {
+			vals = append(vals, tup[0], tup[1])
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return errors.Wrap(err, "delete from label_membership")
+		})
+	}
+
+	insertBatch := make([][2]uint, 0, insertBatchSize)
+	deleteBatch := make([][2]uint, 0, deleteBatchSize)
 	for _, key := range keys {
 		ins, del, err := getKeyTuples(key)
 		if err != nil {
@@ -168,13 +192,13 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		insertBatch = append(insertBatch, ins...)
 		deleteBatch = append(deleteBatch, del...)
 
-		if len(insertBatch) >= batchSize {
+		if len(insertBatch) >= insertBatchSize {
 			if err := runInsertBatch(insertBatch); err != nil {
 				return err
 			}
 			insertBatch = insertBatch[:0]
 		}
-		if len(deleteBatch) >= batchSize {
+		if len(deleteBatch) >= deleteBatchSize {
 			if err := runDeleteBatch(deleteBatch); err != nil {
 				return err
 			}
