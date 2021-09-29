@@ -128,7 +128,9 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
       accessor: "observer_can_run",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={capitalize(cellProps.cell.value.toString())} />
+        <TextCell
+          value={cellProps.row.original.observer_can_run ? "Yes" : "No"}
+        />
       ),
       sortType: "basic",
     });
