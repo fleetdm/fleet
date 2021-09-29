@@ -233,7 +233,9 @@ func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
-	return initializeDatabase(t, cleanName, opts)
+	ds := initializeDatabase(t, cleanName, opts)
+	t.Cleanup(func() { ds.Close() })
+	return ds
 }
 
 func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
@@ -242,4 +244,72 @@ func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 
 func CreateMySQLDS(t *testing.T) *Datastore {
 	return createMySQLDSWithOptions(t, nil)
+}
+
+func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+
+	t.Parallel()
+	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
+	t.Cleanup(func() { ds.Close() })
+	return ds
+}
+
+// TruncateTables truncates the specified tables, in order, using ds.writer.
+// Note that the order is typically not important because FK checks are
+// disabled while truncating. If no table is provided, all tables (except
+// those that are seeded by the SQL schema file) are truncated.
+func TruncateTables(t *testing.T, ds *Datastore, tables ...string) {
+	// those tables are seeded with the schema.sql and as such must not
+	// be truncated - a more precise approach must be used for those, e.g.
+	// delete where id > max before test, or something like that.
+	nonEmptyTables := map[string]bool{
+		"app_config_json":         true,
+		"app_configs":             true,
+		"migration_status_tables": true,
+		"osquery_options":         true,
+	}
+
+	ctx := context.Background()
+
+	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var skipSeeded bool
+
+		if len(tables) == 0 {
+			skipSeeded = true
+			sql := `
+      SELECT
+        table_name
+      FROM
+        information_schema.tables
+      WHERE
+        table_schema = database() AND
+        table_type = 'BASE TABLE'
+    `
+			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
+				return err
+			}
+		}
+
+		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
+			return err
+		}
+		for _, tbl := range tables {
+			if nonEmptyTables[tbl] {
+				if skipSeeded {
+					continue
+				}
+				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
+			}
+			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
+			return err
+		}
+		return nil
+	}))
 }

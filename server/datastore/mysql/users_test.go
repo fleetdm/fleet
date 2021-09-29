@@ -15,10 +15,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateUser(t *testing.T) {
+func TestUsers(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Create", testUsersCreate},
+		{"ByID", testUsersByID},
+		{"Save", testUsersSave},
+		{"List", testUsersList},
+		{"Teams", testUsersTeams},
+		{"CreateWithTeams", testUsersCreateWithTeams},
+		{"SaveMany", testUsersSaveMany},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testUsersCreate(t *testing.T, ds *Datastore) {
 	var createTests = []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
@@ -48,10 +68,7 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
-func TestUserByID(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersByID(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	for _, tt := range users {
 		returned, err := ds.UserByID(context.Background(), tt.ID)
@@ -92,10 +109,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	return users
 }
 
-func TestSaveUser(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersSave(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
@@ -150,10 +164,7 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
 }
 
-func TestListUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersList(t *testing.T, ds *Datastore) {
 	createTestUsers(t, ds)
 
 	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
@@ -171,10 +182,7 @@ func TestListUsers(t *testing.T) {
 	assert.Equal(t, "mike@fleet.co", users[0].Email)
 }
 
-func TestUserTeams(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersTeams(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
@@ -264,10 +272,7 @@ func TestUserTeams(t *testing.T) {
 	assert.Len(t, users[1].Teams, 0)
 }
 
-func TestUserCreateWithTeams(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersCreateWithTeams(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
@@ -306,10 +311,7 @@ func TestUserCreateWithTeams(t *testing.T) {
 	assert.Equal(t, "maintainer", user.Teams[2].Role)
 }
 
-func TestSaveUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, t.Name()+"Admin1", t.Name()+"admin1@fleet.co", true)
 	u2 := test.NewUser(t, ds, t.Name()+"Admin2", t.Name()+"admin2@fleet.co", true)
 	u3 := test.NewUser(t, ds, t.Name()+"Admin3", t.Name()+"admin3@fleet.co", true)

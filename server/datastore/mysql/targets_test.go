@@ -14,10 +14,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCountHostsInTargets(t *testing.T) {
+func TestTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"CountHosts", testTargetsCountHosts},
+		{"HostStatus", testTargetsHostStatus},
+		{"HostIDsInTargets", testTargetsHostIDsInTargets},
+		{"HostIDsInTargetsTeam", testTargetsHostIDsInTargetsTeam},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -30,6 +47,7 @@ func TestCountHostsInTargets(t *testing.T) {
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -156,13 +174,9 @@ func TestCountHostsInTargets(t *testing.T) {
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(5), metrics.OfflineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
-
 }
 
-func TestHostStatus(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	mockClock := clock.NewMockClock()
@@ -222,10 +236,7 @@ func TestHostStatus(t *testing.T) {
 	}
 }
 
-func TestHostIDsInTargets(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -237,6 +248,7 @@ func TestHostIDsInTargets(t *testing.T) {
 			NodeKey:         strconv.Itoa(hostCount),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 		})
 		require.Nil(t, err)
@@ -302,10 +314,7 @@ func TestHostIDsInTargets(t *testing.T) {
 	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
 }
 
-func TestHostIDsInTargetsTeam(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -318,6 +327,7 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,

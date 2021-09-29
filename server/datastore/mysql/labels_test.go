@@ -37,9 +37,37 @@ func TestBatchHostnamesLarge(t *testing.T) {
 }
 
 func TestLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
+	ds := CreateMySQLDS(t)
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"AddAllHosts", testLabelsAddAllHosts},
+		{"Search", testLabelsSearch},
+		{"ListHostsInLabel", testLabelsListHostsInLabel},
+		{"ListHostsInLabelAndStatus", testLabelsListHostsInLabelAndStatus},
+		{"ListHostsInLabelAndTeamFilter", testLabelsListHostsInLabelAndTeamFilter},
+		{"BuiltIn", testLabelsBuiltIn},
+		{"ListUniqueHostsInLabels", testLabelsListUniqueHostsInLabels},
+		{"ChangeDetails", testLabelsChangeDetails},
+		{"GetSpec", testLabelsGetSpec},
+		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
+		{"IDsByName", testLabelsIDsByName},
+		{"Save", testLabelsSave},
+		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
+		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"LabelMembershipCleanup", testLabelMembershipCleanup},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 	hosts := []fleet.Host{}
 	var host *fleet.Host
@@ -52,10 +80,8 @@ func TestLabels(t *testing.T) {
 	host.Platform = "darwin"
 	require.NoError(t, db.SaveHost(context.Background(), host))
 
-	baseTime := time.Now()
-
 	// No labels to check
-	queries, err := db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 0)
 
@@ -99,7 +125,7 @@ func TestLabels(t *testing.T) {
 	host.Platform = "darwin"
 
 	// Now queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Equal(t, expectQueries, queries)
 
@@ -107,6 +133,8 @@ func TestLabels(t *testing.T) {
 	labels, err = db.ListLabelsForHost(context.Background(), host.ID)
 	assert.Nil(t, err)
 	assert.Len(t, labels, 1)
+
+	baseTime := time.Now()
 
 	// Record a query execution
 	err = db.RecordLabelQueryExecutions(
@@ -120,14 +148,6 @@ func TestLabels(t *testing.T) {
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 
-	// Now no queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
-
-	// Ensure enough gap in created_at
-	time.Sleep(2 * time.Second)
-
 	// A new label targeting another platform should not effect the labels for
 	// this host
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -138,9 +158,9 @@ func TestLabels(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
+	assert.Len(t, queries, 4)
 
 	// If a new label is added, all labels should be returned
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -152,29 +172,7 @@ func TestLabels(t *testing.T) {
 	})
 	require.NoError(t, err)
 	expectQueries["7"] = "query6"
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add(-1*time.Minute))
-	assert.Nil(t, err)
-	assert.Len(t, queries, 5)
-
-	// After expiration, all queries should be returned
-	queries, err = db.LabelQueriesForHost(context.Background(), host, baseTime.Add((2 * time.Minute)))
-	assert.Nil(t, err)
-	assert.Equal(t, expectQueries, queries)
-
-	// Now the two matching labels should be returned
-	labels, err = db.ListLabelsForHost(context.Background(), host.ID)
-	assert.Nil(t, err)
-	if assert.Len(t, labels, 2) {
-		labelNames := []string{labels[0].Name, labels[1].Name}
-		sort.Strings(labelNames)
-		assert.Equal(t, "All Hosts", labelNames[0])
-		assert.Equal(t, "label1", labelNames[1])
-	}
-
-	// A host that hasn't executed any label queries should still be asked
-	// to execute those queries
-	hosts[0].Platform = "darwin"
-	queries, err = db.LabelQueriesForHost(context.Background(), &hosts[0], time.Now())
+	queries, err = db.LabelQueriesForHost(context.Background(), host)
 	assert.Nil(t, err)
 	assert.Len(t, queries, 5)
 
@@ -185,10 +183,7 @@ func TestLabels(t *testing.T) {
 	assert.Len(t, labels, 1)
 }
 
-func TestSearchLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsSearch(t *testing.T, db *Datastore) {
 	specs := []*fleet.LabelSpec{
 		{ID: 1, Name: "foo"},
 		{ID: 2, Name: "bar"},
@@ -241,13 +236,11 @@ func TestSearchLabels(t *testing.T) {
 	assert.Contains(t, labels, all)
 }
 
-func TestListHostsInLabel(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -259,6 +252,7 @@ func TestListHostsInLabel(t *testing.T) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -270,6 +264,7 @@ func TestListHostsInLabel(t *testing.T) {
 	h3, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "3",
 		NodeKey:         "3",
@@ -306,13 +301,11 @@ func TestListHostsInLabel(t *testing.T) {
 	}
 }
 
-func TestListHostsInLabelAndStatus(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -325,6 +318,7 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -362,13 +356,11 @@ func TestListHostsInLabelAndStatus(t *testing.T) {
 	}
 }
 
-func TestListHostsInLabelAndTeamFilter(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -381,6 +373,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -439,10 +432,7 @@ func TestListHostsInLabelAndTeamFilter(t *testing.T) {
 	}
 }
 
-func TestBuiltInLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsBuiltIn(t *testing.T, db *Datastore) {
 	require.Nil(t, db.MigrateData(context.Background()))
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -456,15 +446,13 @@ func TestBuiltInLabels(t *testing.T) {
 	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
 }
 
-func TestListUniqueHostsInLabels(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 4; i++ {
 		h, err := db.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -508,13 +496,9 @@ func TestListUniqueHostsInLabels(t *testing.T) {
 	labels, err := db.ListLabels(context.Background(), filter, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, labels, 2)
-
 }
 
-func TestChangeLabelDetails(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label := fleet.LabelSpec{
 		ID:          1,
 		Name:        "my label",
@@ -539,6 +523,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -583,10 +568,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	return expectedSpecs
 }
 
-func TestGetLabelSpec(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	for _, s := range expectedSpecs {
@@ -596,10 +578,7 @@ func TestGetLabelSpec(t *testing.T) {
 	}
 }
 
-func TestApplyLabelSpecsRoundtrip(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
 	specs, err := ds.GetLabelSpecs(context.Background())
@@ -614,10 +593,7 @@ func TestApplyLabelSpecsRoundtrip(t *testing.T) {
 	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
 }
 
-func TestLabelIDsByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
@@ -626,9 +602,18 @@ func TestLabelIDsByName(t *testing.T) {
 	assert.Equal(t, []uint{1, 2, 3}, labels)
 }
 
-func TestSaveLabel(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
+func testLabelsSave(t *testing.T, db *Datastore) {
+	h1, err := db.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
 
 	label := &fleet.Label{
 		Name:        "my label",
@@ -636,22 +621,23 @@ func TestSaveLabel(t *testing.T) {
 		Query:       "select 1 from processes;",
 		Platform:    "darwin",
 	}
-	label, err := db.NewLabel(context.Background(), label)
-	require.Nil(t, err)
+	label, err = db.NewLabel(context.Background(), label)
+	require.NoError(t, err)
 	label.Name = "changed name"
 	label.Description = "changed description"
+
+	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
 	_, err = db.SaveLabel(context.Background(), label)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	saved, err := db.Label(context.Background(), label.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved.Name)
 	assert.Equal(t, label.Description, saved.Description)
+	assert.Equal(t, 1, saved.HostCount)
 }
 
-func TestLabelQueriesForCentOSHost(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
 	require.Nil(t, err, "enrollment should succeed")
 	host.Platform = "rhel"
@@ -672,21 +658,17 @@ func TestLabelQueriesForCentOSHost(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	baseTime := time.Now().Add(-5 * time.Minute)
-
-	queries, err := db.LabelQueriesForHost(context.Background(), host, baseTime)
+	queries, err := db.LabelQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
 }
 
-func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
-	db := CreateMySQLDS(t)
-	defer db.Close()
-
+func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -704,4 +686,70 @@ func TestRecordNonexistentQueryLabelExecution(t *testing.T) {
 	require.Nil(t, err)
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now()))
+}
+
+func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
+	setupTest := func() (*fleet.Host, *fleet.Label) {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         "1",
+			UUID:            "1",
+			Hostname:        "foo.local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			OsqueryHostID:   "1",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+
+		label := &fleet.Label{
+			Name:  "foo",
+			Query: "select * from foo;",
+		}
+		label, err = ds.NewLabel(context.Background(), label)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+		return host, label
+	}
+
+	checkCount := func(before, after int) {
+		var count int
+		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
+		assert.Equal(t, before, count)
+
+		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
+
+		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
+		assert.Equal(t, after, count)
+	}
+
+	t.Run("none gone", func(t *testing.T) {
+		host, label := setupTest()
+		checkCount(1, 1)
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
+	})
+	t.Run("label gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		checkCount(1, 0)
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+	})
+	t.Run("host gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		checkCount(1, 0)
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+	})
+	t.Run("both gone", func(t *testing.T) {
+		host, label := setupTest()
+		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
+		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
+		checkCount(1, 0)
+	})
 }

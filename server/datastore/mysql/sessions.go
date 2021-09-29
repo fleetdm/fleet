@@ -70,7 +70,7 @@ func (d *Datastore) NewSession(ctx context.Context, session *fleet.Session) (*fl
 }
 
 func (d *Datastore) DestroySession(ctx context.Context, session *fleet.Session) error {
-	err := d.deleteEntity(ctx, "sessions", session.ID)
+	err := d.deleteEntity(ctx, sessionsTable, session.ID)
 	if err != nil {
 		return errors.Wrap(err, "deleting session")
 	}
