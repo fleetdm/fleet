@@ -21,11 +21,11 @@ describe(
 
       cy.findByRole("button", { name: /save/i }).click();
 
-      cy.findByLabelText(/name/i).click().type("Query all window crashes");
-
-      cy.findByLabelText(/description/i)
+      cy.get(".query-form__query-name")
         .click()
-        .type("See all window crashes");
+        .type("Query all window crashes");
+
+      cy.get(".query-form__query-description").click().type("See all window crashes");
 
       cy.findByRole("button", { name: /save query/i }).click();
 
