@@ -1,20 +1,16 @@
 ## Fleet 4.3.2 (Sept 29, 2021)
 
-* Improve database performance on agent checkins.
+* Improve database performance by reducing the amount of MySQL database queries when a host checks in.
 
-* Fix update handling for Policies (adds `--osquery_policy_update_interval` flag).
+* Fix a bug in which users with the global maintainer role could not edit or save queries. In, Fleet 4.0.0, the Admin, Maintainer, and Observer user roles were introduced. Documentation for the permissions associated with each role can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions). 
 
-* Fix returned label count after modifying a label name.
+* Fix a bug in which policies were checked about every second and add a `policy_update_interval` osquery configuration option. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval).
 
-* Fix text deletion and replacement in SQL editor.
+* Fix a bug in which edits to a query’s name, description, SQL did not appear until the user refreshed the Edit query page.
 
-* Fix inconsistencies with form states in query flow.
+* Fix a bug in which the hosts count for a label returned 0 after modifying a label’s name or description.
 
-* Fix create team modal to submit with Enter key.
-
-* Improve error handling for create and edit user form.
-
-* Fix bug preventing global maintainers from saving and editing queries.
+* Improve error message when attempting to create or edit a user with an email that already exists.
 
 ## Fleet 4.3.1 (Sept 21, 2021)
 
