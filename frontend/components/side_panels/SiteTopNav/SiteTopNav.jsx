@@ -48,77 +48,54 @@ class SiteTopNav extends Component {
 
     const iconClasses = classnames([`${navItemBaseClass}__icon`]);
 
-    let icon;
-    switch (iconName) {
-      case "logo":
-        return (
-          <li className={navItemClasses} key={`nav-item-${name}`}>
-            <a
-              className={`${navItemBaseClass}__link`}
-              onClick={onNavItemClick(navItem.location.pathname)}
-            >
-              <OrgLogoIcon className="logo" src={orgLogoURL} />
-            </a>
-          </li>
-        );
-      case "hosts":
-        icon = (
-          <img
-            src={HostsIcon}
-            alt={`${iconName} icon`}
-            className={iconClasses}
-          />
-        );
-      case "queries":
-        icon = (
-          <img
-            src={QueriesIcon}
-            alt={`${iconName} icon`}
-            className={iconClasses}
-          />
-        );
-      case "packs":
-        icon = (
-          <img
-            src={PacksIcon}
-            alt={`${iconName} icon`}
-            className={iconClasses}
-          />
-        );
-      case "policies":
-        icon = (
-          <img
-            src={PoliciesIcon}
-            alt={`${iconName} icon`}
-            className={iconClasses}
-          />
-        );
-      case "settings":
-        icon = (
-          <img
-            src={AdminIcon}
-            alt={`${iconName} icon`}
-            className={iconClasses}
-          />
-        );
-      default:
-        return (
-          <li className={navItemClasses} key={`nav-item-${name}`}>
-            <a
-              className={`${navItemBaseClass}__link`}
-              onClick={onNavItemClick(navItem.location.pathname)}
-            >
-              {icon}
-              <span
-                className={`${navItemBaseClass}__name`}
-                data-text={navItem.name}
-              >
-                {name}
-              </span>
-            </a>
-          </li>
-        );
+    if (iconName === "logo") {
+      return (
+        <li className={navItemClasses} key={`nav-item-${name}`}>
+          <a
+            className={`${navItemBaseClass}__link`}
+            onClick={onNavItemClick(navItem.location.pathname)}
+          >
+            <OrgLogoIcon className="logo" src={orgLogoURL} />
+          </a>
+        </li>
+      );
     }
+
+    const iconImage = () => {
+      switch (iconName) {
+        case "hosts":
+          return HostsIcon;
+        case "queries":
+          return QueriesIcon;
+        case "packs":
+          return PacksIcon;
+        case "policies":
+          return PoliciesIcon;
+        default:
+          return AdminIcon;
+      }
+    };
+
+    let icon = (
+      <img src={iconImage()} alt={`${iconName} icon`} className={iconClasses} />
+    );
+
+    return (
+      <li className={navItemClasses} key={`nav-item-${name}`}>
+        <a
+          className={`${navItemBaseClass}__link`}
+          onClick={onNavItemClick(navItem.location.pathname)}
+        >
+          {icon}
+          <span
+            className={`${navItemBaseClass}__name`}
+            data-text={navItem.name}
+          >
+            {name}
+          </span>
+        </a>
+      </li>
+    );
   };
 
   renderNavItems = () => {
