@@ -38,6 +38,7 @@ describe(
 
       cy.findByText(/query all/i).click();
 
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/run query/i).should("exist");
 
       cy.get(".ace_scroller")
@@ -51,7 +52,7 @@ describe(
       // // Start e2e test for schedules
       cy.visit("/schedule/manage");
 
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByRole("button", { name: /schedule a query/i }).click();
 
