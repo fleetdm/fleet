@@ -6,7 +6,7 @@ import { size } from "lodash";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { IQueryFormData } from "interfaces/query";
+import { IQuery, IQueryFormData } from "interfaces/query";
 
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
@@ -21,6 +21,7 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   queryIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
+  storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -45,6 +46,7 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   queryIdForEdit,
   showOpenSchemaActionText,
+  storedQuery,
   isStoredQueryLoading,
   onCreateQuery,
   onOsqueryTableSelect,
@@ -61,6 +63,8 @@ const QueryForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
 
+  // Note: The QueryContext values should always be used for any mutable query data such as query name
+  // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -194,75 +198,7 @@ const QueryForm = ({
     </form>
   );
 
-  const renderRunForMaintainer = (
-    <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name`}>{lastEditedQueryName}</h1>
-      <p className={`${baseClass}__query-description`}>
-        {lastEditedQueryDescription}
-      </p>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
-        onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
-      {showQueryEditor && (
-        <FleetAce
-          value={lastEditedQueryBody}
-          name="query editor"
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
-        />
-      )}
-      {renderLiveQueryWarning()}
-      <div
-        className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-      >
-        <Button
-          className={`${baseClass}__run`}
-          variant="blue-green"
-          onClick={goToSelectTargets}
-        >
-          Run query
-        </Button>
-      </div>
-    </form>
-  );
-
-  const renderCreateForTeamMaintainer = (
-    <>
-      <form className={`${baseClass}__wrapper`}>
-        <h1 className={`${baseClass}__query-name`}>New query</h1>
-        <FleetAce
-          value={lastEditedQueryBody}
-          error={errors.query}
-          label="Query:"
-          labelActionComponent={renderLabelComponent()}
-          name="query editor"
-          onLoad={onLoad}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(value: string) => setLastEditedQueryBody(value)}
-          handleSubmit={promptSaveQuery}
-        />
-        {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
-          >
-            Run query
-          </Button>
-        </div>
-      </form>
-    </>
-  );
-
-  const renderForGlobalAdminOrMaintainer = (
+  const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
@@ -417,7 +353,7 @@ const QueryForm = ({
   //   return renderRunForMaintainer;
   // }
 
-  return renderForGlobalAdminOrMaintainer;
+  return renderForGlobalAdminOrAnyMaintainer;
 };
 
 export default QueryForm;
