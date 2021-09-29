@@ -121,7 +121,7 @@ const getSortedTeamOptions = memoize((teams: ITeam[]) =>
         value: team.id,
       };
     })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(b.label, a.label))
+    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
 );
 
 export const generateTeamFilterDropdownOptions = (
