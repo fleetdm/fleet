@@ -145,14 +145,27 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
+	if err != nil {
+		return err
+	}
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Apply the team to the selected hosts.
+	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+}
+
+func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return fleet.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	if opt.StatusFilter != "" && lid != nil {
-		return fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
+		return nil, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
 	}
 
 	opt.PerPage = fleet.PerPageUnlimited
@@ -166,20 +179,18 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(hosts) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	hostIDs := make([]uint, 0, len(hosts))
 	for _, h := range hosts {
 		hostIDs = append(hostIDs, h.ID)
 	}
-
-	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+	return hostIDs, nil
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
