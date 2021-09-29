@@ -76,7 +76,7 @@ class SiteTopNav extends Component {
       }
     };
 
-    let icon = (
+    const icon = (
       <img src={iconImage()} alt={`${iconName} icon`} className={iconClasses} />
     );
 
