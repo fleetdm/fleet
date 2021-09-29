@@ -10,21 +10,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func TestGlobalPoliciesAuth(t *testing.T) {
+func TestGlobalScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.NewGlobalPolicyFunc = func(ctx context.Context, queryID uint) (*fleet.Policy, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context) ([]*fleet.Policy, error) {
-		return nil, nil
-	}
-	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-		return nil, nil
-	}
-	ds.DeleteGlobalPoliciesFunc = func(ctx context.Context, ids []uint) ([]uint, error) {
-		return nil, nil
+	ds.EnsureGlobalPackFunc = func(ctx context.Context) (*fleet.Pack, error) {
+		return &fleet.Pack{}, nil
 	}
 
 	var testCases = []struct {
@@ -49,7 +43,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			true,
-			false,
+			true,
 		},
 		{
 			"team maintainer",
@@ -68,17 +62,8 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewGlobalPolicy(ctx, 2)
-			checkAuthErr(t, tt.shouldFailWrite, err)
-
-			_, err = svc.ListGlobalPolicies(ctx)
+			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
-
-			_, err = svc.GetPolicyByIDQueries(ctx, 1)
-			checkAuthErr(t, tt.shouldFailRead, err)
-
-			_, err = svc.DeleteGlobalPolicies(ctx, []uint{1})
-			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
 }

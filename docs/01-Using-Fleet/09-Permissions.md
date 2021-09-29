@@ -82,3 +82,5 @@ The following table depicts various permissions levels in a team.
 | Delete hosts belonging to member team                        |          | ✅         |
 | Edit queries they authored                                   |          | ✅         |
 | Delete queries they authored                                 |          | ✅         |
+| Browse global policies                                       |          | ✅         |
+| Browse global schedules                                      |          | ✅         |
