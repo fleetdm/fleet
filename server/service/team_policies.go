@@ -36,9 +36,6 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint)
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
 
 	return svc.ds.NewTeamPolicy(ctx, teamID, queryID)
 }
@@ -69,9 +66,6 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -105,9 +99,6 @@ func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fle
 
 func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -146,9 +137,6 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-	if err := svc.authz.TeamAuthorize(ctx, teamID, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 

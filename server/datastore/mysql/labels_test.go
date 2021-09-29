@@ -240,6 +240,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -251,6 +252,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -262,6 +264,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	h3, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "3",
 		NodeKey:         "3",
@@ -302,6 +305,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -314,6 +318,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -355,6 +360,7 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -367,6 +373,7 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: lastSeenTime,
 		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
 		OsqueryHostID:   "2",
 		NodeKey:         "2",
@@ -445,6 +452,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 		h, err := db.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -515,6 +523,7 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         strconv.Itoa(i),
@@ -597,6 +606,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -658,6 +668,7 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "1",
 		NodeKey:         "1",
@@ -682,6 +693,7 @@ func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			NodeKey:         "1",
 			UUID:            "1",

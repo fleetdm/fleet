@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	maxSoftwareNameLen    = 255
-	maxSoftwareVersionLen = 255
-	maxSoftwareSourceLen  = 64
+	maxSoftwareNameLen             = 255
+	maxSoftwareVersionLen          = 255
+	maxSoftwareSourceLen           = 64
+	maxSoftwareBundleIdentifierLen = 255
 )
 
 func truncateString(str string, length int) string {
@@ -24,15 +25,16 @@ func truncateString(str string, length int) string {
 }
 
 func softwareToUniqueString(s fleet.Software) string {
-	return strings.Join([]string{s.Name, s.Version, s.Source}, "\u0000")
+	return strings.Join([]string{s.Name, s.Version, s.Source, s.BundleIdentifier}, "\u0000")
 }
 
 func uniqueStringToSoftware(s string) fleet.Software {
 	parts := strings.Split(s, "\u0000")
 	return fleet.Software{
-		Name:    truncateString(parts[0], maxSoftwareNameLen),
-		Version: truncateString(parts[1], maxSoftwareVersionLen),
-		Source:  truncateString(parts[2], maxSoftwareSourceLen),
+		Name:             truncateString(parts[0], maxSoftwareNameLen),
+		Version:          truncateString(parts[1], maxSoftwareVersionLen),
+		Source:           truncateString(parts[2], maxSoftwareSourceLen),
+		BundleIdentifier: truncateString(parts[3], maxSoftwareBundleIdentifierLen),
 	}
 }
 
@@ -171,8 +173,8 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`INSERT IGNORE INTO software (name, version, source) VALUES (?, ?, ?)`,
-		s.Name, s.Version, s.Source,
+		`INSERT IGNORE INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)`,
+		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	)
 	if err != nil {
 		return 0, errors.Wrap(err, "insert software")
@@ -222,7 +224,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 		teamWhere = "TRUE"
 	}
 	sql := fmt.Sprintf(`
-		SELECT DISTINCT s.id, s.name, s.version, s.source, coalesce(scp.cpe, "") as generated_cpe
+		SELECT DISTINCT s.*, coalesce(scp.cpe, "") as generated_cpe
 		FROM host_software hs
 		JOIN hosts h ON (hs.host_id=h.id)
 		JOIN software s ON (hs.software_id=s.id)

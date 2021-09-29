@@ -34,9 +34,11 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>Update flow</td><td>
 
-1. Prereq: previous version is set up with data. 
-2. Update fleet to testing version
-</td><td>No data should be lost in update</td><td>pass/fail</td></tr>
+1. remove all fleet processes/agents/etc from Docker for a clean slate
+1. run `fleetctrl preview` with no tag for latest stable
+1. create a host/query to later confirm upgrade with
+1. STOP fleet-preview-server instances in containers/apps on Docker
+1. run `fleetctrl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -64,4 +66,6 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 
 # Notes
 
-* {any notes}
+Issues found new to this version:
+
+Issues found that reproduce in last stable version: 

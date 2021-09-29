@@ -461,6 +461,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
+- [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 
 ### List hosts
 
@@ -615,6 +616,15 @@ The endpoint returns the host's installed `software` if the software inventory f
         "name": "tar",
         "version": "1.30",
         "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
         "generated_cpe": "",
         "vulnerabilities": null
       }
@@ -884,6 +894,57 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
+### Bulk delete hosts by filter or ids
+
+`POST /api/v1/fleet/hosts/delete`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+
+Either ids or filters are required.
+
+Request (`ids` is specified):
+
+```json
+{
+  "ids": [1]
+}
+```
+
+Request (`filters` is specified):
+```json
+{
+  "filters": {
+    "status": "online",
+    "label_id": 1,
+    "team_id": 1,
+    "query": "abc"
+  }
+}
+```
+
+#### Example
+
+`POST /api/v1/fleet/hosts/delete`
+
+##### Request body
+
+```json
+{
+  "filters": {
+    "status": "online",
+    "team_id": 1
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -5044,7 +5105,8 @@ None.
     }
   },
   "update_interval": {
-    "osquery_detail": 3600000000000
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
   },
 }
 ```
