@@ -52,9 +52,13 @@ const reducer = (state: any, action: any) => {
       return {
         ...state,
         lastEditedQueryName:
-          action.lastEditedQueryName || state.lastEditedQueryName,
+          typeof action.lastEditedQueryName === "undefined"
+            ? state.lastEditedQueryName
+            : action.lastEditedQueryName,
         lastEditedQueryDescription:
-          action.lastEditedQueryDescription || state.lastEditedQueryDescription,
+          typeof action.lastEditedQueryDescription === "undefined"
+            ? state.lastEditedQueryDescription
+            : action.lastEditedQueryDescription,
         lastEditedQueryBody:
           typeof action.lastEditedQueryBody === "undefined"
             ? state.lastEditedQueryBody
