@@ -65,19 +65,11 @@ module.exports = {
         throw 'notFound';
       }
     }
-    // Setting the title of this page
-    let pageTitle;
-    if(thisPage) {
-      // Handle situations where the title is the filename of a markdown file (e.g. the documentation landing page's title is 'Readme.md')
-      if(_.endsWith(thisPage.title, '.md')) {
-        // if the title is a markdown filename, we'll use a generic 'Documentation' title
-        pageTitle = 'Documentation | Fleet for osquery';
-      // If this page has a pageTitleForMeta property we'll use that instead of thisPage.title
-      } else if(thisPage.meta.pageTitleForMeta){
-        pageTitle = thisPage.meta.pageTitleForMeta + ' | Fleet documentation';
-      } else {
-        pageTitle = thisPage.title + ' | Fleet documentation';
-      }
+    // Setting the title of this page using thisPage.title if it is not a markdown file name, use a generic title.
+    let pageTitle = _.endsWith(thisPage.title, '.md') ? 'Documentation | Fleet for osquery' : thisPage.title + ' | Fleet documentation';
+    // if this page has pageTitleForMeta <meta> tag use that instead.
+    if(thisPage.meta.pageTitleForMeta) {
+      pageTitle = thisPage.meta.pageTitleForMeta + ' | Fleet documentation';
     }
 
     // Respond with view.

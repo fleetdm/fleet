@@ -35,14 +35,8 @@ module.exports = {
     }
 
     // Setting a generic default title and description in case something goes wrong and the query is missing a name and description
-    let pageTitle = 'Query details | Fleet for osquery';
-    let pageDescription = 'View more information about a query in Fleet\'s standard query library';
-    if(query.name) {
-      pageTitle = query.name + ' | Query details';
-    }
-    if(query.description) {
-      pageDescription = query.description;
-    }
+    let pageTitle = query.name ? query.name + ' | Query details' : 'Query details | Fleet for osquery';
+    let pageDescription = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
     // Respond with view.
     return {
       title: pageTitle,
