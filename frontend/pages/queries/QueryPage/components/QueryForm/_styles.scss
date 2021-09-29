@@ -22,9 +22,11 @@
     resize: none;
     height: 30px;
     white-space: nowrap;
-    overflow-x: scroll;
     background-color: transparent;
 
+    &.input-field {
+      overflow-x: scroll;
+    }
     &:hover:not(.focus-visible):not(.no-hover) {
       color: $core-vibrant-blue;
       cursor: pointer;

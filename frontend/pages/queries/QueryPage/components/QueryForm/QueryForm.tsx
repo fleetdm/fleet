@@ -101,7 +101,7 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
-    if (!lastEditedQueryName) {
+    if (isEditMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
         name: "Query name must be present",
