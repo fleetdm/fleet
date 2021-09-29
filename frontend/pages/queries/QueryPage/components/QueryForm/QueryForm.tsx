@@ -1,5 +1,4 @@
 import React, { useState, useRef, useContext } from "react";
-import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
@@ -12,7 +11,8 @@ import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/loaders/Spinner"; // @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import NewQueryModal from "../NewQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
@@ -56,9 +56,6 @@ const QueryForm = ({
   renderLiveQueryWarning,
 }: IQueryFormProps) => {
   const isEditMode = !!queryIdForEdit;
-  const nameEditable = useRef(null);
-  const descriptionEditable = useRef(null);
-
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
@@ -117,6 +114,13 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
+    if (isEditMode && !lastEditedQueryName) {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present",
+      });
+    }
+
     let valid = true;
     const { valid: isValidated, errors: newErrors } = validateQuerySQL(
       lastEditedQueryBody
@@ -138,6 +142,8 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
         });
+
+        setErrors({});
       }
     }
   };
@@ -202,26 +208,28 @@ const QueryForm = ({
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
-          <ContentEditable
-            className={`${baseClass}__query-name`}
-            innerRef={nameEditable}
-            html={lastEditedQueryName}
-            tagName="h1"
-            onChange={(evt: ContentEditableEvent) =>
-              setLastEditedQueryName(evt.target.value)
-            }
+          <InputField
+            id="query-name"
+            type="text"
+            name="query-name"
+            error={errors.name}
+            value={lastEditedQueryName}
+            placeholder="Add name here"
+            inputClassName={`${baseClass}__query-name`}
+            onChange={setLastEditedQueryName}
           />
         ) : (
           <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
         )}
         {isEditMode && (
-          <ContentEditable
-            className={`${baseClass}__query-description`}
-            innerRef={descriptionEditable}
-            html={lastEditedQueryDescription || "Add description here."}
-            onChange={(evt: ContentEditableEvent) =>
-              setLastEditedQueryDescription(evt.target.value)
-            }
+          <InputField
+            id="query-description"
+            type="text"
+            name="query-description"
+            value={lastEditedQueryDescription}
+            placeholder="Add description here."
+            inputClassName={`${baseClass}__query-description`}
+            onChange={setLastEditedQueryDescription}
           />
         )}
         <FleetAce
