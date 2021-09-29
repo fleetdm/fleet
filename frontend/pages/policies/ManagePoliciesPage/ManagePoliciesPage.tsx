@@ -45,6 +45,17 @@ const INHERITED_POLICIES_COUNT_HTML = (
   </span>
 );
 
+const renderInheritedPoliciesButtonText = (
+  showPolicies: boolean,
+  policies: IPolicy[]
+) => {
+  const count = policies.length;
+
+  return `${showPolicies ? "Hide" : "Show"} ${count} inherited ${
+    count > 1 ? "policies" : "policy"
+  }`;
+};
+
 const ManagePolicyPage = (managePoliciesPageProps: {
   router: any;
   location: any;
@@ -419,11 +430,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                      ${baseClass}__inherited-policies-button`}
                 onClick={toggleShowInheritedPolicies}
               >
-                {`${showInheritedPolicies ? "Hide" : "Show"} ${
-                  globalPolicies.length
-                } inherited ${
-                  globalPolicies.length > 1 ? "policies" : "policy"
-                }`}
+                {renderInheritedPoliciesButtonText(
+                  showInheritedPolicies,
+                  globalPolicies
+                )}
               </Button>
               <div className={`${baseClass}__details`}>
                 <IconToolTip

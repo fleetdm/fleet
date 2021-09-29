@@ -16,7 +16,7 @@ interface IPoliciesListWrapperProps {
   toggleAddPolicyModal: () => void;
   resultsTitle?: string;
   resultsHtml?: JSX.Element;
-  selectedTeamId?: number | undefined | null;
+  selectedTeamId?: number | null;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
 }
