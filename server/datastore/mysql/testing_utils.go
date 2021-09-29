@@ -26,7 +26,7 @@ const (
 	testReplicaDatabaseSuffix = "_replica"
 )
 
-func connectMySQL(t *testing.T, testName string, opts *DatastoreTestOptions) *Datastore {
+func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	config := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
@@ -51,14 +51,16 @@ func connectMySQL(t *testing.T, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
-func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
 	// create the context that will cancel the replication goroutine on test exit
 	var cancel func()
 	ctx := context.Background()
-	if dl, ok := t.Deadline(); ok {
-		ctx, cancel = context.WithDeadline(ctx, dl)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
+	if tt, ok := t.(*testing.T); ok {
+		if dl, ok := tt.Deadline(); ok {
+			ctx, cancel = context.WithDeadline(ctx, dl)
+		} else {
+			ctx, cancel = context.WithCancel(ctx)
+		}
 	}
 	t.Cleanup(cancel)
 
@@ -162,7 +164,7 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t *testing.T, testName string, opts *DatastoreTestOptions) *Datastore {
+func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	base := path.Dir(filename)
 	schema, err := ioutil.ReadFile(path.Join(base, "schema.sql"))
@@ -211,12 +213,14 @@ type DatastoreTestOptions struct {
 	RunReplication func()
 }
 
-func createMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	t.Parallel()
+	if tt, ok := t.(*testing.T); ok {
+		tt.Parallel()
+	}
 
 	if opts == nil {
 		// so it is never nil in internal helper functions
@@ -242,7 +246,7 @@ func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datasto
 	return createMySQLDSWithOptions(t, opts)
 }
 
-func CreateMySQLDS(t *testing.T) *Datastore {
+func CreateMySQLDS(t testing.TB) *Datastore {
 	return createMySQLDSWithOptions(t, nil)
 }
 

@@ -51,8 +51,10 @@ func TestCollector(t *testing.T) {
 		cancel()
 		<-done
 
+		// running at each 10ms ±10% for 100ms, min 9, max 11 but stay on the
+		// safe side, especially for min.
 		require.GreaterOrEqual(t, countHandler, 5)
-		require.LessOrEqual(t, countHandler, 11)
+		require.LessOrEqual(t, countHandler, 12)
 
 		stats := coll.ReadStats()
 		require.Equal(t, countHandler, stats.ExecCount)
