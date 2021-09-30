@@ -7,9 +7,15 @@ export interface ISortOption {
   direction: string;
 }
 
+<<<<<<< HEAD
 export interface IHostLoadOptions {
   page?: number;
   perPage?: number;
+=======
+interface IHostLoadOptions {
+  page?: number;
+  perPage: number;
+>>>>>>> e876a5e0 (Update pack targets functional, view pack targets not)
   selectedLabels?: string[];
   globalFilter?: string;
   sortBy?: ISortOption[];

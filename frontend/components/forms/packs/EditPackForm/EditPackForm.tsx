@@ -71,6 +71,8 @@ const EditPackForm = ({
   isPremiumTier,
   formData,
 }: IEditPackForm): JSX.Element => {
+  console.log("formData.targets", formData.targets);
+
   const [packName, setPackName] = useState<string>(formData.name);
   const [packDescription, setPackDescription] = useState<string>(
     formData.description
@@ -93,12 +95,6 @@ const EditPackForm = ({
   };
 
   const onFormSubmit = () => {
-    console.log("handle submit params", {
-      name: packName,
-      description: packDescription,
-      targets: [...packFormTargets],
-    });
-    debugger;
     handleSubmit({
       name: packName,
       description: packDescription,
@@ -146,7 +142,7 @@ const EditPackForm = ({
         <Button onClick={onCancelEditPack} type="button" variant="inverse">
           Cancel
         </Button>
-        <Button type="submit" variant="brand">
+        <Button onClick={onFormSubmit} variant="brand">
           Save
         </Button>
       </div>

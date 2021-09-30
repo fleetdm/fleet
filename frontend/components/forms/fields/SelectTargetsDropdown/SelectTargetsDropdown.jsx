@@ -54,6 +54,8 @@ class SelectTargetsDropdown extends Component {
     const { query } = this.state;
     const { queryId } = this.props;
 
+    console.log("selectedTargets", selectedTargets);
+
     if (!isEqual(selectedTargets, this.props.selectedTargets)) {
       this.fetchTargets(query, queryId, selectedTargets);
     }

@@ -170,13 +170,15 @@ const EditPacksPage = ({
     error: hostsError,
   } = useQuery<IStoredHostsResponse, Error, IHost[]>(
     ["all hosts"],
-    () => hostsAPI.loadAll(undefined),
+    () => hostsAPI.loadAll({ perPage: 30000 }),
     {
       select: (data: IStoredHostsResponse) => data.hosts,
     }
   );
+
   const packHosts = storedPack
     ? filter(hosts, (host) => {
+        console.log("storedPack.host_ids", storedPack.host_ids);
         return includes(storedPack.host_ids, host.id);
       })
     : [];
@@ -186,7 +188,7 @@ const EditPacksPage = ({
     data: teams,
     error: teamsError,
   } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
-    ["pack labels"],
+    ["all teams"],
     () => teamsAPI.loadAll(),
     {
       select: (data: IStoredTeamsResponse) => data.teams,
@@ -201,20 +203,26 @@ const EditPacksPage = ({
 
   const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
+  console.log("labels", labels);
+  console.log("hosts", hosts);
+  console.log("teams", teams);
+  console.log("packHosts", packHosts);
+  console.log("packTargets", packTargets);
+
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));
   };
 
-  const onFetchTargets = (
-    query: IQuery,
-    targetsResponse: ITargetsAPIResponse
-  ) => {
-    const { targets_count } = targetsResponse;
+  const onFetchTargets = useCallback(
+    (query: IQuery, targetsResponse: ITargetsAPIResponse) => {
+      const { targets_count } = targetsResponse;
+      console.log(targets_count);
+      setTargetsCount(targets_count);
 
-    setTargetsCount(targets_count);
-
-    return false;
-  };
+      return false;
+    },
+    []
+  );
 
   const togglePackQueryEditorModal = () => {
     setSelectedPackQuery(undefined); // create modal renders
@@ -235,12 +243,27 @@ const EditPacksPage = ({
     setSelectedPackQueryIds(selectedTableQueryIds);
   };
 
+  // If we want to use a try/catch pattern in future iterations
+  // const updatePack = useCallback(
+  //   async (updatedPack) => {
+  //     setIsStoredPackLoading(true);
+  //     try {
+  //       const response = await packsAPI.update(packId, updatedPack);
+  //       console.log(response);
+  //       debugger;
+  //       setStoredPack(response.pack);
+  //     } catch (error) {
+  //       console.log(error);
+  //       setIsStoredPackLoadingError(true);
+  //     } finally {
+  //       setIsStoredPackLoading(false);
+  //     }
+  //   },
+  //   [dispatch]
+  // );
+
   const handlePackFormSubmit = (formData: any) => {
     const updatedPack = deepDifference(formData, storedPack);
-    console.log("handlePackFormSubmit formData", formData);
-    console.log("handlePackFormSubmit storedPack", storedPack);
-    console.log("handlePackFormSubmit updatedPack", updatedPack);
-
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
@@ -251,7 +274,6 @@ const EditPacksPage = ({
           renderFlash("error", `Could not update pack. Please try again.`)
         );
       });
-    debugger;
   };
 
   const onPackQueryEditorSubmit = (

@@ -61,11 +61,10 @@ export default {
 
     const packWithoutTargets = omit(updatedPack, "targets");
     const packParams = { ...packWithoutTargets, ...packTargets };
-    console.log("packWithoutTargets", packWithoutTargets);
-    console.log("packParams", packParams);
-    console.log("path", path);
+    console.log("service/entities packWithoutTargets", packWithoutTargets);
+    console.log("service/entities packParams", packParams);
+    console.log("service/entities path", path);
     debugger;
-
     return sendRequest("PATCH", path, packParams);
   },
 };

@@ -237,12 +237,11 @@ export const formatSelectedTargetsForApi = (
   const teams = flatMap(targets, filterTarget("teams"));
 
   if (appendID) {
-    console.log("formatSelectedTargetsForAPI", {
+    console.log("helpers formatSelectedTargetsForAPI", {
       host_ids: hosts,
       label_ids: labels,
       team_ids: teams,
     });
-    debugger;
 
     return { host_ids: hosts, label_ids: labels, team_ids: teams };
   }
