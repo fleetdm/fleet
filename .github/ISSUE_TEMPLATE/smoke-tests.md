@@ -17,6 +17,8 @@ assignees: ''
 
 1. [fleetctl preview setup](https://fleetdm.com/get-started)
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
+3. premium tests require license key `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
+
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a sanity test. If smoke tests are failing, a release cannot proceed.
