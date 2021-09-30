@@ -30,6 +30,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Growth
 
+[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+
 [Website](./growth.md#website)
 
 [Grammar guidelines](./growth.md#grammar-guidelines)
