@@ -1,6 +1,9 @@
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { size } from "lodash";
+
+// @ts-ignore
+import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -56,7 +59,7 @@ const QueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-
+  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -75,6 +78,12 @@ const QueryForm = ({
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
+
+  useEffect(() => {
+    setCompatiblePlatforms(
+      listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
+    );
+  }, [lastEditedQueryBody]);
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -295,9 +304,14 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(value: string) => setLastEditedQueryBody(value)}
+          onChange={(sqlString: string) => {
+            setLastEditedQueryBody(sqlString);
+          }}
           handleSubmit={promptSaveQuery}
         />
+        <p>
+          <b>Compatible with:</b> {compatiblePlatforms.join(", ")}
+        </p>
         {isEditMode && (
           <>
             <Checkbox

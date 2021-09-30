@@ -4,7 +4,9 @@
 import React from "react";
 
 import moment from "moment";
-import { capitalize } from "lodash";
+import { capitalize, memoize } from "lodash";
+// @ts-ignore
+import sqlTools from "utilities/sql_tools";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -15,6 +17,10 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PATHS from "router/paths";
 
 import { IQuery } from "interfaces/query";
+
+interface IQueryTableRow extends IQuery {
+  platform: string[];
+}
 
 interface IHeaderProps {
   column: {
@@ -47,6 +53,8 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const memoizedSqlTables = memoize(sqlTools.parseSqlTables);
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
@@ -67,6 +75,19 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
         />
       ),
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Platform",
+      Header: "Platform",
+      disableSortBy: true,
+      accessor: "query",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const platforms = sqlTools.listCompatiblePlatforms(
+          memoizedSqlTables(cellProps.cell.value)
+        );
+
+        return <TextCell value={platforms.join(", ")} />;
+      },
     },
     {
       title: "Author",
