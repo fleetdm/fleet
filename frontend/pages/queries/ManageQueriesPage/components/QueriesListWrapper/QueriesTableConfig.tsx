@@ -4,7 +4,7 @@
 import React from "react";
 
 import moment from "moment";
-import { capitalize, memoize } from "lodash";
+import { memoize } from "lodash";
 // @ts-ignore
 import sqlTools from "utilities/sql_tools";
 
