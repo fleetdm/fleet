@@ -46,7 +46,7 @@ variable "cpu_migrate" {
 
 variable "mem_migrate" {
   description = "memory limit for migration task in MB"
-  default     = 1024
+  default     = 2048
 }
 
 variable "fleet_max_capacity" {
