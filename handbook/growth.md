@@ -1,20 +1,6 @@
 ## Promoting blog posts on social media
 
-Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. To do this:
-
-- If an issue already exists for the blog post, please add a "promote" task list item, and assign the issue to @DrewBakerfdm  
-- If no issue exists, please create one (e.g. "Promote: YOUR BLOG POST TITLE HERE"), add it to the Growth W.I.P board (ready to resume,) and assign to @DrewBakerfdm
-- Post in _#help-promote_ Slack channel at a time of day where folks at Fleet are online.
-- **Important.** Posting to HackerNews is reserved for release posts only.
-
-Our social media targets include:
-
-- Twitter / LinkedIn / Facebook
-- Reddit
-    - r/sysadminblogs
-    - r/osquery
-    - r/netsec
-- HackerNews (reserved for release posts only)
+Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
 
 
 ## Fleet website
