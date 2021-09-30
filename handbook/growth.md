@@ -1,3 +1,21 @@
+## Promoting blog posts on social media
+
+Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. To do this:
+
+- If an issue already exists for the blog post, please add a "promote" task list item, and assign the issue to @DrewBakerfdm  
+- If no issue exists, please create one, add it to the Growth W.I.P board (ready to resume,) and assign to @DrewBakerfdm
+- Post in _#help-promote_ Slack channel at a time of day where folks at Fleet are online.
+- **Important.** Posting to HackerNews is reserved for release posts only. Always link to https://news.ycombinator.com/newest and have people find the post, don't link to it directly (the algorithm penalizes people visiting direct links) You get a 15 minute window.
+
+Our social media targets include:
+
+- Twitter / LinkedIn / Facebook
+- Reddit
+    - r/sysadminblogs
+    - r/osquery
+    - r/netsec
+- HackerNews (reserved for release posts only)
+
 
 ## Fleet website
 
@@ -49,14 +67,6 @@ Osquery should always be written in lowercase, unless used to start a sentence o
 or
 
 > Osquery and Fleet provide structured, convenient access to information about your devices.
-
-## Culture
-
-### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 3 continents and 5 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
-
-### Openness
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
 
 
 
