@@ -135,4 +135,3 @@ The `unknown column` error typically occurs when the database migrations haven't
 
 Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
 
-<meta name="pageTitleForMeta" value="Using Fleet FAQ">
