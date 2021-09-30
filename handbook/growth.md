@@ -3,7 +3,7 @@
 Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. To do this:
 
 - If an issue already exists for the blog post, please add a "promote" task list item, and assign the issue to @DrewBakerfdm  
-- If no issue exists, please create one, add it to the Growth W.I.P board (ready to resume,) and assign to @DrewBakerfdm
+- If no issue exists, please create one (e.g. "Promote: YOUR BLOG POST HERE"), add it to the Growth W.I.P board (ready to resume,) and assign to @DrewBakerfdm
 - Post in _#help-promote_ Slack channel at a time of day where folks at Fleet are online.
 - **Important.** Posting to HackerNews is reserved for release posts only. Always link to https://news.ycombinator.com/newest and have people find the post, don't link to it directly (the algorithm penalizes people visiting direct links) You get a 15 minute window.
 
