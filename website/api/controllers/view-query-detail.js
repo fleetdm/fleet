@@ -34,15 +34,15 @@ module.exports = {
       throw 'notFound';
     }
 
-    // Setting the title and description of this page using the query object, and falling back to a generic title and description if query.name or query.description are missing.
-    let pageTitle = query.name ? query.name + ' | Query details' : 'Query details | Fleet for osquery';
-    let pageDescription = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
+    // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
+    let pageTitleForMeta = query.name ? query.name + ' | Query details' : 'Query details | Fleet for osquery';
+    let pageDescriptionForMeta = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
     // Respond with view.
     return {
       query,
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
-      title: pageTitle,
-      description: pageDescription,
+      pageTitleForMeta,
+      pageDescriptionForMeta,
     };
 
   }

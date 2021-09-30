@@ -50,9 +50,17 @@ module.exports = {
       let revisedUrl = 'todo';
       throw {redirect: revisedUrl};
     }
-    // Setting the title of this page, using thisPage.title, and setting a generic title if thisPage.title is a markdown file.
-    let pageTitle = _.endsWith(thisPage.title, '.md') ? 'Handbook | Fleet for osquery' : thisPage.title + ' | Fleet handbook';
-
+    // Setting the meta title for this page.
+    let pageTitleForMeta;
+    if(thisPage.title === 'Readme.md') {
+      // If thisPage.title is 'Readme.md', we're on the handbook landing page and we'll follow the title format of the other top level pages.
+      pageTitleForMeta = 'Handbook | Fleet for osquery';
+    } else {
+      // Otherwise we'll use the page title provided and format it accordingly.
+      pageTitleForMeta = thisPage.title + ' | Fleet handbook';
+    }
+    // Setting the meta description for this page if one was provided in the markdown, otherwise setting a generic description.
+    let pageDescriptionForMeta = thisPage.meta.description ? thisPage.meta.description : 'View the Fleet handbook.';
 
     // Respond with view.
     return {
@@ -60,7 +68,8 @@ module.exports = {
       thisPage: thisPage,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
-      title: pageTitle,
+      pageTitleForMeta,
+      pageDescriptionForMeta,
     };
 
   }
