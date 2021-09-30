@@ -19,7 +19,7 @@ export interface ILabel {
   updated_at: string;
   id: number | string;
   name: string;
-  // description: string;
+  description?: string;
   query: string;
   label_type: "regular" | "builtin";
   label_membership_type: string;
@@ -27,7 +27,15 @@ export interface ILabel {
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
   host_ids: number[] | null;
-  type: "custom" | "platform" | "status";
-  // slug: string; // e.g., "labels/13" | "online"
-  // target_type: string; // e.g., "labels"
+  type: "custom" | "platform" | "status" | "all";
+  slug?: string; // e.g., "labels/13" | "online"
+  target_type?: string; // e.g., "labels"
+  platform: string;
+}
+
+export interface ILabelFormData {
+  name: string;
+  query: string;
+  description: string;
+  platform: string;
 }

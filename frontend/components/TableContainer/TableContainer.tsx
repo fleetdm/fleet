@@ -9,6 +9,7 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
+import { useDeepEffect } from "utilities/hooks";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
@@ -58,6 +59,7 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
+  getCustomCount?: (data: any) => number;
 }
 
 const baseClass = "table-container";
@@ -101,6 +103,7 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
+  getCustomCount,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -153,7 +156,7 @@ const TableContainer = ({
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
   // different types of query updates, as we handle some of them differently than others.
-  useEffect(() => {
+  useDeepEffect(() => {
     const queryData = {
       searchQuery,
       sortHeader,
@@ -161,6 +164,7 @@ const TableContainer = ({
       pageSize,
       pageIndex,
     };
+
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
       if (!hasPageIndexChangedRef.current) {
@@ -214,7 +218,7 @@ const TableContainer = ({
               resultsTitle,
               pageIndex,
               pageSize,
-              data.length
+              getCustomCount ? getCustomCount(data) : data.length
             )}
             {resultsHtml}
           </p>

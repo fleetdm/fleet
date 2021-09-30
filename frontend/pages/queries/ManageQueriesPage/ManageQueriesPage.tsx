@@ -108,13 +108,26 @@ const ManageQueriesPage = (): JSX.Element => {
         toggleRemoveQueryModal();
         dispatch(queryActions.loadAll());
       })
-      .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Unable to remove ${queryOrQueries}. Please try again.`
-          )
-        );
+      .catch((response) => {
+        if (
+          response.base.slice(0, 47) ===
+          "the operation violates a foreign key constraint"
+        ) {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete query because this query is used as a policy. First remove the policy and then try deleting the query again.`
+            )
+          );
+          dispatch(queryActions.loadAll());
+        } else {
+          dispatch(
+            renderFlash(
+              "error",
+              `Unable to remove ${queryOrQueries}. Please try again.`
+            )
+          );
+        }
         toggleRemoveQueryModal();
       });
   }, [dispatch, selectedQueryIds, toggleRemoveQueryModal]);

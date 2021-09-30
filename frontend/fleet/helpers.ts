@@ -8,6 +8,7 @@ import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { ILabel } from "interfaces/label";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -194,7 +195,7 @@ export const frontendFormattedConfig = (config: any) => {
   };
 };
 
-const formatLabelResponse = (response: any): { [index: string]: any } => {
+const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: any) => {
     return {
       ...label,

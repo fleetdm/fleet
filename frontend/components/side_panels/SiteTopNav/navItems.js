@@ -57,7 +57,7 @@ export default (currentUser) => {
     },
   ];
 
-  const globalMaintainerNavItems = [
+  const teamMaintainerNavItems = [
     {
       icon: "packs",
       name: "Schedule",
@@ -72,14 +72,17 @@ export default (currentUser) => {
   if (permissionUtils.isGlobalAdmin(currentUser)) {
     return [
       ...userNavItems,
-      ...globalMaintainerNavItems,
+      ...teamMaintainerNavItems,
       ...policiesTab,
       ...adminNavItems,
     ];
   }
 
-  if (permissionUtils.isGlobalMaintainer(currentUser)) {
-    return [...userNavItems, ...globalMaintainerNavItems, ...policiesTab];
+  if (
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser)
+  ) {
+    return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
   }
 
   return [...userNavItems, ...policiesTab];

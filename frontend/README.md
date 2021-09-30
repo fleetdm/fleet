@@ -115,9 +115,9 @@ etc.
 
 These directories and files are still used (as of 9/14/21) but are being replaced by newer code:
 
-- [fleet](./fleet), now using [services](./services)
-- [redux](./redux), now using [services](./services), local states, and various entities directly (e.g. React Router)
-- [Form.jsx Higher Order Component](./components/forms/README.md), now creating forms with local states with React Hooks (i.e. `useState`)
+- [fleet](./fleet); now using [services](./services)
+- [redux](./redux); now using [services](./services), local states, and various entities directly (e.g. React Router)
+- [Form.jsx Higher Order Component](./components/forms/README.md); now creating forms with local states with React Hooks (i.e. `useState`)
 
 To view the deprecated documentation, [click here](./README_deprecated.md).
 
@@ -220,12 +220,17 @@ Examples below:
 ```typescript
 // page
 import ...
-import queryAPI from "services/entities/queries";
+import queriesAPI from "services/entities/queries";
 
 const PageOrComponent = (props) => {
   const doSomething = async () => {
-    const response = await queryAPI.load(param);
-    // do something
+    try {
+      const response = await queriesAPI.load(param);
+      // do something
+    } catch(error) {
+      console.error(error);
+      // maybe trigger renderFlash
+    }
   };
   
   return (
@@ -242,7 +247,7 @@ gives us the ability to fetch, cache, sync and update data with a myriad of opti
 ```typescript
 import ...
 import { useQuery, useMutation } from "react-query";
-import queryAPI from "services/entities/queries";
+import queriesAPI from "services/entities/queries";
 
 const PageOrComponent = (props) => {
   // retrieve the query based on page/component load
@@ -254,7 +259,7 @@ const PageOrComponent = (props) => {
     ...otherProps,
   } = useQuery<IResponse, Error, IData>(
     "query",
-    () => queryAPI.load(param),
+    () => queriesAPI.load(param),
     {
       ...options
     }
@@ -264,7 +269,7 @@ const PageOrComponent = (props) => {
   // updating data. for example, if you need to know whether
   // a mutation is loading, there is a prop for that.
   const { ...props } = useMutation((formData: IForm) =>
-    queryAPI.create(formData)
+    queriesAPI.create(formData)
   );
   
   return (
@@ -289,15 +294,16 @@ a user to whatever page desired. For example:
 ```typescript
 // page
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router/lib/Router";
 
 interface IPageProps {
-  router: any; // no typing in react-router v3
+  router: InjectedRouter; // v3
 }
 
 const PageOrComponent = ({
   router,
 }: IPageProps) => {
-  const doSomething = async () => {
+  const doSomething = () => {
     router.push(PATHS.HOME);
   };
   
