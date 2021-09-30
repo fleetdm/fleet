@@ -23,7 +23,7 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 
 ## Prerequisites
 
-1. `fleetctrl preview` is set up and running the desired test version using `--tag` parameters.
+1. `fleetctl preview` is set up and running the desired test version using `--tag` parameters.
 2. Unless you are explicitly testing older browser versions, browser is up to date.
 3. Certificate & flagfile are in place to create new host.
 
@@ -35,10 +35,10 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 <tr><td>Update flow</td><td>
 
 1. remove all fleet processes/agents/etc from Docker for a clean slate
-1. run `fleetctrl preview` with no tag for latest stable
+1. run `fleetctl preview` with no tag for latest stable
 1. create a host/query to later confirm upgrade with
 1. STOP fleet-preview-server instances in containers/apps on Docker
-1. run `fleetctrl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+1. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
