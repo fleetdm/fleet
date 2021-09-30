@@ -146,6 +146,9 @@ const routes = (
               </Route>
               <Route path=":id" component={QueryPage} />
             </Route>
+            <Route path="policies" component={PoliciesPageWrapper}>
+              <Route path="manage" component={ManagePoliciesPage} />
+            </Route>
             <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>

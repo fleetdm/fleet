@@ -45,6 +45,18 @@ export default (currentUser) => {
     },
   ];
 
+  const policiesTab = [
+    {
+      icon: "policies",
+      name: "Policies",
+      iconName: "policies",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
+        pathname: PATHS.MANAGE_POLICIES,
+      },
+    },
+  ];
+
   const teamMaintainerNavItems = [
     {
       icon: "packs",
@@ -90,5 +102,5 @@ export default (currentUser) => {
     return [...userNavItems, ...teamMaintainerNavItems];
   }
 
-  return userNavItems;
+  return [...userNavItems, ...policiesTab];
 };

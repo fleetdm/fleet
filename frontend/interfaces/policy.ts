@@ -4,4 +4,5 @@ export interface IPolicy {
   query_name: string;
   passing_host_count: number;
   failing_host_count: number;
+  last_run_time?: string;
 }
