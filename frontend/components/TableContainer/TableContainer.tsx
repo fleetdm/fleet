@@ -59,6 +59,7 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
+  getCustomCount?: (data: any) => number;
 }
 
 const baseClass = "table-container";
@@ -102,6 +103,7 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
+  getCustomCount,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -216,7 +218,7 @@ const TableContainer = ({
               resultsTitle,
               pageIndex,
               pageSize,
-              data.length
+              getCustomCount ? getCustomCount(data) : data.length
             )}
             {resultsHtml}
           </p>

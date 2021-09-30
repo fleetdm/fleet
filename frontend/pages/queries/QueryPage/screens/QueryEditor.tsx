@@ -20,6 +20,7 @@ interface IQueryEditorProps {
   router: InjectedRouter;
   baseClass: string;
   queryIdForEdit: number | null;
+  storedQuery: IQuery | undefined;
   storedQueryError: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
@@ -34,6 +35,7 @@ const QueryEditor = ({
   router,
   baseClass,
   queryIdForEdit,
+  storedQuery,
   storedQueryError,
   showOpenSchemaActionText,
   isStoredQueryLoading,
@@ -45,6 +47,9 @@ const QueryEditor = ({
 }: IQueryEditorProps) => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+
+  // Note: The QueryContext values should always be used for any mutable query data such as query name
+  // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -122,6 +127,7 @@ const QueryEditor = ({
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
+        storedQuery={storedQuery}
         queryIdForEdit={queryIdForEdit}
         isStoredQueryLoading={isStoredQueryLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}

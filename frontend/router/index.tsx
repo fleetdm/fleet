@@ -126,6 +126,11 @@ const routes = (
                   <Route path="edit" component={EditPackPage} />
                 </Route>
               </Route>
+              <Route path="policies" component={PoliciesPageWrapper}>
+                <Route path="manage" component={ManagePoliciesPage} />
+              </Route>
+            </Route>
+            <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
                 <Route
