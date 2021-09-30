@@ -138,7 +138,7 @@ describe(
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See and select the “Add new host” button
-      cy.findByText(/add new host/i).click();
+      cy.findByRole("button", { name: /add new host/i }).click();
 
       // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
       cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
@@ -195,7 +195,7 @@ describe(
       cy.findByText(/oranges/i).click();
       cy.findByText(/apples/i).should("not.exist");
       cy.findByText(/advanced/i).should("not.exist");
-      cy.findByText(/schedule a query/i).click();
+      cy.findByRole("button", { name: /schedule a query/i }).click();
       // TODO: Write e2e test for team maintainer to schedule a query
 
       // On the Profile page, they should…
