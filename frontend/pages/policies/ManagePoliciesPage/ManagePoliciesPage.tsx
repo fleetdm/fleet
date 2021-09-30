@@ -23,7 +23,6 @@ import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import sortUtils from "utilities/sort";
 import permissionsUtils from "utilities/permissions";
 
-import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -244,8 +243,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         unsortedTeams = currentUser.teams;
       }
       if (unsortedTeams !== null) {
-        const sortedTeams = unsortedTeams.sort(
-          (a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name) // TODO: confirm that sortUtils refactor in #2105 has been merged first
+        const sortedTeams = unsortedTeams.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
         );
         setUserTeams(sortedTeams);
       }
@@ -315,6 +314,28 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     }
   }, [config]);
 
+  // If the user is free tier or if there is no selected team, we show the default description.
+  // We also want to check selectTeamId for the null case so that we don't render the element prematurely.
+  const showDefaultDescription =
+    isFreeTier || (isPremiumTier && !selectedTeamId && selectedTeamId !== null);
+
+  // If there aren't any policies of if there are loading errors, we don't show the update interval info banner.
+  // We also want to check selectTeamId for the null case so that we don't render the element prematurely.
+  const showInfoBanner =
+    (selectedTeamId && !isTeamPoliciesError && !!teamPolicies?.length) ||
+    (!selectedTeamId &&
+      selectedTeamId !== null &&
+      !isGlobalPoliciesError &&
+      !!globalPolicies?.length);
+
+  // If there aren't any policies of if there are loading errors, we don't show the inherited policies button.
+  const showInheritedPoliciesButton =
+    !!selectedTeamId &&
+    !!teamPolicies?.length &&
+    !!globalPolicies?.length &&
+    !isGlobalPoliciesError &&
+    !isTeamPoliciesError;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -354,35 +375,29 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               .
             </p>
           )}
-          {isFreeTier ||
-            (isPremiumTier && !selectedTeamId && selectedTeamId !== null && (
-              <p>
-                Add policies for <b>all of your hosts</b> to see which pass your
-                organization’s standards.{" "}
-              </p>
-            ))}
-        </div>
-        {updateInterval &&
-          ((selectedTeamId && !isTeamPoliciesError && !!teamPolicies?.length) ||
-            (!selectedTeamId &&
-              selectedTeamId !== null &&
-              !isGlobalPoliciesError &&
-              !!globalPolicies?.length)) && (
-            <InfoBanner className={`${baseClass}__sandbox-info`}>
-              <p>
-                Your policies are checked every <b>{updateInterval.trim()}</b>.{" "}
-                {isGlobalAdmin && (
-                  <span>
-                    Check out the Fleet documentation on{" "}
-                    <a href={DOCS_LINK} target="_blank" rel="noreferrer">
-                      <b>how to edit this frequency</b>
-                    </a>
-                    .
-                  </span>
-                )}
-              </p>
-            </InfoBanner>
+          {showDefaultDescription && (
+            <p>
+              Add policies for <b>all of your hosts</b> to see which pass your
+              organization’s standards.{" "}
+            </p>
           )}
+        </div>
+        {!!updateInterval && showInfoBanner && (
+          <InfoBanner className={`${baseClass}__sandbox-info`}>
+            <p>
+              Your policies are checked every <b>{updateInterval.trim()}</b>.{" "}
+              {isGlobalAdmin && (
+                <span>
+                  Check out the Fleet documentation on{" "}
+                  <a href={DOCS_LINK} target="_blank" rel="noreferrer">
+                    <b>how to edit this frequency</b>
+                  </a>
+                  .
+                </span>
+              )}
+            </p>
+          </InfoBanner>
+        )}
         <div>
           {!!selectedTeamId &&
             (isTeamPoliciesError ? (
@@ -417,57 +432,48 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               />
             ))}
         </div>
-        {!!selectedTeamId &&
-          !!teamPolicies?.length &&
-          !!globalPolicies?.length &&
-          !isGlobalPoliciesError &&
-          !isTeamPoliciesError && (
-            <span>
-              <Button
-                variant="unstyled"
-                className={`${showInheritedPolicies ? "upcarat" : "rightcarat"} 
+        {showInheritedPoliciesButton && (
+          <span>
+            <Button
+              variant="unstyled"
+              className={`${showInheritedPolicies ? "upcarat" : "rightcarat"} 
                      ${baseClass}__inherited-policies-button`}
-                onClick={toggleShowInheritedPolicies}
-              >
-                {renderInheritedPoliciesButtonText(
-                  showInheritedPolicies,
-                  globalPolicies
-                )}
-              </Button>
-              <div className={`${baseClass}__details`}>
-                <IconToolTip
-                  isHtml
-                  text={
-                    "\
+              onClick={toggleShowInheritedPolicies}
+            >
+              {renderInheritedPoliciesButtonText(
+                showInheritedPolicies,
+                globalPolicies
+              )}
+            </Button>
+            <div className={`${baseClass}__details`}>
+              <IconToolTip
+                isHtml
+                text={
+                  "\
               <center><p>“All teams” policies are checked <br/> for this team’s hosts.</p></center>\
             "
-                  }
-                />
-              </div>
-            </span>
-          )}
-        {!!selectedTeamId &&
-          !!teamPolicies?.length &&
-          !!globalPolicies?.length &&
-          !isGlobalPoliciesError &&
-          !isTeamPoliciesError &&
-          showInheritedPolicies && (
-            <div className={`${baseClass}__inherited-policies-table`}>
-              <PoliciesListWrapper
-                isLoading={isLoadingGlobalPolicies}
-                policiesList={globalPolicies}
-                onRemovePoliciesClick={noop}
-                toggleAddPolicyModal={noop}
-                resultsTitle="policies"
-                selectedTeamId={null}
-                canAddOrRemovePolicy={canAddOrRemovePolicy(
-                  currentUser,
-                  selectedTeamId
-                )}
-                tableType="inheritedPolicies"
+                }
               />
             </div>
-          )}
+          </span>
+        )}
+        {showInheritedPoliciesButton && showInheritedPolicies && (
+          <div className={`${baseClass}__inherited-policies-table`}>
+            <PoliciesListWrapper
+              isLoading={isLoadingGlobalPolicies}
+              policiesList={globalPolicies}
+              onRemovePoliciesClick={noop}
+              toggleAddPolicyModal={noop}
+              resultsTitle="policies"
+              selectedTeamId={null}
+              canAddOrRemovePolicy={canAddOrRemovePolicy(
+                currentUser,
+                selectedTeamId
+              )}
+              tableType="inheritedPolicies"
+            />
+          </div>
+        )}
         {showAddPolicyModal && (
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}

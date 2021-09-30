@@ -80,6 +80,9 @@ interface IManageHostsProps {
 interface ILabelsResponse {
   labels: ILabel[];
 }
+interface IPolicyResponse {
+  policy: IPolicy;
+}
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -222,7 +225,7 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IPolicy, Error>(
+  useQuery<IPolicyResponse, Error>(
     ["policy"],
     () => {
       const request = currentTeam
@@ -232,8 +235,8 @@ const ManageHostsPage = ({
     },
     {
       enabled: !!policyId,
-      onSuccess: ({ query_name }) => {
-        setPolicyName(query_name);
+      onSuccess: ({ policy }) => {
+        setPolicyName(policy.query_name);
       },
     }
   );
