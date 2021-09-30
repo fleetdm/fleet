@@ -75,12 +75,15 @@ The following table depicts various permissions levels in a team.
 | Filter hosts assigned to team using labels                   | ✅       | ✅         |
 | Target hosts assigned to team using labels                   | ✅       | ✅         |
 | Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         |
-| Create new team policies                                     |          | ✅         |
-| Delete team policies                                         |          | ✅         |
 | Run custom queries as live queries on hosts assigned to team |          | ✅         |
 | Enroll hosts to member team                                  |          | ✅         |
 | Delete hosts belonging to member team                        |          | ✅         |
 | Edit queries they authored                                   |          | ✅         |
 | Delete queries they authored                                 |          | ✅         |
-| Browse global policies                                       |          | ✅         |
+| Create new team schedules                                    |          | ✅         |
+| Delete team schedules                                        |          | ✅         |
 | Browse global schedules                                      |          | ✅         |
+| Create new team policies                                     |          | ✅         |
+| Delete team policies                                         |          | ✅         |
+| Browse global policies                                       |          | ✅         |
+
