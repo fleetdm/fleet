@@ -1,3 +1,7 @@
+## Promoting blog posts on social media
+
+Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
+
 
 ## Fleet website
 
@@ -49,14 +53,6 @@ Osquery should always be written in lowercase, unless used to start a sentence o
 or
 
 > Osquery and Fleet provide structured, convenient access to information about your devices.
-
-## Culture
-
-### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 3 continents and 5 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
-
-### Openness
-The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
 
 
 
