@@ -120,8 +120,9 @@ const ManageHostsPage = ({
   );
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
-  const storedHiddenColumns = hostHiddenColumns 
-    ? JSON.parse(hostHiddenColumns) : null;
+  const storedHiddenColumns = hostHiddenColumns
+    ? JSON.parse(hostHiddenColumns)
+    : null;
 
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
