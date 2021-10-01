@@ -724,7 +724,7 @@ const ManageHostsPage = ({
     if (isAllMatchingHostsSelected) {
       let status = "";
       let labelId = null;
-      let teamId = currentTeam?.id || null;
+      const teamId = currentTeam?.id || null;
       const selectedStatus = getStatusSelected();
 
       if (selectedStatus && isAcceptableStatus(selectedStatus)) {
