@@ -49,7 +49,6 @@ export default {
     return sendRequest("GET", PACKS);
   },
   update: (packId: number, updatedPack: any) => {
-    // TODO: fix any later
     const { PACKS } = endpoints;
     const { targets } = updatedPack;
     const path = `${PACKS}/${packId}`;
@@ -61,10 +60,7 @@ export default {
 
     const packWithoutTargets = omit(updatedPack, "targets");
     const packParams = { ...packWithoutTargets, ...packTargets };
-    console.log("service/entities packWithoutTargets", packWithoutTargets);
-    console.log("service/entities packParams", packParams);
-    console.log("service/entities path", path);
-    debugger;
+
     return sendRequest("PATCH", path, packParams);
   },
 };

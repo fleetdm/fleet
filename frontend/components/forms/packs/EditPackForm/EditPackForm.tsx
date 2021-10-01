@@ -1,4 +1,5 @@
-import React, { useState, useCallback, Component, useEffect } from "react";
+import React, { useState } from "react";
+import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 
 import Button from "components/buttons/Button";
 
@@ -78,14 +79,11 @@ const EditPackForm = ({
     formData.targets
   );
 
-  useEffect(() => {
-    // formData.targets does not load all at once
-    setPackFormTargets(formData.targets);
-  }, [formData.targets]);
-
-  debugger;
-  console.log("formData.targets", formData.targets);
-  console.log("packFormTargets", packFormTargets);
+  useDeepEffect(() => {
+    if (formData.targets) {
+      setPackFormTargets(formData.targets);
+    }
+  }, [formData]);
 
   const onChangePackName = (value: string) => {
     setPackName(value);
@@ -97,7 +95,6 @@ const EditPackForm = ({
 
   const onChangePackTargets = (value: ITarget[]) => {
     setPackFormTargets(value);
-    console.log("value", value);
   };
 
   const onFormSubmit = () => {

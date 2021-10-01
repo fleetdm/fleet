@@ -11,6 +11,7 @@ import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import { ITarget } from "interfaces/target";
 import { IQuery } from "interfaces/query";
 import {
   IPackQueryFormData,
@@ -200,15 +201,18 @@ const EditPacksPage = ({
       })
     : [];
 
-  packTeams = packTeams.map((team) => ({ ...team, display_text: team.name }));
-
-  const packTargets = [...packHosts, ...packLabels, ...packTeams];
-
-  console.log("labels", labels);
-  console.log("hosts", hosts);
-  console.log("teams", teams);
-  console.log("packHosts", packHosts);
-  console.log("packTargets", packTargets);
+  const packTargets = [
+    ...packHosts.map((host) => ({
+      ...host,
+      target_type: "hosts",
+    })),
+    ...packLabels,
+    ...packTeams.map((team) => ({
+      ...team,
+      target_type: "teams",
+      display_text: team.name,
+    })),
+  ];
 
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));
@@ -217,7 +221,6 @@ const EditPacksPage = ({
   const onFetchTargets = useCallback(
     (query: IQuery, targetsResponse: ITargetsAPIResponse) => {
       const { targets_count } = targetsResponse;
-      console.log(targets_count);
       setTargetsCount(targets_count);
 
       return false;
@@ -251,7 +254,6 @@ const EditPacksPage = ({
   //     try {
   //       const response = await packsAPI.update(packId, updatedPack);
   //       console.log(response);
-  //       debugger;
   //       setStoredPack(response.pack);
   //     } catch (error) {
   //       console.log(error);
