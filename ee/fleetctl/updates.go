@@ -368,8 +368,12 @@ func updatesRotateFunc(c *cli.Context) error {
 	// Delete old keys for role
 	for _, key := range keys {
 		id := key.IDs()[0]
-		if err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration)); err != nil {
-			return errors.Wrap(err, "revoke key")
+		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
+		if err != nil {
+			fmt.Printf("%+v %T", err, err)
+			if !errors.Is(err, &tuf.ErrKeyNotFound{}) {
+				return errors.Wrap(err, "revoke key")
+			}
 		}
 	}
 
