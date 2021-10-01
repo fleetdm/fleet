@@ -153,16 +153,15 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     [getGlobalPolicies, getTeamPolicies]
   );
 
-  const handleChangeSelectedTeam = useCallback(
-    (id: number) => {
-      const { MANAGE_POLICIES } = PATHS;
-      const path = id ? `${MANAGE_POLICIES}?team_id=${id}` : MANAGE_POLICIES;
-      router.replace(path);
-      setShowInheritedPolicies(false);
-      setSelectedPolicyIds([]);
-    },
-    [router]
-  );
+  const handleChangeSelectedTeam = (id: number) => {
+    const { MANAGE_POLICIES } = PATHS;
+    const path = id ? `${MANAGE_POLICIES}?team_id=${id}` : MANAGE_POLICIES;
+    router.replace(path);
+    setShowInheritedPolicies(false);
+    setSelectedPolicyIds([]);
+    setGlobalPolicies([]);
+    setTeamPolicies([]);
+  };
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
@@ -283,7 +282,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // so a falsiness check cannot be used here. Null case here allows us to skip API call
     // that would be triggered on a change to selectedTeamId.
     teamId !== null && setSelectedTeamId(teamId);
-  }, [handleChangeSelectedTeam, isOnGlobalTeam, location, userTeams]);
+  }, [isOnGlobalTeam, location, userTeams]);
 
   // Watch for selected team changes and call getPolicies to make new policies API request.
   useEffect(() => {
