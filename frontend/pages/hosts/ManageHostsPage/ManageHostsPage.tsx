@@ -71,8 +71,6 @@ import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
-
 interface IManageHostsProps {
   route: RouteProps;
   router: InjectedRouter;
