@@ -76,12 +76,18 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		strings.Join(bindvars, ","),
 	)
 
-	_, err := ds.writer.ExecContext(ctx, query, vals...)
-	if err != nil {
-		return errors.Wrapf(err, "insert policy_membership (%v)", vals)
-	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, vals...)
+		if err != nil {
+			return errors.Wrapf(err, "insert policy_membership (%v)", vals)
+		}
 
-	return nil
+		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, host.PolicyUpdatedAt, host.ID)
+		if err != nil {
+			return errors.Wrap(err, "updating hosts policy updated at")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {

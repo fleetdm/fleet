@@ -47,4 +47,5 @@ export default {
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   USER_SETTINGS: `${URL_PREFIX}/profile`,
+  URL_PREFIX,
 };

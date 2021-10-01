@@ -98,7 +98,12 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       Header: "Performance impact",
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <PillCell
+          value={cellProps.cell.value}
+          customIdPrefix="query-perf-pill"
+        />
+      ),
     },
   ];
 };

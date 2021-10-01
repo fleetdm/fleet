@@ -34,6 +34,7 @@ const App = ({ children }: IAppProps) => {
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
+    isAnyTeamMaintainer,
   } = useContext(AppContext);
 
   useDeepEffect(() => {
@@ -56,7 +57,9 @@ const App = ({ children }: IAppProps) => {
       typeof isGlobalObserver !== "undefined" &&
       !isGlobalObserver &&
       typeof isOnlyObserver !== "undefined" &&
-      !isOnlyObserver;
+      !isOnlyObserver &&
+      typeof isAnyTeamMaintainer !== "undefined" &&
+      !isAnyTeamMaintainer;
 
     if (canGetEnrollSecret) {
       dispatch(getEnrollSecret()).catch(() => false);

@@ -16,7 +16,7 @@ import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png"
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsqueryTable;
   onOsqueryTableSelect: (tableName: string) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 const baseClass = "query-side-panel";

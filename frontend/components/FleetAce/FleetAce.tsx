@@ -1,5 +1,6 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import AceEditor from "react-ace";
+import ReactAce from "react-ace/lib/ace";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
@@ -23,7 +24,7 @@ interface IFleetAceProps {
   hint?: string;
   labelActionComponent?: React.ReactNode;
   onLoad?: (editor: IAceEditor) => void;
-  onChange?: () => void;
+  onChange?: (value: string, event?: any) => void;
   handleSubmit?: () => void;
 }
 
@@ -45,6 +46,8 @@ const FleetAce = ({
   onChange,
   handleSubmit = noop,
 }: IFleetAceProps) => {
+  const editorRef = useRef<ReactAce>(null);
+
   const renderLabel = useCallback(() => {
     const labelText = error || label;
     const labelClassName = classnames(`${baseClass}__label`, {
@@ -72,6 +75,34 @@ const FleetAce = ({
     [`${baseClass}__wrapper--error`]: !!error,
   });
 
+  const handleDelete = (deleteCommand: string) => {
+    const currentText = editorRef.current?.editor.getValue();
+    const selectedText = editorRef.current?.editor.getSelectedText();
+    const selectedStartPosition = editorRef.current?.editor
+      .getSelection()
+      .getCursor();
+
+    if (selectedText) {
+      const remainingText = currentText?.replace(selectedText, "");
+      if (typeof remainingText !== "undefined") {
+        onChange && onChange(remainingText);
+        editorRef.current?.editor.clearSelection();
+      }
+    } else {
+      editorRef.current?.editor.execCommand(deleteCommand);
+    }
+
+    // not sure why adding zero works smh
+    if (selectedStartPosition && selectedStartPosition.column) {
+      const newColumn = selectedStartPosition?.column + 0;
+      selectedStartPosition &&
+        editorRef.current?.editor.moveCursorTo(
+          selectedStartPosition.row,
+          newColumn
+        );
+    }
+  };
+
   const fixHotkeys = (editor: IAceEditor) => {
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
@@ -82,6 +113,7 @@ const FleetAce = ({
     <div className={wrapperClass}>
       {renderLabel()}
       <AceEditor
+        ref={editorRef}
         enableBasicAutocompletion
         enableLiveAutocompletion
         editorProps={{ $blockScrolling: Infinity }}
@@ -105,6 +137,16 @@ const FleetAce = ({
             name: "commandName",
             bindKey: { win: "Ctrl-Enter", mac: "Ctrl-Enter" },
             exec: handleSubmit,
+          },
+          {
+            name: "deleteSelection",
+            bindKey: { win: "Delete", mac: "Delete" },
+            exec: () => handleDelete("del"),
+          },
+          {
+            name: "backspaceSelection",
+            bindKey: { win: "Backspace", mac: "Backspace" },
+            exec: () => handleDelete("backspace"),
           },
         ]}
       />

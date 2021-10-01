@@ -2,20 +2,20 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IHost } from "interfaces/host";
 
-interface ISortOption {
-  id: number;
+export interface ISortOption {
+  key: string;
   direction: string;
 }
 
-interface IHostLoadOptions {
-  page: number;
-  perPage: number;
-  selectedLabels: string[];
-  globalFilter: string;
-  sortBy: ISortOption[];
-  teamId: number;
-  policyId: number;
-  policyResponse: string;
+export interface IHostLoadOptions {
+  page?: number;
+  perPage?: number;
+  selectedLabels?: string[];
+  globalFilter?: string;
+  sortBy?: ISortOption[];
+  teamId?: number;
+  policyId?: number;
+  policyResponse?: string;
 }
 
 export default {
@@ -55,7 +55,7 @@ export default {
     let orderDirection = "";
     if (sortBy.length !== 0) {
       const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.id}`;
+      orderKeyParam += `&order_key=${sortItem.key}`;
       orderDirection = `&order_direction=${sortItem.direction}`;
     }
 

@@ -33,6 +33,7 @@ interface IScheduleListWrapperProps {
   toggleScheduleEditorModal?: () => void;
   teamId: number;
   inheritedQueries?: boolean;
+  isTeamMaintainer: boolean;
 }
 interface IRootState {
   entities: {
@@ -55,6 +56,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     onEditScheduledQueryClick,
     teamId,
     inheritedQueries,
+    isTeamMaintainer,
   } = props;
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -69,8 +71,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
           <div className={`${noScheduleClass}__inner-text`}>
             <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
-              Schedule a query, or go to your osquery packs via the
-              &lsquo;Advanced&rsquo; button.
+              {!isTeamMaintainer
+                ? "Schedule a query, or go to your osquery packs via the &lsquo;Advanced&rsquo; button."
+                : "Schedule a query to run on hosts assigned to this team."}
             </p>
             <div className={`${noScheduleClass}__-cta-buttons`}>
               <Button
@@ -80,13 +83,15 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
               >
                 Schedule a query
               </Button>
-              <Button
-                variant="inverse"
-                onClick={handleAdvanced}
-                className={`${baseClass}__advanced-button`}
-              >
-                Advanced
-              </Button>
+              {!isTeamMaintainer && (
+                <Button
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
+                >
+                  Advanced
+                </Button>
+              )}
             </div>
           </div>
         </div>

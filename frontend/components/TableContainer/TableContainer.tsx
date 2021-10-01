@@ -9,13 +9,14 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
+import { useDeepEffect } from "utilities/hooks";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
 
-interface ITableQueryData {
+export interface ITableSearchData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
@@ -35,11 +36,12 @@ interface ITableContainerProps {
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?: (queryData: ITableSearchData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
   resultsTitle: string;
+  resultsHtml?: JSX.Element;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -57,6 +59,7 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
+  getCustomCount?: (data: any) => number;
 }
 
 const baseClass = "table-container";
@@ -77,6 +80,7 @@ const TableContainer = ({
   additionalQueries,
   onQueryChange,
   resultsTitle,
+  resultsHtml,
   emptyComponent,
   className,
   disableActionButton,
@@ -99,6 +103,7 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
+  getCustomCount,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -142,7 +147,7 @@ const TableContainer = ({
   const prevSearchQueryRef = useRef(searchQuery);
   const prevSearchQuery = prevSearchQueryRef.current;
   const debounceOnQueryChange = useAsyncDebounce(
-    (queryData: ITableQueryData) => {
+    (queryData: ITableSearchData) => {
       onQueryChange && onQueryChange(queryData);
     },
     DEBOUNCE_QUERY_DELAY
@@ -151,7 +156,7 @@ const TableContainer = ({
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
   // different types of query updates, as we handle some of them differently than others.
-  useEffect(() => {
+  useDeepEffect(() => {
     const queryData = {
       searchQuery,
       sortHeader,
@@ -159,6 +164,7 @@ const TableContainer = ({
       pageSize,
       pageIndex,
     };
+
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
       if (!hasPageIndexChangedRef.current) {
@@ -212,8 +218,9 @@ const TableContainer = ({
               resultsTitle,
               pageIndex,
               pageSize,
-              data.length
+              getCustomCount ? getCustomCount(data) : data.length
             )}
+            {resultsHtml}
           </p>
         ) : (
           <p />

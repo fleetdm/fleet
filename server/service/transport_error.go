@@ -45,6 +45,11 @@ type permissionErrorInterface interface {
 	PermissionError() []map[string]string
 }
 
+type badRequestErrorInterface interface {
+	error
+	BadRequestError() []map[string]string
+}
+
 type notFoundErrorInterface interface {
 	error
 	IsNotFound() bool
@@ -114,6 +119,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)
+		enc.Encode(je)
+	case badRequestErrorInterface:
+		je := jsonError{
+			Message: "Bad request",
+			Errors:  baseError(e.Error()),
+		}
+		w.WriteHeader(http.StatusBadRequest)
 		enc.Encode(je)
 	case *mysql.MySQLError:
 		je := jsonError{

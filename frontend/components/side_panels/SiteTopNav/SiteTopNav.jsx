@@ -48,34 +48,6 @@ class SiteTopNav extends Component {
 
     const iconClasses = classnames([`${navItemBaseClass}__icon`]);
 
-    let icon = (
-      <img src={HostsIcon} alt={`${iconName} icon`} className={iconClasses} />
-    );
-    if (iconName === "queries")
-      icon = (
-        <img
-          src={QueriesIcon}
-          alt={`${iconName} icon`}
-          className={iconClasses}
-        />
-      );
-    else if (iconName === "packs")
-      icon = (
-        <img src={PacksIcon} alt={`${iconName} icon`} className={iconClasses} />
-      );
-    else if (iconName === "policies")
-      icon = (
-        <img
-          src={PoliciesIcon}
-          alt={`${iconName} icon`}
-          className={iconClasses}
-        />
-      );
-    else if (iconName === "settings")
-      icon = (
-        <img src={AdminIcon} alt={`${iconName} icon`} className={iconClasses} />
-      );
-
     if (iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
@@ -88,6 +60,26 @@ class SiteTopNav extends Component {
         </li>
       );
     }
+
+    const iconImage = () => {
+      switch (iconName) {
+        case "hosts":
+          return HostsIcon;
+        case "queries":
+          return QueriesIcon;
+        case "packs":
+          return PacksIcon;
+        case "policies":
+          return PoliciesIcon;
+        default:
+          return AdminIcon;
+      }
+    };
+
+    const icon = (
+      <img src={iconImage()} alt={`${iconName} icon`} className={iconClasses} />
+    );
+
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <a
