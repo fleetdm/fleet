@@ -26,7 +26,6 @@ describe(
         .type("Select all users across platforms.");
 
       // Cannot call cy.select on div disguised as a dropdown
-      cy.findByText(/select one/i).click();
       cy.findByText(/all platforms/i).click();
 
       cy.findByRole("button", { name: /save label/i }).click();
