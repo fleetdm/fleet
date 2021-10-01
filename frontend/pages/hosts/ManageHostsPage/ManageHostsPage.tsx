@@ -719,7 +719,27 @@ const ManageHostsPage = ({
   };
 
   const onDeleteHostSubmit = async () => {
-    const action = hostsAPI.destroyBulk(selectedHostIds);
+    let action = hostsAPI.destroyBulk(selectedHostIds);
+
+    if (isAllMatchingHostsSelected) {
+      let status = "";
+      let labelId = null;
+      let teamId = currentTeam?.id || null;
+      const selectedStatus = getStatusSelected();
+
+      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
+        status = getStatusSelected() || "";
+      } else {
+        labelId = selectedLabel?.id as number;
+      }
+
+      console.log(teamId);
+      console.log(searchQuery);
+      console.log(status);
+      console.log(labelId);
+      debugger;
+      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+    }
 
     try {
       await action;
