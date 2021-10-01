@@ -25,6 +25,12 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  destroyBulk: (hostIds: number[]) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/delete`;
+
+    return sendRequest("POST", path, { ids: hostIds });
+  },
   refetch: (host: IHost) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}/${host.id}/refetch`;
