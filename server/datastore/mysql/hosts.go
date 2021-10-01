@@ -162,8 +162,10 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 		}
 
 		if host.Modified {
-			if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host additional")
+			if host.Additional != nil {
+				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
+					return errors.Wrap(err, "failed to save host additional")
+				}
 			}
 
 			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
