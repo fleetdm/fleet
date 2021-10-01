@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Component } from "react";
+import React, { useState, useCallback, Component, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 
@@ -64,15 +64,12 @@ const EditPackForm = ({
   onRemovePackQueries,
   onPackQueryFormSubmit,
   packId,
-  packTargets,
   scheduledQueries,
   isLoadingPackQueries,
   targetsCount,
   isPremiumTier,
   formData,
 }: IEditPackForm): JSX.Element => {
-  console.log("formData.targets", formData.targets);
-
   const [packName, setPackName] = useState<string>(formData.name);
   const [packDescription, setPackDescription] = useState<string>(
     formData.description
@@ -80,6 +77,15 @@ const EditPackForm = ({
   const [packFormTargets, setPackFormTargets] = useState<ITarget[]>(
     formData.targets
   );
+
+  useEffect(() => {
+    // formData.targets does not load all at once
+    setPackFormTargets(formData.targets);
+  }, [formData.targets]);
+
+  debugger;
+  console.log("formData.targets", formData.targets);
+  console.log("packFormTargets", packFormTargets);
 
   const onChangePackName = (value: string) => {
     setPackName(value);

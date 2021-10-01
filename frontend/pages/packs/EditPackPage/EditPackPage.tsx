@@ -178,7 +178,6 @@ const EditPacksPage = ({
 
   const packHosts = storedPack
     ? filter(hosts, (host) => {
-        console.log("storedPack.host_ids", storedPack.host_ids);
         return includes(storedPack.host_ids, host.id);
       })
     : [];
@@ -195,11 +194,13 @@ const EditPacksPage = ({
     }
   );
 
-  const packTeams = storedPack
+  let packTeams = storedPack
     ? filter(teams, (team) => {
         return includes(storedPack.team_ids, team.id);
       })
     : [];
+
+  packTeams = packTeams.map((team) => ({ ...team, display_text: team.name }));
 
   const packTargets = [...packHosts, ...packLabels, ...packTeams];
 
