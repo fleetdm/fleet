@@ -1,12 +1,8 @@
 resource "aws_ecs_cluster" "osquery-perf" {
-  #  count = var.loadtesting ? 1 : 0
-
   name = "${var.prefix}-osquery-perf"
 }
 
 resource "aws_ecs_service" "osquery-perf" {
-  #  count = var.loadtesting ? 1 : 0
-
   name                               = "osquery-perf"
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.osquery-perf.id
@@ -23,21 +19,19 @@ resource "aws_ecs_service" "osquery-perf" {
 
 
 resource "aws_ecs_task_definition" "osquery-perf" {
-  #  count = var.loadtesting ? 1 : 0
-
   family                   = "osquery-perf"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 512
+  cpu                      = 2048
   memory                   = 4096
   container_definitions = jsonencode(
   [
     {
       name        = "osquery-perf"
       image       = "917007347864.dkr.ecr.us-east-2.amazonaws.com/osquery-perf"
-      cpu         = 512
+      cpu         = 2048
       memory      = 4096
       mountPoints = []
       volumesFrom = []
@@ -56,8 +50,6 @@ resource "aws_ecs_task_definition" "osquery-perf" {
 }
 
 resource "aws_appautoscaling_target" "osquery_ecs_target" {
-  #  count = var.loadtesting ? 1 : 0
-
   max_capacity       = var.osquery_host_count
   min_capacity       = var.osquery_host_count
   resource_id        = "service/${aws_ecs_cluster.osquery-perf.name}/${aws_ecs_service.osquery-perf.name}"
@@ -66,8 +58,6 @@ resource "aws_appautoscaling_target" "osquery_ecs_target" {
 }
 
 resource "aws_cloudwatch_log_group" "osquery-perf" {
-  #  count = var.loadtesting ? 1 : 0
-
   name              = "osquery-perf"
   retention_in_days = 1
 }
