@@ -113,6 +113,7 @@ const EditPackForm = ({
         value={packName}
         placeholder="Name"
         label="Name"
+        name="name"
         inputWrapperClass={`${baseClass}__pack-title`}
       />
       <InputField
@@ -120,6 +121,7 @@ const EditPackForm = ({
         value={packDescription}
         inputWrapperClass={`${baseClass}__pack-description`}
         label="Description"
+        name="description"
         placeholder="Add a description of your pack"
         type="textarea"
       />

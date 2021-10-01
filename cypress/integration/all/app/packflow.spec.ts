@@ -14,6 +14,7 @@ describe(
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByLabelText(/name/i).click().type("Errors and crashes");
 
       cy.findByLabelText(/description/i)
@@ -23,10 +24,9 @@ describe(
       cy.findByRole("button", { name: /save query pack/i }).click();
 
       cy.visit("/packs/manage");
-
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/errors and crashes/i).click();
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByLabelText(/name/i)
         .click()
         .type("{selectall}{backspace}Server errors");
@@ -59,6 +59,7 @@ describe(
 
       cy.findByRole("button", { name: /save/i }).click();
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByLabelText(/name/i).click().type("Query all window crashes");
 
       cy.findByLabelText(/description/i)
@@ -67,6 +68,7 @@ describe(
 
       cy.findByRole("button", { name: /save query/i }).click();
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.visit("/packs/manage");
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
