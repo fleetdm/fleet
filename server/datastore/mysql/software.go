@@ -65,20 +65,6 @@ func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) erro
 }
 
 func saveHostSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if !host.HostSoftware.Modified {
-		return nil
-	}
-
-	if len(host.HostSoftware.Software) == 0 {
-		// Clear join table for this host
-		sql := "DELETE FROM host_software WHERE host_id = ?"
-		if _, err := tx.ExecContext(ctx, sql, host.ID); err != nil {
-			return errors.Wrap(err, "clear join table entries")
-		}
-
-		return nil
-	}
-
 	if err := applyChangesForNewSoftwareDB(ctx, tx, host); err != nil {
 		return err
 	}

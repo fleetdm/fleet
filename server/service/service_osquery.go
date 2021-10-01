@@ -668,6 +668,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	var err error
 	detailUpdated := false // Whether detail or additional was updated
 	additionalResults := make(fleet.OsqueryDistributedQueryResults)
+	additionalUpdated := false
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
 	for query, rows := range results {
@@ -681,7 +682,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
 			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
 			additionalResults[name] = rows
-			detailUpdated = true
+			additionalUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 		case strings.HasPrefix(query, hostPolicyQueryPrefix):
@@ -700,7 +701,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		host.Modified = true
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now())
 		if err != nil {
@@ -709,7 +709,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-		host.Modified = true
 		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
 		if err != nil {
@@ -717,9 +716,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	if detailUpdated {
+	if detailUpdated || additionalUpdated {
 		host.Modified = true
 		host.DetailUpdatedAt = svc.clock.Now()
+	}
+
+	if additionalUpdated {
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
 			logging.WithErr(ctx, err)
