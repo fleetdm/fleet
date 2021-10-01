@@ -212,7 +212,7 @@ const TableContainer = ({
         </div>
       )}
       <div className={`${baseClass}__header`}>
-        {data && !disableCount && (
+        {data && data.length && !disableCount && (
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
