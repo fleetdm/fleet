@@ -6,18 +6,15 @@ import { filter, includes } from "lodash";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
-// @ts-ignore
-import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import { ITarget } from "interfaces/target";
 import { IQuery } from "interfaces/query";
 import {
   IPackQueryFormData,
   IScheduledQuery,
 } from "interfaces/scheduled_query";
-import { ITargetsAPIResponse } from "interfaces/target";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
 
@@ -57,6 +54,12 @@ interface IStoredHostsResponse {
 
 interface IStoredTeamsResponse {
   teams: ITeam[];
+}
+
+interface IFormData {
+  name?: string;
+  description?: string;
+  targets?: ITarget[];
 }
 
 const baseClass = "edit-pack-page";
@@ -133,25 +136,17 @@ const EditPacksPage = ({
   useEffect(() => {
     getPack();
     getPackQueries();
-  }, [getPackQueries, getPack]);
+  }, []);
 
-  const {
-    isLoading: isFleetQueriesLoading,
-    data: fleetQueries,
-    error: fleetQueriesError,
-  } = useQuery<IStoredFleetQueriesResponse, Error, IQuery[]>(
-    ["fleet queries"],
-    () => queriesAPI.loadAll(),
-    {
-      select: (data: IStoredFleetQueriesResponse) => data.queries,
-    }
-  );
+  const { data: fleetQueries } = useQuery<
+    IStoredFleetQueriesResponse,
+    Error,
+    IQuery[]
+  >(["fleet queries"], () => queriesAPI.loadAll(), {
+    select: (data: IStoredFleetQueriesResponse) => data.queries,
+  });
 
-  const {
-    isLoading: isLabelsLoading,
-    data: labels,
-    error: packLabelsError,
-  } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
+  const { data: labels } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
     ["pack labels"],
     () => labelsAPI.loadAll(),
     {
@@ -165,11 +160,7 @@ const EditPacksPage = ({
       })
     : [];
 
-  const {
-    isLoading: isHostsLoading,
-    data: hosts,
-    error: hostsError,
-  } = useQuery<IStoredHostsResponse, Error, IHost[]>(
+  const { data: hosts } = useQuery<IStoredHostsResponse, Error, IHost[]>(
     ["all hosts"],
     () => hostsAPI.loadAll({ perPage: 30000 }),
     {
@@ -183,11 +174,7 @@ const EditPacksPage = ({
       })
     : [];
 
-  const {
-    isLoading: isTeamsLoading,
-    data: teams,
-    error: teamsError,
-  } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
     ["all teams"],
     () => teamsAPI.loadAll(),
     {
@@ -195,7 +182,7 @@ const EditPacksPage = ({
     }
   );
 
-  let packTeams = storedPack
+  const packTeams = storedPack
     ? filter(teams, (team) => {
         return includes(storedPack.team_ids, team.id);
       })
@@ -265,7 +252,7 @@ const EditPacksPage = ({
   //   [dispatch]
   // );
 
-  const handlePackFormSubmit = (formData: any) => {
+  const handlePackFormSubmit = (formData: IFormData) => {
     const updatedPack = deepDifference(formData, storedPack);
     packsAPI
       .update(packId, updatedPack)
