@@ -38,11 +38,11 @@ export default {
   ) => {
     const { HOSTS_DELETE } = endpoints;
     return sendRequest("POST", HOSTS_DELETE, {
-      team_id: teamId,
       filters: {
         query,
         status,
         label_id: labelId,
+        team_id: teamId,
       },
     });
   },

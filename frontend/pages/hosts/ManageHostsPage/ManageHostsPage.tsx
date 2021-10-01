@@ -733,11 +733,6 @@ const ManageHostsPage = ({
         labelId = selectedLabel?.id as number;
       }
 
-      console.log(teamId);
-      console.log(searchQuery);
-      console.log(status);
-      console.log(labelId);
-      debugger;
       action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
     }
 
