@@ -13,7 +13,6 @@ import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
-import { ILabel } from "interfaces/label";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -200,19 +199,7 @@ export const frontendFormattedConfig = (config: any) => {
   };
 };
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 const formatLabelResponse = (response: any): ILabel[] => {
-=======
-const formatLabelResponse = (response: any): any => {
->>>>>>> eacfaf3d (Move pack queries before action buttons)
-=======
-const formatLabelResponse = (response: any): ILabel => {
->>>>>>> 11868849 (CReview suggested changes)
-=======
-const formatLabelResponse = (response: any): ILabel[] => {
->>>>>>> 3e83977a (Sending target_type to API)
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
