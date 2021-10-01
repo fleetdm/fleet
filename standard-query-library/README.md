@@ -24,21 +24,24 @@ fleetctl apply -f standard-query-library/policies.yml
 
 Want to add your own query?
 
-1. Please copy the following yaml section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
+1. Copy the following yaml and fill in each section:
 ```yaml
 ---
 apiVersion: v1
 kind: query
 spec:
   query: Insert query here
-  purpose: What is the goal of running your query? If you run this query as a live query or schedule this query, insert "informational." If this query is used as a policy, insert "policy."
+  purpose: What is the goal of running your query? If you run this query as a live query or schedule this query, insert "Informational." If this query is used as a policy, insert "Policy."
   name: What is your query called? Please use a human readable query name.
   description: Describe your query. What information does your query reveal or what does your query check?
   platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
   resolve: If the query's purpose is "policy", what are the steps to resolve a device that is failing? If the query's purpose is "informational", remove this section.
   contributors: Ex. zwass,mike-j-thomas
 ```
-2. Fill in each section and submit a pull request to the fleetdm/fleet GitHub repository.
+
+2. If your query's purpose is "Informational", paste your yaml at the bottom of the [`informational.yml`](./informational.yml) file. If your query's purpose is "Policy", paste your yaml at the bottom of the [`policies.yml`](./policies.yml) file.
+
+3. Submit a pull request to the fleetdm/fleet GitHub repository.
 
 For instructions on submitting pull requests to Fleet check out [the Committing Changes section](../../3-Contributing/4-Committing-Changes.md#committing-changes) in the Contributors documentation.
 
