@@ -45,8 +45,8 @@ module.exports.routes = {
   'GET /logos': {
     action: 'view-press-kit',
     locals:{
-      title: 'Logos | Fleet for osquery',
-      description: 'Download Fleet logos, wallpapers, and screenshots.'
+      pageTitleForMeta: 'Logos | Fleet for osquery',
+      pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
 
