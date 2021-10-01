@@ -396,7 +396,6 @@ func TestLabelQueries(t *testing.T) {
 	)
 	assert.Nil(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
-	host.Modified = true
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
@@ -1650,7 +1649,8 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "1":      {{"col1": "val1"}},
+			hostAdditionalQueryPrefix + "1": {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
@@ -1862,8 +1862,9 @@ func TestPolicyQueries(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time) error {
 		recordedResults = results
+		host = gotHost
 		return nil
 	}
 
