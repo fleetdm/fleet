@@ -192,13 +192,19 @@ html, body {
   position: absolute;
   left: 0px;
   bottom: 0px;
+
   a {
     color: white;
   }
-  [purpose="footer-container"] {
-    padding: 80px 40px 70px 40px;
+
+  [purpose='footer-container'] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 70px;
+    padding-top: 60px;
   }
-  [purpose="footer-nav"] {
+
+  [purpose='footer-nav'] {
     display: flex;
     flex-direction: row;
   }
@@ -221,18 +227,21 @@ body.detected-mobile {
 @media (max-width: 1199px) {
   [purpose='page-wrap'] {
     padding-bottom: 404px;
+
     [purpose='page-footer'] {
       height: 404px;
-      [purpose="footer-container"] {
-        padding: 60px 40px 40px 40px;
+
+      [purpose='footer-container'] {
+        padding-bottom: 40px;
       }
     }
   }
 }
 
-@media (max-width: 767px){
+@media (max-width: 767px) {
   [purpose='page-wrap'] {
     padding-bottom: 518px;
+
     [purpose='page-footer'] {
       height: 518px;
     }
@@ -242,9 +251,11 @@ body.detected-mobile {
 @media (max-width: 500px){
   [purpose='page-wrap'] {
     padding-bottom: 728px;
+
     [purpose='page-footer'] {
       height: 728px;
-      [purpose='footer-nav']{
+
+      [purpose='footer-nav'] {
         display: block;
       }
     }
