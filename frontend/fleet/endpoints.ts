@@ -30,7 +30,10 @@ export default {
   PACKS: "/v1/fleet/packs",
   PERFORM_REQUIRED_PASSWORD_RESET: "/v1/fleet/perform_required_password_reset",
   QUERIES: "/v1/fleet/queries",
-  POLICIES: "/v1/fleet/global/policies",
+  GLOBAL_POLICIES: "/v1/fleet/global/policies",
+  TEAM_POLICIES: (id: number): string => {
+    return `/v1/fleet/teams/${id}/policies`;
+  },
   RESET_PASSWORD: "/v1/fleet/reset_password",
   RUN_QUERY: "/v1/fleet/queries/run",
   SCHEDULED_QUERIES: "/v1/fleet/schedule",
