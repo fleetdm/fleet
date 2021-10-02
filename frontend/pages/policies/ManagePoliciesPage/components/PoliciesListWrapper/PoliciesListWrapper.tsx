@@ -15,8 +15,7 @@ interface IPoliciesListWrapperProps {
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
   resultsTitle?: string;
-  resultsHtml?: JSX.Element;
-  selectedTeamId?: number | undefined | null;
+  selectedTeamId?: number | null;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
 }
@@ -28,7 +27,6 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     onRemovePoliciesClick,
     toggleAddPolicyModal,
     resultsTitle,
-    resultsHtml,
     selectedTeamId,
     canAddOrRemovePolicy,
     tableType,
@@ -69,7 +67,6 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     >
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
-        resultsHtml={resultsHtml}
         columns={generateTableHeaders({
           selectedTeamId,
           showSelectionColumn: canAddOrRemovePolicy,
@@ -89,6 +86,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
         primarySelectActionButtonText={"Remove"}
         emptyComponent={NoPolicies}
         onQueryChange={noop}
+        disableCount={tableType === "inheritedPolicies"}
       />
     </div>
   );
