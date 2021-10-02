@@ -122,9 +122,10 @@ const ManageHostsPage = ({
     QueryContext
   );
 
-  const storedHiddenColumns = JSON.parse(
-    localStorage.getItem("hostHiddenColumns") || ""
-  );
+  const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
+  const storedHiddenColumns = hostHiddenColumns
+    ? JSON.parse(hostHiddenColumns)
+    : null;
 
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
@@ -241,13 +242,13 @@ const ManageHostsPage = ({
     }
   );
 
-  const toggleEnrollSecretModal = () => {
-    setShowEnrollSecretModal(!showEnrollSecretModal);
-  };
+  // const toggleEnrollSecretModal = () => {
+  //   setShowEnrollSecretModal(!showEnrollSecretModal);
+  // };
 
-  const toggleAddHostModal = () => {
-    setShowAddHostModal(!showAddHostModal);
-  };
+  // const toggleAddHostModal = () => {
+  //   setShowAddHostModal(!showAddHostModal);
+  // };
 
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
@@ -477,17 +478,17 @@ const ManageHostsPage = ({
     router.goBack();
   };
 
-  const onShowEnrollSecretClick = (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
-    toggleEnrollSecretModal();
-  };
+  // const onShowEnrollSecretClick = (
+  //   evt: React.MouseEvent<HTMLButtonElement>
+  // ) => {
+  //   evt.preventDefault();
+  //   toggleEnrollSecretModal();
+  // };
 
-  const onAddHostClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-    toggleAddHostModal();
-  };
+  // const onAddHostClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  //   evt.preventDefault();
+  //   toggleAddHostModal();
+  // };
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
@@ -777,20 +778,20 @@ const ManageHostsPage = ({
   };
 
   const renderEnrollSecretModal = () => {
-    if (!canEnrollHosts || !showEnrollSecretModal || !teams) {
+    if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
     }
 
     return (
       <Modal
         title="Enroll secret"
-        onExit={toggleEnrollSecretModal}
+        onExit={() => setShowEnrollSecretModal(false)}
         className={`${baseClass}__enroll-secret-modal`}
       >
         <EnrollSecretModal
           selectedTeam={currentTeam?.id || 0}
-          teams={teams}
-          onReturnToApp={toggleEnrollSecretModal}
+          teams={teams || []}
+          onReturnToApp={() => setShowEnrollSecretModal(false)}
           isPremiumTier={isPremiumTier as boolean}
         />
       </Modal>
@@ -805,12 +806,12 @@ const ManageHostsPage = ({
     return (
       <Modal
         title="New host"
-        onExit={toggleAddHostModal}
+        onExit={() => setShowAddHostModal(false)}
         className={`${baseClass}__invite-modal`}
       >
         <AddHostModal
           teams={teams}
-          onReturnToApp={toggleAddHostModal}
+          onReturnToApp={() => setShowAddHostModal(false)}
           config={config}
           currentUser={currentUser}
         />
@@ -1055,7 +1056,7 @@ const ManageHostsPage = ({
             <div className={`${baseClass} button-wrap`}>
               {canEnrollHosts && (
                 <Button
-                  onClick={onShowEnrollSecretClick}
+                  onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
@@ -1064,7 +1065,7 @@ const ManageHostsPage = ({
               )}
               {canAddNewHosts && (
                 <Button
-                  onClick={onAddHostClick}
+                  onClick={() => setShowAddHostModal(true)}
                   className={`${baseClass}__add-hosts button button--brand`}
                 >
                   <span>Add new host</span>

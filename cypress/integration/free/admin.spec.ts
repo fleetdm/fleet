@@ -38,7 +38,7 @@ describe(
       });
 
       // See and select "add new host"
-      cy.findByRole("button", { name: /new host/i }).click();
+      cy.findByRole("button", { name: /add new host/i }).click();
       cy.contains(/team/i).should("not.exist");
       cy.findByRole("button", { name: /done/i }).click();
 
