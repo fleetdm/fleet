@@ -227,14 +227,14 @@ const HostDetailsPage = ({
 
   const onRefetchHost = async () => {
     if (host) {
+      // Once the user clicks to refetch, the refetch loading spinner should continue spinning
+      // unless there is an error or until the user refreshes the page.
       setShowRefetchLoadingSpinner(true);
       try {
         await hostAPI.refetch(host);
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
-      } finally {
-        setShowRefetchLoadingSpinner(false);
       }
     }
   };
