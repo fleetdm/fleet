@@ -55,9 +55,10 @@ describe(
 
       cy.findByRole("button", { name: /update label/i }).click();
 
-      // TODO add test for flash message once issue with router is fixed
       // Close success notification
-      // cy.get(".flash-message__remove").click();
+      cy.get(".flash-message__remove").click();
+
+      cy.visit("/hosts/manage");
 
       // delete label
       cy.get(".manage-hosts__label-block button").last().click();
