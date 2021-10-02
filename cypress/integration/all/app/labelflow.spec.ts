@@ -60,7 +60,7 @@ describe(
 
       cy.visit("/hosts/manage");
 
-      cy.findByText(/show all users/i).click();
+      cy.findByText(/show all usernames/i).click();
 
       // delete custom label
       cy.get(".manage-hosts__label-block button").last().click();
