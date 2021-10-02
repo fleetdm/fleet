@@ -25,10 +25,16 @@ describe(
         .click()
         .type("Select all users across platforms.");
 
+      // =========
+      // TODO: Not needed if we're selecting "All platforms"
+      // either choose a selection or leave it - otherwise
+      // blocks the "Save label" button and breaks the test
+
       // Cannot call cy.select on div disguised as a dropdown
-      cy.findByText(/all platforms/i).click();
+      // cy.findByText(/all platforms/i).click();
 
       cy.findByRole("button", { name: /save label/i }).click();
+      // =========
 
       cy.findByText(/show all users/i).click();
 
