@@ -36,6 +36,7 @@ describe(
       cy.findByRole("button", { name: /save label/i }).click();
       // =========
 
+      // edit custom label
       cy.findByText(/show all users/i).click();
 
       cy.get(".manage-hosts__label-block button").first().click();
@@ -52,14 +53,13 @@ describe(
 
       cy.findByText(/select one/i).should("not.exist");
 
-      cy.findByText(/label platforms are immutable/i).should("exist");
-
       cy.findByRole("button", { name: /update label/i }).click();
 
       // TODO add test for flash message once issue with router is fixed
       // Close success notification
       // cy.get(".flash-message__remove").click();
 
+      // delete label
       cy.get(".manage-hosts__label-block button").last().click();
 
       // Can't figure out how attach findByRole onto modal button
