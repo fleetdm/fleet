@@ -60,7 +60,9 @@ describe(
 
       cy.visit("/hosts/manage");
 
-      // delete label
+      cy.findByText(/show all users/i).click();
+
+      // delete custom label
       cy.get(".manage-hosts__label-block button").last().click();
 
       // Can't figure out how attach findByRole onto modal button
