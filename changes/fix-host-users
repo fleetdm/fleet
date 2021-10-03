@@ -1,0 +1,1 @@
+* Make sure to not overwrite host data when only updating part of the host (labels or policies).

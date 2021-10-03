@@ -25,12 +25,18 @@ describe(
         .click()
         .type("Select all users across platforms.");
 
+      // =========
+      // TODO: Not needed if we're selecting "All platforms"
+      // either choose a selection or leave it - otherwise
+      // blocks the "Save label" button and breaks the test
+
       // Cannot call cy.select on div disguised as a dropdown
-      cy.findByText(/select one/i).click();
-      cy.findByText(/all platforms/i).click();
+      // cy.findByText(/all platforms/i).click();
 
       cy.findByRole("button", { name: /save label/i }).click();
+      // =========
 
+      // edit custom label
       cy.findByText(/show all users/i).click();
 
       cy.get(".manage-hosts__label-block button").first().click();
@@ -47,14 +53,16 @@ describe(
 
       cy.findByText(/select one/i).should("not.exist");
 
-      cy.findByText(/label platforms are immutable/i).should("exist");
-
       cy.findByRole("button", { name: /update label/i }).click();
 
-      // TODO add test for flash message once issue with router is fixed
       // Close success notification
-      // cy.get(".flash-message__remove").click();
+      cy.get(".flash-message__remove").click();
 
+      cy.visit("/hosts/manage");
+
+      cy.findByText(/show all usernames/i).click();
+
+      // delete custom label
       cy.get(".manage-hosts__label-block button").last().click();
 
       // Can't figure out how attach findByRole onto modal button

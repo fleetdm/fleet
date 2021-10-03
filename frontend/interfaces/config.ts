@@ -94,6 +94,7 @@ export interface IConfig {
   host_expiry_enabled: boolean;
   host_expiry_window: number;
   agent_options: string;
+  osquery_detail: number;
   tier: string;
   organization: string;
   device_count: number;

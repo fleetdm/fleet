@@ -396,7 +396,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 
-	sort.Slice(host1.Software, func(i, j int) bool { return host1.Software[i].Name < host1.Software[j].Name })
+	sort.Slice(host1.Software, func(i, j int) bool {
+		return host1.Software[i].Name+host1.Software[i].Version < host1.Software[j].Name+host1.Software[j].Version
+	})
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
 	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))

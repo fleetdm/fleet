@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
-import { Params } from "react-router/lib/Router";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
@@ -20,9 +20,9 @@ import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
-  router: any;
+  router: InjectedRouter;
   params: Params;
-  location: any; // TODO: find Location type
+  location: any; // no type in react-router v3
 }
 
 interface IStoredQueryResponse {

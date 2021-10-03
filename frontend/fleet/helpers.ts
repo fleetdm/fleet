@@ -8,6 +8,7 @@ import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { ILabel } from "interfaces/label";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -173,6 +174,7 @@ export const frontendFormattedConfig = (config: any) => {
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    update_interval: updateInterval,
     license,
   } = config;
 
@@ -187,12 +189,13 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...webhookSettings,
+    ...updateInterval,
     ...license,
     agent_options: config.agent_options,
   };
 };
 
-const formatLabelResponse = (response: any): { [index: string]: any } => {
+const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: any) => {
     return {
       ...label,

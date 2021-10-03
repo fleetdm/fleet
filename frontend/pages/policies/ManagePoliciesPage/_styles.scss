@@ -1,8 +1,13 @@
 .manage-policies-page {
+  &__vibrant-blue {
+    color: $core-vibrant-blue;
+  }
+
   &__header-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    height: 38px;
     margin-bottom: $pad-small;
   }
 
@@ -42,7 +47,6 @@
 
   &__description {
     margin: 0;
-    padding-top: $pad-xsmall;
 
     h2 {
       text-transform: uppercase;
@@ -106,92 +110,71 @@
     }
   }
 
-  &__team-dropdown {
-    border: 0 !important;
-    position: relative;
+  &__inherited-policies-button {
+    padding-top: $pad-small;
+    margin: $pad-large 0 0 0;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    font-size: $x-small;
+  }
 
-    :hover {
-      cursor: pointer !important;
-    }
-
-    &.is-focused {
-      .Select-control {
-        border: 0 !important;
-        height: 32px;
-      }
-    }
-
-    .Select-menu-outer {
-      position: absolute;
-      left: -12px;
-      border-radius: 6px;
+  .rightcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(-90deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 10px;
+      margin-top: 5px;
     }
   }
 
-  .Select.is-open {
-    .Select-value-label {
-      color: $core-vibrant-blue !important;
+  .upcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(180deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 2px;
+      margin-right: $pad-small;
+      margin-top: 5px;
+      position: relative;
+      top: -4px;
+      left: 6px;
     }
   }
 
-  &__header {
-    .Select-control {
-      background-color: #fff;
-      border: 0 !important;
-      border-radius: none;
-      position: none;
-      width: max-content; // move select arrow
-      height: 20px;
+  &__details {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: $pad-small;
+    margin-top: -20px;
 
-      &:hover {
-        box-shadow: none;
-      }
+    .hint {
+      color: $core-fleet-black;
 
-      &:hover .Select-value-label {
-        color: $core-vibrant-blue !important;
-      }
-
-      .Select-arrow-zone {
-        padding-left: $pad-small;
-
-        .Select-arrow {
-          top: 1px !important;
-          margin-top: 0 !important;
-        }
-      }
-      .Select-multi-value-wrapper {
-        width: max-content; // move select arrow
-        height: 20px;
-        margin-bottom: $pad-xsmall;
-
-        .Select-input {
-          display: none !important;
-        }
-
-        .Select-value {
-          position: relative; // move select arrow
-          display: inline-block; // move select arrow
-          line-height: 28px;
-          padding: 0;
-          border: 0 !important;
-          background-color: #fff !important;
-          right: 0;
-          left: 0;
-          bottom: 0;
-          top: 0;
-
-          &.is-focused {
-            border: 0 !important;
-          }
-          :hover {
-            border: 0 !important;
-          }
-
-          .Select-value-label {
-            font-size: $large !important;
-          }
-        }
+      &--brand {
+        color: $core-vibrant-blue;
       }
     }
   }
+
+  &__inherited-policies-button {
+    padding-bottom: $pad-large;
+  }
+
+  &__inherited-policies-table {
+
+    th {
+      border-right: 1px solid #e2e4ea !important;
+    }
+
+    .table-container__header {
+      display: none;
+    }
+  }
+
+
 }
