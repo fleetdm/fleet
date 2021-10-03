@@ -4,6 +4,8 @@ import { IQuery } from "../interfaces/query";
 import URL_PREFIX from "./url_prefix";
 
 export default {
+  ROOT: `${URL_PREFIX}/`,
+  HOME: `${URL_PREFIX}/dashboard`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
@@ -18,7 +20,6 @@ export default {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
-  HOME: `${URL_PREFIX}/dashboard`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
   FLEET_500: `${URL_PREFIX}/500`,

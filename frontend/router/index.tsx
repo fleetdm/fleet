@@ -70,7 +70,7 @@ const AppWrapper = ({ children }: IAppWrapperProps) => (
 const routes = (
   <Provider store={store}>
     <Router history={history}>
-      <Route path={PATHS.HOME} component={AppWrapper}>
+      <Route path={PATHS.ROOT} component={AppWrapper}>
         <Route path="setup" component={RegistrationPage} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />
