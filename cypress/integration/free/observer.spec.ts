@@ -14,7 +14,7 @@ describe("Free tier - Observer user", () => {
 
   it("Can perform the appropriate free global observer actions", () => {
     cy.login("oliver@organization.com", "user123#");
-    cy.visit("/");
+    cy.visit("/hosts/manage");
 
     // Ensure page is loaded
     cy.contains("All hosts");

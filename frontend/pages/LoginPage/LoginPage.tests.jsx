@@ -1,5 +1,6 @@
 import { mount } from "enzyme";
 
+import paths from "router/paths";
 import { connectedComponent, reduxMockStore } from "../../test/helpers";
 import local from "../../utilities/local";
 import LoginPage from "./LoginPage";
@@ -50,7 +51,7 @@ describe("LoginPage - component", () => {
         type: "@@router/CALL_HISTORY_METHOD",
         payload: {
           method: "push",
-          args: ["/"],
+          args: [paths.HOME],
         },
       };
 

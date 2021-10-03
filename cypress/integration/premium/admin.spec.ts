@@ -26,7 +26,7 @@ describe(
       },
       () => {
         cy.login("anna@organization.com", "user123#");
-        cy.visit("/");
+        cy.visit("/hosts/manage");
 
         // Ensure the hosts page is loaded
         cy.contains("All hosts");

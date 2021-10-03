@@ -25,7 +25,7 @@ describe(
         },
       },
       () => {
-        cy.visit("/");
+        cy.visit("/hosts/manage");
 
         cy.contains("button", /add new host/i).click();
 
@@ -50,7 +50,7 @@ describe(
         // testing, but may vary by environment).
         cy.waitUntil(
           () => {
-            cy.visit("/");
+            cy.visit("/hosts/manage");
             return Cypress.$('button[title="Online"]').length > 0;
           },
           { timeout: 30000, interval: 1000 }

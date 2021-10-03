@@ -18,7 +18,7 @@ describe(
 
     it("Can perform the appropriate team observer actions", () => {
       cy.login("marco@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded
       cy.contains("Hosts");
@@ -111,7 +111,7 @@ describe(
 
     it("Can perform the appropriate maintainer actions", () => {
       cy.login("marco@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded and appropriate nav links are displayed
       cy.contains("Hosts");
