@@ -69,37 +69,20 @@ export default (currentUser) => {
     },
   ];
 
-  const globalMaintainerNavItems = [
-    {
-      icon: "policies",
-      name: "Policies",
-      iconName: "policies",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
-        pathname: PATHS.MANAGE_POLICIES,
-      },
-    },
-  ];
-
   if (permissionUtils.isGlobalAdmin(currentUser)) {
     return [
       ...userNavItems,
       ...teamMaintainerNavItems,
-      ...globalMaintainerNavItems,
+      ...policiesTab,
       ...adminNavItems,
     ];
   }
 
-  if (permissionUtils.isGlobalMaintainer(currentUser)) {
-    return [
-      ...userNavItems,
-      ...teamMaintainerNavItems,
-      ...globalMaintainerNavItems,
-    ];
-  }
-
-  if (permissionUtils.isAnyTeamMaintainer(currentUser)) {
-    return [...userNavItems, ...teamMaintainerNavItems];
+  if (
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser)
+  ) {
+    return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
   }
 
   return [...userNavItems, ...policiesTab];
