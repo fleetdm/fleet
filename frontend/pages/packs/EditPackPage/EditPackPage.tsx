@@ -107,7 +107,7 @@ const EditPacksPage = ({
     setIsStoredPackQueriesLoadingError,
   ] = useState<boolean>(false);
 
-  const getPack = useCallback(async () => {
+  const getPack = async () => {
     setIsStoredPackLoading(true);
     try {
       const response = await packsAPI.load(packId);
@@ -118,9 +118,9 @@ const EditPacksPage = ({
     } finally {
       setIsStoredPackLoading(false);
     }
-  }, [dispatch]);
+  };
 
-  const getPackQueries = useCallback(async () => {
+  const getPackQueries = async () => {
     setIsStoredPackQueriesLoading(true);
     try {
       const response = await scheduledqueriesAPI.loadAll(packId);
@@ -131,7 +131,7 @@ const EditPacksPage = ({
     } finally {
       setIsStoredPackQueriesLoading(false);
     }
-  }, [dispatch]);
+  };
 
   useEffect(() => {
     getPack();
