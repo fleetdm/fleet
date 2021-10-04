@@ -57,6 +57,18 @@ If osquery has been deployed with the full certificate chain (using `--tls_serve
 
 Deploying a certificate chain cannot be done centrally from Fleet.
 
+## How do I use a proxy server with Fleet?
+
+Seeing your proxy's requests fail with an error like `DEPTH_ZERO_SELF_SIGNED_CERT`)?
+To get your proxy server's HTTP client to work with a local Fleet when using a self-signed cert, disable SSL / self-signed verification in the client.
+
+The exact solution to this depends on the request client you are using. For example, when using Node.js ± Sails.js, you can work around this in the requests you're sending with `await sails.helpers.http.get()` by lifting your app with the `NODE_TLS_REJECT_UNAUTHORIZED` environment variable set to `0`:
+
+```
+NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
+```
+
+
 ## When do I need to deploy a new enroll secret to my hosts?
 
 Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
