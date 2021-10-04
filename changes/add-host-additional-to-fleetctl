@@ -1,0 +1,1 @@
+* fleetctl get hosts now shows host additional queries if there are any.
