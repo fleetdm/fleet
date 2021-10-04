@@ -22,6 +22,8 @@ const (
 	labelMembershipHostKeyPattern = "label_membership:{*}"
 	labelMembershipHostKey        = "label_membership:{%d}"
 	labelMembershipReportedKey    = "label_membership_reported:{%d}"
+	policyPassHostKey             = "policy_pass:{%d}"
+	policyPassReportedKey         = "policy_pass_reported:{%d}"
 	collectorLockKey              = "locks:async_collector:{%s}"
 )
 
@@ -71,6 +73,45 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 			}
 		}
 	}()
+}
+
+func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
+	if !t.AsyncEnabled {
+		host.PolicyUpdatedAt = ts
+		return t.Datastore.RecordPolicyQueryExecutions(ctx, host, results, ts)
+	}
+
+	keyList := fmt.Sprintf(policyPassHostKey, host.ID)
+	keyTs := fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	script := redigo.NewScript(2, `
+    redis.call('LPUSH', KEYS[1], unpack(ARGV, 3))
+    redis.call('LTRIM', KEYS[1], 0, ARGV[2])
+    return redis.call('SET', KEYS[2], ARGV[1])
+  `)
+
+	// convert results to LPUSH arguments, store as policy_id=1 for pass,
+	// policy_id=-1 for fail.
+	args := make(redigo.Args, 0, 4+len(results))
+	args = args.Add(keyList, keyTs, ts.Unix(), 1000) // TODO: const or config for max items
+	for k, v := range results {
+		pass := -1
+		if v != nil && *v {
+			pass = 1
+		}
+		args = args.Add(fmt.Sprintf("%d=%d", k, pass))
+	}
+
+	conn := t.Pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(t.Pool, conn, keyList, keyTs); err != nil {
+		return errors.Wrap(err, "bind redis connection")
+	}
+
+	if _, err := script.Do(conn, args...); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
@@ -299,6 +340,20 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	}
 
 	return nil
+}
+
+func (t *Task) GetHostPolicyReportedAt(ctx context.Context, host *fleet.Host) time.Time {
+	if t.AsyncEnabled {
+		conn := t.Pool.ConfigureDoer(t.Pool.Get())
+		defer conn.Close()
+
+		key := fmt.Sprintf(policyPassReportedKey, host.ID)
+		epoch, err := redigo.Int64(conn.Do("GET", key))
+		if err == nil {
+			return time.Unix(epoch, 0)
+		}
+	}
+	return host.PolicyUpdatedAt
 }
 
 func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
