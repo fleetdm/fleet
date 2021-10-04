@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
@@ -72,12 +72,12 @@ func TestCollector(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redis.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redis.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, false)
 		runTest(t, pool)
 	})
 }

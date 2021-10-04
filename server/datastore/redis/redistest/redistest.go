@@ -1,4 +1,4 @@
-package redis
+package redistest
 
 import (
 	"os"
@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +32,7 @@ func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
 	}
 	addr += port
 
-	pool, err := NewRedisPool(PoolConfig{
+	pool, err := redis.NewRedisPool(redis.PoolConfig{
 		Server:                    addr,
 		Password:                  password,
 		Database:                  database,
@@ -48,7 +49,7 @@ func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
+		err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})

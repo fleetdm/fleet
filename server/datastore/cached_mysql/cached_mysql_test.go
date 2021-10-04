@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestCachedAppConfig(t *testing.T) {
-	pool := redis.SetupRedis(t, false, false)
+	pool := redistest.SetupRedis(t, false, false)
 	conn := pool.Get()
 	_, err := conn.Do("DEL", CacheKeyAppConfig)
 	require.NoError(t, err)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
@@ -95,7 +96,7 @@ func TestMigrateKeys(t *testing.T) {
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
-	pool := redis.SetupRedis(t, cluster, false)
+	pool := redistest.SetupRedis(t, cluster, false)
 	return NewRedisLiveQuery(pool)
 }
 
