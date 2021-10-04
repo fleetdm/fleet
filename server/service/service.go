@@ -19,8 +19,7 @@ import (
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
 type Service struct {
-	ds fleet.Datastore
-	// TODO: make that an interface, create a generated mock for tests?
+	ds             fleet.Datastore
 	task           *async.Task
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
