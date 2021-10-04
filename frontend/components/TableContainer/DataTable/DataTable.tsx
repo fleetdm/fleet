@@ -177,8 +177,7 @@ const DataTable = ({
     return (
       <p>
         <span>
-          {selectedFlatRows.length}
-          {isAllPagesSelected && "+"}
+          {isAllPagesSelected ? "All matching" : selectedFlatRows.length}
         </span>{" "}
         selected
       </p>
