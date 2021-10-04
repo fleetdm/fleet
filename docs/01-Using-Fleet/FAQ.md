@@ -97,6 +97,13 @@ Expecting results, but not seeing anything in the logs?
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
 - Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/02-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
+## Why does the same query come back faster sometimes?
+
+Don't worry, this behavior is expected; it's part of how osquery works.
+
+Fleet and osquery work together by communicating with heartbeats, much like a new mother and her newborn. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
+>By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
+
 ## Why aren’t my live queries being logged?
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
