@@ -24,9 +24,8 @@ const DeleteHostModal = ({
         <p>
           This action will delete{" "}
           <b>
-            {isAllMatchingHostsSelected
-              ? "all matching"
-              : selectedHostIds.length}{" "}
+            {selectedHostIds.length}
+            {isAllMatchingHostsSelected && "+"}{" "}
             {selectedHostIds.length === 1 ? "host" : "hosts"}
           </b>{" "}
           from your Fleet instance.
