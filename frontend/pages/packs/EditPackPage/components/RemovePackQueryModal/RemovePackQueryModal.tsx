@@ -9,14 +9,18 @@ const baseClass = "remove-pack-query-modal";
 interface IRemovePackQueryModalProps {
   onCancel: () => void;
   onSubmit: () => void;
-  selectedQueries: any;
+  selectedQuery?: IScheduledQuery;
+  selectedQueryIds: number[];
 }
 
 const RemovePackQueryModal = (
   props: IRemovePackQueryModalProps
 ): JSX.Element => {
-  const { onCancel, onSubmit, selectedQueries } = props;
-  const queryOrQueries = selectedQueries?.length === 1 ? "query" : "queries";
+  const { onCancel, onSubmit, selectedQuery, selectedQueryIds } = props;
+  console.log(selectedQuery);
+  console.log(selectedQueryIds);
+  const queryOrQueries =
+    selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (
     <Modal title={"Remove queries"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>

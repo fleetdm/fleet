@@ -323,7 +323,8 @@ const EditPacksPage = ({
         <RemovePackQueryModal
           onCancel={toggleRemovePackQueryModal}
           onSubmit={onRemovePackQuerySubmit}
-          selectedQueries={selectedPackQuery}
+          selectedQuery={selectedPackQuery}
+          selectedQueryIds={selectedPackQueryIds}
         />
       )}
     </div>
