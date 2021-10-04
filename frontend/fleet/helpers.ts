@@ -3,12 +3,16 @@ import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
+import { ILabel } from "interfaces/label";
+import {
+  IPackQueryFormData,
+  IScheduledQuery,
+} from "interfaces/scheduled_query";
 import { ITeam } from "interfaces/team";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
-import { ILabel } from "interfaces/label";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -201,6 +205,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
       ...label,
       slug: labelSlug(label),
       type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      target_type: "labels",
     };
   });
 
@@ -223,7 +228,9 @@ export const formatSelectedTargetsForApi = (
   return { hosts, labels, teams };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatScheduledQueryForServer = (
+  scheduledQuery: IPackQueryFormData
+) => {
   const {
     interval,
     logging_type: loggingType,

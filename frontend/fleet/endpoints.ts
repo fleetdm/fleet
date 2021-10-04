@@ -38,8 +38,8 @@ export default {
   RESET_PASSWORD: "/v1/fleet/reset_password",
   RUN_QUERY: "/v1/fleet/queries/run",
   SCHEDULED_QUERIES: "/v1/fleet/schedule",
-  SCHEDULED_QUERY: (pack: IPack): string => {
-    return `/v1/fleet/packs/${pack.id}/scheduled`;
+  SCHEDULED_QUERY: (id: number): string => {
+    return `/v1/fleet/packs/${id}/scheduled`;
   },
   SETUP: "/v1/setup",
   STATUS_LABEL_COUNTS: "/v1/fleet/host_summary",

@@ -1,7 +1,11 @@
-.scheduled-queries-list-wrapper {
+.pack-queries-list-wrapper {
   flex-grow: 1;
-  padding: $pad-xxlarge 30px;
+  padding: $pad-xlarge 0;
   margin-bottom: $pad-medium;
+
+  h1 {
+    margin: 0 0 20px;
+  }
 
   &__query-count {
     font-size: $x-small;
@@ -30,5 +34,10 @@
 
   &__search-queries {
     float: left;
+  }
+
+  &__no-queries {
+    font-size: $x-small;
+    font-weight: $bold;
   }
 }

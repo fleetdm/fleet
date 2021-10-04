@@ -4,8 +4,6 @@
 import React from "react";
 
 import { IHost } from "interfaces/host";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";

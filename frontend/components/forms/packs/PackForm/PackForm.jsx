@@ -47,7 +47,7 @@ class PackForm extends Component {
         <InputField
           {...fields.name}
           placeholder="Query pack title"
-          label="Query pack title"
+          label="Name"
           inputWrapperClass={`${baseClass}__pack-title`}
         />
         <InputField

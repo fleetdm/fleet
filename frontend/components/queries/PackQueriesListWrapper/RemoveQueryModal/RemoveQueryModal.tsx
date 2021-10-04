@@ -3,36 +3,36 @@ import React from "react";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
 
-const baseClass = "remove-pack-modal";
+const baseClass = "remove-query-modal";
 
-interface IRemovePackModalProps {
+interface IRemoveQueryModalProps {
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemovePackModal = ({
+const RemoveQueryModal = ({
   onCancel,
   onSubmit,
-}: IRemovePackModalProps): JSX.Element => {
+}: IRemoveQueryModalProps): JSX.Element => {
   return (
-    <Modal title={"Delete pack"} onExit={onCancel} className={baseClass}>
+    <Modal title={"Remove query"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
-        Are you sure you want to delete the selected packs?
+        Are you sure you want to remove the selected queries from your pack?
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
           <Button
             className={`${baseClass}__btn`}
             type="button"
             variant="alert"
             onClick={onSubmit}
           >
-            Delete
+            Remove
+          </Button>
+          <Button
+            className={`${baseClass}__btn`}
+            onClick={onCancel}
+            variant="inverse-alert"
+          >
+            Cancel
           </Button>
         </div>
       </div>
@@ -40,4 +40,4 @@ const RemovePackModal = ({
   );
 };
 
-export default RemovePackModal;
+export default RemoveQueryModal;

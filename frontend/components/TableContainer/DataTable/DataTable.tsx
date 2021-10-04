@@ -325,7 +325,7 @@ const DataTable = ({
             ))}
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row: any) => {
               prepareRow(row);
 
               const rowStyles = classnames({
@@ -341,7 +341,7 @@ const DataTable = ({
                     },
                   })}
                 >
-                  {row.cells.map((cell) => {
+                  {row.cells.map((cell: any) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );
