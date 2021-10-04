@@ -299,7 +299,7 @@ func TestRecordPolicyQueryExecutions(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, true)
 		t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 	})
@@ -409,7 +409,7 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, true)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})
