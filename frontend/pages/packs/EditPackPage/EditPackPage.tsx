@@ -56,6 +56,14 @@ interface IStoredTeamsResponse {
   teams: ITeam[];
 }
 
+interface IStoredPackResponse {
+  pack: IPack;
+}
+
+interface IStoredPackQueriesResponse {
+  scheduled: IScheduledQuery[];
+}
+
 interface IFormData {
   name?: string;
   description?: string;
@@ -74,6 +82,50 @@ const EditPacksPage = ({
   const dispatch = useDispatch();
   const packId: number = parseInt(paramsPackId, 10);
 
+  const { data: fleetQueries } = useQuery<
+    IStoredFleetQueriesResponse,
+    Error,
+    IQuery[]
+  >(["fleet queries"], () => queriesAPI.loadAll(), {
+    select: (data: IStoredFleetQueriesResponse) => data.queries,
+  });
+
+  const { data: labels } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: IStoredLabelsResponse) => data.labels,
+    }
+  );
+
+  const { data: hosts } = useQuery<IStoredHostsResponse, Error, IHost[]>(
+    ["all hosts"],
+    () => hostsAPI.loadAll({ perPage: 30000 }),
+    {
+      select: (data: IStoredHostsResponse) => data.hosts,
+    }
+  );
+
+  const { data: storedPack, refetch: refetchStoredPack } = useQuery<
+    IStoredPackResponse,
+    Error,
+    IPack
+  >(["stored pack"], () => packsAPI.load(packId), {
+    select: (data: IStoredPackResponse) => data.pack,
+  });
+
+  const {
+    data: storedPackQueries,
+    isLoading: isStoredPackQueriesLoading,
+    refetch: refetchStoredPackQueries,
+  } = useQuery<IStoredPackQueriesResponse, Error, IScheduledQuery[]>(
+    ["stored pack queries"],
+    () => scheduledqueriesAPI.loadAll(packId),
+    {
+      select: (data: IStoredPackQueriesResponse) => data.scheduled,
+    }
+  );
+
   const [targetsCount, setTargetsCount] = useState<number>(0);
   const [
     showPackQueryEditorModal,
@@ -87,92 +139,27 @@ const EditPacksPage = ({
   const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
     number[] | never[]
   >([]);
-
-  const [storedPack, setStoredPack] = useState<IPack | undefined>();
-  const [isStoredPackLoading, setIsStoredPackLoading] = useState<boolean>(true);
-  const [
-    isStoredPackLoadingError,
-    setIsStoredPackLoadingError,
-  ] = useState<boolean>(false);
-
-  const [storedPackQueries, setStoredPackQueries] = useState<
-    IScheduledQuery[] | never[]
-  >([]);
-  const [
-    isStoredPackQueriesLoading,
-    setIsStoredPackQueriesLoading,
-  ] = useState<boolean>(true);
-  const [
-    isStoredPackQueriesLoadingError,
-    setIsStoredPackQueriesLoadingError,
-  ] = useState<boolean>(false);
-
-  const getPack = async () => {
-    setIsStoredPackLoading(true);
-    try {
-      const response = await packsAPI.load(packId);
-      setStoredPack(response.pack);
-    } catch (error) {
-      console.log(error);
-      setIsStoredPackLoadingError(true);
-    } finally {
-      setIsStoredPackLoading(false);
-    }
-  };
-
-  const getPackQueries = async () => {
-    setIsStoredPackQueriesLoading(true);
-    try {
-      const response = await scheduledqueriesAPI.loadAll(packId);
-      setStoredPackQueries(response.scheduled);
-    } catch (error) {
-      console.log(error);
-      setIsStoredPackQueriesLoadingError(true);
-    } finally {
-      setIsStoredPackQueriesLoading(false);
-    }
-  };
+  const [storedPackLabels, setStoredPackLabels] = useState<ILabel[]>([]);
+  const [storedPackHosts, setStoredPackHosts] = useState<IHost[]>([]);
+  const [storedPackTeams, setStoredPackTeams] = useState<ITeam[]>([]);
 
   useEffect(() => {
-    getPack();
-    getPackQueries();
-  }, []);
-
-  const { data: fleetQueries } = useQuery<
-    IStoredFleetQueriesResponse,
-    Error,
-    IQuery[]
-  >(["fleet queries"], () => queriesAPI.loadAll(), {
-    select: (data: IStoredFleetQueriesResponse) => data.queries,
-  });
-
-  const { data: labels } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
-    ["pack labels"],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: IStoredLabelsResponse) => data.labels,
-    }
-  );
-
-  const packLabels = storedPack
-    ? filter(labels, (label) => {
+    if (labels && storedPack) {
+      const packLabels = filter(labels, (label) => {
         return includes(storedPack.label_ids, label.id);
-      })
-    : [];
-
-  const { data: hosts } = useQuery<IStoredHostsResponse, Error, IHost[]>(
-    ["all hosts"],
-    () => hostsAPI.loadAll({ perPage: 30000 }),
-    {
-      select: (data: IStoredHostsResponse) => data.hosts,
+      });
+      setStoredPackLabels(packLabels);
     }
-  );
+  }, [labels, storedPack]);
 
-  const packHosts = storedPack
-    ? filter(hosts, (host) => {
+  useEffect(() => {
+    if (hosts && storedPack) {
+      const packHosts = filter(hosts, (host) => {
         return includes(storedPack.host_ids, host.id);
-      })
-    : [];
+      });
+      setStoredPackHosts(packHosts);
+    }
+  }, [hosts, storedPack]);
 
   const { data: teams } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
     ["all teams"],
@@ -182,19 +169,22 @@ const EditPacksPage = ({
     }
   );
 
-  const packTeams = storedPack
-    ? filter(teams, (team) => {
+  useEffect(() => {
+    if (teams && storedPack) {
+      const packTeams = filter(teams, (team) => {
         return includes(storedPack.team_ids, team.id);
-      })
-    : [];
+      });
+      setStoredPackTeams(packTeams);
+    }
+  }, [teams, storedPack]);
 
   const packTargets = [
-    ...packHosts.map((host) => ({
+    ...storedPackHosts.map((host) => ({
       ...host,
       target_type: "hosts",
     })),
-    ...packLabels,
-    ...packTeams.map((team) => ({
+    ...storedPackLabels,
+    ...storedPackTeams.map((team) => ({
       ...team,
       target_type: "teams",
       display_text: team.name,
@@ -234,29 +224,13 @@ const EditPacksPage = ({
     setSelectedPackQueryIds(selectedTableQueryIds);
   };
 
-  // If we want to use a try/catch pattern in future iterations
-  // const updatePack = useCallback(
-  //   async (updatedPack) => {
-  //     setIsStoredPackLoading(true);
-  //     try {
-  //       const response = await packsAPI.update(packId, updatedPack);
-  //       console.log(response);
-  //       setStoredPack(response.pack);
-  //     } catch (error) {
-  //       console.log(error);
-  //       setIsStoredPackLoadingError(true);
-  //     } finally {
-  //       setIsStoredPackLoading(false);
-  //     }
-  //   },
-  //   [dispatch]
-  // );
-
   const handlePackFormSubmit = (formData: IFormData) => {
     const updatedPack = deepDifference(formData, storedPack);
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
+        refetchStoredPack();
+        window.scrollTo(0, 0);
         dispatch(renderFlash("success", `Successfully updated this pack.`));
       })
       .catch(() => {
@@ -284,7 +258,7 @@ const EditPacksPage = ({
       })
       .finally(() => {
         togglePackQueryEditorModal();
-        getPackQueries();
+        refetchStoredPackQueries();
       });
     return false;
   };
@@ -316,13 +290,13 @@ const EditPacksPage = ({
       })
       .finally(() => {
         toggleRemovePackQueryModal();
-        getPackQueries();
+        refetchStoredPackQueries();
       });
   };
 
   return (
     <div className={`${baseClass}__content`}>
-      {storedPack && (
+      {storedPack && storedPackQueries && (
         <EditPackForm
           className={`${baseClass}__pack-form body-wrap`}
           handleSubmit={handlePackFormSubmit}
