@@ -5,7 +5,7 @@ import Button from "components/buttons/Button";
 
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
-import { ITarget } from "interfaces/target";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
@@ -17,12 +17,15 @@ const baseClass = "edit-pack-form";
 
 interface IEditPackForm {
   className?: string;
-  handleSubmit: (formData: any) => void;
+  handleSubmit: (formData: IEditPackFormData) => void;
   onCancelEditPack: () => void;
-  onFetchTargets?: (query: IQuery, targetsResponse: any) => boolean;
+  onFetchTargets?: (
+    query: IQuery,
+    targetsResponse: ITargetsAPIResponse
+  ) => boolean;
   onAddPackQuery: () => void;
-  onEditPackQuery: (selectedTableQueryIds: any) => void;
-  onRemovePackQueries: (selectedTableQueryIds: any) => void;
+  onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
+  onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
   onPackQueryFormSubmit: (
     formData: IPackQueryFormData,
     editQuery: IScheduledQuery | undefined
@@ -31,7 +34,7 @@ interface IEditPackForm {
   packTargets?: ITarget[];
   targetsCount?: number;
   isPremiumTier?: boolean;
-  formData: any;
+  formData: IEditPackFormData;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
 }

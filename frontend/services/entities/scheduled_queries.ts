@@ -1,3 +1,4 @@
+/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import { omit } from "lodash";
 

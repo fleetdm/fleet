@@ -36,9 +36,7 @@ import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 
 interface IEditPacksPageProps {
-  router: any;
   params: Params;
-  location: any; // TODO: find Location type
 }
 
 interface IStoredFleetQueriesResponse {
@@ -73,9 +71,7 @@ interface IFormData {
 const baseClass = "edit-pack-page";
 
 const EditPacksPage = ({
-  router,
   params: { id: paramsPackId },
-  location: { query: URLQueryString },
 }: IEditPacksPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
