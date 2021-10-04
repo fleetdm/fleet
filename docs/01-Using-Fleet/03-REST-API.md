@@ -6314,7 +6314,7 @@ If the `name` is not already associated with an existing team, this API route cr
 
 ```json
 {
-    “software”: [
+    "software": [
       {
         "id": 1,
         "name": "Chrome.app",
