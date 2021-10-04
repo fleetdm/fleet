@@ -207,6 +207,8 @@ func collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool 
 	}
 
 	runInsertBatch := func(batch []policyTuple) error {
+		// TODO: INSERT IGNORE, to avoid failing if policy id does not exist? Or this should
+		// never happen as policies cannot come and go like labels do?
 		sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
 		sql += strings.Repeat(`(?, ?, ?),`, len(batch))
 		sql = strings.TrimSuffix(sql, ",")

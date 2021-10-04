@@ -85,9 +85,11 @@ func (c *collector) exec(ctx context.Context) {
 
 	var stats collectorExecStats
 	start := time.Now()
-	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil && c.errHandler != nil {
+	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil {
 		stats.Failed = true
-		c.errHandler(c.name, err)
+		if c.errHandler != nil {
+			c.errHandler(c.name, err)
+		}
 	}
 	stats.Duration = time.Since(start)
 	c.addStats(&stats)

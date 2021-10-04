@@ -15,25 +15,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollectLabelQueryExecutions(t *testing.T) {
+func TestCollectQueryExecutions(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop := insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount
-	insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = 3, 3, 3, 3
+	oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop, oldMaxPolicy :=
+		insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount, maxRedisPolicyResultsPerHost
+	insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount, maxRedisPolicyResultsPerHost = 3, 3, 3, 3, 3
 	t.Cleanup(func() {
-		insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop
+		insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount, maxRedisPolicyResultsPerHost =
+			oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop, oldMaxPolicy
 	})
 
-	t.Run("standalone", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
-		pool := redistest.SetupRedis(t, false, false)
-		testCollectLabelQueryExecutions(t, ds, pool)
+	t.Run("Label", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, false, false)
+			testCollectLabelQueryExecutions(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, true, true)
+			testCollectLabelQueryExecutions(t, ds, pool)
+		})
 	})
 
-	t.Run("cluster", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
-		pool := redistest.SetupRedis(t, true, true)
-		testCollectLabelQueryExecutions(t, ds, pool)
+	t.Run("Policy", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, false, false)
+			testCollectPolicyQueryExecutions(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, true, true)
+			testCollectPolicyQueryExecutions(t, ds, pool)
+		})
 	})
 }
 
@@ -47,6 +65,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	}
 
 	hostIDs := createHosts(t, ds, 4, time.Now().Add(-24*time.Hour))
+	t.Logf("real host IDs: %v", hostIDs)
 	hid := func(id int) int {
 		if id < 0 {
 			return id
@@ -286,6 +305,329 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	require.True(t, h1l1Before.UpdatedAt.Before(h1l1After.UpdatedAt))
 }
 
+func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fleet.RedisPool) {
+	ctx := context.Background()
+
+	type policyMembership struct {
+		HostID    int       `db:"host_id"`
+		PolicyID  int       `db:"policy_id"`
+		Passes    bool      `db:"passes"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+
+	hostIDs := createHosts(t, ds, 4, time.Now().Add(-24*time.Hour))
+	policyIDs := createPolicies(t, ds, 4)
+	t.Logf("real host IDs: %v", hostIDs)
+	t.Logf("real policy IDs: %v", policyIDs)
+	hid := func(id int) int {
+		if id < 0 || id >= len(hostIDs) {
+			return id
+		}
+		return int(hostIDs[id-1])
+	}
+	pid := func(id int) int {
+		if id < 0 || id >= len(policyIDs) {
+			return id
+		}
+		return int(policyIDs[id-1])
+	}
+	_, _ = hid, pid
+
+	// note that cases cannot be run in isolation, each case builds on the
+	// previous one's state, so they are not run as distinct sub-tests.
+	cases := []struct {
+		name string
+		// map of host ID to policy IDs to insert with passes set to the bool.
+		// negative host id is stored as an invalid redis key that should be
+		// ignored.
+		reported map[int]map[int]bool
+		want     []policyMembership
+	}{
+		{"no key", nil, nil},
+		{
+			"report host 1 policy 1",
+			map[int]map[int]bool{hid(1): {pid(1): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+			},
+		},
+		{
+			"report host 1 policies 1, 2",
+			map[int]map[int]bool{hid(1): {pid(1): true, pid(2): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+			},
+		},
+		{
+			"report host 1 policies 1, 2, 3",
+			map[int]map[int]bool{hid(1): {pid(1): true, pid(2): true, pid(3): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+			},
+		},
+		{
+			"report host 1 policy -1",
+			map[int]map[int]bool{hid(1): {pid(1): false}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+			},
+		},
+		{
+			"report host 1 policies -2, -3",
+			map[int]map[int]bool{hid(1): {pid(2): false, pid(3): false}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+			},
+		},
+		{
+			"report host 1 policies 1, 2, 3, 4",
+			map[int]map[int]bool{hid(1): {pid(1): true, pid(2): true, pid(3): true, pid(4): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+			},
+		},
+		{
+			"report host 1 policies -2, -3, -4, 1",
+			map[int]map[int]bool{hid(1): {pid(2): false, pid(3): false, pid(4): false, pid(1): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+				{HostID: hid(1), PolicyID: pid(4), Passes: false},
+			},
+		},
+		{
+			"report host 1 policy 2, host 2 policies 2, 3",
+			map[int]map[int]bool{hid(1): {pid(2): true}, hid(2): {pid(2): true, pid(3): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+				{HostID: hid(1), PolicyID: pid(4), Passes: false},
+				{HostID: hid(2), PolicyID: pid(2), Passes: true},
+				{HostID: hid(2), PolicyID: pid(3), Passes: true},
+			},
+		},
+		{
+			"report host -99 policy 1, ignored",
+			map[int]map[int]bool{hid(-99): {pid(1): true}},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+				{HostID: hid(1), PolicyID: pid(4), Passes: false},
+				{HostID: hid(2), PolicyID: pid(2), Passes: true},
+				{HostID: hid(2), PolicyID: pid(3), Passes: true},
+			},
+		},
+		{
+			"report hosts 1, 2, 3, 4, -99 policies 1, 2, -3, 4",
+			map[int]map[int]bool{
+				hid(1):   {pid(1): true, pid(2): true, pid(3): false, pid(4): true},
+				hid(2):   {pid(1): true, pid(2): true, pid(3): false, pid(4): true},
+				hid(3):   {pid(1): true, pid(2): true, pid(3): false, pid(4): true},
+				hid(4):   {pid(1): true, pid(2): true, pid(3): false, pid(4): true},
+				hid(-99): {pid(1): true, pid(2): true, pid(3): false, pid(4): true},
+			},
+			[]policyMembership{
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: false},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(1), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: false},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(2), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: true},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(3), Passes: false},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+				{HostID: hid(1), PolicyID: pid(4), Passes: false},
+				{HostID: hid(1), PolicyID: pid(4), Passes: true},
+				{HostID: hid(2), PolicyID: pid(1), Passes: true},
+				{HostID: hid(2), PolicyID: pid(2), Passes: true},
+				{HostID: hid(2), PolicyID: pid(2), Passes: true},
+				{HostID: hid(2), PolicyID: pid(3), Passes: true},
+				{HostID: hid(2), PolicyID: pid(3), Passes: false},
+				{HostID: hid(2), PolicyID: pid(4), Passes: true},
+				{HostID: hid(3), PolicyID: pid(1), Passes: true},
+				{HostID: hid(3), PolicyID: pid(2), Passes: true},
+				{HostID: hid(3), PolicyID: pid(3), Passes: false},
+				{HostID: hid(3), PolicyID: pid(4), Passes: true},
+				{HostID: hid(4), PolicyID: pid(1), Passes: true},
+				{HostID: hid(4), PolicyID: pid(2), Passes: true},
+				{HostID: hid(4), PolicyID: pid(3), Passes: false},
+				{HostID: hid(4), PolicyID: pid(4), Passes: true},
+			},
+		},
+	}
+
+	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
+		conn := pool.ConfigureDoer(pool.Get())
+		defer conn.Close()
+
+		// store the host memberships and prepare the expected stats
+		var wantStats collectorExecStats
+		for hostID, res := range data {
+			if len(res) > 0 {
+				key := fmt.Sprintf(policyPassHostKey, hostID)
+				args := make(redigo.Args, 0, 1+(len(res)))
+				args = args.Add(key)
+				for polID, pass := range res {
+					score := -1
+					if pass {
+						score = 1
+					}
+					args = args.Add(fmt.Sprintf("%d=%d", polID, score))
+				}
+				_, err := conn.Do("LPUSH", args...)
+				require.NoError(t, err)
+			}
+			wantStats.Keys++
+			if hostID >= 0 {
+				wantStats.Items += len(res)
+			}
+		}
+		return wantStats
+	}
+
+	selectRows := func(t *testing.T) ([]policyMembership, map[int]time.Time) {
+		var rows []policyMembership
+		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, policy_id, passes, updated_at
+        FROM policy_membership_history
+        ORDER BY host_id, policy_id, id`)
+		})
+		require.NoError(t, err)
+
+		var hosts []struct {
+			ID              int       `db:"id"`
+			PolicyUpdatedAt time.Time `db:"policy_updated_at"`
+		}
+		err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, policy_updated_at FROM hosts`)
+		})
+		require.NoError(t, err)
+
+		hostsUpdated := make(map[int]time.Time, len(hosts))
+		for _, h := range hosts {
+			hostsUpdated[h.ID] = h.PolicyUpdatedAt
+		}
+		return rows, hostsUpdated
+	}
+
+	minUpdatedAt := time.Now()
+	for _, c := range cases {
+		func() {
+			t.Log("test name: ", c.name)
+			wantStats := setupTest(t, c.reported)
+
+			// run the collection
+			var stats collectorExecStats
+			err := collectPolicyQueryExecutions(ctx, ds, pool, &stats)
+			require.NoError(t, err)
+			require.Equal(t, wantStats, stats)
+
+			// check that the table contains the expected rows
+			rows, hostsUpdated := selectRows(t)
+			require.Equal(t, len(c.want), len(rows))
+			for i := range c.want {
+				want, got := c.want[i], rows[i]
+				require.Equal(t, want.HostID, got.HostID, "[%d] host id", i)
+				require.Equal(t, want.PolicyID, got.PolicyID, "[%d] policy id", i)
+				require.Equal(t, want.Passes, got.Passes, "[%d] passes", i)
+				require.WithinDuration(t, minUpdatedAt, got.UpdatedAt, 10*time.Second, "[%d] membership updated at", i)
+
+				ts, ok := hostsUpdated[want.HostID]
+				require.True(t, ok)
+				require.WithinDuration(t, minUpdatedAt, ts, 10*time.Second, "[%d] host updated at", i)
+			}
+		}()
+	}
+}
+
 func TestRecordPolicyQueryExecutions(t *testing.T) {
 	ds := new(mock.Store)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
@@ -522,5 +864,33 @@ func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []ui
 		require.NoError(t, err)
 		ids[i] = host.ID
 	}
+	return ids
+}
+
+func createPolicies(t *testing.T, ds fleet.Datastore, count int) []uint {
+	ctx := context.Background()
+
+	ids := make([]uint, count)
+	err := ds.AdhocRetryTx(context.Background(), func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, `INSERT INTO queries (name, description, query) VALUES (?, ?, ?)`,
+			t.Name(),
+			t.Name(),
+			"SELECT 1",
+		)
+		if err != nil {
+			return err
+		}
+		qid, _ := res.LastInsertId()
+		for i := 0; i < count; i++ {
+			res, err := tx.ExecContext(ctx, `INSERT INTO policies (query_id) VALUES (?)`, qid)
+			if err != nil {
+				return err
+			}
+			pid, _ := res.LastInsertId()
+			ids[i] = uint(pid)
+		}
+		return nil
+	})
+	require.NoError(t, err)
 	return ids
 }
