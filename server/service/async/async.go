@@ -22,6 +22,7 @@ const (
 	labelMembershipHostKeyPattern = "label_membership:{*}"
 	labelMembershipHostKey        = "label_membership:{%d}"
 	labelMembershipReportedKey    = "label_membership_reported:{%d}"
+	policyPassHostKeyPattern      = "policy_pass:{*}"
 	policyPassHostKey             = "policy_pass:{%d}"
 	policyPassReportedKey         = "policy_pass_reported:{%d}"
 	collectorLockKey              = "locks:async_collector:{%s}"
@@ -59,6 +60,20 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 	}
 	go labelColl.Start(ctx)
 
+	policyColl := &collector{
+		name:         "collect_policies",
+		pool:         t.Pool,
+		ds:           t.Datastore,
+		execInterval: interval,
+		jitterPct:    jitterPct,
+		lockTimeout:  time.Minute,
+		handler:      collectPolicyQueryExecutions,
+		errHandler: func(name string, err error) {
+			level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		},
+	}
+	go policyColl.Start(ctx)
+
 	// log stats at regular intervals
 	// TODO: TBD if it stays that way for prod, but will be useful for load testing
 	go func() {
@@ -68,12 +83,19 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 			case <-tick:
 				stats := labelColl.ReadStats()
 				level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", labelColl.name)
+				stats = policyColl.ReadStats()
+				level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", policyColl.name)
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 }
+
+var (
+	// redis list will be LTRIM'd if there are more policy IDs than this.
+	maxRedisPolicyResultsPerHost = 1000
+)
 
 func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
 	if !t.AsyncEnabled {
@@ -93,7 +115,7 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	// convert results to LPUSH arguments, store as policy_id=1 for pass,
 	// policy_id=-1 for fail.
 	args := make(redigo.Args, 0, 4+len(results))
-	args = args.Add(keyList, keyTs, ts.Unix(), 1000) // TODO: const or config for max items
+	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost) // TODO: const or config for max items
 	for k, v := range results {
 		pass := -1
 		if v != nil && *v {
@@ -111,6 +133,154 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	if _, err := script.Do(conn, args...); err != nil {
 		return err
 	}
+	return nil
+}
+
+func collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	keys, err := redis.ScanKeys(pool, policyPassHostKeyPattern, 1000)
+	if err != nil {
+		return err
+	}
+	stats.Keys = len(keys)
+
+	type policyTuple struct {
+		HostID   uint
+		PolicyID uint
+		Passes   bool
+	}
+
+	// need to use a script as the RPOP command only supports a COUNT since
+	// 6.2. Because we use LTRIM when inserting, we know the total number
+	// of results is at most maxRedisPolicyResultsPerHost, so it is capped
+	// and can be returned in one go.
+	script := redigo.NewScript(1, `
+    local res = redis.call('LRANGE', KEYS[1], 0, -1)
+    redis.call('DEL', KEYS[1])
+    return res
+  `)
+
+	getKeyTuples := func(key string) (inserts []policyTuple, err error) {
+		var hostID uint
+		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
+			if id, _ := strconv.ParseUint(matches[1], 10, 32); id > 0 {
+				hostID = uint(id)
+			}
+		}
+
+		// just ignore if there is no valid host id
+		if hostID == 0 {
+			return nil, nil
+		}
+
+		conn := pool.ConfigureDoer(pool.Get())
+		defer conn.Close()
+
+		res, err := redigo.Strings(script.Do(conn, key))
+		if err != nil {
+			return nil, errors.Wrap(err, "redis LRANGE script")
+		}
+
+		inserts = make([]policyTuple, 0, len(res))
+		stats.Items += len(res)
+		for _, item := range res {
+			parts := strings.Split(item, "=")
+			if len(parts) != 2 {
+				continue
+			}
+
+			var tup policyTuple
+			if id, _ := strconv.ParseUint(parts[0], 10, 32); id > 0 {
+				tup.HostID = hostID
+				tup.PolicyID = uint(id)
+				switch parts[1] {
+				case "1":
+					tup.Passes = true
+				case "-1":
+					tup.Passes = false
+				default:
+					continue
+				}
+				inserts = append(inserts, tup)
+			}
+		}
+		return inserts, nil
+	}
+
+	runInsertBatch := func(batch []policyTuple) error {
+		sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
+		sql += strings.Repeat(`(?, ?, ?),`, len(batch))
+		sql = strings.TrimSuffix(sql, ",")
+
+		vals := make([]interface{}, 0, len(batch)*3)
+		for _, tup := range batch {
+			vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return errors.Wrap(err, "insert into policy_membership_history")
+		})
+	}
+
+	runUpdateBatch := func(ids []uint, ts time.Time) error {
+		sql := `
+      UPDATE
+        hosts
+      SET
+        policy_updated_at = ?
+      WHERE
+        id IN (?)`
+		query, args, err := sqlx.In(sql, ts, ids)
+		if err != nil {
+			return errors.Wrap(err, "building query to update hosts.policy_updated_at")
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, query, args...)
+			return errors.Wrap(err, "update hosts.policy_updated_at")
+		})
+	}
+
+	insertBatch := make([]policyTuple, 0, insertBatchSize)
+	hostIDs := make([]uint, 0, len(keys))
+	for _, key := range keys {
+		ins, err := getKeyTuples(key)
+		if err != nil {
+			return err
+		}
+		insertBatch = append(insertBatch, ins...)
+
+		if len(insertBatch) >= insertBatchSize {
+			if err := runInsertBatch(insertBatch); err != nil {
+				return err
+			}
+			insertBatch = insertBatch[:0]
+		}
+		if len(ins) > 0 {
+			hostIDs = append(hostIDs, ins[0].HostID)
+		}
+	}
+
+	// process any remaining batch that did not reach the batchSize limit in the
+	// loop.
+	if len(insertBatch) > 0 {
+		if err := runInsertBatch(insertBatch); err != nil {
+			return err
+		}
+	}
+	if len(hostIDs) > 0 {
+		ts := time.Now()
+		updateBatch := make([]uint, updateBatchSize)
+		for {
+			n := copy(updateBatch, hostIDs)
+			if n == 0 {
+				break
+			}
+			if err := runUpdateBatch(updateBatch[:n], ts); err != nil {
+				return err
+			}
+			hostIDs = hostIDs[n:]
+		}
+	}
+
 	return nil
 }
 
