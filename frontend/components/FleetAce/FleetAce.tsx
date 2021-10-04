@@ -56,7 +56,6 @@ const FleetAce = ({
     startPosition: Ace.Point | undefined,
     offset: number
   ) => {
-    // not sure why adding zero works smh
     if (startPosition) {
       const newColumn = startPosition.column + offset;
       editorRef.current?.editor.moveCursorTo(startPosition.row, newColumn);
