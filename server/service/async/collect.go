@@ -70,7 +70,7 @@ func (c *collector) exec(ctx context.Context) {
 	conn := c.pool.ConfigureDoer(c.pool.Get())
 	defer conn.Close()
 
-	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout/time.Second))); err != nil {
+	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout.Seconds()))); err != nil {
 		// either redis failure or this collector didn't acquire the lock
 		if !errors.Is(err, redigo.ErrNil) && c.errHandler != nil {
 			c.errHandler(c.name, err)
@@ -80,7 +80,7 @@ func (c *collector) exec(ctx context.Context) {
 	defer conn.Do("DEL", keyLock)
 
 	// at this point, the lock has been acquired, execute the collector handler
-	ctx, cancel := context.WithTimeout(ctx, c.lockTimeout/time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(c.lockTimeout.Seconds()))
 	defer cancel()
 
 	var stats collectorExecStats

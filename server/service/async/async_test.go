@@ -348,7 +348,6 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	err := task.RecordLabelQueryExecutions(ctx, host, results, now)
 	require.NoError(t, err)
 	require.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
-	ds.RecordLabelQueryExecutionsFuncInvoked = false
 
 	conn := pool.Get()
 	defer conn.Close()
