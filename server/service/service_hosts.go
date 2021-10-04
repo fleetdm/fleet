@@ -158,21 +158,13 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 }
 
 func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	filter, err := processHostFilters(ctx, opt, lid)
+	if err != nil {
+		return nil, err
 	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	if opt.StatusFilter != "" && lid != nil {
-		return nil, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
-	}
-
-	opt.PerPage = fleet.PerPageUnlimited
 
 	// Load hosts, either from label if provided or from all hosts.
 	var hosts []*fleet.Host
-	var err error
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
@@ -191,6 +183,35 @@ func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOpt
 		hostIDs = append(hostIDs, h.ID)
 	}
 	return hostIDs, nil
+}
+
+func (svc Service) countHostFromFilters(ctx context.Context, opt fleet.HostListOptions) (uint, error) {
+	filter, err := processHostFilters(ctx, opt, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := svc.ds.CountHosts(ctx, filter, opt)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.TeamFilter{}, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	if opt.StatusFilter != "" && lid != nil {
+		return fleet.TeamFilter{}, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
+	}
+
+	opt.PerPage = fleet.PerPageUnlimited
+	return filter, nil
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {

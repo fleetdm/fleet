@@ -531,3 +531,15 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
+
+func (s *integrationTestSuite) TestCountSoftware() {
+	t := s.T()
+
+	s.createHosts(t)
+
+	req := countHostsRequest{}
+	resp := countHostsResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/hosts/count", req, http.StatusOK, &resp)
+
+	assert.Equal(t, uint(3), resp.Count)
+}

@@ -65,3 +65,54 @@ func (svc Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostL
 	}
 	return svc.ds.DeleteHosts(ctx, hostIDs)
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Count
+/////////////////////////////////////////////////////////////////////////////////
+
+type countHostsRequest struct {
+	Opts fleet.HostListOptions `url:"host_options"`
+}
+
+type countHostsResponse struct {
+	Count uint  `json:"count"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r countHostsResponse) error() error { return r.Err }
+
+func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*countHostsRequest)
+	count, err := svc.CountHosts(ctx, req.Opts)
+	if err != nil {
+		return countHostsResponse{Err: err}, nil
+	}
+	return countHostsResponse{Count: count}, nil
+}
+
+func (svc Service) CountHosts(ctx context.Context, opts fleet.HostListOptions) (uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	return svc.countHostFromFilters(ctx, opts)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get host
+/////////////////////////////////////////////////////////////////////////////////
+
+func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getHostRequest)
+	host, err := svc.GetHost(ctx, req.ID)
+	if err != nil {
+		return getHostResponse{Err: err}, nil
+	}
+
+	resp, err := hostDetailResponseForHost(ctx, svc, host)
+	if err != nil {
+		return getHostResponse{Err: err}, nil
+	}
+
+	return getHostResponse{Host: resp}, nil
+}
