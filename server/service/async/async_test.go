@@ -18,10 +18,10 @@ import (
 func TestCollectLabelQueryExecutions(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	oldInsBatch, oldDelBatch, oldRedisPop := insertBatchSize, deleteBatchSize, redisPopCount
-	insertBatchSize, deleteBatchSize, redisPopCount = 3, 3, 3
+	oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop := insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount
+	insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = 3, 3, 3, 3
 	t.Cleanup(func() {
-		insertBatchSize, deleteBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldRedisPop
+		insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop
 	})
 
 	t.Run("standalone", func(t *testing.T) {
@@ -41,9 +41,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	ctx := context.Background()
 
 	type labelMembership struct {
-		HostID    uint      `db:"host_id"`
+		HostID    int       `db:"host_id"`
 		LabelID   uint      `db:"label_id"`
 		UpdatedAt time.Time `db:"updated_at"`
+	}
+
+	hostIDs := createHosts(t, ds, 4, time.Now().Add(-24*time.Hour))
+	hid := func(id int) int {
+		if id < 0 {
+			return id
+		}
+		return int(hostIDs[id-1])
 	}
 
 	// note that cases cannot be run in isolation, each case builds on the
@@ -59,17 +67,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 		{"no key", nil, nil},
 		{
 			"report host 1 label 1",
-			map[int]map[int]bool{1: {1: true}},
+			map[int]map[int]bool{hid(1): {1: true}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
+				{HostID: hid(1), LabelID: 1},
 			},
 		},
 		{
 			"report host 1 labels 1, 2",
-			map[int]map[int]bool{1: {1: true, 2: true}},
+			map[int]map[int]bool{hid(1): {1: true, 2: true}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
 			},
 		},
 		{
@@ -83,86 +91,86 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 		},
 		{
 			"report host 1 labels -1",
-			map[int]map[int]bool{1: {1: false}},
+			map[int]map[int]bool{hid(1): {1: false}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 2},
-				{HostID: 1, LabelID: 3},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(1), LabelID: 3},
 			},
 		},
 		{
 			"report host 1 labels -2, -3",
-			map[int]map[int]bool{1: {2: false, 3: false}},
+			map[int]map[int]bool{hid(1): {2: false, 3: false}},
 			[]labelMembership{},
 		},
 		{
 			"report host 1 labels 1, 2, 3, 4",
-			map[int]map[int]bool{1: {1: true, 2: true, 3: true, 4: true}},
+			map[int]map[int]bool{hid(1): {1: true, 2: true, 3: true, 4: true}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
-				{HostID: 1, LabelID: 3},
-				{HostID: 1, LabelID: 4},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(1), LabelID: 3},
+				{HostID: hid(1), LabelID: 4},
 			},
 		},
 		{
 			"report host 1 labels -2, -3, -4, -5",
-			map[int]map[int]bool{1: {2: false, 3: false, 4: false, 5: false}},
+			map[int]map[int]bool{hid(1): {2: false, 3: false, 4: false, 5: false}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
+				{HostID: hid(1), LabelID: 1},
 			},
 		},
 		{
 			"report host 1 labels 2, host 2 labels 2, 3",
-			map[int]map[int]bool{1: {2: true}, 2: {2: true, 3: true}},
+			map[int]map[int]bool{hid(1): {2: true}, hid(2): {2: true, 3: true}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
-				{HostID: 2, LabelID: 2},
-				{HostID: 2, LabelID: 3},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(2), LabelID: 2},
+				{HostID: hid(2), LabelID: 3},
 			},
 		},
 		{
 			"report host 1 labels -99, non-existing",
-			map[int]map[int]bool{1: {99: false}},
+			map[int]map[int]bool{hid(1): {99: false}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
-				{HostID: 2, LabelID: 2},
-				{HostID: 2, LabelID: 3},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(2), LabelID: 2},
+				{HostID: hid(2), LabelID: 3},
 			},
 		},
 		{
 			"report host -99 labels 1, ignored",
-			map[int]map[int]bool{-99: {1: true}},
+			map[int]map[int]bool{hid(-99): {1: true}},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
-				{HostID: 2, LabelID: 2},
-				{HostID: 2, LabelID: 3},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(2), LabelID: 2},
+				{HostID: hid(2), LabelID: 3},
 			},
 		},
 		{
 			"report hosts 1, 2, 3, 4, -99 labels 1, 2, -3, 4",
 			map[int]map[int]bool{
-				1:   {1: true, 2: true, 3: false, 4: true},
-				2:   {1: true, 2: true, 3: false, 4: true},
-				3:   {1: true, 2: true, 3: false, 4: true},
-				4:   {1: true, 2: true, 3: false, 4: true},
-				-99: {1: true, 2: true, 3: false, 4: true},
+				hid(1):   {1: true, 2: true, 3: false, 4: true},
+				hid(2):   {1: true, 2: true, 3: false, 4: true},
+				hid(3):   {1: true, 2: true, 3: false, 4: true},
+				hid(4):   {1: true, 2: true, 3: false, 4: true},
+				hid(-99): {1: true, 2: true, 3: false, 4: true},
 			},
 			[]labelMembership{
-				{HostID: 1, LabelID: 1},
-				{HostID: 1, LabelID: 2},
-				{HostID: 1, LabelID: 4},
-				{HostID: 2, LabelID: 1},
-				{HostID: 2, LabelID: 2},
-				{HostID: 2, LabelID: 4},
-				{HostID: 3, LabelID: 1},
-				{HostID: 3, LabelID: 2},
-				{HostID: 3, LabelID: 4},
-				{HostID: 4, LabelID: 1},
-				{HostID: 4, LabelID: 2},
-				{HostID: 4, LabelID: 4},
+				{HostID: hid(1), LabelID: 1},
+				{HostID: hid(1), LabelID: 2},
+				{HostID: hid(1), LabelID: 4},
+				{HostID: hid(2), LabelID: 1},
+				{HostID: hid(2), LabelID: 2},
+				{HostID: hid(2), LabelID: 4},
+				{HostID: hid(3), LabelID: 1},
+				{HostID: hid(3), LabelID: 2},
+				{HostID: hid(3), LabelID: 4},
+				{HostID: hid(4), LabelID: 1},
+				{HostID: hid(4), LabelID: 2},
+				{HostID: hid(4), LabelID: 4},
 			},
 		},
 	}
@@ -196,19 +204,33 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 		return wantStats
 	}
 
-	selectRows := func(t *testing.T) []labelMembership {
+	selectRows := func(t *testing.T) ([]labelMembership, map[int]time.Time) {
 		var rows []labelMembership
 		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
 		})
 		require.NoError(t, err)
-		return rows
+
+		var hosts []struct {
+			ID             int       `db:"id"`
+			LabelUpdatedAt time.Time `db:"label_updated_at"`
+		}
+		err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, label_updated_at FROM hosts`)
+		})
+		require.NoError(t, err)
+
+		hostsUpdated := make(map[int]time.Time, len(hosts))
+		for _, h := range hosts {
+			hostsUpdated[h.ID] = h.LabelUpdatedAt
+		}
+		return rows, hostsUpdated
 	}
 
 	minUpdatedAt := time.Now()
 	for _, c := range cases {
 		func() {
-			t.Log(c.name)
+			t.Log("test name: ", c.name)
 			wantStats := setupTest(t, c.reported)
 
 			// run the collection
@@ -218,13 +240,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 			require.Equal(t, wantStats, stats)
 
 			// check that the table contains the expected rows
-			rows := selectRows(t)
+			rows, hostsUpdated := selectRows(t)
 			require.Equal(t, len(c.want), len(rows))
 			for i := range c.want {
 				want, got := c.want[i], rows[i]
 				require.Equal(t, want.HostID, got.HostID)
 				require.Equal(t, want.LabelID, got.LabelID)
 				require.WithinDuration(t, minUpdatedAt, got.UpdatedAt, 10*time.Second)
+
+				ts, ok := hostsUpdated[want.HostID]
+				require.True(t, ok)
+				require.WithinDuration(t, minUpdatedAt, ts, 10*time.Second)
 			}
 		}()
 	}
@@ -235,7 +261,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	time.Sleep(time.Second)
 
 	var h1l1Before labelMembership
-	beforeRows := selectRows(t)
+	beforeRows, _ := selectRows(t)
 	for _, row := range beforeRows {
 		if row.HostID == 1 && row.LabelID == 1 {
 			h1l1Before = row
@@ -250,7 +276,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	require.NoError(t, err)
 
 	var h1l1After labelMembership
-	afterRows := selectRows(t)
+	afterRows, _ := selectRows(t)
 	for _, row := range afterRows {
 		if row.HostID == 1 && row.LabelID == 1 {
 			h1l1After = row
@@ -368,4 +394,23 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	// host's LabelUpdatedAt field hasn't been updated yet, because the label
 	// results are in redis, not in mysql yet.
 	require.True(t, host.LabelUpdatedAt.Equal(lastYear))
+}
+
+func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []uint {
+	ids := make([]uint, count)
+	for i := 0; i < count; i++ {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: ts,
+			LabelUpdatedAt:  ts,
+			PolicyUpdatedAt: ts,
+			SeenTime:        ts,
+			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
+			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+		})
+		require.NoError(t, err)
+		ids[i] = host.ID
+	}
+	return ids
 }

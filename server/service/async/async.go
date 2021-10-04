@@ -116,6 +116,7 @@ var (
 	// those are variables so they can be set differently for tests
 	insertBatchSize = 2000
 	deleteBatchSize = 2000
+	updateBatchSize = 1000
 	redisPopCount   = 1000
 )
 
@@ -126,8 +127,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	}
 	stats.Keys = len(keys)
 
-	getKeyTuples := func(key string) (inserts, deletes [][2]uint, err error) {
-		var hostID uint
+	getKeyTuples := func(key string) (hostID uint, inserts, deletes [][2]uint, err error) {
 		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
 			id, err := strconv.ParseInt(matches[1], 10, 64)
 			if err == nil && id > 0 && id <= math.MaxUint32 { // required for CodeQL vulnerability scanning in CI
@@ -137,7 +137,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 
 		// just ignore if there is no valid host id
 		if hostID == 0 {
-			return nil, nil, nil
+			return hostID, nil, nil, nil
 		}
 
 		conn := pool.ConfigureDoer(pool.Get())
@@ -146,7 +146,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		for {
 			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, redisPopCount))
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "redis ZPOPMIN")
+				return hostID, nil, nil, errors.Wrap(err, "redis ZPOPMIN")
 			}
 			items := len(vals) / 2 // each item has the label id and the score (-1=delete, +1=insert)
 			stats.Items += items
@@ -167,7 +167,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 				}
 			}
 			if items < redisPopCount {
-				return inserts, deletes, nil
+				return hostID, inserts, deletes, nil
 			}
 		}
 	}
@@ -225,10 +225,29 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		})
 	}
 
+	runUpdateBatch := func(ids []uint, ts time.Time) error {
+		sql := `
+      UPDATE
+        hosts
+      SET
+        label_updated_at = ?
+      WHERE
+        id IN (?)`
+		query, args, err := sqlx.In(sql, ts, ids)
+		if err != nil {
+			return errors.Wrap(err, "building query to update hosts.label_updated_at")
+		}
+		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, query, args...)
+			return errors.Wrap(err, "update hosts.label_updated_at")
+		})
+	}
+
 	insertBatch := make([][2]uint, 0, insertBatchSize)
 	deleteBatch := make([][2]uint, 0, deleteBatchSize)
+	hostIDs := make([]uint, 0, len(keys))
 	for _, key := range keys {
-		ins, del, err := getKeyTuples(key)
+		hostID, ins, del, err := getKeyTuples(key)
 		if err != nil {
 			return err
 		}
@@ -247,6 +266,9 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 			}
 			deleteBatch = deleteBatch[:0]
 		}
+		if hostID > 0 {
+			hostIDs = append(hostIDs, hostID)
+		}
 	}
 
 	// process any remaining batch that did not reach the batchSize limit in the
@@ -259,6 +281,20 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	if len(deleteBatch) > 0 {
 		if err := runDeleteBatch(deleteBatch); err != nil {
 			return err
+		}
+	}
+	if len(hostIDs) > 0 {
+		ts := time.Now()
+		updateBatch := make([]uint, updateBatchSize)
+		for {
+			n := copy(updateBatch, hostIDs)
+			if n == 0 {
+				break
+			}
+			if err := runUpdateBatch(updateBatch[:n], ts); err != nil {
+				return err
+			}
+			hostIDs = hostIDs[n:]
 		}
 	}
 
