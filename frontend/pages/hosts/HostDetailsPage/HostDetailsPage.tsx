@@ -599,9 +599,7 @@ const HostDetailsPage = ({
             disabled={!isOnline}
             onClick={onRefetchHost}
           >
-            {showRefetchLoadingSpinner
-              ? "Fetching, try refreshing this page in just a moment."
-              : "Refetch"}
+            {showRefetchLoadingSpinner ? "Fetching..." : "Refetch"}
           </Button>
         </div>
         <ReactTooltip
