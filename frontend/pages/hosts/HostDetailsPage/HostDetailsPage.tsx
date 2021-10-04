@@ -61,7 +61,6 @@ import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png"
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
-import { time } from "console";
 
 const baseClass = "host-details";
 
