@@ -132,7 +132,7 @@ const HostDetailsPage = ({
     data: host,
     refetch: fullyReloadHost,
   } = useQuery<IHostResponse, Error, IHost>(
-    "host",
+    ["host", hostIdFromURL],
     () => hostAPI.load(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
@@ -259,7 +259,7 @@ const HostDetailsPage = ({
       setShowRefetchLoadingSpinner(true);
       try {
         await hostAPI.refetch(host).then(() => {
-          console.log("start refecthing: ");
+          console.log("start refetching: ");
           setTimeout(() => fullyReloadHost(), 1000);
         });
       } catch (error) {
