@@ -5,9 +5,7 @@ import simpleSearch from "utilities/simple_search";
 import TableContainer from "components/TableContainer";
 import Button from "components/buttons/Button";
 // @ts-ignore
-import helpers from "components/queries/PackQueriesListWrapper/helpers";
 import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IQuery } from "interfaces/query";
 import EmptySearch from "./EmptySearch";
 import {
   generateTableHeaders,
@@ -31,9 +29,9 @@ interface IFormData {
 }
 
 interface IPackQueriesListWrapperProps {
-  onAddPackQuery: any;
-  onEditPackQuery: any;
-  onRemovePackQueries: any;
+  onAddPackQuery: () => void;
+  onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
+  onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
   onPackQueryFormSubmit: (
     formData: IFormData,
     editQuery: IScheduledQuery | undefined
@@ -43,30 +41,27 @@ interface IPackQueriesListWrapperProps {
   isLoadingPackQueries: boolean;
 }
 
+export interface ITableSearchData {
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+  pageSize?: number;
+  pageIndex?: number;
+}
+
 const PackQueriesListWrapper = ({
   onAddPackQuery,
   onEditPackQuery,
   onRemovePackQueries,
-  onPackQueryFormSubmit,
-  packId,
   scheduledQueries,
   isLoadingPackQueries,
 }: IPackQueriesListWrapperProps): JSX.Element => {
   const [querySearchText, setQuerySearchText] = useState<string>("");
-  const [checkedScheduledQueryIDs, setCheckedScheduledQueryIDs] = useState<
-    number[]
-  >([]);
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
-  const onTableQueryChange = (queryData: any) => {
-    const {
-      pageIndex,
-      pageSize,
-      searchQuery,
-      sortHeader,
-      sortDirection,
-    } = queryData;
+  const onTableQueryChange = (queryData: ITableSearchData) => {
+    const { searchQuery, sortHeader, sortDirection } = queryData;
     let sortBy = [];
     if (sortHeader !== "") {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
