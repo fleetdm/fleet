@@ -752,7 +752,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
       });
-
+      refetchLabels();
       toggleDeleteHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
