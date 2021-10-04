@@ -81,7 +81,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 20
+  desired_count                      = 1
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -117,15 +117,15 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 1024
-  memory                   = 4096
+  cpu                      = 256
+  memory                   = 512
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
         image       = var.fleet_image
-        cpu         = 1024
-        memory      = 4096
+        cpu         = 256
+        memory      = 512
         mountPoints = []
         volumesFrom = []
         essential   = true
