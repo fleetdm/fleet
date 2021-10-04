@@ -30,7 +30,7 @@ type Task struct {
 	Pool      fleet.RedisPool
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
-	AsyncEnabled bool // TODO: should this be read in a different way, more dynamically, if config changes while fleet is running? Or does that require a restart?
+	AsyncEnabled bool
 }
 
 // Collect runs the various collectors as distinct background goroutines if
