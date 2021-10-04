@@ -592,9 +592,9 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := ""
+				query := `additional_info_filters=*`
 				if c.Uint("team") > 0 {
-					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+					query += fmt.Sprintf("&team_id=%d", c.Uint("team"))
 				}
 				hosts, err := client.GetHosts(query)
 				if err != nil {
