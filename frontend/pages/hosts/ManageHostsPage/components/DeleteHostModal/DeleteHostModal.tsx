@@ -9,12 +9,14 @@ interface IDeleteHostModalProps {
   selectedHostIds: number[];
   onSubmit: () => void;
   onCancel: () => void;
+  isAllMatchingHostsSelected: boolean;
 }
 
 const DeleteHostModal = ({
   selectedHostIds,
   onSubmit,
   onCancel,
+  isAllMatchingHostsSelected,
 }: IDeleteHostModalProps): JSX.Element => {
   return (
     <Modal title={"Delete host"} onExit={onCancel} className={baseClass}>
@@ -22,7 +24,8 @@ const DeleteHostModal = ({
         <p>
           This action will delete{" "}
           <b>
-            {selectedHostIds.length}{" "}
+            {selectedHostIds.length}
+            {isAllMatchingHostsSelected && "+"}{" "}
             {selectedHostIds.length === 1 ? "host" : "hosts"}
           </b>{" "}
           from your Fleet instance.

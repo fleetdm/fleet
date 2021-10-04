@@ -924,7 +924,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = () => {
+  const renderDeleteHostModal = (isAllMatchingHostsSelected: boolean) => {
     if (!showDeleteHostModal) {
       return null;
     }
@@ -934,6 +934,7 @@ const ManageHostsPage = ({
         selectedHostIds={selectedHostIds}
         onSubmit={onDeleteHostSubmit}
         onCancel={toggleDeleteHostModal}
+        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
       />
     );
   };
@@ -1175,7 +1176,7 @@ const ManageHostsPage = ({
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
-      {renderDeleteHostModal()}
+      {renderDeleteHostModal(isAllMatchingHostsSelected)}
     </div>
   );
 };
