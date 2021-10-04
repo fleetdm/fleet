@@ -25,6 +25,27 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  destroyBulk: (hostIds: number[]) => {
+    const { HOSTS_DELETE } = endpoints;
+
+    return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
+  },
+  destroyByFilter: (
+    teamId: number | null,
+    query: string,
+    status: string,
+    labelId: number | null
+  ) => {
+    const { HOSTS_DELETE } = endpoints;
+    return sendRequest("POST", HOSTS_DELETE, {
+      filters: {
+        query,
+        status,
+        label_id: labelId,
+        team_id: teamId,
+      },
+    });
+  },
   refetch: (host: IHost) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}/${host.id}/refetch`;

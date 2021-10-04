@@ -17,6 +17,7 @@ export default {
   ACTIVITIES: "/v1/fleet/activities",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOSTS: "/v1/fleet/hosts",
+  HOSTS_DELETE: "/v1/fleet/hosts/delete",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
   INVITES: "/v1/fleet/invites",

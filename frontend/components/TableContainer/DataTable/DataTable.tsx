@@ -176,7 +176,11 @@ const DataTable = ({
   const renderSelectedCount = (): JSX.Element => {
     return (
       <p>
-        <span>{selectedFlatRows.length}</span> selected
+        <span>
+          {selectedFlatRows.length}
+          {isAllPagesSelected && "+"}
+        </span>{" "}
+        selected
       </p>
     );
   };
