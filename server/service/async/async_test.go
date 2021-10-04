@@ -286,6 +286,116 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	require.True(t, h1l1Before.UpdatedAt.Before(h1l1After.UpdatedAt))
 }
 
+func TestRecordPolicyQueryExecutions(t *testing.T) {
+	ds := new(mock.Store)
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
+		return nil
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false)
+		t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
+		t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false)
+		t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
+		t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+	})
+}
+
+func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:              1,
+		Platform:        "linux",
+		PolicyUpdatedAt: lastYear,
+	}
+
+	var yes, no = true, false
+	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
+	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	task := Task{
+		Datastore:    ds,
+		Pool:         pool,
+		AsyncEnabled: false,
+	}
+
+	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(lastYear))
+
+	err := task.RecordPolicyQueryExecutions(ctx, host, results, now)
+	require.NoError(t, err)
+	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	ds.RecordPolicyQueryExecutionsFuncInvoked = false
+
+	conn := pool.Get()
+	defer conn.Close()
+	defer conn.Do("DEL", keyList, keyTs)
+
+	n, err := redigo.Int(conn.Do("EXISTS", keyList))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	n, err = redigo.Int(conn.Do("EXISTS", keyTs))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	policyReportedAt = task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(now))
+}
+
+func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
+	ctx := context.Background()
+	now := time.Now()
+	lastYear := now.Add(-365 * 24 * time.Hour)
+	host := &fleet.Host{
+		ID:              1,
+		Platform:        "linux",
+		PolicyUpdatedAt: lastYear,
+	}
+	var yes, no = true, false
+	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
+	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
+
+	task := Task{
+		Datastore:    ds,
+		Pool:         pool,
+		AsyncEnabled: true,
+	}
+
+	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
+	require.True(t, policyReportedAt.Equal(lastYear))
+
+	err := task.RecordPolicyQueryExecutions(ctx, host, results, now)
+	require.NoError(t, err)
+	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+
+	conn := pool.Get()
+	defer conn.Close()
+	defer conn.Do("DEL", keyList, keyTs)
+
+	res, err := redigo.Strings(conn.Do("LRANGE", keyList, 0, -1))
+	require.NoError(t, err)
+	require.Equal(t, 4, len(res))
+	require.ElementsMatch(t, []string{"1=1", "2=1", "3=-1", "4=-1"}, res)
+
+	ts, err := redigo.Int64(conn.Do("GET", keyTs))
+	require.NoError(t, err)
+	require.Equal(t, now.Unix(), ts)
+
+	policyReportedAt = task.GetHostPolicyReportedAt(ctx, host)
+	// because we transition via unix epoch (seconds), not exactly equal
+	require.WithinDuration(t, now, policyReportedAt, time.Second)
+	// host's PolicyUpdatedAt field hasn't been updated yet, because the label
+	// results are in redis, not in mysql yet.
+	require.True(t, host.PolicyUpdatedAt.Equal(lastYear))
+}
+
 func TestRecordLabelQueryExecutions(t *testing.T) {
 	ds := new(mock.Store)
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
