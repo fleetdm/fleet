@@ -478,18 +478,6 @@ const ManageHostsPage = ({
     router.goBack();
   };
 
-  // const onShowEnrollSecretClick = (
-  //   evt: React.MouseEvent<HTMLButtonElement>
-  // ) => {
-  //   evt.preventDefault();
-  //   toggleEnrollSecretModal();
-  // };
-
-  // const onAddHostClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
-  //   evt.preventDefault();
-  //   toggleAddHostModal();
-  // };
-
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
@@ -533,22 +521,19 @@ const ManageHostsPage = ({
     if (!isEmpty(searchQuery)) {
       newQueryParams.query = searchQuery;
     }
-    if (sortBy[0] && sortBy[0].key) {
-      newQueryParams.order_key = sortBy[0].key;
-    } else {
-      newQueryParams.order_key = DEFAULT_SORT_HEADER;
-    }
-    if (sortBy[0] && sortBy[0].direction) {
-      newQueryParams.order_direction = sortBy[0].direction;
-    } else {
-      newQueryParams.order_direction = DEFAULT_SORT_DIRECTION;
-    }
+
+    newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
+    newQueryParams.order_direction =
+      sort[0].direction || DEFAULT_SORT_DIRECTION;
+
     if (teamId) {
       newQueryParams.team_id = teamId;
     }
+
     if (policyId) {
       newQueryParams.policy_id = policyId;
     }
+
     if (policyResponse) {
       newQueryParams.policy_response = policyResponse;
     }
