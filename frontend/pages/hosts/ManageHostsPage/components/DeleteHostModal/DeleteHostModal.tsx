@@ -11,9 +11,11 @@ interface IDeleteHostModalProps {
   onCancel: () => void;
 }
 
-const DeleteHostModal = (props: IDeleteHostModalProps): JSX.Element => {
-  const { selectedHostIds, onSubmit, onCancel } = props;
-
+const DeleteHostModal = ({
+  selectedHostIds,
+  onSubmit,
+  onCancel,
+}: IDeleteHostModalProps): JSX.Element => {
   return (
     <Modal title={"Delete host"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>
