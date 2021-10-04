@@ -5,6 +5,7 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
+import { differenceInMilliseconds } from "date-fns";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -60,6 +61,7 @@ import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png"
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
+import { time } from "console";
 
 const baseClass = "host-details";
 
@@ -137,7 +139,33 @@ const HostDetailsPage = ({
       enabled: !!hostIdFromURL,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        // console.log(returnedHost);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+        if (returnedHost.refetch_requested) {
+          // const timeout = differenceInMilliseconds(
+          //   Date.now(),
+          //   new Date(returnedHost.seen_time)
+          // );
+          // console.log(timeout);
+          if (
+            differenceInMilliseconds(
+              Date.now(),
+              new Date(returnedHost.seen_time)
+            ) < 60000
+          ) {
+            setTimeout(() => {
+              console.log("refetch attempt");
+              fullyReloadHost();
+            }, 1000);
+          } else {
+            dispatch(
+              renderFlash(
+                "error",
+                `We're having trouble fetching this host. Please try again later.`
+              )
+            );
+          }
+        }
       },
       onError: (error) => {
         console.log(error);
@@ -231,7 +259,10 @@ const HostDetailsPage = ({
       // unless there is an error or until the user refreshes the page.
       setShowRefetchLoadingSpinner(true);
       try {
-        await hostAPI.refetch(host);
+        await hostAPI.refetch(host).then(() => {
+          console.log("start refecthing: ");
+          setTimeout(() => fullyReloadHost(), 1000);
+        });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
