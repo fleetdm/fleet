@@ -537,7 +537,7 @@ const ManageHostsPage = ({
     if (policyResponse) {
       newQueryParams.policy_response = policyResponse;
     }
-    
+
     // triggers useDeepEffect using queryParams
     router.replace(
       getNextLocationPath({
