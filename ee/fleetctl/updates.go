@@ -129,15 +129,10 @@ func updatesInitFunc(c *cli.Context) error {
 	); err != nil {
 		return errors.Wrap(err, "initialize targets")
 	}
-	if err := repo.SnapshotWithExpires(
-		tuf.CompressionTypeNone,
-		time.Now().Add(snapshotExpirationDuration),
-	); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
 		return errors.Wrap(err, "make snapshot")
 	}
-	if err := repo.TimestampWithExpires(
-		time.Now().Add(timestampExpirationDuration),
-	); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
 		return errors.Wrap(err, "make timestamp")
 	}
 
@@ -265,16 +260,11 @@ func updatesAddFunc(c *cli.Context) error {
 		return errors.Wrap(err, "add targets")
 	}
 
-	if err := repo.SnapshotWithExpires(
-		tuf.CompressionTypeNone,
-		time.Now().Add(snapshotExpirationDuration),
-	); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
 		return errors.Wrap(err, "make snapshot")
 	}
 
-	if err := repo.TimestampWithExpires(
-		time.Now().Add(timestampExpirationDuration),
-	); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
 		return errors.Wrap(err, "make timestamp")
 	}
 
@@ -350,6 +340,9 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	if err := checkKeys(c.String("path"),
 		"root",
+		"targets",
+		"snapshot",
+		"timestamp",
 	); err != nil {
 		return err
 	}
@@ -370,17 +363,35 @@ func updatesRotateFunc(c *cli.Context) error {
 		id := key.IDs()[0]
 		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
 		if err != nil {
-			fmt.Printf("%+v %T", err, err)
-			if !errors.Is(err, &tuf.ErrKeyNotFound{}) {
+			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
+			// tuf.ErrKeyNotFound as these represent keys that are not present in the manifest and
+			// so do not need to be revoked.
+			if !errors.As(err, &tuf.ErrKeyNotFound{}) {
 				return errors.Wrap(err, "revoke key")
 			}
 		}
 	}
 
+	// Re-sign the root metadata
 	if err := repo.Sign("root.json"); err != nil {
 		return errors.Wrap(err, "sign root.json")
 	}
 
+	// Generate new metadata for each role (technically some of these may not need regeneration
+	// depending on which key was rotated, but there should be no harm in generating new ones for each).
+	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(targetsExpirationDuration)); err != nil {
+		return errors.Wrap(err, "generate targets")
+	}
+
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+		return errors.Wrap(err, "generate snapshot")
+	}
+
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+		return errors.Wrap(err, "generate timestamp")
+	}
+
+	// Commit the changes.
 	if err := repo.Commit(); err != nil {
 		return errors.Wrap(err, "commit repo")
 	}
