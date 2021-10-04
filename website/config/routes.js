@@ -42,10 +42,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /press-kit': {
+  'GET /logos': {
     action: 'view-press-kit',
     locals:{
-      pageTitleForMeta: 'Press kit | Fleet for osquery',
+      pageTitleForMeta: 'Logos | Fleet for osquery',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },

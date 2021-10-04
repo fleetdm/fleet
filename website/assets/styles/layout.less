@@ -1,4 +1,4 @@
-@footer-height: 222px;
+@footer-height: 280px;
 @container-md-max-width: 1100px;
 
 [v-cloak] { display: none; }
@@ -192,12 +192,22 @@ html, body {
   position: absolute;
   left: 0px;
   bottom: 0px;
-  // padding-top: 63px;
 
   a {
     color: white;
   }
 
+  [purpose='footer-container'] {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-bottom: 70px;
+    padding-top: 60px;
+  }
+
+  [purpose='footer-nav'] {
+    display: flex;
+    flex-direction: row;
+  }
 }
 
 body.detected-mobile {
@@ -216,25 +226,38 @@ body.detected-mobile {
 
 @media (max-width: 1199px) {
   [purpose='page-wrap'] {
-    padding-bottom: 260px;
+    padding-bottom: 404px;
+
     [purpose='page-footer'] {
-      height: 260px;
+      height: 404px;
+
+      [purpose='footer-container'] {
+        padding-bottom: 40px;
+      }
     }
   }
 }
 
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
-    padding-bottom: 380px;
+    padding-bottom: 518px;
+
     [purpose='page-footer'] {
-      padding-top: 44px;
-      height: 380px;
+      height: 518px;
     }
   }
 }
 
-@media (max-width: 300px) {
-  [purpose='join-the-community-on-slack-expanded-text'] {
-    display: none;
+@media (max-width: 500px) {
+  [purpose='page-wrap'] {
+    padding-bottom: 728px;
+
+    [purpose='page-footer'] {
+      height: 728px;
+
+      [purpose='footer-nav'] {
+        display: block;
+      }
+    }
   }
 }
