@@ -924,7 +924,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = (isAllMatchingHostsSelected: boolean) => {
+  const renderDeleteHostModal = () => {
     if (!showDeleteHostModal) {
       return null;
     }
@@ -1176,7 +1176,7 @@ const ManageHostsPage = ({
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
-      {renderDeleteHostModal(isAllMatchingHostsSelected)}
+      {renderDeleteHostModal()}
     </div>
   );
 };
