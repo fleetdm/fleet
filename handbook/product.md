@@ -22,10 +22,10 @@ For issues related to something that was ALREADY in Figma Fleet EE (current, dev
 
 ## Fleet docs
 
-#### Adding a link to Fleet docs
+#### Adding a link to the Fleet docs
 You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
+However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
 
 #### Linking to a location on GitHub
@@ -34,7 +34,7 @@ When adding a link to a location on GitHub that is outside of `/docs`, be sure t
 To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
 #### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
 
 An example of a link that lives outside of `/docs` is:
 
@@ -42,9 +42,23 @@ An example of a link that lives outside of `/docs` is:
 ../../tools/app/prometheus
 ```
 
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
+
+#### Adding an image to the Fleet docs
+Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
+
+When adding images to the Fleet documentation, follow these guidelines:
+- Keep the images as simple as possible to maintain (screenshots can get out of date quickly as UIs change)
+- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
+- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
+- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
+
+Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
+The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
+
+> Note that the instructions above also apply to adding images in the Fleet handbook.
 
 ## Manual QA
 
