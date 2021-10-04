@@ -27,7 +27,7 @@ For example:
 
 It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
 
-Check out [the instructions in the `/tools/osquery` directory](../../tools/osquery/README.md#testing-with-containerized-osqueryd) for starting up simulated hosts in your development environment.
+Check out [the instructions in the `/tools/osquery` directory](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
@@ -217,7 +217,7 @@ Tests will run automatically and results are reported to the shell.
 
 ## Test hosts
 
-The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](../../tools/osquery) for more information.
+The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for more information.
 
 ## Email
 
@@ -284,4 +284,4 @@ Password: user123#
 
 Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable Single Sign On" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign On with SimpleSAML" on the login page.
 
-To add additional users, modify [tools/saml/users.php](../../tools/saml/users.php) and restart the `simplesaml` container.
+To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.
