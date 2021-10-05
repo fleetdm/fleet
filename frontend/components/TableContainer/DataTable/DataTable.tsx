@@ -318,9 +318,7 @@ const DataTable = ({
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => (
                   <th
-                    className={
-                      column.id === "selection" ? "select__header" : ""
-                    }
+                    className={column.id ? `${column.id}__header` : ""}
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                   >
                     {column.render("Header")}
