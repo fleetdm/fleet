@@ -14,6 +14,9 @@ import hostsAPI, {
   IHostLoadOptions,
   ISortOption,
 } from "services/entities/hosts";
+import hostCountAPI, {
+  IHostCountLoadOptions,
+} from "services/entities/host_count";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -175,6 +178,9 @@ const ManageHostsPage = ({
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [hostCount, setHostCount] = useState<number>();
+  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policyName, setPolicyName] = useState<string>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
@@ -309,6 +315,30 @@ const ManageHostsPage = ({
     }
   };
 
+  const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
+    setIsHostCountLoading(true);
+
+    options = {
+      ...options,
+      teamId: getValidatedTeamId(
+        teams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean
+      ),
+    };
+
+    try {
+      const { hosts: returnedHostCount } = await hostCountAPI.load(options);
+      setHostCount(returnedHostCount);
+    } catch (error) {
+      console.error(error);
+      setHasHostCountErrors(true);
+    } finally {
+      setIsHostCountLoading(false);
+    }
+  };
+
   // triggered every time the route is changed
   // which means every filter click and text search
   useDeepEffect(() => {
@@ -342,6 +372,7 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
+    retrieveHostCount(options); // TODO: Incorporate additional info filters parameter
   }, [location, tableQueryData, labels]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
@@ -1084,7 +1115,7 @@ const ManageHostsPage = ({
       return null;
     }
 
-    if (hasHostErrors) {
+    if (hasHostErrors || hasHostCountErrors) {
       return <TableDataError />;
     }
 
@@ -1113,7 +1144,7 @@ const ManageHostsPage = ({
           currentTeam
         )}
         data={hosts}
-        isLoading={isHostsLoading}
+        isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1138,6 +1169,7 @@ const ManageHostsPage = ({
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
         customControl={renderStatusDropdown}
+        customCount={hostCount} // custom count populated from API filters
       />
     );
   };
