@@ -198,6 +198,7 @@ func TestGetHosts(t *testing.T) {
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)
 		hosts := []*fleet.Host{
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -211,6 +212,7 @@ func TestGetHosts(t *testing.T) {
 				SeenTime:        time.Time{},
 				ComputerName:    "test_host",
 				Hostname:        "test_host",
+				Additional:      &additional,
 			},
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{

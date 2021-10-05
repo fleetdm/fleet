@@ -17,15 +17,18 @@ assignees: ''
 
 1. [fleetctl preview setup](https://fleetdm.com/get-started)
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
+3. premium tests require license key `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
+
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a sanity test. If smoke tests are failing, a release cannot proceed.
 
 ## Prerequisites
 
-1. `fleetctrl preview` is set up and running the desired test version using `--tag` parameters.
+1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://github.com/fleetdm/fleet/blob/main/handbook/product.md#manual-qa )
 2. Unless you are explicitly testing older browser versions, browser is up to date.
 3. Certificate & flagfile are in place to create new host.
+4. In your browser, clear local storage using devtools.
 
 ## Instructions
 
@@ -35,10 +38,10 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 <tr><td>Update flow</td><td>
 
 1. remove all fleet processes/agents/etc from Docker for a clean slate
-1. run `fleetctrl preview` with no tag for latest stable
+1. run `fleetctl preview` with no tag for latest stable
 1. create a host/query to later confirm upgrade with
 1. STOP fleet-preview-server instances in containers/apps on Docker
-1. run `fleetctrl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+1. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -69,3 +72,7 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 Issues found new to this version:
 
 Issues found that reproduce in last stable version: 
+
+What has not been tested:
+
+Include any notes on whether issues should block release or not as needed

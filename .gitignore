@@ -35,7 +35,6 @@ mysqldata/
 helm-temp
 
 #editors
-.vscode
 .idea
 
 # Cypress e2e testing

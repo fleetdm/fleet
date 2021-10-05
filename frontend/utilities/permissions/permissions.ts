@@ -31,8 +31,11 @@ const isTeamObserver = (user: IUser, teamId: number): boolean => {
 };
 
 // This checks against a specific team
-const isTeamMaintainer = (user: IUser, teamId: number): boolean => {
-  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+const isTeamMaintainer = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "maintainer";
 };
 

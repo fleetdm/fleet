@@ -19,7 +19,7 @@ describe(
 
     it("Can perform the appropriate free-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded
       cy.contains("All hosts");
@@ -38,7 +38,7 @@ describe(
       });
 
       // See and select "add new host"
-      cy.findByRole("button", { name: /new host/i }).click();
+      cy.findByRole("button", { name: /add new host/i }).click();
       cy.contains(/team/i).should("not.exist");
       cy.findByRole("button", { name: /done/i }).click();
 

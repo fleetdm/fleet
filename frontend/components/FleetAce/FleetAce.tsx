@@ -1,13 +1,14 @@
 import React, { useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
+import { Ace } from "ace-builds";
+import { IAceEditor } from "react-ace/lib/types";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { noop } from "lodash";
 
-import { IAceEditor } from "react-ace/lib/types";
 import "./mode";
 import "./theme";
 
@@ -24,7 +25,7 @@ interface IFleetAceProps {
   hint?: string;
   labelActionComponent?: React.ReactNode;
   onLoad?: (editor: IAceEditor) => void;
-  onChange?: (value: string) => void;
+  onChange?: (value: string, event?: any) => void;
   handleSubmit?: () => void;
 }
 
@@ -47,6 +48,47 @@ const FleetAce = ({
   handleSubmit = noop,
 }: IFleetAceProps) => {
   const editorRef = useRef<ReactAce>(null);
+  const wrapperClass = classnames(wrapperClassName, {
+    [`${baseClass}__wrapper--error`]: !!error,
+  });
+
+  const fixCursorPosition = (
+    startPosition: Ace.Point | undefined,
+    offset: number
+  ) => {
+    if (startPosition) {
+      const newColumn = startPosition.column + offset;
+      editorRef.current?.editor.moveCursorTo(startPosition.row, newColumn);
+    }
+  };
+
+  const fixHotkeys = (editor: IAceEditor) => {
+    editor.commands.removeCommand("gotoline");
+    editor.commands.removeCommand("find");
+    onLoad && onLoad(editor);
+  };
+
+  const handleDelete = (deleteCommand: string) => {
+    let cursorOffset = 0;
+    const currentText = editorRef.current?.editor.getValue();
+    const selectedText = editorRef.current?.editor.getSelectedText();
+    const selectedStartPosition = editorRef.current?.editor
+      .getSelection()
+      .getCursor();
+
+    if (selectedText) {
+      const remainingText = currentText?.replace(selectedText, "");
+      if (typeof remainingText !== "undefined") {
+        onChange && onChange(remainingText);
+        editorRef.current?.editor.clearSelection();
+      }
+    } else {
+      cursorOffset = -1;
+      editorRef.current?.editor.execCommand(deleteCommand);
+    }
+
+    fixCursorPosition(selectedStartPosition, cursorOffset);
+  };
 
   const renderLabel = useCallback(() => {
     const labelText = error || label;
@@ -69,44 +111,6 @@ const FleetAce = ({
     }
 
     return false;
-  };
-
-  const wrapperClass = classnames(wrapperClassName, {
-    [`${baseClass}__wrapper--error`]: !!error,
-  });
-
-  const handleDelete = (deleteCommand: string) => {
-    const currentText = editorRef.current?.editor.getValue();
-    const selectedText = editorRef.current?.editor.getSelectedText();
-    const selectedStartPosition = editorRef.current?.editor
-      .getSelection()
-      .getCursor();
-
-    if (selectedText) {
-      const remainingText = currentText?.replace(selectedText, "");
-      if (typeof remainingText !== "undefined") {
-        onChange && onChange(remainingText);
-        editorRef.current?.editor.clearSelection();
-      }
-    } else {
-      editorRef.current?.editor.execCommand(deleteCommand);
-    }
-
-    // not sure why adding zero works smh
-    if (selectedStartPosition && selectedStartPosition.column) {
-      const newColumn = selectedStartPosition?.column + 0;
-      selectedStartPosition &&
-        editorRef.current?.editor.moveCursorTo(
-          selectedStartPosition.row,
-          newColumn
-        );
-    }
-  };
-
-  const fixHotkeys = (editor: IAceEditor) => {
-    editor.commands.removeCommand("gotoline");
-    editor.commands.removeCommand("find");
-    onLoad && onLoad(editor);
   };
 
   return (

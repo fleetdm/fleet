@@ -1,0 +1,43 @@
+.pack-queries-list-wrapper {
+  flex-grow: 1;
+  padding: $pad-xlarge 0;
+  margin-bottom: $pad-medium;
+
+  h1 {
+    margin: 0 0 20px;
+  }
+
+  &__query-count {
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: $pad-large 0;
+  }
+
+  &__queries-list-wrapper {
+    margin-top: $pad-medium;
+    clear: both;
+  }
+
+  &__search-queries-input {
+    display: inline-block;
+    width: 100%;
+
+    input {
+      width: 100%;
+    }
+  }
+
+  &__query-btn {
+    float: right;
+    margin-top: 14px;
+  }
+
+  &__search-queries {
+    float: left;
+  }
+
+  &__no-queries {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+}

@@ -4,8 +4,8 @@ import { useSelector } from "react-redux";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
-import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
+
 import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
@@ -43,7 +43,6 @@ const QueriesListWrapper = (
   }, [loadingQueries]);
 
   const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
   const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
   const [searchString, setSearchString] = useState<string>("");
@@ -107,9 +106,9 @@ const QueriesListWrapper = (
         </div>
       </div>
     );
-  }, [searchString]);
+  }, [searchString, onCreateQueryClick]);
 
-  const tableHeaders = generateTableHeaders(isOnlyObserver);
+  const tableHeaders = generateTableHeaders(currentUser);
 
   return !isLoading ? (
     <div className={`${baseClass}`}>

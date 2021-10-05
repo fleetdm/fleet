@@ -4,8 +4,6 @@
 import React from "react";
 
 import { IHost } from "interfaces/host";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -288,16 +286,24 @@ const generateAvailableTableHeaders = (
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
-      // skip over column headers that are not shown in free tier
-      if (permissionUtils.isFreeTier(config)) {
+      // skip over column headers that are not shown in free observer tier
+      if (
+        permissionUtils.isFreeTier(config) &&
+        permissionUtils.isGlobalObserver(currentUser)
+      ) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"
         ) {
           return columns;
         }
-        // In base tier, we want to check user role to enable/disable select column
+        // skip over column headers that are not shown in free admin/maintainer
+      } else if (permissionUtils.isFreeTier(config)) {
+        if (currentColumn.accessor === "team_name") {
+          return columns;
+        }
       } else if (
+        // In premium tier, we want to check user role to enable/disable select column
         !permissionUtils.isGlobalAdmin(currentUser) &&
         !permissionUtils.isGlobalMaintainer(currentUser)
       ) {

@@ -21,8 +21,8 @@ export default (currentUser) => {
       name: "Home",
       iconName: "logo",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/home/dashboard`),
-        pathname: PATHS.HOMEPAGE,
+        regex: new RegExp(`^${URL_PREFIX}/dashboard`),
+        pathname: PATHS.HOME,
       },
     },
     {
@@ -45,16 +45,7 @@ export default (currentUser) => {
     },
   ];
 
-  const globalMaintainerNavItems = [
-    {
-      icon: "packs",
-      name: "Schedule",
-      iconName: "packs",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
-        pathname: PATHS.MANAGE_SCHEDULE,
-      },
-    },
+  const policiesTab = [
     {
       icon: "policies",
       name: "Policies",
@@ -66,13 +57,33 @@ export default (currentUser) => {
     },
   ];
 
+  const teamMaintainerNavItems = [
+    {
+      icon: "packs",
+      name: "Schedule",
+      iconName: "packs",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
+        pathname: PATHS.MANAGE_SCHEDULE,
+      },
+    },
+  ];
+
   if (permissionUtils.isGlobalAdmin(currentUser)) {
-    return [...userNavItems, ...globalMaintainerNavItems, ...adminNavItems];
+    return [
+      ...userNavItems,
+      ...teamMaintainerNavItems,
+      ...policiesTab,
+      ...adminNavItems,
+    ];
   }
 
-  if (permissionUtils.isGlobalMaintainer(currentUser)) {
-    return [...userNavItems, ...globalMaintainerNavItems];
+  if (
+    permissionUtils.isGlobalMaintainer(currentUser) ||
+    permissionUtils.isAnyTeamMaintainer(currentUser)
+  ) {
+    return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
   }
 
-  return userNavItems;
+  return [...userNavItems, ...policiesTab];
 };

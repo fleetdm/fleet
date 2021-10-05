@@ -1,5 +1,6 @@
 import React, { useState, useRef, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 
 // @ts-ignore
@@ -7,7 +8,7 @@ import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { IQueryFormData } from "interfaces/query";
+import { IQuery, IQueryFormData } from "interfaces/query";
 
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
@@ -23,6 +24,7 @@ const baseClass = "query-form";
 interface IQueryFormProps {
   queryIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
+  storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -47,6 +49,7 @@ const validateQuerySQL = (query: string) => {
 const QueryForm = ({
   queryIdForEdit,
   showOpenSchemaActionText,
+  storedQuery,
   isStoredQueryLoading,
   onCreateQuery,
   onOsqueryTableSelect,
@@ -60,6 +63,9 @@ const QueryForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
+
+  // Note: The QueryContext values should always be used for any mutable query data such as query name
+  // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -72,6 +78,7 @@ const QueryForm = ({
   } = useContext(QueryContext);
 
   const {
+    currentUser,
     isOnlyObserver,
     isGlobalObserver,
     isAnyTeamMaintainer,
@@ -84,6 +91,12 @@ const QueryForm = ({
       listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
     );
   }, [lastEditedQueryBody]);
+  const hasTeamMaintainerPermissions = isEditMode
+    ? isAnyTeamMaintainer &&
+      storedQuery &&
+      currentUser &&
+      storedQuery.author_id === currentUser.id
+    : isAnyTeamMaintainer;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -200,75 +213,7 @@ const QueryForm = ({
     </form>
   );
 
-  const renderRunForMaintainer = (
-    <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name`}>{lastEditedQueryName}</h1>
-      <p className={`${baseClass}__query-description`}>
-        {lastEditedQueryDescription}
-      </p>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
-        onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
-      {showQueryEditor && (
-        <FleetAce
-          value={lastEditedQueryBody}
-          name="query editor"
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
-        />
-      )}
-      {renderLiveQueryWarning()}
-      <div
-        className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-      >
-        <Button
-          className={`${baseClass}__run`}
-          variant="blue-green"
-          onClick={goToSelectTargets}
-        >
-          Run query
-        </Button>
-      </div>
-    </form>
-  );
-
-  const renderCreateForTeamMaintainer = (
-    <>
-      <form className={`${baseClass}__wrapper`}>
-        <h1 className={`${baseClass}__query-name`}>New query</h1>
-        <FleetAce
-          value={lastEditedQueryBody}
-          error={errors.query}
-          label="Query:"
-          labelActionComponent={renderLabelComponent()}
-          name="query editor"
-          onLoad={onLoad}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(value: string) => setLastEditedQueryBody(value)}
-          handleSubmit={promptSaveQuery}
-        />
-        {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
-          >
-            Run query
-          </Button>
-        </div>
-      </form>
-    </>
-  );
-
-  const renderForGlobalAdminOrMaintainer = (
+  const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`}>
         {isEditMode ? (
@@ -333,7 +278,7 @@ const QueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          {hasSavePermissions && (
+          {(hasSavePermissions || isAnyTeamMaintainer) && (
             <>
               {isEditMode && (
                 <Button
@@ -345,14 +290,42 @@ const QueryForm = ({
                   Save as new
                 </Button>
               )}
-              <Button
-                className={`${baseClass}__save`}
-                variant="brand"
-                onClick={promptSaveQuery()}
-                disabled={false}
-              >
-                Save
-              </Button>
+              <div className="query-form__button-wrap--save-query-button">
+                <div
+                  data-tip
+                  data-for="save-query-button"
+                  data-tip-disable={
+                    !(isAnyTeamMaintainer && !hasTeamMaintainerPermissions)
+                  }
+                >
+                  <Button
+                    className={`${baseClass}__save`}
+                    variant="brand"
+                    onClick={promptSaveQuery()}
+                    disabled={
+                      isAnyTeamMaintainer && !hasTeamMaintainerPermissions
+                    }
+                  >
+                    Save
+                  </Button>
+                </div>{" "}
+                <ReactTooltip
+                  className={`save-query-button-tooltip`}
+                  place="bottom"
+                  type="dark"
+                  effect="solid"
+                  backgroundColor="#3e4771"
+                  id="save-query-button"
+                  data-html
+                >
+                  <div
+                    className={`tooltip`}
+                    style={{ width: "152px", textAlign: "center" }}
+                  >
+                    You can only save changes to a query if you are the author.
+                  </div>
+                </ReactTooltip>
+              </div>
             </>
           )}
           <Button
@@ -383,15 +356,7 @@ const QueryForm = ({
     return renderRunForObserver;
   }
 
-  if (!isEditMode && isAnyTeamMaintainer) {
-    return renderCreateForTeamMaintainer;
-  }
-
-  if (isAnyTeamMaintainer) {
-    return renderRunForMaintainer;
-  }
-
-  return renderForGlobalAdminOrMaintainer;
+  return renderForGlobalAdminOrAnyMaintainer;
 };
 
 export default QueryForm;

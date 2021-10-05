@@ -155,18 +155,20 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory {
+		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
 		}
 
 		if host.Modified {
-			if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host additional")
+			if host.Additional != nil {
+				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
+					return errors.Wrap(err, "failed to save host additional")
+				}
 			}
 
-			if ac.HostSettings.EnableHostUsers {
+			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
 				if err := saveHostUsersDB(ctx, tx, host); err != nil {
 					return errors.Wrap(err, "failed to save host users")
 				}
@@ -838,17 +840,6 @@ func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fl
 }
 
 func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if len(host.Users) == 0 {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
-			host.ID,
-		); err != nil {
-			return errors.Wrap(err, "mark all users as removed")
-		}
-
-		return nil
-	}
-
 	currentHost := &fleet.Host{ID: host.ID}
 	if err := loadHostUsersDB(ctx, tx, currentHost); err != nil {
 		return err

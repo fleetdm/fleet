@@ -88,6 +88,14 @@
       margin-left: $pad-medium;
     }
   }
+  
+  &__button-wrap--save-query-button:first-child {
+    margin-right: $pad-medium;
+  }
+
+  &__button-wrap--save-query-button:not(:first-child){
+    margin-left: $pad-medium;
+  }
 
   &__save-query-btn,
   &__cancel-btn {

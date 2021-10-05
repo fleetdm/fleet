@@ -341,37 +341,41 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		}
 	}
 
-	if len(vals) > 0 || len(removes) > 0 {
-		err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Complete inserts if necessary
-			if len(vals) > 0 {
-				sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
-				sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Complete inserts if necessary
+		if len(vals) > 0 {
+			sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
+			sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
-				_, err := tx.ExecContext(ctx, sql, vals...)
-				if err != nil {
-					return errors.Wrapf(err, "insert label query executions (%v)", vals)
-				}
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			if err != nil {
+				return errors.Wrapf(err, "insert label query executions (%v)", vals)
 			}
-
-			// Complete deletions if necessary
-			if len(removes) > 0 {
-				sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
-				query, args, err := sqlx.In(sql, host.ID, removes)
-				if err != nil {
-					return errors.Wrap(err, "IN for DELETE FROM label_membership")
-				}
-				query = tx.Rebind(query)
-				_, err = tx.ExecContext(ctx, query, args...)
-				if err != nil {
-					return errors.Wrap(err, "delete label query executions")
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
 		}
+
+		// Complete deletions if necessary
+		if len(removes) > 0 {
+			sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+			query, args, err := sqlx.In(sql, host.ID, removes)
+			if err != nil {
+				return errors.Wrap(err, "IN for DELETE FROM label_membership")
+			}
+			query = tx.Rebind(query)
+			_, err = tx.ExecContext(ctx, query, args...)
+			if err != nil {
+				return errors.Wrap(err, "delete label query executions")
+			}
+		}
+
+		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
+		if err != nil {
+			return errors.Wrap(err, "updating hosts label updated at")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil

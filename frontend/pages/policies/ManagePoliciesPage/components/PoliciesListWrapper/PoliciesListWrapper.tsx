@@ -14,6 +14,10 @@ interface IPoliciesListWrapperProps {
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
+  resultsTitle?: string;
+  selectedTeamId?: number | null;
+  canAddOrRemovePolicy?: boolean;
+  tableType?: string;
 }
 
 const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
@@ -22,6 +26,10 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
     isLoading,
     onRemovePoliciesClick,
     toggleAddPolicyModal,
+    resultsTitle,
+    selectedTeamId,
+    canAddOrRemovePolicy,
+    tableType,
   } = props;
 
   const NoPolicies = () => {
@@ -34,28 +42,36 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
               Policies allow you to monitor which devices meet a certain
               standard.
             </p>
-            <div className={`${noPoliciesClass}__-cta-buttons`}>
-              <Button
-                variant="brand"
-                className={`${noPoliciesClass}__add-policy-button`}
-                onClick={toggleAddPolicyModal}
-              >
-                Add a policy
-              </Button>
-            </div>
+            {canAddOrRemovePolicy && (
+              <div className={`${noPoliciesClass}__-cta-buttons`}>
+                <Button
+                  variant="brand"
+                  className={`${noPoliciesClass}__add-policy-button`}
+                  onClick={toggleAddPolicyModal}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
-  const tableHeaders = generateTableHeaders();
-
   return (
-    <div className={`${baseClass}`}>
+    <div
+      className={`${baseClass} ${
+        canAddOrRemovePolicy ? "" : "hide-selection-column"
+      }`}
+    >
       <TableContainer
-        resultsTitle={"queries"}
-        columns={tableHeaders}
+        resultsTitle={resultsTitle || "policies"}
+        columns={generateTableHeaders({
+          selectedTeamId,
+          showSelectionColumn: canAddOrRemovePolicy,
+          tableType,
+        })}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
         defaultSortHeader={"query_name"}
@@ -70,6 +86,7 @@ const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
         primarySelectActionButtonText={"Remove"}
         emptyComponent={NoPolicies}
         onQueryChange={noop}
+        disableCount={tableType === "inheritedPolicies"}
       />
     </div>
   );

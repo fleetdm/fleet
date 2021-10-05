@@ -48,9 +48,11 @@ class AddHostModal extends Component {
         )
       : this.props.teams;
 
-    this.teamSecrets = Object.values(this.props.teams).map((team) => {
-      return { id: team.id, name: team.name, secrets: team.secrets };
-    });
+    this.teamSecrets = this.props.teams
+      ? Object.values(this.props.teams).map((team) => {
+          return { id: team.id, name: team.name, secrets: team.secrets };
+        })
+      : [];
 
     this.state = {
       fetchCertificateError: undefined,
