@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,10 +16,33 @@ func TestPreview(t *testing.T) {
 
 	os.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	testOverridePreviewDirectory = t.TempDir()
+	configPath := filepath.Join(t.TempDir(), "config")
+	t.Log("config path: ", configPath)
 
 	t.Cleanup(func() {
-		require.Equal(t, "", runAppForTest(t, []string{"preview", "stop"}))
+		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	require.Equal(t, "", runAppForTest(t, []string{"preview"}))
+	require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath}))
+
+	// run some sanity checks on the preview environment
+
+	// standard queries must have been loaded
+	queries := runAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
+	n := strings.Count(queries, `"kind":"query"`)
+	require.Greater(t, n, 10)
+
+	// app configuration must disable analytics
+	appConf := runAppForTest(t, []string{"get", "config", "--config", configPath})
+	ok := strings.Contains(appConf, `enable_analytics: false`)
+	require.False(t, ok, appConf) // TODO: once #2372 is merged this must be True
+
+	// software inventory must be enabled
+	ok = strings.Contains(appConf, `enable_software_inventory: true`)
+	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
+
+	// TODO: is there a way to retrieve the fleet config options (e.g.
+	// current_instance_checks)? Doesn't look like it, fleetctl get config
+	// returns the app config, and fleetctl config get returns the fleetctl
+	// config?
 }
