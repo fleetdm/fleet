@@ -209,6 +209,13 @@ allow {
 	action == read
 }
 
+# Team maintainers can write to hosts of their own team
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == maintainer
+	action == write
+}
+
 ##
 # Labels
 ##

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -209,4 +210,146 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+}
+
+func TestHostAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	teamHost := &fleet.Host{TeamID: ptr.Uint(1)}
+	globalHost := &fleet.Host{}
+
+	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
+		return nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == 1 {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == "1" {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return nil, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		return nil
+	}
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+
+	var testCases = []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalWrite bool
+		shouldFailGlobalRead  bool
+		shouldFailTeamWrite   bool
+		shouldFailTeamRead    bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			false,
+			false,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.HostByIdentifier(ctx, "1")
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.GetHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.HostByIdentifier(ctx, "2")
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			err = svc.DeleteHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.DeleteHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.RefetchHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+		})
+	}
+
+	// List, GetHostSummary, FlushSeenHost work for all
 }
