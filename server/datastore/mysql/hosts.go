@@ -810,20 +810,27 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return nil
 	}
 
-	sql := `
-		UPDATE hosts SET team_id = ?
-		WHERE id IN (?)
-	`
-	sql, args, err := sqlx.In(sql, teamID, hostIDs)
-	if err != nil {
-		return errors.Wrap(err, "sqlx.In AddHostsToTeam")
-	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
+		// it can only be from the previous team they are being transferred from
+		query := `DELETE FROM policy_membership_history 
+					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`
+		query, args, err := sqlx.In(query, hostIDs)
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return errors.Wrap(err, "exec AddHostsToTeam delete policy membership history")
+		}
 
-	if _, err := d.writer.ExecContext(ctx, sql, args...); err != nil {
-		return errors.Wrap(err, "exec AddHostsToTeam")
-	}
+		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		if err != nil {
+			return errors.Wrap(err, "sqlx.In AddHostsToTeam")
+		}
 
-	return nil
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return errors.Wrap(err, "exec AddHostsToTeam")
+		}
+
+		return nil
+	})
 }
 
 func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fleet.Host) error {
