@@ -1,13 +1,14 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import { Ace } from "ace-builds";
 import { IAceEditor } from "react-ace/lib/types";
 import classnames from "classnames";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { noop } from "lodash";
+
+import Spinner from "components/loaders/Spinner";
 
 import "./mode";
 import "./theme";
@@ -48,9 +49,19 @@ const FleetAce = ({
   handleSubmit = noop,
 }: IFleetAceProps) => {
   const editorRef = useRef<ReactAce>(null);
-  const wrapperClass = classnames(wrapperClassName, {
+  const wrapperClass = classnames(wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
   });
+
+  const [isReady, setIsReady] = useState<boolean>(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setIsReady(true);
+    }, 0);
+
+    return () => editorRef?.current?.editor.destroy();
+  }, []);
 
   const fixHotkeys = (editor: IAceEditor) => {
     editor.commands.removeCommand("gotoline");
@@ -100,44 +111,48 @@ const FleetAce = ({
   return (
     <div className={wrapperClass}>
       {renderLabel()}
-      <AceEditor
-        ref={editorRef}
-        enableBasicAutocompletion
-        enableLiveAutocompletion
-        editorProps={{ $blockScrolling: Infinity }}
-        fontSize={fontSize}
-        mode="fleet"
-        minLines={2}
-        maxLines={20}
-        name={name}
-        onChange={onChange}
-        onLoad={fixHotkeys}
-        readOnly={readOnly}
-        setOptions={{ enableLinking: true }}
-        showGutter={showGutter}
-        showPrintMargin={false}
-        theme="fleet"
-        value={value}
-        width="100%"
-        wrapEnabled={wrapEnabled}
-        commands={[
-          {
-            name: "commandName",
-            bindKey: { win: "Ctrl-Enter", mac: "Ctrl-Enter" },
-            exec: handleSubmit,
-          },
-          {
-            name: "deleteSelection",
-            bindKey: { win: "Delete", mac: "Delete" },
-            exec: () => handleDelete("del"),
-          },
-          {
-            name: "backspaceSelection",
-            bindKey: { win: "Backspace", mac: "Backspace" },
-            exec: () => handleDelete("backspace"),
-          },
-        ]}
-      />
+      {isReady ? (
+        <AceEditor
+          ref={editorRef}
+          enableBasicAutocompletion
+          enableLiveAutocompletion
+          editorProps={{ $blockScrolling: Infinity }}
+          fontSize={fontSize}
+          mode="fleet"
+          minLines={2}
+          maxLines={20}
+          name={name}
+          onChange={onChange}
+          onLoad={fixHotkeys}
+          readOnly={readOnly}
+          setOptions={{ enableLinking: true }}
+          showGutter={showGutter}
+          showPrintMargin={false}
+          theme="fleet"
+          value={value}
+          width="100%"
+          wrapEnabled={wrapEnabled}
+          commands={[
+            {
+              name: "commandName",
+              bindKey: { win: "Ctrl-Enter", mac: "Ctrl-Enter" },
+              exec: handleSubmit,
+            },
+            {
+              name: "deleteSelection",
+              bindKey: { win: "Delete", mac: "Delete" },
+              exec: () => handleDelete("del"),
+            },
+            {
+              name: "backspaceSelection",
+              bindKey: { win: "Backspace", mac: "Backspace" },
+              exec: () => handleDelete("backspace"),
+            },
+          ]}
+        />
+      ) : (
+        <Spinner />
+      )}
       {renderHint()}
     </div>
   );
