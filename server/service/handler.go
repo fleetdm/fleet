@@ -722,8 +722,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 
 	e.POST("/api/v1/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
+	e.GET("/api/v1/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
 	e.GET("/api/v1/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
-	e.GET("/api/v1/fleet/hosts/{id}", getHostEndpoint, getHostRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
