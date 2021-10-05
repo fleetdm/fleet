@@ -87,10 +87,7 @@ const generateTableHeaders = (options: {
           disableSortBy: true,
           accessor: "query_name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <LinkCell
-              value={cellProps.cell.value}
-              path={`${PATHS.URL_PREFIX}/queries/${cellProps.row.original.query_id}`}
-            />
+            <TextCell value={cellProps.cell.value} />
           ),
         },
         {

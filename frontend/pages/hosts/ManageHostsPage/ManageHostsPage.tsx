@@ -39,6 +39,7 @@ import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 
 import {
   defaultHiddenColumns,
@@ -65,6 +66,7 @@ import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
+import DeleteHostModal from "./components/DeleteHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -154,6 +156,9 @@ const ManageHostsPage = ({
     false
   );
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
+    false
+  );
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
   );
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
@@ -256,6 +261,10 @@ const ManageHostsPage = ({
 
   const toggleTransferHostModal = () => {
     setShowTransferHostModal(!showTransferHostModal);
+  };
+
+  const toggleDeleteHostModal = () => {
+    setShowDeleteHostModal(!showDeleteHostModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -638,6 +647,11 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  const onDeleteHostsClick = (hostIds: number[]) => {
+    toggleDeleteHostModal();
+    setSelectedHostIds(hostIds);
+  };
+
   const onTransferHostSubmit = async (team: ITeam) => {
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
@@ -685,6 +699,56 @@ const ManageHostsPage = ({
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
+      );
+    }
+  };
+
+  const onDeleteHostSubmit = async () => {
+    let action = hostsAPI.destroyBulk(selectedHostIds);
+
+    if (isAllMatchingHostsSelected) {
+      let status = "";
+      let labelId = null;
+      const teamId = currentTeam?.id || null;
+      const selectedStatus = getStatusSelected();
+
+      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
+        status = getStatusSelected() || "";
+      } else {
+        labelId = selectedLabel?.id as number;
+      }
+
+      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+    }
+
+    try {
+      await action;
+
+      const successMessage = `${
+        selectedHostIds.length === 1 ? "Host" : "Hosts"
+      } successfully deleted.`;
+
+      dispatch(renderFlash("success", successMessage));
+      retrieveHosts({
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        sortBy,
+        teamId: currentTeam?.id,
+        policyId,
+        policyResponse,
+      });
+      refetchLabels();
+      toggleDeleteHostModal();
+      setSelectedHostIds([]);
+      setIsAllMatchingHostsSelected(false);
+    } catch (error) {
+      dispatch(
+        renderFlash(
+          "error",
+          `Could not delete ${
+            selectedHostIds.length === 1 ? "host" : "hosts"
+          }. Please try again.`
+        )
       );
     }
   };
@@ -845,6 +909,21 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderDeleteHostModal = () => {
+    if (!showDeleteHostModal) {
+      return null;
+    }
+
+    return (
+      <DeleteHostModal
+        selectedHostIds={selectedHostIds}
+        onSubmit={onDeleteHostSubmit}
+        onCancel={toggleDeleteHostModal}
+        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      />
+    );
+  };
+
   const renderHeaderLabelBlock = ({
     description,
     display_text: displayText,
@@ -997,6 +1076,17 @@ const ManageHostsPage = ({
       return <NoHosts />;
     }
 
+    const secondarySelectActions: IActionButtonProps[] = [
+      {
+        name: "transfer",
+        onActionButtonClick: onTransferToTeamClick,
+        buttonText: "Transfer",
+        variant: "text-icon",
+        icon: "transfer",
+        hideButton: !isPremiumTier,
+      },
+    ];
+
     return (
       <TableContainer
         columns={generateVisibleTableColumns(
@@ -1017,8 +1107,11 @@ const ManageHostsPage = ({
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onTransferToTeamClick}
-        primarySelectActionButtonText={"Transfer to team"}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        primarySelectActionButtonText={"Delete"}
+        primarySelectActionButtonIcon={"delete"}
+        primarySelectActionButtonVariant={"text-icon"}
+        secondarySelectActions={secondarySelectActions}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
@@ -1068,6 +1161,7 @@ const ManageHostsPage = ({
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
+      {renderDeleteHostModal()}
     </div>
   );
 };
