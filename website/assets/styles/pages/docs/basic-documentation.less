@@ -1,28 +1,31 @@
 #basic-documentation {
 
   h1 {
-    font-size: 36px;
-    line-height: 48px;
+    font-size: 28px;
+    line-height: 34px;
+  }
+  h2:first-child {
+    border-top: none;
+  }
+
+  h2 {
+    font-size: 24px;
+    line-height: 28px;
   }
 
   h3 {
-    font-size: 22px;
-    line-height: 36px;
+    font-size: 20px;
+    line-height: 24px;
   }
 
   h4 {
     font-size: 18px;
+    line-height: 24px;
     padding-top: 24px;
   }
 
   h5 {
-    font-weight: 800;
-  }
 
-  h6 {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: @main-font;
   }
 
   a {
@@ -356,15 +359,18 @@
       }
 
       h2 {
-        font-size: 28px;
-        line-height: 36px;
-        padding-top: 24px;
+        border-top: 1px solid @core-fleet-black-25;
+        margin-top: 8px;
+        padding-top: 40px;
         padding-bottom: 24px;
+        &:first-of-type {
+          border-top: none;
+          padding-top:40px;
+          margin-top: 0px;
+        }
       }
 
       h3 {
-        font-size: 24px;
-        line-height: 28px;
         padding-top: 24px;
         padding-bottom: 24px;
         margin-bottom: 0px;
@@ -376,6 +382,9 @@
       }
 
       h5 {
+        font-size: 16px;
+        font-weight: 700;
+        font-family: @main-font;
         margin-top: 16px;
         margin-bottom: 16px;
       }
