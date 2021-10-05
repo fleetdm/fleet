@@ -145,5 +145,5 @@ describe("Teams flow", () => {
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByText(/mystic/i).should("not.exist");
-  };);
+  });
 });
