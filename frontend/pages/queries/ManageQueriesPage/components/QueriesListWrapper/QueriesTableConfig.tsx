@@ -4,7 +4,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import moment from "moment";
+import format from "date-fns/format";
 import { memoize } from "lodash";
 // @ts-ignore
 import sqlTools from "utilities/sql_tools";
@@ -14,6 +14,7 @@ import permissionsUtils from "utilities/permissions";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import PATHS from "router/paths";
@@ -21,9 +22,6 @@ import PATHS from "router/paths";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 
-interface IQueryTableRow extends IQuery {
-  platform: string[];
-}
 interface IQueryRow {
   id: string;
   original: IQuery;
@@ -99,7 +97,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           memoizedSqlTables(cellProps.cell.value)
         );
 
-        return <TextCell value={platforms.join(", ")} />;
+        return <PlatformCell value={platforms} />;
       },
     },
     {
@@ -126,7 +124,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/DD/YY")} />
       ),
     },
   ];
@@ -153,7 +151,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               // so we need to do some filtering and then modify the toggle select all
               // behavior for the header checkbox
               const userAuthoredQueries = rows.filter(
-                (r: any) => r.original.author_id === currentUser.id
+                (r: IQueryRow) => r.original.author_id === currentUser.id
               );
               if (
                 selectedFlatRows.length &&
@@ -161,12 +159,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               ) {
                 // If some but not all of the user authored queries are already selected,
                 // we toggle all of the user's unselected queries to true
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id, true)
                 );
               } else {
                 // Otherwise, we toggle all of the user's queries to the opposite of their current state
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id)
                 );
               }
@@ -216,7 +214,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
       disableHidden: true,
     });
-    tableHeaders.splice(3, 0, {
+    tableHeaders.splice(2, 0, {
       title: "Observer can run",
       Header: (cellProps) => (
         <HeaderCell

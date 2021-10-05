@@ -17,6 +17,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewQueryModal from "../NewQueryModal";
+import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
+import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -57,7 +59,7 @@ const QueryForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryFormProps) => {
+}: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -172,6 +174,40 @@ const QueryForm = ({
     );
   };
 
+  const renderPlatformCompatibility = () => {
+    const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
+      switch (string) {
+        case "darwin":
+          return "macOS";
+        case "windows":
+          return "Windows";
+        case "linux":
+          return "Linux";
+        default:
+          return string;
+      }
+    });
+    const displayOrder = ["macOS", "Windows", "Linux"];
+
+    return (
+      <span className={`${baseClass}__platform-compatibility`}>
+        <b>Compatible with:</b>
+        {displayOrder.map((platform) => {
+          const isCompatible = displayFormattedPlatforms.includes(platform);
+          return (
+            <span key={`platform-compatibility__${platform}`}>
+              {platform}{" "}
+              <img
+                alt={isCompatible ? "compatible" : "incompatible"}
+                src={isCompatible ? CompatibleIcon : IncompatibleIcon}
+              />
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <h1 className={`${baseClass}__query-name no-hover`}>
@@ -254,9 +290,7 @@ const QueryForm = ({
           }}
           handleSubmit={promptSaveQuery}
         />
-        <p>
-          <b>Compatible with:</b> {compatiblePlatforms.join(", ")}
-        </p>
+        {renderPlatformCompatibility()}
         {isEditMode && (
           <>
             <Checkbox

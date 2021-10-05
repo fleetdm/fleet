@@ -1,27 +1,51 @@
 import React from "react";
-
-// TODO Implement platform icons logic within cell based on array of platform strings
+import AppleIcon from "../../../../../assets/images/icon-apple-dark-20x20@2x.png";
+import LinuxIcon from "../../../../../assets/images/icon-linux-dark-20x20@2x.png";
+import WindowsIcon from "../../../../../assets/images/icon-windows-dark-20x20@2x.png";
 
 interface IPlatformCellProps {
-  value: string | number | boolean;
-  formatter?: (val: any) => string;
-  greyed?: string;
+  value: string[];
 }
 
-const PlatformCell = (props: IPlatformCellProps): JSX.Element => {
-  const {
-    value,
-    formatter = (val) => val, // identity function if no formatter is provided
-    greyed,
-  } = props;
+const baseClass = "platform-cell";
 
-  let val = value;
+const ICONS: Record<string, string> = {
+  darwin: AppleIcon,
+  linux: LinuxIcon,
+  windows: WindowsIcon,
+};
 
-  if (typeof value === "boolean") {
-    val = value.toString();
-  }
+const DISPLAY_ORDER = [
+  "darwin",
+  "linux",
+  "windows",
+  "freebsd",
+  "None",
+  "Invalid query",
+];
 
-  return <span className={greyed}>{formatter(val)}</span>;
+const PlatformCell = ({
+  value: platforms,
+}: IPlatformCellProps): JSX.Element => {
+  const orderedList = DISPLAY_ORDER.filter((platform) =>
+    platforms.includes(platform)
+  );
+  return (
+    <span>
+      {orderedList.map((platform) => {
+        return ICONS[platform] ? (
+          <img
+            className={`${baseClass}__icon`}
+            key={`platform-icon-${platform}`}
+            alt={platform}
+            src={ICONS[platform]}
+          />
+        ) : (
+          platform
+        );
+      })}
+    </span>
+  );
 };
 
 export default PlatformCell;

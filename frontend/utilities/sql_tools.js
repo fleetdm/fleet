@@ -57,7 +57,7 @@ export const parseSqlTables = (sqlString) => {
 
     return tablesList;
   } catch (err) {
-    console.log(err);
+    // console.log(err);
 
     return ["Invalid query"];
     // return null;
