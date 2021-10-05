@@ -198,6 +198,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "failed to apply standard query library")
 			}
 
+			if err := client.ApplyAppConfig(map[string]map[string]bool{
+				"host_settings": {"enable_software_inventory": true},
+			}); err != nil {
+				return errors.Wrap(err, "failed to enable software inventory app config")
+			}
+
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return errors.Wrap(err, "Error retrieving enroll secret")
