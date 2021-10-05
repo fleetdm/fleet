@@ -6,7 +6,7 @@
 
 Fleet Device Management Inc. periodically collects anonymous information about your instance.
 
-### What is included in usage statistics in Fleet?
+## What is included in usage statistics in Fleet?
 
 - The usage data that Fleet collects includes the **installed Fleet version** and the **number of enrolled hosts** for your Fleet instance. Below is an example JSON payload that is sent to Fleet Device Management Inc:
 
@@ -22,7 +22,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 
 - Sending Usage statistics from your Fleet instance is optional and can be disabled.
 
-### Why should we enabled usage statistics?
+## Why should we enabled usage statistics?
 
 - Fleet has wide adoption, but limited avenues for quantifying this. We need a way of measuring whether the enhancements and new features we ship are actually working.
 
@@ -30,15 +30,15 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 
 - Insights about Fleet version adoption helps the team be more efficient when planning upgrade guides, release notes, and future security notices for users running vulnerable software versions.
 
-#### Why does Fleet collect my Fleet version?
+### Why does Fleet collect my Fleet version?
 
 In the future, we can notify you about future upgrades to Fleet.
 
-#### Why does Fleet collect a count of the hosts I have enrolled to Fleet?
+### Why does Fleet collect a count of the hosts I have enrolled to Fleet?
 
 In the future, we can notify you about methods to improve performance of your Fleet. The performance improvements we suggest will depend on the number of hosts you have enrolled.
 
-### Disable usage statistics
+## Disable usage statistics
 
 Users with the Admin role can disabled usage statistics.
 
