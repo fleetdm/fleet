@@ -536,7 +536,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, err)
 }
 
-func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount uint) []*fleet.Host {
+func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount int) []*fleet.Host {
 	hosts, err := ds.ListHosts(context.Background(), filter, opt)
 	require.NoError(t, err)
 	count, err := ds.CountHosts(context.Background(), filter, opt)
@@ -645,16 +645,16 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host.ID}))
 	}
 
-	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, uint(len(hosts)))
+	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team1.ID}, uint(len(hosts)))
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team1.ID}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 	assert.Equal(t, 0, len(gotHosts))
 
-	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: nil}, uint(len(hosts)))
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: nil}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}}, 10)

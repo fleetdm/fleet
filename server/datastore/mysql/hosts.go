@@ -433,13 +433,13 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 	return sql, params
 }
 
-func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (uint, error) {
+func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	sql := `SELECT count(*) `
 
 	var params []interface{}
 	sql, params = d.applyHostFilters(opt, sql, filter, params)
 
-	var count uint
+	var count int
 	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
 		return 0, errors.Wrap(err, "count hosts")
 	}

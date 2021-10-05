@@ -201,7 +201,8 @@ type Datastore interface {
 
 	DeleteHosts(ctx context.Context, ids []uint) error
 
-	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (uint, error)
+	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

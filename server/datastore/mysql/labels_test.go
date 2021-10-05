@@ -284,21 +284,30 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 0)
 		assert.Len(t, hosts, 0)
 	}
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
 		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
 		assert.Len(t, hosts, 3)
 	}
+}
+
+func listHostsInLabelCheckCount(
+	t *testing.T, db *Datastore, filter fleet.TeamFilter, labelID uint, opt fleet.HostListOptions, expectedCount int,
+) []*fleet.Host {
+	hosts, err := db.ListHostsInLabel(context.Background(), filter, labelID, opt)
+	require.NoError(t, err)
+	count, err := db.CountHostsInLabel(context.Background(), filter, labelID, opt)
+	require.NoError(t, err)
+	require.Equal(t, expectedCount, count)
+	return hosts
 }
 
 func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
@@ -312,7 +321,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	lastSeenTime := time.Now().Add(-1000 * time.Hour)
 	h2, err := db.NewHost(context.Background(), &fleet.Host{
@@ -325,7 +334,18 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
+	h3, err := db.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: lastSeenTime,
+		LabelUpdatedAt:  lastSeenTime,
+		PolicyUpdatedAt: lastSeenTime,
+		SeenTime:        lastSeenTime,
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		UUID:            "3",
+		Hostname:        "baz.local",
+	})
+	require.NoError(t, err)
 
 	l1 := &fleet.LabelSpec{
 		ID:    1,
@@ -336,23 +356,22 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	require.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	for _, h := range []*fleet.Host{h1, h2} {
+	for _, h := range []*fleet.Host{h1, h2, h3} {
 		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
 		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA})
-		require.Nil(t, err)
-		require.Len(t, hosts, 1)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 2)
+		require.Len(t, hosts, 2)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
+		assert.Equal(t, "baz.local", hosts[1].Hostname)
 	}
 }
 
@@ -405,29 +424,25 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
 		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 1)
 		require.Len(t, hosts, 1)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID}, 1)
 		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
-		hosts, err := db.ListHostsInLabel(context.Background(), filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID})
-		require.Nil(t, err)
+		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 		require.Len(t, hosts, 0)
 	}
 }

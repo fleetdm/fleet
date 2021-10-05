@@ -185,13 +185,18 @@ func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOpt
 	return hostIDs, nil
 }
 
-func (svc Service) countHostFromFilters(ctx context.Context, opt fleet.HostListOptions) (uint, error) {
+func (svc Service) countHostFromFilters(ctx context.Context, labelID *uint, opt fleet.HostListOptions) (int, error) {
 	filter, err := processHostFilters(ctx, opt, nil)
 	if err != nil {
 		return 0, err
 	}
 
-	count, err := svc.ds.CountHosts(ctx, filter, opt)
+	var count int
+	if labelID != nil {
+		count, err = svc.ds.CountHostsInLabel(ctx, filter, *labelID, opt)
+	} else {
+		count, err = svc.ds.CountHosts(ctx, filter, opt)
+	}
 	if err != nil {
 		return 0, err
 	}
