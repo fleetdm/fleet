@@ -227,7 +227,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 	}
 }
 
+var testOverridePreviewDirectory string
+
 func previewDirectory() string {
+	if testOverridePreviewDirectory != "" {
+		return testOverridePreviewDirectory
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = "~"
