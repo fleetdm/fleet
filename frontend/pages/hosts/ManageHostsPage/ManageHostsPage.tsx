@@ -70,7 +70,8 @@ import DeleteHostModal from "./components/DeleteHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
+import CloseIcon from "../../../../assets/images/icon-action-close-16x15@2x.png";
+import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -791,15 +792,26 @@ const ManageHostsPage = ({
   };
 
   const renderPoliciesFilterBlock = () => {
+    const buttonText = (
+      <>
+        <img src={PolicyIcon} alt="Policy" />
+        {policyName}
+        <img src={CloseIcon} alt="Remove policy filter" />
+      </>
+    );
     return (
       <div className={`${baseClass}__policies-filter-block`}>
         <PoliciesFilter
           policyResponse={policyResponse}
           onChange={handleChangePoliciesFilter}
         />
-        <p>{policyName}</p>
-        <Button onClick={handleClearPoliciesFilter} variant={"text-icon"}>
-          <img src={CloseIcon} alt="Remove policy filter" />
+        <Button
+          className={`${baseClass}__clear-policies-filter`}
+          onClick={handleClearPoliciesFilter}
+          variant={"small-text-icon"}
+          title={policyName}
+        >
+          {buttonText}
         </Button>
       </div>
     );

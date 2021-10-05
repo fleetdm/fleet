@@ -222,7 +222,9 @@ const TableContainer = ({
             )}
             {resultsHtml}
           </p>
-        ) : null}
+        ) : (
+          <p />
+        )}
         <div className={`${baseClass}__table-controls`}>
           {!hideActionButton && actionButtonText && (
             <Button
