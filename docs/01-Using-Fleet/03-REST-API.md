@@ -6334,9 +6334,8 @@ If the `name` is not already associated with an existing team, this API route cr
 
 ```json
 {
-    “software”: [
+    "software": [
       {
-        "hosts_count": 124,
         "id": 1,
         "name": "Chrome.app",
         "version": "2.1.11",
@@ -6345,7 +6344,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 112,
         "id": 2,
         "name": "Figma.app",
         "version": "2.1.11",
@@ -6354,7 +6352,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 3,
         "name": "osquery",
         "version": "2.1.11",
@@ -6363,7 +6360,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 4,
         "name": "osquery",
         "version": "2.1.11",
