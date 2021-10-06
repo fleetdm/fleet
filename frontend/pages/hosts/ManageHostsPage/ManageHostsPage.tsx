@@ -1100,7 +1100,7 @@ const ManageHostsPage = ({
         buttonText: "Transfer",
         variant: "text-icon",
         icon: "transfer",
-        hideButton: !isPremiumTier,
+        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
       },
     ];
 
