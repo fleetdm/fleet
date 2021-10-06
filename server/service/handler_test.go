@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -238,12 +239,15 @@ func TestAPIRoutesConflicts(t *testing.T) {
 		name := route.GetName()
 		path, err := route.GetPathTemplate()
 		if err != nil {
-			// no path, ignore
-			return nil
+			// all our routes should have paths
+			return errors.Wrap(err, name)
 		}
 		meths, err := route.GetMethods()
 		if err != nil || len(meths) == 0 {
-			// no method, ignore
+			// only route without method is distributed_query_results (websocket)
+			if name != "distributed_query_results" {
+				return errors.Wrap(err, name+" "+path)
+			}
 			return nil
 		}
 		path = reSimpleVar.ReplaceAllString(path, "$1")
