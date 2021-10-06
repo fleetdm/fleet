@@ -560,49 +560,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 
 func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	// Select everything besides `additional`
-	sqlStatement := `
-		SELECT
-			id,
-			osquery_host_id,
-			created_at,
-			updated_at,
-			detail_updated_at,
-			label_updated_at,
-			policy_updated_at,
-			node_key,
-			hostname,
-			uuid,
-			platform,
-			osquery_version,
-			os_version,
-			build,
-			platform_like,
-			code_name,
-			uptime,
-			memory,
-			cpu_type,
-			cpu_subtype,
-			cpu_brand,
-			cpu_physical_cores,
-			cpu_logical_cores,
-			hardware_vendor,
-			hardware_model,
-			hardware_version,
-			hardware_serial,
-			computer_name,
-			primary_ip_id,
-			seen_time,
-			distributed_interval,
-			logger_tls_period,
-			config_tls_refresh,
-			primary_ip,
-			primary_mac,
-			refetch_requested,
-			team_id
-		FROM hosts
-		WHERE node_key = ?
-		LIMIT 1
-	`
+	sqlStatement := `SELECT * FROM hosts WHERE node_key = ? LIMIT 1`
 
 	host := &fleet.Host{}
 	if err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, nodeKey); err != nil {

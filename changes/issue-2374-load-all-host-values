@@ -1,0 +1,1 @@
+* Load all host values from the database to prevent overwriting them with empty values in certain cases.
