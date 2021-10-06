@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	yamlFlagName        = "yaml"
-	jsonFlagName        = "json"
-	withQueriesFlagName = "with-queries"
-	expiredFlagName     = "expired"
-	stdoutFlagName      = "stdout"
+	yamlFlagName                = "yaml"
+	jsonFlagName                = "json"
+	withQueriesFlagName         = "with-queries"
+	expiredFlagName             = "expired"
+	stdoutFlagName              = "stdout"
+	includeServerConfigFlagName = "include-server-config"
 )
 
 type specGeneric struct {
@@ -142,7 +143,7 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.EnrichedAppConfig) error {
+func printConfig(c *cli.Context, config interface{}) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -537,13 +538,17 @@ func getEnrollSecretCommand() *cli.Command {
 func getAppConfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
-		Usage: "Retrieve the Fleet configuration",
+		Usage: "Retrieve the Fleet app configuration",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  includeServerConfigFlagName,
+				Usage: "Include the server configuration in the output",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -556,7 +561,11 @@ func getAppConfigCommand() *cli.Command {
 				return err
 			}
 
-			err = printConfig(c, config)
+			if c.Bool(includeServerConfigFlagName) {
+				err = printConfig(c, config)
+			} else {
+				err = printConfig(c, config.AppConfig)
+			}
 			if err != nil {
 				return err
 			}
