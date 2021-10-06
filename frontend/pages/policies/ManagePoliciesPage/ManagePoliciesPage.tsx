@@ -329,11 +329,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   // If there aren't any policies of if there are loading errors, we don't show the inherited policies button.
   const showInheritedPoliciesButton =
-    !!selectedTeamId &&
-    !!teamPolicies?.length &&
-    !!globalPolicies?.length &&
-    !isGlobalPoliciesError &&
-    !isTeamPoliciesError;
+    !!selectedTeamId && !!globalPolicies?.length && !isGlobalPoliciesError;
 
   return (
     <div className={baseClass}>
