@@ -117,6 +117,7 @@ const ManageHostsPage = ({
     isAnyTeamMaintainer,
     isTeamMaintainer,
     isOnGlobalTeam,
+    isOnlyObserver,
     isPremiumTier,
     currentTeam,
     setCurrentTeam,
@@ -947,7 +948,7 @@ const ManageHostsPage = ({
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          {labelType !== "builtin" && (
+          {labelType !== "builtin" && !isOnlyObserver && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
                 <img src={PencilIcon} alt="Edit label" />
