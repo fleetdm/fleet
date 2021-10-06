@@ -1614,7 +1614,7 @@ Fleet features are sometimes gated behind feature flags. This will usually be du
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
 
-#### Software inventory
+### Software inventory
 
 Enable by setting the environment variable `FLEET_BETA_SOFTWARE_INVENTORY=1`.
 
