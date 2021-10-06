@@ -581,7 +581,6 @@ Alternatively you can bake the prepare command into the same task definition see
 
 ## Community projects
 
-
 Below are some projects created by Fleet community members. These projects provide additional solutions for deploying Fleet. Please submit a pull request if you'd like your project featured.
 
 - [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to setup FleetDM
