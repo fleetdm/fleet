@@ -246,8 +246,9 @@ func TestAPIRoutesConflicts(t *testing.T) {
 			// no method, ignore
 			return nil
 		}
-		// TODO: transform path template to url
 		path = reSimpleVar.ReplaceAllString(path, "$1")
+		// for now at least, the only times we use regexp-constrained vars is
+		// for numeric arguments.
 		path = reNumVar.ReplaceAllString(path, "1")
 
 		routeStatus := status
