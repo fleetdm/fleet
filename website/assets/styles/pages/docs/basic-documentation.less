@@ -4,9 +4,6 @@
     font-size: 28px;
     line-height: 34px;
   }
-  h2:first-child {
-    border-top: none;
-  }
 
   h2 {
     font-size: 24px;
@@ -14,19 +11,15 @@
   }
 
   h3 {
-    font-size: 20px;
+    font-size: 22px;
     line-height: 24px;
   }
 
   h4 {
     font-size: 18px;
     line-height: 24px;
-    padding-top: 24px;
   }
 
-  h5 {
-
-  }
 
   a {
     color: @core-vibrant-blue;
@@ -353,21 +346,25 @@
 
     [purpose='content'] {
 
+      hr {
+        margin: 0px;
+        padding: 0px;
+        display: none;
+      }
       h1 {
         padding-bottom: 16px;
-        margin-bottom: 0px;
       }
 
       h2 {
         border-top: 1px solid @core-fleet-black-25;
-        margin-top: 8px;
-        padding-top: 40px;
-        padding-bottom: 24px;
         &:first-of-type {
           border-top: none;
-          padding-top:40px;
-          margin-top: 0px;
+          padding-top: 24px;
+          margin-top: 0px
         }
+        margin-top: 24px;
+        padding-top: 40px;
+        padding-bottom: 24px
       }
 
       h3 {
@@ -377,7 +374,8 @@
       }
 
       h4 {
-        padding-bottom: 16px;
+        padding-top: 8px;
+        padding-bottom: 24px;
         margin-bottom: 0px;
       }
 
@@ -385,13 +383,25 @@
         font-size: 16px;
         font-weight: 700;
         font-family: @main-font;
-        margin-top: 16px;
-        margin-bottom: 16px;
+        padding-bottom: 16px;
+        margin-bottom: 0px;
+      }
+      pre + hr + h3 {
+        padding-top: 0px
+      }
+      pre +  h3 {
+        padding-top: 0px
+      }
+      blockquote {
+        margin: 0px;
       }
 
       ul {
         list-style-type: disc;
         padding-left: 32px;
+        pre{
+          margin: 0px 0px 16px;
+        }
       }
 
       img {
@@ -408,7 +418,7 @@
       }
 
       h2 + h3 {
-        padding-top: 8px;
+        // padding-top: 8px;
       }
 
       table {
