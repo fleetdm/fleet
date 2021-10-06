@@ -29,7 +29,7 @@ spec:
   name: What is your query called? Please use a human readable query name.
   description: Describe your query. What information does your query reveal or what does your query check?
   platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-  resolve: If the query's purpose is "policy", what are the steps to resolve a device that is failing? If the query's purpose is "informational", remove this section.
+  resolve: If the query's purpose is "Policy", what are the steps to resolve a device that is failing? If the query's purpose is "Informational", remove this section.
   contributors: Ex. zwass,mike-j-thomas
 ```
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
