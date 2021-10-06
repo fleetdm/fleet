@@ -817,7 +817,11 @@ const ManageHostsPage = ({
         className={`${baseClass}__invite-modal`}
       >
         <EditColumnsModal
-          columns={generateAvailableTableHeaders(config, currentUser)}
+          columns={generateAvailableTableHeaders(
+            config,
+            currentUser,
+            currentTeam
+          )}
           hiddenColumns={hiddenColumns}
           onSaveColumns={onSaveColumns}
           onCancelColumns={onCancelColumns}
@@ -1092,7 +1096,8 @@ const ManageHostsPage = ({
         columns={generateVisibleTableColumns(
           hiddenColumns,
           config,
-          currentUser
+          currentUser,
+          currentTeam
         )}
         data={hosts}
         isLoading={isHostsLoading}

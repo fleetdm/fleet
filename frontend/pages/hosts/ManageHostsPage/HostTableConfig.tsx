@@ -17,6 +17,7 @@ import {
   hostTeamName,
 } from "fleet/helpers";
 import { IConfig } from "interfaces/config";
+import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
@@ -282,7 +283,8 @@ const defaultHiddenColumns = [
  */
 const generateAvailableTableHeaders = (
   config: IConfig,
-  currentUser: IUser
+  currentUser: IUser,
+  currentTeam: ITeam | undefined
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
@@ -305,7 +307,8 @@ const generateAvailableTableHeaders = (
       } else if (
         // In premium tier, we want to check user role to enable/disable select column
         !permissionUtils.isGlobalAdmin(currentUser) &&
-        !permissionUtils.isGlobalMaintainer(currentUser)
+        !permissionUtils.isGlobalMaintainer(currentUser) &&
+        !permissionUtils.isTeamMaintainer(currentUser, currentTeam?.id || null)
       ) {
         if (currentColumn.id === "selection") {
           return columns;
@@ -326,12 +329,15 @@ const generateAvailableTableHeaders = (
 const generateVisibleTableColumns = (
   hiddenColumns: string[],
   config: IConfig,
-  currentUser: IUser
+  currentUser: IUser,
+  currentTeam: ITeam | undefined
 ): IHostDataColumn[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders(config, currentUser).filter((column) => {
-    return !hiddenColumns.includes(column.accessor as string);
-  });
+  return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(
+    (column) => {
+      return !hiddenColumns.includes(column.accessor as string);
+    }
+  );
 };
 
 export {
