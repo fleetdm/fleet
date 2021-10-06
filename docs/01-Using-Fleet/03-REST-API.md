@@ -723,13 +723,13 @@ The endpoint returns the host's installed `software` if the software inventory f
         "id": 1,
         "query_id": 2,
         "query_name": "SomeQuery",
-        "response": "passes"
+        "response": "pass"
       },
       {
         "id": 2,
         "query_id": 4,
         "query_name": "SomeQuery2",
-        "response": "fails"
+        "response": "fail"
       },
       {
         "id": 3,
