@@ -2,7 +2,7 @@
 
 The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
 
-### Company
+## Company
 
 [About Fleet](./company.md#about-fleet)
 
@@ -10,13 +10,13 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Culture](./company.md#culture)
 
-### People
+## People
 
 [Spending company money](./people.md#spending-company-money)
 
 [Meetings](./people.md#meetings)
 
-### Product
+## Product
 
 [Fleet EE](./product.md#fleet-ee)
 
@@ -28,7 +28,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./product.md#release-process)
 
-### Growth
+## Growth
 
 [Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
 
@@ -38,7 +38,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Culture](./growth.md#culture)
 
-### Customer first
+## Customer first
 
 [Customer succcess](./customer-first.md#customer-success)
 
