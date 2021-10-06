@@ -183,7 +183,7 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/fleet/hosts",
+			uri:  "/api/v1/fleet/hosts/1",
 		},
 		{
 			verb: "DELETE",
