@@ -560,7 +560,7 @@ Terraform reference architecture can be found [here](https://github.com/fleetdm/
 
 #### MySQL
 
-In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62)
+In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
 
 #### Redis
 
