@@ -33,7 +33,7 @@ func TestPreview(t *testing.T) {
 	require.Greater(t, n, 10)
 
 	// app configuration must disable analytics
-	appConf := runAppForTest(t, []string{"get", "config", "--config", configPath})
+	appConf := runAppForTest(t, []string{"get", "config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)
 	require.False(t, ok, appConf) // TODO: once #2372 is merged this must be True
 
@@ -41,8 +41,11 @@ func TestPreview(t *testing.T) {
 	ok = strings.Contains(appConf, `enable_software_inventory: true`)
 	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
 
-	// TODO: is there a way to retrieve the fleet config options (e.g.
-	// current_instance_checks)? Doesn't look like it, fleetctl get config
-	// returns the app config, and fleetctl config get returns the fleetctl
-	// config?
+	// current instance checks must be on
+	ok = strings.Contains(appConf, `current_instance_checks: yes`)
+	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
+
+	// a vulnerability database path must be set
+	ok = strings.Contains(appConf, `databases_path: /vulndb`)
+	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
 }
