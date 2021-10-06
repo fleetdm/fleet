@@ -43,7 +43,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, err
 }
 
 func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -101,7 +101,7 @@ func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, erro
 }
 
 func (svc Service) DeleteHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
@@ -130,7 +130,7 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -142,7 +142,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
@@ -194,6 +194,10 @@ func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOpt
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")
