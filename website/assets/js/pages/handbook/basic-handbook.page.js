@@ -25,7 +25,11 @@ parasails.registerPage('basic-handbook', {
 
     this.subtopics = (() => {
       let subtopics;
-      subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
+      if(!this.isHandbookLandingPage){
+        subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
+      } else {
+        subtopics = $('#body-content').find('h3').map((_, el) => el.innerText);
+      }
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
