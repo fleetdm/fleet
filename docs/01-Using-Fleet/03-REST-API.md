@@ -678,7 +678,7 @@ The endpoint returns the host's installed `software` if the software inventory f
         "username": "bin",
         "type": "",
         "groupname": "bin"
-      },
+      }
     ],
     "labels": [
       {
@@ -717,7 +717,27 @@ The endpoint returns the host's installed `software` if the software inventory f
     ],
     "packs": [],
     "status": "online",
-    "display_text": "23cfc9caacf0"
+    "display_text": "23cfc9caacf0",
+    "policies": [
+      {
+        "id": 1,
+        "query_id": 2,
+        "query_name": "SomeQuery",
+        "response": "passes"
+      },
+      {
+        "id": 2,
+        "query_id": 4,
+        "query_name": "SomeQuery2",
+        "response": "fails"
+      },
+      {
+        "id": 3,
+        "query_id": 255,
+        "query_name": "SomeQuery3",
+        "response": ""
+      }
+    ]
   }
 }
 ```

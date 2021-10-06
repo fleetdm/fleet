@@ -91,6 +91,9 @@ func TestHostDetails(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
 
 	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
 	require.NoError(t, err)
@@ -250,6 +253,12 @@ func TestHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
 		return nil
 	}
 
