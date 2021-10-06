@@ -61,7 +61,6 @@ type FleetEndpoints struct {
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
 	CreatePack                            endpoint.Endpoint
 	ModifyPack                            endpoint.Endpoint
-	GetPack                               endpoint.Endpoint
 	ListPacks                             endpoint.Endpoint
 	DeletePack                            endpoint.Endpoint
 	DeletePackByID                        endpoint.Endpoint
@@ -184,7 +183,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
 		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
 		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
-		GetPack:                               authenticatedUser(svc, makeGetPackEndpoint(svc)),
 		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
 		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
 		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
@@ -295,7 +293,6 @@ type fleetHandlers struct {
 	CreateDistributedQueryCampaignByNames http.Handler
 	CreatePack                            http.Handler
 	ModifyPack                            http.Handler
-	GetPack                               http.Handler
 	ListPacks                             http.Handler
 	DeletePack                            http.Handler
 	DeletePackByID                        http.Handler
@@ -405,7 +402,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
 		CreatePack:                            newServer(e.CreatePack, decodeCreatePackRequest),
 		ModifyPack:                            newServer(e.ModifyPack, decodeModifyPackRequest),
-		GetPack:                               newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
 		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
 		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
@@ -615,7 +611,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/packs", h.CreatePack).Methods("POST").Name("create_pack")
 	r.Handle("/api/v1/fleet/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/fleet/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
 	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/fleet/packs/id/{id}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
@@ -718,6 +713,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
 	e.GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+
+	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 
