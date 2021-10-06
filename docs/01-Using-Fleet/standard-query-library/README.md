@@ -2,6 +2,11 @@
 
 Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.
 
+In Fleet, **informational** queries are used to run live queries that return specific information about your devices on demand. Informational queries are also added to schedules which send recurring information about your devices to your log destination.
+
+In Fleet, **policies** are queries that allow you to check which devices pass or fail your organization’s standards.
+
+
 ## Importing the queries in Fleet
 
 #### After cloning the fleetdm/fleet repo, import the queries using fleetctl:
@@ -19,13 +24,13 @@ Want to add your own query?
 apiVersion: v1
 kind: query
 spec:
-  name: What is your query called? Please use a human readable query name.
-  platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-  description: Describe your query. What does information does your query reveal?
   query: Insert query here
-  purpose: What is the goal of running your query? Ex. Detection
-  remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
-  contributors: zwass,mike-j-thomas
+  purpose: What is the goal of running your query? If you run this query as a live query or schedule this query, insert "Informational." If this query is used as a policy, insert "Policy."
+  name: What is your query called? Please use a human readable query name.
+  description: Describe your query. What information does your query reveal or what does your query check?
+  platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
+  resolve: If the query's purpose is "policy", what are the steps to resolve a device that is failing? If the query's purpose is "informational", remove this section.
+  contributors: Ex. zwass,mike-j-thomas
 ```
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 

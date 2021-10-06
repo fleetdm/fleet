@@ -22,16 +22,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get whether Gatekeeper is disabled
-  platforms: macOS
-  description: Gatekeeper tries to ensure only trusted software is run on a mac machine.
-  query: SELECT * FROM gatekeeper WHERE assessments_enabled = 0;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
   name: Get authorized SSH keys
   platforms: macOS, Linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
@@ -253,16 +243,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get Windows machines with unencrypted hard disks
-  platforms: Windows
-  description:
-  query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
-  purpose: Informational
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
   name: Get disk encryption status
   platforms: macOS, Linux
   description: Disk encryption status and information.
@@ -452,7 +432,7 @@ kind: query
 spec:
   name: Get user files matching a specific hash
   platforms: macOS, Linux
-  description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
   purpose: Informational
   contributors: alphabrevity
@@ -462,7 +442,7 @@ kind: query
 spec:
   name: Get local administrator accounts on macOS
   platforms: macOS
-  description: The query allows you to check macOS systems for local administrator accounts. 
+  description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   contributors: alphabrevity
@@ -474,7 +454,7 @@ spec:
   platforms: Linux, macOS, Windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
-  purpose: Informational 
+  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -506,3 +486,36 @@ spec:
   query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';,
   purpose: Informational
   contributors: micheal-o
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Gatekeeper is enabled on macOS devices
+  platforms: macOS
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  purpose: Policy
+  resolve: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  contributors: groob
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Windows devices are encrypted
+  platforms: Windows
+  description: Checks to make sure that device encryption is enabled on Windows devices.
+  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  purpose: Policy
+  resolve: "Option 1: Select the Start button. Select Settings  > Update & Security  > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions."
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Filevault is enabled on macOS devices
+  platforms: macOS
+  description: Checks to make sure that the Filevault feature is enabled on macOS devices.
+  query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;
+  purpose: Policy
+  resolve: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
+  contributors: groob
