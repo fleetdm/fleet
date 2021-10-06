@@ -2,13 +2,17 @@ package service
 
 import (
 	"fmt"
+	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
@@ -203,6 +207,72 @@ func TestAPIRoutes(t *testing.T) {
 			)
 			assert.NotEqual(st, 404, recorder.Code)
 			assert.NotEqual(st, 405, recorder.Code) // if it matches a path but with wrong verb
+		})
+	}
+}
+
+func TestAPIRoutesConflicts(t *testing.T) {
+	ds := new(mock.Store)
+
+	svc := newTestService(ds, nil, nil)
+	limitStore, _ := memstore.New(0)
+	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+	router := h.(*mux.Router)
+
+	type testCase struct {
+		name string
+		path string
+		verb string
+		want int
+	}
+	var cases []testCase
+
+	// build the test cases: for each route, generate a request designed to match
+	// it, and override its handler to return a unique status code. If the
+	// request doesn't result in that status code, then some other route
+	// conflicts with it and took precedence - a route conflict. The route's name
+	// is used to name the sub-test for that route.
+	status := 200
+	reSimpleVar, reNumVar := regexp.MustCompile(`\{(\w+)\}`), regexp.MustCompile(`\{\w+:[^\}]+\}`)
+	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+		name := route.GetName()
+		path, err := route.GetPathTemplate()
+		if err != nil {
+			// no path, ignore
+			return nil
+		}
+		meths, err := route.GetMethods()
+		if err != nil || len(meths) == 0 {
+			// no method, ignore
+			return nil
+		}
+		// TODO: transform path template to url
+		path = reSimpleVar.ReplaceAllString(path, "$1")
+		path = reNumVar.ReplaceAllString(path, "1")
+
+		routeStatus := status
+		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(routeStatus) })
+		for _, meth := range meths {
+			cases = append(cases, testCase{
+				name: name,
+				path: path,
+				verb: meth,
+				want: status,
+			})
+		}
+
+		status++
+		return nil
+	})
+	require.NoError(t, err)
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Log(c.verb, c.path)
+			req := httptest.NewRequest(c.verb, c.path, nil)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			require.Equal(t, c.want, rr.Code)
 		})
 	}
 }
