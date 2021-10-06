@@ -5108,6 +5108,14 @@ None.
     "osquery_detail": 3600000000000,
     "osquery_policy": 3600000000000
   },
+  "vulnerabilities": {
+    "cpe_database_url": "",
+    "current_instance_checks": "auto",
+    "cve_feed_prefix_url": "",
+    "databases_path": "",
+    "disable_data_sync": false,
+    "periodicity": 3600000000000
+  }
 }
 ```
 
