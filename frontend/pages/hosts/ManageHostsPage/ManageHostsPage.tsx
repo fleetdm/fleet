@@ -392,7 +392,6 @@ const ManageHostsPage = ({
     };
 
     retrieveHostCount(options);
-    console.log("Retrieve host count just ran!!!");
   }, [
     queryParams.team_id,
     searchQuery,
