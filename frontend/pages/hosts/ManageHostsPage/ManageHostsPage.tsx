@@ -372,7 +372,7 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-    retrieveHostCount(options); // TODO: Incorporate additional info filters parameter
+    retrieveHostCount(options);
   }, [location, tableQueryData, labels]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
