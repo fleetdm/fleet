@@ -6,7 +6,6 @@ spec:
   platforms: macOS
   description: Count the number of Apple applications installed on the machine.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
-  purpose: Informational
   contributors: mike-j-thomas,noahtalerman,mikermcneil
 ---
 apiVersion: v1
@@ -16,7 +15,6 @@ spec:
   platforms: Linux
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -26,8 +24,6 @@ spec:
   platforms: macOS, Linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
-  purpose: Informational
-  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
   contributors: mike-j-thomas
 ---
 apiVersion: v1
@@ -37,7 +33,6 @@ spec:
   platforms: macOS, Linux
   description: List authorized_keys for each user on the system.
   query: SELECT * FROM users CROSS JOIN authorized_keys USING (uid);
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -47,7 +42,6 @@ spec:
   platforms: macOS, Linux
   description: List authorized_keys for each user on the system.
   query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -57,7 +51,6 @@ spec:
   platforms: macOS
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -67,7 +60,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: List installed Chrome Extensions for all users.
   query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -77,7 +69,6 @@ spec:
   platforms: FreeBSD
   description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -87,7 +78,6 @@ spec:
   platforms: macOS
   description: Get the installed homebrew package database.
   query: SELECT * FROM homebrew_packages;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -97,7 +87,6 @@ spec:
   platforms: Linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -107,7 +96,6 @@ spec:
   platforms: macOS
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -117,7 +105,6 @@ spec:
   platforms: macOS
   description: Retrieves the list of installed Safari Extensions for all users in the target system.
   query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -127,7 +114,6 @@ spec:
   platforms: Windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -137,7 +123,6 @@ spec:
   platforms: macOS
   description:
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -147,7 +132,6 @@ spec:
   platforms: macOS
   description: Displays the percentage of free space available on the primary disk partition.
   query: SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -157,7 +141,6 @@ spec:
   platforms: macOS, Linux
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT device, device_alias, path, type, blocks_size FROM mounts;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -167,7 +150,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Shows system mounted devices and filesystems (not process specific).
   query: SELECT * FROM os_version;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -177,7 +159,6 @@ spec:
   platforms: macOS
   description: Shows information about the host platform
   query: SELECT vendor, version, date, revision from platform_info;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -187,7 +168,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Shows applications and binaries set as user/login startup items.
   query: SELECT * FROM startup_items;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -197,7 +177,6 @@ spec:
   platforms: macOS
   description: Get a list of system logins and logouts.
   query: SELECT * FROM last;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -207,7 +186,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -217,7 +195,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Shows the system uptime.
   query: SELECT * FROM uptime;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -227,7 +204,6 @@ spec:
   platforms: macOS, Linux
   description: Shows all USB devices that are actively plugged into the host system.
   query: SELECT * FROM usb_devices;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -237,7 +213,6 @@ spec:
   platforms: macOS
   description: Shows information about the wifi network that a host is currently connected to.
   query: SELECT * FROM wifi_status;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -247,7 +222,6 @@ spec:
   platforms: macOS, Linux
   description: Disk encryption status and information.
   query: SELECT * FROM disk_encryption;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -255,10 +229,8 @@ kind: query
 spec:
   name: Get unencrypted SSH keys for local accounts
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008). First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
-  purpose: Informational
-  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -266,10 +238,8 @@ kind: query
 spec:
   name: Get unencrypted SSH keys for domain joined accounts
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008). First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
-  purpose: Informational
-  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -279,7 +249,6 @@ spec:
   platforms: macOS, Linux
   description: Line parsed values from system and user cron/tab.
   query: SELECT * FROM crontab;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -289,7 +258,6 @@ spec:
   platforms: macOS, Linux
   description: suid binaries in common locations.
   query: SELECT * FROM suid_bin;
-  purpose: Informational
   contributors: zwass
 ---
 apiVersion: v1
@@ -297,10 +265,8 @@ kind: query
 spec:
   name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
   platforms: Linux
-  description: Detect any processes that run with LD_PRELOAD environment variable
+  description: Detect any processes that run with LD_PRELOAD environment variable. Identify the process/binary detected and confirm with the system's owner.
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
-  purpose: Informational
-  remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -308,10 +274,8 @@ kind: query
 spec:
   name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
   platforms: macOS
-  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable. Identify the process/binary detected and confirm with the system's owner.
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
-  purpose: Informational
-  remediation: Identify the process/binary detected and confirm with the system's owner.
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -321,7 +285,6 @@ spec:
   platforms: macOS, Linux
   description: Line-parsed /etc/hosts
   query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -331,7 +294,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -341,7 +303,6 @@ spec:
   platforms: macOS, Linux, Windows, FreeBSD
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description,directory, shell FROM users;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -351,7 +312,6 @@ spec:
   platforms: Linux
   description: Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -364,7 +324,6 @@ spec:
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
     (SELECT username FROM users WHERE uid=p.uid) AS username
     FROM processes as p WHERE cmdline like 'nmap%';
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -374,7 +333,6 @@ spec:
   platforms: macOS, Linux
   description: Docker images information, can be used on normal system or a kubenode.
   query: SELECT * FROM docker_images;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -384,7 +342,6 @@ spec:
   platforms: macOS, Linux
   description: Docker containers information, can be used on normal system or a kubenode.
   query: SELECT * FROM docker_containers;
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -394,7 +351,6 @@ spec:
   platforms: macOS, Linux
   description: Docker containers Processes, can be used on normal system or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
-  purpose: Informational
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -404,7 +360,6 @@ spec:
   platforms: Windows
   description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
   query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
-  purpose: Informational
   contributors: maravedi
 ---
 apiVersion: v1
@@ -414,7 +369,6 @@ spec:
   platforms: macOS, Linux, Windows
   description: Collects the local user accounts and their respective user group.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
-  purpose: Informational
   contributors: noahtalerman
 ---
 apiVersion: v1
@@ -424,7 +378,6 @@ spec:
   platforms: Linux, macOS, Windows
   description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
-  purpose: Incident response
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -434,7 +387,6 @@ spec:
   platforms: macOS, Linux
   description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
-  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -444,7 +396,6 @@ spec:
   platforms: macOS
   description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
-  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -454,7 +405,6 @@ spec:
   platforms: Linux, macOS, Windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
-  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -464,7 +414,6 @@ spec:
   platforms: Windows
   description: Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
-  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -474,7 +423,6 @@ spec:
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
   query: select case cnt when 0 then "NONE_INSTALLED" else "INSTALLED" end as "Malicious Python Packages",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));
-  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -484,7 +432,6 @@ spec:
   platforms: Windows
   description: See https://github.com/osquery/osquery/blob/b8085572ed1a58ff635683e5f2225cd49cd27bc1/packs/windows-attacks.conf#L4-L10
   query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';,
-  purpose: Informational
   contributors: micheal-o
 ---
 apiVersion: v1
