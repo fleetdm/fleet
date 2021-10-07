@@ -1664,8 +1664,8 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, json.RawMessage(`["something went wrong"]`), logData["err"])
-	assert.Equal(t, json.RawMessage(`["Missing authorization check"]`), logData["internal"])
+	assert.Equal(t, json.RawMessage(`"something went wrong"`), logData["err"])
+	assert.Equal(t, json.RawMessage(`"Missing authorization check"`), logData["internal"])
 }
 
 func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
