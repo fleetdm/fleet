@@ -1344,6 +1344,64 @@ AWS STS role ARN to use for S3 authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
+###### s3_endpoint_url
+
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend, 
+or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+
+- Default value: none
+- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Config file format:
+
+  ```
+  s3:
+  	endpoint_url: http://localhost:9000
+  ```
+
+###### s3_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Config file format:
+
+  ```
+  s3:
+  	disable_ssl: false
+  ```
+
+###### s3_force_s3_path_style
+
+AWS S3 Force S3 Path Style.	Set this to `true` to force the request to use path-style addressing,
+i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`). 
+
+See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+
+  ```
+  s3:
+  	force_s3_path_style: false
+  ```
+
+###### s3_region
+
+AWS S3 Region. Leave blank to enable region discovery.
+
+- Default value: 
+- Environment variable: `FLEET_S3_REGION`
+- Config file format:
+
+  ```
+  s3:
+  	region: us-east-1
+  ```
+
 ##### Vulnerabilities
 
 ###### databases_path

@@ -257,6 +257,17 @@ Carve contents remain available for 24 hours after the first data is provided fr
 
 The same is not true if S3 is used as the storage backend. In that scenario, it is suggested to setup a [bucket lifecycle configuration](https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) to avoid retaining data in excess. Fleet, in an "eventual consistent" manner (i.e. by periodically performing comparisons), will keep the metadata relative to the files carves in sync with what it is actually available in the bucket.
 
+### Alternative Carving backends
+
+#### Minio
+
+Configure the following:
+- `FLEET_S3_ENDPOINT_URL=minio_host`
+- `FLEET_S3_SECRET_ACCESS_KEY=your_secret_access_key`
+- `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
+- `FLEET_S3_FORCE_S3_PATH_STYLE=true`
+- `FLEET_S3_REGION=us-east-1` or any non-empty string otherwise Fleet will attempt to derive the region.
+
 ### Troubleshooting
 
 #### Check carve status in osquery
