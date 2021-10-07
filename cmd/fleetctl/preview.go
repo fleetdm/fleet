@@ -198,6 +198,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "failed to apply standard query library")
 			}
 
+			if err := client.ApplyAppConfig(map[string]map[string]bool{
+				"host_settings": {"enable_software_inventory": true},
+			}); err != nil {
+				return errors.Wrap(err, "failed to enable software inventory app config")
+			}
+
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return errors.Wrap(err, "Error retrieving enroll secret")
@@ -205,6 +211,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			if len(secrets.Secrets) != 1 {
 				return errors.New("Expected 1 active enroll secret")
+			}
+
+			// disable anonymous analytics collection for preview
+			if err := client.ApplyAppConfig(map[string]map[string]bool{
+				"server_settings": {"enable_analytics": false}},
+			); err != nil {
+				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
 			}
 
 			fmt.Println("Starting simulated hosts...")

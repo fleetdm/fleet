@@ -531,3 +531,35 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
+
+func (s *integrationTestSuite) TestCountSoftware() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	label := &fleet.Label{
+		Name:  t.Name() + "foo",
+		Query: "select * from foo;",
+	}
+	label, err := s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
+	req := countHostsRequest{}
+	resp := countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/v1/fleet/hosts/count", req, http.StatusOK, &resp,
+		"additional_info_filters", "*",
+	)
+	assert.Equal(t, 3, resp.Count)
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/v1/fleet/hosts/count", req, http.StatusOK, &resp,
+		"additional_info_filters", "*",
+		"label_id", fmt.Sprint(label.ID),
+	)
+	assert.Equal(t, 1, resp.Count)
+}

@@ -163,6 +163,12 @@ type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int,
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
+type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error)
+
+type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
+
+type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -521,6 +527,15 @@ type DataStore struct {
 
 	DeleteHostsFunc        DeleteHostsFunc
 	DeleteHostsFuncInvoked bool
+
+	CountHostsFunc        CountHostsFunc
+	CountHostsFuncInvoked bool
+
+	CountHostsInLabelFunc        CountHostsInLabelFunc
+	CountHostsInLabelFuncInvoked bool
+
+	ListPoliciesForHostFunc        ListPoliciesForHostFunc
+	ListPoliciesForHostFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1096,6 +1111,21 @@ func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
 	s.DeleteHostsFuncInvoked = true
 	return s.DeleteHostsFunc(ctx, ids)
+}
+
+func (s *DataStore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsFuncInvoked = true
+	return s.CountHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsInLabelFuncInvoked = true
+	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
+}
+
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+	s.ListPoliciesForHostFuncInvoked = true
+	return s.ListPoliciesForHostFunc(ctx, hid)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

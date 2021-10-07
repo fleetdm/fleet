@@ -548,6 +548,52 @@ If `additional_info_filters` is not specified, no `additional` information will 
 }
 ```
 
+### Count hosts
+
+`GET /api/v1/fleet/hosts/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+
+If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
+
+##### Request query parameters
+
+```json
+{
+  "page": 0,
+  "per_page": 100,
+  "order_key": "hostname",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 123
+}
+```
+
 ### Get hosts summary
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
@@ -678,7 +724,7 @@ The endpoint returns the host's installed `software` if the software inventory f
         "username": "bin",
         "type": "",
         "groupname": "bin"
-      },
+      }
     ],
     "labels": [
       {
@@ -717,7 +763,27 @@ The endpoint returns the host's installed `software` if the software inventory f
     ],
     "packs": [],
     "status": "online",
-    "display_text": "23cfc9caacf0"
+    "display_text": "23cfc9caacf0",
+    "policies": [
+      {
+        "id": 1,
+        "query_id": 2,
+        "query_name": "SomeQuery",
+        "response": "pass"
+      },
+      {
+        "id": 2,
+        "query_id": 4,
+        "query_name": "SomeQuery2",
+        "response": "fail"
+      },
+      {
+        "id": 3,
+        "query_id": 255,
+        "query_name": "SomeQuery3",
+        "response": ""
+      }
+    ]
   }
 }
 ```
@@ -6322,9 +6388,8 @@ If the `name` is not already associated with an existing team, this API route cr
 
 ```json
 {
-    “software”: [
+    "software": [
       {
-        "hosts_count": 124,
         "id": 1,
         "name": "Chrome.app",
         "version": "2.1.11",
@@ -6333,7 +6398,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 112,
         "id": 2,
         "name": "Figma.app",
         "version": "2.1.11",
@@ -6342,7 +6406,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 3,
         "name": "osquery",
         "version": "2.1.11",
@@ -6351,7 +6414,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 4,
         "name": "osquery",
         "version": "2.1.11",

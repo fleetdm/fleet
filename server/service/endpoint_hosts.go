@@ -47,7 +47,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID uint `json:"id"`
+	ID uint `url:"id"`
 }
 
 type getHostResponse struct {
@@ -56,25 +56,6 @@ type getHostResponse struct {
 }
 
 func (r getHostResponse) error() error { return r.Err }
-
-func makeGetHostEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getHostRequest)
-		host, err := svc.GetHost(ctx, req.ID)
-		if err != nil {
-			return getHostResponse{Err: err}, nil
-		}
-
-		resp, err := hostDetailResponseForHost(ctx, svc, host)
-		if err != nil {
-			return getHostResponse{Err: err}, nil
-		}
-
-		return getHostResponse{
-			Host: resp,
-		}, nil
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get Host By Identifier

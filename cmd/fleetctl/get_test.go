@@ -257,6 +257,22 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return []*fleet.HostPolicy{
+			{
+				ID:        1,
+				QueryID:   2,
+				QueryName: "query1",
+				Response:  "passes",
+			},
+			{
+				ID:        2,
+				QueryID:   43,
+				QueryName: "query2",
+				Response:  "fails",
+			},
+		}, nil
+	}
 
 	expectedText := `+------+------------+----------+-----------------+--------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |

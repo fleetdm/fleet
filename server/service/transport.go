@@ -66,7 +66,7 @@ func idFromRequest(r *http.Request, name string) (uint, error) {
 	}
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "idFromRequest")
 	}
 	return uint(uid), nil
 }
