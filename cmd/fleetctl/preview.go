@@ -207,6 +207,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.New("Expected 1 active enroll secret")
 			}
 
+			// disable anonymous analytics collection for preview
+			if err := client.ApplyAppConfig(map[string]map[string]bool{
+				"server_settings": {"enable_analytics": false}},
+			); err != nil {
+				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
+			}
+
 			fmt.Println("Starting simulated hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
