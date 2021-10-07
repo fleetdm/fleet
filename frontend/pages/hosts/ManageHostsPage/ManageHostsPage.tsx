@@ -178,7 +178,7 @@ const ManageHostsPage = ({
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
-  const [hostCount, setHostCount] = useState<number>();
+  const [filteredHostCount, setFilteredHostCount] = useState<number>();
   const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
   const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
@@ -329,8 +329,8 @@ const ManageHostsPage = ({
     };
 
     try {
-      const { hosts: returnedHostCount } = await hostCountAPI.load(options);
-      setHostCount(returnedHostCount);
+      const { count: returnedHostCount } = await hostCountAPI.load(options);
+      setFilteredHostCount(returnedHostCount);
     } catch (error) {
       console.error(error);
       setHasHostCountErrors(true);
@@ -1169,7 +1169,7 @@ const ManageHostsPage = ({
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
         customControl={renderStatusDropdown}
-        customCount={hostCount} // custom count populated from API filters
+        filteredCount={filteredHostCount}
       />
     );
   };

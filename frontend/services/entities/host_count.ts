@@ -25,8 +25,6 @@ export default {
   // hostCount.load share similar variables and parameters with hosts.loadAll
   load: (options: IHostCountLoadOptions | undefined) => {
     const { HOSTS_COUNT } = endpoints;
-    const page = options?.page || 0;
-    const perPage = options?.perPage || 100;
     const sortBy = options?.sortBy || [];
     const globalFilter = options?.globalFilter || "";
     const additionalInfoFilters = options?.additionalInfoFilters;
@@ -36,13 +34,12 @@ export default {
     const selectedLabels = options?.selectedLabels || [];
 
     // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
-
+    // const pagination = `page=${page}&per_page=${perPage}`;
     let orderKeyParam = "";
     let orderDirection = "";
     if (sortBy.length !== 0) {
       const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.key}`;
+      orderKeyParam += `order_key=${sortItem.key}`;
       orderDirection = `&order_direction=${sortItem.direction}`;
     }
 
@@ -51,7 +48,6 @@ export default {
       searchQuery = `&query=${globalFilter}`;
     }
 
-    let path = "";
     const labelPrefix = "labels/";
 
     // Handle multiple filters
@@ -63,24 +59,14 @@ export default {
       status === "offline" ||
       status === "mia";
 
-    console.log("label", label);
-    console.log("status", status);
-    debugger;
-    if (label) {
-      const labelId = `&label_id=${parseInt(
-        label.substr(labelPrefix.length),
-        10
-      )}`;
-      path = `${HOSTS_COUNT}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}${labelId}`;
+    let path = `${HOSTS_COUNT}?${orderKeyParam}${orderDirection}${searchQuery}`;
 
-      // connect status if applicable
-      if (status && isValidStatus) {
-        path += `&status=${status}`;
-      }
-    } else if (status && isValidStatus) {
-      path = `${HOSTS_COUNT}?${pagination}&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
-    } else {
-      path = `${HOSTS_COUNT}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+    if (status && isValidStatus) {
+      path += `&status=${status}`;
+    }
+
+    if (label) {
+      path += `&label_id=${parseInt(label.substr(labelPrefix.length), 10)}`;
     }
 
     if (teamId) {
