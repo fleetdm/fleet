@@ -198,7 +198,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount ? filteredCount : data.length;
+  const displayCount = filteredCount || data.length;
   return (
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
