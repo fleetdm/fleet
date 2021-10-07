@@ -44,6 +44,33 @@
     }
 
   }
+  .markdown-heading.copied::before {
+    content: 'Link copied to clipboard';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: -25px;
+    height: 0px;
+    font-size: 14px;
+    // line-height: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+  .markdown-heading.copied:hover::before {
+    // right: -15px;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
 
 
   [purpose='search'] {
