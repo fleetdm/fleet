@@ -560,7 +560,7 @@ Terraform reference architecture can be found [here](https://github.com/fleetdm/
 
 #### MySQL
 
-In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62)
+In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
 
 #### Redis
 
@@ -582,4 +582,4 @@ Alternatively you can bake the prepare command into the same task definition see
 
 Below are some projects created by Fleet community members. These projects provide additional solutions for deploying Fleet. Please submit a pull request if you'd like your project featured.
 
-- [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to setup FleetDM
+- [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet
