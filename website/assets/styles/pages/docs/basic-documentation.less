@@ -48,31 +48,31 @@
     }
 
   }
-  .markdown-heading.copied::after {
+  .markdown-heading.copied::before {
     content: 'Link copied to clipboard';
-    display: inline;
+    display: flex;
     font-weight: 400;
-    vertical-align: middle;
     position: relative;
-    right: -39px;
-    font-size: 12px;
-    line-height: 12px;
+    top: -25px;
+    height: 0px;
+    font-size: 14px;
+    // line-height: 14px;
     color: @core-vibrant-blue;
     animation-name: copiedText;
     animation-duration: 4s;
-    animation-fill-mode: both;
+    animation-fill-mode: forwards;
   }
-  .markdown-heading.copied:hover::after {
-    right: -15px;
+  .markdown-heading.copied:hover::before {
+    // right: -15px;
   }
 
   @keyframes copiedText {
     0% {opacity: 0;}
     20% {opacity: 100;}
-    50% {opacity: 70;}
-    70% {opacity: 50;}
-    80% {opacity: 30;}
-    90% {opacity: 10;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
     100% {opacity: 0;}
   }
 
