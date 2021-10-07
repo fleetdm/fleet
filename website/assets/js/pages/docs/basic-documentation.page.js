@@ -165,7 +165,7 @@ parasails.registerPage('basic-documentation', {
       $(elem).click(()=>{
         // find the child <a> element
         let linkToCopy = _.first($(elem).find('a.markdown-link'));
-        // If the link is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+        // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
         if(linkToCopy.href) {
           navigator.clipboard.writeText(linkToCopy.href);
         } else {

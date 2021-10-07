@@ -59,7 +59,7 @@
     line-height: 12px;
     color: @core-vibrant-blue;
     animation-name: copiedText;
-    animation-duration: 3s;
+    animation-duration: 4s;
     animation-fill-mode: both;
   } .markdown-heading.copied:hover::after {
       right: -15px;
@@ -68,9 +68,10 @@
   @keyframes copiedText {
     0% {opacity: 0;}
     20% {opacity: 100;}
-    50% {opacity: 80;}
-    70% {opacity: 70;}
-    90% {opacity: 50;}
+    50% {opacity: 70;}
+    70% {opacity: 50;}
+    80% {opacity: 30;}
+    90% {opacity: 10;}
     100% {opacity: 0;}
   }
 
