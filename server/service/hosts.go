@@ -102,7 +102,7 @@ func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, err
 	}
 
