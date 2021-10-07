@@ -83,7 +83,7 @@ interface IManageHostsProps {
 interface ILabelsResponse {
   labels: ILabel[];
 }
-interface IPolicyResponse {
+interface IPolicyAPIResponse {
   policy: IPolicy;
 }
 
@@ -176,7 +176,7 @@ const ManageHostsPage = ({
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-  const [policyName, setPolicyName] = useState<string>();
+  const [policy, setPolicy] = useState<IPolicy>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   // ======== end states
 
@@ -233,18 +233,19 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IPolicyResponse, Error>(
+  useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
     () => {
-      const request = currentTeam
-        ? teamPoliciesAPI.load(currentTeam.id, policyId)
+      const teamId = parseInt(queryParams?.team_id, 10) || 0;
+      const request = teamId
+        ? teamPoliciesAPI.load(teamId, policyId)
         : globalPoliciesAPI.load(policyId);
       return request;
     },
     {
       enabled: !!policyId,
-      onSuccess: ({ policy }) => {
-        setPolicyName(policy.query_name);
+      onSuccess: ({ policy: policyAPIResponse }) => {
+        setPolicy(policyAPIResponse);
       },
     }
   );
@@ -771,7 +772,7 @@ const ManageHostsPage = ({
     );
     const selectedTeamId = getValidatedTeamId(
       teams || [],
-      currentTeam?.id as number,
+      (policyId && policy?.team_id) || (currentTeam?.id as number),
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -796,7 +797,7 @@ const ManageHostsPage = ({
     const buttonText = (
       <>
         <img src={PolicyIcon} alt="Policy" />
-        {policyName}
+        {policy?.query_name}
         <img src={CloseIcon} alt="Remove policy filter" />
       </>
     );
@@ -810,7 +811,7 @@ const ManageHostsPage = ({
           className={`${baseClass}__clear-policies-filter`}
           onClick={handleClearPoliciesFilter}
           variant={"small-text-icon"}
-          title={policyName}
+          title={policy?.query_name}
         >
           {buttonText}
         </Button>
