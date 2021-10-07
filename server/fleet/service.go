@@ -241,6 +241,7 @@ type Service interface {
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
+	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application

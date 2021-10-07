@@ -366,6 +366,17 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 		    `
 	}
 
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	hosts := []*fleet.Host{}
+	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "list hosts")
+	}
+
+	return hosts, nil
+}
+
+func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id=pm.host_id)"
 	if opt.PolicyIDFilter == nil {
 		policyMembershipJoin = ""
@@ -384,13 +395,7 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-
-	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	return hosts, nil
+	return sql, params
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -428,6 +433,20 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		params = append(params, time.Now())
 	}
 	return sql, params
+}
+
+func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	sql := `SELECT count(*) `
+
+	var params []interface{}
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
+		return 0, errors.Wrap(err, "count hosts")
+	}
+
+	return count, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {

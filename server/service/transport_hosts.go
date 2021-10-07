@@ -6,14 +6,6 @@ import (
 	"net/http"
 )
 
-func decodeGetHostRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return getHostRequest{ID: id}, nil
-}
-
 func decodeHostByIdentifierRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	identifier, err := nameFromRequest(r, "identifier")
 	if err != nil {
