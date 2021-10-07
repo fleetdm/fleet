@@ -14,7 +14,6 @@ export interface IHostCountLoadOptions {
   sortBy?: ISortOption[];
   status?: string;
   globalFilter?: string;
-  additionalInfoFilters?: string;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
@@ -27,14 +26,11 @@ export default {
     const { HOSTS_COUNT } = endpoints;
     const sortBy = options?.sortBy || [];
     const globalFilter = options?.globalFilter || "";
-    const additionalInfoFilters = options?.additionalInfoFilters;
     const teamId = options?.teamId || null;
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const selectedLabels = options?.selectedLabels || [];
 
-    // TODO: add this query param logic to client class
-    // const pagination = `page=${page}&per_page=${perPage}`;
     let orderKeyParam = "";
     let orderDirection = "";
     if (sortBy.length !== 0) {
