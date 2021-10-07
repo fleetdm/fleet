@@ -425,7 +425,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("limits the results", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1})
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
@@ -434,11 +434,11 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1})
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
-		expected := []fleet.Software{foo003}
+		expected := []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -447,7 +447,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{})
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 2)

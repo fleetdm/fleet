@@ -252,6 +252,9 @@ func TestHostAuth(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
+	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
 
 	var testCases = []struct {
 		name                  string
@@ -338,6 +341,12 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.DeleteHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{1}, fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
