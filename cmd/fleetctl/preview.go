@@ -10,11 +10,17 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -218,6 +224,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				"server_settings": {"enable_analytics": false}},
 			); err != nil {
 				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
+			}
+
+			fmt.Println("Downloading Orbit and osqueryd...")
+
+			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
+				return errors.Wrap(err, "downloading orbit and osqueryd")
 			}
 
 			fmt.Println("Starting simulated hosts...")
@@ -437,6 +449,10 @@ func previewStopCommand() *cli.Command {
 				return errors.Errorf("Failed to run docker-compose stop for simulated hosts")
 			}
 
+			if err := stopOrbit(previewDir); err != nil {
+				return errors.Wrap(err, "Failed to stop orbit")
+			}
+
 			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
 
 			return nil
@@ -491,4 +507,71 @@ func previewResetCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func storePidFile(destDir string, pid int) error {
+	pidFilePath := path.Join(destDir, "orbit.pid")
+	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0644))
+	if err != nil {
+		return fmt.Errorf("error writing pidfile %s: %s", pidFilePath, err)
+	}
+	return nil
+}
+
+func readPidFromFile(destDir string) (int, error) {
+	pidFilePath := path.Join(destDir, "orbit.pid")
+	data, err := os.ReadFile(pidFilePath)
+	if err != nil {
+		return -1, fmt.Errorf("error reading pidfile %s: %s", pidFilePath, err)
+	}
+	return strconv.Atoi(string(data))
+}
+
+func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+	updateOpt := update.DefaultOptions
+	switch runtime.GOOS {
+	case "linux":
+		updateOpt.Platform = "linux"
+	case "darwin":
+		updateOpt.Platform = "macos"
+	case "windows":
+		updateOpt.Platform = "windows"
+	default:
+		return errors.Errorf("unsupported arch: %s", runtime.GOOS)
+	}
+	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+	updateOpt.RootDirectory = destDir
+
+	if err := packaging.InitializeUpdates(updateOpt); err != nil {
+		return errors.Wrap(err, "initialize updates")
+	}
+
+	cmd := exec.Command(
+		path.Join(destDir, "bin", "orbit", updateOpt.Platform, updateOpt.OrbitChannel, "orbit"),
+		"--root-dir", destDir,
+		"--fleet-url", address,
+		"--insecure",
+		"--enroll-secret", enrollSecret,
+		"--log-file", path.Join(destDir, "orbit.log"),
+	)
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "starting orbit")
+	}
+	if err := storePidFile(destDir, cmd.Process.Pid); err != nil {
+		return errors.Wrap(err, "saving pid file")
+	}
+
+	return nil
+}
+
+func stopOrbit(destDir string) error {
+	pid, err := readPidFromFile(destDir)
+	if err != nil {
+		return errors.Wrap(err, "reading pid")
+	}
+	err = syscall.Kill(pid, syscall.SIGKILL)
+	if err != nil {
+		return errors.Wrapf(err, "killing orbit %d", pid)
+	}
+	return nil
 }
