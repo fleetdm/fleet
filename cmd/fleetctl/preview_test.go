@@ -33,13 +33,13 @@ func TestPreview(t *testing.T) {
 	require.Greater(t, n, 10)
 
 	// app configuration must disable analytics
-	appConf := runAppForTest(t, []string{"get", "config", "--config", configPath, "--yaml"})
+	appConf := runAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)
-	require.False(t, ok, appConf) // TODO: once #2372 is merged this must be True
+	require.True(t, ok, appConf)
 
 	// software inventory must be enabled
 	ok = strings.Contains(appConf, `enable_software_inventory: true`)
-	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
+	require.True(t, ok, appConf)
 
 	// current instance checks must be on
 	ok = strings.Contains(appConf, `current_instance_checks: yes`)
