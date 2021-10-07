@@ -24,7 +24,7 @@ export interface IHostCountLoadOptions {
 export default {
   // hostCount.load share similar variables and parameters with hosts.loadAll
   load: (options: IHostCountLoadOptions | undefined) => {
-    const { HOSTS_COUNT, LABEL_HOSTS_COUNT } = endpoints;
+    const { HOSTS_COUNT } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
     const sortBy = options?.sortBy || [];
@@ -63,11 +63,15 @@ export default {
       status === "offline" ||
       status === "mia";
 
+    console.log("label", label);
+    console.log("status", status);
+    debugger;
     if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path = `${LABEL_HOSTS_COUNT(
-        parseInt(lid, 10)
-      )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+      const labelId = `&label_id=${parseInt(
+        label.substr(labelPrefix.length),
+        10
+      )}`;
+      path = `${HOSTS_COUNT}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}${labelId}`;
 
       // connect status if applicable
       if (status && isValidStatus) {

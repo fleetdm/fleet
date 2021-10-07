@@ -17,7 +17,7 @@ export default {
   ACTIVITIES: "/v1/fleet/activities",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOSTS: "/v1/fleet/hosts",
-  HOSTS_COUNT: "v1/fleet/hosts/count",
+  HOSTS_COUNT: "/v1/fleet/hosts/count",
   HOSTS_DELETE: "/v1/fleet/hosts/delete",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
@@ -25,9 +25,6 @@ export default {
   LABELS: "/v1/fleet/labels",
   LABEL_HOSTS: (id: number): string => {
     return `/v1/fleet/labels/${id}/hosts`;
-  },
-  LABEL_HOSTS_COUNT: (id: number): string => {
-    return `/v1/fleet/labels/${id}/hosts/count`;
   },
   LOGIN: "/v1/fleet/login",
   LOGOUT: "/v1/fleet/logout",
