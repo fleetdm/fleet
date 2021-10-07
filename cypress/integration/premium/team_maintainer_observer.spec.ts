@@ -20,8 +20,11 @@ describe(
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
-      // Ensure page is loaded
+      // Ensure page is loaded and teams are visible
       cy.contains("Hosts");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
 
       // On the Hosts page, they should…
 

@@ -255,14 +255,6 @@ const ManageHostsPage = ({
     }
   );
 
-  // const toggleEnrollSecretModal = () => {
-  //   setShowEnrollSecretModal(!showEnrollSecretModal);
-  // };
-
-  // const toggleAddHostModal = () => {
-  //   setShowAddHostModal(!showAddHostModal);
-  // };
-
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
   };
@@ -372,8 +364,42 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-    retrieveHostCount(options);
   }, [location, tableQueryData, labels]);
+
+  useDeepEffect(() => {
+    // set the team object in context
+    const teamId = parseInt(queryParams?.team_id, 10) || 0;
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
+
+    // set selected label
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+
+    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    setSelectedLabel(selected);
+
+    // get the hosts
+    const options: IHostLoadOptions = {
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: selectedTeam?.id,
+      policyId,
+      policyResponse,
+    };
+
+    retrieveHostCount(options);
+    console.log("Retrieve host count just ran!!!");
+  }, [
+    queryParams.team_id,
+    searchQuery,
+    policyId,
+    policyResponse,
+    selectedFilters,
+  ]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
     if (!slug) {
