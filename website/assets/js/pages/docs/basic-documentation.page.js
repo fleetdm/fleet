@@ -159,6 +159,23 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
+    // Adding event handlers to the Headings on the page, allowing users to copy links by clicking on the heading.
+    let headingsOnThisPage = $('#body-content').find(':header');
+    _.forEach(headingsOnThisPage, (elem)=> {
+      $(elem).click(()=>{
+        // find the child <a> element
+        let linkToCopy = _.first($(elem).find('a.markdown-link'));
+        // If the link is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+        if(linkToCopy.href) {
+          navigator.clipboard.writeText(linkToCopy.href);
+        } else {
+          navigator.clipboard.writeText(elem.baseURI.split('#')[0]);
+        }
+
+        return;
+      });
+    });
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
