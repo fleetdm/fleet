@@ -204,6 +204,9 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
+	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
+	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 

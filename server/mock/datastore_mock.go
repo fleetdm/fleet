@@ -167,6 +167,8 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
+type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -531,6 +533,9 @@ type DataStore struct {
 
 	CountHostsInLabelFunc        CountHostsInLabelFunc
 	CountHostsInLabelFuncInvoked bool
+
+	ListPoliciesForHostFunc        ListPoliciesForHostFunc
+	ListPoliciesForHostFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1116,6 +1121,11 @@ func (s *DataStore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt
 func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
 	s.CountHostsInLabelFuncInvoked = true
 	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
+}
+
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+	s.ListPoliciesForHostFuncInvoked = true
+	return s.ListPoliciesForHostFunc(ctx, hid)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
