@@ -18,7 +18,7 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/hosts/manage");
 
     // Ensure page is loaded
-    cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("All hosts");
 
     cy.get("thead").within(() => {
@@ -75,6 +75,8 @@ describe("Premium tier - Observer user", () => {
     cy.findByText(/you do not have permissions/i).should("exist");
 
     cy.visit("/hosts/manage");
+
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains(".table-container .data-table__table th", "Team").should(
       "be.visible"
     );
