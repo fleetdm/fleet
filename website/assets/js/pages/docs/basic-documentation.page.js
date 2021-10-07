@@ -168,7 +168,6 @@ parasails.registerPage('basic-documentation', {
         let linkToCopy = _.first($(heading).find('a.markdown-link'));
         // If this heading has already been clicked and still has the copied class we'll just ignore this click
         if(!$(heading).hasClass('copied')){
-          console.log('test');
           // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
           if(linkToCopy) {
             navigator.clipboard.writeText(linkToCopy.href);
