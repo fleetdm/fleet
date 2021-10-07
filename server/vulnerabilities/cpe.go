@@ -225,7 +225,17 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
-	client := &http.Client{}
+	// Add proxy support as shown in https://stackoverflow.com/questions/51845690/how-to-program-go-to-use-a-proxy-when-using-a-custom-transport
+	// Info to  add proxy as envvar in service https://serverfault.com/questions/413397/how-to-set-environment-variable-in-systemd-service | https://www.thegeekdiary.com/how-to-set-environment-variables-for-a-systemd-service-in-centos-rhel-7/ 
+	var PTransport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+	}
+	client := &http.Client{
+			Transport: PTransport,
+	}
+	level.Debug(logger).Log("proxy", "Trying to use the proxy from the environment variables.")
+
+	// client := &http.Client{}
 	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
 		return errors.Wrap(err, "sync cpe db")
 	}
