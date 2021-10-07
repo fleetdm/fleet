@@ -109,25 +109,30 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					return nil, err
 				}
 
-				if urlTagValue == "list_options" {
+				switch urlTagValue {
+				case "list_options":
 					opts, err := listOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
-					continue
-				}
-
-				id, err := idFromRequest(r, urlTagValue)
-				if err != nil {
-					if err == errBadRoute && optional {
-						continue
+				case "host_options":
+					opts, err := hostListOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
 					}
+					field.Set(reflect.ValueOf(opts))
+				default:
+					id, err := idFromRequest(r, urlTagValue)
+					if err != nil {
+						if err == errBadRoute && optional {
+							continue
+						}
 
-					return nil, err
+						return nil, err
+					}
+					field.SetUint(uint64(id))
 				}
-				field.SetUint(uint64(id))
-				continue
 			}
 
 			_, jsonExpected := f.Tag.Lookup("json")
@@ -161,7 +166,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Uint:
 					queryValUint, err := strconv.Atoi(queryVal)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "parsing uint from query")
 					}
 					field.SetUint(uint64(queryValUint))
 				default:

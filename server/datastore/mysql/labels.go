@@ -402,28 +402,47 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	sql := fmt.Sprintf(`
+	query := `
 			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h
 			ON lm.host_id = h.id
-			WHERE lm.label_id = ? AND %s
-		`, d.whereFilterHostsByTeams(filter, "h"),
-	)
+			WHERE lm.label_id = ?
+	`
 
-	params := []interface{}{lid}
+	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
 
-	sql, params = filterHostsByStatus(sql, opt, params)
-	sql, params = filterHostsByTeam(sql, opt, params)
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	hosts := []*fleet.Host{}
-	err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...)
+	err := sqlx.SelectContext(ctx, d.reader, &hosts, query, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
 	}
 	return hosts, nil
+}
+
+func (d *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}) {
+	params := []interface{}{lid}
+
+	query = fmt.Sprintf(`%s AND %s `, query, d.whereFilterHostsByTeams(filter, "h"))
+	query, params = filterHostsByStatus(query, opt, params)
+	query, params = filterHostsByTeam(query, opt, params)
+	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
+
+	query = appendListOptionsToSQL(query, opt.ListOptions)
+	return query, params
+}
+
+func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	query := `SELECT count(*) FROM label_membership lm JOIN hosts h ON lm.host_id = h.id WHERE lm.label_id = ?`
+
+	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, query, params...); err != nil {
+		return 0, errors.Wrap(err, "count hosts")
+	}
+
+	return count, nil
 }
 
 func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {

@@ -159,8 +159,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
-    setGlobalPolicies([]);
-    setTeamPolicies([]);
   };
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);

@@ -45,7 +45,7 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 
 It is a good idea to run `make test` before submitting a Pull Request.
 
-#### Go unit tests
+### Go unit tests
 
 To run all Go unit tests, run the following:
 
@@ -53,7 +53,7 @@ To run all Go unit tests, run the following:
 REDIS_TEST=1 MYSQL_TEST=1 make test-go
 ```
 
-#### Go linters
+### Go linters
 
 To run all Go linters and static analyzers, run the following:
 
@@ -61,7 +61,7 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-#### Javascript unit tests
+### Javascript unit tests
 
 To run all JS unit tests, run the following:
 
@@ -75,7 +75,7 @@ or
 yarn test
 ```
 
-#### Javascript linters
+### Javascript linters
 
 To run all JS linters and static analyzers, run the following:
 
@@ -89,7 +89,7 @@ or
 yarn lint
 ```
 
-#### MySQL tests
+### MySQL tests
 
 To run MySQL integration tests set environment variables as follows:
 
@@ -97,7 +97,7 @@ To run MySQL integration tests set environment variables as follows:
 MYSQL_TEST=1 make test-go
 ```
 
-#### Email tests
+### Email tests
 
 To run email related integration tests using MailHog set environment as follows:
 
@@ -105,7 +105,7 @@ To run email related integration tests using MailHog set environment as follows:
 MAIL_TEST=1 make test-go
 ```
 
-#### Network tests
+### Network tests
 
 A few tests require network access as they make requests to external hosts. Given that the network is unreliable, may not be available, and those hosts may also not be unavailable, those tests are skipped by default and are opt-in via the `NETWORK_TEST` environment variable. To run them:
 
@@ -153,7 +153,7 @@ E2E tests are constantly evolving and running them or examining CI results is th
     Settings adjustments
     Users
 
-#### Preparation
+### Preparation
 
 Make sure dependencies are up to date and the [Fleet binaries are built locally](./01-Building-Fleet.md).
 
@@ -179,11 +179,11 @@ make e2e-setup
 
 This will initialize the E2E instance with a user.
 
-#### Run tests
+### Run tests
 
 Tests can be run in interactive mode, or from the command line.
 
-#### Interactive
+### Interactive
 
 For Fleet Free tests:
 
@@ -199,7 +199,7 @@ yarn e2e-browser:premium
 
 Use the graphical UI controls to run and view tests.
 
-#### Command line
+### Command line
 
 For Fleet Free tests:
 
@@ -221,7 +221,7 @@ The Fleet repo includes tools to start test osquery hosts. Please see the docume
 
 ## Email
 
-#### Manually testing email with MailHog
+### Manually testing email with MailHog
 
 To intercept sent emails while running a Fleet development environment, first, in the Fleet UI, navigate to the Organization settings page under Admin.
 

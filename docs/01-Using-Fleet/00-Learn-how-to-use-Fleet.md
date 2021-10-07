@@ -93,8 +93,7 @@ To add your own device to Fleet, you'll first need to install the osquery agent.
 2. With [fleetctl preview](http://fleetdm.com/get-started) still running, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step):
 
 	``` 
-	fleetctl package --type=pkg --fleet-url=https://localhost:8412
-	--enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+	fleetctl package --type=pkg --fleet-url=https://localhost:8412 --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
 	```
 	> If you'd like to build a Windows package, set `--type=msi` in the above command. If you'd like to build a Linux package, set `--type=deb` (Debian, Ubuntu, etc.) or `--type=rpm` (RHEL, CentOS, etc.) in the above command.
 
