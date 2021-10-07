@@ -48,6 +48,31 @@
     }
 
   }
+  .markdown-heading.copied::after {
+    content: 'Link copied to clipboard';
+    display: inline;
+    font-weight: 400;
+    vertical-align: middle;
+    position: relative;
+    right: -39px;
+    font-size: 12px;
+    line-height: 12px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 3s;
+    animation-fill-mode: both;
+  } .markdown-heading.copied:hover::after {
+      right: -15px;
+    }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    50% {opacity: 80;}
+    70% {opacity: 70;}
+    90% {opacity: 50;}
+    100% {opacity: 0;}
+  }
 
 
   [purpose='search'] {

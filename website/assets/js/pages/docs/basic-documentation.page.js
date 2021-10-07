@@ -171,7 +171,7 @@ parasails.registerPage('basic-documentation', {
         } else {
           navigator.clipboard.writeText(elem.baseURI.split('#')[0]);
         }
-
+        $(elem).addClass('copied');
         return;
       });
     });
