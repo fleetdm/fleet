@@ -220,6 +220,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
             value = var.vulnerabilities_path
+          },
+          {
+            name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
+            value = "true"
+          },
+          {
+            name  = "FLEET_LOGGING_DEBUG"
+            value = "true"
           }
         ]
       }
