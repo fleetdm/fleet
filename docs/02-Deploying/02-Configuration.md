@@ -1538,7 +1538,7 @@ Otherwise, the following values are required:
 
 ### Creating SSO users in Fleet
 
-When an admin creates a new user to Fleet, they may select the `Enable Single Sign On` option. The
+When an admin creates a new user to Fleet, they may select the `Enable single sign on` option. The
 SSO enabled users will not be able to sign in with a regular user ID and password.
 
 It is strongly recommended that at least one admin user is set up to use the traditional password
@@ -1571,7 +1571,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML Single Sign On Options_ section.
 
-  - Check the _Enable Single Sign On_ checkbox.
+  - Check the _Enable single sign on_ checkbox.
   - For _Identity Provider Name_ use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
   - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
