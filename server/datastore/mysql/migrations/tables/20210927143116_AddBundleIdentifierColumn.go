@@ -2,7 +2,6 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
