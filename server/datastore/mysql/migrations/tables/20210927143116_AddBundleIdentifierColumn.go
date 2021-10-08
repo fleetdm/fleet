@@ -17,7 +17,6 @@ func columnExists(tx *sql.Tx, table, column string) bool {
 		`SELECT count(*) FROM information_schema.columns WHERE COLUMN_NAME = ? AND table_name = ? LIMIT 1;`,
 		column, table,
 	).Scan(&count)
-	fmt.Println(err, count)
 	if err != nil {
 		return false
 	}
