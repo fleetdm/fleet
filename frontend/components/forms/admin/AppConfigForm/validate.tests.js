@@ -99,7 +99,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          password: "SMTP Password must be present",
+          password: "SMTP password must be present",
         },
       });
     });
