@@ -53,7 +53,7 @@
               console.log("sso login succeeded " + data);
               $("#displayarea").empty();
               $("#displayarea").append(
-                "<h3>Authentication Succeeded</h3>" +
+                "<h3>Authentication succeeded</h3>" +
                   "<p>Token: " +
                   localStorage.getItem("FLEET::auth_token").substring(0, 16) +
                   "..." +
@@ -67,7 +67,7 @@
             error: function (err) {
               console.log("sso login failed " + data);
               $("#displayarea").empty();
-              $("#displayarea").append("<h3>Auth Failed</h3>");
+              $("#displayarea").append("<h3>Auth failed</h3>");
             },
           });
           console.log("removing token " + localStorage.getItem("ssoSession"));
