@@ -184,7 +184,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });
@@ -197,7 +197,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });
@@ -210,7 +210,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });
