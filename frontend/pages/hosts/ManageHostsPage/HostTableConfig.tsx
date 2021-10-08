@@ -243,7 +243,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
     Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Serial Number",
+    title: "Serial number",
     Header: (cellProps) => (
       <HeaderCell
         value={cellProps.column.title}
