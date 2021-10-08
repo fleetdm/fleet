@@ -10,11 +10,11 @@ export default {
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
-  EDIT_PACK: (pack: IPack): string => {
-    return `${URL_PREFIX}/packs/${pack.id}/edit`;
+  EDIT_PACK: (packId: number): string => {
+    return `${URL_PREFIX}/packs/${packId}/edit`;
   },
-  PACK: (pack: IPack): string => {
-    return `${URL_PREFIX}/packs/${pack.id}`;
+  PACK: (packId: number): string => {
+    return `${URL_PREFIX}/packs/${packId}`;
   },
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;

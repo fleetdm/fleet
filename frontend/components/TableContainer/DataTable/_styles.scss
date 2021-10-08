@@ -43,7 +43,6 @@
       }
     }
 
-
     thead {
       background-color: $ui-off-white;
       color: $core-fleet-black;
@@ -59,7 +58,7 @@
           border-top-left-radius: 6px;
         }
 
-        &:first-child:not([title="Toggle SortBy"]) {
+        &.selection__header {
           width: 20px;
         }
 

@@ -72,7 +72,7 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
             <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
               {!isTeamMaintainer
-                ? "Schedule a query, or go to your osquery packs via the &lsquo;Advanced&rsquo; button."
+                ? "Schedule a query, or go to your osquery packs via the 'Advanced' button."
                 : "Schedule a query to run on hosts assigned to this team."}
             </p>
             <div className={`${noScheduleClass}__-cta-buttons`}>

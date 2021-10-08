@@ -241,6 +241,7 @@ type Service interface {
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
+	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -273,6 +274,10 @@ type Service interface {
 
 	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
 	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
+
+	// VulnerabilitiesConfig returns the vulnerabilities checks configuration for
+	// the fleet instance.
+	VulnerabilitiesConfig(ctx context.Context) (*VulnerabilitiesConfig, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteService contains methods for a service which deals with user invites.

@@ -34,7 +34,8 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	configPath, context := c.String("config"), c.String("context")
 
-	if flag.Lookup("test.v") != nil {
+	// if a config file is explicitly provided, do not set an invalid arbitrary token
+	if !c.IsSet("config") && flag.Lookup("test.v") != nil {
 		fleet.SetToken("AAAA")
 		return fleet, nil
 	}

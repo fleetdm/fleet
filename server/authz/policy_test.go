@@ -318,7 +318,7 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamMaintainer, object: host, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
-		{user: teamMaintainer, object: hostTeam1, action: write, allow: false},
+		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
 	})

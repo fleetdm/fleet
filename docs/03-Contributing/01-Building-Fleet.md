@@ -130,7 +130,7 @@ To set up a canonical development environment via Docker, run the following from
 docker-compose up
 ```
 
-##### Stopping the local development environment
+#### Stopping the local development environment
 
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
@@ -138,7 +138,7 @@ If you'd like to shut down the virtual infrastructure created by Docker, run the
 docker-compose down
 ```
 
-##### Setting up the database tables
+#### Setting up the database tables
 
 Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
