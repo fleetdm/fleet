@@ -115,6 +115,9 @@ const HostDetailsPage = ({
     IQuery[]
   >("fleet queries", () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -124,6 +127,9 @@ const HostDetailsPage = ({
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && canTransferTeam,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: ITeamsResponse) => data.teams,
   });
 
@@ -136,6 +142,9 @@ const HostDetailsPage = ({
     () => hostAPI.load(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         // console.log(returnedHost);
