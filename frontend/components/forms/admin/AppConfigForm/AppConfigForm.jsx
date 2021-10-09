@@ -154,41 +154,73 @@ class AppConfigForm extends Component {
     const { fields } = this.props;
 
     return (
-      <div>
+      <div className={`${baseClass}__advanced-options`}>
         <p className={`${baseClass}__section-description`}>
           Most users do not need to modify these options.
         </p>
         <div className={`${baseClass}__inputs`}>
-          <div className={`${baseClass}__smtp-section`}>
-            <InputField {...fields.domain} label="Domain" />
-            <Checkbox {...fields.verify_ssl_certs}>Verify SSL certs</Checkbox>
-            <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
-            <Checkbox {...fields.host_expiry_enabled}>Host expiry</Checkbox>
-            <InputField
-              {...fields.host_expiry_window}
-              disabled={!fields.host_expiry_enabled.value}
-              label="Host Expiry Window"
-            />
-            <Checkbox {...fields.live_query_disabled}>
-              Disable live queries
-            </Checkbox>
+          <div className={`${baseClass}__form-fields`}>
+            <div className="tooltip-wrap tooltip-wrap--input">
+              <InputField {...fields.domain} label="Domain" />
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.verify_ssl_certs}>Verify SSL certs</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.host_expiry_enabled}>Host expiry</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap tooltip-wrap--input">
+              <InputField
+                {...fields.host_expiry_window}
+                disabled={!fields.host_expiry_enabled.value}
+                label="Host Expiry Window"
+              />
+              <IconToolTip
+                isHtml
+                text={
+                  "<p>If a host has not communicated with Fleet <br />in the specified number of days, it will be removed.</p>"
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.live_query_disabled}>
+                Disable live queries
+              </Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              />
+            </div>
           </div>
-        </div>
-
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
-              '\
-              <p><strong>Domain</strong> - If you need to specify a HELO domain, you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>\
-              <p><strong>Verify SSL Certs</strong> - Turn this off (not recommended) if you use a self-signed certificate <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
-              <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
-              <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
-              <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>\
-              <p><strong>Disable Live Queries</strong> - When enabled, disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
-            '
-            }
-          />
         </div>
       </div>
     );
