@@ -10,6 +10,7 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
 import { useDeepEffect } from "utilities/hooks";
+import ReactTooltip from "react-tooltip";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
@@ -60,6 +61,7 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
+  searchToolTipText?: string;
 }
 
 const baseClass = "table-container";
@@ -67,6 +69,10 @@ const baseClass = "table-container";
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
+
+const generateClassTag = (rawValue: string): string => {
+  return rawValue.replace(" ", "-").toLowerCase();
+};
 
 const TableContainer = ({
   columns,
@@ -104,6 +110,7 @@ const TableContainer = ({
   customControl,
   onSelectSingleRow,
   filteredCount,
+  searchToolTipText,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -249,15 +256,34 @@ const TableContainer = ({
           {customControl && customControl()}
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
-            <div className={`${baseClass}__search-input`}>
-              <InputField
-                placeholder={inputPlaceHolder}
-                name="searchQuery"
-                onChange={onSearchQueryChange}
-                value={searchQuery}
-                inputWrapperClass={`${baseClass}__input-wrapper`}
-              />
-            </div>
+            <>
+              <div
+                className={`${baseClass}__search-input`}
+                data-tip
+                data-for="search-tooltip"
+                data-tip-disable={!searchToolTipText}
+              >
+                <InputField
+                  placeholder={inputPlaceHolder}
+                  name="searchQuery"
+                  onChange={onSearchQueryChange}
+                  value={searchQuery}
+                  inputWrapperClass={`${baseClass}__input-wrapper`}
+                />
+              </div>
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="search-tooltip"
+                data-html
+              >
+                <span className={`tooltip ${baseClass}__tooltip-text`}>
+                  {searchToolTipText}
+                </span>
+              </ReactTooltip>
+            </>
           )}
         </div>
       </div>

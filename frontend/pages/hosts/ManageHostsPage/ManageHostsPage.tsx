@@ -1195,7 +1195,13 @@ const ManageHostsPage = ({
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
         customControl={renderStatusDropdown}
+<<<<<<< HEAD
         filteredCount={filteredHostCount}
+=======
+        searchToolTipText={
+          "Search hosts by hostname, UUID, machine serial or IP address"
+        }
+>>>>>>> cbed295f (Add tooltip to manage host page search)
       />
     );
   };
