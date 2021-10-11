@@ -28,7 +28,7 @@ describe("AppConfigForm - validations", () => {
     expect(validate(invalidFormData)).toEqual({
       valid: false,
       errors: {
-        org_name: "Organization Name must be present",
+        org_name: "Organization name must be present",
       },
     });
   });
@@ -42,7 +42,7 @@ describe("AppConfigForm - validations", () => {
     expect(validate(invalidFormData)).toEqual({
       valid: false,
       errors: {
-        server_url: "Fleet Server URL must be present",
+        server_url: "Fleet server URL must be present",
       },
     });
   });
@@ -57,7 +57,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          sender_address: "SMTP Sender Address must be present",
+          sender_address: "SMTP sender address must be present",
         },
       });
     });
@@ -71,7 +71,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          server: "SMTP Server must be present",
+          server: "SMTP server must be present",
         },
       });
     });
@@ -85,7 +85,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          server: "SMTP Server Port must be present",
+          server: "SMTP server port must be present",
         },
       });
     });
@@ -99,7 +99,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          password: "SMTP Password must be present",
+          password: "SMTP password must be present",
         },
       });
     });
@@ -113,7 +113,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          user_name: "SMTP Username must be present",
+          user_name: "SMTP username must be present",
         },
       });
     });
@@ -149,16 +149,16 @@ describe("AppConfigForm - validations", () => {
       expect(validate(invalidFormData)).toEqual({
         valid: false,
         errors: {
-          sender_address: "SMTP Sender Address must be present",
-          server: "SMTP Server must be present",
-          user_name: "SMTP Username must be present",
+          sender_address: "SMTP sender address must be present",
+          server: "SMTP server must be present",
+          user_name: "SMTP username must be present",
         },
       });
 
       expect(validate(missingPortFormData)).toEqual({
         valid: false,
         errors: {
-          server: "SMTP Server Port must be present",
+          server: "SMTP server port must be present",
         },
       });
     });
@@ -184,7 +184,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });
@@ -197,7 +197,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });
@@ -210,7 +210,7 @@ describe("AppConfigForm - validations", () => {
       expect(validate(formData)).toEqual({
         valid: false,
         errors: {
-          host_expiry_window: "Host Expiry Window must be a positive number",
+          host_expiry_window: "Host expiry window must be a positive number",
         },
       });
     });

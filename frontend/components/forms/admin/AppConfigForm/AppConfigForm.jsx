@@ -235,15 +235,15 @@ class AppConfigForm extends Component {
 
     return (
       <div className={`${baseClass}__smtp-section`}>
-        <InputField {...fields.user_name} label="SMTP Username" />
+        <InputField {...fields.user_name} label="SMTP username" />
         <InputField
           {...fields.password}
-          label="SMTP Password"
+          label="SMTP password"
           type="password"
         />
         <Dropdown
           {...fields.authentication_method}
-          label="Auth Method"
+          label="Auth method"
           options={authMethodOptions}
           placeholder=""
         />
@@ -337,7 +337,7 @@ class AppConfigForm extends Component {
         <form className={baseClass} onSubmit={handleSubmit}>
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="organization-info">Organization Info</a>
+              <a id="organization-info">Organization info</a>
             </h2>
             <div className={`${baseClass}__inputs`}>
               <InputField {...fields.org_name} label="Organization name" />
@@ -359,7 +359,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__inputs`}>
               <InputField
                 {...fields.server_url}
-                label="Fleet App URL"
+                label="Fleet app URL"
                 hint={
                   <span>
                     Include base path only (eg. no <code>/v1</code>)
@@ -376,15 +376,15 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="saml">SAML Single Sign On Options</a>
+              <a id="saml">SAML single sign on options</a>
             </h2>
 
             <div className={`${baseClass}__inputs`}>
-              <Checkbox {...fields.enable_sso}>Enable Single Sign On</Checkbox>
+              <Checkbox {...fields.enable_sso}>Enable single sign on</Checkbox>
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_name} label="Identity Provider Name" />
+              <InputField {...fields.idp_name} label="Identity provider name" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip
@@ -424,7 +424,7 @@ class AppConfigForm extends Component {
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_image_url} label="IDP Image URL" />
+              <InputField {...fields.idp_image_url} label="IDP image URL" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip
@@ -477,7 +477,7 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__section`}>
             <h2>
               <a id="smtp">
-                SMTP Options{" "}
+                SMTP options{" "}
                 <small
                   className={`smtp-options smtp-options--${
                     smtpConfigured ? "configured" : "notconfigured"
@@ -493,14 +493,14 @@ class AppConfigForm extends Component {
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.sender_address} label="Sender Address" />
+              <InputField {...fields.sender_address} label="Sender address" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip text={"The sender address for emails from Fleet."} />
             </div>
 
             <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
-              <InputField {...fields.server} label="SMTP Server" />
+              <InputField {...fields.server} label="SMTP server" />
               <InputField {...fields.port} label="&nbsp;" type="number" />
               <Checkbox {...fields.enable_ssl_tls}>
                 Use SSL/TLS to connect (recommended)
@@ -517,7 +517,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__inputs`}>
               <Dropdown
                 {...fields.authentication_type}
-                label="Authentication Type"
+                label="Authentication type"
                 options={authTypeOptions}
               />
               {renderSmtpSection()}
@@ -538,7 +538,7 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="osquery-enrollment-secrets">Osquery Enrollment Secrets</a>
+              <a id="osquery-enrollment-secrets">Osquery enrollment secrets</a>
             </h2>
             <div className={`${baseClass}__inputs`}>
               <p className={`${baseClass}__enroll-secret-label`}>

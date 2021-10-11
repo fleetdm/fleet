@@ -129,7 +129,7 @@ Once you've configured the `config.mk` file with the correct variables, you can 
 
 The enrollment package must installed after the osqueryd package, and will install a LaunchDaemon to keep the osqueryd process running.
 
-## Multiple Enroll Secrets
+## Multiple enroll secrets
 
 Multiple enroll secrets can be set to allow different groups of hosts to
 authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
