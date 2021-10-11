@@ -5,7 +5,7 @@ package main
 
 import (
 	"os/exec"
-	"stdconv"
+	"strconv"
 )
 
 func killPID(pid int) error {
