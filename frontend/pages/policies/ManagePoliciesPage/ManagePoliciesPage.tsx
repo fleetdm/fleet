@@ -35,7 +35,7 @@ import TeamsDropdown from "./components/TeamsDropdown";
 const baseClass = "manage-policies-page";
 
 const DOCS_LINK =
-  "https://fleetdm.com/docs/deploying/configuration#osquery_detail_update_interval";
+  "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
 
 const renderInheritedPoliciesButtonText = (
   showPolicies: boolean,
@@ -106,7 +106,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
-    "osquery detail update interval"
+    "osquery policy update interval"
   );
   // ===== local state
 
@@ -302,10 +302,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     selectedTeamId,
   ]);
 
-  // Pull osquery detail update interval value from config, reformat, and set as updateInterval.
+  // Pull osquery policy update interval value from config, reformat, and set as updateInterval.
   useEffect(() => {
     if (config) {
-      const { osquery_detail: interval } = config;
+      const { osquery_policy: interval } = config;
       interval &&
         setUpdateInterval(secondsToHms(inMilliseconds(interval) / 1000));
     }

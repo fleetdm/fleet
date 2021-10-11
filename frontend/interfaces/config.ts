@@ -95,6 +95,7 @@ export interface IConfig {
   host_expiry_window: number;
   agent_options: string;
   osquery_detail: number;
+  osquery_policy: number;
   tier: string;
   organization: string;
   device_count: number;
