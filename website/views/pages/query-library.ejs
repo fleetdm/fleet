@@ -22,7 +22,7 @@
               <select class="select-purpose mobile font-weight-bold" v-model="selectedPurpose">
                 <option value="all queries" selected>All queries</option>
                 <option value="informational">Informational queries</option>
-                <option value="detection">Detection queries</option>
+                <option value="policies">Policies</option>
               </select>
             </div>
           </div>
@@ -54,7 +54,7 @@
                   <button class="dropdown-item" type="button"
                     @click="clickSelectPurpose('informational')">informational</button>
                   <button class="dropdown-item" type="button"
-                    @click="clickSelectPurpose('detection')">detection</button>
+                    @click="clickSelectPurpose('policies')">policies</button>
                 </div>
               </div>
             </div>

@@ -8,20 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	return svc.ds.ListHosts(ctx, filter, opt)
-}
-
 func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
