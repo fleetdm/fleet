@@ -197,16 +197,6 @@
 
   &__smtp-section {
     @include clearfix;
-
-    .fleet-checkbox__tick {
-      position: relative;
-      left: 150px;
-      top: 12px;
-    }
-    .fleet-checkbox__label {
-      position: relative;
-      left: -48px;
-    }
   }
 
   &__component-label {
