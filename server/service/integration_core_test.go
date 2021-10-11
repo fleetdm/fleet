@@ -563,3 +563,19 @@ func (s *integrationTestSuite) TestCountSoftware() {
 	)
 	assert.Equal(t, 1, resp.Count)
 }
+
+func (s *integrationTestSuite) TestGetPack() {
+	t := s.T()
+
+	pack := &fleet.Pack{
+		Name: t.Name(),
+	}
+	pack, err := s.ds.NewPack(context.Background(), pack)
+	require.NoError(t, err)
+
+	var packResp getPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packResp.Pack.ID, pack.ID)
+
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+}
