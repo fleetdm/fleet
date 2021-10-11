@@ -65,10 +65,10 @@ module "aurora_mysql" {
   engine_version        = "5.7.mysql_aurora.2.10.0"
 #  instance_type         = "db.t4g.medium"
 #  instance_type_replica = "db.t4g.medium"
-#  instance_type         = "db.r5d.2xlarge"
-#  instance_type_replica = "db.r5d.2xlarge"
-  instance_type         = "db.r5.12xlarge"
-  instance_type_replica = "db.r5.12xlarge"
+#  instance_type         = "db.r5.12xlarge"
+#  instance_type_replica = "db.r5.12xlarge"
+  instance_type         = "db.r5.4xlarge"
+  instance_type_replica = "db.r5.4xlarge"
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true

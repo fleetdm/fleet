@@ -118,15 +118,19 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+#  cpu                      = 256
+#  memory                   = 512
+  cpu                      = 1024
+  memory                   = 2048
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
         image       = var.fleet_image
-        cpu         = 256
-        memory      = 512
+#        cpu         = 256
+#        memory      = 512
+        cpu         = 1024
+        memory      = 2048
         mountPoints = []
         volumesFrom = []
         essential   = true

@@ -23,10 +23,29 @@ version: 5.0.6
 type: cluster 1 primary, 2 replicas
 instance: cache.t2.micro
 
+mysql: 
+version: 5.7.mysql_aurora.2.10.0
+instance: db.t4g.medium
+
 ## Limitations of the test
 
 osquery perf doesn't have host users and inventory support yet
 
+# 150k hosts
 
+fleet instances:
 
-# 160k hosts
+1 Task
+1024 CPU units
+2048 MB of memory
+
+amount of hosts: 150000k
+
+redis:
+version: 5.0.6
+type: cluster 1 primary, 2 replicas
+instance: cache.t2.micro
+
+mysql:
+version: 5.7.mysql_aurora.2.10.0
+instance: db.r5.4xlarge
