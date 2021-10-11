@@ -9,7 +9,8 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("apples");
+      cy.addDockerHost("oranges");
       cy.logout();
     });
     afterEach(() => {
@@ -20,7 +21,7 @@ describe(
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
-      // Ensure page is loaded
+      // Ensure page is loaded and teams are visible
       cy.contains("Hosts");
 
       // On the Hosts page, they should…
@@ -197,6 +198,11 @@ describe(
       cy.findByText(/advanced/i).should("not.exist");
       cy.findByRole("button", { name: /schedule a query/i }).click();
       // TODO: Write e2e test for team maintainer to schedule a query
+
+      cy.visit("/hosts/manage");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
 
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section

@@ -4,7 +4,8 @@ const generateResultsCountText = (
   name: string = DEFAULT_RESULTS_NAME,
   pageIndex: number,
   pageSize: number,
-  resultsCount: number
+  resultsCount: number,
+  filteredCount?: number
 ): string => {
   if (resultsCount === 0) return `No ${name}`;
   // If there is 1 result and the last 3 letters in the result
@@ -26,8 +27,10 @@ const generateResultsCountText = (
     return `${resultsCount} ${name.slice(0, -1)}`;
   }
 
-  if (pageSize === resultsCount) return `${pageSize}+ ${name}`;
-  if (pageIndex !== 0 && resultsCount <= pageSize)
+  // If there is no filtered count, return pageSize+ name
+  if (pageSize === resultsCount && !filteredCount)
+    return `${pageSize}+ ${name}`;
+  if (pageIndex !== 0 && resultsCount <= pageSize && !filteredCount)
     return `${pageSize}+ ${name}`;
   return `${resultsCount} ${name}`;
 };
