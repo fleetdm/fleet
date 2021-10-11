@@ -35,7 +35,7 @@ osquery perf doesn't have host users and inventory support yet
 
 fleet instances:
 
-1 Task
+25 Task
 1024 CPU units
 2048 MB of memory
 
