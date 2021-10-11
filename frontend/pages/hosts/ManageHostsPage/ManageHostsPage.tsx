@@ -224,14 +224,14 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ITeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ITeamsResponse) => data.teams,
+  });
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
@@ -757,7 +757,7 @@ const ManageHostsPage = ({
   };
 
   const renderTeamsFilterDropdown = () => {
-    if (!isPremiumTier || !teams) {
+    if (isPremiumTier && isLoadingTeams) {
       return null;
     }
 
@@ -766,7 +766,7 @@ const ManageHostsPage = ({
     }
 
     const teamOptions = generateTeamFilterDropdownOptions(
-      teams,
+      teams || [],
       currentUser,
       isOnGlobalTeam as boolean
     );
