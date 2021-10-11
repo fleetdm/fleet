@@ -30,9 +30,9 @@ describe("Premium tier - Observer user", () => {
       // Test host text varies
       cy.findByRole("button").click();
     });
-    cy.get(".title").within(() => {
-      cy.findByText("Team").should("exist");
-    });
+
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText("Team").should("exist");
     cy.contains("button", /transfer/i).should("not.exist");
     cy.contains("button", /delete/i).should("not.exist");
     cy.contains("button", /query/i).click();

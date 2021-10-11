@@ -6,7 +6,13 @@
   padding-bottom: 50px;
   min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-large;
+  gap: $pad-medium;
+
+  .header {
+    flex: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
   .section {
     flex: 100%;
@@ -140,17 +146,11 @@
   .title {
     flex-direction: row;
     justify-content: space-between;
-    border-bottom: 1px solid $ui-fleet-blue-15;
     margin: 0;
-
-    &__inner {
-      padding-bottom: $pad-medium;
-    }
 
     .hostname-container {
       display: flex;
       align-items: flex-end;
-      margin-bottom: $pad-large;
     }
 
     .hostname {
@@ -420,6 +420,7 @@
   &__back-link {
     display: flex;
     align-items: center;
+    padding-bottom: $pad-small;
     height: 16px;
     font-size: $x-small;
     color: $core-vibrant-blue;
