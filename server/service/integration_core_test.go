@@ -579,3 +579,16 @@ func (s *integrationTestSuite) TestGetPack() {
 
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
 }
+
+func (s *integrationTestSuite) TestListHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
+	require.Len(t, resp.Hosts, 1)
+}
