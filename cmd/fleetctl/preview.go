@@ -54,7 +54,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 			&cli.StringFlag{
 				Name:  osqueryInBoxBranchFlagName,
-				Usage: "Run a specific branch of then osquery-in-a-box repository",
+				Usage: "Run a specific branch of the osquery-in-a-box repository",
 				Value: "production",
 			},
 		},
