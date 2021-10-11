@@ -183,10 +183,6 @@ func TestAPIRoutes(t *testing.T) {
 		},
 		{
 			verb: "GET",
-			uri:  "/api/v1/fleet/hosts/1",
-		},
-		{
-			verb: "GET",
 			uri:  "/api/v1/fleet/hosts",
 		},
 		{
@@ -207,7 +203,7 @@ func TestAPIRoutes(t *testing.T) {
 				httptest.NewRequest(route.verb, route.uri, nil),
 			)
 			assert.NotEqual(st, 404, recorder.Code)
-			assert.NotEqual(st, 405, recorder.Code) // if it matches a path but with wrong verb
+			assert.NotEqual(st, 405, recorder.Code, route.verb) // if it matches a path but with wrong verb
 		})
 	}
 }
