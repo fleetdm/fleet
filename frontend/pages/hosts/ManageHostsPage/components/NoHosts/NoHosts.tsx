@@ -1,29 +1,45 @@
 /**
  * Component when there is no hosts set up in fleet
  */
-import React from "react";
+import React, { useState, useCallback } from "react";
+
+import Button from "components/buttons/Button";
+import GenerateInstallerModal from "./GenerateInstallerModal";
 
 import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 
 const baseClass = "no-hosts";
 
 const NoHosts = (): JSX.Element => {
+  const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
+    false
+  );
+
+  const toggleGenerateInstallerModal = useCallback(() => {
+    setShowGenerateInstallerModal(!showGenerateInstallerModal);
+  }, [showGenerateInstallerModal, setShowGenerateInstallerModal]);
+
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <img src={RoboDogImage} alt="No Hosts" />
         <div>
-          <h1>It&#39;s kinda empty in here...</h1>
-          <h2>Get started adding hosts to Fleet.</h2>
-          <p>Add your laptops and servers to securely monitor them.</p>
-          <div className={`${baseClass}__no-hosts-contact`}>
-            <p>Still having trouble?</p>
-            <a href="https://github.com/fleetdm/fleet/issues">
-              File a GitHub issue
-            </a>
+          <h2>Add your devices to Fleet</h2>
+          <p>Generate an installer to add your own devices.</p>
+          <div className={`${baseClass}__no-hosts-button`}>
+            <Button
+              onClick={toggleGenerateInstallerModal}
+              type="button"
+              className="button button--brand"
+            >
+              Generate installer
+            </Button>
           </div>
         </div>
       </div>
+      {showGenerateInstallerModal ? (
+        <GenerateInstallerModal onCancel={toggleGenerateInstallerModal} />
+      ) : null}
     </div>
   );
 };

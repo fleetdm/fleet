@@ -1223,17 +1223,21 @@ const ManageHostsPage = ({
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Show enroll secret</span>
+                  <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts && (
-                <Button
-                  onClick={() => setShowAddHostModal(true)}
-                  className={`${baseClass}__add-hosts button button--brand`}
-                >
-                  <span>Add new host</span>
-                </Button>
-              )}
+              {canAddNewHosts &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  selectedLabel?.count === 0
+                ) && (
+                  <Button
+                    onClick={() => setShowAddHostModal(true)}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Add new host</span>
+                  </Button>
+                )}
             </div>
           </div>
           {renderLabelOrPolicyBlock()}
