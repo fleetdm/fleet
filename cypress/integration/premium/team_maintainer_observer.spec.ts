@@ -27,7 +27,7 @@ describe(
       // On the Hosts page, they should…
 
       // See hosts
-      // cy.findByText(/kinda empty in here/i).should("not.exist");
+      // cy.findByText(/generate installer/i).should("not.exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See the “Teams” column in the Hosts table

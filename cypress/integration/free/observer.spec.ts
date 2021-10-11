@@ -41,7 +41,7 @@ describe("Free tier - Observer user", () => {
     cy.findByText(/teams/i).should("not.exist");
     cy.contains("button", /add new host/i).should("not.exist");
     cy.contains("button", /add label/i).should("not.exist");
-    cy.contains("button", /show enroll secret/i).should("not.exist");
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {

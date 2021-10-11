@@ -104,7 +104,7 @@ describe(
     //         })
     //         .then(() => {
     //           cy.findByText(/successfully deleted/i).should("exist");
-    //           cy.findByText(/kinda empty in here/i).should("exist");
+    //           cy.findByText(/generate installer/i).should("exist");
     //           cy.findByText(/about this host/i).should("not.exist");
     //           cy.findByText(hostname).should("not.exist");
     //         });
