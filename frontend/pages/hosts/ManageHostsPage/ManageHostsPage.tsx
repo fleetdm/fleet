@@ -14,6 +14,9 @@ import hostsAPI, {
   IHostLoadOptions,
   ISortOption,
 } from "services/entities/hosts";
+import hostCountAPI, {
+  IHostCountLoadOptions,
+} from "services/entities/host_count";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -175,6 +178,9 @@ const ManageHostsPage = ({
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [filteredHostCount, setFilteredHostCount] = useState<number>();
+  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
@@ -224,14 +230,14 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ITeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ITeamsResponse) => data.teams,
+  });
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
@@ -249,14 +255,6 @@ const ManageHostsPage = ({
       },
     }
   );
-
-  // const toggleEnrollSecretModal = () => {
-  //   setShowEnrollSecretModal(!showEnrollSecretModal);
-  // };
-
-  // const toggleAddHostModal = () => {
-  //   setShowAddHostModal(!showAddHostModal);
-  // };
 
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
@@ -310,6 +308,30 @@ const ManageHostsPage = ({
     }
   };
 
+  const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
+    setIsHostCountLoading(true);
+
+    options = {
+      ...options,
+      teamId: getValidatedTeamId(
+        teams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean
+      ),
+    };
+
+    try {
+      const { count: returnedHostCount } = await hostCountAPI.load(options);
+      setFilteredHostCount(returnedHostCount);
+    } catch (error) {
+      console.error(error);
+      setHasHostCountErrors(true);
+    } finally {
+      setIsHostCountLoading(false);
+    }
+  };
+
   // triggered every time the route is changed
   // which means every filter click and text search
   useDeepEffect(() => {
@@ -344,6 +366,40 @@ const ManageHostsPage = ({
 
     retrieveHosts(options);
   }, [location, tableQueryData, labels]);
+
+  useDeepEffect(() => {
+    // set the team object in context
+    const teamId = parseInt(queryParams?.team_id, 10) || 0;
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
+
+    // set selected label
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+
+    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    setSelectedLabel(selected);
+
+    // get the hosts
+    const options: IHostLoadOptions = {
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: selectedTeam?.id,
+      policyId,
+      policyResponse,
+    };
+
+    retrieveHostCount(options);
+  }, [
+    queryParams.team_id,
+    searchQuery,
+    policyId,
+    policyResponse,
+    selectedFilters,
+  ]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
     if (!slug) {
@@ -757,7 +813,7 @@ const ManageHostsPage = ({
   };
 
   const renderTeamsFilterDropdown = () => {
-    if (!isPremiumTier || !teams) {
+    if (isPremiumTier && isLoadingTeams) {
       return null;
     }
 
@@ -766,7 +822,7 @@ const ManageHostsPage = ({
     }
 
     const teamOptions = generateTeamFilterDropdownOptions(
-      teams,
+      teams || [],
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -1085,7 +1141,7 @@ const ManageHostsPage = ({
       return null;
     }
 
-    if (hasHostErrors) {
+    if (hasHostErrors || hasHostCountErrors) {
       return <TableDataError />;
     }
 
@@ -1114,7 +1170,7 @@ const ManageHostsPage = ({
           currentTeam
         )}
         data={hosts}
-        isLoading={isHostsLoading}
+        isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1139,6 +1195,7 @@ const ManageHostsPage = ({
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
         customControl={renderStatusDropdown}
+        filteredCount={filteredHostCount}
       />
     );
   };

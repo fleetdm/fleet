@@ -103,7 +103,7 @@ func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 	expiryWindow := info.HostExpirySettings.HostExpiryWindow
 
 	if !eventSchedulerEnabled && expiryEnabled {
-		return errors.New("MySQL Event Scheduler must be enabled to configure Host Expiry.")
+		return errors.New("MySQL event scheduler must be enabled to configure host expiry.")
 	}
 
 	configBytes, err := json.Marshal(info)

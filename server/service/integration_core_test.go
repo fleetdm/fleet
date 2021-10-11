@@ -563,3 +563,32 @@ func (s *integrationTestSuite) TestCountSoftware() {
 	)
 	assert.Equal(t, 1, resp.Count)
 }
+
+func (s *integrationTestSuite) TestGetPack() {
+	t := s.T()
+
+	pack := &fleet.Pack{
+		Name: t.Name(),
+	}
+	pack, err := s.ds.NewPack(context.Background(), pack)
+	require.NoError(t, err)
+
+	var packResp getPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packResp.Pack.ID, pack.ID)
+
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+}
+
+func (s *integrationTestSuite) TestListHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
+	require.Len(t, resp.Hosts, 1)
+}

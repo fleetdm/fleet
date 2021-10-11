@@ -92,7 +92,7 @@ class AddHostModal extends Component {
       .catch(() => {
         this.setState({
           fetchCertificateError:
-            "Failed to load certificate. Is Fleet App URL configured properly?",
+            "Failed to load certificate. Is Fleet app URL configured properly?",
         });
       });
   }
@@ -153,7 +153,7 @@ class AddHostModal extends Component {
     );
   };
 
-  createTeamDropdownOptions = (currentUserTeams) => {
+  createTeamDropdownOptions = (currentUserTeams = []) => {
     const teamOptions = currentUserTeams.map((team) => {
       return {
         value: team.id,
@@ -280,7 +280,7 @@ class AddHostModal extends Component {
                 server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
-                {isPremiumTier ? (
+                {isPremiumTier && currentUserTeams ? (
                   <Dropdown
                     wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
                     label={"Select a team for this new host:"}
