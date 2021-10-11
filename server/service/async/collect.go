@@ -80,7 +80,7 @@ func (c *collector) exec(ctx context.Context) {
 	defer conn.Do("DEL", keyLock)
 
 	// at this point, the lock has been acquired, execute the collector handler
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(c.lockTimeout.Seconds()))
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(c.lockTimeout.Seconds())*time.Second)
 	defer cancel()
 
 	var stats collectorExecStats
