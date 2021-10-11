@@ -30,6 +30,7 @@ type collector struct {
 }
 
 type collectorStats struct {
+	SkipCount     int
 	ExecCount     int
 	FailuresCount int
 
@@ -71,10 +72,13 @@ func (c *collector) exec(ctx context.Context) {
 	defer conn.Close()
 
 	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout.Seconds()))); err != nil {
+		var failed bool
 		// either redis failure or this collector didn't acquire the lock
 		if !errors.Is(err, redigo.ErrNil) && c.errHandler != nil {
 			c.errHandler(c.name, err)
+			failed = true
 		}
+		c.addSkipStats(failed)
 		return
 	}
 	defer conn.Do("DEL", keyLock)
@@ -85,9 +89,11 @@ func (c *collector) exec(ctx context.Context) {
 
 	var stats collectorExecStats
 	start := time.Now()
-	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil && c.errHandler != nil {
+	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil {
 		stats.Failed = true
-		c.errHandler(c.name, err)
+		if c.errHandler != nil {
+			c.errHandler(c.name, err)
+		}
 	}
 	stats.Duration = time.Since(start)
 	c.addStats(&stats)
@@ -130,6 +136,16 @@ func (c *collector) addStats(stats *collectorExecStats) {
 	}
 	if stats.Duration < c.stats.MinExecDuration || (stats.Duration > 0 && c.stats.MinExecDuration == 0) {
 		c.stats.MinExecDuration = stats.Duration
+	}
+}
+
+func (c *collector) addSkipStats(failed bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.stats.SkipCount++
+	if failed {
+		c.stats.FailuresCount++
 	}
 }
 
