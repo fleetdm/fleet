@@ -58,7 +58,7 @@ describe(
 
         // Go to host details page
         cy.get('button[title="Online"]').click();
-        cy.get("span.status").contains("online");
+        cy.get("span.status").contains(/online/i);
       }
     );
 
