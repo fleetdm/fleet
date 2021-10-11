@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -569,7 +568,7 @@ func stopOrbit(destDir string) error {
 	if err != nil {
 		return errors.Wrap(err, "reading pid")
 	}
-	err = syscall.Kill(pid, syscall.SIGKILL)
+	err = killPID(pid)
 	if err != nil {
 		return errors.Wrapf(err, "killing orbit %d", pid)
 	}
