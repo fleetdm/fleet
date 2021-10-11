@@ -92,7 +92,7 @@ class AddHostModal extends Component {
       .catch(() => {
         this.setState({
           fetchCertificateError:
-            "Failed to load certificate. Is Fleet App URL configured properly?",
+            "Failed to load certificate. Is Fleet app URL configured properly?",
         });
       });
   }
