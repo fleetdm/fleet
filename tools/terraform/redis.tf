@@ -5,7 +5,8 @@ variable "engine_version" {
   default = "5.0.6"
 }
 variable "node_type" {
-  default = "cache.m5.large"
+#  default = "cache.m5.large"
+  default = "cache.r5.12xlarge"
 }
 variable "number_cache_clusters" {
   default = 3

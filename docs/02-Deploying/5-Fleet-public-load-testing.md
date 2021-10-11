@@ -49,3 +49,7 @@ instance: cache.t2.micro
 mysql:
 version: 5.7.mysql_aurora.2.10.0
 instance: db.r5.4xlarge
+
+---
+
+async writes: cache.m5.2xlarge
