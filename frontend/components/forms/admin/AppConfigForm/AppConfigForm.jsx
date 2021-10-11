@@ -713,7 +713,9 @@ class AppConfigForm extends Component {
           </div>
 
           <div className={`${baseClass}__section`}>
-            <h2>Advanced options</h2>
+            <h2>
+              <a id="advanced-options">Advanced options</a>
+            </h2>
             {renderAdvancedOptions()}
           </div>
           <Button type="submit" variant="brand">

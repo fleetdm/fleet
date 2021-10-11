@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { size } from "lodash";
 
+import Button from "components/buttons/Button";
 import AppConfigForm from "components/forms/admin/AppConfigForm";
 import configInterface from "interfaces/config";
 import enrollSecretInterface from "interfaces/enroll_secret";
@@ -11,7 +12,6 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import { updateConfig } from "redux/nodes/app/actions";
 
 export const baseClass = "app-settings";
-
 class AppSettingsPage extends Component {
   static propTypes = {
     appConfig: configInterface,
@@ -46,6 +46,12 @@ class AppSettingsPage extends Component {
     const { onFormSubmit } = this;
     const { configured: smtpConfigured } = appConfig;
 
+    const scrollTo = (ref) => {
+      if (ref && ref.current /* + other conditions */) {
+        ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
     if (!size(appConfig)) {
       return false;
     }
@@ -62,33 +68,49 @@ class AppSettingsPage extends Component {
           <nav>
             <ul className={`${baseClass}__form-nav-list`}>
               <li>
-                <a href="#organization-info">Organization info</a>
+                <a href="javascript:document.getElementById('organization-info').scrollIntoView(true);">
+                  Organization info
+                </a>
               </li>
               <li>
-                <a href="#fleet-web-address">Fleet web address</a>
+                <a href="javascript:document.getElementById('fleet-web-address').scrollIntoView(true);">
+                  Fleet web address
+                </a>
               </li>
               <li>
-                <a href="#saml">SAML single sign on options</a>
+                <a href="javascript:document.getElementById('saml').scrollIntoView(true);">
+                  SAML single sign on options
+                </a>
               </li>
               <li>
-                <a href="#smtp">SMTP options</a>
+                <a href="javascript:document.getElementById('smtp').scrollIntoView(true);">
+                  SMTP options
+                </a>
               </li>
               <li>
-                <a href="#osquery-enrollment-secrets">
+                <a href="javascript:document.getElementById('osquery-enrollment-secrets').scrollIntoView(true);">
                   Osquery enrollment secrets
                 </a>
               </li>
               <li>
-                <a href="#agent-options">Global agent options</a>
+                <a href="javascript:document.getElementById('agent-options').scrollIntoView(true);">
+                  Global agent options
+                </a>
               </li>
               <li>
-                <a href="#host-status-webhook">Host status webhook</a>
+                <a href="javascript:document.getElementById('host-status-webhook').scrollIntoView(true);">
+                  Host status webhook
+                </a>
               </li>
               <li>
-                <a href="#usage-stats">Usage statistics</a>
+                <a href="javascript:document.getElementById('usage-stats').scrollIntoView(true);">
+                  Usage statistics
+                </a>
               </li>
               <li>
-                <a href="#advanced-options">Advanced options</a>
+                <a href="javascript:document.getElementById('advanced-options').scrollIntoView(true);">
+                  Advanced options
+                </a>
               </li>
             </ul>
           </nav>
