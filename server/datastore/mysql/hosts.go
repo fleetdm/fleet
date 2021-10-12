@@ -383,10 +383,17 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 	} else if opt.PolicyResponseFilter == nil {
 		policyMembershipJoin = "LEFT " + policyMembershipJoin
 	}
+
+	softwareFilter := "TRUE"
+	if opt.SoftwareIDFilter != nil {
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id=h.id AND hs.software_id=?)"
+		params = append(params, opt.SoftwareIDFilter)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
 		%s
-		WHERE TRUE AND %s
-    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"),
+		WHERE TRUE AND %s AND %s
+    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -437,6 +444,10 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 
 func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	sql := `SELECT count(*) `
+
+	// ignore pagination in count
+	opt.Page = 0
+	opt.PerPage = 0
 
 	var params []interface{}
 	sql, params = d.applyHostFilters(opt, sql, filter, params)
