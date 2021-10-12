@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 
@@ -16,7 +17,7 @@ const GenerateInstallerModal = ({
 
   return (
     <Modal onExit={onCancel} title={"Generate installer"} className={baseClass}>
-      <PlatformWrapper />
+      <PlatformWrapper certificate={"cool"} onCancel={onCancel} />
     </Modal>
   );
 };
