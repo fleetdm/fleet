@@ -18,7 +18,7 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/hosts/manage");
 
     // Ensure page is loaded
-    cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("All hosts");
 
     cy.get("thead").within(() => {
@@ -30,9 +30,9 @@ describe("Premium tier - Observer user", () => {
       // Test host text varies
       cy.findByRole("button").click();
     });
-    cy.get(".title").within(() => {
-      cy.findByText("Team").should("exist");
-    });
+
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText("Team").should("exist");
     cy.contains("button", /transfer/i).should("not.exist");
     cy.contains("button", /delete/i).should("not.exist");
     cy.contains("button", /query/i).click();
@@ -62,7 +62,11 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/hosts/manage");
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
+    // Ensure the page is loaded and teams are visible
     cy.findByText("Hosts").should("exist");
+    cy.contains(".table-container .data-table__table th", "Team").should(
+      "be.visible"
+    );
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
@@ -73,11 +77,6 @@ describe("Premium tier - Observer user", () => {
     cy.findByText(/you do not have permissions/i).should("exist");
     cy.visit("/schedule/manage");
     cy.findByText(/you do not have permissions/i).should("exist");
-
-    cy.visit("/hosts/manage");
-    cy.contains(".table-container .data-table__table th", "Team").should(
-      "be.visible"
-    );
 
     // On the Profile page, they should…
     // See Global in the Team section and Observer in the Role section

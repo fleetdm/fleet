@@ -22,7 +22,7 @@ describe(
       cy.visit("/hosts/manage");
 
       // Ensure page is loaded
-      // cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
       // Settings restrictions
@@ -32,6 +32,8 @@ describe(
 
       // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
+
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/teams/i).should("not.exist");
       cy.contains("button", /add new host/i).click();
       cy.findByText("select a team").should("not.exist");

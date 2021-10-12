@@ -59,7 +59,7 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
-  getCustomCount?: (data: any) => number;
+  filteredCount?: number;
 }
 
 const baseClass = "table-container";
@@ -103,7 +103,7 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
-  getCustomCount,
+  filteredCount,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -198,6 +198,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
+  const displayCount = filteredCount || data.length;
   return (
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
@@ -218,7 +219,8 @@ const TableContainer = ({
               resultsTitle,
               pageIndex,
               pageSize,
-              getCustomCount ? getCustomCount(data) : data.length
+              displayCount,
+              filteredCount
             )}
             {resultsHtml}
           </p>

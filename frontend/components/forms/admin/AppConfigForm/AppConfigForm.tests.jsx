@@ -18,31 +18,31 @@ describe("AppConfigForm - form", () => {
   };
   const form = mount(<AppConfigForm {...defaultProps} />);
 
-  describe("Organization Name input", () => {
+  describe("Organization name input", () => {
     it("renders an input field", () => {
       itBehavesLikeAFormInputElement(form, "org_name");
     });
   });
 
-  describe("Organization Avatar input", () => {
+  describe("Organization avatar input", () => {
     it("renders an input field", () => {
       itBehavesLikeAFormInputElement(form, "org_logo_url");
     });
   });
 
-  describe("Fleet App URL input", () => {
+  describe("Fleet app URL input", () => {
     it("renders an input field", () => {
       itBehavesLikeAFormInputElement(form, "server_url");
     });
   });
 
-  describe("Sender Address input", () => {
+  describe("Sender address input", () => {
     it("renders an input field", () => {
       itBehavesLikeAFormInputElement(form, "sender_address");
     });
   });
 
-  describe("SMTP Server input", () => {
+  describe("SMTP server input", () => {
     it("renders an input field", () => {
       itBehavesLikeAFormInputElement(form, "server");
     });
@@ -78,7 +78,7 @@ describe("AppConfigForm - form", () => {
     });
   });
 
-  describe("Enroll Secret", () => {
+  describe("Enroll secret", () => {
     it("renders enroll secrets table", () => {
       expect(form.find("EnrollSecretTable").length).toEqual(1);
     });

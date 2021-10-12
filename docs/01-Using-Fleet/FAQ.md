@@ -71,11 +71,11 @@ If a user has SSO enabled, the Login page in the Fleet UI displays the â€œEmailâ
 
 ## Where are my query results?
 
-### Live Queries
+### Live queries
 
 Live query results (executed in the web UI or `fleetctl query`) are pushed directly to the UI where the query is running. The results never go to a file unless you as the user manually save them.
 
-### Scheduled Queries
+### Scheduled queries
 
 Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/02-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
@@ -134,7 +134,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team Enroll Secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 
