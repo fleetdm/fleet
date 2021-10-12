@@ -263,6 +263,10 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
 	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigInt("redis.max_idle_conns", 3, "Maximum number of idle redis connections in the pool")
+	man.addConfigInt("redis.max_open_conns", 0, "Maximum number of open redis connections (0 for no limit)")
+	man.addConfigDuration("redis.conn_max_lifetime", 0, "Maximum amount of time a redis connection may be reused")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -470,6 +474,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
 			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
 			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
+			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
+			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
