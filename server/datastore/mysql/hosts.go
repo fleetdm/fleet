@@ -386,7 +386,7 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 
 	softwareFilter := "TRUE"
 	if opt.SoftwareIDFilter != nil {
-		softwareFilter = "EXISTS (SELECT 1 FROM software s JOIN host_software hs ON (s.id=hs.software_id) WHERE hs.host_id=h.id AND s.id=?)"
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id=h.id AND hs.software_id=?)"
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
