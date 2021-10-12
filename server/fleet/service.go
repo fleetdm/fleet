@@ -408,6 +408,7 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
