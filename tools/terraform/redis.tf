@@ -13,7 +13,7 @@ variable "redis_instance" {
 resource "aws_elasticache_replication_group" "default" {
   availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
   engine                        = "redis"
-  parameter_group_name          = "default.redis6.x"
+  parameter_group_name          = aws_elasticache_parameter_group.default.name
   subnet_group_name             = module.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id]
   replication_group_id          = "fleetdm-redis"
@@ -28,6 +28,12 @@ resource "aws_elasticache_replication_group" "default" {
   transit_encryption_enabled    = false
   apply_immediately             = true
   replication_group_description = "fleetdm-redis"
+}
+
+resource "aws_elasticache_parameter_group" "default" {
+  name        = "fleetdm-redis"
+  family      = "redis5.0"
+  description = "for fleet"
 }
 
 resource "aws_security_group" "redis" {
