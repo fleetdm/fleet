@@ -178,6 +178,86 @@ resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
   }
 }
 
+// Elasticache (redis) alerts https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html
+resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
+  for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
+  alarm_name          = "fleet-redis-cpu-utilization-${each.key}"
+  alarm_description   = "Redis cluster CPU utilization node ${each.key}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ElastiCache"
+  period              = "300"
+  statistic           = "Average"
+  alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+
+  threshold = "70"
+
+  dimensions = {
+    CacheClusterId = each.key
+  }
+
+  depends_on = [aws_elasticache_replication_group.default]
+}
+
+resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
+  for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
+  alarm_name          = "fleet-redis-cpu-engine-utilization-${each.key}"
+  alarm_description   = "Redis cluster CPU Engine utilization node ${each.key}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "EngineCPUUtilization"
+  namespace           = "AWS/ElastiCache"
+  period              = "300"
+  statistic           = "Average"
+  alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+
+  threshold = "25"
+
+  dimensions = {
+    CacheClusterId = each.key
+  }
+
+  depends_on = [aws_elasticache_replication_group.default]
+}
+
+resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
+  for_each                  = toset(aws_elasticache_replication_group.default.member_clusters)
+  alarm_name                = "fleet-redis-cpu-engine-utilization-${each.key}"
+  alarm_description         = "Redis cluster CPU Engine utilization node ${each.key}"
+  comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
+  evaluation_periods        = "3"
+  threshold_metric_id       = "e1"
+  alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  insufficient_data_actions = []
+
+  metric_query {
+    id          = "e1"
+    expression  = "ANOMALY_DETECTION_BAND(m1)"
+    label       = "Current Connections (Expected)"
+    return_data = "true"
+  }
+
+  metric_query {
+    id          = "m1"
+    return_data = "true"
+    metric {
+      metric_name = "CurrConnections"
+      namespace   = "AWS/ElastiCache"
+      period      = "300"
+      stat        = "Average"
+      unit        = "Count"
+
+      dimensions = {
+        CacheClusterId = each.key
+      }
+    }
+  }
+}
+
 // ACM Certificate Manager
 resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   alarm_name          = "fleet-acm-cert-expiry-${terraform.workspace}"
@@ -191,6 +271,7 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   alarm_description   = "ACM Certificate will expire soon"
   alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+
   dimensions = {
     CertificateArn = aws_acm_certificate.dogfood_fleetdm_com.arn
   }
