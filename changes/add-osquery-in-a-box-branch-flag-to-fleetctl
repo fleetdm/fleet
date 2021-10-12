@@ -1,1 +1,1 @@
-* Add the `osquery-in-a-box-branch` flag to `fleetctl preview`, default to the `production` branch.
+* Add the `preview-config` flag to `fleetctl preview`, default to the `production` branch.

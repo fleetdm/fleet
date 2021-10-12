@@ -21,11 +21,11 @@ import (
 )
 
 const (
-	downloadUrl                = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
-	standardQueryLibraryUrl    = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
-	licenseKeyFlagName         = "license-key"
-	tagFlagName                = "tag"
-	osqueryInBoxBranchFlagName = "osquery-in-a-box-branch"
+	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
+	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+	licenseKeyFlagName      = "license-key"
+	tagFlagName             = "tag"
+	previewConfigFlagName   = "preview-config"
 )
 
 func previewCommand() *cli.Command {
@@ -53,8 +53,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Value: "latest",
 			},
 			&cli.StringFlag{
-				Name:  osqueryInBoxBranchFlagName,
-				Usage: "Run a specific branch of the osquery-in-a-box repository",
+				Name:  previewConfigFlagName,
+				Usage: "Run a specific branch of the preview repository",
 				Value: "production",
 			},
 		},
@@ -65,7 +65,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			osqueryBranch := c.String(osqueryInBoxBranchFlagName)
+			osqueryBranch := c.String(previewConfigFlagName)
 			fmt.Printf("Downloading dependencies from %s into %s...\n", osqueryBranch, previewDir)
 			if err := downloadFiles(osqueryBranch); err != nil {
 				return errors.Wrap(err, "Error downloading dependencies")
