@@ -2,7 +2,6 @@ const DEFAULT_RESULTS_NAME = "results";
 
 const generateResultsCountText = (
   name: string = DEFAULT_RESULTS_NAME,
-  pageIndex: number,
   pageSize: number,
   resultsCount: number
 ): string => {
@@ -27,9 +26,9 @@ const generateResultsCountText = (
   }
 
   if (pageSize === resultsCount) return `${pageSize}+ ${name}`;
-  if (pageIndex !== 0 && resultsCount <= pageSize)
-    return `${pageSize}+ ${name}`;
-  return `${resultsCount} ${name}`;
+  if (resultsCount <= pageSize)
+    return `${resultsCount}${pageSize === resultsCount ? "+" : ""} ${name}`;
+  return `${pageSize} ${name}`;
 };
 
 export default { generateResultsCountText };
