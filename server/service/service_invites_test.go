@@ -146,8 +146,8 @@ func TestInvitesAuth(t *testing.T) {
 		{
 			"team admin, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			false,
-			false,
+			true,
+			true,
 		},
 		{
 			"team maintainer, belongs to team",

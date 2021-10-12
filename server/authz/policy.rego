@@ -56,10 +56,25 @@ allow {
 ##
 
 # Any logged in user can read teams (service must filter appropriately based on
-# access).
+# access) if the overall object is specified
 allow {
   object.type == "team"
+  object.id == 0
   not is_null(subject)
+  action == read
+}
+# For specific teams, only members can read
+allow {
+  object.type == "team"
+  object.id != 0
+  team_role(subject, object.id) == [admin,maintainer][_]
+  action == read
+}
+# or global admins
+allow {
+  object.type == "team"
+  object.id != 0
+  subject.global_role == admin
   action == read
 }
 
@@ -85,6 +100,7 @@ allow {
 allow {
   object.type == "user"
   object.id == subject.id
+  object.id != 0
   action == write
 }
 
@@ -102,13 +118,12 @@ allow {
   action == [write, write_role][_]
 }
 
-## Team admins can create new users
-#allow {
-#  object.ID == 0
-#  object.type == "user"
-#  team_role(subject, object.teams[_].id) == admin
-#  action == [write, write_role][_]
-#}
+## Team admins can create or edit new users
+allow {
+  object.type == "user"
+  team_role(subject, object.teams[_].id) == admin
+  action == [write, write_role][_]
+}
 
 ##
 # Invites
@@ -118,12 +133,6 @@ allow {
 allow {
   object.type == "invite"
   subject.global_role == admin
-  action == [read,write][_]
-}
-# Team admins can read/write invites for their teams
-allow {
-  object.type == "invite"
-  team_role(subject, object.teams[_].id) == admin
   action == [read,write][_]
 }
 

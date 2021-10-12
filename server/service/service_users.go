@@ -43,7 +43,11 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 }
 
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
+	var teams []fleet.UserTeam
+	if p.Teams != nil {
+		teams = *p.Teams
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.User{Teams: teams}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
