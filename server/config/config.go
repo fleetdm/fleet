@@ -166,6 +166,7 @@ type FilesystemConfig struct {
 type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic string `json:"result_topic" yaml:"result_topic"`
+	ProxyHost string `json:"proxyhost" yaml:"proxyhost"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
@@ -390,6 +391,7 @@ func (man Manager) addConfigs() {
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
+	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
@@ -535,6 +537,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic: man.getConfigString("kafkarest.status_topic"),
 			ResultTopic: man.getConfigString("kafkarest.result_topic"),
+			ProxyHost: man.getConfigString("kafkarest.proxyhost"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
