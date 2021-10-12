@@ -1139,7 +1139,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = () => {
+  const renderTable = (selectedTeam: number) => {
     if (
       !config ||
       !currentUser ||
@@ -1156,7 +1156,7 @@ const ManageHostsPage = ({
 
     // Hosts have not been set up for this instance yet.
     if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
-      return <NoHosts />;
+      return <NoHosts selectedTeam={selectedTeam} teams={teams} />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1209,6 +1209,8 @@ const ManageHostsPage = ({
     );
   };
 
+  const selectedTeam = currentTeam?.id || 0;
+
   return (
     <div className="has-sidebar">
       {renderForm()}
@@ -1241,7 +1243,7 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderLabelOrPolicyBlock()}
-          {config && (!isPremiumTier || teams) && renderTable()}
+          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}

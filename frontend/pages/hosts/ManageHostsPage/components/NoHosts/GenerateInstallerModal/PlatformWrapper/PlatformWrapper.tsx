@@ -1,17 +1,16 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import enrollSecretInterface from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-// @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import FileSaver from "file-saver";
 import { IConfig } from "interfaces/config";
+import { ITeam } from "interfaces/team";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 import CopyIcon from "../../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DownloadIcon from "../../../../../../../../assets/images/icon-download-12x12@2x.png";
 
@@ -46,6 +45,7 @@ const platformSubNav: IPlatformSubNav[] = [
 ];
 
 interface IPlatformWrapperProp {
+  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] };
   certificate: string;
   onCancel: () => void;
 }
@@ -53,9 +53,12 @@ interface IPlatformWrapperProp {
 const baseClass = "platform-wrapper";
 
 const PlatformWrapper = ({
+  selectedTeam,
   certificate,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
+  console.log("selectedTeam", selectedTeam);
+
   const [copyMessage, setCopyMessage] = useState<string>("");
 
   const onDownloadCertificate = (evt: React.MouseEvent) => {
@@ -70,7 +73,12 @@ const PlatformWrapper = ({
   };
 
   const renderInstallerString = (platform: string) => {
-    let installerString = `fleetctl package --type=${platform} --fleet-url=https://localhost:8412 --enroll-secret=YKz0nsGNbgqv3XiMolJM+mz3IzPquO64`;
+    let enrollSecret;
+    if (selectedTeam.secrets) {
+      enrollSecret = selectedTeam.secrets[0].secret;
+    }
+
+    let installerString = `fleetctl package --type=${platform} --fleet-url=https://localhost:8412 --enroll-secret=${enrollSecret}`;
     if (platform === "rpm" || platform === "deb") {
       installerString +=
         " --fleet-certificate=/home/username/Downloads/fleet.pem";
