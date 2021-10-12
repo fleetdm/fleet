@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Team observer/maintainer user",
+  "Premium tier - Team observer/maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -37,8 +37,10 @@ describe(
       cy.findByText(/settings/i).should("not.exist");
       cy.findByText(/schedule/i).should("exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // NOT see and select "add label"

@@ -2,7 +2,11 @@ import Fleet from "fleet";
 
 import config from "redux/nodes/entities/users/config";
 import { formatErrorResponse } from "redux/nodes/entities/base/helpers";
-import { logoutUser, updateUserSuccess } from "redux/nodes/auth/actions";
+import {
+  logoutUser,
+  updateUserSuccess,
+  logoutSuccess,
+} from "redux/nodes/auth/actions";
 
 const { actions } = config;
 
@@ -119,6 +123,7 @@ export const deleteSessions = (user) => {
     return Fleet.users
       .deleteSessions(user)
       .then((userResponse) => {
+        dispatch(logoutSuccess);
         return dispatch(successAction(userResponse, destroySuccess));
       })
       .catch((response) => {
