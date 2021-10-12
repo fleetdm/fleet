@@ -169,6 +169,8 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 		},
 	}
 
+	const batchSizes = 3
+
 	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
 		conn := pool.ConfigureDoer(pool.Get())
 		defer conn.Close()
@@ -193,6 +195,8 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 			wantStats.Keys++
 			if hostID >= 0 {
 				wantStats.Items += len(res)
+				wantStats.RedisCmds++
+				wantStats.RedisCmds += len(res) / batchSizes
 			}
 		}
 		return wantStats
@@ -230,14 +234,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 			// run the collection
 			var stats collectorExecStats
 			task := Task{
-				InsertBatch:        3,
-				UpdateBatch:        3,
-				DeleteBatch:        3,
-				RedisPopCount:      3,
+				InsertBatch:        batchSizes,
+				UpdateBatch:        batchSizes,
+				DeleteBatch:        batchSizes,
+				RedisPopCount:      batchSizes,
 				RedisScanKeysCount: 10,
 			}
 			err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
+			// inserts, updates and deletes are a bit tricky to track automatically,
+			// just ignore them when comparing stats.
+			stats.Inserts, stats.Updates, stats.Deletes = 0, 0, 0
 			require.Equal(t, wantStats, stats)
 
 			// check that the table contains the expected rows
@@ -274,10 +281,10 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	setupTest(t, map[int]map[int]bool{1: {1: true}})
 	var stats collectorExecStats
 	task := Task{
-		InsertBatch:        3,
-		UpdateBatch:        3,
-		DeleteBatch:        3,
-		RedisPopCount:      3,
+		InsertBatch:        batchSizes,
+		UpdateBatch:        batchSizes,
+		DeleteBatch:        batchSizes,
+		RedisPopCount:      batchSizes,
 		RedisScanKeysCount: 10,
 	}
 	err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)

@@ -145,6 +145,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		defer conn.Close()
 
 		for {
+			stats.RedisCmds++
+
 			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, t.RedisPopCount))
 			if err != nil {
 				return hostID, nil, nil, errors.Wrap(err, "redis ZPOPMIN")
@@ -188,6 +190,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	// both on INSERT and when UPDATEd, so it does not need to be provided.
 
 	runInsertBatch := func(batch [][2]uint) error {
+		stats.Inserts++
+
 		sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
 		sql += strings.Repeat(`(?, ?),`, len(batch))
 		sql = strings.TrimSuffix(sql, ",")
@@ -204,6 +208,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	}
 
 	runDeleteBatch := func(batch [][2]uint) error {
+		stats.Deletes++
+
 		rest := strings.Repeat(`UNION ALL SELECT ?, ? `, len(batch)-1)
 		sql := fmt.Sprintf(`
     DELETE
@@ -227,6 +233,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	}
 
 	runUpdateBatch := func(ids []uint, ts time.Time) error {
+		stats.Updates++
+
 		sql := `
       UPDATE
         hosts
