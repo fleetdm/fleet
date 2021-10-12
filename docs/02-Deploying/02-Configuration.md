@@ -1346,7 +1346,7 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### s3_endpoint_url
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend, 
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio), 
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
