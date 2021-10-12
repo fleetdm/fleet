@@ -25,7 +25,7 @@
           </div>
         </div>
       </div>
-<!--       <div purpose="search" class="d-block d-md-none">
+      <div purpose="search" class="d-block d-md-none">
         <div class="input-group">
           <div class="input-group-prepend">
             <span class="input-group-text border-0 bg-transparent pl-3" >
@@ -33,12 +33,12 @@
             </span>
           </div>
           <div class="form-control border-0 ">
-          <input id="docsearch-query-landing" disabled class="docsearch-input pr-1"
+          <input id="docsearch-query-mobile" class="docsearch-input pr-1"
             placeholder="Search the handbook..." aria-label="Search the handbook"
             />
           </div>
         </div>
-      </div> -->
+      </div>
       <div purpose="right-sidebar" class="order-md-last pb-3 pb-lg-0 pr-xl-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
         <div purpose="maintainer" class="mb-lg-3">
           <h4>Maintained by:</h4>
@@ -78,7 +78,7 @@
             <strong>Introduction</strong>
           </div>
         </div>
-<!--         <div purpose="search" class="d-none d-md-flex">
+        <div purpose="search" class="d-none d-md-flex">
           <div class="input-group">
             <div class="input-group-prepend">
               <span class="input-group-text border-0 bg-transparent pl-3" >
@@ -86,12 +86,12 @@
               </span>
             </div>
             <div class="form-control border-0 ">
-            <input id="docsearch-query-landing" disabled class="docsearch-input pr-1"
+            <input id="docsearch-query" class="docsearch-input pr-1"
               placeholder="Search the handbook..." aria-label="Search the handbook"
               />
             </div>
           </div>
-        </div> -->
+        </div>
         <div purpose="content" id="body-content" class="content" parasails-has-no-page-script>
           <%- partial(
             path.relative(
