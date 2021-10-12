@@ -37,14 +37,16 @@ describe(
         // Assert enroll secret downloaded matches the one displayed
         // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
         // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
-        cy.readFile(
-          path.join(Cypress.config("downloadsFolder"), "secret.txt"),
-          {
-            timeout: 5000,
-          }
-        ).then((contents) => {
-          cy.get("input[disabled]").should("have.value", contents);
-        });
+        if (Cypress.platform !== "win32") { // windows has issues with downloads location
+          cy.readFile(
+            path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+            {
+              timeout: 5000,
+            }
+          ).then((contents) => {
+            cy.get("input[disabled]").should("have.value", contents);
+          });
+        }
 
         // Wait until the host becomes available (usually immediate in local
         // testing, but may vary by environment).
@@ -58,7 +60,12 @@ describe(
 
         // Go to host details page
         cy.get('button[title="Online"]').click();
-        cy.get("span.status").contains("online");
+        cy.waitUntil(
+          () => {
+            return cy.get("span.status").contains(/online/i);
+          },
+          { timeout: 30000, interval: 1000 }
+        );
       }
     );
 
