@@ -37,7 +37,8 @@ describe(
         // Assert enroll secret downloaded matches the one displayed
         // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
         // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
-        if (Cypress.platform !== "win32") { // windows has issues with downloads location
+        if (Cypress.platform !== "win32") {
+          // windows has issues with downloads location
           cy.readFile(
             path.join(Cypress.config("downloadsFolder"), "secret.txt"),
             {

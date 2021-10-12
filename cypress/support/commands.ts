@@ -32,7 +32,7 @@ const SHELL = Cypress.platform === "win32" ? "cmd" : "bash";
 Cypress.Commands.add("setup", () => {
   cy.exec("make e2e-reset-db e2e-setup", {
     timeout: 20000,
-    env: { SHELL }
+    env: { SHELL },
   });
 });
 
@@ -246,9 +246,9 @@ Cypress.Commands.add("addUser", (options = {}) => {
 
   cy.exec(
     `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
-    { 
-      timeout: 5000, 
-      env: { SHELL }
+    {
+      timeout: 5000,
+      env: { SHELL },
     }
   );
 });

@@ -2,9 +2,9 @@ describe("Setup", () => {
   // Different than normal beforeEach because we don't run the fleetctl setup.
   beforeEach(() => {
     const SHELL = Cypress.platform === "win32" ? "cmd" : "bash";
-    cy.exec("make e2e-reset-db", { 
+    cy.exec("make e2e-reset-db", {
       timeout: 5000,
-      env: { SHELL }
+      env: { SHELL },
     });
   });
 
