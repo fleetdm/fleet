@@ -6,7 +6,7 @@ Baseline setup: 6 custom labels, 6 policies, and 2 packs with ~6 queries each, a
 
 ## How we are simulating osquery
 
-The simulation is run by using [osquery-perf](github.com/fleetdm/osquery-perf/) using the following command:
+The simulation is run by using [osquery-perf](https://github.com/fleetdm/osquery-perf/) using the following command:
 
 ```bash
 go run agent.go -enroll_secret <secret here> -host_count 150000 -server_url <server URL here> -node_key_file nodekeys

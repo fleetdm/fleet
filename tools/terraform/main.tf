@@ -8,12 +8,12 @@ provider "aws" {
 
 terraform {
   // these values are hard-coded to prevent chicken before the egg situations
-  backend "s3" {
-    bucket = "fleet-terraform-remote-state"
-    region = "us-east-2"
-    key = "fleet/"
-    dynamodb_table = "fleet-terraform-state-lock"
-  }
+#  backend "s3" {
+#    bucket = "fleet-terraform-remote-state"
+#    region = "us-east-2"
+#    key = "fleet/"
+#    dynamodb_table = "fleet-terraform-state-lock"
+#  }
   required_providers {
     aws = {
       source  = "hashicorp/aws"

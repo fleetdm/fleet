@@ -14,8 +14,12 @@ variable "domain_fleetctl" {
   default = "dogfood.fleetctl.com"
 }
 
-variable "s3_bucket" {
-  default = "fleet-osquery-logs-archive"
+variable "osquery_results_s3_bucket" {
+  default = "fleet-osquery-results-archive"
+}
+
+variable "osquery_status_s3_bucket" {
+  default = "fleet-osquery-status-archive"
 }
 
 variable "vulnerabilities_path" {
