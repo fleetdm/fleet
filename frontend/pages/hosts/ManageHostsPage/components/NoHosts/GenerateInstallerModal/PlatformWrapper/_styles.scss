@@ -19,6 +19,10 @@
     }
   }
 
+  p {
+    margin-top: 0;
+  }
+
   .body-wrap {
     padding: 0;
   }
@@ -144,6 +148,6 @@
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
-    margin: $pad-large 0 0;
+    margin: $pad-xxlarge 0 0;
   }
 }

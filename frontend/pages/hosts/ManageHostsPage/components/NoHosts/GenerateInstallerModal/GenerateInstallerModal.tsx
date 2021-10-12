@@ -19,11 +19,7 @@ const GenerateInstallerModal = ({
 }: IGenerateInstallerModal): JSX.Element => {
   return (
     <Modal onExit={onCancel} title={"Generate installer"} className={baseClass}>
-      <PlatformWrapper
-        certificate={"cool"}
-        onCancel={onCancel}
-        selectedTeam={selectedTeam}
-      />
+      <PlatformWrapper onCancel={onCancel} selectedTeam={selectedTeam} />
     </Modal>
   );
 };

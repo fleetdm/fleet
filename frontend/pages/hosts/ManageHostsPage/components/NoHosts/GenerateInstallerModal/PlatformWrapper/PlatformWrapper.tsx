@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useDispatch, useSelector } from "react-redux";
 
+// @ts-ignore
+import Fleet from "fleet";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -46,7 +48,6 @@ const platformSubNav: IPlatformSubNav[] = [
 
 interface IPlatformWrapperProp {
   selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] };
-  certificate: string;
   onCancel: () => void;
 }
 
@@ -54,21 +55,36 @@ const baseClass = "platform-wrapper";
 
 const PlatformWrapper = ({
   selectedTeam,
-  certificate,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
-  console.log("selectedTeam", selectedTeam);
-
   const [copyMessage, setCopyMessage] = useState<string>("");
+  const [certificate, setCertificate] = useState<string | undefined>(undefined);
+  const [fetchCertificateError, setFetchCertificateError] = useState<
+    string | undefined
+  >(undefined);
+
+  Fleet.config
+    .loadCertificate()
+    .then((loadedCertificate: any) => {
+      setCertificate(loadedCertificate);
+    })
+    .catch(() => {
+      setFetchCertificateError(
+        "Failed to load certificate. Is Fleet app URL configured properly?"
+      );
+    });
 
   const onDownloadCertificate = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    const filename = "fleet-certificate.txt";
-    const file = new global.window.File([certificate], filename);
+    if (certificate) {
+      const filename = "fleet.pem";
+      const file = new global.window.File([certificate], filename, {
+        type: "application/x-pem-file",
+      });
 
-    FileSaver.saveAs(file);
-
+      FileSaver.saveAs(file);
+    }
     return false;
   };
 
@@ -139,14 +155,20 @@ const PlatformWrapper = ({
               Download your Fleet certificate:
             </span>
             <p>
-              <a
-                href="#onDownloadCertificate"
-                className={`${baseClass}__fleet-certificate-download`}
-                onClick={onDownloadCertificate}
-              >
-                Download
-                <img src={DownloadIcon} alt="download" />
-              </a>
+              {fetchCertificateError ? (
+                <span className={`${baseClass}__error`}>
+                  {fetchCertificateError}
+                </span>
+              ) : (
+                <a
+                  href="#downloadCertificate"
+                  className={`${baseClass}__fleet-certificate-download`}
+                  onClick={onDownloadCertificate}
+                >
+                  Download
+                  <img src={DownloadIcon} alt="download" />
+                </a>
+              )}
             </p>
           </>
         )}
