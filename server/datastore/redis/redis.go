@@ -57,6 +57,10 @@ type PoolConfig struct {
 	KeepAlive                 time.Duration
 	ConnectRetryAttempts      int
 	ClusterFollowRedirections bool
+	MaxIdleConns              int
+	MaxOpenConns              int
+	ConnMaxLifetime           time.Duration
+	ConnWaitTimeout           time.Duration
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -71,6 +75,9 @@ func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
 			// not a Redis Cluster setup, use a standalone Redis pool
 			pool, _ := cluster.CreatePool(config.Server)
 			cluster.Close()
+			// never wait for a connection in a non-cluster pool as it can block
+			// indefinitely.
+			pool.Wait = false
 			return &standalonePool{pool, config.Server}, nil
 		}
 		return nil, errors.Wrap(err, "refresh cluster")
@@ -141,10 +148,14 @@ func newCluster(config PoolConfig) *redisc.Cluster {
 
 	return &redisc.Cluster{
 		StartupNodes: []string{config.Server},
+		PoolWaitTime: config.ConnWaitTimeout,
 		CreatePool: func(server string, _ ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
-				MaxIdle:     3,
-				IdleTimeout: 240 * time.Second,
+				MaxIdle:         config.MaxIdleConns,
+				MaxActive:       config.MaxOpenConns,
+				IdleTimeout:     240 * time.Second,
+				MaxConnLifetime: config.ConnMaxLifetime,
+				Wait:            config.ConnWaitTimeout > 0,
 
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn

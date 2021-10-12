@@ -31,6 +31,14 @@ type Task struct {
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
 	AsyncEnabled bool
+
+	LockTimeout        time.Duration
+	LogStatsInterval   time.Duration
+	InsertBatch        int
+	DeleteBatch        int
+	UpdateBatch        int
+	RedisPopCount      int
+	RedisScanKeysCount int
 }
 
 // Collect runs the various collectors as distinct background goroutines if
@@ -41,7 +49,7 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 		level.Debug(logger).Log("task", "async disabled, not starting collectors")
 		return
 	}
-	level.Debug(logger).Log("task", "async enabled, starting collectors")
+	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", interval, "jitter", jitterPct)
 
 	labelColl := &collector{
 		name:         "collect_labels",
@@ -49,8 +57,8 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 		ds:           t.Datastore,
 		execInterval: interval,
 		jitterPct:    jitterPct,
-		lockTimeout:  time.Minute,
-		handler:      collectLabelQueryExecutions,
+		lockTimeout:  t.LockTimeout,
+		handler:      t.collectLabelQueryExecutions,
 		errHandler: func(name string, err error) {
 			level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
 		},
@@ -58,19 +66,20 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 	go labelColl.Start(ctx)
 
 	// log stats at regular intervals
-	// TODO: TBD if it stays that way for prod, but will be useful for load testing
-	go func() {
-		tick := time.Tick(time.Minute)
-		for {
-			select {
-			case <-tick:
-				stats := labelColl.ReadStats()
-				level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", labelColl.name)
-			case <-ctx.Done():
-				return
+	if t.LogStatsInterval > 0 {
+		go func() {
+			tick := time.Tick(t.LogStatsInterval)
+			for {
+				select {
+				case <-tick:
+					stats := labelColl.ReadStats()
+					level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", labelColl.name)
+				case <-ctx.Done():
+					return
+				}
 			}
-		}
-	}()
+		}()
+	}
 }
 
 func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
@@ -110,18 +119,10 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
-var (
-	reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
+var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
 
-	// those are variables so they can be set differently for tests
-	insertBatchSize = 2000
-	deleteBatchSize = 2000
-	updateBatchSize = 1000
-	redisPopCount   = 1000
-)
-
-func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, 1000)
+func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, t.RedisScanKeysCount)
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		defer conn.Close()
 
 		for {
-			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, redisPopCount))
+			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, t.RedisPopCount))
 			if err != nil {
 				return hostID, nil, nil, errors.Wrap(err, "redis ZPOPMIN")
 			}
@@ -166,7 +167,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 					deletes = append(deletes, [2]uint{uint(labelID), hostID})
 				}
 			}
-			if items < redisPopCount {
+			if items < t.RedisPopCount {
 				return hostID, inserts, deletes, nil
 			}
 		}
@@ -243,8 +244,8 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		})
 	}
 
-	insertBatch := make([][2]uint, 0, insertBatchSize)
-	deleteBatch := make([][2]uint, 0, deleteBatchSize)
+	insertBatch := make([][2]uint, 0, t.InsertBatch)
+	deleteBatch := make([][2]uint, 0, t.DeleteBatch)
 	hostIDs := make([]uint, 0, len(keys))
 	for _, key := range keys {
 		hostID, ins, del, err := getKeyTuples(key)
@@ -254,13 +255,13 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 		insertBatch = append(insertBatch, ins...)
 		deleteBatch = append(deleteBatch, del...)
 
-		if len(insertBatch) >= insertBatchSize {
+		if len(insertBatch) >= t.InsertBatch {
 			if err := runInsertBatch(insertBatch); err != nil {
 				return err
 			}
 			insertBatch = insertBatch[:0]
 		}
-		if len(deleteBatch) >= deleteBatchSize {
+		if len(deleteBatch) >= t.DeleteBatch {
 			if err := runDeleteBatch(deleteBatch); err != nil {
 				return err
 			}
@@ -285,7 +286,7 @@ func collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool f
 	}
 	if len(hostIDs) > 0 {
 		ts := time.Now()
-		updateBatch := make([]uint, updateBatchSize)
+		updateBatch := make([]uint, t.UpdateBatch)
 		for {
 			n := copy(updateBatch, hostIDs)
 			if n == 0 {

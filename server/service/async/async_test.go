@@ -18,12 +18,6 @@ import (
 func TestCollectLabelQueryExecutions(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop := insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount
-	insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = 3, 3, 3, 3
-	t.Cleanup(func() {
-		insertBatchSize, deleteBatchSize, updateBatchSize, redisPopCount = oldInsBatch, oldDelBatch, oldUpdBatch, oldRedisPop
-	})
-
 	t.Run("standalone", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 		pool := redistest.SetupRedis(t, false, false)
@@ -235,7 +229,14 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 
 			// run the collection
 			var stats collectorExecStats
-			err := collectLabelQueryExecutions(ctx, ds, pool, &stats)
+			task := Task{
+				InsertBatch:        3,
+				UpdateBatch:        3,
+				DeleteBatch:        3,
+				RedisPopCount:      3,
+				RedisScanKeysCount: 10,
+			}
+			err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
 			require.Equal(t, wantStats, stats)
 
@@ -272,7 +273,14 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	// update host 1, label 1, already existing
 	setupTest(t, map[int]map[int]bool{1: {1: true}})
 	var stats collectorExecStats
-	err := collectLabelQueryExecutions(ctx, ds, pool, &stats)
+	task := Task{
+		InsertBatch:        3,
+		UpdateBatch:        3,
+		DeleteBatch:        3,
+		RedisPopCount:      3,
+		RedisScanKeysCount: 10,
+	}
+	err := task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
 
 	var h1l1After labelMembership

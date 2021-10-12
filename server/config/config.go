@@ -266,7 +266,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.max_idle_conns", 3, "Maximum number of idle redis connections in the pool")
 	man.addConfigInt("redis.max_open_conns", 0, "Maximum number of open redis connections (0 for no limit)")
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Maximum amount of time a redis connection may be reused")
-	man.addConfigDuration("redis.conn_wait_timeout", 0, "Maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
