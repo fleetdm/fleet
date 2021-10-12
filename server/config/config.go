@@ -46,6 +46,10 @@ type RedisConfig struct {
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
 	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
 	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
+	MaxIdleConns              int           `yaml:"max_idle_conns"`
+	MaxOpenConns              int           `yaml:"max_open_conns"`
+	ConnMaxLifetime           time.Duration `yaml:"conn_max_lifetime"`
+	ConnWaitTimeout           time.Duration `yaml:"conn_wait_timeout"`
 }
 
 const (
@@ -85,19 +89,28 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize               int           `yaml:"node_key_size"`
-	HostIdentifier            string        `yaml:"host_identifier"`
-	EnrollCooldown            time.Duration `yaml:"enroll_cooldown"`
-	StatusLogPlugin           string        `yaml:"status_log_plugin"`
-	ResultLogPlugin           string        `yaml:"result_log_plugin"`
-	LabelUpdateInterval       time.Duration `yaml:"label_update_interval"`
-	PolicyUpdateInterval      time.Duration `yaml:"policy_update_interval"`
-	DetailUpdateInterval      time.Duration `yaml:"detail_update_interval"`
-	StatusLogFile             string        `yaml:"status_log_file"`
-	ResultLogFile             string        `yaml:"result_log_file"`
-	EnableLogRotation         bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent          int           `yaml:"max_jitter_percent"`
-	EnableAsyncHostProcessing bool          `yaml:"enable_async_host_processing"`
+	NodeKeySize                      int           `yaml:"node_key_size"`
+	HostIdentifier                   string        `yaml:"host_identifier"`
+	EnrollCooldown                   time.Duration `yaml:"enroll_cooldown"`
+	StatusLogPlugin                  string        `yaml:"status_log_plugin"`
+	ResultLogPlugin                  string        `yaml:"result_log_plugin"`
+	LabelUpdateInterval              time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval             time.Duration `yaml:"policy_update_interval"`
+	DetailUpdateInterval             time.Duration `yaml:"detail_update_interval"`
+	StatusLogFile                    string        `yaml:"status_log_file"`
+	ResultLogFile                    string        `yaml:"result_log_file"`
+	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
+	EnableAsyncHostProcessing        bool          `yaml:"enable_async_host_processing"`
+	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`
+	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
+	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"`
+	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
+	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
+	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
+	AsyncHostUpdateBatch             int           `yaml:"async_host_update_batch"`
+	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
+	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -250,6 +263,10 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
 	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigInt("redis.max_idle_conns", 3, "Maximum number of idle redis connections in the pool")
+	man.addConfigInt("redis.max_open_conns", 0, "Maximum number of open redis connections (0 for no limit)")
+	man.addConfigDuration("redis.conn_max_lifetime", 0, "Maximum amount of time a redis connection may be reused")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -315,6 +332,24 @@ func (man Manager) addConfigs() {
 		"Maximum percentage of the interval to add as jitter")
 	man.addConfigBool("osquery.enable_async_host_processing", false,
 		"Enable asynchronous processing of host-reported query results")
+	man.addConfigDuration("osquery.async_host_collect_interval", 30*time.Second,
+		"Interval to collect asynchronous host-reported query results (i.e. 30s)")
+	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
+		"Maximum percentage of the interval to collect asynchronous host results")
+	man.addConfigDuration("osquery.async_host_collect_lock_timeout", 1*time.Minute,
+		"Timeout of the exclusive lock held during async host collection")
+	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
+		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
+	man.addConfigInt("osquery.async_host_insert_batch", 2000,
+		"Batch size for async collection inserts in mysql")
+	man.addConfigInt("osquery.async_host_delete_batch", 2000,
+		"Batch size for async collection deletes in mysql")
+	man.addConfigInt("osquery.async_host_update_batch", 1000,
+		"Batch size for async collection updates in mysql")
+	man.addConfigInt("osquery.async_host_redis_pop_count", 1000,
+		"Batch size to pop items from redis in async collection")
+	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
+		"Batch size to scan redis keys in async collection")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -439,6 +474,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
 			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
 			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
+			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
+			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -462,19 +501,28 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:               man.getConfigInt("osquery.node_key_size"),
-			HostIdentifier:            man.getConfigString("osquery.host_identifier"),
-			EnrollCooldown:            man.getConfigDuration("osquery.enroll_cooldown"),
-			StatusLogPlugin:           man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:           man.getConfigString("osquery.result_log_plugin"),
-			StatusLogFile:             man.getConfigString("osquery.status_log_file"),
-			ResultLogFile:             man.getConfigString("osquery.result_log_file"),
-			LabelUpdateInterval:       man.getConfigDuration("osquery.label_update_interval"),
-			PolicyUpdateInterval:      man.getConfigDuration("osquery.policy_update_interval"),
-			DetailUpdateInterval:      man.getConfigDuration("osquery.detail_update_interval"),
-			EnableLogRotation:         man.getConfigBool("osquery.enable_log_rotation"),
-			MaxJitterPercent:          man.getConfigInt("osquery.max_jitter_percent"),
-			EnableAsyncHostProcessing: man.getConfigBool("osquery.enable_async_host_processing"),
+			NodeKeySize:                      man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:                   man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:                   man.getConfigDuration("osquery.enroll_cooldown"),
+			StatusLogPlugin:                  man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin:                  man.getConfigString("osquery.result_log_plugin"),
+			StatusLogFile:                    man.getConfigString("osquery.status_log_file"),
+			ResultLogFile:                    man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval:              man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval:             man.getConfigDuration("osquery.policy_update_interval"),
+			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
+			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
+			EnableAsyncHostProcessing:        man.getConfigBool("osquery.enable_async_host_processing"),
+			AsyncHostCollectInterval:         man.getConfigDuration("osquery.async_host_collect_interval"),
+			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
+			AsyncHostCollectLockTimeout:      man.getConfigDuration("osquery.async_host_collect_lock_timeout"),
+			AsyncHostCollectLogStatsInterval: man.getConfigDuration("osquery.async_host_collect_log_stats_interval"),
+			AsyncHostInsertBatch:             man.getConfigInt("osquery.async_host_insert_batch"),
+			AsyncHostDeleteBatch:             man.getConfigInt("osquery.async_host_delete_batch"),
+			AsyncHostUpdateBatch:             man.getConfigInt("osquery.async_host_update_batch"),
+			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
+			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),

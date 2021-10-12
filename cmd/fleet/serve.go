@@ -212,6 +212,10 @@ the way that the Fleet server works.
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
 				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+				MaxIdleConns:              config.Redis.MaxIdleConns,
+				MaxOpenConns:              config.Redis.MaxOpenConns,
+				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
+				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -233,9 +237,16 @@ the way that the Fleet server works.
 			}
 
 			task := &async.Task{
-				Datastore:    ds,
-				Pool:         redisPool,
-				AsyncEnabled: config.Osquery.EnableAsyncHostProcessing,
+				Datastore:          ds,
+				Pool:               redisPool,
+				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
+				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
+				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
+				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
+				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
+				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
+				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
+				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 			}
 			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
@@ -460,10 +471,8 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	// TODO: for now, use 30s, so that the overall potential delay (except in
-	// case of a crash where the lock timeout comes into play) is ~30s. Should
-	// probably make that a config option.
-	task.StartCollectors(ctx, 30*time.Second, 10, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
+		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
 	go cronVulnerabilities(
