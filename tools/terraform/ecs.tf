@@ -118,19 +118,15 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-#  cpu                      = 256
-#  memory                   = 512
-  cpu                      = 1024
-  memory                   = 2048
+  cpu                      = var.fleet_backend_cpu
+  memory                   = var.fleet_backend_mem
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
         image       = var.fleet_image
-#        cpu         = 256
-#        memory      = 512
-        cpu         = 1024
-        memory      = 2048
+        cpu         = var.fleet_backend_cpu
+        memory      = var.fleet_backend_mem
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -227,11 +223,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
-            value = "true"
+            value = var.async_host_processing
           },
           {
             name  = "FLEET_LOGGING_DEBUG"
-            value = "true"
+            value = var.logging_debug
           }
         ]
       }
