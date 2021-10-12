@@ -22,27 +22,27 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ### Quickly with craft
 
-**Iterate by taking baby steps.** 
+##### Iterate by taking baby steps. 
 
 We try to always make the minimum viable change. Small changes provide faster feedback, and help us to stay focused on quality. 
 
-**Help each other get all the way done.** 
+##### Help each other get all the way done. 
 
-We collaborate and help our teammates to finish tasks to completion. 
+We collaborate and help our teammates to see tasks through to completion.
 
-**Focus on fewer tasks at one time.** 
+##### Focus on fewer tasks at one time. 
 
 By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process. 
 
-**Role play as a user.**
+##### Role play as a user.
 
 When making changes, we put ourselves in the mindset of the end user. We keep in mind how someone might use the product for the first time, or how an existing user might react to a new change.
 
-**Reread anything you write for users.** 
+##### Reread anything you write for users.
 
 We check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.
 
-**Review and merge PRs daily.** 
+##### Review and merge PRs daily. 
 
 We value constant iteration and feedback. Reviewing and merging PRs daily keeps our open source community thriving.
 
