@@ -43,15 +43,15 @@ const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
       return { name: "No team", secrets: globalSecret };
     }
     if (teams) {
-      const team = teams.find((team) => team.id === selectedTeam);
-      if (team) {
-        return team;
+      const searchTeam = teams.find((team) => team.id === selectedTeam);
+      if (searchTeam) {
+        return searchTeam;
       }
     }
     return { name: "No team", secrets: globalSecret };
   };
 
-  const team = renderTeam();
+  const generateInstallerTeam = renderTeam();
 
   return (
     <div className={`${baseClass}`}>
@@ -74,7 +74,7 @@ const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
       {showGenerateInstallerModal ? (
         <GenerateInstallerModal
           onCancel={toggleGenerateInstallerModal}
-          selectedTeam={team}
+          selectedTeam={generateInstallerTeam}
         />
       ) : null}
     </div>
