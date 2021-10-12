@@ -163,6 +163,11 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
 
+type KafkaRESTConfig struct {
+	StatusTopic string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic string `json:"result_topic" yaml:"result_topic"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key string `yaml:"key"`
@@ -198,6 +203,7 @@ type FleetConfig struct {
 	S3               S3Config
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
 }
@@ -381,6 +387,10 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
 
+	// KafkaREST
+	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
+	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 
@@ -521,6 +531,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+		},
+		KafkaREST: KafkaRESTConfig{
+			StatusTopic: man.getConfigString("kafkarest.status_topic"),
+			ResultTopic: man.getConfigString("kafkarest.result_topic"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
