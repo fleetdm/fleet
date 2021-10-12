@@ -19,6 +19,11 @@ describe("Free tier - Observer user", () => {
     // Ensure page is loaded
     cy.contains("All hosts");
 
+    // we expect a 402 error from the teams API
+    // in Cypress, we can't update the context for if we're
+    // in the premium tier, so the tests runs the teams API
+    Cypress.on('uncaught:exception', () => { return false; });
+
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
     cy.findByText(/schedule/i).should("not.exist");
