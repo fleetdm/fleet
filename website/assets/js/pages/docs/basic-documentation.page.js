@@ -159,6 +159,29 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
+    // Adding event handlers to the Headings on the page, allowing users to copy links by clicking on the heading.
+    let headingsOnThisPage = $('#body-content').find(':header');
+    for(let key in Object.values(headingsOnThisPage)){
+      let heading = headingsOnThisPage[key];
+      $(heading).click(()=> {
+        // Find the child <a> element
+        let linkToCopy = _.first($(heading).find('a.markdown-link'));
+        // If this heading has already been clicked and still has the copied class we'll just ignore this click
+        if(!$(heading).hasClass('copied')){
+          // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+          if(linkToCopy) {
+            navigator.clipboard.writeText(linkToCopy.href);
+          } else {
+            navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+          }
+          // Add the copied class to the header to notify the user that the link has been copied.
+          $(heading).addClass('copied');
+          // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+          setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
+        }
+      });
+    }
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

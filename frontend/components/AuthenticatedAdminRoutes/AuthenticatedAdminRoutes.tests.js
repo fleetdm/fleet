@@ -1,5 +1,6 @@
 import { mount } from "enzyme";
 
+import paths from "router/paths";
 import ConnectedAdminRoutes from "./AuthenticatedAdminRoutes";
 import { connectedComponent, reduxMockStore } from "../../test/helpers";
 
@@ -8,7 +9,7 @@ describe("AuthenticatedAdminRoutes - layout", () => {
     type: "@@router/CALL_HISTORY_METHOD",
     payload: {
       method: "push",
-      args: ["/"],
+      args: [paths.HOME],
     },
   };
 

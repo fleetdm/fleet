@@ -110,13 +110,24 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	}
 
 	if len(l.Errs) > 0 {
-		var errs []string
-		var internalErrs []string
+		// Going for string concatenation here instead of json.Marshal mostly to not have to deal with error handling
+		// within this method. kitlog doesn't support slices of strings
+		var errs string
+		var internalErrs string
+		separator := " || "
 		for _, err := range l.Errs {
 			if e, ok := err.(fleet.ErrWithInternal); ok {
-				internalErrs = append(internalErrs, e.Internal())
+				if internalErrs == "" {
+					internalErrs = e.Internal()
+				} else {
+					internalErrs += separator + e.Internal()
+				}
 			} else {
-				errs = append(errs, err.Error())
+				if errs == "" {
+					errs = err.Error()
+				} else {
+					errs += separator + err.Error()
+				}
 			}
 		}
 		if len(errs) > 0 {

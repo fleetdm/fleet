@@ -21,9 +21,12 @@ describe(
 
       cy.findByRole("button", { name: /save/i }).click();
 
-      cy.findByLabelText(/name/i).click().type("Query all window crashes");
+      // save modal
+      cy.get(".query-form__query-save-modal-name")
+        .click()
+        .type("Query all window crashes");
 
-      cy.findByLabelText(/description/i)
+      cy.get(".query-form__query-save-modal-description")
         .click()
         .type("See all window crashes");
 
@@ -35,6 +38,7 @@ describe(
 
       cy.findByText(/query all/i).click();
 
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/run query/i).should("exist");
 
       cy.get(".ace_scroller")
@@ -45,79 +49,7 @@ describe(
 
       cy.findByText(/query updated/i).should("be.visible");
 
-      // // Start e2e test for schedules
-      // cy.visit("/schedule/manage");
-
-      // cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-      // cy.findByRole("button", { name: /schedule a query/i }).click();
-
-      // cy.findByText(/select query/i).click();
-
-      // cy.findByText(/query all window crashes/i).click();
-
-      // cy.get(
-      //   ".schedule-editor-modal__form-field--frequency > .dropdown__select"
-      // ).click();
-
-      // cy.findByText(/every week/i).click();
-
-      // cy.findByText(/show advanced options/i).click();
-
-      // cy.get(
-      //   ".schedule-editor-modal__form-field--logging > .dropdown__select"
-      // ).click();
-
-      // cy.findByText(/ignore removals/i).click();
-
-      // cy.get(".schedule-editor-modal__form-field--shard > .input-field")
-      //   .click()
-      //   .type("50");
-
-      // cy.get(".schedule-editor-modal__btn-wrap")
-      //   .contains("button", /schedule/i)
-      //   .click();
-
-      // cy.visit("/schedule/manage");
-
-      // cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      // cy.findByText(/query all window crashes/i).should("exist");
-
-      // cy.findByText(/actions/i).click();
-      // cy.findByText(/edit/i).click();
-
-      // cy.get(
-      //   ".schedule-editor-modal__form-field--frequency > .dropdown__select"
-      // ).click();
-
-      // cy.findByText(/every 6 hours/i).click();
-
-      // cy.findByText(/show advanced options/i).click();
-
-      // cy.findByText(/ignore removals/i).click();
-      // cy.findByText(/snapshot/i).click();
-
-      // cy.get(".schedule-editor-modal__form-field--shard > .input-field")
-      //   .click()
-      //   .type("{selectall}{backspace}10");
-
-      // cy.get(".schedule-editor-modal__btn-wrap")
-      //   .contains("button", /schedule/i)
-      //   .click();
-
-      // cy.visit("/schedule/manage");
-
-      // cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      // cy.findByText(/actions/i).click();
-      // cy.findByText(/remove/i).click();
-
-      // cy.get(".remove-scheduled-query-modal__btn-wrap")
-      //   .contains("button", /remove/i)
-      //   .click();
-
-      // cy.findByText(/query all window crashes/i).should("not.exist");
-
-      // // End e2e test for schedules
+      // E2e Test for schedules moved to premium/admin
 
       cy.visit("/queries/manage");
 

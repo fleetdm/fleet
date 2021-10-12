@@ -161,6 +161,14 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
 
+type DeleteHostsFunc func(ctx context.Context, ids []uint) error
+
+type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error)
+
+type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
+
+type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -286,6 +294,10 @@ type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Polic
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+
+type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
+
+type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -513,6 +525,18 @@ type DataStore struct {
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
 
+	DeleteHostsFunc        DeleteHostsFunc
+	DeleteHostsFuncInvoked bool
+
+	CountHostsFunc        CountHostsFunc
+	CountHostsFuncInvoked bool
+
+	CountHostsInLabelFunc        CountHostsInLabelFunc
+	CountHostsInLabelFuncInvoked bool
+
+	ListPoliciesForHostFunc        ListPoliciesForHostFunc
+	ListPoliciesForHostFuncInvoked bool
+
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
@@ -701,6 +725,12 @@ type DataStore struct {
 
 	TeamPolicyFunc        TeamPolicyFunc
 	TeamPolicyFuncInvoked bool
+
+	LockFunc        LockFunc
+	LockFuncInvoked bool
+
+	UnlockFunc        UnlockFunc
+	UnlockFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1078,6 +1108,26 @@ func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
 
+func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
+	s.DeleteHostsFuncInvoked = true
+	return s.DeleteHostsFunc(ctx, ids)
+}
+
+func (s *DataStore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsFuncInvoked = true
+	return s.CountHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsInLabelFuncInvoked = true
+	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
+}
+
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+	s.ListPoliciesForHostFuncInvoked = true
+	return s.ListPoliciesForHostFunc(ctx, hid)
+}
+
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
 	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
@@ -1391,4 +1441,14 @@ func (s *DataStore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []u
 func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.TeamPolicyFuncInvoked = true
 	return s.TeamPolicyFunc(ctx, teamID, policyID)
+}
+
+func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+	s.LockFuncInvoked = true
+	return s.LockFunc(ctx, name, owner, expiration)
+}
+
+func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
+	s.UnlockFuncInvoked = true
+	return s.UnlockFunc(ctx, name, owner)
 }

@@ -35,6 +35,8 @@ The following table depicts various permissions levels for each role.
 | Create labels                                        |          | ✅         | ✅    |
 | Edit labels                                          |          | ✅         | ✅    |
 | Delete labels                                        |          | ✅         | ✅    |
+| Create new global policies                           |          | ✅         | ✅    |
+| Delete global policies                               |          | ✅         | ✅    |
 | Create users                                         |          |            | ✅    |
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
@@ -72,8 +74,16 @@ The following table depicts various permissions levels in a team.
 | Filter hosts assigned to team using policies                 | ✅       | ✅         |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         |
 | Target hosts assigned to team using labels                   | ✅       | ✅         |
-| Browse policies for hosts assigned to team                   | ✅       | ✅         |
 | Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         |
 | Run custom queries as live queries on hosts assigned to team |          | ✅         |
 | Enroll hosts to member team                                  |          | ✅         |
 | Delete hosts belonging to member team                        |          | ✅         |
+| Edit queries they authored                                   |          | ✅         |
+| Delete queries they authored                                 |          | ✅         |
+| Create new team schedules                                    |          | ✅         |
+| Delete team schedules                                        |          | ✅         |
+| Browse global schedules                                      |          | ✅         |
+| Create new team policies                                     |          | ✅         |
+| Delete team policies                                         |          | ✅         |
+| Browse global policies                                       |          | ✅         |
+

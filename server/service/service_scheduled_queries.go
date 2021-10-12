@@ -30,6 +30,10 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery)
 		return nil, err
 	}
 
+	return svc.unauthorizedScheduleQuery(ctx, sq)
+}
+
+func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
@@ -71,7 +75,11 @@ func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.S
 		return nil, err
 	}
 
-	sq, err := svc.GetScheduledQuery(ctx, id)
+	return svc.unauthorizedModifyScheduledQuery(ctx, id, p)
+}
+
+func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	sq, err := svc.ds.ScheduledQuery(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting scheduled query to modify")
 	}

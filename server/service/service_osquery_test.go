@@ -396,7 +396,6 @@ func TestLabelQueries(t *testing.T) {
 	)
 	assert.Nil(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
-	host.Modified = true
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
 	if assert.Len(t, gotResults, 1) {
@@ -713,7 +712,7 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -725,8 +724,8 @@ func TestDetailQueries(t *testing.T) {
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
 	queries, acc, err := svc.GetDistributedQueries(ctx)
-	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	require.NoError(t, err)
+	assert.Len(t, queries, expectedDetailQueries+1)
 	assert.NotZero(t, acc)
 
 	resultJSON := `
@@ -826,6 +825,19 @@ func TestDetailQueries(t *testing.T) {
       "groupname": "somegroup"
     }
 ],
+"fleet_detail_query_software_macos": [
+    {
+      "name": "app1",
+      "version": "1.0.0",
+      "source": "source1"
+    },
+    {
+      "name": "app2",
+      "version": "1.0.0",
+      "source": "source2",
+      "bundle_identifier": "somebundle"
+    }
+],
 "fleet_detail_query_disk_space_unix": [
 	{
 		"percent_disk_space_available": "56",
@@ -882,6 +894,22 @@ func TestDetailQueries(t *testing.T) {
 		GroupName: "somegroup",
 	}, gotHost.Users[0])
 
+	// software
+	require.Len(t, gotHost.HostSoftware.Software, 2)
+	assert.Equal(t, []fleet.Software{
+		{
+			Name:    "app1",
+			Version: "1.0.0",
+			Source:  "source1",
+		},
+		{
+			Name:             "app2",
+			Version:          "1.0.0",
+			BundleIdentifier: "somebundle",
+			Source:           "source2",
+		},
+	}, gotHost.HostSoftware.Software)
+
 	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
 	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
 
@@ -902,7 +930,7 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, acc, err = svc.GetDistributedQueries(ctx)
 	assert.Nil(t, err)
-	assert.Len(t, queries, expectedDetailQueries)
+	assert.Len(t, queries, expectedDetailQueries+1)
 	assert.Zero(t, acc)
 }
 
@@ -1621,7 +1649,8 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostLabelQueryPrefix + "1": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "1":      {{"col1": "val1"}},
+			hostAdditionalQueryPrefix + "1": {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
@@ -1635,8 +1664,8 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, json.RawMessage(`["something went wrong"]`), logData["err"])
-	assert.Equal(t, json.RawMessage(`["Missing authorization check"]`), logData["internal"])
+	assert.Equal(t, json.RawMessage(`"something went wrong"`), logData["err"])
+	assert.Equal(t, json.RawMessage(`"Missing authorization check"`), logData["internal"])
 }
 
 func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
@@ -1819,7 +1848,8 @@ func TestPolicyQueries(t *testing.T) {
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1832,8 +1862,9 @@ func TestPolicyQueries(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time) error {
 		recordedResults = results
+		host = gotHost
 		return nil
 	}
 
@@ -1872,4 +1903,40 @@ func TestPolicyQueries(t *testing.T) {
 	require.NotNil(t, recordedResults[1])
 	require.Equal(t, true, *recordedResults[1])
 	require.Nil(t, recordedResults[2])
+
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies
+	hasAnyPolicy := false
+	for name := range queries {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			hasAnyPolicy = true
+			break
+		}
+	}
+	assert.False(t, hasAnyPolicy)
+
+	// Let's move time forward, there should be policies now
+	mockClock.AddTime(2 * time.Hour)
+
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+
+	hasPolicy1, hasPolicy2 = false, false
+	for name := range queries {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			if name[len(hostPolicyQueryPrefix):] == "1" {
+				hasPolicy1 = true
+			}
+			if name[len(hostPolicyQueryPrefix):] == "2" {
+				hasPolicy2 = true
+			}
+		}
+	}
+	assert.True(t, hasPolicy1)
+	assert.True(t, hasPolicy2)
 }

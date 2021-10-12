@@ -1,3 +1,47 @@
+## Fleet 4.4.0 (Oct 6, 2021)
+
+* Fleet Premium: Teams Schedules show inherited queries from All teams (global) Schedule.
+
+* Fleet Premium: Team Maintainers can modify and delete queries, and modify the Team Schedule.
+
+* Fleet Premium: Team Maintainers can delete hosts from their teams.
+
+* `fleetctl get hosts` now shows host additional queries if there are any.
+
+* Update default homepage to new dashboard.
+
+* Add ability to bulk delete hosts based on manual selection and applied filters.
+
+* Display macOS bundle identifiers on software table if available.
+
+* Fixed scroll position when navigating to different pages.
+
+* Fleet Premium: When transferring a host from team to team, clear the Policy results for that host.
+
+* Improve stability of host vitals (fix cases of dropping users table, disk space).
+
+* Improve performance and reliability of Policy database migrations.
+
+* Provide a more clear error when a user tries to delete a query that is set in a Policy.
+
+* Fix query editor Delete key and horizontal scroll issues.
+
+* Cleaner buttons and icons on Manage Hosts Page.
+
+## Fleet 4.3.2 (Sept 29, 2021)
+
+* Improve database performance by reducing the amount of MySQL database queries when a host checks in.
+
+* Fix a bug in which users with the global maintainer role could not edit or save queries. In, Fleet 4.0.0, the Admin, Maintainer, and Observer user roles were introduced. Documentation for the permissions associated with each role can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions). 
+
+* Fix a bug in which policies were checked about every second and add a `policy_update_interval` osquery configuration option. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval).
+
+* Fix a bug in which edits to a query’s name, description, SQL did not appear until the user refreshed the Edit query page.
+
+* Fix a bug in which the hosts count for a label returned 0 after modifying a label’s name or description.
+
+* Improve error message when attempting to create or edit a user with an email that already exists.
+
 ## Fleet 4.3.1 (Sept 21, 2021)
 
 * Add `fleetctl get software` command to list all software and the detected vulnerabilities. The Vulnerable software feature is currently in Beta. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).

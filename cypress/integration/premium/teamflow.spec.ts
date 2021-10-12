@@ -11,8 +11,10 @@ describe("Teams flow", () => {
   it("Create, edit, and delete a team successfully", () => {
     cy.visit("/settings/teams");
 
-    cy.findByRole("button", { name: /create team/i }).click({ force: true });
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByRole("button", { name: /create team/i }).click();
 
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByLabelText(/team name/i)
       .click()
       .type("Valor");
@@ -112,8 +114,10 @@ describe("Teams flow", () => {
 
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/actions/i).click({ force: true });
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/edit/i).click({ force: true }); // need force:true for dropdown
 
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByLabelText(/team name/i)
       .click()
@@ -124,7 +128,7 @@ describe("Teams flow", () => {
     cy.visit("/settings/teams");
     // Allow rendering to settle
     // TODO this might represent a bug in the React code.
-    cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.contains("Mystic").get(".Select-arrow-zone").click();
 
@@ -138,7 +142,7 @@ describe("Teams flow", () => {
     cy.visit("/settings/teams");
     // Allow rendering to settle
     // TODO this might represent a bug in the React code.
-    cy.wait(100); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByText(/mystic/i).should("not.exist");
   });

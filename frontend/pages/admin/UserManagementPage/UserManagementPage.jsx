@@ -5,9 +5,6 @@ import { isEqual } from "lodash";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
-import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
-import Modal from "components/modals/Modal";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
 import userInterface from "interfaces/user";
@@ -21,6 +18,10 @@ import { updateUser } from "redux/nodes/auth/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 
+import TableContainer from "components/TableContainer";
+import TableDataError from "components/TableDataError";
+import Modal from "components/modals/Modal";
+import Spinner from "components/loaders/Spinner";
 import UserForm from "./components/UserForm";
 import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -30,6 +31,13 @@ import ResetSessionsModal from "./components/ResetSessionsModal";
 import { NewUserType } from "./components/UserForm/UserForm";
 
 const baseClass = "user-management";
+
+const DEFAULT_CREATE_USER_ERRORS = {
+  email: null,
+  name: null,
+  password: null,
+  sso_enabled: null,
+};
 
 const generateUpdateData = (currentUserData, formData) => {
   const updatableFields = [
@@ -81,8 +89,10 @@ export class UserManagementPage extends Component {
       showDeleteUserModal: false,
       showResetPasswordModal: false,
       showResetSessionsModal: false,
+      isFormSubmitting: false,
       userEditing: null,
       usersEditing: [],
+      createUserErrors: DEFAULT_CREATE_USER_ERRORS,
     };
   }
 
@@ -144,6 +154,9 @@ export class UserManagementPage extends Component {
 
   onCreateUserSubmit = (formData) => {
     const { dispatch, config } = this.props;
+    const { createUserErrors } = this.state;
+
+    this.setState({ isFormSubmitting: true });
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
@@ -164,11 +177,22 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not create user. Please try again.")
-          );
-          this.toggleCreateUserModal();
+        .catch((userErrors) => {
+          if (userErrors.base.includes("Duplicate")) {
+            this.setState({
+              createUserErrors: {
+                ...createUserErrors,
+                email: "A user with this email address already exists",
+              },
+            });
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          this.setState({ isFormSubmitting: false });
         });
     } else {
       // Do some data formatting deleteing uncessary fields
@@ -184,11 +208,22 @@ export class UserManagementPage extends Component {
           );
           this.toggleCreateUserModal();
         })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not create user. Please try again.")
-          );
-          this.toggleCreateUserModal();
+        .catch((userErrors) => {
+          if (userErrors.base.includes("Duplicate")) {
+            this.setState({
+              createUserErrors: {
+                ...createUserErrors,
+                email: "A user with this email address already exists",
+              },
+            });
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          this.setState({ isFormSubmitting: false });
         });
     }
   };
@@ -331,9 +366,18 @@ export class UserManagementPage extends Component {
 
   toggleCreateUserModal = () => {
     const { showCreateUserModal } = this.state;
-    this.setState({
-      showCreateUserModal: !showCreateUserModal,
-    });
+
+    this.setState(
+      {
+        showCreateUserModal: !showCreateUserModal,
+      },
+      () => {
+        // clear errors on close
+        if (!showCreateUserModal) {
+          this.setState({ createUserErrors: DEFAULT_CREATE_USER_ERRORS });
+        }
+      }
+    );
   };
 
   toggleEditUserModal = (user) => {
@@ -415,7 +459,7 @@ export class UserManagementPage extends Component {
       teams,
       isPremiumTier,
     } = this.props;
-    const { showEditUserModal, userEditing } = this.state;
+    const { showEditUserModal, userEditing, isFormSubmitting } = this.state;
     const { onEditUser, toggleEditUserModal, getUser } = this;
 
     if (!showEditUserModal) return null;
@@ -428,35 +472,40 @@ export class UserManagementPage extends Component {
         onExit={toggleEditUserModal}
         className={`${baseClass}__edit-user-modal`}
       >
-        <UserForm
-          serverErrors={inviteErrors}
-          defaultEmail={userData.email}
-          defaultName={userData.name}
-          defaultGlobalRole={userData.global_role}
-          defaultTeams={userData.teams}
-          currentUserId={currentUser.id}
-          onCancel={toggleEditUserModal}
-          onSubmit={onEditUser}
-          availableTeams={teams}
-          submitText={"Save"}
-          isPremiumTier={isPremiumTier}
-          smtpConfigured={config.configured}
-          canUseSso={config.enable_sso}
-          isSsoEnabled={userData.sso_enabled}
-        />
+        <>
+          {isFormSubmitting && (
+            <div className="loading-spinner">
+              <Spinner />
+            </div>
+          )}
+          <UserForm
+            serverErrors={inviteErrors}
+            defaultEmail={userData.email}
+            defaultName={userData.name}
+            defaultGlobalRole={userData.global_role}
+            defaultTeams={userData.teams}
+            currentUserId={currentUser.id}
+            onCancel={toggleEditUserModal}
+            onSubmit={onEditUser}
+            availableTeams={teams}
+            submitText={"Save"}
+            isPremiumTier={isPremiumTier}
+            smtpConfigured={config.configured}
+            canUseSso={config.enable_sso}
+            isSsoEnabled={userData.sso_enabled}
+          />
+        </>
       </Modal>
     );
   };
 
   renderCreateUserModal = () => {
+    const { currentUser, config, teams, isPremiumTier } = this.props;
     const {
-      currentUser,
-      inviteErrors,
-      config,
-      teams,
-      isPremiumTier,
-    } = this.props;
-    const { showCreateUserModal } = this.state;
+      showCreateUserModal,
+      createUserErrors,
+      isFormSubmitting,
+    } = this.state;
     const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
     if (!showCreateUserModal) return null;
@@ -467,21 +516,28 @@ export class UserManagementPage extends Component {
         onExit={toggleCreateUserModal}
         className={`${baseClass}__create-user-modal`}
       >
-        <UserForm
-          serverErrors={inviteErrors}
-          currentUserId={currentUser.id}
-          onCancel={toggleCreateUserModal}
-          onSubmit={onCreateUserSubmit}
-          availableTeams={teams}
-          defaultGlobalRole={"observer"}
-          defaultTeams={[]}
-          defaultNewUserType={false}
-          submitText={"Create"}
-          isPremiumTier={isPremiumTier}
-          smtpConfigured={config.configured}
-          canUseSso={config.enable_sso}
-          isNewUser
-        />
+        <>
+          {isFormSubmitting && (
+            <div className="loading-spinner">
+              <Spinner />
+            </div>
+          )}
+          <UserForm
+            serverErrors={createUserErrors}
+            currentUserId={currentUser.id}
+            onCancel={toggleCreateUserModal}
+            onSubmit={onCreateUserSubmit}
+            availableTeams={teams}
+            defaultGlobalRole={"observer"}
+            defaultTeams={[]}
+            defaultNewUserType={false}
+            submitText={"Create"}
+            isPremiumTier={isPremiumTier}
+            smtpConfigured={config.configured}
+            canUseSso={config.enable_sso}
+            isNewUser
+          />
+        </>
       </Modal>
     );
   };
@@ -579,7 +635,7 @@ export class UserManagementPage extends Component {
           Fleet.
         </p>
         {/* TODO: find a way to move these controls into the table component */}
-        {Object.keys(userErrors).length > 0 ? (
+        {users.length === 0 && Object.keys(userErrors).length > 0 ? (
           <TableDataError />
         ) : (
           <TableContainer

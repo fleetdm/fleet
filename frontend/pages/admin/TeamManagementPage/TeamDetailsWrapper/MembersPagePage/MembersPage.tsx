@@ -327,7 +327,6 @@ const MembersPage = (props: IMembersPageProps): JSX.Element => {
           defaultGlobalRole={userEditing?.global_role}
           defaultTeams={userEditing?.teams}
           availableTeams={teams}
-          validationErrors={[]}
           isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}

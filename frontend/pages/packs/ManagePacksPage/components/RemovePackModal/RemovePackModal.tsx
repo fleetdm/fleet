@@ -10,9 +10,10 @@ interface IRemovePackModalProps {
   onSubmit: () => void;
 }
 
-const RemovePackModal = (props: IRemovePackModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemovePackModal = ({
+  onCancel,
+  onSubmit,
+}: IRemovePackModalProps): JSX.Element => {
   return (
     <Modal title={"Delete pack"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>

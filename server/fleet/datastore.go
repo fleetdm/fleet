@@ -199,6 +199,14 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
 
+	DeleteHosts(ctx context.Context, ids []uint) error
+
+	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
+
+	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
+	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 
@@ -358,6 +366,21 @@ type Datastore interface {
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Team Policies
+
+	// Lock tries to get an atomic lock on an instance named with `name`
+	// and an `owner` identified by a random string per instance.
+	// Subsequently locking the same resource name for the same owner
+	// renews the lock expiration.
+	// It returns true, nil if it managed to obtain a lock on the instance.
+	// false and potentially an error otherwise.
+	// This must not be blocking.
+	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
+	// Unlock tries to unlock the lock by that `name` for the specified
+	// `owner`. Unlocking when not holding the lock shouldn't error
+	Unlock(ctx context.Context, name string, owner string) error
 }
 
 type MigrationStatus int

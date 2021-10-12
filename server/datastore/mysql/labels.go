@@ -217,17 +217,12 @@ func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 }
 
 func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
-	query := `
-		UPDATE labels SET
-			name = ?,
-			description = ?
-		WHERE id = ?
-	`
+	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := d.writer.ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "saving label")
 	}
-	return label, nil
+	return labelDB(ctx, label.ID, d.writer)
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -237,13 +232,20 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 // Label returns a fleet.Label identified by lid if one exists.
 func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
+	return labelDB(ctx, lid, d.reader)
+}
+
+func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
 	sql := `
-		SELECT * FROM labels
-			WHERE id = ?
+		SELECT 
+		       l.*,
+		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
+		FROM labels l
+		WHERE id = ?
 	`
 	label := &fleet.Label{}
 
-	if err := sqlx.GetContext(ctx, d.reader, label, sql, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
 		return nil, errors.Wrap(err, "selecting label")
 	}
 
@@ -339,37 +341,41 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		}
 	}
 
-	if len(vals) > 0 || len(removes) > 0 {
-		err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Complete inserts if necessary
-			if len(vals) > 0 {
-				sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
-				sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Complete inserts if necessary
+		if len(vals) > 0 {
+			sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
+			sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
-				_, err := tx.ExecContext(ctx, sql, vals...)
-				if err != nil {
-					return errors.Wrapf(err, "insert label query executions (%v)", vals)
-				}
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			if err != nil {
+				return errors.Wrapf(err, "insert label query executions (%v)", vals)
 			}
-
-			// Complete deletions if necessary
-			if len(removes) > 0 {
-				sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
-				query, args, err := sqlx.In(sql, host.ID, removes)
-				if err != nil {
-					return errors.Wrap(err, "IN for DELETE FROM label_membership")
-				}
-				query = tx.Rebind(query)
-				_, err = tx.ExecContext(ctx, query, args...)
-				if err != nil {
-					return errors.Wrap(err, "delete label query executions")
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
 		}
+
+		// Complete deletions if necessary
+		if len(removes) > 0 {
+			sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+			query, args, err := sqlx.In(sql, host.ID, removes)
+			if err != nil {
+				return errors.Wrap(err, "IN for DELETE FROM label_membership")
+			}
+			query = tx.Rebind(query)
+			_, err = tx.ExecContext(ctx, query, args...)
+			if err != nil {
+				return errors.Wrap(err, "delete label query executions")
+			}
+		}
+
+		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
+		if err != nil {
+			return errors.Wrap(err, "updating hosts label updated at")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -396,28 +402,47 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	sql := fmt.Sprintf(`
+	query := `
 			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h
 			ON lm.host_id = h.id
-			WHERE lm.label_id = ? AND %s
-		`, d.whereFilterHostsByTeams(filter, "h"),
-	)
+			WHERE lm.label_id = ?
+	`
 
-	params := []interface{}{lid}
+	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
 
-	sql, params = filterHostsByStatus(sql, opt, params)
-	sql, params = filterHostsByTeam(sql, opt, params)
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	hosts := []*fleet.Host{}
-	err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...)
+	err := sqlx.SelectContext(ctx, d.reader, &hosts, query, params...)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting label query executions")
 	}
 	return hosts, nil
+}
+
+func (d *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}) {
+	params := []interface{}{lid}
+
+	query = fmt.Sprintf(`%s AND %s `, query, d.whereFilterHostsByTeams(filter, "h"))
+	query, params = filterHostsByStatus(query, opt, params)
+	query, params = filterHostsByTeam(query, opt, params)
+	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
+
+	query = appendListOptionsToSQL(query, opt.ListOptions)
+	return query, params
+}
+
+func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	query := `SELECT count(*) FROM label_membership lm JOIN hosts h ON lm.host_id = h.id WHERE lm.label_id = ?`
+
+	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, query, params...); err != nil {
+		return 0, errors.Wrap(err, "count hosts")
+	}
+
+	return count, nil
 }
 
 func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {

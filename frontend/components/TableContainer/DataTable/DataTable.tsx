@@ -6,6 +6,7 @@ import { useTable, useSortBy, useRowSelect, Row } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
 
 import { useDeepEffect } from "utilities/hooks";
+import sort from "utilities/sort";
 
 import Spinner from "components/loaders/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
@@ -102,13 +103,15 @@ const DataTable = ({
             valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
 
             if (valueB > valueA) {
-              return 1;
+              return -1;
             }
             if (valueB < valueA) {
-              return -1;
+              return 1;
             }
             return 0;
           },
+          dateStrings: (a: any, b: any, id: any) =>
+            sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -173,7 +176,11 @@ const DataTable = ({
   const renderSelectedCount = (): JSX.Element => {
     return (
       <p>
-        <span>{selectedFlatRows.length}</span> selected
+        <span>
+          {selectedFlatRows.length}
+          {isAllPagesSelected && "+"}
+        </span>{" "}
+        selected
       </p>
     );
   };
@@ -310,7 +317,10 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => (
-                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                  <th
+                    className={column.id ? `${column.id}__header` : ""}
+                    {...column.getHeaderProps(column.getSortByToggleProps())}
+                  >
                     {column.render("Header")}
                   </th>
                 ))}
@@ -318,7 +328,7 @@ const DataTable = ({
             ))}
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row: any) => {
               prepareRow(row);
 
               const rowStyles = classnames({
@@ -334,7 +344,7 @@ const DataTable = ({
                     },
                   })}
                 >
-                  {row.cells.map((cell) => {
+                  {row.cells.map((cell: any) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );

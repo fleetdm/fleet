@@ -14,7 +14,7 @@ Once you log into Fleet, you are presented with the **Hosts** page.
 
 >In Fleet, devices are referred to as "hosts."
 
-<img src="https://user-images.githubusercontent.com/78363703/130040107-02d0161f-0afe-49db-a9b1-116149ed9814.png" alt="Fleet query search"/>
+![Fleet query search](https://user-images.githubusercontent.com/78363703/130040107-02d0161f-0afe-49db-a9b1-116149ed9814.png)
 
 On this page you'll see 7 hosts by default. These hosts are simulated Linux devices, and like the Fleet preview environment, they're running locally on your computer in Docker.
 
@@ -28,18 +28,13 @@ So, let's start by asking the following questions about Fleet's 7 simulated Linu
 
 2. Do these devices have a high severity vulnerable version of OpenSSL installed?
 
-These questions can easily be answered, by running the following query: "Detect Linux hosts with high severity vulnerable versions of OpenSSL." 
+These questions can easily be answered, by running this simple query: "Get OpenSSL versions." 
 
-On the **Queries** page, enter the query name, "Detect Linux hosts with high severity vulnerable versions of OpenSSL," in the search box, select the query from the results table, and navigate to the **Edit or run query** page.
-
-
-<img src="https://user-images.githubusercontent.com/78363703/128487468-7961c509-d0ba-48be-a0e8-54bfb4c371d5.png" alt="Fleet query search"/>
+On the **Queries** page, enter the query name, "Get OpenSSL versions," in the search box, and select it to enter the **query console**. Then from the **query console**, hit "Run query", and from the "Select targets" page, select "All hosts," to run this query against all hosts enrolled in your Fleet. Then hit the "Run" button to execute the query.  
 
 
-On the **Edit or run query** page, open the "Select targets" dropdown, and press the purple "+" icon to the right of "All hosts," to run this query against all hosts enrolled in your Fleet. Then hit the "Run" button to execute the query.  
+![Fleet select targets](https://user-images.githubusercontent.com/78363703/134630888-da9e7244-7d5d-4724-87ef-1bb41737308f.png)
 
-
-<img src="https://user-images.githubusercontent.com/78363703/128487638-7d779d89-f3fa-42dd-903f-070dc9347a9b.png" alt="Fleet select targets"/>
 
 The query may take several seconds to complete, because Fleet has to wait for the osquery agents to respond with results.
 
@@ -48,7 +43,7 @@ The query may take several seconds to complete, because Fleet has to wait for th
 When the query has finished, you should see 4 columns and several rows in the "Results" table:
 
 
-<img src="https://user-images.githubusercontent.com/78363703/128488112-56c762da-5029-42d1-8f5d-e74f22aa39cd.png" alt="Fleet query results"/>
+![Fleet query results](https://user-images.githubusercontent.com/78363703/134631391-cb62fbd4-81ab-4ea6-8e38-807cccc9c6cc.png)
 
 
 - The "hostname" column answers: which device responded for a given row of results? 
@@ -89,30 +84,22 @@ Do any of the simulated, Linux hosts have a high severity vulnerable version of 
 
 ### How to enroll your own device
 
-To add your own device to Fleet, you'll first need to install the osquery agent. In this tutorial, we'll be using [Orbit](https://github.com/fleetdm/orbit), the recommended agent for Fleet.
+To add your own device to Fleet, you'll first need to install the osquery agent. In this tutorial, we'll be using fleetctl package, the recommended agent for Fleet.
 
-1. Make a clone of [Orbit's GitHub repository](https://github.com/fleetdm/orbit). 
+1. In Fleet UI's Host page, hit the "Add new host" button, and copy your Fleet enroll secret (you'll need this in the next step.)
 
-> Take note on where your new Orbit directory is located on you device. Knowing this will be helpful when building the Orbit package in step 3.
+	![Add new host](https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png)
 
-<img src="https://user-images.githubusercontent.com/78363703/133367260-d78d1e11-b8a9-4c36-a39b-b11b2f4d1197.png" alt="Clone Orbit repository"/>
+2. With [fleetctl preview](http://fleetdm.com/get-started) still running, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step):
 
-2. In Fleet UI's Host page, hit the "Add new host" button, and copy your Fleet enroll secret (you'll need this in the next step.)
+	``` 
+	fleetctl package --type=pkg --fleet-url=https://localhost:8412 --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE
+	```
+	> If you'd like to build a Windows package, set `--type=msi` in the above command. If you'd like to build a Linux package, set `--type=deb` (Debian, Ubuntu, etc.) or `--type=rpm` (RHEL, CentOS, etc.) in the above command.
 
-<img src="https://user-images.githubusercontent.com/78363703/130040559-9eb77221-aeba-45ce-8f8a-fb1913d3843b.png" alt="Clone Orbit repository"/>
+	A package configured to point at your Fleet instance has now been generated in your local repository
 
-3. With [fleetctl preview](http://fleetdm.com/get-started) still running, and [Go](https://golang.org/doc/install) 1.16 installed, run the following command (remembering to swap ```YOUR_FLEET_ENROLL_SECRET_HERE``` for the one you copied in the previous step:
+3. Navigate to your generated package (use ```open .``` from macOS commandline,) then double click on the package, and finally complete the installation walkthrough to enroll your device as a host in Fleet.
 
-``` 
-# From within the top-level directory of your cloned Orbit repository…
-# Generate a macOS installer pointed at your local Fleet
-go run ./cmd/package --type=pkg --fleet-url=localhost:8412 --insecure --enroll-secret=YOUR_FLEET_ENROLL_SECRET_HERE```
-```
-> If you'd like to build a Windows package, set `--type=msi` in the above command. If you'd like to build a Linux package, set `--type=deb` (Debian, Ubuntu, etc.) or `--type=rpm` (RHEL, CentOS, etc.) in the above command.
-
-A package configured to point at your Fleet instance has now been generated in your local Orbit repository
-
-4. Navigate to your generated package (use ```open .``` from macOS commandline,) then double click on the package, and finally complete the installation walkthrough to enroll your device as a host in Fleet.
-
-> It may take several seconds (≈30s) for your device to enroll. Refresh Fleet UI, and you should now see your local device in your list of hosts.
+	> It may take several seconds (≈30s) for your device to enroll. Refresh Fleet UI, and you should now see your local device in your list of hosts.
 

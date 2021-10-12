@@ -360,6 +360,7 @@ SELECT
   name AS name,
   bundle_short_version AS version,
   'Application (macOS)' AS type,
+  bundle_identifier AS bundle_identifier,
   'apps' AS source
 FROM apps
 UNION
@@ -367,6 +368,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS bundle_identifier,
   'python_packages' AS source
 FROM python_packages
 UNION
@@ -374,6 +376,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  '' AS bundle_identifier,
   'chrome_extensions' AS source
 FROM chrome_extensions
 UNION
@@ -381,6 +384,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  '' AS bundle_identifier,
   'firefox_addons' AS source
 FROM firefox_addons
 UNION
@@ -388,6 +392,7 @@ SELECT
   name As name,
   version AS version,
   'Browser plugin (Safari)' AS type,
+  '' AS bundle_identifier,
   'safari_extensions' AS source
 FROM safari_extensions
 UNION
@@ -395,6 +400,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (Homebrew)' AS type,
+  '' AS bundle_identifier,
   'homebrew_packages' AS source
 FROM homebrew_packages;
 `,
@@ -545,6 +551,7 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 		name := row["name"]
 		version := row["version"]
 		source := row["source"]
+		bundleIdentifier := row["bundle_identifier"]
 		if name == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
@@ -563,7 +570,7 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 			)
 			continue
 		}
-		s := fleet.Software{Name: name, Version: version, Source: source}
+		s := fleet.Software{Name: name, Version: version, Source: source, BundleIdentifier: bundleIdentifier}
 		software.Software = append(software.Software, s)
 	}
 

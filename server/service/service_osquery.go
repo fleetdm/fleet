@@ -490,13 +490,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
-	if err != nil {
-		return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
-	}
+	if svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) {
+		policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
+		if err != nil {
+			return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
+		}
 
-	for name, query := range policyQueries {
-		queries[hostPolicyQueryPrefix+name] = query
+		for name, query := range policyQueries {
+			queries[hostPolicyQueryPrefix+name] = query
+		}
 	}
 
 	accelerate := uint(0)
@@ -666,6 +668,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	var err error
 	detailUpdated := false // Whether detail or additional was updated
 	additionalResults := make(fleet.OsqueryDistributedQueryResults)
+	additionalUpdated := false
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
 	for query, rows := range results {
@@ -679,7 +682,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
 			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
 			additionalResults[name] = rows
-			detailUpdated = true
+			additionalUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 		case strings.HasPrefix(query, hostPolicyQueryPrefix):
@@ -698,7 +701,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		host.Modified = true
 		host.LabelUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now())
 		if err != nil {
@@ -707,15 +709,19 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
 
-	if detailUpdated {
+	if detailUpdated || additionalUpdated {
 		host.Modified = true
 		host.DetailUpdatedAt = svc.clock.Now()
+	}
+
+	if additionalUpdated {
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
 			logging.WithErr(ctx, err)

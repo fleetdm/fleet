@@ -13,6 +13,7 @@
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
 - [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
+- [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 
 ## How do I get support for working with Fleet?
 
@@ -55,6 +56,18 @@ If the both the existing and new certificates verify with osquery's default root
 If osquery has been deployed with the full certificate chain (using `--tls_server_certs`), deploying a new certificate chain is necessary to allow for verification of the new certificate.
 
 Deploying a certificate chain cannot be done centrally from Fleet.
+
+## How do I use a proxy server with Fleet?
+
+Seeing your proxy's requests fail with an error like `DEPTH_ZERO_SELF_SIGNED_CERT`)?
+To get your proxy server's HTTP client to work with a local Fleet when using a self-signed cert, disable SSL / self-signed verification in the client.
+
+The exact solution to this depends on the request client you are using. For example, when using Node.js ± Sails.js, you can work around this in the requests you're sending with `await sails.helpers.http.get()` by lifting your app with the `NODE_TLS_REJECT_UNAUTHORIZED` environment variable set to `0`:
+
+```
+NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
+```
+
 
 ## When do I need to deploy a new enroll secret to my hosts?
 
@@ -109,3 +122,9 @@ Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Auro
 ## What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
+
+## What is duplicate enrollment and how do I fix it?
+
+Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier (hardware UUID or osquery generated UUID). This can be caused by cloning a VM Image with an already enrolled
+osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
+[host identifiers here](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#osquery_host_identifier).

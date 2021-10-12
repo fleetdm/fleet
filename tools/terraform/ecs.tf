@@ -163,11 +163,11 @@ resource "aws_ecs_task_definition" "backend" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -175,11 +175,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
@@ -191,11 +191,11 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_logs.name
+            value = aws_kinesis_firehose_delivery_stream.osquery_status.name
           },
           {
             name  = "FLEET_FIREHOSE_RESULT_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_logs.name
+            value = aws_kinesis_firehose_delivery_stream.osquery_results.name
           },
           {
             name  = "FLEET_FIREHOSE_REGION"
@@ -219,7 +219,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
-            value = var.vulnerabilities_path
+            value = var.vuln_db_path
           },
           {
             name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
@@ -234,21 +234,22 @@ resource "aws_ecs_task_definition" "backend" {
   ])
 }
 
+
 resource "aws_ecs_task_definition" "migration" {
   family                   = "fleet-migrate"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = var.cpu_migrate
+  memory                   = var.mem_migrate
   container_definitions = jsonencode(
     [
       {
         name        = "fleet-prepare-db"
         image       = var.fleet_image
-        cpu         = 256
-        memory      = 512
+        cpu         = var.cpu_migrate
+        memory      = var.mem_migrate
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -268,7 +269,7 @@ resource "aws_ecs_task_definition" "migration" {
             awslogs-stream-prefix = "fleet"
           }
         },
-        command = ["fleet", "prepare", "db"]
+        command = ["fleet", "prepare", "--no-prompt=true", "db"]
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"
@@ -278,11 +279,11 @@ resource "aws_ecs_task_definition" "migration" {
         environment = [
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = "fleet"
+            value = var.database_user
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = "fleet"
+            value = var.database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
@@ -291,7 +292,7 @@ resource "aws_ecs_task_definition" "migration" {
           {
             name  = "FLEET_REDIS_ADDRESS"
             value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
-          }
+          },
         ]
       }
   ])
@@ -316,7 +317,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageMemoryUtilization"
     }
-    target_value = 80
+    target_value = var.memory_tracking_target_value
   }
 }
 
@@ -332,6 +333,14 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
 
-    target_value = 60
+    target_value = var.cpu_tracking_target_value
   }
+}
+
+output "fleet_ecs_cluster_arn" {
+  value = aws_ecs_cluster.fleet.arn
+}
+
+output "fleet_ecs_cluster_id" {
+  value = aws_ecs_cluster.fleet.id
 }

@@ -461,6 +461,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
+- [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 
 ### List hosts
 
@@ -547,6 +548,52 @@ If `additional_info_filters` is not specified, no `additional` information will 
 }
 ```
 
+### Count hosts
+
+`GET /api/v1/fleet/hosts/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+
+If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
+
+##### Request query parameters
+
+```json
+{
+  "page": 0,
+  "per_page": 100,
+  "order_key": "hostname",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 123
+}
+```
+
 ### Get hosts summary
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
@@ -617,6 +664,15 @@ The endpoint returns the host's installed `software` if the software inventory f
         "source": "rpm_packages",
         "generated_cpe": "",
         "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "generated_cpe": "",
+        "vulnerabilities": null
       }
     ],
     "id": 1,
@@ -668,7 +724,7 @@ The endpoint returns the host's installed `software` if the software inventory f
         "username": "bin",
         "type": "",
         "groupname": "bin"
-      },
+      }
     ],
     "labels": [
       {
@@ -707,7 +763,27 @@ The endpoint returns the host's installed `software` if the software inventory f
     ],
     "packs": [],
     "status": "online",
-    "display_text": "23cfc9caacf0"
+    "display_text": "23cfc9caacf0",
+    "policies": [
+      {
+        "id": 1,
+        "query_id": 2,
+        "query_name": "SomeQuery",
+        "response": "pass"
+      },
+      {
+        "id": 2,
+        "query_id": 4,
+        "query_name": "SomeQuery2",
+        "response": "fail"
+      },
+      {
+        "id": 3,
+        "query_id": 255,
+        "query_name": "SomeQuery3",
+        "response": ""
+      }
+    ]
   }
 }
 ```
@@ -884,6 +960,57 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
+### Bulk delete hosts by filter or ids
+
+`POST /api/v1/fleet/hosts/delete`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+
+Either ids or filters are required.
+
+Request (`ids` is specified):
+
+```json
+{
+  "ids": [1]
+}
+```
+
+Request (`filters` is specified):
+```json
+{
+  "filters": {
+    "status": "online",
+    "label_id": 1,
+    "team_id": 1,
+    "query": "abc"
+  }
+}
+```
+
+#### Example
+
+`POST /api/v1/fleet/hosts/delete`
+
+##### Request body
+
+```json
+{
+  "filters": {
+    "status": "online",
+    "team_id": 1
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -2722,16 +2849,16 @@ Note that live queries are automatically cancelled if this method is not called 
 
 `/api/v1/fleet/results/websockets`
 
-#### Parameters
+### Parameters
 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
 | campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
-#### Example
+### Example
 
-##### Example script to handle request and response
+#### Example script to handle request and response
 
 ```
 const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
@@ -2750,19 +2877,19 @@ socket.onmessage = ({ data }) => {
 }
 ```
 
-##### Detailed request and response walkthrough with example data
+### Detailed request and response walkthrough with example data
 
-##### webSocket.onopen()
+#### webSocket.onopen()
 
-###### Response data
+##### Response data
 
 ```json
 o
 ```
 
-##### webSocket.send()
+#### webSocket.send()
 
-###### Request data
+##### Request data
 
 ```json
 [
@@ -2782,9 +2909,9 @@ o
 ]
 ```
 
-##### webSocket.onmessage()
+#### webSocket.onmessage()
 
-###### Response data
+##### Response data
 
 ```json
 // Sends the total number of hosts targeted and segments them by status
@@ -2863,16 +2990,16 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 
 `/api/v1/fleet/results/`
 
-#### Parameters
+### Parameters
 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
 | campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
-#### Example
+### Example
 
-##### Example script to handle request and response
+#### Example script to handle request and response
 
 ```
 const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
@@ -2894,17 +3021,17 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### socket.onopen()
+#### socket.onopen()
 
-###### Response data
+##### Response data
 
 ```json
 o
 ```
 
-##### socket.send()
+#### socket.send()
 
-###### Request data
+##### Request data
 
 ```json
 [
@@ -2924,9 +3051,9 @@ o
 ]
 ```
 
-##### socket.onmessage()
+#### socket.onmessage()
 
-###### Response data
+##### Response data
 
 ```json
 // Sends the total number of hosts targeted and segments them by status
@@ -3212,7 +3339,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Get team schedule
 
-`GET /api/v1/fleet/team/{id}/schedule`
+`GET /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -3226,7 +3353,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`GET /api/v1/fleet/team/2/schedule`
+`GET /api/v1/fleet/teams/2/schedule`
 
 ##### Default response
 
@@ -3275,7 +3402,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Add query to team schedule
 
-`POST /api/v1/fleet/team/{id}/schedule`
+`POST /api/v1/fleet/teams/{id}/schedule`
 
 #### Parameters
 
@@ -3292,7 +3419,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`POST /api/v1/fleet/team/2/schedule`
+`POST /api/v1/fleet/teams/2/schedule`
 
 ##### Request body
 
@@ -3330,7 +3457,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Edit query in team schedule
 
-`PATCH /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3347,7 +3474,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`PATCH /api/v1/fleet/team/2/schedule/5`
+`PATCH /api/v1/fleet/teams/2/schedule/5`
 
 ##### Request body
 
@@ -3384,7 +3511,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Remove query from team schedule
 
-`DELETE /api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}`
+`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
 
 #### Parameters
 
@@ -3395,7 +3522,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 #### Example
 
-`DELETE /api/v1/fleet/team/2/schedule/5`
+`DELETE /api/v1/fleet/teams/2/schedule/5`
 
 ##### Default response
 
@@ -4384,7 +4511,7 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/team/{team_id}/policies`
+`GET /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -4394,7 +4521,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/team/1/policies`
+`GET /api/v1/fleet/teams/1/policies`
 
 ##### Default response
 
@@ -4423,7 +4550,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Get team policy by ID
 
-`GET /api/v1/fleet/team/{team_id}/policies/{id}`
+`GET /api/v1/fleet/teams/{team_id}/policies/{id}`
 
 #### Parameters
 
@@ -4434,7 +4561,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/team/1/policies/1`
+`GET /api/v1/fleet/teams/1/policies/1`
 
 ##### Default response
 
@@ -4454,7 +4581,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
-`POST /api/v1/fleet/team/{team_id}/policies`
+`POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
@@ -4465,7 +4592,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`POST /api/v1/fleet/team/1/policies`
+`POST /api/v1/fleet/teams/1/policies`
 
 #### Request body
 
@@ -4493,7 +4620,7 @@ Team policies work the same as policies, but at the team level.
 
 ### Remove team policies
 
-`POST /api/v1/fleet/team/{team_id}/policies/delete`
+`POST /api/v1/fleet/teams/{team_id}/policies/delete`
 
 #### Parameters
 
@@ -4504,7 +4631,7 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`POST /api/v1/fleet/global/policies/delete`
+`POST /api/v1/fleet/teams/1/policies/delete`
 
 #### Request body
 
@@ -5044,8 +5171,17 @@ None.
     }
   },
   "update_interval": {
-    "osquery_detail": 3600000000000
+    "osquery_detail": 3600000000000,
+    "osquery_policy": 3600000000000
   },
+  "vulnerabilities": {
+    "cpe_database_url": "",
+    "current_instance_checks": "auto",
+    "cve_feed_prefix_url": "",
+    "databases_path": "",
+    "disable_data_sync": false,
+    "periodicity": 3600000000000
+  }
 }
 ```
 
@@ -5711,7 +5847,7 @@ _Available in Fleet Premium_
 {
   "teams": [
     {
-      "id": 1.
+      "id": 1,
       "created_at": "2021-07-28T15:58:21Z",
       "name": "workstations",
       "description": "",
@@ -5773,15 +5909,16 @@ _Available in Fleet Premium_
           },
           "overrides": {}
         },
-      "user_count": 0,
-      "host_count": 0,
-      "secrets": [
-        {
-          "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
-          "created_at": "2021-08-05T21:41:42Z",
-          "team_id": 15
-        }
-      ]
+        "user_count": 0,
+        "host_count": 0,
+        "secrets": [
+          {
+            "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
+            "created_at": "2021-08-05T21:41:42Z",
+            "team_id": 15
+          }
+        ]
+      }
     }
   ]
 }
@@ -6066,6 +6203,74 @@ _Available in Fleet Premium_
 
 `Status: 200`
 
+### Apply team spec
+
+_Available in Fleet Premium_
+
+If the `name` specified is associated with an existing team, this API route, completely replaces this team's existing `agent_options` and `secrets` with those that are specified.
+
+If the `name` is not already associated with an existing team, this API route creates a new team with the specified `name`, `agent_options`, and `secrets`.
+
+`POST /api/v1/fleet/spec/teams`
+
+#### Parameters
+
+| Name | Type   | In   | Description                    |
+| ---- | ------ | ---- | ------------------------------ |
+| name | string | body | **Required.** The team's name. |
+| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)|
+| secrets | list | body | **Required.** A list of plain text strings used as the enroll secrets. |
+
+#### Example
+
+`POST /api/v1/fleet/spec/teams`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Client Platform Engineering",
+      "agent_options": {
+        "spec": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/v1/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        }
+      },
+      "secrets": [
+        {
+         "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn",
+        },
+        {
+          "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On",
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Default response
+
+`Status: 200`
 
 ---
 
@@ -6184,9 +6389,8 @@ _Available in Fleet Premium_
 
 ```json
 {
-    “software”: [
+    "software": [
       {
-        "hosts_count": 124,
         "id": 1,
         "name": "Chrome.app",
         "version": "2.1.11",
@@ -6195,7 +6399,6 @@ _Available in Fleet Premium_
         "vulnerabilities": null
       },
       {
-        "hosts_count": 112,
         "id": 2,
         "name": "Figma.app",
         "version": "2.1.11",
@@ -6204,7 +6407,6 @@ _Available in Fleet Premium_
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 3,
         "name": "osquery",
         "version": "2.1.11",
@@ -6213,7 +6415,6 @@ _Available in Fleet Premium_
         "vulnerabilities": null
       },
       {
-        "hosts_count": 78,
         "id": 4,
         "name": "osquery",
         "version": "2.1.11",

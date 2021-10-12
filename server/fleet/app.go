@@ -120,6 +120,18 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 }
 
+// EnrichedAppConfig contains the AppConfig along with additional fleet
+// instance configuration settings as returned by the
+// "GET /api/v1/fleet/config" API endpoint (and fleetctl get config).
+type EnrichedAppConfig struct {
+	AppConfig
+
+	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License         *LicenseInfo           `json:"license,omitempty"`
+	Logging         *Logging               `json:"logging,omitempty"`
+}
+
 type Duration struct {
 	time.Duration
 }
@@ -322,6 +334,20 @@ type Logging struct {
 
 type UpdateIntervalConfig struct {
 	OSQueryDetail time.Duration `json:"osquery_detail"`
+	OSQueryPolicy time.Duration `json:"osquery_policy"`
+}
+
+// VulnerabilitiesConfig contains the vulnerabilities configuration of the
+// fleet instance (as configured for the cli, either via flags, env vars or the
+// config file), not to be confused with VulnerabilitySettings which is the
+// configuration in AppConfig.
+type VulnerabilitiesConfig struct {
+	DatabasesPath         string        `json:"databases_path"`
+	Periodicity           time.Duration `json:"periodicity"`
+	CPEDatabaseURL        string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks string        `json:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync"`
 }
 
 type LoggingPlugin struct {

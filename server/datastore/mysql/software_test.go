@@ -58,23 +58,19 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 		Software: []fleet.Software{
 			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
 		},
 	}
 	host2.HostSoftware = soft2
 
-	err := ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
-	err = ds.SaveHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 
@@ -93,18 +89,14 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	host2.HostSoftware = soft2
 
-	err = ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
-	err = ds.SaveHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
-	err = ds.LoadHostSoftware(context.Background(), host2)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 
@@ -117,11 +109,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	}
 	host1.HostSoftware = soft1
 
-	err = ds.SaveHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
 
-	err = ds.LoadHostSoftware(context.Background(), host1)
-	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 }
@@ -406,7 +396,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 
-	sort.Slice(host1.Software, func(i, j int) bool { return host1.Software[i].Name < host1.Software[j].Name })
+	sort.Slice(host1.Software, func(i, j int) bool {
+		return host1.Software[i].Name+host1.Software[i].Version < host1.Software[j].Name+host1.Software[j].Version
+	})
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
 	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-432-543", []string{"somecpe"}))
@@ -433,7 +425,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("limits the results", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1})
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
@@ -442,11 +434,11 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1})
+		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
-		expected := []fleet.Software{foo003}
+		expected := []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -455,7 +447,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{})
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 2)

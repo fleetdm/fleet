@@ -233,5 +233,13 @@
     th {
       border-right: 1px solid #e2e4ea !important;
     }
+
+    .query_name__header {
+      width: calc(63%);
+    }
+
+    .interval__header {
+      width: calc(37%);
+    }
   }
 }

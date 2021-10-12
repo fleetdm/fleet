@@ -20,68 +20,72 @@ module.exports.routes = {
 
   'GET /company/contact': {
     action: 'view-contact',
-    locals:{
-      title: 'Contact us | Fleet for osquery',
-      description: 'Get in touch with our team.'
+    locals: {
+      pageTitleForMeta: 'Contact us | Fleet for osquery',
+      pageDescriptionForMeta: 'Get in touch with our team.'
     }
   },
 
   'GET /get-started': {
     action: 'view-get-started' ,
-    locals:{
-      title: 'Get Started | Fleet for osquery',
-      description: 'Learn about getting started with Fleet.'
+    locals: {
+      currentPage: 'get started',
+      pageTitleForMeta: 'Get started | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
     }
   },
 
   'GET /pricing': {
     action: 'view-pricing',
-    locals:{
-      title: 'Pricing | Fleet for osquery',
-      description: 'View Fleet plans and pricing details.'
+    locals: {
+      currentPage: 'pricing',
+      pageTitleForMeta: 'Pricing | Fleet for osquery',
+      pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
   },
 
-  'GET /press-kit': {
+  'GET /logos': {
     action: 'view-press-kit',
-    locals:{
-      title: 'Press kit | Fleet for osquery',
-      description: 'Download Fleet logos, wallpapers, and screenshots.'
+    locals: {
+      pageTitleForMeta: 'Logos | Fleet for osquery',
+      pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
 
   'GET /queries': {
     action: 'view-query-library',
-    locals:{
-      title: 'Queries | Fleet for osquery',
-      description: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
+    locals: {
+      currentPage: 'queries',
+      pageTitleForMeta: 'Queries | Fleet for osquery',
+      pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
   },
 
   'GET /queries/:slug': {
     action: 'view-query-detail',
-    locals:{
-      title: 'Query details | Fleet for osquery',
-      description: 'View more information about a query in Fleet\'s standard query library',
+    locals: {
+      currentPage: 'queries',
     }
   },
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
-    locals:{
-      title: 'Documentation | Fleet for osquery',
-      description: 'Documentation for Fleet for osquery.',
+    locals: {
+      currentPage: 'docs',
     }
   },// handles /docs and /docs/foo/bar
 
-  // 'GET /handbook/?*':  { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  'GET /handbook/?*':  {
+    skipAssets: false,
+    action: 'handbook/view-basic-handbook',
+  },// handles /handbook and /handbook/foo/bar
 
   'GET /transparency': {
     action: 'view-transparency',
-    locals:{
-      title: 'Transparency | Fleet for osquery',
-      description: 'Learn what data osquery can see.',
+    locals: {
+      pageTitleForMeta: 'Transparency | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
 
@@ -145,7 +149,6 @@ module.exports.routes = {
   'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
-  'GET /handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 

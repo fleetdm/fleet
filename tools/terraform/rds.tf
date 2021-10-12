@@ -1,7 +1,3 @@
-locals {
-  name = "fleetdm"
-}
-
 resource "random_password" "database_password" {
   length  = 16
   special = false
@@ -56,6 +52,13 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  }
 //}
 
+variable "db_instance_type_writer" {
+  default = "db.t4g.medium"
+}
+variable "db_instance_type_reader" {
+  default = "db.t4g.medium"
+}
+
 module "aurora_mysql" {
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.2.0"
@@ -63,15 +66,15 @@ module "aurora_mysql" {
   name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
   engine_version        = "5.7.mysql_aurora.2.10.0"
-  instance_type         = var.mysql_instance
-  instance_type_replica = var.mysql_instance
+  instance_type         = var.db_instance_type_writer
+  instance_type_replica = var.db_instance_type_reader
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true
-  username                            = "fleet"
+  username                            = var.database_user
   password                            = random_password.database_password.result
   create_random_password              = false
-  database_name                       = "fleet"
+  database_name                       = var.database_name
   enable_http_endpoint                = false
   #performance_insights_enabled        = true
 
