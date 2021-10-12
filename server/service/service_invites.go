@@ -15,7 +15,8 @@ import (
 )
 
 func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
+	// TODO: check that the invites are not for teams the user cannot operate in
+	if err := svc.authz.Authorize(ctx, &fleet.Invite{Teams: payload.Teams}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
