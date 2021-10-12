@@ -30,6 +30,7 @@ type collector struct {
 }
 
 type collectorStats struct {
+	SkipCount     int
 	ExecCount     int
 	FailuresCount int
 
@@ -44,13 +45,33 @@ type collectorStats struct {
 	MinExecItems  int
 	MaxExecItems  int
 	LastExecItems int
+
+	MinExecInserts  int
+	MaxExecInserts  int
+	LastExecInserts int
+
+	MinExecUpdates  int
+	MaxExecUpdates  int
+	LastExecUpdates int
+
+	MinExecDeletes  int
+	MaxExecDeletes  int
+	LastExecDeletes int
+
+	MinExecRedisCmds  int
+	MaxExecRedisCmds  int
+	LastExecRedisCmds int
 }
 
 type collectorExecStats struct {
-	Duration time.Duration
-	Keys     int
-	Items    int
-	Failed   bool
+	Duration  time.Duration
+	Keys      int
+	Items     int
+	Inserts   int
+	Updates   int
+	Deletes   int
+	RedisCmds int // does not include scan keys iteration commands
+	Failed    bool
 }
 
 func (c *collector) Start(ctx context.Context) {
@@ -71,10 +92,13 @@ func (c *collector) exec(ctx context.Context) {
 	defer conn.Close()
 
 	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout.Seconds()))); err != nil {
+		var failed bool
 		// either redis failure or this collector didn't acquire the lock
 		if !errors.Is(err, redigo.ErrNil) && c.errHandler != nil {
 			c.errHandler(c.name, err)
+			failed = true
 		}
+		c.addSkipStats(failed)
 		return
 	}
 	defer conn.Do("DEL", keyLock)
@@ -85,9 +109,11 @@ func (c *collector) exec(ctx context.Context) {
 
 	var stats collectorExecStats
 	start := time.Now()
-	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil && c.errHandler != nil {
+	if err := c.handler(ctx, c.ds, c.pool, &stats); err != nil {
 		stats.Failed = true
-		c.errHandler(c.name, err)
+		if c.errHandler != nil {
+			c.errHandler(c.name, err)
+		}
 	}
 	stats.Duration = time.Since(start)
 	c.addStats(&stats)
@@ -100,6 +126,16 @@ func (c *collector) ReadStats() collectorStats {
 }
 
 func (c *collector) addStats(stats *collectorExecStats) {
+	minMaxLastInt := func(min, max, last *int, val int) {
+		*last = val
+		if val > *max {
+			*max = val
+		}
+		if val < *min || (val > 0 && (*min == 0)) {
+			*min = val
+		}
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -108,21 +144,12 @@ func (c *collector) addStats(stats *collectorExecStats) {
 		c.stats.FailuresCount++
 	}
 
-	c.stats.LastExecItems = stats.Items
-	if stats.Items > c.stats.MaxExecItems {
-		c.stats.MaxExecItems = stats.Items
-	}
-	if stats.Items < c.stats.MinExecItems || (stats.Items > 0 && c.stats.MinExecItems == 0) {
-		c.stats.MinExecItems = stats.Items
-	}
-
-	c.stats.LastExecKeys = stats.Keys
-	if stats.Keys > c.stats.MaxExecKeys {
-		c.stats.MaxExecKeys = stats.Keys
-	}
-	if stats.Keys < c.stats.MinExecKeys || (stats.Keys > 0 && c.stats.MinExecKeys == 0) {
-		c.stats.MinExecKeys = stats.Keys
-	}
+	minMaxLastInt(&c.stats.MinExecItems, &c.stats.MaxExecItems, &c.stats.LastExecItems, stats.Items)
+	minMaxLastInt(&c.stats.MinExecKeys, &c.stats.MaxExecKeys, &c.stats.LastExecKeys, stats.Keys)
+	minMaxLastInt(&c.stats.MinExecInserts, &c.stats.MaxExecInserts, &c.stats.LastExecInserts, stats.Inserts)
+	minMaxLastInt(&c.stats.MinExecUpdates, &c.stats.MaxExecUpdates, &c.stats.LastExecUpdates, stats.Updates)
+	minMaxLastInt(&c.stats.MinExecDeletes, &c.stats.MaxExecDeletes, &c.stats.LastExecDeletes, stats.Deletes)
+	minMaxLastInt(&c.stats.MinExecRedisCmds, &c.stats.MaxExecRedisCmds, &c.stats.LastExecRedisCmds, stats.RedisCmds)
 
 	c.stats.LastExecDuration = stats.Duration
 	if stats.Duration > c.stats.MaxExecDuration {
@@ -130,6 +157,16 @@ func (c *collector) addStats(stats *collectorExecStats) {
 	}
 	if stats.Duration < c.stats.MinExecDuration || (stats.Duration > 0 && c.stats.MinExecDuration == 0) {
 		c.stats.MinExecDuration = stats.Duration
+	}
+}
+
+func (c *collector) addSkipStats(failed bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.stats.SkipCount++
+	if failed {
+		c.stats.FailuresCount++
 	}
 }
 
