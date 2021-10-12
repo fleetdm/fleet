@@ -59,7 +59,7 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 }
 
 func (s *store) Get(requestID string) (*Session, error) {
-	conn := s.pool.ConfigureDoer(s.pool.Get())
+	conn := s.pool.ConfigureDoer(s.pool.Get()) // TODO(mna): readonly potential
 	defer conn.Close()
 	val, err := redis.String(conn.Do("GET", requestID))
 	if err != nil {

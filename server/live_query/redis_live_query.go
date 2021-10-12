@@ -223,7 +223,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 }
 
 func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
-	conn := r.pool.Get()
+	conn := r.pool.Get() // TODO(mna): readonly potential
 	defer conn.Close()
 
 	// Pipeline redis calls to check for this host in the bitfield of the

@@ -35,7 +35,7 @@ func (r *redisQueryResults) Pool() fleet.RedisPool {
 }
 
 func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
-	conn := r.pool.Get()
+	conn := r.pool.Get() // TODO(mna): readonly potential (should test that it's fine on replicas, not spelled out in the docs)
 	defer conn.Close()
 
 	channelName := pubSubForID(result.DistributedQueryCampaignID)
@@ -111,7 +111,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	outChannel := make(chan interface{})
 	msgChannel := make(chan interface{})
 
-	conn := r.pool.Get()
+	conn := r.pool.Get() // TODO(mna): readonly potential (should test that it's fine on replicas, not spelled out in the docs)
 	psc := &redis.PubSubConn{Conn: conn}
 	pubSubName := pubSubForID(query.ID)
 	if err := psc.Subscribe(pubSubName); err != nil {

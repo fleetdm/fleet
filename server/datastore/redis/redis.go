@@ -79,6 +79,19 @@ func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
 	return &clusterPool{cluster, config.ClusterFollowRedirections}, nil
 }
 
+// ReadOnlyConn turns conn into a connection that will try to connect to a
+// replica instead of a primary. Note that this is not guaranteed that it will
+// do so (there may not be any replica, or due to redirections it may end up on
+// a primary, etc.), and it will only try to do so if pool is a Redis Cluster
+// pool. The returned connection should only be used to run read-only
+// commands.
+func ReadOnlyConn(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
+	if _, isCluster := pool.(*clusterPool); isCluster {
+		_ = redisc.ReadOnlyConn(conn)
+	}
+	return conn
+}
+
 // SplitRedisKeysBySlot takes a list of redis keys and groups them by hash slot
 // so that keys in a given group are guaranteed to hash to the same slot, making
 // them safe to run e.g. in a pipeline on the same connection or as part of a
