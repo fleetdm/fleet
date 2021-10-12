@@ -2,7 +2,6 @@ package s3
 
 import (
 	"context"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -38,6 +37,13 @@ func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error
 		)
 	}
 
+	if config.EndpointURL != "" {
+		conf.Endpoint = &config.EndpointURL
+	}
+
+	conf.DisableSSL = &config.DisableSSL
+	conf.S3ForcePathStyle = &config.ForceS3PathStyle
+
 	sess, err := session.NewSession(conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "create S3 client")
@@ -54,14 +60,17 @@ func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error
 		}
 	}
 
-	region, err := s3manager.GetBucketRegion(context.TODO(), sess, config.Bucket, awsRegionHint)
-	if err != nil {
-		return nil, errors.Wrap(err, "create S3 client")
+	if len(config.Region) == 0 {
+		region, err := s3manager.GetBucketRegion(context.TODO(), sess, config.Bucket, awsRegionHint)
+		if err != nil {
+			return nil, errors.Wrap(err, "create S3 client")
+		}
+		config.Region = region
 	}
 
 	return &Datastore{
 		metadatadb: metadatadb,
-		s3client:   s3.New(sess, &aws.Config{Region: &region}),
+		s3client:   s3.New(sess, &aws.Config{Region: &config.Region}),
 		bucket:     config.Bucket,
 		prefix:     config.Prefix,
 	}, nil

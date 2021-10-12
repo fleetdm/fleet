@@ -17,8 +17,9 @@ type listHostsRequest struct {
 }
 
 type listHostsResponse struct {
-	Hosts []HostResponse `json:"hosts"`
-	Err   error          `json:"error,omitempty"`
+	Hosts    []HostResponse  `json:"hosts"`
+	Software *fleet.Software `json:"software,omitempty"`
+	Err      error           `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -30,6 +31,13 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		return listHostsResponse{Err: err}, nil
 	}
 
+	var software *fleet.Software
+	if req.Opts.SoftwareIDFilter != nil {
+		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
 	hostResponses := make([]HostResponse, len(hosts))
 	for i, host := range hosts {
 		h, err := hostResponseForHost(ctx, svc, host)
@@ -39,7 +47,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses}, nil
+	return listHostsResponse{Hosts: hostResponses, Software: software}, nil
 }
 
 func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -54,6 +62,14 @@ func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
+}
+
+func (svc Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.SoftwareByID(ctx, id)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

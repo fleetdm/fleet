@@ -23,7 +23,7 @@ func TestPreview(t *testing.T) {
 		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath}))
+	require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main"}))
 
 	// run some sanity checks on the preview environment
 
@@ -42,10 +42,10 @@ func TestPreview(t *testing.T) {
 	require.True(t, ok, appConf)
 
 	// current instance checks must be on
-	ok = strings.Contains(appConf, `current_instance_checks: yes`)
-	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
+	ok = strings.Contains(appConf, `current_instance_checks: "yes"`)
+	require.True(t, ok, appConf)
 
 	// a vulnerability database path must be set
 	ok = strings.Contains(appConf, `databases_path: /vulndb`)
-	require.False(t, ok, appConf) // TODO: once #2376 is merged this must be True
+	require.True(t, ok, appConf)
 }
