@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { useDispatch, useSelector } from "react-redux";
 
 // @ts-ignore
 import Fleet from "fleet";
@@ -10,7 +9,6 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import FileSaver from "file-saver";
-import { IConfig } from "interfaces/config";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import CopyIcon from "../../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
@@ -19,12 +17,6 @@ import DownloadIcon from "../../../../../../../../assets/images/icon-download-12
 interface IPlatformSubNav {
   name: string;
   type: string;
-}
-
-interface IRootState {
-  app: {
-    config: IConfig;
-  };
 }
 
 const platformSubNav: IPlatformSubNav[] = [
