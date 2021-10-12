@@ -184,6 +184,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 		conn := pool.ConfigureDoer(pool.Get())
 		defer conn.Close()
 
+		stats.RedisCmds++
 		res, err := redigo.Strings(script.Do(conn, key))
 		if err != nil {
 			return nil, errors.Wrap(err, "redis LRANGE script")
@@ -216,6 +217,8 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 	}
 
 	runInsertBatch := func(batch []policyTuple) error {
+		stats.Inserts++
+
 		// TODO: INSERT IGNORE, to avoid failing if policy id does not exist? Or this should
 		// never happen as policies cannot come and go like labels do?
 		sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
@@ -233,6 +236,8 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 	}
 
 	runUpdateBatch := func(ids []uint, ts time.Time) error {
+		stats.Updates++
+
 		sql := `
       UPDATE
         hosts

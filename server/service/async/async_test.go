@@ -350,7 +350,6 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 		}
 		return int(policyIDs[id-1])
 	}
-	_, _ = hid, pid
 
 	// note that cases cannot be run in isolation, each case builds on the
 	// previous one's state, so they are not run as distinct sub-tests.
@@ -563,6 +562,8 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 		},
 	}
 
+	const batchSizes = 3
+
 	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
 		conn := pool.ConfigureDoer(pool.Get())
 		defer conn.Close()
@@ -586,6 +587,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 			}
 			wantStats.Keys++
 			if hostID >= 0 {
+				wantStats.RedisCmds++
 				wantStats.Items += len(res)
 			}
 		}
@@ -625,8 +627,18 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 
 			// run the collection
 			var stats collectorExecStats
-			err := collectPolicyQueryExecutions(ctx, ds, pool, &stats)
+			task := Task{
+				InsertBatch:        batchSizes,
+				UpdateBatch:        batchSizes,
+				DeleteBatch:        batchSizes,
+				RedisPopCount:      batchSizes,
+				RedisScanKeysCount: 10,
+			}
+			err := task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
+			// inserts, updates and deletes are a bit tricky to track automatically,
+			// just ignore them when comparing stats.
+			stats.Inserts, stats.Updates, stats.Deletes = 0, 0, 0
 			require.Equal(t, wantStats, stats)
 
 			// check that the table contains the expected rows
