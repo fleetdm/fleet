@@ -1,1 +1,1 @@
-* Add software_id query filter to the list hosts API
+* Add software_id query filter to the list hosts API and return software details when filtering by it

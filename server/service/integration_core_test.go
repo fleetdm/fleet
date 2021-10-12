@@ -591,6 +591,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
 	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
 
 	host := hosts[2]
 	host.HostSoftware = fleet.HostSoftware{
@@ -605,4 +606,5 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
+	assert.Equal(t, "foo", resp.Software.Name)
 }
