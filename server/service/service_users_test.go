@@ -493,8 +493,8 @@ func TestUserAuth(t *testing.T) {
 			Email: "some@email.com",
 			Token: "ABCD",
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-				fleet.CreateTimestamp{CreatedAt: time.Now()},
-				fleet.UpdateTimestamp{UpdatedAt: time.Now()}},
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()}},
 		}, nil
 	}
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
