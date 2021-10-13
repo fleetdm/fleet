@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -57,27 +59,31 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 
 	output, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "kafka rest marshal")
 	}
 
 	resp, err := l.post(l.URL, bytes.NewBuffer(output))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "kafka rest post")
 	}
 
-	resp.Body.Close()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return errors.Errorf("Error posting to %s: %d. %s", l.URL, resp.StatusCode, string(body))
+	}
 
 	return nil
 }
 
-func (l *kafkaRESTProducer) post(url string, buf *bytes.Buffer) (resp *http.Response, err error) {
+func (l *kafkaRESTProducer) post(url string, buf *bytes.Buffer) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodPost, url, buf)
 	if err != nil {
-		return
+		return nil, errors.Wrap(err, "kafka rest new request")
 	}
 
 	now := float64(time.Now().UnixNano()) / float64(time.Second)
-
 	req.Header.Set(CONTENT_TYPE, CONTENT_TYPE_MIME)
 	req.Header.Set(TIMESTAMP, fmt.Sprintf("%f", now))
 

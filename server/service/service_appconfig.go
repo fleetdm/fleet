@@ -248,6 +248,14 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 		}
 	case "stdout":
 		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
+	case "kafkarest":
+		logging.Status = fleet.LoggingPlugin{
+			Plugin: "kafkarest",
+			Config: fleet.KafkaRESTConfig{
+				StatusTopic: conf.KafkaREST.StatusTopic,
+				ProxyHost:   conf.KafkaREST.ProxyHost,
+			},
+		}
 	default:
 		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
 	}
@@ -293,6 +301,14 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 	case "stdout":
 		logging.Result = fleet.LoggingPlugin{
 			Plugin: "stdout",
+		}
+	case "kafkarest":
+		logging.Result = fleet.LoggingPlugin{
+			Plugin: "kafkarest",
+			Config: fleet.KafkaRESTConfig{
+				ResultTopic: conf.KafkaREST.ResultTopic,
+				ProxyHost:   conf.KafkaREST.ProxyHost,
+			},
 		}
 	default:
 		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)

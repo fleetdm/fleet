@@ -90,8 +90,8 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	case "kafkarest":
 		status, err = NewKafkaRESTWriter(&KafkaRESTParams{
 			KafkaProxyHost: config.KafkaREST.ProxyHost,
-			KafkaTopic: config.KafkaREST.StatusTopic,
-			KafkaTimeout: 10,
+			KafkaTopic:     config.KafkaREST.StatusTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "create kafka rest status logger")
@@ -173,8 +173,8 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	case "kafkarest":
 		result, err = NewKafkaRESTWriter(&KafkaRESTParams{
 			KafkaProxyHost: config.KafkaREST.ProxyHost,
-			KafkaTopic: config.KafkaREST.ResultTopic,
-			KafkaTimeout: 10,
+			KafkaTopic:     config.KafkaREST.ResultTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "create kafka rest result logger")
