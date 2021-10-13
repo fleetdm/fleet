@@ -75,6 +75,8 @@ import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-action-close-16x15@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
+import ReactTooltip from "react-tooltip";
+import { ISoftware } from "interfaces/software";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -104,6 +106,28 @@ interface ITableQueryProps {
 
 const baseClass = "manage-hosts";
 
+const MOCK_SOFTWARE = {
+  id: 1,
+  source: "apps",
+  generated_cpe: "foo",
+  name: "Figma.app",
+  version: "2.1.11",
+  vulnerabilities: [
+    {
+      cve: "CVE-2013-6662",
+      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
+    },
+    {
+      cve: "CVE-2013-6662",
+      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
+    },
+    {
+      cve: "CVE-2013-6662",
+      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
+    },
+  ],
+};
+
 const ManageHostsPage = ({
   route,
   router,
@@ -128,6 +152,7 @@ const ManageHostsPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  console.log("location: ", location);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -183,6 +208,7 @@ const ManageHostsPage = ({
   const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
+  const [softwareDetails, setSoftwareDetails] = useState<ISoftware>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   // ======== end states
 
@@ -191,7 +217,10 @@ const ManageHostsPage = ({
   const routeTemplate = route && route.path ? route.path : "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
+  const softwareId = parseInt(queryParams?.software_id, 10);
   const { active_label: activeLabel, label_id: labelID } = routeParams;
+
+  console.log("softwareId: ", softwareId);
 
   // ===== filter matching
   const selectedFilters: string[] = [];
@@ -286,6 +315,7 @@ const ManageHostsPage = ({
 
   const retrieveHosts = async (options: IHostLoadOptions = {}) => {
     setIsHostsLoading(true);
+    console.log("options: ", options);
 
     options = {
       ...options,
@@ -296,10 +326,16 @@ const ManageHostsPage = ({
         isOnGlobalTeam as boolean
       ),
     };
+    console.log("options 2: ", options);
 
+    // TODO: update for new response shape { software: ISoftware, hosts: IHost[] }
     try {
-      const { hosts: returnedHosts } = await hostsAPI.loadAll(options);
+      const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
+        options
+      );
       setHosts(returnedHosts);
+      software && setSoftwareDetails(software);
+      // setSoftwareDetails(MOCK_SOFTWARE);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -310,6 +346,7 @@ const ManageHostsPage = ({
 
   const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
     setIsHostCountLoading(true);
+    console.log("retrieve host count options: ", options);
 
     options = {
       ...options,
@@ -362,6 +399,7 @@ const ManageHostsPage = ({
       teamId: selectedTeam?.id,
       policyId,
       policyResponse,
+      softwareId,
     };
 
     if (tableQueryData) {
@@ -395,7 +433,9 @@ const ManageHostsPage = ({
       teamId: selectedTeam?.id,
       policyId,
       policyResponse,
+      softwareId,
     };
+    console.log("api call options: ", options);
 
     retrieveHostCount(options);
   }, [
@@ -404,6 +444,7 @@ const ManageHostsPage = ({
     policyId,
     policyResponse,
     selectedFilters,
+    softwareId,
   ]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
@@ -437,10 +478,16 @@ const ManageHostsPage = ({
       }
     }
 
-    //  Non-status labels are not compatible with policies so omit policy params from next location
+    // Non-status labels are not compatible with policies or software filters
+    // so omit policies and software params from next location
     let newQueryParams = queryParams;
     if (newFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) {
-      newQueryParams = omit(newQueryParams, ["policy_id", "policy_response"]);
+      console.log("omitted software_id");
+      newQueryParams = omit(newQueryParams, [
+        "policy_id",
+        "policy_response",
+        "software_id",
+      ]);
     }
 
     router.replace(
@@ -454,6 +501,8 @@ const ManageHostsPage = ({
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
+    console.log("change policies filter");
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -468,12 +517,26 @@ const ManageHostsPage = ({
   };
 
   const handleClearPoliciesFilter = () => {
+    console.log("clear policies filter");
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
         queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+      })
+    );
+  };
+
+  const handleClearSoftwareFilter = () => {
+    console.log("clear software filter");
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["software_id"]),
       })
     );
   };
@@ -504,6 +567,7 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
+    console.log("change teams filter");
 
     router.replace(nextLocation);
   };
@@ -611,6 +675,11 @@ const ManageHostsPage = ({
       newQueryParams.policy_response = policyResponse;
     }
 
+    if (softwareId && !policyId) {
+      newQueryParams.software_id = softwareId;
+    }
+
+    console.log("table query change");
     // triggers useDeepEffect using queryParams
     router.replace(
       getNextLocationPath({
@@ -755,6 +824,7 @@ const ManageHostsPage = ({
         teamId: currentTeam?.id,
         policyId,
         policyResponse,
+        softwareId,
       });
 
       toggleTransferHostModal();
@@ -800,6 +870,7 @@ const ManageHostsPage = ({
         teamId: currentTeam?.id,
         policyId,
         policyResponse,
+        softwareId,
       });
 
       refetchLabels();
@@ -878,6 +949,56 @@ const ManageHostsPage = ({
           {buttonText}
         </Button>
       </div>
+    );
+  };
+
+  const renderSoftwareFilterBlock = () => {
+    let name;
+    let version;
+    if (softwareDetails) {
+      ({ name, version } = softwareDetails);
+    }
+    const buttonText = (
+      <>
+        {name && version && `${name} ${version}`}
+        <img src={CloseIcon} alt="Remove software filter" />
+      </>
+    );
+    return (
+      softwareDetails && (
+        <div className={`${baseClass}__software-filter-block`}>
+          <Button
+            className={`${baseClass}__clear-software-filter`}
+            onClick={handleClearSoftwareFilter}
+            variant={"small-text-icon"}
+            title={name}
+          >
+            <span className="software-filter-button">
+              <span
+                className="software-filter-tooltip"
+                data-tip
+                data-for="software-filter-tooltip"
+                data-tip-disable={false}
+              >
+                {buttonText}{" "}
+              </span>
+              <ReactTooltip
+                place="bottom"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="software-filter-tooltip"
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>
+                  {`Hosts with ${name}`},<br />
+                  {`${version} installed`}
+                </span>
+              </ReactTooltip>
+            </span>
+          </Button>
+        </div>
+      )
     );
   };
 
@@ -1043,17 +1164,18 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderLabelOrPolicyBlock = () => {
+  const renderActiveFilterBlock = () => {
     const type = selectedLabel?.type;
 
-    if (policyId || selectedLabel) {
+    if (policyId || softwareId || selectedLabel) {
+      // TODO: consider how to handle mutually exclusive renders below)=
       return (
-        <div className={`${baseClass}__labels-policies-wrap`}>
-          {policyId && renderPoliciesFilterBlock()}
-          {!policyId &&
+        <div className={`${baseClass}__labels-active-filter-wrap`}>
+          {!!policyId && renderPoliciesFilterBlock()}
+          {!!softwareId && renderSoftwareFilterBlock()}
+          {selectedLabel &&
             type !== "all" &&
             type !== "status" &&
-            selectedLabel &&
             renderHeaderLabelBlock(selectedLabel)}
         </div>
       );
@@ -1148,6 +1270,7 @@ const ManageHostsPage = ({
     }
 
     if (hasHostErrors || hasHostCountErrors) {
+      console.log("hostcounterrors: ", hasHostCountErrors);
       return <TableDataError />;
     }
 
@@ -1233,7 +1356,7 @@ const ManageHostsPage = ({
               )}
             </div>
           </div>
-          {renderLabelOrPolicyBlock()}
+          {renderActiveFilterBlock()}
           {config && (!isPremiumTier || teams) && renderTable()}
         </div>
       )}

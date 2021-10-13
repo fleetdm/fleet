@@ -241,7 +241,7 @@
     }
   }
 
-  &__labels-policies-wrap {
+  &__labels-active-filter-wrap {
     margin-bottom: $pad-medium;
   }
 
@@ -259,5 +259,20 @@
   &__enroll-hosts {
     padding: $pad-small;
     margin-right: $pad-small;
+  }
+
+  &__software-filter-block {
+    .button--small-text-icon {
+      margin-left: 0;
+      padding-left: 12px;
+    }
+    .software-filter-button {
+      display: inline-flex;
+      align-items: center;
+    }
+    .software-filter-tooltip {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 }

@@ -1,16 +1,17 @@
 import React from "react";
-// import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import ReactTooltip from "react-tooltip";
-import { isEmpty } from "lodash";
+import { isEmpty, memoize } from "lodash";
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
-// import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-// import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import TooltipCell from "components/TableContainer/DataTable/TooltipCell";
 
 interface IHeaderProps {
   column: {
@@ -60,6 +61,10 @@ const TYPE_CONVERSION: Record<string, string> = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
 };
+
+const generateSoftwareLink = memoize((id: number) => {
+  return id;
+});
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -114,36 +119,39 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps) => {
         const { name, bundle_identifier } = cellProps.row.original;
-        if (bundle_identifier) {
-          return (
-            <span>
-              {name}
-              <span
-                className={`software-name tooltip__tooltip-icon`}
-                data-tip
-                data-for={`software-name__${cellProps.row.original.id.toString()}`}
-                data-tip-disable={false}
-              >
-                <img alt="bundle identifier" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id={`software-name__${cellProps.row.original.id.toString()}`}
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  <b>Bundle identifier: </b>
-                  <br />
-                  {bundle_identifier}
-                </span>
-              </ReactTooltip>
-            </span>
-          );
-        }
-        return <TextCell value={name} />;
+        // if (bundle_identifier) {
+        //   return (
+        //     <span>
+        //       {name}
+        //       <span
+        //         className={`software-name tooltip__tooltip-icon`}
+        //         data-tip
+        //         data-for={`software-name__${cellProps.row.original.id.toString()}`}
+        //         data-tip-disable={false}
+        //       >
+        //         <img alt="bundle identifier" src={QuestionIcon} />
+        //       </span>
+        //       <ReactTooltip
+        //         place="bottom"
+        //         type="dark"
+        //         effect="solid"
+        //         backgroundColor="#3e4771"
+        //         id={`software-name__${cellProps.row.original.id.toString()}`}
+        //         data-html
+        //       >
+        //         <span className={`tooltip__tooltip-text`}>
+        //           <b>Bundle identifier: </b>
+        //           <br />
+        //           {bundle_identifier}
+        //         </span>
+        //       </ReactTooltip>
+        //     </span>
+        //   );
+        // }
+        // if (bundle_identifier) {
+        return <TooltipCell value={cellProps.row.original} />;
+        // }
+        // return <TextCell value={name} />;
       },
       sortType: "caseInsensitive",
     },
@@ -195,20 +203,25 @@ const generateTableHeaders = (): IDataColumn[] => {
     //   sortType: "dateStrings",
     // },
     // TODO: Enable after manage hosts page has been updated to filter hosts by software id
-    // {
-    //   title: "",
-    //   Header: "",
-    //   disableSortBy: true,
-    //   accessor: "linkToFilteredHosts",
-    //   Cell: (cellProps) => {
-    //     return (
-    //       <Link to={cellProps.cell.value} className={`software-link`}>
-    //         <img alt="link to hosts filtered by software ID" src={Chevron} />
-    //       </Link>
-    //     );
-    //   },
-    //   disableHidden: true,
-    // },
+    {
+      title: "",
+      Header: "",
+      disableSortBy: true,
+      accessor: "linkToFilteredHosts",
+      Cell: (cellProps) => {
+        return (
+          <Link
+            to={`${
+              PATHS.MANAGE_HOSTS
+            }?software_id=${cellProps.row.original.id.toString()}`}
+            className={`software-link`}
+          >
+            <img alt="link to hosts filtered by software ID" src={Chevron} />
+          </Link>
+        );
+      },
+      disableHidden: true,
+    },
   ];
 };
 
