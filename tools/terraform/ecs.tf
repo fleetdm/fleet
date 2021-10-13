@@ -228,6 +228,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_LOGGING_DEBUG"
             value = var.logging_debug
+          },
+          {
+            name  = "FLEET_REDIS_MAX_IDLE_CONNS"
+            value = "100"
+          },
+          {
+            name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
+            value = "100"
           }
         ]
       }
