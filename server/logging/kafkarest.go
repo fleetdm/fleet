@@ -26,8 +26,9 @@ type KafkaRESTParams struct {
 }
 
 type kafkaRESTProducer struct {
-	client *http.Client
-	URL    string
+	client   *http.Client
+	URL      string
+	CheckURL string
 }
 
 type kafkaRecords struct {
@@ -39,14 +40,15 @@ type kafkaValue struct {
 }
 
 func NewKafkaRESTWriter(p *KafkaRESTParams) (*kafkaRESTProducer, error) {
-	return &kafkaRESTProducer{
-			URL: fmt.Sprintf(URL_PUBLISH_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
-			client: &http.Client{
-				Timeout: time.Duration(p.KafkaTimeout) * time.Second,
-			},
-		}, checkTopic(
-			fmt.Sprintf(URL_CHECK_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
-		)
+	producer := &kafkaRESTProducer{
+		URL:      fmt.Sprintf(URL_PUBLISH_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
+		CheckURL: fmt.Sprintf(URL_CHECK_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
+		client: &http.Client{
+			Timeout: time.Duration(p.KafkaTimeout) * time.Second,
+		},
+	}
+
+	return producer, producer.checkTopic()
 }
 
 func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) error {
@@ -83,8 +85,8 @@ func checkResponse(resp *http.Response) (err error) {
 	return
 }
 
-func checkTopic(url string) (err error) {
-	resp, err := http.Get(url)
+func (l *kafkaRESTProducer) checkTopic() (err error) {
+	resp, err := l.client.Get(l.CheckURL)
 	if err != nil {
 		return errors.Wrap(err, "kafka rest topic check")
 	}
