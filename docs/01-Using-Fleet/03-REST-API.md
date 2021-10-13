@@ -4353,6 +4353,7 @@ Returns the spec for the specified pack by pack name.
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
+- [Apply policy specs](#apply-policy-specs)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -4383,15 +4384,16 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 1,
       "query_id": 2,
       "query_name": "Gatekeeper enabled",
+      "resolution": "Resolution steps",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
       "query_id": 3,
       "query_name": "Primary disk encrypted",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -4405,7 +4407,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -4421,8 +4423,9 @@ Hosts that do not return results for a policy's query are "Failing."
     "id": 1,
     "query_id": 2,
     "query_name": "Gatekeeper enabled",
+    "resolution": "Resolution steps",
     "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "failing_host_count": 300
   }
 }
 ```
@@ -4433,9 +4436,10 @@ Hosts that do not return results for a policy's query are "Failing."
 
 #### Parameters
 
-| Name     | Type    | In   | Description                    |
-| -------- | ------- | ---- | ------------------------------ |
-| query_id | integer | body | **Required.** The query's ID.  |
+| Name       | Type    | In   | Description                           |
+| ---------- | ------- | ---- | ------------------------------------- |
+| query_id   | integer | body | **Required.** The query's ID.         |
+| resolution | string  | body | The resolution steps for the policy.  |
 
 #### Example
 
@@ -4459,9 +4463,10 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 2,
       "query_id": 2,
       "query_name": "Primary disk encrypted",
+      "resolution": "Some resolution steps",
       "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+      "failing_host_count": 0
+    }
 }
 ```
 
@@ -4496,6 +4501,47 @@ Hosts that do not return results for a policy's query are "Failing."
   "deleted": 1
 }
 ```
+
+### Apply policy specs
+
+Applies the supplied policy specs to Fleet. Each policy requires a `query` property, and optionally a `resolution` detail 
+to explain how to resolve the failure of the policy, and a `team` if the policy is at the specified team level.
+
+`POST /api/v1/fleet/spec/policies`
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| specs | list | body | A list of the policy to apply. Each policy requires a `query` and optionally `team` and `resolution`.         |
+
+#### Example
+
+`POST /api/v1/fleet/spec/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "query": "query name"
+    },
+    {
+      "query": "some other query name",
+      "team": "team1"
+    },
+    {
+      "query": "query3",
+      "resolution": "Add something to your config"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
