@@ -70,10 +70,6 @@ const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 
-const generateClassTag = (rawValue: string): string => {
-  return rawValue.replace(" ", "-").toLowerCase();
-};
-
 const TableContainer = ({
   columns,
   data,
