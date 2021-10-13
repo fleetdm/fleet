@@ -94,7 +94,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewTeamPolicy(ctx, 1, 2)
+			_, err := svc.NewTeamPolicy(ctx, 1, 2, "")
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ListTeamPolicies(ctx, 1)

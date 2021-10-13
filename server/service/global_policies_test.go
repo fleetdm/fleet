@@ -74,7 +74,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewGlobalPolicy(ctx, 2)
+			_, err := svc.NewGlobalPolicy(ctx, 2, "")
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ListGlobalPolicies(ctx)
