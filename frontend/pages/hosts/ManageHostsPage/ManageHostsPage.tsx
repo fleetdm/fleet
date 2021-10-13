@@ -751,6 +751,14 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
       });
+      retrieveHostCount({
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        sortBy,
+        teamId: currentTeam?.id,
+        policyId,
+        policyResponse,
+      });
 
       toggleTransferHostModal();
       setSelectedHostIds([]);
@@ -796,6 +804,16 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
       });
+
+      retrieveHostCount({
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        sortBy,
+        teamId: currentTeam?.id,
+        policyId,
+        policyResponse,
+      });
+
       refetchLabels();
       toggleDeleteHostModal();
       setSelectedHostIds([]);

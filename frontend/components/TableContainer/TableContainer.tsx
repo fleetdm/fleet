@@ -64,7 +64,7 @@ interface ITableContainerProps {
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_PAGE_INDEX = 0;
 const DEBOUNCE_QUERY_DELAY = 300;
 
