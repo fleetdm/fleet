@@ -236,9 +236,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.Policy
 			}
 			if exists > 0 {
 				_, err = tx.ExecContext(ctx,
-					fmt.Sprintf(`UPDATE policies SET resolution=? WHERE 
-					query_id=(SELECT id FROM queries WHERE name=?) AND
-					%s`, teamCheck),
+					fmt.Sprintf(`UPDATE policies SET resolution=? WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
 					append([]interface{}{spec.Resolution}, args...)...,
 				)
 				if err != nil {
@@ -246,12 +244,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.Policy
 				}
 			} else {
 				_, err = tx.ExecContext(ctx,
-					`INSERT INTO policies (query_id, team_id, resolution) 
-				VALUES (
-					(SELECT id FROM queries WHERE name=?),
-					(SELECT id FROM teams WHERE name=?),
-				    ?
-				)`,
+					`INSERT INTO policies (query_id, team_id, resolution) VALUES ((SELECT id FROM queries WHERE name=?), (SELECT id FROM teams WHERE name=?),?)`,
 					spec.QueryName, spec.Team, spec.Resolution)
 				if err != nil {
 					return errors.Wrap(err, "exec ApplyPolicySpecs insert")
