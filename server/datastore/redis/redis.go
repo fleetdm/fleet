@@ -19,10 +19,6 @@ type standalonePool struct {
 	addr string
 }
 
-func (p *standalonePool) ConfigureDoer(conn redis.Conn) redis.Conn {
-	return conn
-}
-
 func (p *standalonePool) Stats() map[string]redis.PoolStats {
 	return map[string]redis.PoolStats{
 		p.addr: p.Pool.Stats(),
@@ -32,19 +28,6 @@ func (p *standalonePool) Stats() map[string]redis.PoolStats {
 type clusterPool struct {
 	*redisc.Cluster
 	followRedirs bool
-}
-
-// ConfigureDoer configures conn to follow redirections if the redis
-// configuration requested it. If the conn is already in error, or
-// if it is not a redisc cluster connection, it is returned unaltered.
-func (p *clusterPool) ConfigureDoer(conn redis.Conn) redis.Conn {
-	if err := conn.Err(); err == nil && p.followRedirs {
-		rc, err := redisc.RetryConn(conn, 3, 300*time.Millisecond)
-		if err == nil {
-			return rc
-		}
-	}
-	return conn
 }
 
 // PoolConfig holds the redis pool configuration options.
@@ -88,6 +71,22 @@ func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
 func ReadOnlyConn(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
 	if _, isCluster := pool.(*clusterPool); isCluster {
 		_ = redisc.ReadOnlyConn(conn)
+	}
+	return conn
+}
+
+// ConfigureDoer configures conn to follow redirections if the redis
+// configuration requested it and the pool is a Redis Cluster pool. If the conn
+// is already in error, or if it is not a redisc cluster connection, it is
+// returned unaltered.
+func ConfigureDoer(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
+	if p, isCluster := pool.(*clusterPool); isCluster {
+		if err := conn.Err(); err == nil && p.followRedirs {
+			rc, err := redisc.RetryConn(conn, 3, 300*time.Millisecond)
+			if err == nil {
+				return rc
+			}
+		}
 	}
 	return conn
 }

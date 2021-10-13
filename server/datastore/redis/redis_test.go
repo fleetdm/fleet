@@ -124,7 +124,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 
 		c1 := pool.Get()
 		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
+		c2 := ConfigureDoer(pool, pool.Get())
 		defer c2.Close()
 
 		// both conns work equally well, get nil because keys do not exist,
@@ -145,7 +145,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 
 		c1 := pool.Get()
 		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
+		c2 := ConfigureDoer(pool, pool.Get())
 		defer c2.Close()
 
 		// unconfigured conn gets MOVED error on the second key

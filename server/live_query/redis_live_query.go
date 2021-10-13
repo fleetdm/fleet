@@ -194,7 +194,7 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 }
 
 func (r *redisLiveQuery) StopQuery(name string) error {
-	conn := r.pool.ConfigureDoer(r.pool.Get())
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	targetKey, sqlKey := generateKeys(name)
@@ -279,7 +279,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 }
 
 func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
-	conn := r.pool.ConfigureDoer(r.pool.Get())
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	targetKey, _ := generateKeys(name)
