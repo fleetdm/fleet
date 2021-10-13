@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -211,22 +212,50 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query := `INSERT INTO policies (query_id, team_id, resolution) 
-				VALUES (
-					(SELECT id FROM queries WHERE name=?),
-					(SELECT ID FROM teams WHERE name=?),
-				    ?
-				) ON DUPLICATE KEY UPDATE
-					query_id = VALUES(query_id),
-					team_id = VALUES(team_id),
-					resolution = VALUES(resolution)`
 		for _, spec := range specs {
 			if spec.QueryName == "" {
 				return errors.New("query name must not be empty")
 			}
-			_, err := tx.ExecContext(ctx, query, spec.QueryName, spec.Team, spec.Resolution)
-			if err != nil {
-				return errors.Wrap(err, "exec ApplyPolicySpecs insert")
+
+			// We update by hand because team_id can be null and that means compound index wont work
+
+			teamCheck := `team_id is NULL`
+			args := []interface{}{spec.QueryName}
+			if spec.Team != "" {
+				teamCheck = `team_id=(SELECT id FROM teams WHERE name=?)`
+				args = append(args, spec.Team)
+			}
+			row := tx.QueryRowxContext(ctx,
+				fmt.Sprintf(`SELECT 1 FROM policies WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
+				args...,
+			)
+			var exists int
+			err := row.Scan(&exists)
+			if err != nil && err != sql.ErrNoRows {
+				return errors.Wrap(err, "checking policy existence")
+			}
+			if exists > 0 {
+				_, err = tx.ExecContext(ctx,
+					fmt.Sprintf(`UPDATE policies SET resolution=? WHERE 
+					query_id=(SELECT id FROM queries WHERE name=?) AND
+					%s`, teamCheck),
+					append([]interface{}{spec.Resolution}, args...)...,
+				)
+				if err != nil {
+					return errors.Wrap(err, "exec ApplyPolicySpecs update")
+				}
+			} else {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO policies (query_id, team_id, resolution) 
+				VALUES (
+					(SELECT id FROM queries WHERE name=?),
+					(SELECT id FROM teams WHERE name=?),
+				    ?
+				)`,
+					spec.QueryName, spec.Team, spec.Resolution)
+				if err != nil {
+					return errors.Wrap(err, "exec ApplyPolicySpecs insert")
+				}
 			}
 		}
 		return nil

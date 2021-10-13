@@ -447,4 +447,25 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:      "team1",
 		},
 	}))
+
+	// Make sure apply is idempotent
+	require.NoError(t, ds.ApplyPolicySpecs(context.Background(), []*fleet.PolicySpec{
+		{
+			QueryName:  "query1",
+			Resolution: "some resolution",
+		},
+		{
+			QueryName:  "query2",
+			Resolution: "some other resolution",
+			Team:       "team1",
+		},
+		{
+			QueryName: "query1",
+			Team:      "team1",
+		},
+	}))
+
+	policies, err = ds.ListGlobalPolicies(context.Background())
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
 }
