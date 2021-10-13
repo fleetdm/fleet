@@ -45,7 +45,8 @@ func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
 }
 
 func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get()) // TODO(mna): readonly potential
+	conn := redis.ReadOnlyConn(ds.redisPool,
+		redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get()))
 	defer conn.Close()
 
 	data, err := redigo.Bytes(conn.Do("GET", key))

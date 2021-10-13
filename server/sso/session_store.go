@@ -60,7 +60,10 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 }
 
 func (s *store) Get(requestID string) (*Session, error) {
-	conn := redis.ConfigureDoer(s.pool, s.pool.Get()) // TODO(mna): readonly potential
+	// not reading from a replica here as this gets called in close succession
+	// in the auth flow, with initiate SSO writing and callback SSO having to
+	// read that write.
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 	val, err := redigo.String(conn.Do("GET", requestID))
 	if err != nil {
