@@ -11,23 +11,28 @@ variable "redis_instance" {
   default = "cache.m5.large"
 }
 resource "aws_elasticache_replication_group" "default" {
-  availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
+#  availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
   engine                        = "redis"
-  parameter_group_name          = aws_elasticache_parameter_group.default.name
+  parameter_group_name          = "default.redis5.0.cluster.on"
   subnet_group_name             = module.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id]
-  replication_group_id          = "fleetdm-redis"
-  number_cache_clusters         = var.number_cache_clusters
+  replication_group_id          = "fleetdm-redis-cluster"
+#  number_cache_clusters         = var.number_cache_clusters
   node_type                     = var.redis_instance
   engine_version                = var.engine_version
   port                          = "6379"
   maintenance_window            = var.maintenance_window
   snapshot_retention_limit      = 0
-  automatic_failover_enabled    = false
+  automatic_failover_enabled    = true
   at_rest_encryption_enabled    = false
   transit_encryption_enabled    = false
   apply_immediately             = true
   replication_group_description = "fleetdm-redis"
+
+  cluster_mode {
+    replicas_per_node_group = 1
+    num_node_groups         = 3
+  }
 }
 
 resource "aws_elasticache_parameter_group" "default" {
@@ -62,4 +67,3 @@ resource "aws_security_group_rule" "egress" {
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.redis.id
 }
-

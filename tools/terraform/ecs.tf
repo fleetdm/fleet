@@ -187,7 +187,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
-            value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
+            value = "${aws_elasticache_replication_group.default.configuration_endpoint_address}:6379"
           },
           {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
@@ -235,7 +235,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
-            value = "100"
+            value = "10000"
           }
         ]
       }
@@ -299,7 +299,7 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
-            value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
+            value = "${aws_elasticache_replication_group.default.configuration_endpoint_address}:6379"
           },
         ]
       }
