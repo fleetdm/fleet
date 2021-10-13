@@ -116,20 +116,18 @@ func (n *NodeKeyManager) Add(nodekey string) {
 }
 
 type Agent struct {
-	ServerAddress   string
-	EnrollSecret    string
-	NodeKey         string
-	UUID            string
-	FastClient      fasthttp.Client
-	Client          http.Client
-	ConfigInterval  time.Duration
-	QueryInterval   time.Duration
-	Templates       *template.Template
-	strings         map[string]string
-	configTicker    <-chan time.Time
-	liveQueryTicker <-chan time.Time
-	Stats           *Stats
-	NodeKeyManager  *NodeKeyManager
+	ServerAddress  string
+	EnrollSecret   string
+	NodeKey        string
+	UUID           string
+	FastClient     fasthttp.Client
+	Client         http.Client
+	ConfigInterval time.Duration
+	QueryInterval  time.Duration
+	Templates      *template.Template
+	strings        map[string]string
+	Stats          *Stats
+	NodeKeyManager *NodeKeyManager
 }
 
 func NewAgent(serverAddress, enrollSecret string, templates *template.Template, configInterval, queryInterval time.Duration) *Agent {
