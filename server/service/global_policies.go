@@ -133,3 +133,30 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 
 	return svc.ds.DeleteGlobalPolicies(ctx, ids)
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Apply Spec
+/////////////////////////////////////////////////////////////////////////////////
+
+type applyPolicySpecsRequest struct {
+	Specs []*fleet.PolicySpec `json:"specs"`
+}
+
+type applyPolicySpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyPolicySpecsResponse) error() error { return r.Err }
+
+func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*applyPolicySpecsRequest)
+	err := svc.ApplyPolicySpecs(ctx, req.Specs)
+	if err != nil {
+		return applyPolicySpecsResponse{Err: err}, nil
+	}
+	return applyPolicySpecsResponse{}, nil
+}
+
+func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
+	return nil
+}

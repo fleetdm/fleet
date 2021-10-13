@@ -403,6 +403,7 @@ type Service interface {
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software

@@ -7,6 +7,7 @@ type Policy struct {
 	PassingHostCount uint   `json:"passing_host_count" db:"passing_host_count"`
 	FailingHostCount uint   `json:"failing_host_count" db:"failing_host_count"`
 	TeamID           *uint  `json:"team_id" db:"team_id"`
+	Resolution       string `json:"resolution,omitempty" db:"resolution"`
 
 	UpdateCreateTimestamps
 }
@@ -20,4 +21,9 @@ type HostPolicy struct {
 	QueryID   uint   `json:"query_id" db:"query_id"`
 	QueryName string `json:"query_name" db:"query_name"`
 	Response  string `json:"response" db:"response"`
+}
+
+type PolicySpec struct {
+	Query      string `json:"query"`
+	Resolution string `json:"resolution,omitempty"`
 }
