@@ -70,6 +70,11 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, soft1ByID)
+	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
+
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)

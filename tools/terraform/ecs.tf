@@ -219,7 +219,16 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
             value = var.vuln_db_path
-          }
+          },
+          {
+            name  = "FLEET_S3_BUCKET"
+            value = aws_s3_bucket.osquery-carve.bucket
+          },
+          {
+            name  = "FLEET_S3_PREFIX"
+            value = "carve_results/"
+          },
+
         ]
       }
   ])
