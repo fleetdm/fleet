@@ -130,6 +130,71 @@ func EachNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 	return fn(conn)
 }
 
+// BindConn binds the connection to the redis node that serves those keys.
+// In a Redis Cluster setup, all keys must hash to the same slot, otherwise
+// an error is returned. In a Redis Standalone setup, it is a no-op and never
+// fails. On successful return, the connection is ready to be used with those
+// keys.
+func BindConn(pool fleet.RedisPool, conn redis.Conn, keys ...string) error {
+	if _, isCluster := pool.(*clusterPool); isCluster {
+		return redisc.BindConn(conn, keys...)
+	}
+	return nil
+}
+
+// PublishHasListeners is like the PUBLISH redis command, but it also returns a
+// boolean indicating if channel still has subscribed listeners. It is required
+// because the redis command only returns the count of subscribers active on
+// the same node as the one that is used to publish, which may not always be
+// the case in Redis Cluster (especially with the read from replica option
+// set).
+//
+// In Standalone mode, it is the same as PUBLISH (with the count of subscribers
+// turned into a boolean), and in Cluster mode, if the count returned by
+// PUBLISH is 0, it gets the number of subscribers on each node in the cluster
+// to get the accurate count.
+func PublishHasListeners(pool fleet.RedisPool, conn redis.Conn, channel, message string) (bool, error) {
+	n, err := redis.Int(conn.Do("PUBLISH", channel, message))
+	if n > 0 || err != nil {
+		return n > 0, err
+	}
+
+	// otherwise n == 0, check the actual number of subscribers if this is a
+	// redis cluster.
+	if _, isCluster := pool.(*clusterPool); !isCluster {
+		return false, nil
+	}
+
+	errDone := errors.New("done")
+	var count int
+	err = EachNode(pool, func(conn redis.Conn) error {
+		res, err := redis.Values(conn.Do("PUBSUB", "NUMSUB", channel))
+		if err != nil {
+			return err
+		}
+		var (
+			name string
+			n    int
+		)
+		_, err = redis.Scan(res, &name, &n)
+		if err != nil {
+			return err
+		}
+		count += n
+		if count > 0 {
+			// end early if we know it has subscribers
+			return errDone
+		}
+		return nil
+	})
+
+	// if it completed successfully
+	if err == nil || err == errDone {
+		return count > 0, nil
+	}
+	return false, errors.Wrap(err, "checking for active subscribers")
+}
+
 func newCluster(config PoolConfig) *redisc.Cluster {
 	opts := []redis.DialOption{
 		redis.DialDatabase(config.Database),

@@ -109,3 +109,121 @@ func TestEachNode(t *testing.T) {
 		runTest(t, pool)
 	})
 }
+
+func TestBindConn(t *testing.T) {
+	const prefix = "TestBindConn:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+
+		conn := pool.Get()
+		defer conn.Close()
+
+		err := redis.BindConn(pool, conn, prefix+"a", prefix+"b", prefix+"c")
+		require.NoError(t, err)
+		_, err = redigo.String(conn.Do("GET", prefix+"a"))
+		require.Equal(t, redigo.ErrNil, err)
+		_, err = redigo.String(conn.Do("GET", prefix+"b"))
+		require.Equal(t, redigo.ErrNil, err)
+		_, err = redigo.String(conn.Do("GET", prefix+"c"))
+		require.Equal(t, redigo.ErrNil, err)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, false)
+
+		conn := pool.Get()
+		defer conn.Close()
+
+		err := redis.BindConn(pool, conn, prefix+"a", prefix+"b", prefix+"c")
+		require.Error(t, err)
+
+		err = redis.BindConn(pool, conn, prefix+"{z}a", prefix+"{z}b", prefix+"{z}c")
+		require.NoError(t, err)
+
+		_, err = redigo.String(conn.Do("GET", prefix+"{z}a"))
+		require.Equal(t, redigo.ErrNil, err)
+		_, err = redigo.String(conn.Do("GET", prefix+"{z}b"))
+		require.Equal(t, redigo.ErrNil, err)
+		_, err = redigo.String(conn.Do("GET", prefix+"{z}c"))
+		require.Equal(t, redigo.ErrNil, err)
+	})
+}
+
+func TestPublishHasListeners(t *testing.T) {
+	const prefix = "TestPublishHasListeners:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+
+		pconn := pool.Get()
+		defer pconn.Close()
+		sconn := pool.Get()
+		defer sconn.Close()
+
+		ok, err := redis.PublishHasListeners(pool, pconn, prefix+"a", "A")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		psc := redigo.PubSubConn{Conn: sconn}
+		require.NoError(t, psc.Subscribe(prefix+"a"))
+
+		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		start := time.Now()
+	loop:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Message:
+				require.Equal(t, "B", string(msg.Data))
+				break loop
+			}
+		}
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, false)
+
+		pconn := pool.Get()
+		defer pconn.Close()
+		sconn := pool.Get()
+		defer sconn.Close()
+
+		ok, err := redis.PublishHasListeners(pool, pconn, prefix+"{a}", "A")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		// one listener on a different node
+		redis.BindConn(pool, sconn, "b")
+		psc := redigo.PubSubConn{Conn: sconn}
+		require.NoError(t, psc.Subscribe(prefix+"{a}"))
+
+		// a standard PUBLISH returns 0
+		n, err := redigo.Int(pconn.Do("PUBLISH", prefix+"{a}", "B"))
+		require.NoError(t, err)
+		require.Equal(t, 0, n)
+
+		// but this returns true
+		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"{a}", "C")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		start := time.Now()
+		want := "B"
+	loop:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Message:
+				require.Equal(t, want, string(msg.Data))
+				if want == "C" {
+					break loop
+				}
+				want = "C"
+			}
+		}
+	})
+}

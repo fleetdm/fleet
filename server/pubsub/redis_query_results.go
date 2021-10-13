@@ -47,12 +47,9 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 		return errors.Wrap(err, "marshalling JSON for result")
 	}
 
-	// TODO(mna): in redis cluster, the count is only for clients connected to the same
-	// node, so it could return 0 and still be received by a client. Investigate what is
-	// the duplicate results feature and if the noSubscriberError is relevant.
-	n, err := redigo.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
+	hasSubs, err := redis.PublishHasListeners(r.pool, conn, channelName, string(jsonVal))
 
-	if n != 0 && r.duplicateResults {
+	if hasSubs && r.duplicateResults {
 		// Ignore errors, duplicate result publishing is on a "best-effort" basis.
 		_, _ = redigo.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
 	}
@@ -60,7 +57,7 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 	if err != nil {
 		return errors.Wrap(err, "PUBLISH failed to channel "+channelName)
 	}
-	if n == 0 {
+	if !hasSubs {
 		return noSubscriberError{channelName}
 	}
 
