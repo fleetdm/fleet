@@ -61,12 +61,9 @@ describe(
 
         // Go to host details page
         cy.get('button[title="Online"]').click();
-        cy.waitUntil(
-          () => {
-            return cy.get("span.status").contains(/online/i);
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+
+        cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+        cy.get(".status").contains(/online/i);
       }
     );
 

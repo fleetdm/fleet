@@ -10,12 +10,12 @@ export interface ISortOption {
 export interface IHostCountLoadOptions {
   page?: number;
   perPage?: number;
-  status?: string;
+  selectedLabels?: string[];
   globalFilter?: string;
+  status?: string;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
-  selectedLabels?: string[];
   softwareId?: number;
 }
 
