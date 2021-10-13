@@ -332,8 +332,11 @@ const ManageHostsPage = ({
     }
   };
 
-  const refetchHosts = (options: IHostCountLoadOptions) => {
+  const refetchHosts = (options: IHostLoadOptions) => {
     retrieveHosts(options);
+    if (options.sortBy) {
+      delete options.sortBy;
+    }
     retrieveHostCount(options);
   };
 
