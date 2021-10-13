@@ -1,0 +1,1 @@
+* Add `cluster_read_from_replica` configuration option to `fleet` command.
