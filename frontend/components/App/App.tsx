@@ -19,6 +19,12 @@ interface IAppProps {
   children: JSX.Element;
 }
 
+interface ISecretResponse {
+  spec: {
+    secret: IEnrollSecret[];
+  };
+}
+
 interface IRootState {
   auth: {
     user: IUser;
@@ -67,8 +73,8 @@ const App = ({ children }: IAppProps) => {
 
     if (canGetEnrollSecret) {
       dispatch(getEnrollSecret())
-        .then((secret: IEnrollSecret) => {
-          setEnrollSecret(secret);
+        .then((response: ISecretResponse) => {
+          setEnrollSecret(response.spec.secret);
         })
         .catch(() => false);
     }

@@ -1,8 +1,8 @@
 /**
  * Component when there is no hosts set up in fleet
  */
-import React, { useState, useCallback } from "react";
-import { useSelector } from "react-redux";
+import React, { useState, useCallback, useContext } from "react";
+import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -15,19 +15,10 @@ interface INoHostsProps {
   teams?: ITeam[];
 }
 
-interface IRootState {
-  app: {
-    enrollSecret: IEnrollSecret[];
-  };
-}
 const baseClass = "no-hosts";
 
 const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
-  // const globalSecret = useSelector(
-  //   (state: IRootState) => state.app.enrollSecret
-  // );
-
-  // useContext to grab enrollSecret!
+  const { enrollSecret: globalSecret } = useContext(AppContext);
 
   const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
     false

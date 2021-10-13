@@ -14,6 +14,7 @@ type InitialStateType = {
   config: IConfig | null;
   currentUser: IUser | null;
   currentTeam: ITeam | undefined;
+  enrollSecret: IEnrollSecret[] | null;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -26,13 +27,14 @@ type InitialStateType = {
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeam | undefined) => void;
   setConfig: (config: IConfig) => void;
-  setEnrollSecret: (enrollSecret: IEnrollSecret) => void;
+  setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
 
 const initialState = {
   config: null,
   currentUser: null,
   currentTeam: undefined,
+  enrollSecret: null,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -137,7 +139,7 @@ const AppProvider = ({ children }: Props) => {
     setConfig: (config: IConfig) => {
       dispatch({ type: actions.SET_CONFIG, config });
     },
-    setEnrollSecret: (enrollSecret: IEnrollSecret) => {
+    setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
       dispatch({ type: actions.SET_ENROLL_SECRET, enrollSecret });
     },
   };

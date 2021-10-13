@@ -39,7 +39,7 @@ const platformSubNav: IPlatformSubNav[] = [
 ];
 
 interface IPlatformWrapperProp {
-  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] };
+  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
   onCancel: () => void;
 }
 

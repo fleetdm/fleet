@@ -10,7 +10,7 @@ const baseClass = "generate-installer-modal";
 
 interface IGenerateInstallerModal {
   onCancel: () => void;
-  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] };
+  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
 }
 
 const GenerateInstallerModal = ({
