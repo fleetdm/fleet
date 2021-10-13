@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +36,8 @@ func (r *redisQueryResults) Pool() fleet.RedisPool {
 }
 
 func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) error {
-	conn := r.pool.Get() // TODO(mna): readonly potential (should test that it's fine on replicas, not spelled out in the docs)
+	// pub-sub can publish and listen on any node in the cluster
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	channelName := pubSubForID(result.DistributedQueryCampaignID)
@@ -45,11 +47,14 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 		return errors.Wrap(err, "marshalling JSON for result")
 	}
 
-	n, err := redis.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
+	// TODO(mna): in redis cluster, the count is only for clients connected to the same
+	// node, so it could return 0 and still be received by a client. Investigate what is
+	// the duplicate results feature and if the noSubscriberError is relevant.
+	n, err := redigo.Int(conn.Do("PUBLISH", channelName, string(jsonVal)))
 
 	if n != 0 && r.duplicateResults {
 		// Ignore errors, duplicate result publishing is on a "best-effort" basis.
-		_, _ = redis.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
+		_, _ = redigo.Int(conn.Do("PUBLISH", "LQDuplicate", string(jsonVal)))
 	}
 
 	if err != nil {
@@ -77,7 +82,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by selecting on outChan that is
 // passed into this function)
-func receiveMessages(ctx context.Context, conn *redis.PubSubConn, outChan chan<- interface{}) {
+func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}) {
 	defer close(outChan)
 	// conn.Close() needs to be here in this function because Receive and Close should not be called
 	// concurrently. Otherwise we end up with a hang when Close is called.
@@ -97,7 +102,7 @@ func receiveMessages(ctx context.Context, conn *redis.PubSubConn, outChan chan<-
 		case error:
 			// If an error occurred (i.e. connection was closed), then we should exit.
 			return
-		case redis.Subscription:
+		case redigo.Subscription:
 			// If the subscription count is 0, the ReadChannel call that invoked this goroutine has unsubscribed,
 			// and we can exit.
 			if msg.Count == 0 {
@@ -111,8 +116,9 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	outChannel := make(chan interface{})
 	msgChannel := make(chan interface{})
 
-	conn := r.pool.Get() // TODO(mna): readonly potential (should test that it's fine on replicas, not spelled out in the docs)
-	psc := &redis.PubSubConn{Conn: conn}
+	// pub-sub can publish and listen on any node in the cluster
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	psc := &redigo.PubSubConn{Conn: conn}
 	pubSubName := pubSubForID(query.ID)
 	if err := psc.Subscribe(pubSubName); err != nil {
 		// Explicit conn.Close() here because we can't defer it until in the goroutine
@@ -140,7 +146,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 				}
 
 				switch msg := msg.(type) {
-				case redis.Message:
+				case redigo.Message:
 					var res fleet.DistributedQueryResult
 					err := json.Unmarshal(msg.Data, &res)
 					if err != nil {
