@@ -227,3 +227,27 @@ func TestPublishHasListeners(t *testing.T) {
 		}
 	})
 }
+
+func TestReadOnlyConn(t *testing.T) {
+	const prefix = "TestReadOnlyConn:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, true)
+		conn := redis.ReadOnlyConn(pool, pool.Get())
+		defer conn.Close()
+
+		_, err := conn.Do("SET", prefix+"a", 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, true)
+		conn := redis.ReadOnlyConn(pool, pool.Get())
+		defer conn.Close()
+
+		_, err := conn.Do("SET", prefix+"a", 1)
+		// TODO(mna): would require setting up replicas to the docker redis cluster infra
+		// for this to return an error
+		require.NoError(t, err)
+	})
+}
