@@ -52,6 +52,12 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team admin",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+		},
+		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
