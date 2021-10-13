@@ -1,0 +1,1 @@
+* Fix migration errors under some MySQL configurations due to use of temporary tables.
