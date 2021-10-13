@@ -28,7 +28,7 @@ func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, te
 	}
 	addr += port
 
-	pool, err := redis.NewRedisPool(redis.PoolConfig{
+	pool, err := redis.NewPool(redis.PoolConfig{
 		Server:      addr,
 		Password:    password,
 		Database:    database,
@@ -45,7 +45,7 @@ func SetupRedisForTest(t *testing.T, cluster bool) (store *redisQueryResults, te
 	require.Nil(t, err)
 
 	teardown = func() {
-		err := redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
+		err := redis.EachNode(store.pool, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})

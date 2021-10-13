@@ -88,7 +88,7 @@ func TestConnectRetry(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.err.Error(), func(t *testing.T) {
 			start := time.Now()
-			_, err := NewRedisPool(PoolConfig{
+			_, err := NewPool(PoolConfig{
 				Server:               "127.0.0.1:12345",
 				ConnectRetryAttempts: c.retries,
 				testRedisDialFunc:    mockDial(c.err),
@@ -165,8 +165,8 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 }
 
-func TestEachRedisNode(t *testing.T) {
-	const prefix = "TestEachRedisNode:"
+func TestEachNode(t *testing.T) {
+	const prefix = "TestEachNode:"
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		conn := pool.Get()
@@ -181,7 +181,7 @@ func TestEachRedisNode(t *testing.T) {
 		}
 
 		var keys []string
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
+		err := EachNode(pool, func(conn redis.Conn) error {
 			var cursor int
 			for {
 				res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", prefix+"*"))
@@ -230,7 +230,7 @@ func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool)
 	}
 	addr += port
 
-	pool, err := NewRedisPool(PoolConfig{
+	pool, err := NewPool(PoolConfig{
 		Server:                    addr,
 		Password:                  password,
 		Database:                  database,
@@ -247,7 +247,7 @@ func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool)
 	require.Nil(t, err)
 
 	t.Cleanup(func() {
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
+		err := EachNode(pool, func(conn redis.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})

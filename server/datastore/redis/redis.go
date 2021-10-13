@@ -45,9 +45,9 @@ type PoolConfig struct {
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
 }
 
-// NewRedisPool creates a Redis connection pool using the provided server
+// NewPool creates a Redis connection pool using the provided server
 // address, password and database.
-func NewRedisPool(config PoolConfig) (fleet.RedisPool, error) {
+func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 	cluster := newCluster(config)
 	if err := cluster.Refresh(); err != nil {
 		if isClusterDisabled(err) || isClusterCommandUnknown(err) {
@@ -91,25 +91,25 @@ func ConfigureDoer(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
 	return conn
 }
 
-// SplitRedisKeysBySlot takes a list of redis keys and groups them by hash slot
+// SplitKeysBySlot takes a list of redis keys and groups them by hash slot
 // so that keys in a given group are guaranteed to hash to the same slot, making
 // them safe to run e.g. in a pipeline on the same connection or as part of a
 // multi-key command in a Redis Cluster setup. When using standalone Redis, it
 // simply returns all keys in the same group (i.e. the top-level slice has a
 // length of 1).
-func SplitRedisKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
+func SplitKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
 	if _, isCluster := pool.(*clusterPool); isCluster {
 		return redisc.SplitBySlot(keys...)
 	}
 	return [][]string{keys}
 }
 
-// EachRedisNode calls fn for each node in the redis cluster, with a connection
+// EachNode calls fn for each node in the redis cluster, with a connection
 // to that node, until all nodes have been visited. The connection is
 // automatically closed after the call. If fn returns an error, the iteration
-// of nodes stops and EachRedisNode returns that error. For standalone redis,
+// of nodes stops and EachNode returns that error. For standalone redis,
 // fn is called only once.
-func EachRedisNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
+func EachNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
 	if cluster, isCluster := pool.(*clusterPool); isCluster {
 		return cluster.EachNode(false, func(_ string, conn redis.Conn) error {
 			return fn(conn)

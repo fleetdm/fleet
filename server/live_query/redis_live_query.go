@@ -110,7 +110,7 @@ func (r *redisLiveQuery) MigrateKeys() error {
 		}
 	}
 
-	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, oldKeys...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, oldKeys...)
 	for _, keys := range keysBySlot {
 		if err := migrateBatchKeys(r.pool, keys); err != nil {
 			return err
@@ -212,7 +212,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 		return nil, errors.Wrap(err, "scan active queries")
 	}
 
-	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, queryKeys...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, queryKeys...)
 	queries := make(map[string]string)
 	for _, qkeys := range keysBySlot {
 		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
@@ -318,7 +318,7 @@ func mapBitfield(hostIDs []uint) []byte {
 func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
 
-	err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
+	err := redis.EachNode(pool, func(conn redigo.Conn) error {
 		cursor := 0
 		for {
 			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern))

@@ -30,7 +30,7 @@ func newPool(t *testing.T, cluster bool) fleet.RedisPool {
 		}
 		addr += port
 
-		pool, err := redis.NewRedisPool(redis.PoolConfig{
+		pool, err := redis.NewPool(redis.PoolConfig{
 			Server:      addr,
 			Password:    password,
 			Database:    database,
