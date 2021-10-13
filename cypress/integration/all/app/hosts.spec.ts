@@ -63,7 +63,7 @@ describe(
         cy.get('button[title="Online"]').click();
 
         cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.get("span.data-table__status").contains(/online/i);
+        cy.get("span.status").contains(/online/i);
       }
     );
 
