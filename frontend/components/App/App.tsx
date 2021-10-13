@@ -60,7 +60,6 @@ const App = ({ children }: IAppProps) => {
     }
   }, [user]);
 
-  // this puts the enroll secret into redux
   useDeepEffect(() => {
     const canGetEnrollSecret =
       currentUser &&
