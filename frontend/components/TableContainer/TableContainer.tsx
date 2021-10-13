@@ -193,8 +193,6 @@ const TableContainer = ({
     pageSize,
     pageIndex,
     additionalQueries,
-    onQueryChange,
-    debounceOnQueryChange,
     prevSearchQuery,
   ]);
 
@@ -217,10 +215,7 @@ const TableContainer = ({
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
-              pageIndex,
-              pageSize,
-              displayCount,
-              filteredCount
+              displayCount
             )}
             {resultsHtml}
           </p>
