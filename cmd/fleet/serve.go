@@ -211,6 +211,7 @@ the way that the Fleet server works.
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
 				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+				ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")

@@ -28,6 +28,7 @@ func (p *standalonePool) Stats() map[string]redis.PoolStats {
 type clusterPool struct {
 	*redisc.Cluster
 	followRedirs bool
+	readReplica  bool
 }
 
 // PoolConfig holds the redis pool configuration options.
@@ -40,6 +41,7 @@ type PoolConfig struct {
 	KeepAlive                 time.Duration
 	ConnectRetryAttempts      int
 	ClusterFollowRedirections bool
+	ClusterReadFromReplica    bool
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -59,7 +61,11 @@ func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 		return nil, errors.Wrap(err, "refresh cluster")
 	}
 
-	return &clusterPool{cluster, config.ClusterFollowRedirections}, nil
+	return &clusterPool{
+		cluster,
+		config.ClusterFollowRedirections,
+		config.ClusterReadFromReplica,
+	}, nil
 }
 
 // ReadOnlyConn turns conn into a connection that will try to connect to a
@@ -69,7 +75,10 @@ func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 // pool. The returned connection should only be used to run read-only
 // commands.
 func ReadOnlyConn(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
-	if _, isCluster := pool.(*clusterPool); isCluster {
+	if p, isCluster := pool.(*clusterPool); isCluster && p.readReplica {
+		// it only fails if the connection is not a redisc connection or the
+		// connection is already bound, in which case we just return the connection
+		// as-is.
 		_ = redisc.ReadOnlyConn(conn)
 	}
 	return conn
