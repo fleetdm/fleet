@@ -16,6 +16,7 @@ const (
 	CONTENT_TYPE      = "Content-Type"
 	TIMESTAMP         = "TimeStamp"
 	URL_PUBLISH_TOPIC = "%s/topics/%s"
+	URL_CHECK_TOPIC   = "%s/topics/?topic=%s"
 )
 
 type KafkaRESTParams struct {
@@ -39,11 +40,13 @@ type kafkaValue struct {
 
 func NewKafkaRESTWriter(p *KafkaRESTParams) (*kafkaRESTProducer, error) {
 	return &kafkaRESTProducer{
-		URL: fmt.Sprintf(URL_PUBLISH_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
-		client: &http.Client{
-			Timeout: time.Duration(p.KafkaTimeout) * time.Second,
-		},
-	}, nil
+			URL: fmt.Sprintf(URL_PUBLISH_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
+			client: &http.Client{
+				Timeout: time.Duration(p.KafkaTimeout) * time.Second,
+			},
+		}, checkTopic(
+			fmt.Sprintf(URL_CHECK_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
+		)
 }
 
 func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) error {
@@ -68,13 +71,26 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 	}
 
 	defer resp.Body.Close()
+	return checkResponse(resp)
+}
 
+func checkResponse(resp *http.Response) (err error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return errors.Errorf("Error posting to %s: %d. %s", l.URL, resp.StatusCode, string(body))
+		err = errors.Errorf("Error: %d. %s", resp.StatusCode, string(body))
 	}
 
-	return nil
+	return
+}
+
+func checkTopic(url string) (err error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return errors.Wrap(err, "kafka rest topic check")
+	}
+
+	defer resp.Body.Close()
+	return checkResponse(resp)
 }
 
 func (l *kafkaRESTProducer) post(url string, buf *bytes.Buffer) (*http.Response, error) {
