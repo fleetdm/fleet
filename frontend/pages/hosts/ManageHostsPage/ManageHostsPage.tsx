@@ -332,6 +332,11 @@ const ManageHostsPage = ({
     }
   };
 
+  const refetchHosts = (options: IHostCountLoadOptions) => {
+    retrieveHosts(options);
+    retrieveHostCount(options);
+  };
+
   // triggered every time the route is changed
   // which means every filter click and text search
   useDeepEffect(() => {
@@ -743,15 +748,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      retrieveHosts({
-        selectedLabels: selectedFilters,
-        globalFilter: searchQuery,
-        sortBy,
-        teamId: currentTeam?.id,
-        policyId,
-        policyResponse,
-      });
-      retrieveHostCount({
+      refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
@@ -796,16 +793,7 @@ const ManageHostsPage = ({
       } successfully deleted.`;
 
       dispatch(renderFlash("success", successMessage));
-      retrieveHosts({
-        selectedLabels: selectedFilters,
-        globalFilter: searchQuery,
-        sortBy,
-        teamId: currentTeam?.id,
-        policyId,
-        policyResponse,
-      });
-
-      retrieveHostCount({
+      refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
