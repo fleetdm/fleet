@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -18,6 +20,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 )
+
+//go:embed *.tmpl
+var templatesFS embed.FS
 
 type Stats struct {
 	errors            int
@@ -50,12 +55,9 @@ func (s *Stats) Log() {
 }
 
 func (s *Stats) runLoop() {
-	for {
-		ticker := time.Tick(10 * time.Second)
-		select {
-		case <-ticker:
-			s.Log()
-		}
+	ticker := time.Tick(10 * time.Second)
+	for range ticker {
+		s.Log()
 	}
 }
 
@@ -386,7 +388,7 @@ func main() {
 
 	rand.Seed(*randSeed)
 
-	tmpl, err := template.ParseGlob("*.tmpl")
+	tmpl, err := template.ParseFS(templatesFS, "*.tmpl")
 	if err != nil {
 		log.Fatal("parse templates: ", err)
 	}
