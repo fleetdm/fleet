@@ -23,9 +23,12 @@ interface IRootState {
 const baseClass = "no-hosts";
 
 const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
-  const globalSecret = useSelector(
-    (state: IRootState) => state.app.enrollSecret
-  );
+  // const globalSecret = useSelector(
+  //   (state: IRootState) => state.app.enrollSecret
+  // );
+
+  // useContext to grab enrollSecret!
+
   const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
     false
   );
@@ -39,14 +42,10 @@ const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
     }
-    if (selectedTeam === 0) {
-      return { name: "No team", secrets: globalSecret };
-    }
-    if (teams) {
-      const searchTeam = teams.find((team) => team.id === selectedTeam);
-      if (searchTeam) {
-        return searchTeam;
-      }
+
+    const searchTeam = teams?.find((team) => team.id === selectedTeam);
+    if (searchTeam && selectedTeam !== 0) {
+      return searchTeam;
     }
     return { name: "No team", secrets: globalSecret };
   };

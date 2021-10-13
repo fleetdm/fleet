@@ -13,6 +13,7 @@ import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import { AppContext } from "context/app";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IAppProps {
   children: JSX.Element;
@@ -31,10 +32,12 @@ const App = ({ children }: IAppProps) => {
   const {
     setCurrentUser,
     setConfig,
+    setEnrollSecret,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainer,
+    enrollSecret,
   } = useContext(AppContext);
 
   useDeepEffect(() => {
@@ -51,6 +54,7 @@ const App = ({ children }: IAppProps) => {
     }
   }, [user]);
 
+  // this puts the enroll secret into redux
   useDeepEffect(() => {
     const canGetEnrollSecret =
       currentUser &&
@@ -62,7 +66,11 @@ const App = ({ children }: IAppProps) => {
       !isAnyTeamMaintainer;
 
     if (canGetEnrollSecret) {
-      dispatch(getEnrollSecret()).catch(() => false);
+      dispatch(getEnrollSecret())
+        .then((secret: IEnrollSecret) => {
+          setEnrollSecret(secret);
+        })
+        .catch(() => false);
     }
   }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
