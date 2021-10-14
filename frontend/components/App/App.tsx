@@ -21,7 +21,7 @@ interface IAppProps {
 
 interface ISecretResponse {
   spec: {
-    secret: IEnrollSecret[];
+    secrets: IEnrollSecret[];
   };
 }
 
@@ -73,7 +73,7 @@ const App = ({ children }: IAppProps) => {
     if (canGetEnrollSecret) {
       dispatch(getEnrollSecret())
         .then((response: ISecretResponse) => {
-          setEnrollSecret(response.spec.secret);
+          setEnrollSecret(response.spec.secrets);
         })
         .catch(() => false);
     }

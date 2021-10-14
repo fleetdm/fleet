@@ -210,14 +210,10 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
 
-  const renderTeam = () => {
-    if (currentTeam) {
-      return currentTeam;
-    }
-    return { name: "No team", secrets: globalSecret };
+  const generateInstallerTeam = currentTeam || {
+    name: "No team",
+    secrets: globalSecret,
   };
-
-  const generateInstallerTeam = renderTeam();
 
   const {
     isLoading: isLabelsLoading,
@@ -1245,7 +1241,7 @@ const ManageHostsPage = ({
                   selectedLabel?.count === 0
                 ) && (
                   <Button
-                    onClick={() => toggleGenerateInstallerModal}
+                    onClick={toggleGenerateInstallerModal}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
                     <span>Generate installer</span>
