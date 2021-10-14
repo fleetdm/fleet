@@ -16,37 +16,32 @@ const Homepage = (): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
-        <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header`}>
-            <h1 className={`${baseClass}__title`}>
-              <span>{config?.org_name}</span>
-            </h1>
-          </div>
+      <div className={`${baseClass}__header-wrap`}>
+        <div className={`${baseClass}__header`}>
+          <h1 className={`${baseClass}__title`}>
+            <span>{config?.org_name}</span>
+          </h1>
         </div>
-        <div className={`${baseClass}__section hosts-section`}>
+      </div>
+      <div className={`${baseClass}__section one-column`}>
+        <div className={`${baseClass}__info-card`}>
           <div className={`${baseClass}__section-title`}>
-            <div>
-              <h2>Hosts</h2>
-            </div>
+            <h2>Hosts</h2>
             <Link to={MANAGE_HOSTS} className={`${baseClass}__host-link`}>
               <span>View all hosts</span>
               <img src={LinkArrow} alt="link arrow" id="link-arrow" />
             </Link>
           </div>
-          <div className={`${baseClass}__section-details`}>
-            <HostsSummary />
-          </div>
+          <HostsSummary />
         </div>
-        <div className={`${baseClass}__section hosts-section`}>
+      </div>
+      <div className={`${baseClass}__section two-column`}>
+        <div className={`${baseClass}__info-card`} />
+        <div className={`${baseClass}__info-card`}>
           <div className={`${baseClass}__section-title`}>
-            <div>
-              <h2>Activity</h2>
-            </div>
+            <h2>Activity</h2>
           </div>
-          <div className={`${baseClass}__section-details`}>
-            <ActivityFeed />
-          </div>
+          <ActivityFeed />
         </div>
       </div>
     </div>
