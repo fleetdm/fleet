@@ -76,14 +76,6 @@ func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([
 	return svc.ds.ListPacks(ctx, opt)
 }
 
-func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.Pack(ctx, id)
-}
-
 func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err

@@ -361,3 +361,12 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
 	return listSoftwareDB(ctx, d.reader, nil, teamId, opt)
 }
+
+func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	software := fleet.Software{}
+	err := sqlx.GetContext(ctx, d.reader, &software, `SELECT * FROM software WHERE id=?`, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "software by id")
+	}
+	return &software, nil
+}
