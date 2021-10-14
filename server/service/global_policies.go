@@ -171,9 +171,8 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 				return err
 			}
 			continue
-		} else {
-			checkGlobalPolicyAuth = true
 		}
+		checkGlobalPolicyAuth = true
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
