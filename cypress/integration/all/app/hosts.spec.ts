@@ -49,24 +49,17 @@ describe(
           });
         }
 
-        // Wait until the host becomes available (usually immediate in local
-        // testing, but may vary by environment).
-        cy.waitUntil(
-          () => {
-            cy.visit("/hosts/manage");
-            return Cypress.$('button[title="Online"]').length > 0;
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+        cy.visit("/hosts/manage");
+        cy.location("pathname").should("match", /hosts\/manage/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get('button[title="Online"]').click();
 
         // Go to host details page
-        cy.get('button[title="Online"]').click();
-        cy.waitUntil(
-          () => {
-            return cy.get("span.status").contains(/online/i);
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+        cy.location("pathname").should("match", /hosts\/[0-9]/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get("span.status").contains(/online/i);
       }
     );
 
