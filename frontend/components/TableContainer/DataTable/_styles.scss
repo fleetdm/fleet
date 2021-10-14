@@ -209,4 +209,52 @@
       z-index: 1;
     }
   }
+
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
+    margin-left: auto;
+    text-align: right;
+
+    button {
+      color: $core-vibrant-blue;
+      padding: 6px;
+
+      .fleeticon-chevronleft {
+        margin-right: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+
+      .fleeticon-chevronright {
+        margin-left: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+    }
+
+    button:hover {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    .button--disabled:hover {
+      background-color: transparent;
+    }
+
+    button:last-child {
+      margin-left: $pad-large;
+    }
+  }
 }

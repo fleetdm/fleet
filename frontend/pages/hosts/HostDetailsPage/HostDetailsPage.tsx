@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
@@ -15,17 +15,19 @@ import { IHost } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer"; // @ts-ignore
+import { IQuery } from "interfaces/query"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
-import simpleSearch from "utilities/simple_search";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal"; // @ts-ignore
+<<<<<<< HEAD
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+=======
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
+>>>>>>> 897f4e3f (Client side pagination, cs buttons, case insensitive sorting)
 import TableContainer from "components/TableContainer";
 
 import {
@@ -50,11 +52,13 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./SoftwareTable/SoftwareTableConfig";
+import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 import {
   generatePackTableHeaders,
   generatePackDataSet,
 } from "./PackTable/PackTableConfig";
 import EmptySoftware from "./EmptySoftware";
+import EmptyUsers from "./EmptyUsers";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
@@ -107,6 +111,9 @@ const HostDetailsPage = ({
     setShowRefetchLoadingSpinner,
   ] = useState<boolean>(false);
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
+  const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
+  const [usersState, setUsersState] = useState<{ username: string }[]>([]);
+  const [usersSearchString, setUsersSearchString] = useState<string>("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -148,6 +155,37 @@ const HostDetailsPage = ({
     }
   );
 
+  useEffect(() => {
+    if (host) {
+      setUsersState(host.users);
+      setSoftwareState(host.software);
+    }
+  }, [host]);
+
+  useEffect(() => {
+    if (host) {
+      setUsersState(() => {
+        return host.users.filter((user) => {
+          return user.username
+            .toLowerCase()
+            .includes(usersSearchString.toLowerCase());
+        });
+      });
+    }
+  }, [usersSearchString]);
+
+  useEffect(() => {
+    if (host) {
+      setSoftwareState(() => {
+        return host.software.filter((softwareItem) => {
+          return softwareItem.name
+            .toLowerCase()
+            .includes(softwareSearchString.toLowerCase());
+        });
+      });
+    }
+  }, [softwareSearchString]);
+
   // returns a mixture of props from host
   const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
     return reduce(
@@ -164,7 +202,7 @@ const HostDetailsPage = ({
     );
   };
 
-  const wrapKolideHelper = (
+  const wrapFleetHelper = (
     helperFn: (value: any) => string,
     value: string
   ): any => {
@@ -269,24 +307,15 @@ const HostDetailsPage = ({
     }
   };
 
-  // Search functionality
-  const onTableSearchChange = ({
-    searchQuery,
-    sortHeader,
-    sortDirection,
-  }: ITableSearchData) => {
-    let sortBy = [];
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    }
+  const onSoftwareTableSearchChange = useCallback((queryData: any) => {
+    const { searchQuery } = queryData;
+    setSoftwareSearchString(searchQuery);
+  }, []);
 
-    if (!searchQuery && host) {
-      setSoftwareState(host.software);
-      return;
-    }
-
-    setSoftwareState(simpleSearch(searchQuery, host?.software));
-  };
+  const onUsersTableSearchChange = useCallback((queryData: any) => {
+    const { searchQuery } = queryData;
+    setUsersSearchString(searchQuery);
+  }, []);
 
   const renderDeleteHostModal = () => (
     <Modal
@@ -467,7 +496,8 @@ const HostDetailsPage = ({
 
   const renderUsers = () => {
     const { users } = host || {};
-    const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generateUsersTableHeaders();
 
     if (users) {
       return (
@@ -478,25 +508,23 @@ const HostDetailsPage = ({
               No users were detected on this host.
             </p>
           ) : (
-            <div className={`${baseClass}__wrapper`}>
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th>Username</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((hostUser) => {
-                    return (
-                      <HostUsersListRow
-                        key={`host-users-row-${hostUser.username}`}
-                        hostUser={hostUser}
-                      />
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <TableContainer
+              columns={tableHeaders}
+              data={usersState}
+              isLoading={isLoadingHost}
+              defaultSortHeader={"username"}
+              defaultSortDirection={"asc"}
+              inputPlaceHolder={"Search users by username"}
+              onQueryChange={onUsersTableSearchChange}
+              resultsTitle={"users"}
+              emptyComponent={EmptyUsers}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              searchable
+              wideSearch
+              filteredCount={usersState.length}
+              clientSidePagination
+            />
           )}
         </div>
       );
@@ -533,14 +561,15 @@ const HostDetailsPage = ({
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
-                onQueryChange={onTableSearchChange}
+                onQueryChange={onSoftwareTableSearchChange}
                 resultsTitle={"software items"}
                 emptyComponent={EmptySoftware}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
                 searchable
                 wideSearch
-                disablePagination
+                filteredCount={softwareState.length}
+                clientSidePagination
               />
             )}
           </>
@@ -737,7 +766,7 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">RAM</span>
               <span className="info-flex__data">
-                {wrapKolideHelper(humanHostMemory, titleData.memory)}
+                {wrapFleetHelper(humanHostMemory, titleData.memory)}
               </span>
             </div>
             <div className="info-flex__item info-flex__item--title">
@@ -757,19 +786,19 @@ const HostDetailsPage = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Created at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Updated at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostLastSeen, titleData.detail_updated_at)}
+              {wrapFleetHelper(humanHostLastSeen, titleData.detail_updated_at)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Uptime</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
+              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
             </span>
           </div>
           <div className="info-grid__block">
@@ -794,19 +823,19 @@ const HostDetailsPage = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Config TLS refresh</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
+              {wrapFleetHelper(secondsToHms, osqueryData.config_tls_refresh)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Logger TLS period</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
+              {wrapFleetHelper(secondsToHms, osqueryData.logger_tls_period)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Distributed interval</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.distributed_interval)}
+              {wrapFleetHelper(secondsToHms, osqueryData.distributed_interval)}
             </span>
           </div>
         </div>
