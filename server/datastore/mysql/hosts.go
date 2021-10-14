@@ -336,8 +336,6 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 		return nil, err
 	}
 
-	// TODO add issues here!!
-
 	return host, nil
 }
 
