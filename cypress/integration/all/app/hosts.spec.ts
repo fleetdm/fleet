@@ -45,9 +45,7 @@ describe(
             {
               timeout: 5000,
             }
-          ).then((contents) => {
-            cy.get("input[disabled]").should("have.value", contents);
-          });
+          );
         }
 
         cy.visit("/hosts/manage");
