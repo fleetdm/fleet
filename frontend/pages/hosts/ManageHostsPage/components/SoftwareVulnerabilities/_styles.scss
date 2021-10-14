@@ -1,0 +1,77 @@
+.software-vulnerabilities {
+  font-size: $x-small;
+  background-color: $ui-off-white;
+  border: solid 1px $ui-fleet-black-50;
+  box-sizing: border-box;
+  border-radius: 10px;
+  overflow: auto;
+  margin-bottom: $pad-large;
+  padding: $pad-large;
+  padding-bottom: $pad-small;
+
+  p {
+    padding-left: $pad-large;
+  }
+
+  a {
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  img {
+    height: 16px;
+    width: auto;
+    padding-right: $pad-small;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    img {
+      display: inline-flex;
+    }
+  }
+
+  &__count {
+    display: flex;
+    align-content: center;
+    align-items: center;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__ex {
+    text-decoration: none;
+    padding-left: $pad-xsmall;
+
+    // .button::after {
+    //   content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
+    //   transform: scale(0.5);
+    //   border-radius: 0px;
+    // }
+
+    // .button:hover::after {
+    //   content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+    //   transform: scale(0.5);
+    //   border-radius: 0px;
+    // }
+  }
+
+  &__list {
+    b {
+      color: $core-vibrant-blue;
+    }
+    img {
+      height: 12px;
+      width: auto;
+    }
+  }
+
+  a {
+    img {
+      height: 12px;
+      width: auto;
+    }
+  }
+}

@@ -522,7 +522,9 @@ const HostDetailsPage = ({
           </div>
         ) : (
           <>
-            <SoftwareVulnerabilities softwareList={host?.software} />
+            {host?.software && (
+              <SoftwareVulnerabilities softwareList={host?.software} />
+            )}
             {host?.software && (
               <TableContainer
                 columns={tableHeaders}

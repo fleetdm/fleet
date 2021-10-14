@@ -1,17 +1,17 @@
 import React from "react";
 import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import ReactTooltip from "react-tooltip";
-import { isEmpty, memoize } from "lodash";
+import { isEmpty } from "lodash";
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
 import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipCell from "components/TableContainer/DataTable/TooltipCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
 import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
-import TooltipCell from "components/TableContainer/DataTable/TooltipCell";
 
 interface IHeaderProps {
   column: {
@@ -61,10 +61,6 @@ const TYPE_CONVERSION: Record<string, string> = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
 };
-
-const generateSoftwareLink = memoize((id: number) => {
-  return id;
-});
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
