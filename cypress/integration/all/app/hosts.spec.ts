@@ -28,8 +28,9 @@ describe(
         cy.visit("/hosts/manage");
 
         cy.contains("button", /generate installer/i).click();
-
-        cy.contains(/linux (rpm)/i).click();
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(2000);
+        cy.findByText(/rpm/i).click();
         cy.contains("a", /download/i)
           .first()
           .click();
