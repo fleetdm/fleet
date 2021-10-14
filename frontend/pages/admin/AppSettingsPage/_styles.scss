@@ -14,22 +14,22 @@
     border-bottom: solid 1px $ui-fleet-blue-15;
     margin: 0 0 15px;
     padding: 0 0 $pad-small;
+  }
+  a {
+    text-decoration: none;
+    cursor: pointer;
+  }
 
-    a {
-      text-decoration: none;
-    }
+  .fleeticon {
+    font-size: 8px;
+    margin: 0 20px;
+    vertical-align: 4px;
+  }
 
-    .fleeticon {
-      font-size: 8px;
-      margin: 0 20px;
-      vertical-align: 4px;
-    }
-
-    small {
-      font-size: $x-small;
-      font-weight: $regular;
-      color: $core-fleet-black;
-    }
+  small {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
   }
 
   &__settings-form {
