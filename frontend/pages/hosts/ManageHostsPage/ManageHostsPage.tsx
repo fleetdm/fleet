@@ -1205,6 +1205,9 @@ const ManageHostsPage = ({
         searchable
         customControl={renderStatusDropdown}
         filteredCount={filteredHostCount}
+        searchToolTipText={
+          "Search hosts by hostname, UUID, machine serial or IP address"
+        }
       />
     );
   };
