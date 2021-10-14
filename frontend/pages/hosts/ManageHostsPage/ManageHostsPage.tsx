@@ -342,7 +342,7 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-  }, [location, tableQueryData, labels]);
+  }, [location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
     if (!slug) {
@@ -529,8 +529,8 @@ const ManageHostsPage = ({
 
     // Rebuild queryParams to dispatch new browser location to react-router
     const newQueryParams: { [key: string]: any } = {};
-    if (!isEmpty(searchQuery)) {
-      newQueryParams.query = searchQuery;
+    if (!isEmpty(searchText)) {
+      newQueryParams.query = searchText;
     }
 
     newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;

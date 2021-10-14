@@ -193,8 +193,6 @@ const TableContainer = ({
     pageSize,
     pageIndex,
     additionalQueries,
-    onQueryChange,
-    debounceOnQueryChange,
     prevSearchQuery,
   ]);
 
