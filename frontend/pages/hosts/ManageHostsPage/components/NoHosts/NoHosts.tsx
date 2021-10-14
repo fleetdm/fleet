@@ -1,48 +1,21 @@
 /**
  * Component when there is no hosts set up in fleet
  */
-import React, { useState, useCallback, useContext } from "react";
-import { AppContext } from "context/app";
+import React from "react";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-import GenerateInstallerModal from "./GenerateInstallerModal";
 
 import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 
 interface INoHostsProps {
-  selectedTeam: number;
-  teams?: ITeam[];
+  toggleGenerateInstallerModal: () => void;
 }
 
 const baseClass = "no-hosts";
 
-const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
-  const { enrollSecret: globalSecret } = useContext(AppContext);
-
-  const [showGenerateInstallerModal, setShowGenerateInstallerModal] = useState(
-    false
-  );
-
-  const toggleGenerateInstallerModal = useCallback(() => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
-  }, [showGenerateInstallerModal, setShowGenerateInstallerModal]);
-
-  // TODO: Better way to make sure that team does not return as undefined
-  const renderTeam = () => {
-    if (typeof selectedTeam === "string") {
-      selectedTeam = parseInt(selectedTeam, 10);
-    }
-
-    const searchTeam = teams?.find((team) => team.id === selectedTeam);
-    if (searchTeam && selectedTeam !== 0) {
-      return searchTeam;
-    }
-    return { name: "No team", secrets: globalSecret };
-  };
-
-  const generateInstallerTeam = renderTeam();
-
+const NoHosts = ({
+  toggleGenerateInstallerModal,
+}: INoHostsProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
@@ -61,12 +34,6 @@ const NoHosts = ({ selectedTeam, teams }: INoHostsProps): JSX.Element => {
           </div>
         </div>
       </div>
-      {showGenerateInstallerModal ? (
-        <GenerateInstallerModal
-          onCancel={toggleGenerateInstallerModal}
-          selectedTeam={generateInstallerTeam}
-        />
-      ) : null}
     </div>
   );
 };

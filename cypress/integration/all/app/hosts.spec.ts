@@ -27,9 +27,9 @@ describe(
       () => {
         cy.visit("/hosts/manage");
 
-        cy.contains("button", /add new host/i).click();
+        cy.contains("button", /generate installer/i).click();
 
-        cy.get('a[href*="showSecret"]').click();
+        cy.contains(/linux (rpm)/i).click();
         cy.contains("a", /download/i)
           .first()
           .click();

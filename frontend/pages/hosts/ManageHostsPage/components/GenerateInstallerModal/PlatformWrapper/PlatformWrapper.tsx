@@ -11,8 +11,8 @@ import { stringToClipboard } from "utilities/copy_text";
 import FileSaver from "file-saver";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import CopyIcon from "../../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import DownloadIcon from "../../../../../../../../assets/images/icon-download-12x12@2x.png";
+import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
+import DownloadIcon from "../../../../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IPlatformSubNav {
   name: string;
