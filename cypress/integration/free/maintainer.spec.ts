@@ -28,6 +28,7 @@ describe(
       // Settings restrictions
       cy.findByText(/settings/i).should("not.exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // Host manage page: No team UI, can add host and label

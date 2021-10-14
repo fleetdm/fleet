@@ -228,7 +228,15 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_LOGGING_DEBUG"
             value = var.logging_debug
-          }
+          },
+          {
+            name  = "FLEET_S3_BUCKET"
+            value = aws_s3_bucket.osquery-carve.bucket
+          },
+          {
+            name  = "FLEET_S3_PREFIX"
+            value = "carve_results/"
+          },
         ]
       }
   ])

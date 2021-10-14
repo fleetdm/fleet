@@ -332,6 +332,14 @@ const ManageHostsPage = ({
     }
   };
 
+  const refetchHosts = (options: IHostLoadOptions) => {
+    retrieveHosts(options);
+    if (options.sortBy) {
+      delete options.sortBy;
+    }
+    retrieveHostCount(options);
+  };
+
   // triggered every time the route is changed
   // which means every filter click and text search
   useDeepEffect(() => {
@@ -365,7 +373,7 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-  }, [location, tableQueryData, labels]);
+  }, [location, labels]);
 
   useDeepEffect(() => {
     // set the team object in context
@@ -586,8 +594,8 @@ const ManageHostsPage = ({
 
     // Rebuild queryParams to dispatch new browser location to react-router
     const newQueryParams: { [key: string]: any } = {};
-    if (!isEmpty(searchQuery)) {
-      newQueryParams.query = searchQuery;
+    if (!isEmpty(searchText)) {
+      newQueryParams.query = searchText;
     }
 
     newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
@@ -743,7 +751,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      retrieveHosts({
+      refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
@@ -788,7 +796,7 @@ const ManageHostsPage = ({
       } successfully deleted.`;
 
       dispatch(renderFlash("success", successMessage));
-      retrieveHosts({
+      refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
@@ -796,6 +804,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
       });
+
       refetchLabels();
       toggleDeleteHostModal();
       setSelectedHostIds([]);
