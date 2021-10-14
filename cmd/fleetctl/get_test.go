@@ -347,7 +347,7 @@ func TestGetHosts(t *testing.T) {
 			actualSpecs := make([]specGeneric, len(actualResult))
 			for i, result := range actualResult {
 				var spec specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &spec))
+				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
 				actualSpecs[i] = spec
 			}
 			require.Equal(t, expectedSpecs, actualSpecs)
