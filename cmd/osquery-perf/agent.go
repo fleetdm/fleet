@@ -78,7 +78,7 @@ func (n *NodeKeyManager) LoadKeys() {
 
 	data, err := os.ReadFile(n.filepath)
 	if err != nil {
-		fmt.Println("error loading nodekey file:", err)
+		fmt.Println("WARNING (ignore if creating a new node key file): error loading nodekey file:", err)
 		return
 	}
 	n.nodekeys = strings.Split(string(data), "\n")
@@ -141,11 +141,8 @@ func NewAgent(serverAddress, enrollSecret string, templates *template.Template, 
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           uuid.New().String(),
-		FastClient:     fasthttp.Client{
-			//MaxConnsPerHost: 9999999999999,
-			//ReadTimeout:        30 * time.Second,
-			//WriteTimeout:       30 * time.Second,
-			//MaxConnWaitTimeout: 10 * time.Second,
+		FastClient: fasthttp.Client{
+			TLSConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 		Client:  http.Client{Transport: transport},
 		strings: make(map[string]string),
@@ -195,9 +192,9 @@ func (a *Agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 }
 
 func (a *Agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
-	err := fasthttp.Do(req, res)
+	err := a.FastClient.Do(req, res)
 	for err != nil || res.StatusCode() != http.StatusOK {
-		//fmt.Println(err, res.StatusCode())
+		fmt.Println(err, res.StatusCode())
 		a.Stats.RecordStats(1, 0, 0)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
 		err = fasthttp.Do(req, res)
@@ -215,8 +212,6 @@ func (a *Agent) Enroll(i int, onlyAlreadyEnrolled bool) error {
 		return fmt.Errorf("not enrolled")
 	}
 
-	// Give it a bit of time before enrolling so not all come at the "same" time
-	time.Sleep(time.Duration(100*i) * time.Millisecond)
 	var body bytes.Buffer
 	if err := a.Templates.ExecuteTemplate(&body, "enroll", a); err != nil {
 		log.Println("execute template:", err)
