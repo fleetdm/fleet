@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { size } from "lodash";
 
-import Button from "components/buttons/Button";
 import AppConfigForm from "components/forms/admin/AppConfigForm";
 import configInterface from "interfaces/config";
 import enrollSecretInterface from "interfaces/enroll_secret";
@@ -46,17 +45,15 @@ class AppSettingsPage extends Component {
     const { onFormSubmit } = this;
     const { configured: smtpConfigured } = appConfig;
 
-    const scrollTo = (ref) => {
-      if (ref && ref.current /* + other conditions */) {
-        ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    };
-
     if (!size(appConfig)) {
       return false;
     }
 
     const formData = { ...appConfig, enable_smtp: smtpConfigured };
+
+    const scrollTo = (elementId) => {
+      document.getElementById(elementId).scrollIntoView(true);
+    };
 
     return (
       <div className={`${baseClass} body-wrap`}>
@@ -68,47 +65,43 @@ class AppSettingsPage extends Component {
           <nav>
             <ul className={`${baseClass}__form-nav-list`}>
               <li>
-                <a href="javascript:document.getElementById('organization-info').scrollIntoView(true);">
+                <a onClick={() => scrollTo("organization-info")}>
                   Organization info
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('fleet-web-address').scrollIntoView(true);">
+                <a onClick={() => scrollTo("fleet-web-address")}>
                   Fleet web address
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('saml').scrollIntoView(true);">
+                <a onClick={() => scrollTo("saml")}>
                   SAML single sign on options
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('smtp').scrollIntoView(true);">
-                  SMTP options
-                </a>
+                <a onClick={() => scrollTo("smtp")}>SMTP options</a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('osquery-enrollment-secrets').scrollIntoView(true);">
+                <a onClick={() => scrollTo("osquery-enrollment-secrets")}>
                   Osquery enrollment secrets
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('agent-options').scrollIntoView(true);">
+                <a onClick={() => scrollTo("agent-options")}>
                   Global agent options
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('host-status-webhook').scrollIntoView(true);">
+                <a onClick={() => scrollTo("host-status-webhook")}>
                   Host status webhook
                 </a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('usage-stats').scrollIntoView(true);">
-                  Usage statistics
-                </a>
+                <a onClick={() => scrollTo("usage-stats")}>Usage statistics</a>
               </li>
               <li>
-                <a href="javascript:document.getElementById('advanced-options').scrollIntoView(true);">
+                <a onClick={() => scrollTo("advanced-options")}>
                   Advanced options
                 </a>
               </li>
