@@ -1160,7 +1160,16 @@ const ManageHostsPage = ({
     }
 
     // Hosts have not been set up for this instance yet.
-    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
+    console.log(
+      "getStatusSelected() === ALL_HOSTS_LABEL",
+      getStatusSelected() === ALL_HOSTS_LABEL
+    );
+    console.log("selectedLabel.count === 0", selectedLabel.count === 0);
+    console.log("selectedLabel", selectedLabel);
+    if (
+      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
+      (getStatusSelected() === ALL_HOSTS_LABEL && filteredHostCount === 0)
+    ) {
       return (
         <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
       );
@@ -1239,6 +1248,10 @@ const ManageHostsPage = ({
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0
+                ) &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  filteredHostCount === 0
                 ) && (
                   <Button
                     onClick={toggleGenerateInstallerModal}
