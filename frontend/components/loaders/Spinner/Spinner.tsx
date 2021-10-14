@@ -4,6 +4,8 @@ interface ISpinnerProps {
   isInButton?: boolean;
 }
 
+const baseClass = "loading-spinner";
+
 const Spinner = ({ isInButton }: ISpinnerProps): JSX.Element => {
   if (isInButton) {
     return (
@@ -17,8 +19,8 @@ const Spinner = ({ isInButton }: ISpinnerProps): JSX.Element => {
   }
 
   return (
-    <div className="card">
-      <div className="ring">
+    <div className={baseClass}>
+      <div className={`${baseClass}__ring`}>
         <div />
         <div />
         <div />
