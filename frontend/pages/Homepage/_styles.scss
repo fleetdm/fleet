@@ -1,6 +1,8 @@
 .homepage {
+  min-height: 0;
   padding: $pad-xxlarge;
   width: 100%;
+  flex: 1;
   background-color: $ui-off-white;
   box-sizing: border-box;
 
