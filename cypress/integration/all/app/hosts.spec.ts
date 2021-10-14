@@ -40,7 +40,7 @@ describe(
         if (Cypress.platform !== "win32") {
           // windows has issues with downloads location
           cy.readFile(
-            path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+            path.join(Cypress.config("downloadsFolder"), "fleet.pem"),
             {
               timeout: 5000,
             }
