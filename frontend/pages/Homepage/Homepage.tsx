@@ -35,8 +35,7 @@ const Homepage = (): JSX.Element => {
           <HostsSummary />
         </div>
       </div>
-      <div className={`${baseClass}__section two-column`}>
-        <div className={`${baseClass}__info-card`} />
+      <div className={`${baseClass}__section one-column`}>
         <div className={`${baseClass}__info-card`}>
           <div className={`${baseClass}__section-title`}>
             <h2>Activity</h2>
