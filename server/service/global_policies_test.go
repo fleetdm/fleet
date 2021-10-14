@@ -85,6 +85,17 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 
 			_, err = svc.DeleteGlobalPolicies(ctx, []uint{1})
 			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{
+				{
+					QueryName: "query1",
+				},
+				{
+					QueryName: "query1",
+					Team:      "team1",
+				},
+			})
+			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
 }

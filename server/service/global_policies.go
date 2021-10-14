@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
@@ -161,31 +160,24 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
-	currentUser := authz.UserFromContext(ctx)
-	if currentUser.GlobalRole != nil {
-		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-			return err
-		}
-	} else {
-		checkGlobalPolicyAuth := false
-		for _, policy := range policies {
-			if policy.Team != "" {
-				team, err := svc.ds.TeamByName(ctx, policy.Team)
-				if err != nil {
-					return errors.Wrap(err, "getting team by name")
-				}
-				if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
-					return err
-				}
-				continue
-			} else {
-				checkGlobalPolicyAuth = true
+	checkGlobalPolicyAuth := false
+	for _, policy := range policies {
+		if policy.Team != "" {
+			team, err := svc.ds.TeamByName(ctx, policy.Team)
+			if err != nil {
+				return errors.Wrap(err, "getting team by name")
 			}
-		}
-		if checkGlobalPolicyAuth {
-			if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
 				return err
 			}
+			continue
+		} else {
+			checkGlobalPolicyAuth = true
+		}
+	}
+	if checkGlobalPolicyAuth {
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+			return err
 		}
 	}
 

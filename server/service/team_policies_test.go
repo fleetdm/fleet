@@ -28,6 +28,12 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 		return nil, nil
 	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1}, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, specs []*fleet.PolicySpec) error {
+		return nil
+	}
 
 	var testCases = []struct {
 		name            string
@@ -104,6 +110,14 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.DeleteTeamPolicies(ctx, 1, []uint{1})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{
+				{
+					QueryName: "query1",
+					Team:      "team1",
+				},
+			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
