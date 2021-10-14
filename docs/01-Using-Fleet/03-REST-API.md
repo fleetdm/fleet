@@ -544,6 +544,10 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "team_id": null,
       "team_name": null,
       "pack_stats": null,
+      "issues": {
+        "failing_policies_count": 2,
+        "total_issues_count": 2
+      }
     }
   ],
   "software": {
@@ -797,7 +801,11 @@ The endpoint returns the host's installed `software` if the software inventory f
         "query_name": "SomeQuery3",
         "response": ""
       }
-    ]
+    ],
+    "issues": {
+      "failing_policies_count": 2,
+      "total_issues_count": 2
+    }
   }
 }
 ```
