@@ -4,7 +4,7 @@ resource "random_password" "database_password" {
 }
 
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name = "/fleet/database/password/master-2"
+  name = "/fleet/database/password/master"
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
