@@ -60,7 +60,10 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
+<<<<<<< HEAD
   searchToolTipText?: string;
+=======
+>>>>>>> 2813ed55 (Client side pagination, cs buttons, case insensitive sorting)
   clientSidePagination?: boolean;
 }
 
