@@ -368,5 +368,35 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 	if err != nil {
 		return nil, errors.Wrap(err, "software by id")
 	}
+
+	query := `
+		SELECT DISTINCT scv.cve
+		FROM software s
+		JOIN software_cpe scp ON (s.id=scp.software_id)
+		JOIN software_cve scv ON (scp.id=scv.cpe_id)
+		WHERE s.id=?
+	`
+
+	rows, err := d.reader.QueryxContext(ctx, query, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "load software cves")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cve string
+		if err := rows.Scan(&cve); err != nil {
+			return nil, errors.Wrap(err, "scanning cve")
+		}
+
+		software.Vulnerabilities = append(software.Vulnerabilities, fleet.SoftwareCVE{
+			CVE:         cve,
+			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating through cve rows")
+	}
+
 	return &software, nil
 }
