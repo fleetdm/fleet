@@ -116,12 +116,21 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		return nil, err
 	}
 
+	currentUser := authz.UserFromContext(ctx)
+
 	idMap := make(map[uint]fleet.TeamUser)
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
 			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid role for a team user", user.Role))
 		}
 		idMap[user.ID] = user
+		fullUser, err := svc.ds.UserByID(ctx, user.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting full user with id %d", user.ID)
+		}
+		if fullUser.GlobalRole != nil && currentUser.GlobalRole == nil {
+			return nil, errors.New("A user with a global role cannot be added to a team by a non global user.")
+		}
 	}
 
 	team, err := svc.ds.Team(ctx, teamID)

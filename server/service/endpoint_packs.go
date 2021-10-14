@@ -48,41 +48,6 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type getPackRequest struct {
-	ID uint
-}
-
-type getPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r getPackResponse) error() error { return r.Err }
-
-func makeGetPackEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getPackRequest)
-
-		pack, err := svc.GetPack(ctx, req.ID)
-		if err != nil {
-			return getPackResponse{Err: err}, nil
-		}
-
-		resp, err := packResponseForPack(ctx, svc, *pack)
-		if err != nil {
-			return getPackResponse{Err: err}, nil
-		}
-
-		return getPackResponse{
-			Pack: *resp,
-		}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // List Packs
 ////////////////////////////////////////////////////////////////////////////////
 

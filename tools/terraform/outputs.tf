@@ -13,3 +13,11 @@ output "backend_security_group" {
 output "private_subnets" {
   value = module.vpc.private_subnet_arns
 }
+
+output "fleet-backend-task-revision" {
+  value = aws_ecs_task_definition.backend.revision
+}
+
+output "fleet-migration-task-revision" {
+  value = aws_ecs_task_definition.migration.revision
+}

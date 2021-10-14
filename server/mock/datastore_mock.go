@@ -259,6 +259,8 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
+type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -671,6 +673,9 @@ type DataStore struct {
 
 	InsertCVEForCPEFunc        InsertCVEForCPEFunc
 	InsertCVEForCPEFuncInvoked bool
+
+	SoftwareByIDFunc        SoftwareByIDFunc
+	SoftwareByIDFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1351,6 +1356,11 @@ func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
 func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error {
 	s.InsertCVEForCPEFuncInvoked = true
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
+}
+
+func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	s.SoftwareByIDFuncInvoked = true
+	return s.SoftwareByIDFunc(ctx, id)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

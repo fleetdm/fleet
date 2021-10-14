@@ -140,11 +140,15 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
-	Bucket           string
-	Prefix           string
+	Bucket           string `yaml:"bucket"`
+	Prefix           string `yaml:"prefix"`
+	Region           string `yaml:"region"`
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	DisableSSL       bool   `yaml:"disable_ssl"`
+	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -361,9 +365,13 @@ func (man Manager) addConfigs() {
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
 	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -506,9 +514,13 @@ func (man Manager) LoadConfig() FleetConfig {
 		S3: S3Config{
 			Bucket:           man.getConfigString("s3.bucket"),
 			Prefix:           man.getConfigString("s3.prefix"),
+			Region:           man.getConfigString("s3.region"),
+			EndpointURL:      man.getConfigString("s3.endpoint_url"),
 			AccessKeyID:      man.getConfigString("s3.access_key_id"),
 			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
+			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),

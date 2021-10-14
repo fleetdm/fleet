@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/master.zip"
+	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
 	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName      = "license-key"
 	tagFlagName             = "tag"
+	previewConfigFlagName   = "preview-config"
 )
 
 func previewCommand() *cli.Command {
@@ -51,6 +52,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Usage: "Run a specific version of Fleet",
 				Value: "latest",
 			},
+			&cli.StringFlag{
+				Name:  previewConfigFlagName,
+				Usage: "Run a specific branch of the preview repository",
+				Value: "production",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if err := checkDocker(); err != nil {
@@ -59,8 +65,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			fmt.Printf("Downloading dependencies into %s...\n", previewDir)
-			if err := downloadFiles(); err != nil {
+			osqueryBranch := c.String(previewConfigFlagName)
+			fmt.Printf("Downloading dependencies from %s into %s...\n", osqueryBranch, previewDir)
+			if err := downloadFiles(osqueryBranch); err != nil {
 				return errors.Wrap(err, "Error downloading dependencies")
 			}
 
@@ -76,6 +83,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Linux with a non-root user inside the container.
 			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
 				return errors.Wrap(err, "make logs writable")
+			}
+			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0777); err != nil {
+				return errors.Wrap(err, "make vulndb writable")
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -198,10 +208,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "failed to apply standard query library")
 			}
 
+			// disable anonymous analytics collection and enable software inventory for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
-				"host_settings": {"enable_software_inventory": true},
+				"host_settings":   {"enable_software_inventory": true},
+				"server_settings": {"enable_analytics": false},
 			}); err != nil {
-				return errors.Wrap(err, "failed to enable software inventory app config")
+				return errors.Wrap(err, "failed to apply updated app config")
 			}
 
 			secrets, err := client.GetEnrollSecretSpec()
@@ -211,13 +223,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			if len(secrets.Secrets) != 1 {
 				return errors.New("Expected 1 active enroll secret")
-			}
-
-			// disable anonymous analytics collection for preview
-			if err := client.ApplyAppConfig(map[string]map[string]bool{
-				"server_settings": {"enable_analytics": false}},
-			); err != nil {
-				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
 			}
 
 			fmt.Println("Starting simulated hosts...")
@@ -240,7 +245,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 	}
 }
 
+var testOverridePreviewDirectory string
+
 func previewDirectory() string {
+	if testOverridePreviewDirectory != "" {
+		return testOverridePreviewDirectory
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = "~"
@@ -248,8 +259,8 @@ func previewDirectory() string {
 	return filepath.Join(homeDir, ".fleet", "preview")
 }
 
-func downloadFiles() error {
-	resp, err := http.Get(downloadUrl)
+func downloadFiles(branch string) error {
+	resp, err := http.Get(fmt.Sprintf(downloadUrl, branch))
 	if err != nil {
 		return err
 	}
@@ -270,7 +281,7 @@ func downloadFiles() error {
 	}
 	// zip.NewReader does not need to be closed (and cannot be)
 
-	if err := unzip(zipReader); err != nil {
+	if err := unzip(zipReader, branch); err != nil {
 		return errors.Wrap(err, "unzip download contents")
 	}
 
@@ -293,11 +304,12 @@ func downloadStandardQueryLibrary() ([]byte, error) {
 }
 
 // Adapted from https://stackoverflow.com/a/24792688/491710
-func unzip(r *zip.Reader) error {
+func unzip(r *zip.Reader, branch string) error {
 	previewDir := previewDirectory()
 
 	// Closure to address file descriptors issue with all the deferred .Close()
 	// methods
+	replacePath := fmt.Sprintf("osquery-in-a-box-%s", branch)
 	extractAndWriteFile := func(f *zip.File) error {
 		rc, err := f.Open()
 		if err != nil {
@@ -306,7 +318,7 @@ func unzip(r *zip.Reader) error {
 		defer rc.Close()
 
 		path := f.Name
-		path = strings.Replace(path, "osquery-in-a-box-master", previewDir, 1)
+		path = strings.Replace(path, replacePath, previewDir, 1)
 
 		// We don't need to check for directory traversal as we are already
 		// trusting the validity of this ZIP file.

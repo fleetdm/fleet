@@ -159,11 +159,18 @@
       line-height: 48px;
     }
     h2 {
+      border-top: 1px solid @core-fleet-black-25;
       font-weight: 800;
       font-size: 24px;
       line-height: 28px;
-      padding-top: 24px;
+      padding-top: 40px;
       padding-bottom: 24px;
+      margin-top: 40px;
+      &:first-of-type {
+        border-top: none;
+        padding-top: 24px;
+        margin-top: 0px;
+      }
     }
     h3 {
       font-size: 20px;
@@ -180,9 +187,9 @@
       margin-bottom: 0px;
     }
     h5 {
-      font-weight: normal;
-      font-size: 14px;
-      margin-top: 16px;
+      font-weight: 700;
+      font-size: 16px;
+      padding-top: 16px;
       margin-bottom: 16px;
     }
     a {

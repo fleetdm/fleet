@@ -1,7 +1,7 @@
 # Kolide hostname. Make sure omit https:// or the path
 KOLIDE_HOSTNAME=kolide.acme.co
 
-# Osquery Enroll Secret. Replace with the secret set in Kolide.
+# Osquery enroll secret. Replace with the secret set in Kolide.
 ENROLL_SECRET=CHANGEME
 
 # Paste your kolide certificate chain below.

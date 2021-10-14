@@ -3,9 +3,74 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
+
+////////////////////////////////////////////////////////////////////////////////
+// List Hosts
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostsRequest struct {
+	Opts fleet.HostListOptions `url:"host_options"`
+}
+
+type listHostsResponse struct {
+	Hosts    []HostResponse  `json:"hosts"`
+	Software *fleet.Software `json:"software,omitempty"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r listHostsResponse) error() error { return r.Err }
+
+func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listHostsRequest)
+	hosts, err := svc.ListHosts(ctx, req.Opts)
+	if err != nil {
+		return listHostsResponse{Err: err}, nil
+	}
+
+	var software *fleet.Software
+	if req.Opts.SoftwareIDFilter != nil {
+		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+	hostResponses := make([]HostResponse, len(hosts))
+	for i, host := range hosts {
+		h, err := hostResponseForHost(ctx, svc, host)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+
+		hostResponses[i] = *h
+	}
+	return listHostsResponse{Hosts: hostResponses, Software: software}, nil
+}
+
+func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListHosts(ctx, filter, opt)
+}
+
+func (svc Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.SoftwareByID(ctx, id)
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 // Delete
@@ -102,7 +167,7 @@ func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, err
 	}
 

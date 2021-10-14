@@ -48,7 +48,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
-			&fleet.ScheduledQuery{
+			{
 				Name: "froobling",
 			},
 		}, nil
@@ -83,7 +83,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
-			&fleet.ScheduledQuery{
+			{
 				Name: "foobar",
 			},
 		}, nil

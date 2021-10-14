@@ -325,6 +325,7 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

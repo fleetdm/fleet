@@ -275,6 +275,10 @@ type Service interface {
 	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
 	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
 
+	// VulnerabilitiesConfig returns the vulnerabilities checks configuration for
+	// the fleet instance.
+	VulnerabilitiesConfig(ctx context.Context) (*VulnerabilitiesConfig, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteService contains methods for a service which deals with user invites.
 
@@ -404,6 +408,7 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

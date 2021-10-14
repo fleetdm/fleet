@@ -702,7 +702,7 @@ const HostDetailsPage = ({
           <span>Back to all hosts</span>
         </Link>
       </div>
-      <div className="section title">
+      <div className="header title">
         <div className="title__inner">
           <div className="hostname-container">
             <h1 className="hostname">{host?.hostname || "---"}</h1>
@@ -714,6 +714,11 @@ const HostDetailsPage = ({
             </p>
             {renderRefetch()}
           </div>
+        </div>
+        {renderActionButtons()}
+      </div>
+      <div className="section title">
+        <div className="title__inner">
           <div className="info-flex">
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Status</span>
@@ -743,7 +748,6 @@ const HostDetailsPage = ({
             </div>
           </div>
         </div>
-        {renderActionButtons()}
       </div>
       <div className="section about">
         <p className="section__header">About this host</p>
