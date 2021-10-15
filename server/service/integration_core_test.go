@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -607,4 +608,15 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
+
+	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }

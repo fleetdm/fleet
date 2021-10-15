@@ -26,6 +26,12 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.DeleteGlobalPoliciesFunc = func(ctx context.Context, ids []uint) ([]uint, error) {
 		return nil, nil
 	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1}, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, specs []*fleet.PolicySpec) error {
+		return nil
+	}
 
 	var testCases = []struct {
 		name            string
@@ -74,7 +80,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewGlobalPolicy(ctx, 2)
+			_, err := svc.NewGlobalPolicy(ctx, 2, "")
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ListGlobalPolicies(ctx)
@@ -84,6 +90,13 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.DeleteGlobalPolicies(ctx, []uint{1})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{
+				{
+					QueryName: "query1",
+				},
+			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}

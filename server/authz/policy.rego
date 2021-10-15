@@ -414,11 +414,12 @@ allow {
 
 # Global Admin and Maintainer users can read and write policies
 allow {
-  object.type == ["policy","team_policy"][_]
+  object.type == "policy"
   subject.global_role == admin
   action == [read, write][_]
 }
 
+# Global maintainer can read and write global policies
 allow {
   is_null(object.team_id)
   object.type == "policy"
@@ -426,20 +427,14 @@ allow {
   action == [read, write][_]
 }
 
+# Global Maintainer and Observer users can read any policies
 allow {
   object.type == "policy"
-  subject.global_role == maintainer
-  action == [read][_]
+  subject.global_role == [maintainer,observer][_]
+  action == read
 }
 
-# Global Observer users can read policies
-allow {
-  object.type == "policy"
-  subject.global_role == observer
-  action == [read][_]
-}
-
-# Team admin and maintainers can read and write policies
+# Team admin and maintainers can read and write policies for their teams
 allow {
   not is_null(object.team_id)
   object.team_id == subject.teams[_].id
@@ -449,7 +444,6 @@ allow {
 }
 
 # Team admin and maintainers can read global policies
-
 allow {
   is_null(object.team_id)
   object.type == "policy"

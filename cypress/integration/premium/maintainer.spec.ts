@@ -29,10 +29,9 @@ describe(
 
       cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.findByText(/show enroll secret/i).should("exist");
+      cy.findByText(/manage enroll secret/i).should("exist");
 
-      cy.contains("button", /add new host/i).click();
-      // TODO: Check Team Apples is in Select a team dropdown
+      cy.contains("button", /generate installer/i).click();
       cy.contains("button", /done/i).click();
 
       // Host details page: Can see team UI

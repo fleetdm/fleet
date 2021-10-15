@@ -1,0 +1,2 @@
+* Add new UI feature: filter hosts by software version
+* Move specific CVE information to aggregate hosts filtered by software version rather than individual host vitals
