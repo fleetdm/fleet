@@ -7,7 +7,6 @@ import { isEmpty } from "lodash";
 import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipCell from "components/TableContainer/DataTable/TooltipCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
@@ -115,39 +114,36 @@ const generateTableHeaders = (): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps) => {
         const { name, bundle_identifier } = cellProps.row.original;
-        // if (bundle_identifier) {
-        //   return (
-        //     <span>
-        //       {name}
-        //       <span
-        //         className={`software-name tooltip__tooltip-icon`}
-        //         data-tip
-        //         data-for={`software-name__${cellProps.row.original.id.toString()}`}
-        //         data-tip-disable={false}
-        //       >
-        //         <img alt="bundle identifier" src={QuestionIcon} />
-        //       </span>
-        //       <ReactTooltip
-        //         place="bottom"
-        //         type="dark"
-        //         effect="solid"
-        //         backgroundColor="#3e4771"
-        //         id={`software-name__${cellProps.row.original.id.toString()}`}
-        //         data-html
-        //       >
-        //         <span className={`tooltip__tooltip-text`}>
-        //           <b>Bundle identifier: </b>
-        //           <br />
-        //           {bundle_identifier}
-        //         </span>
-        //       </ReactTooltip>
-        //     </span>
-        //   );
-        // }
-        // if (bundle_identifier) {
-        return <TooltipCell value={cellProps.row.original} />;
-        // }
-        // return <TextCell value={name} />;
+        if (bundle_identifier) {
+          return (
+            <span>
+              {name}
+              <span
+                className={`software-name tooltip__tooltip-icon`}
+                data-tip
+                data-for={`software-name__${cellProps.row.original.id.toString()}`}
+                data-tip-disable={false}
+              >
+                <img alt="bundle identifier" src={QuestionIcon} />
+              </span>
+              <ReactTooltip
+                place="bottom"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id={`software-name__${cellProps.row.original.id.toString()}`}
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>
+                  <b>Bundle identifier: </b>
+                  <br />
+                  {bundle_identifier}
+                </span>
+              </ReactTooltip>
+            </span>
+          );
+        }
+        return <TextCell value={name} />;
       },
       sortType: "caseInsensitive",
     },
