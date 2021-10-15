@@ -265,12 +265,12 @@ const DataTable = ({
 
   return (
     <div className={baseClass}>
+      {isLoading && (
+        <div className={"loading-overlay"}>
+          <Spinner />
+        </div>
+      )}
       <div className={"data-table data-table__wrapper"}>
-        {isLoading && (
-          <div className={"loading-overlay"}>
-            <Spinner />
-          </div>
-        )}
         <table className={"data-table__table"}>
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
