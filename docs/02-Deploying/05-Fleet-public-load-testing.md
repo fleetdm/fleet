@@ -20,7 +20,7 @@ The following command enrolls and simulates 150,000 hosts on Fleet:
 go run cmd/osquery-perf/agent.go -enroll_secret <secret here> -host_count 150000 -server_url <server URL here> -node_key_file nodekeys
 ```
 
-After the hosts have been enrolled, you can add `-only_already_enrolled` to make sure the node keys from the file are used and no enrollment happens. This "resumes" the execution of all the simulated hosts.
+After the hosts have been enrolled, you can add `-only_already_enrolled` to make sure the node keys from the file are used and no enrollment happens. This resumes the execution of all the simulated hosts.
 
 ## Infrastructure setup
 
