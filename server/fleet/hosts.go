@@ -45,6 +45,16 @@ type HostListOptions struct {
 
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
+
+	SoftwareIDFilter *uint
+}
+
+func (h HostListOptions) Empty() bool {
+	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+}
+
+func (l ListOptions) Empty() bool {
+	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
 }
 
 type HostUser struct {
@@ -64,6 +74,7 @@ type Host struct {
 	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
 	DetailUpdatedAt  time.Time     `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
 	LabelUpdatedAt   time.Time     `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
+	PolicyUpdatedAt  time.Time     `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt   time.Time     `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
 	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
 	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`
@@ -114,7 +125,14 @@ type Host struct {
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
 
+	HostIssues `json:"issues,omitempty"`
+
 	Modified bool `json:"-"`
+}
+
+type HostIssues struct {
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count"`
+	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count"`
 }
 
 func (h Host) AuthzType() string {
@@ -129,6 +147,8 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
+	// Policies is the list of policies and whether it passes for the host
+	Policies []*HostPolicy `json:"policies"`
 }
 
 const (

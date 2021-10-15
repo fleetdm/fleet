@@ -80,7 +80,7 @@ func saveTeamSecretsDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet
 }
 
 func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
-	if err := d.deleteEntity(ctx, "teams", tid); err != nil {
+	if err := d.deleteEntity(ctx, teamsTable, tid); err != nil {
 		return errors.Wrapf(err, "delete team id %d", tid)
 	}
 	return nil

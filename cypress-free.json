@@ -1,5 +1,9 @@
 {
   "baseUrl": "https://localhost:8642",
   "fixturesFolder": false,
-  "testFiles": "{all,free}/**/*.spec.ts"
+  "testFiles": "{all,free}/**/*.spec.ts",
+  "retries": {
+    "runMode": 1,
+    "openMode": 0
+  }
 }

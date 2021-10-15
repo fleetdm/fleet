@@ -174,4 +174,72 @@
       }
     }
   }
+
+  &__inherited-queries-button {
+    margin: $pad-medium 0 0 0;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    font-size: $x-small;
+  }
+
+  .rightcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(-90deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 10px;
+      margin-top: 5px;
+    }
+  }
+
+  .upcarat {
+    &::before {
+      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      transform: scale(0.5) rotate(180deg);
+      width: 16px;
+      border-radius: 0px;
+      padding: 0px;
+      padding-right: 2px;
+      margin-right: $pad-small;
+      margin-top: 5px;
+      position: relative;
+      top: -4px;
+      left: 6px;
+    }
+  }
+
+  &__details {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: $pad-small;
+    margin-top: -20px;
+
+    .hint {
+      color: $core-fleet-black;
+
+      &--brand {
+        color: $core-vibrant-blue;
+      }
+    }
+  }
+
+  &__all-teams-table {
+    .table-container__header {
+      height: 0;
+    }
+
+    th {
+      border-right: 1px solid #e2e4ea !important;
+    }
+
+    .query_name__header {
+      width: calc(63%);
+    }
+
+    .interval__header {
+      width: calc(37%);
+    }
+  }
 }

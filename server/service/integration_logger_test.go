@@ -102,6 +102,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1234",
 		UUID:            "1",
@@ -129,6 +130,7 @@ func (s *integrationLoggerTestSuite) TestSubmitStatusLog() {
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1234",
 		UUID:            "1",
@@ -157,6 +159,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1234",
 		UUID:            "1",
@@ -179,5 +182,5 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, json.RawMessage(`["enroll failed: no matching secret found"]`), logData["err"])
+	assert.Equal(t, json.RawMessage(`"enroll failed: no matching secret found"`), logData["err"])
 }

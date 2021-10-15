@@ -3,6 +3,11 @@ import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
 import stringUtils from "utilities/strings";
+import { ILabel } from "interfaces/label";
+import {
+  IPackQueryFormData,
+  IScheduledQuery,
+} from "interfaces/scheduled_query";
 import { ITeam } from "interfaces/team";
 import {
   DEFAULT_GRAVATAR_LINK,
@@ -173,6 +178,7 @@ export const frontendFormattedConfig = (config: any) => {
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    update_interval: updateInterval,
     license,
   } = config;
 
@@ -187,17 +193,19 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...webhookSettings,
+    ...updateInterval,
     ...license,
     agent_options: config.agent_options,
   };
 };
 
-const formatLabelResponse = (response: any): { [index: string]: any } => {
+const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
       type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      target_type: "labels",
     };
   });
 
@@ -220,7 +228,9 @@ export const formatSelectedTargetsForApi = (
   return { hosts, labels, teams };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatScheduledQueryForServer = (
+  scheduledQuery: IPackQueryFormData
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -518,6 +528,13 @@ const inGigaBytes = (bytes: number): string => {
 
 export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
+};
+
+export const humanTimeAgo = (dateSince: string): number => {
+  const now = moment();
+  const mDateSince = moment(dateSince);
+
+  return now.diff(mDateSince, "days");
 };
 
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {

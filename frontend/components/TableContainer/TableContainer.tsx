@@ -9,13 +9,15 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
 import scrollToTop from "utilities/scroll_to_top";
+import { useDeepEffect } from "utilities/hooks";
+import ReactTooltip from "react-tooltip";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
 
-interface ITableQueryData {
+export interface ITableSearchData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
@@ -35,11 +37,12 @@ interface ITableContainerProps {
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?: (queryData: ITableSearchData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
   resultsTitle: string;
+  resultsHtml?: JSX.Element;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -57,6 +60,8 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
+  filteredCount?: number;
+  searchToolTipText?: string;
 }
 
 const baseClass = "table-container";
@@ -77,6 +82,7 @@ const TableContainer = ({
   additionalQueries,
   onQueryChange,
   resultsTitle,
+  resultsHtml,
   emptyComponent,
   className,
   disableActionButton,
@@ -99,6 +105,8 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
+  filteredCount,
+  searchToolTipText,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -142,7 +150,7 @@ const TableContainer = ({
   const prevSearchQueryRef = useRef(searchQuery);
   const prevSearchQuery = prevSearchQueryRef.current;
   const debounceOnQueryChange = useAsyncDebounce(
-    (queryData: ITableQueryData) => {
+    (queryData: ITableSearchData) => {
       onQueryChange && onQueryChange(queryData);
     },
     DEBOUNCE_QUERY_DELAY
@@ -151,7 +159,7 @@ const TableContainer = ({
   // When any of our query params change, or if any additionalQueries change, we want to fire off
   // the parent components handler function with this updated query data. There is logic in here to check
   // different types of query updates, as we handle some of them differently than others.
-  useEffect(() => {
+  useDeepEffect(() => {
     const queryData = {
       searchQuery,
       sortHeader,
@@ -159,6 +167,7 @@ const TableContainer = ({
       pageSize,
       pageIndex,
     };
+
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
       if (!hasPageIndexChangedRef.current) {
@@ -187,11 +196,10 @@ const TableContainer = ({
     pageSize,
     pageIndex,
     additionalQueries,
-    onQueryChange,
-    debounceOnQueryChange,
     prevSearchQuery,
   ]);
 
+  const displayCount = filteredCount || data.length;
   return (
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
@@ -210,10 +218,9 @@ const TableContainer = ({
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
-              pageIndex,
-              pageSize,
-              data.length
+              displayCount
             )}
+            {resultsHtml}
           </p>
         ) : (
           <p />
@@ -240,15 +247,34 @@ const TableContainer = ({
           {customControl && customControl()}
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
-            <div className={`${baseClass}__search-input`}>
-              <InputField
-                placeholder={inputPlaceHolder}
-                name="searchQuery"
-                onChange={onSearchQueryChange}
-                value={searchQuery}
-                inputWrapperClass={`${baseClass}__input-wrapper`}
-              />
-            </div>
+            <>
+              <div
+                className={`${baseClass}__search-input`}
+                data-tip
+                data-for="search-tooltip"
+                data-tip-disable={!searchToolTipText}
+              >
+                <InputField
+                  placeholder={inputPlaceHolder}
+                  name="searchQuery"
+                  onChange={onSearchQueryChange}
+                  value={searchQuery}
+                  inputWrapperClass={`${baseClass}__input-wrapper`}
+                />
+              </div>
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="search-tooltip"
+                data-html
+              >
+                <span className={`tooltip ${baseClass}__tooltip-text`}>
+                  {searchToolTipText}
+                </span>
+              </ReactTooltip>
+            </>
           )}
         </div>
       </div>

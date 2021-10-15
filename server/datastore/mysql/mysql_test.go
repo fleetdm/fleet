@@ -50,6 +50,7 @@ func TestDatastoreReplica(t *testing.T) {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			NodeKey:         "1",
 			UUID:            "1",

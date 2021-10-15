@@ -11,7 +11,6 @@ import (
 )
 
 func TestConvertFileOutput(t *testing.T) {
-	t.Parallel()
 	// setup the cli and the convert command
 	app := cli.NewApp()
 	app.Commands = []*cli.Command{convertCommand()}
@@ -41,7 +40,6 @@ func TestConvertFileOutput(t *testing.T) {
 }
 
 func TestConvertFileStdout(t *testing.T) {
-	t.Parallel()
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 

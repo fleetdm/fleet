@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +25,17 @@ type integrationTestSuite struct {
 
 func (s *integrationTestSuite) SetupSuite() {
 	s.withServer.SetupSuite("integrationTestSuite")
+}
+
+func (s *integrationTestSuite) TearDownTest() {
+	u := s.users["admin1@example.com"]
+	filter := fleet.TeamFilter{User: &u}
+	hosts, _ := s.ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
+	var ids []uint
+	for _, host := range hosts {
+		ids = append(ids, host.ID)
+	}
+	s.ds.DeleteHosts(context.Background(), ids)
 }
 
 func TestIntegrations(t *testing.T) {
@@ -266,6 +277,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1",
 		UUID:            t.Name() + "1",
@@ -327,11 +339,12 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 		_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
-			UUID:            fmt.Sprintf("%d", i),
-			Hostname:        fmt.Sprintf("foo.local%d", i),
+			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
+			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
 		require.NoError(t, err)
 	}
@@ -389,4 +402,221 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	policiesResponse = listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+
+	req := deleteHostsRequest{
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{TeamID: ptr.Uint(team1.ID)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.NoError(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.NoError(t, err)
+
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	label := &fleet.Label{
+		Name:  "foo",
+		Query: "select * from foo;",
+	}
+	label, err := s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
+	req := deleteHostsRequest{
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{LabelID: ptr.Uint(label.ID)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	require.NoError(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.Error(t, err)
+
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID, hosts[1].ID},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.NoError(t, err)
+
+	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
+	require.NoError(t, err)
+}
+
+func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
+	var hosts []*fleet.Host
+
+	for i := 0; i < 3; i++ {
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
+			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+	return hosts
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID, hosts[1].ID},
+		Filters: struct {
+			MatchQuery string           `json:"query"`
+			Status     fleet.HostStatus `json:"status"`
+			LabelID    *uint            `json:"label_id"`
+			TeamID     *uint            `json:"team_id"`
+		}{LabelID: ptr.Uint(1)},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
+}
+
+func (s *integrationTestSuite) TestCountSoftware() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	label := &fleet.Label{
+		Name:  t.Name() + "foo",
+		Query: "select * from foo;",
+	}
+	label, err := s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+
+	req := countHostsRequest{}
+	resp := countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/v1/fleet/hosts/count", req, http.StatusOK, &resp,
+		"additional_info_filters", "*",
+	)
+	assert.Equal(t, 3, resp.Count)
+
+	req = countHostsRequest{}
+	resp = countHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/v1/fleet/hosts/count", req, http.StatusOK, &resp,
+		"additional_info_filters", "*",
+		"label_id", fmt.Sprint(label.ID),
+	)
+	assert.Equal(t, 1, resp.Count)
+}
+
+func (s *integrationTestSuite) TestGetPack() {
+	t := s.T()
+
+	pack := &fleet.Pack{
+		Name: t.Name(),
+	}
+	pack, err := s.ds.NewPack(context.Background(), pack)
+	require.NoError(t, err)
+
+	var packResp getPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packResp.Pack.ID, pack.ID)
+
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+}
+
+func (s *integrationTestSuite) TestListHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+
+	host := hosts[2]
+	host.HostSoftware = fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		},
+	}
+	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, host.ID, resp.Hosts[0].ID)
+	assert.Equal(t, "foo", resp.Software.Name)
+
+	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }

@@ -17,6 +17,8 @@ export default {
   ACTIVITIES: "/v1/fleet/activities",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOSTS: "/v1/fleet/hosts",
+  HOSTS_COUNT: "/v1/fleet/hosts/count",
+  HOSTS_DELETE: "/v1/fleet/hosts/delete",
   HOSTS_TRANSFER: "/v1/fleet/hosts/transfer",
   HOSTS_TRANSFER_BY_FILTER: "/v1/fleet/hosts/transfer/filter",
   INVITES: "/v1/fleet/invites",
@@ -30,18 +32,21 @@ export default {
   PACKS: "/v1/fleet/packs",
   PERFORM_REQUIRED_PASSWORD_RESET: "/v1/fleet/perform_required_password_reset",
   QUERIES: "/v1/fleet/queries",
-  POLICIES: "/v1/fleet/global/policies",
+  GLOBAL_POLICIES: "/v1/fleet/global/policies",
+  TEAM_POLICIES: (id: number): string => {
+    return `/v1/fleet/teams/${id}/policies`;
+  },
   RESET_PASSWORD: "/v1/fleet/reset_password",
   RUN_QUERY: "/v1/fleet/queries/run",
   SCHEDULED_QUERIES: "/v1/fleet/schedule",
-  SCHEDULED_QUERY: (pack: IPack): string => {
-    return `/v1/fleet/packs/${pack.id}/scheduled`;
+  SCHEDULED_QUERY: (id: number): string => {
+    return `/v1/fleet/packs/${id}/scheduled`;
   },
   SETUP: "/v1/setup",
   STATUS_LABEL_COUNTS: "/v1/fleet/host_summary",
   TARGETS: "/v1/fleet/targets",
   TEAM_SCHEDULE: (id: number): string => {
-    return `/v1/fleet/team/${id}/schedule`;
+    return `/v1/fleet/teams/${id}/schedule`;
   },
   USERS: "/v1/fleet/users",
   USERS_ADMIN: "/v1/fleet/users/admin",

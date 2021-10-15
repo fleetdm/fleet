@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -45,13 +46,60 @@ var enrollTests = []struct {
 	},
 }
 
-func TestSaveHosts(t *testing.T) {
+func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"Save", testHostsSave},
+		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
+		{"SavePackStats", testHostsSavePackStats},
+		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
+		{"IgnoresTeamPackStats", testHostsIgnoresTeamPackStats},
+		{"Delete", testHostsDelete},
+		{"ListFilterAdditional", testHostsListFilterAdditional},
+		{"ListStatus", testHostsListStatus},
+		{"ListQuery", testHostsListQuery},
+		{"Enroll", testHostsEnroll},
+		{"Authenticate", testHostsAuthenticate},
+		{"AuthenticateCaseSensitive", testHostsAuthenticateCaseSensitive},
+		{"Search", testHostsSearch},
+		{"SearchLimit", testHostsSearchLimit},
+		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"MarkSeen", testHostsMarkSeen},
+		{"MarkSeenMany", testHostsMarkSeenMany},
+		{"CleanupIncoming", testHostsCleanupIncoming},
+		{"IDsByName", testHostsIDsByName},
+		{"Additional", testHostsAdditional},
+		{"ByIdentifier", testHostsByIdentifier},
+		{"AddToTeam", testHostsAddToTeam},
+		{"SaveUsers", testHostsSaveUsers},
+		{"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
+		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
+		{"ListByPolicy", testHostsListByPolicy},
+		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
+		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
+		{"AuthenticateHostLoadsDisk", testAuthenticateHostLoadsDisk},
+		{"HostsListBySoftware", testHostsListBySoftware},
+		{"HostsListFailingPolicies", testHostsListFailingPolicies},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testHostsSave(t *testing.T, ds *Datastore) {
+	policyUpdatedAt := time.Now().UTC().Truncate(time.Second)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: policyUpdatedAt,
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -64,13 +112,14 @@ func TestSaveHosts(t *testing.T) {
 
 	host.Hostname = "bar.local"
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
 	assert.Equal(t, "30-65-EC-6F-C4-58", host.PrimaryMac)
+	assert.Equal(t, policyUpdatedAt.UTC(), host.PolicyUpdatedAt)
 
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
@@ -79,16 +128,16 @@ func TestSaveHosts(t *testing.T) {
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host))
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, host)
 	require.NotNil(t, host.Additional)
 	assert.Equal(t, additionalJSON, *host.Additional)
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, host)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
@@ -99,13 +148,11 @@ func TestSaveHosts(t *testing.T) {
 	assert.Nil(t, host)
 }
 
-func TestDeleteHostWithSoftware(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -135,13 +182,11 @@ func TestDeleteHostWithSoftware(t *testing.T) {
 	assert.Nil(t, host)
 }
 
-func TestSaveHostPackStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -250,13 +295,11 @@ func TestSaveHostPackStats(t *testing.T) {
 	require.Len(t, host.PackStats, 2)
 }
 
-func TestSaveHostPackStatsOverwrites(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -396,13 +439,11 @@ func TestSaveHostPackStatsOverwrites(t *testing.T) {
 	assert.Equal(t, execTime2, gotHost.PackStats[0].QueryStats[0].LastExecuted)
 }
 
-func TestIgnoresTeamPackStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsIgnoresTeamPackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -478,19 +519,17 @@ func TestIgnoresTeamPackStats(t *testing.T) {
 	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats1)
 }
 
-func TestDeleteHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsDelete(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, host)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
@@ -500,20 +539,27 @@ func TestDeleteHost(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestListHostsFilterAdditional(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount int) []*fleet.Host {
+	hosts, err := ds.ListHosts(context.Background(), filter, opt)
+	require.NoError(t, err)
+	count, err := ds.CountHosts(context.Background(), filter, opt)
+	require.NoError(t, err)
+	require.Equal(t, expectedCount, count)
+	return hosts
+}
 
+func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -522,32 +568,28 @@ func TestListHostsFilterAdditional(t *testing.T) {
 	h.Additional = &additional
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h))
 
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	require.Nil(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1)
 	assert.Nil(t, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "field2"}}, 1)
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"*"}})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"*"}}, 1)
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
 	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "missing"}}, 1)
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
-func TestListHostsStatus(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListStatus(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -562,32 +604,26 @@ func TestListHostsStatus(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "online"})
-	require.Nil(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "online"}, 1)
 	assert.Equal(t, 1, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "offline"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "offline"}, 9)
 	assert.Equal(t, 9, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "mia"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "new"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
 	assert.Equal(t, 10, len(hosts))
 }
 
-func TestListHostsQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListQuery(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -612,67 +648,50 @@ func TestListHostsQuery(t *testing.T) {
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host.ID}))
 	}
 
-	gotHosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	require.Nil(t, err)
+	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: &team1.ID})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team1.ID}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: &team2.ID})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 	assert.Equal(t, 0, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: nil})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: nil}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "000"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "000"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168."}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168."}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168.1.1"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168.1.1"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_006"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_006"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 }
 
-func TestEnrollHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsEnroll(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -680,14 +699,14 @@ func TestEnrollHost(t *testing.T) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	for _, host := range hosts {
 		assert.Zero(t, host.LastEnrolledAt)
 	}
 
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
-		require.Nil(t, err)
+		require.NoError(t, err)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
@@ -703,20 +722,17 @@ func TestEnrollHost(t *testing.T) {
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
 
-	require.Nil(t, err)
+	require.NoError(t, err)
 	for _, host := range hosts {
 		assert.NotZero(t, host.LastEnrolledAt)
 	}
 }
 
-func TestAuthenticateHost(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
-		require.Nil(t, err)
+		require.NoError(t, err)
 
 		returned, err := ds.AuthenticateHost(context.Background(), h.NodeKey)
 		require.NoError(t, err)
@@ -730,56 +746,53 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAuthenticateHostCaseSensitive(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
-		require.Nil(t, err)
+		require.NoError(t, err)
 
 		_, err = ds.AuthenticateHost(context.Background(), strings.ToUpper(h.NodeKey))
 		require.Error(t, err, "node key authentication should be case sensitive")
 	}
 }
 
-func TestSearchHosts(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSearch(t *testing.T, ds *Datastore) {
 	_, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "5679",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h3, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "99999",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "3",
 		UUID:            "abc-def-ghi",
 		Hostname:        "foo-bar.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
@@ -787,24 +800,24 @@ func TestSearchHosts(t *testing.T) {
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
 	_, err = ds.SearchHosts(context.Background(), filter, "")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	hosts, err := ds.SearchHosts(context.Background(), filter, "foo")
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 2)
 
 	host, err := ds.SearchHosts(context.Background(), filter, "foo", h3.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "foo.local", host[0].Hostname)
 
 	host, err = ds.SearchHosts(context.Background(), filter, "foo", h3.ID, h2.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "foo.local", host[0].Hostname)
 
 	host, err = ds.SearchHosts(context.Background(), filter, "abc")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host, 1)
 	assert.Equal(t, "abc-def-ghi", host[0].UUID)
 
@@ -815,55 +828,50 @@ func TestSearchHosts(t *testing.T) {
 	// check to make sure search on ip address works
 	h2.PrimaryIP = "99.100.101.103"
 	err = ds.SaveHost(context.Background(), h2)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	hits, err := ds.SearchHosts(context.Background(), filter, "99.100.101")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 1, len(hits))
 
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.111")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
 
 	h3.PrimaryIP = "99.100.101.104"
 	err = ds.SaveHost(context.Background(), h3)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 2, len(hits))
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", h3.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(hits))
 }
 
-func TestSearchHostsLimit(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for i := 0; i < 15; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
-		require.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	hosts, err := ds.SearchHosts(context.Background(), filter, "foo")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, hosts, 10)
 }
 
-func TestGenerateHostStatusStatistics(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
@@ -881,9 +889,10 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
+		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	h.DistributedInterval = 15
 	h.ConfigTLSRefresh = 30
 	require.Nil(t, ds.SaveHost(context.Background(), h))
@@ -895,9 +904,10 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 		NodeKey:         "2",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
+		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:        mockClock.Now().Add(-1 * time.Minute),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	h.DistributedInterval = 60
 	h.ConfigTLSRefresh = 3600
 	require.Nil(t, ds.SaveHost(context.Background(), h))
@@ -909,9 +919,10 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 		NodeKey:         "3",
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
+		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:        mockClock.Now().Add(-1 * time.Hour),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	h.DistributedInterval = 300
 	h.ConfigTLSRefresh = 300
 	require.Nil(t, ds.SaveHost(context.Background(), h))
@@ -923,9 +934,10 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 		NodeKey:         "4",
 		DetailUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
+		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
@@ -942,10 +954,7 @@ func TestGenerateHostStatusStatistics(t *testing.T) {
 	assert.Equal(t, uint(4), new)
 }
 
-func TestMarkHostSeen(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	anHourAgo := mockClock.Now().Add(-1 * time.Hour).UTC()
@@ -958,6 +967,7 @@ func TestMarkHostSeen(t *testing.T) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
 	assert.Nil(t, err)
@@ -980,10 +990,7 @@ func TestMarkHostSeen(t *testing.T) {
 	}
 }
 
-func TestMarkHostsSeen(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	aSecondAgo := mockClock.Now().Add(-1 * time.Second).UTC()
@@ -997,9 +1004,10 @@ func TestMarkHostsSeen(t *testing.T) {
 		NodeKey:         "1",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
@@ -1008,9 +1016,10 @@ func TestMarkHostsSeen(t *testing.T) {
 		NodeKey:         "2",
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
+		PolicyUpdatedAt: aDayAgo,
 		SeenTime:        aDayAgo,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID}, anHourAgo)
 	assert.Nil(t, err)
@@ -1041,13 +1050,9 @@ func TestMarkHostsSeen(t *testing.T) {
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
 	}
-
 }
 
-func TestCleanupIncomingHosts(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1057,9 +1062,10 @@ func TestCleanupIncomingHosts(t *testing.T) {
 		NodeKey:         "1",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
+		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
@@ -1070,9 +1076,10 @@ func TestCleanupIncomingHosts(t *testing.T) {
 		OsqueryVersion:  "3.2.3",
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
+		PolicyUpdatedAt: mockClock.Now(),
 		SeenTime:        mockClock.Now(),
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
 	assert.Nil(t, err)
@@ -1093,53 +1100,74 @@ func TestCleanupIncomingHosts(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestHostIDsByName(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("host%d", i),
 			NodeKey:         fmt.Sprintf("%d", i),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
-		require.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hosts, err := ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
 	assert.Equal(t, hosts, []uint{2, 3, 6})
 }
 
-func TestHostAdditional(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
-	_, err := ds.NewHost(context.Background(), &fleet.Host{
+func testAuthenticateHostLoadsDisk(t *testing.T, ds *Datastore) {
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		OsqueryHostID:   "foobar",
 		NodeKey:         "nodekey",
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
+
+	h.GigsDiskSpaceAvailable = 1.24
+	h.PercentDiskSpaceAvailable = 42.0
+	require.NoError(t, ds.SaveHost(context.Background(), h))
+	h, err = ds.Host(context.Background(), h.ID)
+	require.NoError(t, err)
+
+	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	require.NoError(t, err)
+	assert.NotZero(t, h.GigsDiskSpaceAvailable)
+	assert.NotZero(t, h.PercentDiskSpaceAvailable)
+}
+
+func testHostsAdditional(t *testing.T, ds *Datastore) {
+	_, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "foobar",
+		NodeKey:         "nodekey",
+		UUID:            "uuid",
+		Hostname:        "foobar.local",
+	})
+	require.NoError(t, err)
 
 	h, err := ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	// Additional not yet set
 	h, err = ds.Host(context.Background(), h.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, h.Additional)
 
 	// Add additional
@@ -1149,63 +1177,61 @@ func TestHostAdditional(t *testing.T) {
 
 	// Additional should not be loaded for authenticatehost
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(context.Background(), h.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
 	// Update besides additional. Additional should be unchanged.
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	h.Hostname = "baz.local"
 	err = ds.SaveHost(context.Background(), h)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(context.Background(), h.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
 	// Update additional
 	additional = json.RawMessage(`{"other": "additional"}`)
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	h.Additional = &additional
 	err = saveHostAdditionalDB(context.Background(), ds.writer, h)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
 	h, err = ds.Host(context.Background(), h.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 }
 
-func TestHostByIdentifier(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
 			NodeKey:         fmt.Sprintf("node_key_%d", i),
 			UUID:            fmt.Sprintf("uuid_%d", i),
 			Hostname:        fmt.Sprintf("hostname_%d", i),
 		})
-		require.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	var (
@@ -1232,10 +1258,7 @@ func TestHostByIdentifier(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAddHostsToTeam(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -1282,13 +1305,11 @@ func TestAddHostsToTeam(t *testing.T) {
 	}
 }
 
-func TestSaveHostUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1300,10 +1321,10 @@ func TestSaveHostUsers(t *testing.T) {
 	require.NotNil(t, host)
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
 	u1 := fleet.HostUser{
@@ -1322,10 +1343,10 @@ func TestSaveHostUsers(t *testing.T) {
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 
@@ -1334,10 +1355,10 @@ func TestSaveHostUsers(t *testing.T) {
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 
@@ -1346,21 +1367,19 @@ func TestSaveHostUsers(t *testing.T) {
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 }
 
-func TestSaveUsersWithoutUid(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1372,10 +1391,10 @@ func TestSaveUsersWithoutUid(t *testing.T) {
 	require.NotNil(t, host)
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
 	u1 := fleet.HostUser{
@@ -1392,10 +1411,10 @@ func TestSaveUsersWithoutUid(t *testing.T) {
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
 
@@ -1404,10 +1423,10 @@ func TestSaveUsersWithoutUid(t *testing.T) {
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
@@ -1416,6 +1435,7 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
 		OsqueryHostID:   fmt.Sprintf("%d", i),
 		NodeKey:         fmt.Sprintf("%d", i),
@@ -1428,10 +1448,7 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	require.NotNil(t, host)
 }
 
-func TestTotalAndUnseenHostsSince(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	addHostSeenLast(t, ds, 1, 0)
 
 	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
@@ -1448,14 +1465,12 @@ func TestTotalAndUnseenHostsSince(t *testing.T) {
 	assert.Equal(t, 2, unseen)
 }
 
-func TestListHostsByPolicy(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
@@ -1468,51 +1483,156 @@ func TestListHostsByPolicy(t *testing.T) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), q.ID)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
 	require.NoError(t, err)
 
 	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
-	require.NoError(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID}, 10)
 	require.Len(t, hosts, 10)
 
 	h1 := hosts[0]
 	h2 := hosts[1]
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 0)
 	require.Len(t, hosts, 0)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)}, 0)
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, h1.ID, hosts[0].ID)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)}, 1)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, h2.ID, hosts[0].ID)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID}, 8)
 	require.Len(t, hosts, 8)
 }
 
-func TestSaveTonsOfUsers(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testHostsListBySoftware(t *testing.T, ds *Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
 
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
+		},
+	}
+	host1 := hosts[0]
+	host2 := hosts[1]
+	host1.HostSoftware = soft
+	host2.HostSoftware = soft
+
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
+	require.Len(t, hosts, 2)
+}
+
+func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID)
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(context.Background(), q2.ID)
+	require.NoError(t, err)
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
+	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
+}
+
+func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	foundH2 := false
+	var foundHost *fleet.Host
+	for _, host := range hosts {
+		if host.ID == hid {
+			foundH2 = true
+			foundHost = host
+			break
+		}
+	}
+	require.True(t, foundH2)
+	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+
+	hostById, err := ds.Host(context.Background(), hid)
+	require.NoError(t, err)
+	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
+}
+
+func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1527,6 +1647,7 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -1545,7 +1666,12 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	var count1 int32
 	var count2 int32
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
+
 		for {
 			host1, err := ds.Host(context.Background(), host1.ID)
 			if err != nil {
@@ -1584,7 +1710,9 @@ func TestSaveTonsOfUsers(t *testing.T) {
 				errCh <- err
 				return
 			}
-			atomic.AddInt32(&count1, 1)
+			if atomic.AddInt32(&count1, 1) >= 100 {
+				return
+			}
 
 			select {
 			case <-ctx.Done():
@@ -1595,6 +1723,8 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	}()
 
 	go func() {
+		defer wg.Done()
+
 		for {
 			host2, err := ds.Host(context.Background(), host2.ID)
 			if err != nil {
@@ -1633,7 +1763,9 @@ func TestSaveTonsOfUsers(t *testing.T) {
 				errCh <- err
 				return
 			}
-			atomic.AddInt32(&count2, 1)
+			if atomic.AddInt32(&count2, 1) >= 100 {
+				return
+			}
 
 			select {
 			case <-ctx.Done():
@@ -1644,24 +1776,28 @@ func TestSaveTonsOfUsers(t *testing.T) {
 	}()
 
 	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		wg.Wait()
+		cancelFunc()
+	}()
 
 	select {
 	case err := <-errCh:
-		require.NoError(t, err)
 		cancelFunc()
+		require.NoError(t, err)
+	case <-ctx.Done():
 	case <-ticker.C:
+		require.Fail(t, "timed out")
 	}
-	fmt.Println("Count1", atomic.LoadInt32(&count1))
-	fmt.Println("Count2", atomic.LoadInt32(&count2))
+	t.Log("Count1", atomic.LoadInt32(&count1))
+	t.Log("Count2", atomic.LoadInt32(&count2))
 }
 
-func TestSaveHostPackStatsConcurrent(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "1",
 		UUID:            "1",
@@ -1676,6 +1812,7 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         "2",
 		UUID:            "2",
@@ -1743,14 +1880,18 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 				},
 			},
 		}
-		return ds.SaveHost(context.Background(), host1)
+		return ds.SaveHost(context.Background(), host)
 	}
 
 	errCh := make(chan error)
 	var counter int32
-	total := int32(1000)
+	const total = int32(100)
+
+	var wg sync.WaitGroup
 
 	loopAndSaveHost := func(host *fleet.Host) {
+		defer wg.Done()
+
 		for {
 			err := saveHostRandomStats(host)
 			if err != nil {
@@ -1770,10 +1911,13 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 		}
 	}
 
+	wg.Add(3)
 	go loopAndSaveHost(host1)
 	go loopAndSaveHost(host2)
 
 	go func() {
+		defer wg.Done()
+
 		for {
 			specs := []*fleet.PackSpec{
 				{
@@ -1817,13 +1961,14 @@ func TestSaveHostPackStatsConcurrent(t *testing.T) {
 		}
 	}()
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	select {
 	case err := <-errCh:
+		cancelFunc()
 		require.NoError(t, err)
 	case <-ctx.Done():
-		return
+		wg.Wait()
 	case <-ticker.C:
-		t.Fail()
+		require.Fail(t, "timed out")
 	}
 }

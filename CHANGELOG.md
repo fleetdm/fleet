@@ -1,3 +1,92 @@
+## Fleet 4.4.2 (Oct 14, 2021)
+
+* Fix migration errors under some MySQL configurations due to use of temporary tables.
+
+* Fix pagination of hosts on host dashboard.
+
+* Optimize HTTP requests on host search.
+
+## Fleet 4.4.1 (Oct 8, 2021)
+
+* Fix database migrations error when updating from 4.3.2 to 4.4.0. This did not effect upgrades
+  between other versions and 4.4.0.
+
+* Improve logging of errors in fleet serve.
+
+## Fleet 4.4.0 (Oct 6, 2021)
+
+* Fleet Premium: Teams Schedules show inherited queries from All teams (global) Schedule.
+
+* Fleet Premium: Team Maintainers can modify and delete queries, and modify the Team Schedule.
+
+* Fleet Premium: Team Maintainers can delete hosts from their teams.
+
+* `fleetctl get hosts` now shows host additional queries if there are any.
+
+* Update default homepage to new dashboard.
+
+* Add ability to bulk delete hosts based on manual selection and applied filters.
+
+* Display macOS bundle identifiers on software table if available.
+
+* Fixed scroll position when navigating to different pages.
+
+* Fleet Premium: When transferring a host from team to team, clear the Policy results for that host.
+
+* Improve stability of host vitals (fix cases of dropping users table, disk space).
+
+* Improve performance and reliability of Policy database migrations.
+
+* Provide a more clear error when a user tries to delete a query that is set in a Policy.
+
+* Fix query editor Delete key and horizontal scroll issues.
+
+* Cleaner buttons and icons on Manage Hosts Page.
+
+## Fleet 4.3.2 (Sept 29, 2021)
+
+* Improve database performance by reducing the amount of MySQL database queries when a host checks in.
+
+* Fix a bug in which users with the global maintainer role could not edit or save queries. In, Fleet 4.0.0, the Admin, Maintainer, and Observer user roles were introduced. Documentation for the permissions associated with each role can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions). 
+
+* Fix a bug in which policies were checked about every second and add a `policy_update_interval` osquery configuration option. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval).
+
+* Fix a bug in which edits to a query’s name, description, SQL did not appear until the user refreshed the Edit query page.
+
+* Fix a bug in which the hosts count for a label returned 0 after modifying a label’s name or description.
+
+* Improve error message when attempting to create or edit a user with an email that already exists.
+
+## Fleet 4.3.1 (Sept 21, 2021)
+
+* Add `fleetctl get software` command to list all software and the detected vulnerabilities. The Vulnerable software feature is currently in Beta. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
+
+* Add `fleetctl vulnerability-data-stream` command to sync the vulnerabilities processing data streams by hand.
+
+* Add `disable_data_sync` vulnerabilities configuration option to avoid downloading the data streams. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#disable-data-sync).
+
+* Only show observers the queries they have permissions to run on the **Queries** page. In, Fleet 4.0.0, the Admin, Maintainer, and Observer user roles were introduced. Documentation for the permissions associated with each role can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions). 
+
+* Add `connect_retry_attempts` Redis configuration option to retry failed connections. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-connect-retry-attempts).
+
+* Add `cluster_follow_redirections` Redis configuration option to follow cluster redirections. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-cluster-follow-redirections).
+
+* Add `max_jitter_percent` osquery configuration option to prevent all hosts from returning data at roughly the same time. Note that this improves the Fleet server performance, but it will now take longer for new labels to populate. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#osquery-max-jitter-percent).
+
+* Improve the performance of database migrations.
+
+* Reduce database load for label membership recording.
+
+* Fail early if the process does not have permissions to write to the logging file.
+
+* Completely skip trying to save a host's users and software inventory if it's disabled to reduce database load. 
+
+* Fix a bug in which team maintainers were unable to run live queries against the hosts assigned to their team(s).
+
+* Fix a bug in which a blank screen would intermittently appear on the **Hosts** page.
+
+* Fix a bug detecting disk space for hosts.
+
 ## Fleet 4.3.0 (Sept 13, 2021)
 
 * Add Policies feature for detecting device compliance with organizational policies.
@@ -138,7 +227,7 @@
 
 * Add ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
 
-* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
+* Add Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/13-Vulnerability-Processing.md#vulnerability-processing).
 
 * Add ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
 
@@ -148,9 +237,9 @@
 
 * Add ability to modify scheduled queries in your Schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1).
 
-* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
+* Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
 
-* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/2-Deploying/2-Configuration.md#feature-flags).
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#feature-flags).
 
 * Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
 
@@ -329,9 +418,9 @@ There are currently no known issues in this release. However, we recommend only 
 
 The primary additions in Fleet 4.0.0 are the new Role-based access control (RBAC) and Teams features. 
 
-RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/9-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
+RBAC adds the ability to define a user's access to information and features in Fleet. This way, more individuals in an organization can utilize Fleet with appropriate levels of access. Check out the [permissions documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/09-Permissions.md) for a breakdown of the new user roles and their respective capabilities.
 
-Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md).
+Teams adds the ability to separate hosts into exclusive groups. This way, users can easily observe and apply operations to consistent groups of hosts. Read more about the Teams feature in [the documentation here](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md).
 
 There are several known issues that will be fixed for the stable release of Fleet 4.0.0. Therefore, we recommend only upgrading to Fleet 4.0.0 RC1 for testing purposes. Please file a GitHub issue for any issues discovered when testing Fleet 4.0.0!
 
@@ -399,7 +488,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/2-Deploying/2-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/02-Configuration.md#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
@@ -867,7 +956,7 @@ to 2.0.0.
 
 ## Kolide Fleet 2.0.0 (currently preparing for release)
 
-The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/2-fleetctl-CLI.md).
+The primary new addition in Fleet 2 is the new `fleetctl` CLI and file-format, which dramatically increases the flexibility and control that administrators have over their osquery deployment. The CLI and the file format are documented [in the Fleet documentation](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/02-fleetctl-CLI.md).
 
 ### New Features
 

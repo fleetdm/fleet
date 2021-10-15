@@ -93,7 +93,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.EDIT_PACK(cellProps.row.original)}
+          path={PATHS.EDIT_PACK(cellProps.row.original.id)}
         />
       ),
     },

@@ -91,10 +91,12 @@ type OsqueryConfig struct {
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
 	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -138,11 +140,15 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
-	Bucket           string
-	Prefix           string
+	Bucket           string `yaml:"bucket"`
+	Prefix           string `yaml:"prefix"`
+	Region           string `yaml:"region"`
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	DisableSSL       bool   `yaml:"disable_ssl"`
+	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -298,6 +304,8 @@ func (man Manager) addConfigs() {
 		"Log plugin to use for result logs")
 	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
 		"Interval to update host label membership (i.e. 1h)")
+	man.addConfigDuration("osquery.policy_update_interval", 1*time.Hour,
+		"Interval to update host policy membership (i.e. 1h)")
 	man.addConfigDuration("osquery.detail_update_interval", 1*time.Hour,
 		"Interval to update host details (i.e. 1h)")
 	man.addConfigString("osquery.status_log_file", "",
@@ -306,6 +314,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.result_log_file) Path for osqueryd result logs")
 	man.addConfigBool("osquery.enable_log_rotation", false,
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
+	man.addConfigInt("osquery.max_jitter_percent", 10,
+		"Maximum percentage of the interval to add as jitter")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -355,9 +365,13 @@ func (man Manager) addConfigs() {
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
 	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -461,8 +475,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
 			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval: man.getConfigDuration("osquery.policy_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -498,9 +514,13 @@ func (man Manager) LoadConfig() FleetConfig {
 		S3: S3Config{
 			Bucket:           man.getConfigString("s3.bucket"),
 			Prefix:           man.getConfigString("s3.prefix"),
+			Region:           man.getConfigString("s3.region"),
+			EndpointURL:      man.getConfigString("s3.endpoint_url"),
 			AccessKeyID:      man.getConfigString("s3.access_key_id"),
 			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
+			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -748,7 +768,9 @@ func TestConfig() FleetConfig {
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
+			PolicyUpdateInterval: 1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
+			MaxJitterPercent:     0,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

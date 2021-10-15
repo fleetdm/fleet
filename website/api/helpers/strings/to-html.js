@@ -75,9 +75,16 @@ module.exports = {
     };
     if (inputs.addIdsToHeadings === true) {
       var headingRenderer = new marked.Renderer();
+      var headingsRenderedOnThisPage = [];
       headingRenderer.heading = function (text, level) {
-        var headingID = _.kebabCase(text);
-        return '<span class="docs-heading"><h'+level+' id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="docs-link"></a></h'+level+'></span>';
+        var headingID = _.kebabCase(_.unescape(text).replace(/[\’\']/g, ''));
+        if(!_.contains(headingsRenderedOnThisPage, headingID)){
+          headingsRenderedOnThisPage.push(headingID);
+        } else {
+          headingID = sails.helpers.strings.ensureUniq(headingID, headingsRenderedOnThisPage);
+          headingsRenderedOnThisPage.push(headingID);
+        }
+        return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+text+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
       };
       markedOpts.renderer = headingRenderer;
     } else  {

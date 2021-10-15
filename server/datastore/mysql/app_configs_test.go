@@ -15,10 +15,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOrgInfo(t *testing.T) {
+func TestAppConfig(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"OrgInfo", testAppConfigOrgInfo},
+		{"AdditionalQueries", testAppConfigAdditionalQueries},
+		{"EnrollSecrets", testAppConfigEnrollSecrets},
+		{"EnrollSecretsCaseSensitive", testAppConfigEnrollSecretsCaseSensitive},
+		{"EnrollSecretRoundtrip", testAppConfigEnrollSecretRoundtrip},
+		{"EnrollSecretUniqueness", testAppConfigEnrollSecretUniqueness},
+		{"Defaults", testAppConfigDefaults},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 	info := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName:    "Test",
@@ -95,10 +114,7 @@ func TestOrgInfo(t *testing.T) {
 	assert.False(t, verify.SSOEnabled)
 }
 
-func TestAdditionalQueries(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
 	additional := ptr.RawMessage(json.RawMessage("not valid json"))
 	info := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
@@ -124,9 +140,8 @@ func TestAdditionalQueries(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"bar"}`, string(rawJson))
 }
 
-func TestEnrollSecrets(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testAppConfigEnrollSecrets(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -180,9 +195,8 @@ func TestEnrollSecrets(t *testing.T) {
 	assert.Equal(t, (*uint)(nil), secret.TeamID)
 }
 
-func TestEnrollSecretsCaseSensitive(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testAppConfigEnrollSecretsCaseSensitive(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
 
 	err := ds.ApplyEnrollSecrets(
 		context.Background(),
@@ -199,9 +213,8 @@ func TestEnrollSecretsCaseSensitive(t *testing.T) {
 	assert.Error(t, err, "enroll secret with different case should not verify")
 }
 
-func TestEnrollSecretRoundtrip(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testAppConfigEnrollSecretRoundtrip(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -241,9 +254,8 @@ func TestEnrollSecretRoundtrip(t *testing.T) {
 
 }
 
-func TestEnrollSecretUniqueness(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
+func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -259,10 +271,7 @@ func TestEnrollSecretUniqueness(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAppConfigDefaults(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
 	_, err := ds.writer.Exec(insertAppConfigQuery, `{}`)
 	require.NoError(t, err)

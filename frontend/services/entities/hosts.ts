@@ -1,21 +1,22 @@
+/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IHost } from "interfaces/host";
 
-interface ISortOption {
-  id: number;
+export interface ISortOption {
+  key: string;
   direction: string;
 }
 
-interface IHostLoadOptions {
-  page: number;
-  perPage: number;
-  selectedLabels: string[];
-  globalFilter: string;
-  sortBy: ISortOption[];
-  teamId: number;
-  policyId: number;
-  policyResponse: string;
+export interface IHostLoadOptions {
+  page?: number;
+  perPage?: number;
+  selectedLabels?: string[];
+  globalFilter?: string;
+  sortBy?: ISortOption[];
+  teamId?: number;
+  policyId?: number;
+  policyResponse?: string;
 }
 
 export default {
@@ -24,6 +25,27 @@ export default {
     const path = `${HOSTS}/${host.id}`;
 
     return sendRequest("DELETE", path);
+  },
+  destroyBulk: (hostIds: number[]) => {
+    const { HOSTS_DELETE } = endpoints;
+
+    return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
+  },
+  destroyByFilter: (
+    teamId: number | null,
+    query: string,
+    status: string,
+    labelId: number | null
+  ) => {
+    const { HOSTS_DELETE } = endpoints;
+    return sendRequest("POST", HOSTS_DELETE, {
+      filters: {
+        query,
+        status,
+        label_id: labelId,
+        team_id: teamId,
+      },
+    });
   },
   refetch: (host: IHost) => {
     const { HOSTS } = endpoints;
@@ -55,7 +77,7 @@ export default {
     let orderDirection = "";
     if (sortBy.length !== 0) {
       const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.id}`;
+      orderKeyParam += `&order_key=${sortItem.key}`;
       orderDirection = `&order_direction=${sortItem.direction}`;
     }
 

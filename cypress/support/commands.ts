@@ -27,8 +27,13 @@ import "cypress-wait-until";
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
+const SHELL = Cypress.platform === "win32" ? "cmd" : "bash";
+
 Cypress.Commands.add("setup", () => {
-  cy.exec("make e2e-reset-db e2e-setup", { timeout: 20000 });
+  cy.exec("make e2e-reset-db e2e-setup", {
+    timeout: 20000,
+    env: { SHELL },
+  });
 });
 
 Cypress.Commands.add("login", (email, password) => {
@@ -146,7 +151,7 @@ Cypress.Commands.add("loginSSO", () => {
       "http://localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080",
     followRedirect: false,
   }).then((firstResponse) => {
-    const redirect = firstResponse.headers.location;
+    const redirect = firstResponse.headers.location as string;
 
     cy.request({
       method: "GET",
@@ -200,6 +205,7 @@ Cypress.Commands.add("seedFree", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -213,6 +219,7 @@ Cypress.Commands.add("seedPremium", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -226,6 +233,7 @@ Cypress.Commands.add("seedFigma", () => {
       SERVER_URL: Cypress.config().baseUrl,
       // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
       FLEET_ENV_PATH: "",
+      SHELL,
     },
   });
 });
@@ -238,7 +246,10 @@ Cypress.Commands.add("addUser", (options = {}) => {
 
   cy.exec(
     `./build/fleetctl user create --context e2e --password "${password}" --email "${email}" --global-role "${globalRole}"`,
-    { timeout: 5000 }
+    {
+      timeout: 5000,
+      env: { SHELL },
+    }
   );
 });
 
@@ -269,6 +280,7 @@ Cypress.Commands.add("addDockerHost", (team = "") => {
         env: {
           ENROLL_SECRET: enrollSecret,
           FLEET_SERVER: `host.docker.internal:${serverPort}`,
+          SHELL,
         },
       }
     );
@@ -282,6 +294,14 @@ Cypress.Commands.add("stopDockerHost", () => {
       // Not that ENROLL_SECRET must be specified or docker-compose errors,
       // even when just trying to shut down the hosts.
       ENROLL_SECRET: "invalid",
+      SHELL,
     },
   });
+});
+
+Cypress.Commands.add("clearDownloads", () => {
+  // windows has issue with downloads location
+  if (Cypress.platform !== "win32") {
+    cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`, { env: { SHELL } });
+  }
 });

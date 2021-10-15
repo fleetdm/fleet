@@ -39,7 +39,7 @@ func (d *Datastore) UpdateAggregatedStats(ctx context.Context) error {
 		defer rows.Close()
 		medialSQL := `
 SELECT
-	t1.user_time AS median_val
+	t1.user_time / t1.executions AS median_val
 FROM (
 	SELECT
 		@rownum: = @rownum + 1 AS ` + "`row_number`" + `,
@@ -67,7 +67,7 @@ WHERE t1.row_number = floor(total_rows / 2) + 1;`
 			if err != nil {
 				return errors.Wrap(err, "scanning id for pack")
 			}
-			medianVal
+			//var medianVal float64
 			sqlx.SelectContext(ctx, tx, nil, medialSQL)
 		}
 

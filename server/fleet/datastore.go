@@ -61,7 +61,7 @@ type Datastore interface {
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries with the provided sorting and paging options. Associated packs should also
 	// be loaded.
-	ListQueries(ctx context.Context, opt ListOptions) ([]*Query, error)
+	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
 
@@ -139,10 +139,9 @@ type Datastore interface {
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 
-	// LabelQueriesForHost returns the label queries that should be executed for the given host. The cutoff is the
-	// minimum timestamp a query execution should have to be considered "fresh". Executions that are not fresh will be
-	// repeated. Results are returned in a map of label id -> query
-	LabelQueriesForHost(ctx context.Context, host *Host, cutoff time.Time) (map[string]string, error)
+	// LabelQueriesForHost returns the label queries that should be executed for the given host.
+	// Results are returned in a map of label id -> query
+	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
@@ -199,6 +198,14 @@ type Datastore interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
+
+	DeleteHosts(ctx context.Context, ids []uint) error
+
+	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
+
+	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
+	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -287,6 +294,7 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
+	CleanupOrphanLabelMembership(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -317,6 +325,7 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -331,8 +340,9 @@ type Datastore interface {
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
-	// GlobalPoliciesStore interface {
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	// GlobalPoliciesStore
+
+	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
 
@@ -340,6 +350,7 @@ type Datastore interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
+	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
@@ -349,6 +360,29 @@ type Datastore interface {
 	MigrationStatus(ctx context.Context) (MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, teamId *uint, opt ListOptions) ([]Software, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Team Policies
+
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Team Policies
+
+	// Lock tries to get an atomic lock on an instance named with `name`
+	// and an `owner` identified by a random string per instance.
+	// Subsequently locking the same resource name for the same owner
+	// renews the lock expiration.
+	// It returns true, nil if it managed to obtain a lock on the instance.
+	// false and potentially an error otherwise.
+	// This must not be blocking.
+	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
+	// Unlock tries to unlock the lock by that `name` for the specified
+	// `owner`. Unlocking when not holding the lock shouldn't error
+	Unlock(ctx context.Context, name string, owner string) error
 }
 
 type MigrationStatus int

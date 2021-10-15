@@ -19,19 +19,22 @@ describe(
 
     it("Can perform the appropriate core global maintainer actions", () => {
       cy.login("mary@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
       // Settings restrictions
       cy.findByText(/settings/i).should("not.exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
+
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/teams/i).should("not.exist");
       cy.contains("button", /add new host/i).click();
       cy.findByText("select a team").should("not.exist");
@@ -112,9 +115,7 @@ describe(
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
-      cy.findByLabelText(/query pack title/i)
-        .click()
-        .type("Errors and crashes");
+      cy.findByLabelText(/name/i).click().type("Errors and crashes");
 
       cy.findByLabelText(/description/i)
         .click()

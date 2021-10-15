@@ -186,6 +186,28 @@ const QueryResults = ({
   };
 
   const renderTable = () => {
+    const emptyResults = !queryResults || !queryResults.length;
+    const hasNoResultsYet = !isQueryFinished && emptyResults;
+    const finishedWithNoResults =
+      isQueryFinished && (!hostsCount.successful || emptyResults);
+
+    if (hasNoResultsYet) {
+      return null;
+    }
+
+    if (finishedWithNoResults) {
+      return (
+        <p className="no-results-message">
+          Your live query returned no results.
+          <span>
+            Expecting to see results? Check to see if the hosts you targeted
+            reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
+            table.
+          </span>
+        </p>
+      );
+    }
+
     return (
       <div className={`${baseClass}__results-table-container`}>
         <Button
@@ -263,10 +285,6 @@ const QueryResults = ({
     </div>
   );
 
-  const hasNoResults =
-    isQueryFinished &&
-    (!hostsCount.successful || !queryResults || !queryResults.length);
-
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
   });
@@ -299,21 +317,7 @@ const QueryResults = ({
               {NAV_TITLES.ERRORS}
             </Tab>
           </TabList>
-          <TabPanel>
-            {isQueryFinished && hasNoResults ? (
-              <p className="no-results-message">
-                Your live query returned no results.
-                <br />
-                <span>
-                  Expecting to see results? Check to see if the hosts you
-                  targeted reported &ldquo;Online&rdquo; or check out the
-                  &ldquo;Errors&rdquo; table.
-                </span>
-              </p>
-            ) : (
-              renderTable()
-            )}
-          </TabPanel>
+          <TabPanel>{renderTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </div>

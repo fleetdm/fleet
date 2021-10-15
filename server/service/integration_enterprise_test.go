@@ -103,40 +103,104 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	require.NoError(t, err)
 
 	ts := getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 0)
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := s.ds.NewQuery(
+		context.Background(),
+		&fleet.Query{Name: "TestQueryTeamPolicy", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true},
+	)
 	require.NoError(t, err)
 
 	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: ptr.Uint(42)}}
 	r := teamScheduleQueryResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
-	assert.Equal(t, "TestQuery2", ts.Scheduled[0].Name)
+	assert.Equal(t, "TestQueryTeamPolicy", ts.Scheduled[0].Name)
 	assert.Equal(t, qr.ID, ts.Scheduled[0].QueryID)
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
 	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
 
 	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
-	s.DoRaw("PATCH", fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id), []byte(`{"interval": 77}`), http.StatusOK)
+	s.DoRaw("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule/%d", team1.ID, id), []byte(`{"interval": 77}`), http.StatusOK)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
 
 	deleteResp := deleteTeamScheduleResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/team/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/team/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1" + t.Name(),
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	password := "garbage"
+	email := "testteam@user.com"
+
+	u := &fleet.User{
+		Name:       "test team user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(email, password)
+
+	ts := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 0)
+
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	require.NoError(t, err)
+
+	tpParams := teamPolicyRequest{QueryID: qr.ID}
+	r := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
+
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	assert.Equal(t, "TestQuery2", ts.Policies[0].QueryName)
+	assert.Equal(t, qr.ID, ts.Policies[0].QueryID)
+
+	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
+	deletePolicyResp := deleteTeamPoliciesResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies/delete", team1.ID), deletePolicyParams, http.StatusOK, &deletePolicyResp)
+
+	ts = listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 0)
 }

@@ -10,6 +10,7 @@ describe(
       cy.setup();
       cy.login();
       cy.addDockerHost();
+      cy.clearDownloads();
     });
 
     afterEach(() => {
@@ -24,7 +25,7 @@ describe(
         },
       },
       () => {
-        cy.visit("/");
+        cy.visit("/hosts/manage");
 
         cy.contains("button", /add new host/i).click();
 
@@ -36,31 +37,29 @@ describe(
         // Assert enroll secret downloaded matches the one displayed
         // NOTE: This test often fails when the Cypress downloads folder was not cleared properly
         // before each test run (seems to be related to issues with Cypress trashAssetsBeforeRun)
-        cy.readFile(
-          path.join(Cypress.config("downloadsFolder"), "secret.txt"),
-          {
-            timeout: 5000,
-          }
-        ).then((contents) => {
-          cy.get("input[disabled]").should("have.value", contents);
-        });
+        if (Cypress.platform !== "win32") {
+          // windows has issues with downloads location
+          cy.readFile(
+            path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+            {
+              timeout: 5000,
+            }
+          ).then((contents) => {
+            cy.get("input[disabled]").should("have.value", contents);
+          });
+        }
 
-        // ensure load
-        cy.wait(5000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        // Wait until the host becomes available (usually immediate in local
-        // testing, but may vary by environment).
-        cy.waitUntil(
-          () => {
-            cy.visit("/");
-            return Cypress.$('button[title="Online"]').length > 0;
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+        cy.visit("/hosts/manage");
+        cy.location("pathname").should("match", /hosts\/manage/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get('button[title="Online"]').click();
 
         // Go to host details page
-        cy.get('button[title="Online"]').click();
-        cy.get("span.status").contains("online");
+        cy.location("pathname").should("match", /hosts\/[0-9]/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get("span.status").contains(/online/i);
       }
     );
 

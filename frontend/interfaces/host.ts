@@ -58,6 +58,22 @@ export default PropTypes.shape({
   users: PropTypes.arrayOf(hostUserInterface),
 });
 
+export interface IDeviceUser {
+  email: string;
+}
+
+export interface IMunkiData {
+  version: string;
+  last_run_time: string;
+  packages_intalled_count: number;
+  errors_count: number;
+}
+
+export interface IMDMData {
+  health: string;
+  enrollment_url: string;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
@@ -107,4 +123,7 @@ export interface IHost {
   status: string;
   display_text: string;
   users: IHostUser[];
+  device_users?: IDeviceUser[];
+  munki?: IMunkiData;
+  mdm?: IMDMData;
 }

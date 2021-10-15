@@ -9,24 +9,27 @@
   padding: $pad-large;
   padding-bottom: $pad-small;
 
+  p {
+    padding-left: $pad-large;
+  }
+
   a {
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-    img {
-      width: 12px;
-      height: 12px;
-    }
+  }
+
+  img {
+    height: 16px;
+    width: auto;
+    padding-right: $pad-small;
   }
 
   &__count {
     display: flex;
     align-content: center;
+    align-items: center;
     font-size: $small;
     font-weight: $bold;
-  }
-
-  svg {
-    padding-right: $pad-xxsmall;
   }
 }

@@ -198,6 +198,7 @@ func TestGetHosts(t *testing.T) {
 
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)
 		hosts := []*fleet.Host{
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -211,6 +212,7 @@ func TestGetHosts(t *testing.T) {
 				SeenTime:        time.Time{},
 				ComputerName:    "test_host",
 				Hostname:        "test_host",
+				Additional:      &additional,
 			},
 			{
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -254,6 +256,22 @@ func TestGetHosts(t *testing.T) {
 	}
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return []*fleet.HostPolicy{
+			{
+				ID:        1,
+				QueryID:   2,
+				QueryName: "query1",
+				Response:  "passes",
+			},
+			{
+				ID:        2,
+				QueryID:   43,
+				QueryName: "query2",
+				Response:  "fails",
+			},
+		}, nil
 	}
 
 	expectedText := `+------+------------+----------+-----------------+--------+
@@ -329,7 +347,7 @@ func TestGetHosts(t *testing.T) {
 			actualSpecs := make([]specGeneric, len(actualResult))
 			for i, result := range actualResult {
 				var spec specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &spec))
+				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
 				actualSpecs[i] = spec
 			}
 			require.Equal(t, expectedSpecs, actualSpecs)
@@ -349,7 +367,8 @@ func TestGetConfig(t *testing.T) {
 		}, nil
 	}
 
-	expectedYaml := `---
+	t.Run("AppConfig", func(t *testing.T) {
+		expectedYaml := `---
 apiVersion: v1
 kind: config
 spec:
@@ -399,12 +418,102 @@ spec:
       host_percentage: 0
     interval: 0s
 `
-	expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"}}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+	})
+
+	t.Run("IncludeServerConfig", func(t *testing.T) {
+		expectedYaml := `---
+apiVersion: v1
+kind: config
+spec:
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    enable_host_users: true
+    enable_software_inventory: false
+  license:
+    expiration: "0001-01-01T00:00:00Z"
+    tier: free
+  logging:
+    debug: true
+    json: false
+    result:
+      config:
+        enable_log_compression: false
+        enable_log_rotation: false
+        result_log_file: /dev/null
+        status_log_file: /dev/null
+      plugin: filesystem
+    status:
+      config:
+        enable_log_compression: false
+        enable_log_rotation: false
+        result_log_file: /dev/null
+        status_log_file: /dev/null
+      plugin: filesystem
+  org_info:
+    org_logo_url: ""
+    org_name: ""
+  server_settings:
+    enable_analytics: false
+    live_query_disabled: false
+    server_url: ""
+  smtp_settings:
+    authentication_method: ""
+    authentication_type: ""
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: false
+    enable_start_tls: false
+    password: ""
+    port: 0
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: false
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+  update_interval:
+    osquery_detail: 3600000000000
+    osquery_policy: 3600000000000
+  vulnerabilities:
+    cpe_database_url: ""
+    current_instance_checks: ""
+    cve_feed_prefix_url: ""
+    databases_path: ""
+    disable_data_sync: false
+    periodicity: 0
+  vulnerability_settings:
+    databases_path: /some/path
+  webhook_settings:
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 0s
+`
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"interval":"0s"},"update_interval":{"osquery_detail":3600000000000,"osquery_policy":3600000000000},"vulnerabilities":{"databases_path":"","periodicity":0,"cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
+`
+
+		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+	})
 }
 
 func TestGetSoftawre(t *testing.T) {
@@ -419,7 +528,7 @@ func TestGetSoftawre(t *testing.T) {
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
 	var gotTeamID *uint
 
@@ -467,14 +576,15 @@ spec:
   source: chrome_extensions
   version: 0.0.3
   vulnerabilities: null
-- generated_cpe: ""
+- bundle_identifier: bundle
+  generated_cpe: ""
   id: 0
   name: bar
   source: deb_packages
   version: 0.0.3
   vulnerabilities: null
 `
-	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null},{"id":0,"name":"bar","version":"0.0.3","source":"deb_packages","generated_cpe":"","vulnerabilities":null}]}
+	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null}]}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))

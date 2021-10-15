@@ -41,7 +41,7 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        MYSQL_TEST=1 make test-go
+        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 make test-go
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@v2

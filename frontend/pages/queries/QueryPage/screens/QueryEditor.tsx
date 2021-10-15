@@ -1,35 +1,32 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { Link } from "react-router";
 import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
-import queryAPI from "services/entities/queries"; // @ts-ignore
+import queryAPI from "services/entities/queries";
+import { AppContext } from "context/app";
+import { QueryContext } from "context/query"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths"; // @ts-ignore
 import debounce from "utilities/debounce"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import { AppContext } from "context/app";
 
-import QueryForm from "components/forms/queries/QueryForm";
-import { hasSavePermissions } from "pages/queries/QueryPage/helpers";
+import QueryForm from "pages/queries/QueryPage/components/QueryForm";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {
-  router: any;
+  router: InjectedRouter;
   baseClass: string;
-  storedQuery: IQuery | undefined;
-  typedQueryBody: string;
   queryIdForEdit: number | null;
-  error: any;
+  storedQuery: IQuery | undefined;
+  storedQueryError: any;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
-  isEditorUsingDefaultQuery: boolean;
-  setIsEditorUsingDefaultQuery: (value: boolean) => void;
   createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
-  setTypedQueryBody: (value: string) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
 }
@@ -37,23 +34,39 @@ interface IQueryEditorProps {
 const QueryEditor = ({
   router,
   baseClass,
-  storedQuery,
-  typedQueryBody,
   queryIdForEdit,
-  error,
+  storedQuery,
+  storedQueryError,
   showOpenSchemaActionText,
   isStoredQueryLoading,
-  isEditorUsingDefaultQuery,
-  setIsEditorUsingDefaultQuery,
   createQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
-  setTypedQueryBody,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps) => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+
+  // Note: The QueryContext values should always be used for any mutable query data such as query name
+  // The storedQuery prop should only be used to access immutable metadata such as author id
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryBody,
+    lastEditedQueryObserverCanRun,
+  } = useContext(QueryContext);
+
+  useEffect(() => {
+    if (storedQueryError) {
+      dispatch(
+        renderFlash(
+          "error",
+          "Something went wrong retrieving your query. Please try again."
+        )
+      );
+    }
+  }, []);
 
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
     try {
@@ -72,14 +85,19 @@ const QueryEditor = ({
   });
 
   const onUpdateQuery = async (formData: IQueryFormData) => {
-    if (!queryIdForEdit || !storedQuery) {
+    if (!queryIdForEdit) {
       return false;
     }
 
-    const updatedQuery = deepDifference(formData, storedQuery);
+    const updatedQuery = deepDifference(formData, {
+      lastEditedQueryName,
+      lastEditedQueryDescription,
+      lastEditedQueryBody,
+      lastEditedQueryObserverCanRun,
+    });
 
     try {
-      await queryAPI.update(storedQuery, updatedQuery);
+      await queryAPI.update(queryIdForEdit, updatedQuery);
       dispatch(renderFlash("success", "Query updated!"));
     } catch (updateError) {
       console.error(updateError);
@@ -89,18 +107,6 @@ const QueryEditor = ({
           "Something went wrong updating your query. Please try again."
         )
       );
-    }
-
-    return false;
-  };
-
-  const onChangeQueryFormField = (fieldName: string, value: string) => {
-    if (fieldName === "query") {
-      setTypedQueryBody(value);
-    }
-
-    if (!!value && isEditorUsingDefaultQuery) {
-      setIsEditorUsingDefaultQuery(false);
     }
 
     return false;
@@ -118,17 +124,12 @@ const QueryEditor = ({
       </Link>
       <QueryForm
         onCreateQuery={onSaveQueryFormSubmit}
-        onChangeFunc={onChangeQueryFormField}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdateQuery}
-        serverErrors={error || {}}
         storedQuery={storedQuery}
-        typedQueryBody={typedQueryBody}
         queryIdForEdit={queryIdForEdit}
         isStoredQueryLoading={isStoredQueryLoading}
-        isEditorUsingDefaultQuery={isEditorUsingDefaultQuery}
-        hasSavePermissions={hasSavePermissions(currentUser)}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}

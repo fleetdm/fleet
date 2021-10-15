@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		osquery_host_id,
 		detail_updated_at,
 		label_updated_at,
+		policy_updated_at,
 		node_key,
 		hostname,
 		uuid,
@@ -32,7 +34,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		seen_time,
 		team_id
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.writer.ExecContext(
 		ctx,
@@ -40,6 +42,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		host.OsqueryHostID,
 		host.DetailUpdatedAt,
 		host.LabelUpdatedAt,
+		host.PolicyUpdatedAt,
 		host.NodeKey,
 		host.Hostname,
 		host.UUID,
@@ -65,6 +68,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
+			policy_updated_at = ?,
 			node_key = ?,
 			hostname = ?,
 			uuid = ?,
@@ -101,6 +105,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 		_, err := tx.ExecContext(ctx, sqlStatement,
 			host.DetailUpdatedAt,
 			host.LabelUpdatedAt,
+			host.PolicyUpdatedAt,
 			host.NodeKey,
 			host.Hostname,
 			host.UUID,
@@ -146,19 +151,29 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			}
 		}
 
-		if host.HostSoftware.Modified {
+		ac, err := d.AppConfig(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
+		}
+
+		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
+		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
 		}
 
 		if host.Modified {
-			if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host additional")
+			if host.Additional != nil {
+				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
+					return errors.Wrap(err, "failed to save host additional")
+				}
 			}
 
-			if err := saveHostUsersDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host users")
+			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
+				if err := saveHostUsersDB(ctx, tx, host); err != nil {
+					return errors.Wrap(err, "failed to save host users")
+				}
 			}
 		}
 
@@ -285,7 +300,7 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
-	err := d.deleteEntity(ctx, "hosts", hid)
+	err := d.deleteEntity(ctx, hostsTable, hid)
 	if err != nil {
 		return errors.Wrapf(err, "deleting host with id %d", hid)
 	}
@@ -294,8 +309,18 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT h.*, t.name AS team_name, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		SELECT 
+		       h.*, 
+		       t.name AS team_name, 
+		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
+		       coalesce(failing_policies.count, 0) as failing_policies_count,
+		       coalesce(failing_policies.count, 0) as total_issues_count
+		FROM hosts h
+			LEFT JOIN teams t ON (h.team_id = t.id)
+			LEFT JOIN (
+		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    	GROUP BY host_id
+			) as failing_policies ON (h.id=failing_policies.host_id)
 		WHERE h.id = ?
 		LIMIT 1
 	`
@@ -326,7 +351,9 @@ func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
-		t.name AS team_name
+		t.name AS team_name,
+		coalesce(failing_policies.count, 0) as failing_policies_count,
+		coalesce(failing_policies.count, 0) as total_issues_count
 		`
 
 	var params []interface{}
@@ -351,16 +378,38 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 		    `
 	}
 
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	hosts := []*fleet.Host{}
+	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "list hosts")
+	}
+
+	return hosts, nil
+}
+
+func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id=pm.host_id)"
 	if opt.PolicyIDFilter == nil {
 		policyMembershipJoin = ""
 	} else if opt.PolicyResponseFilter == nil {
 		policyMembershipJoin = "LEFT " + policyMembershipJoin
 	}
+
+	softwareFilter := "TRUE"
+	if opt.SoftwareIDFilter != nil {
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id=h.id AND hs.software_id=?)"
+		params = append(params, opt.SoftwareIDFilter)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)
 		%s
-		WHERE TRUE AND %s
-    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"),
+		WHERE TRUE AND %s AND %s
+    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -369,13 +418,7 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-
-	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	return hosts, nil
+	return sql, params
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -413,6 +456,24 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		params = append(params, time.Now())
 	}
 	return sql, params
+}
+
+func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	sql := `SELECT count(*) `
+
+	// ignore pagination in count
+	opt.Page = 0
+	opt.PerPage = 0
+
+	var params []interface{}
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
+		return 0, errors.Wrap(err, "count hosts")
+	}
+
+	return count, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
@@ -485,13 +546,14 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 				INSERT INTO hosts (
 					detail_updated_at,
 					label_updated_at,
+					policy_updated_at,
 					osquery_host_id,
 					seen_time,
 					node_key,
 					team_id
-				) VALUES (?, ?, ?, ?, ?, ?)
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
 
 			if err != nil {
 				return errors.Wrap(err, "insert host")
@@ -546,48 +608,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 
 func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	// Select everything besides `additional`
-	sqlStatement := `
-		SELECT
-			id,
-			osquery_host_id,
-			created_at,
-			updated_at,
-			detail_updated_at,
-			label_updated_at,
-			node_key,
-			hostname,
-			uuid,
-			platform,
-			osquery_version,
-			os_version,
-			build,
-			platform_like,
-			code_name,
-			uptime,
-			memory,
-			cpu_type,
-			cpu_subtype,
-			cpu_brand,
-			cpu_physical_cores,
-			cpu_logical_cores,
-			hardware_vendor,
-			hardware_model,
-			hardware_version,
-			hardware_serial,
-			computer_name,
-			primary_ip_id,
-			seen_time,
-			distributed_interval,
-			logger_tls_period,
-			config_tls_refresh,
-			primary_ip,
-			primary_mac,
-			refetch_requested,
-			team_id
-		FROM hosts
-		WHERE node_key = ?
-		LIMIT 1
-	`
+	sqlStatement := `SELECT * FROM hosts WHERE node_key = ? LIMIT 1`
 
 	host := &fleet.Host{}
 	if err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, nodeKey); err != nil {
@@ -795,20 +816,29 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return nil
 	}
 
-	sql := `
-		UPDATE hosts SET team_id = ?
-		WHERE id IN (?)
-	`
-	sql, args, err := sqlx.In(sql, teamID, hostIDs)
-	if err != nil {
-		return errors.Wrap(err, "sqlx.In AddHostsToTeam")
-	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
+		// it can only be from the previous team they are being transferred from
+		query, args, err := sqlx.In(`DELETE FROM policy_membership_history 
+					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
+		if err != nil {
+			return errors.Wrap(err, "add host to team sqlx in")
+		}
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return errors.Wrap(err, "exec AddHostsToTeam delete policy membership history")
+		}
 
-	if _, err := d.writer.ExecContext(ctx, sql, args...); err != nil {
-		return errors.Wrap(err, "exec AddHostsToTeam")
-	}
+		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		if err != nil {
+			return errors.Wrap(err, "sqlx.In AddHostsToTeam")
+		}
 
-	return nil
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return errors.Wrap(err, "exec AddHostsToTeam")
+		}
+
+		return nil
+	})
 }
 
 func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fleet.Host) error {
@@ -825,17 +855,6 @@ func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fl
 }
 
 func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	if len(host.Users) == 0 {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE host_users SET removed_at = CURRENT_TIMESTAMP WHERE host_id = ?`,
-			host.ID,
-		); err != nil {
-			return errors.Wrap(err, "mark all users as removed")
-		}
-
-		return nil
-	}
-
 	currentHost := &fleet.Host{ID: host.ID}
 	if err := loadHostUsersDB(ctx, tx, currentHost); err != nil {
 		return err
@@ -896,4 +915,39 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	}
 
 	return totalCount, unseenCount, nil
+}
+
+func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
+	_, err := d.deleteEntities(ctx, hostsTable, ids)
+	if err != nil {
+		return errors.Wrap(err, "deleting hosts")
+	}
+	return nil
+}
+
+func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
+	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
+	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
+	query := `SELECT 
+		p.id, 
+		p.query_id, 
+		q.name AS query_name, 
+		CASE
+			WHEN pm.passes = 1 THEN 'pass' 
+			WHEN pm.passes = 0 THEN 'fail' 
+			ELSE '' 
+		END AS response 
+	FROM (
+	    SELECT * FROM policy_membership_history WHERE id IN (
+	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
+	    )
+	) as pm 
+	JOIN policies p ON (p.id=pm.policy_id) 
+	JOIN queries q ON (p.query_id=q.id)`
+
+	var policies []*fleet.HostPolicy
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
+		return nil, errors.Wrap(err, "get host policies")
+	}
+	return policies, nil
 }
