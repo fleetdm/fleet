@@ -4,11 +4,13 @@ The following document outlines the most recent results of a semi-annual load te
 
 Fleet uses [osquery-perf](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf), a free and open source tool, to generate realistic traffic to the Fleet server.
 
+A test is deemed successful when the Fleet server is able to receive and make requests to the specified number of hosts without over utilizing the specified resources. In addition, a successful test must report that the Fleet server can run a live query against the specified number of hosts.
+
+This document reports the minimum resources for successfully running Fleet with 1,000 hosts and 150,000 hosts. 
+
 ## Test parameters
 
-The Fleet load tests are conducted with a Fleet server that contains 2 packs, with ~6 queries each, and 6 labels. 
-
-This document reports the minimum dependencies for successfully running Fleet with 1,000 hosts and 150,000 hosts. In addition, this document records the results of running live queries in each scenario.
+The Fleet load tests are conducted with a Fleet server that contains 2 packs, with ~6 queries each, and 6 labels.
 
 ## How we are simulating osquery
 
@@ -37,7 +39,9 @@ terraform apply \
   -var fleet_min_capacity=5
 ```
 
-## 1,000 hosts
+## Results
+
+### 1,000 hosts
 
 Fleet instances:
 - 1 Fargate Task
@@ -54,7 +58,7 @@ MySQL:
 
 With the above infrastructure, 1,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
-## 150,000 hosts
+### 150,000 hosts
 
 Fleet instances:
 - 25 Task
