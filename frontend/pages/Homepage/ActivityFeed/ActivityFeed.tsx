@@ -11,7 +11,7 @@ import { IActivity, ActivityType } from "interfaces/activity";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
-import Spinner from "components/loaders/Spinner"; //@ts-ignore
+import Spinner from "components/loaders/Spinner"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
 import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
@@ -53,9 +53,9 @@ const ActivityFeed = (): JSX.Element => {
   useEffect((): void => {
     const getActivities = async (): Promise<void> => {
       try {
-        const {
-          activities: responseActivities
-        } = await activitiesAPI.loadNext(pageIndex);
+        const { activities: responseActivities } = await activitiesAPI.loadNext(
+          pageIndex
+        );
 
         if (responseActivities.length) {
           setActivities(responseActivities);
@@ -174,7 +174,9 @@ const ActivityFeed = (): JSX.Element => {
             variant="unstyled"
             className={`${baseClass}__load-activities-button`}
           >
-            <><FleetIcon name="chevronleft" /> Previous</>
+            <>
+              <FleetIcon name="chevronleft" /> Previous
+            </>
           </Button>
           <Button
             disabled={isLoading || !showMore}
@@ -182,7 +184,9 @@ const ActivityFeed = (): JSX.Element => {
             variant="unstyled"
             className={`${baseClass}__load-activities-button`}
           >
-            <>Next <FleetIcon name="chevronright" /></>
+            <>
+              Next <FleetIcon name="chevronright" />
+            </>
           </Button>
         </div>
       )}
