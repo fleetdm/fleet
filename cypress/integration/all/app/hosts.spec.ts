@@ -27,9 +27,10 @@ describe(
       () => {
         cy.visit("/hosts/manage");
 
-        cy.contains("button", /add new host/i).click();
-
-        cy.get('a[href*="showSecret"]').click();
+        cy.contains("button", /generate installer/i).click();
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(2000);
+        cy.findByText(/rpm/i).click();
         cy.contains("a", /download/i)
           .first()
           .click();
@@ -40,33 +41,24 @@ describe(
         if (Cypress.platform !== "win32") {
           // windows has issues with downloads location
           cy.readFile(
-            path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+            path.join(Cypress.config("downloadsFolder"), "fleet.pem"),
             {
               timeout: 5000,
             }
-          ).then((contents) => {
-            cy.get("input[disabled]").should("have.value", contents);
-          });
+          );
         }
 
-        // Wait until the host becomes available (usually immediate in local
-        // testing, but may vary by environment).
-        cy.waitUntil(
-          () => {
-            cy.visit("/hosts/manage");
-            return Cypress.$('button[title="Online"]').length > 0;
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+        cy.visit("/hosts/manage");
+        cy.location("pathname").should("match", /hosts\/manage/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get('button[title="Online"]').click();
 
         // Go to host details page
-        cy.get('button[title="Online"]').click();
-        cy.waitUntil(
-          () => {
-            return cy.get("span.status").contains(/online/i);
-          },
-          { timeout: 30000, interval: 1000 }
-        );
+        cy.location("pathname").should("match", /hosts\/[0-9]/i);
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(3000);
+        cy.get("span.status").contains(/online/i);
       }
     );
 
@@ -111,7 +103,7 @@ describe(
     //         })
     //         .then(() => {
     //           cy.findByText(/successfully deleted/i).should("exist");
-    //           cy.findByText(/kinda empty in here/i).should("exist");
+    //           cy.findByText(/generate installer/i).should("exist");
     //           cy.findByText(/about this host/i).should("not.exist");
     //           cy.findByText(hostname).should("not.exist");
     //         });
