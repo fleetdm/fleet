@@ -1,8 +1,9 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from "react";
 
 import { ISoftware } from "interfaces/software";
 
-import CloseIcon from "../../../../../../assets/images/icon-action-close-16x15@2x.png";
+import CloseIcon from "../../../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
@@ -47,14 +48,12 @@ const SoftwareVulnerabilities = ({
             {vulnerabilities?.map((v) => {
               return (
                 <li key={v.cve}>
-                  {" "}
-                  Read more about <b>{v.cve} vulnerability</b>{" "}
+                  Read more about <b>{v.cve} vulnerability</b>
                   <a
                     href={v.details_link}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    &nbsp;
                     <img alt="External link" src={ExternalLinkIcon} />
                   </a>
                 </li>

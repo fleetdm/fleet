@@ -22,12 +22,13 @@
   img {
     height: 16px;
     width: auto;
-    padding-right: $pad-small;
+    padding-right: 10px;
   }
 
   &__header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     img {
       display: inline-flex;
     }
@@ -43,19 +44,15 @@
 
   &__ex {
     text-decoration: none;
-    padding-left: $pad-xsmall;
 
-    // .button::after {
-    //   content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
-    //   transform: scale(0.5);
-    //   border-radius: 0px;
-    // }
+    button {
+      display: inline-flex;
+      align-items: center;
+    }
 
-    // .button:hover::after {
-    //   content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
-    //   transform: scale(0.5);
-    //   border-radius: 0px;
-    // }
+    img {
+      padding-right: 0;
+    }
   }
 
   &__list {
@@ -65,6 +62,14 @@
     img {
       height: 12px;
       width: auto;
+      padding-left: $pad-small;
+    }
+    ul {
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: $pad-small;
     }
   }
 
