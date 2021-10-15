@@ -107,28 +107,6 @@ interface ITableQueryProps {
 
 const baseClass = "manage-hosts";
 
-const MOCK_SOFTWARE = {
-  id: 1,
-  source: "apps",
-  generated_cpe: "foo",
-  name: "Figma.app",
-  version: "2.1.11",
-  vulnerabilities: [
-    {
-      cve: "CVE-2013-6662",
-      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
-    },
-    {
-      cve: "CVE-2013-6662",
-      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
-    },
-    {
-      cve: "CVE-2013-6662",
-      details_link: "https://nvd.nist.gov/vuln/detail/CVE-2013-6662",
-    },
-  ],
-};
-
 const ManageHostsPage = ({
   route,
   router,
