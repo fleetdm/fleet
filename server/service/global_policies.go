@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/pkg/errors"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -11,7 +12,8 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID uint `json:"query_id"`
+	QueryID    uint   `json:"query_id"`
+	Resolution string `json:"resolution"`
 }
 
 type globalPolicyResponse struct {
@@ -23,19 +25,19 @@ func (r globalPolicyResponse) error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*globalPolicyRequest)
-	resp, err := svc.NewGlobalPolicy(ctx, req.QueryID)
+	resp, err := svc.NewGlobalPolicy(ctx, req.QueryID, req.Resolution)
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
 	}
 	return globalPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
+func (svc Service) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.NewGlobalPolicy(ctx, queryID)
+	return svc.ds.NewGlobalPolicy(ctx, queryID, "")
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -132,4 +134,51 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	}
 
 	return svc.ds.DeleteGlobalPolicies(ctx, ids)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Apply Spec
+/////////////////////////////////////////////////////////////////////////////////
+
+type applyPolicySpecsRequest struct {
+	Specs []*fleet.PolicySpec `json:"specs"`
+}
+
+type applyPolicySpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyPolicySpecsResponse) error() error { return r.Err }
+
+func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*applyPolicySpecsRequest)
+	err := svc.ApplyPolicySpecs(ctx, req.Specs)
+	if err != nil {
+		return applyPolicySpecsResponse{Err: err}, nil
+	}
+	return applyPolicySpecsResponse{}, nil
+}
+
+func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
+	checkGlobalPolicyAuth := false
+	for _, policy := range policies {
+		if policy.Team != "" {
+			team, err := svc.ds.TeamByName(ctx, policy.Team)
+			if err != nil {
+				return errors.Wrap(err, "getting team by name")
+			}
+			if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			continue
+		}
+		checkGlobalPolicyAuth = true
+	}
+	if checkGlobalPolicyAuth {
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
+	return svc.ds.ApplyPolicySpecs(ctx, policies)
 }
