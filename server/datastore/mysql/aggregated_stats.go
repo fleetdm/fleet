@@ -2,74 +2,102 @@ package mysql
 
 import (
 	"context"
-	"time"
+	"encoding/json"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
 func (d *Datastore) UpdateAggregatedStats(ctx context.Context) error {
-	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var lastUpdated time.Time
-		err := sqlx.SelectContext(ctx, tx, &lastUpdated,
-			`select updated_at from last_run where type='pack_stats'`)
-		if err != nil {
-			return errors.Wrap(err, "getting the latest updated at time")
-		}
+	statsTypeScheduledQuery := "scheduled_query"
 
-		var maxLastExecuted time.Time
-		err = sqlx.SelectContext(ctx, tx, &maxLastExecuted, `select max(last_executed) from scheduled_query_stats`)
-		if err != nil {
-			return errors.Wrap(err, "getting the latest updated at time")
-		}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// we are going to get stats by scheduled query id, and then we'll use that to get the pack and query stats
+		// we'll store:
+		// id -> scheduled_query_id.id
+		// type -> "scheduled_query_id"
+		// json_value -> {p50: <calculated median value>, p95: <calculated 95th percentile>, executions: <total amount of executions>}
+		// to get each pack stats, we will get the stats for each scheduled query id for the pack and then add all the p50s??
+		// to get each query stats, we get the p50 across all the scheduled query p50s for that query
 
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO last_run(updated_at) VALUES(?) ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at)`,
-			maxLastExecuted,
-		)
-		if err != nil {
-			return errors.Wrap(err, "updating the last run time")
-		}
-
-		rows, err := tx.QueryxContext(ctx, `SELECT id FROM packs WHERE !disabled`)
+		rows, err := tx.QueryxContext(ctx, `SELECT id FROM scheduled_queries`)
 		if err != nil {
 			return errors.Wrap(err, "querying pack ids")
 		}
 		defer rows.Close()
-		medialSQL := `
+		psql := `
 SELECT
-	t1.user_time / t1.executions AS median_val
+	(t1.user_time / t1.executions)
 FROM (
 	SELECT
-		@rownum: = @rownum + 1 AS ` + "`row_number`" + `,
+		@rownum := @rownum + 1 AS ` + "`" + `row_number` + "`" + `,
+		d.scheduled_query_id,
 		d.user_time,
-		sq.pack_id
+		d.executions
 	FROM
-		scheduled_query_stats d
-	JOIN scheduled_queries sq ON (d.scheduled_query_id = sq.id),
-		(SELECT @rownum: = 0) r
-	WHERE pack_id = ?
-	ORDER BY d.user_time
+		scheduled_query_stats d,
+		(SELECT @rownum := 0) AS r
+	WHERE d.scheduled_query_id=?
+	ORDER BY (d.user_time / d.executions) ASC
 ) AS t1,
 (
 	SELECT
 		count(*) AS total_rows
 	FROM
 		scheduled_query_stats d
-	JOIN scheduled_queries sq ON (d.scheduled_query_id = sq.id)
-	WHERE pack_id = ?
+	WHERE d.scheduled_query_id=?
 ) AS t2
-WHERE t1.row_number = floor(total_rows / 2) + 1;`
+WHERE t1.row_number = floor(total_rows * %s) + 1;`
+
+		var scheduledQueryIDs []uint
 		for rows.Next() {
-			var id int
+			var id uint
 			err := rows.Scan(&id)
 			if err != nil {
-				return errors.Wrap(err, "scanning id for pack")
+				return errors.Wrap(err, "scanning id for scheduled_query")
 			}
-			//var medianVal float64
-			sqlx.SelectContext(ctx, tx, nil, medialSQL)
+			scheduledQueryIDs = append(scheduledQueryIDs, id)
 		}
+		for _, id := range scheduledQueryIDs {
+			var p50, p95 float64
+			var totalExecutions int
+
+			// 3 queries is not ideal, but getting both values and totals in the same query was a bit more complicated
+			// so I went for the simpler approach first, we can optimize later
+			err = sqlx.GetContext(ctx, tx, &p50, fmt.Sprintf(psql, "0.5"), id, id)
+			if err != nil {
+				return errors.Wrapf(err, "getting median for scheduled query %d", id)
+			}
+			err = sqlx.GetContext(ctx, tx, &p95, fmt.Sprintf(psql, "0.95"), id, id)
+			if err != nil {
+				return errors.Wrapf(err, "getting median for scheduled query %d", id)
+			}
+			err = sqlx.GetContext(ctx, tx, &totalExecutions, `SELECT sum(executions) FROM scheduled_query_stats WHERE scheduled_query_id=?`, id)
+			if err != nil {
+				return errors.Wrapf(err, "getting median for scheduled query %d", id)
+			}
+
+			statsMap := make(map[string]interface{})
+			statsMap["p50"] = p50
+			statsMap["p95"] = p95
+			statsMap["total_executions"] = totalExecutions
+
+			statsJson, err := json.Marshal(statsMap)
+			if err != nil {
+				return errors.Wrap(err, "marshaling stats")
+			}
+
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+				id, statsTypeScheduledQuery, statsJson,
+			)
+			if err != nil {
+				return errors.Wrapf(err, "inserting stats for scheduled query id %d", id)
+			}
+		}
+
+		// TODO: update last_run
 
 		return nil
 	})
