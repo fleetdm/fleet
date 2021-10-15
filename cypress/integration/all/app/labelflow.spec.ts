@@ -65,8 +65,7 @@ describe(
       // delete custom label
       cy.get(".manage-hosts__label-block button").last().click();
 
-      // Can't figure out how attach findByRole onto modal button
-      // Can't use findByText because delete button under modal
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.get(".manage-hosts__modal-buttons > .button--alert")
         .contains("button", /delete/i)
         .click();

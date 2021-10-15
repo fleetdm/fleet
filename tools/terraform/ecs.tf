@@ -14,6 +14,7 @@ resource "aws_alb" "main" {
   internal        = false
   security_groups = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets         = module.vpc.public_subnets
+  idle_timeout    = 120
 }
 
 resource "aws_alb_target_group" "main" {
@@ -81,7 +82,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 1
+  desired_count                      = 5
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -117,15 +118,15 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 512
-  memory                   = 4096
+  cpu                      = var.fleet_backend_cpu
+  memory                   = var.fleet_backend_mem
   container_definitions = jsonencode(
     [
       {
         name        = "fleet"
-        image       = var.image
-        cpu         = 512
-        memory      = 4096
+        image       = var.fleet_image
+        cpu         = var.fleet_backend_cpu
+        memory      = var.fleet_backend_mem
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -221,6 +222,14 @@ resource "aws_ecs_task_definition" "backend" {
             value = var.vuln_db_path
           },
           {
+            name  = "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING"
+            value = var.async_host_processing
+          },
+          {
+            name  = "FLEET_LOGGING_DEBUG"
+            value = var.logging_debug
+          },
+          {
             name  = "FLEET_S3_BUCKET"
             value = aws_s3_bucket.osquery-carve.bucket
           },
@@ -228,7 +237,6 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_S3_PREFIX"
             value = "carve_results/"
           },
-
         ]
       }
   ])
@@ -247,7 +255,7 @@ resource "aws_ecs_task_definition" "migration" {
     [
       {
         name        = "fleet-prepare-db"
-        image       = var.image
+        image       = var.fleet_image
         cpu         = var.cpu_migrate
         memory      = var.mem_migrate
         mountPoints = []

@@ -8,6 +8,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [History](./company.md#history)
 
+[Values](./company.md#values)
+
 [Culture](./company.md#culture)
 
 ### People

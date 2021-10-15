@@ -4,6 +4,7 @@ import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 import { ITeam } from "interfaces/team";
 import permissions from "utilities/permissions";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 type Props = {
   children: ReactNode;
@@ -13,6 +14,7 @@ type InitialStateType = {
   config: IConfig | null;
   currentUser: IUser | null;
   currentTeam: ITeam | undefined;
+  enrollSecret: IEnrollSecret[] | null;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -25,12 +27,14 @@ type InitialStateType = {
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeam | undefined) => void;
   setConfig: (config: IConfig) => void;
+  setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
 
 const initialState = {
   config: null,
   currentUser: null,
   currentTeam: undefined,
+  enrollSecret: null,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -43,12 +47,14 @@ const initialState = {
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
   setConfig: () => null,
+  setEnrollSecret: () => null,
 };
 
 const actions = {
   SET_CURRENT_USER: "SET_CURRENT_USER",
   SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
   SET_CONFIG: "SET_CONFIG",
+  SET_ENROLL_SECRET: "SET_ENROLL_SECRET",
 };
 
 // helper function - this is run every
@@ -95,6 +101,11 @@ const reducer = (state: any, action: any) => {
         config: action.config,
         ...setPermissions(state.currentUser, action.config),
       };
+    case actions.SET_ENROLL_SECRET:
+      return {
+        ...state,
+        enrollSecret: action.enrollSecret,
+      };
     default:
       return state;
   }
@@ -109,6 +120,7 @@ const AppProvider = ({ children }: Props) => {
     config: state.config,
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
+    enrollSecret: state.enrollSecret,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,
@@ -126,6 +138,9 @@ const AppProvider = ({ children }: Props) => {
     },
     setConfig: (config: IConfig) => {
       dispatch({ type: actions.SET_CONFIG, config });
+    },
+    setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
+      dispatch({ type: actions.SET_ENROLL_SECRET, enrollSecret });
     },
   };
 

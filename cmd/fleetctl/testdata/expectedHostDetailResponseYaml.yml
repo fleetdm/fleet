@@ -22,6 +22,9 @@ spec:
   hardware_version: ""
   hostname: test_host
   id: 0
+  issues:
+    failing_policies_count: 0
+    total_issues_count: 0
   label_updated_at: "0001-01-01T00:00:00Z"
   labels: []
   last_enrolled_at: "0001-01-01T00:00:00Z"
