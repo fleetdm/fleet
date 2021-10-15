@@ -513,6 +513,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearSoftwareFilter = () => {
+    // TODO: In current UX, clearing the software filter resets all URL params.
+    // The code below can be reimplemented if other URL params are to be preserved.
     // router.replace(
     //   getNextLocationPath({
     //     pathPrefix: PATHS.MANAGE_HOSTS,
