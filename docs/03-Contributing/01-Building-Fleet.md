@@ -41,7 +41,7 @@ sudo npm install -g yarn
 
 To install dependecies, we recommend using [Chocolatey](https://chocolatey.org/install). Chocolatey must be run in Powershell as an Administrator. Assuming your setup does not include any of our requirements, please run:
 ```
-choco install nodejs git golang docker make python2
+choco install nodejs git golang docker make python2 mingw
 npm install -g yarn
 ```
 

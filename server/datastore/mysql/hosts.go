@@ -309,8 +309,18 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT h.*, t.name AS team_name, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		SELECT 
+		       h.*, 
+		       t.name AS team_name, 
+		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
+		       coalesce(failing_policies.count, 0) as failing_policies_count,
+		       coalesce(failing_policies.count, 0) as total_issues_count
+		FROM hosts h
+			LEFT JOIN teams t ON (h.team_id = t.id)
+			LEFT JOIN (
+		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    	GROUP BY host_id
+			) as failing_policies ON (h.id=failing_policies.host_id)
 		WHERE h.id = ?
 		LIMIT 1
 	`
@@ -341,7 +351,9 @@ func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
-		t.name AS team_name
+		t.name AS team_name,
+		coalesce(failing_policies.count, 0) as failing_policies_count,
+		coalesce(failing_policies.count, 0) as total_issues_count
 		`
 
 	var params []interface{}
@@ -391,6 +403,10 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 	}
 
 	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)
 		%s
 		WHERE TRUE AND %s AND %s
     `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
