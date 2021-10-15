@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -42,7 +43,11 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 }
 
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
+	var teams []fleet.UserTeam
+	if p.Teams != nil {
+		teams = *p.Teams
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.User{Teams: teams}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -96,20 +101,9 @@ func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	return user, nil
 }
 
-func (svc *Service) ChangeUserAdmin(ctx context.Context, id uint, isAdmin bool) (*fleet.User, error) {
-	// TODO remove this function
-	return nil, errors.New("This function is being eliminated")
-}
-
 func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
 		return nil, err
-	}
-
-	if p.GlobalRole != nil || p.Teams != nil {
-		if err := svc.authz.Authorize(ctx, &fleet.User{ID: userID}, fleet.ActionWriteRole); err != nil {
-			return nil, err
-		}
 	}
 
 	user, err := svc.User(ctx, userID)
@@ -117,6 +111,15 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if p.GlobalRole != nil || p.Teams != nil {
+		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
+			return nil, err
+		}
+	}
 	if p.Name != nil {
 		user.Name = *p.Name
 	}
@@ -140,13 +143,22 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
+	currentUser := authz.UserFromContext(ctx)
+
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
+		if currentUser.GlobalRole == nil {
+			return nil, errors.New("Cannot edit global role as a team member")
+		}
+
 		if p.Teams != nil && len(*p.Teams) > 0 {
 			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
+		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
+			return nil, errors.New("Cannot modify teams in that way")
+		}
 		user.Teams = *p.Teams
 		user.GlobalRole = nil
 	}
@@ -157,6 +169,44 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	}
 
 	return user, nil
+}
+
+func isAdminOfTheModifiedTeams(currentUser *fleet.User, originalUserTeams, newUserTeams []fleet.UserTeam) bool {
+	// If the user is of the right global role, then they can modify the teams
+	if currentUser.GlobalRole != nil && (*currentUser.GlobalRole == fleet.RoleAdmin || *currentUser.GlobalRole == fleet.RoleMaintainer) {
+		return true
+	}
+
+	// otherwise, gather the resulting teams
+	resultingTeams := make(map[uint]string)
+	for _, team := range newUserTeams {
+		resultingTeams[team.ID] = team.Role
+	}
+
+	// and see which ones were removed or changed from the original
+	teamsAffected := make(map[uint]struct{})
+	for _, team := range originalUserTeams {
+		if resultingTeams[team.ID] != team.Role {
+			teamsAffected[team.ID] = struct{}{}
+		}
+	}
+
+	// then gather the teams the current user is admin for
+	currentUserTeamAdmin := make(map[uint]struct{})
+	for _, team := range currentUser.Teams {
+		if team.Role == fleet.RoleAdmin {
+			currentUserTeamAdmin[team.ID] = struct{}{}
+		}
+	}
+
+	// and let's check that the teams that were either removed or changed are also teams this user is an admin of
+	for teamID := range teamsAffected {
+		if _, ok := currentUserTeamAdmin[teamID]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, email string, password *string) error {

@@ -4,11 +4,11 @@ variable "maintenance_window" {
 variable "engine_version" {
   default = "6.x"
 }
-variable "node_type" {
-  default = "cache.t3.micro"
-}
 variable "number_cache_clusters" {
   default = 3
+}
+variable "redis_instance" {
+  default = "cache.m5.large"
 }
 resource "aws_elasticache_replication_group" "default" {
   availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
@@ -18,7 +18,7 @@ resource "aws_elasticache_replication_group" "default" {
   security_group_ids            = [aws_security_group.redis.id]
   replication_group_id          = "fleetdm-redis"
   number_cache_clusters         = var.number_cache_clusters
-  node_type                     = var.node_type
+  node_type                     = var.redis_instance
   engine_version                = var.engine_version
   port                          = "6379"
   maintenance_window            = var.maintenance_window

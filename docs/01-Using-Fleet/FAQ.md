@@ -71,11 +71,11 @@ If a user has SSO enabled, the Login page in the Fleet UI displays the “Email�
 
 ## Where are my query results?
 
-### Live Queries
+### Live queries
 
 Live query results (executed in the web UI or `fleetctl query`) are pushed directly to the UI where the query is running. The results never go to a file unless you as the user manually save them.
 
-### Scheduled Queries
+### Scheduled queries
 
 Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/02-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
@@ -96,6 +96,17 @@ Expecting results, but not seeing anything in the logs?
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
 - Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/02-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+
+## Why does the same query come back faster sometimes?
+
+Don't worry, this behavior is expected; it's part of how osquery works.
+
+Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
+>By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
+
+## What happens if I have a query on a team policy and I also have it scheduled to run separately?
+
+Both queries will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
 
 ## Why aren’t my live queries being logged?
 
@@ -127,7 +138,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team Enroll Secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 

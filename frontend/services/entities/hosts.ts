@@ -1,3 +1,4 @@
+/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { IHost } from "interfaces/host";
@@ -24,6 +25,27 @@ export default {
     const path = `${HOSTS}/${host.id}`;
 
     return sendRequest("DELETE", path);
+  },
+  destroyBulk: (hostIds: number[]) => {
+    const { HOSTS_DELETE } = endpoints;
+
+    return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
+  },
+  destroyByFilter: (
+    teamId: number | null,
+    query: string,
+    status: string,
+    labelId: number | null
+  ) => {
+    const { HOSTS_DELETE } = endpoints;
+    return sendRequest("POST", HOSTS_DELETE, {
+      filters: {
+        query,
+        status,
+        label_id: labelId,
+        team_id: teamId,
+      },
+    });
   },
   refetch: (host: IHost) => {
     const { HOSTS } = endpoints;

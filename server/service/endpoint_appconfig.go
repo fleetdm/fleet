@@ -18,7 +18,8 @@ type appConfigRequest struct {
 type appConfigResponse struct {
 	fleet.AppConfig
 
-	UpdateInterval *fleet.UpdateIntervalConfig `json:"update_interval"`
+	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
+	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
 
 	// License is loaded from the service
 	License *fleet.LicenseInfo `json:"license,omitempty"`
@@ -48,6 +49,10 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return nil, err
 		}
 		updateIntervalConfig, err := svc.UpdateIntervalConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		vulnConfig, err := svc.VulnerabilitiesConfig(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -81,9 +86,10 @@ func makeGetAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 
 				WebhookSettings: config.WebhookSettings,
 			},
-			UpdateInterval: updateIntervalConfig,
-			License:        license,
-			Logging:        loggingConfig,
+			UpdateInterval:  updateIntervalConfig,
+			Vulnerabilities: vulnConfig,
+			License:         license,
+			Logging:         loggingConfig,
 		}
 		return response, nil
 	}
@@ -118,7 +124,7 @@ func makeModifyAppConfigEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Apply Enroll Secret Spec
+// Apply enroll secret spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
@@ -143,7 +149,7 @@ func makeApplyEnrollSecretSpecEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Enroll Secret Spec
+// Get enroll secret spec
 ////////////////////////////////////////////////////////////////////////////////
 
 type getEnrollSecretSpecResponse struct {

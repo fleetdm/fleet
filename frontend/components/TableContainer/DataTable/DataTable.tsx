@@ -176,7 +176,11 @@ const DataTable = ({
   const renderSelectedCount = (): JSX.Element => {
     return (
       <p>
-        <span>{selectedFlatRows.length}</span> selected
+        <span>
+          {selectedFlatRows.length}
+          {isAllPagesSelected && "+"}
+        </span>{" "}
+        selected
       </p>
     );
   };
@@ -313,7 +317,10 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => (
-                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                  <th
+                    className={column.id ? `${column.id}__header` : ""}
+                    {...column.getHeaderProps(column.getSortByToggleProps())}
+                  >
                     {column.render("Header")}
                   </th>
                 ))}
@@ -321,7 +328,7 @@ const DataTable = ({
             ))}
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row: any) => {
               prepareRow(row);
 
               const rowStyles = classnames({
@@ -337,7 +344,7 @@ const DataTable = ({
                     },
                   })}
                 >
-                  {row.cells.map((cell) => {
+                  {row.cells.map((cell: any) => {
                     return (
                       <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                     );

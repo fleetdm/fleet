@@ -6,10 +6,10 @@
   - [Options](#options)
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
-- [Configuring Single Sign On](#configuring-single-sign-on)
-  - [Identity Provider (IDP) Configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO Configuration](#fleet-sso-configuration)
-  - [Creating SSO Users in Fleet](#creating-sso-users-in-fleet)
+- [Configuring single sign on](#configuring-single-sign-on)
+  - [Identity Provider (IDP) configuration](#identity-provider-IDP-configuration)
+  - [Fleet SSO configuration](#fleet-sso-configuration)
+  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
 - [Feature flags](#feature-flags)
 
 ## Configuring the Fleet binary
@@ -109,7 +109,7 @@ logging:
 fleet serve --config /tmp/fleet.yml
 ```
 
-#### What are the options?
+### What are the options?
 
 Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `FLEET_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
 
@@ -129,13 +129,13 @@ Basically, just capitalize the option and prepend `FLEET_` to it in order to get
 
 All duration-based settings accept valid time units of `s`, `m`, `h`.
 
-##### MySQL
+#### MySQL
 
 This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
-###### mysql_address
+##### mysql_address
 
 The address of the MySQL server which Fleet should connect to. Include the hostname and port.
 
@@ -148,7 +148,7 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
   	address: localhost:3306
   ```
 
-###### mysql_database
+##### mysql_database
 
 The name of the MySQL database which Fleet will use.
 
@@ -161,7 +161,7 @@ The name of the MySQL database which Fleet will use.
   	database: fleet
   ```
 
-###### mysql_username
+##### mysql_username
 
 The username to use when connecting to the MySQL instance.
 
@@ -174,7 +174,7 @@ The username to use when connecting to the MySQL instance.
   	username: fleet
   ```
 
-###### mysql_password
+##### mysql_password
 
 The password to use when connecting to the MySQL instance.
 
@@ -187,7 +187,7 @@ The password to use when connecting to the MySQL instance.
   	password: fleet
   ```
 
-###### mysql_password_path
+##### mysql_password_path
 
 File path to a file that contains the password to use when connecting to the MySQL instance.
 
@@ -200,7 +200,7 @@ File path to a file that contains the password to use when connecting to the MyS
   	password_path: '/run/secrets/fleetdm-mysql-password'
   ```
 
-###### mysql_tls_ca
+##### mysql_tls_ca
 
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
 
@@ -213,7 +213,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
   	tls_ca: /path/to/server-ca.pem
   ```
 
-###### mysql_tls_cert
+##### mysql_tls_cert
 
 The path to a PEM encoded certificate use for tls authentication.
 
@@ -226,7 +226,7 @@ The path to a PEM encoded certificate use for tls authentication.
   	tls_cert: /path/to/certificate.pem
   ```
 
-###### mysql_tls_key
+##### mysql_tls_key
 
 The path to a PEM encoded private key use for tls authentication.
 
@@ -239,7 +239,7 @@ The path to a PEM encoded private key use for tls authentication.
   	tls_key: /path/to/key.pem
   ```
 
-###### mysql_tls_config
+##### mysql_tls_config
 
 The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN value of the certificate.
 
@@ -252,7 +252,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
   	tls_config: true
   ```
 
-###### mysql_tls_server_name
+##### mysql_tls_server_name
 
 The server name or IP address used by the client certificate.
 
@@ -265,7 +265,7 @@ The server name or IP address used by the client certificate.
   	servername: 127.0.0.1
   ```
 
-###### mysql_max_open_conns
+##### mysql_max_open_conns
 
 Maximum open connections to database
 
@@ -278,7 +278,7 @@ Maximum open connections to database
   	max_open_conns: 50
   ```
 
-###### mysql_max_idle_conns
+##### mysql_max_idle_conns
 
 Maximum idle connections to database. This value should be equal to or less than `mysql_max_open_conns`
 
@@ -291,7 +291,7 @@ Maximum idle connections to database. This value should be equal to or less than
   	max_idle_conns: 50
   ```
 
-###### mysql_conn_max_lifetime
+##### mysql_conn_max_lifetime
 
 Maximum amount of time, in seconds, a connection may be reused.
 
@@ -304,9 +304,9 @@ Maximum amount of time, in seconds, a connection may be reused.
   	conn_max_lifetime: 50
   ```
 
-##### Redis
+#### Redis
 
-###### redis_address
+##### redis_address
 
 The address of the Redis server which Fleet should connect to. Include the hostname and port.
 
@@ -319,7 +319,7 @@ The address of the Redis server which Fleet should connect to. Include the hostn
   	address: 127.0.0.1:7369
   ```
 
-###### redis_password
+##### redis_password
 
 The password to use when connecting to the Redis instance.
 
@@ -332,7 +332,7 @@ The password to use when connecting to the Redis instance.
   	password: foobar
   ```
 
-###### redis_database
+##### redis_database
 
 The database to use when connecting to the Redis instance.
 
@@ -345,7 +345,7 @@ The database to use when connecting to the Redis instance.
     database: 14
   ```
 
-###### redis_duplicate_results
+##### redis_duplicate_results
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
 
@@ -358,7 +358,7 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
     duplicate_results: true
   ```
 
-###### redis_connect_timeout
+##### redis_connect_timeout
 
 Timeout for redis connection.
 
@@ -371,7 +371,7 @@ Timeout for redis connection.
     connect_timeout: 10s
   ```
 
-###### redis_keep_alive
+##### redis_keep_alive
 
 Interval between keep alive probes.
 
@@ -384,7 +384,7 @@ Interval between keep alive probes.
     keep_alive: 30s
   ```
 
-###### redis_connect_retry_attempts
+##### redis_connect_retry_attempts
 
 Maximum number of attempts to retry a failed connection to a redis node. Only
 certain type of errors are retried, such as connection timeouts.
@@ -398,7 +398,7 @@ certain type of errors are retried, such as connection timeouts.
     connect_retry_attempts: 2
   ```
 
-###### redis_cluster_follow_redirections
+##### redis_cluster_follow_redirections
 
 Whether or not to automatically follow redirection errors received from the
 Redis server. Applies only to Redis Cluster setups, ignored in standalone
@@ -416,9 +416,9 @@ handled transparently instead of ending in an error.
     cluster_follow_redirections: true
   ```
 
-##### Server
+#### Server
 
-###### server_address
+##### server_address
 
 The address to serve the Fleet webserver.
 
@@ -431,7 +431,7 @@ The address to serve the Fleet webserver.
   	address: 0.0.0.0:443
   ```
 
-###### server_cert
+##### server_cert
 
 The TLS cert to use when terminating TLS.
 
@@ -446,7 +446,7 @@ See [TLS certificate considerations](./01-Installation.md#tls-certificate-consid
   	cert: /tmp/fleet.crt
   ```
 
-###### server_key
+##### server_key
 
 The TLS key to use when terminating TLS.
 
@@ -459,7 +459,7 @@ The TLS key to use when terminating TLS.
   	key: /tmp/fleet.key
   ```
 
-###### server_tls
+##### server_tls
 
 Whether or not the server should be served over TLS.
 
@@ -472,7 +472,7 @@ Whether or not the server should be served over TLS.
   	tls: false
   ```
 
-###### server_tls_compatibility
+##### server_tls_compatibility
 
 Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
@@ -485,7 +485,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
   	tls_compatibility: intermediate
   ```
 
-###### server_url_prefix
+##### server_url_prefix
 
 Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
 
@@ -500,7 +500,7 @@ Note that some other configurations may need to be changed when modifying the UR
   	url_prefix: /apps/fleet
   ```
 
-###### server_keepalive
+##### server_keepalive
 
 Controls the server side http keep alive property.
 
@@ -515,9 +515,9 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
-##### Auth
+#### Auth
 
-###### auth_bcrypt_cost
+##### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
 
@@ -530,7 +530,7 @@ The bcrypt cost to use when hashing user passwords.
   	bcrypt_cost: 14
   ```
 
-###### auth_salt_key_size
+##### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
 
@@ -543,9 +543,9 @@ The key size of the salt which is generated when hashing user passwords.
   	salt_key_size: 36
   ```
 
-##### App
+#### App
 
-###### app_token_key_size
+##### app_token_key_size
 
 Size of generated app tokens.
 
@@ -558,7 +558,7 @@ Size of generated app tokens.
   	token_key_size: 36
   ```
 
-###### app_invite_token_validity_period
+##### app_invite_token_validity_period
 
 How long invite tokens should be valid for.
 
@@ -571,9 +571,9 @@ How long invite tokens should be valid for.
   	invite_token_validity_period: 1d
   ```
 
-##### License
+#### License
 
-###### license_key
+##### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
 
@@ -586,9 +586,9 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
-##### Session
+#### Session
 
-###### session_key_size
+##### session_key_size
 
 The size of the session key.
 
@@ -601,7 +601,7 @@ The size of the session key.
   	key_size: 48
   ```
 
-###### session_duration
+##### session_duration
 
 The amount of time that a session should last for.
 
@@ -616,9 +616,9 @@ Valid time units are `s`, `m`, `h`.
   	duration: 24h
   ```
 
-##### Osquery
+#### Osquery
 
-###### osquery_node_key_size
+##### osquery_node_key_size
 
 The size of the node key which is negotiated with `osqueryd` clients.
 
@@ -631,7 +631,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
   	node_key_size: 36
   ```
 
-###### osquery_host_identifier
+##### osquery_host_identifier
 
 The identifier to use when determining uniqueness of hosts.
 
@@ -650,7 +650,7 @@ Users that have duplicate UUIDs in their environment can benefit from setting th
   	host_identifier: uuid
   ```
 
-###### osquery_enroll_cooldown
+##### osquery_enroll_cooldown
 
 The cooldown period for host enrollment. If a host (uniquely identified by the `osquery_host_identifier` option) tries to enroll within this duration from the last enrollment, enroll will fail.
 
@@ -665,7 +665,7 @@ This flag can be used to control load on the database in scenarios in which many
   	enroll_cooldown: 1m
   ```
 
-###### osquery_label_update_interval
+##### osquery_label_update_interval
 
 The interval at which Fleet will ask osquery agents to update their results for label queries.
 
@@ -682,7 +682,7 @@ Valid time units are `s`, `m`, `h`.
   	label_update_interval: 30m
   ```
   
-###### osquery_policy_update_interval
+##### osquery_policy_update_interval
 
 The interval at which Fleet will ask osquery agents to update their results for policy queries.
 
@@ -699,7 +699,7 @@ Valid time units are `s`, `m`, `h`.
   	policy_update_interval: 30m
   ```
 
-###### osquery_detail_update_interval
+##### osquery_detail_update_interval
 
 The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
 
@@ -716,7 +716,7 @@ Valid time units are `s`, `m`, `h`.
   	detail_update_interval: 30m
   ```
 
-###### osquery_status_log_plugin
+##### osquery_status_log_plugin
 
 Which log output plugin should be used for osquery status logs received from clients.
 
@@ -731,7 +731,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   	status_log_plugin: firehose
   ```
 
-###### osquery_result_log_plugin
+##### osquery_result_log_plugin
 
 Which log output plugin should be used for osquery result logs received from clients.
 
@@ -746,7 +746,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
   	result_log_plugin: firehose
   ```
 
-###### osquery_max_jitter_percent
+##### osquery_max_jitter_percent
 
 Given an update interval (label, or details), this will add up to the defined percentage in randomness to the interval.
 
@@ -764,9 +764,9 @@ to the amount of time it takes for fleet to give the host the label queries.
   	max_jitter_percent: 10
   ```
 
-##### Logging (Fleet server logging)
+#### Logging (Fleet server logging)
 
-###### logging_debug
+##### logging_debug
 
 Whether or not to enable debug logging.
 
@@ -779,7 +779,7 @@ Whether or not to enable debug logging.
   	debug: true
   ```
 
-###### logging_json
+##### logging_json
 
 Whether or not to log in JSON.
 
@@ -792,7 +792,7 @@ Whether or not to log in JSON.
   	json: true
   ```
 
-###### logging_disable_banner
+##### logging_disable_banner
 
 Whether or not to log the welcome banner.
 
@@ -805,9 +805,9 @@ Whether or not to log the welcome banner.
   	disable_banner: true
   ```
 
-##### Filesystem
+#### Filesystem
 
-###### filesystem_status_log_file
+##### filesystem_status_log_file
 
 This flag only has effect if `osquery_status_log_plugin` is set to `filesystem` (the default value).
 
@@ -822,7 +822,7 @@ The path which osquery status logs will be logged to.
   	status_log_file: /var/log/osquery/status.log
   ```
 
-###### filesystem_result_log_file
+##### filesystem_result_log_file
 
 This flag only has effect if `osquery_result_log_plugin` is set to `filesystem` (the default value).
 
@@ -837,7 +837,7 @@ The path which osquery result logs will be logged to.
   	result_log_file: /var/log/osquery/result.log
   ```
 
-###### filesystem_enable_log_rotation
+##### filesystem_enable_log_rotation
 
 This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
 
@@ -853,7 +853,7 @@ rotated when files reach a size of 500 Mb or an age of 28 days.
      enable_log_rotation: true
   ```
 
-###### filesystem_enable_log_compression
+##### filesystem_enable_log_compression
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -868,9 +868,9 @@ This flag will cause the rotated logs to be compressed with gzip.
      enable_log_compression: true
   ```
 
-##### Firehose
+#### Firehose
 
-###### firehose_region
+##### firehose_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 
@@ -885,7 +885,7 @@ AWS region to use for Firehose connection
   	region: ca-central-1
   ```
 
-###### firehose_access_key_id
+##### firehose_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
 
@@ -902,7 +902,7 @@ AWS access key ID to use for Firehose authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### firehose_secret_access_key
+##### firehose_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
 
@@ -917,7 +917,7 @@ AWS secret access key to use for Firehose authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### firehose_sts_assume_role_arn
+##### firehose_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `firehose`.
@@ -933,7 +933,7 @@ AWS STS role ARN to use for Firehose authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
 
-###### firehose_status_stream
+##### firehose_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 
@@ -954,7 +954,7 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
-###### firehose_result_stream
+##### firehose_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
 
@@ -975,9 +975,9 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
-##### Kinesis
+#### Kinesis
 
-###### kinesis_region
+##### kinesis_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 
@@ -992,7 +992,7 @@ AWS region to use for Kinesis connection
   	region: ca-central-1
   ```
 
-###### kinesis_access_key_id
+##### kinesis_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -1013,7 +1013,7 @@ AWS access key ID to use for Kinesis authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### kinesis_secret_access_key
+##### kinesis_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -1029,7 +1029,7 @@ AWS secret access key to use for Kinesis authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### kinesis_sts_assume_role_arn
+##### kinesis_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `kinesis`.
@@ -1045,7 +1045,7 @@ AWS STS role ARN to use for Kinesis authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
-###### kinesis_status_stream
+##### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 
@@ -1066,7 +1066,7 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-###### kinesis_result_stream
+##### kinesis_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kinesis`.
 
@@ -1087,9 +1087,9 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-##### Lambda
+#### Lambda
 
-###### lambda_region
+##### lambda_region
 
 This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
 
@@ -1104,7 +1104,7 @@ AWS region to use for Lambda connection
   	region: ca-central-1
   ```
 
-###### lambda_access_key_id
+##### lambda_access_key_id
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1125,7 +1125,7 @@ AWS access key ID to use for Lambda authentication.
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### lambda_secret_access_key
+##### lambda_secret_access_key
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1141,7 +1141,7 @@ AWS secret access key to use for Lambda authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### lambda_sts_assume_role_arn
+##### lambda_sts_assume_role_arn
 
 This flag only has effect if `osquery_status_log_plugin` or
 `osquery_result_log_plugin` are set to `lambda`.
@@ -1157,7 +1157,7 @@ AWS STS role ARN to use for Lambda authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
   ```
 
-###### lambda_status_function
+##### lambda_status_function
 
 This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
 
@@ -1177,7 +1177,7 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-###### lambda_result_function
+##### lambda_result_function
 
 This flag only has effect if `osquery_result_log_plugin` is set to `lambda`.
 
@@ -1197,9 +1197,9 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-##### PubSub
+#### PubSub
 
-###### pubsub_project
+##### pubsub_project
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1218,7 +1218,7 @@ for authentication with the service.
     project: my-gcp-project
   ```
 
-###### pubsub_result_topic
+##### pubsub_result_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1233,7 +1233,7 @@ The identifier of the pubsub topic that client results will be published to.
     result_topic: osquery_result
   ```
 
-###### pubsub_status_topic
+##### pubsub_status_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1248,7 +1248,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
     status_topic: osquery_status
   ```
 
-###### pubsub_add_attributes
+##### pubsub_add_attributes
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1270,9 +1270,9 @@ This feature is useful when combined with [subscription filters](https://cloud.g
     status_topic: osquery_status
   ```
 
-##### S3 file carving backend
+#### S3 file carving backend
 
-###### s3_bucket
+##### s3_bucket
 
 Name of the S3 bucket to use to store file carves.
 
@@ -1285,7 +1285,7 @@ Name of the S3 bucket to use to store file carves.
   	bucket: some-carve-bucket
   ```
 
-###### s3_prefix
+##### s3_prefix
 
 Prefix to prepend to carve objects.
 
@@ -1300,7 +1300,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   	prefix: carves-go-here/
   ```
 
-###### s3_access_key_id
+##### s3_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -1318,7 +1318,7 @@ The IAM identity used in this context must be allowed to perform the following a
   	access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-###### s3_secret_access_key
+##### s3_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
@@ -1331,7 +1331,7 @@ AWS secret access key to use for S3 authentication.
   	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-###### s3_sts_assume_role_arn
+##### s3_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -1344,9 +1344,67 @@ AWS STS role ARN to use for S3 authentication.
   	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### Vulnerabilities
+##### s3_endpoint_url
 
-###### databases_path
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio), 
+or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+
+- Default value: none
+- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Config file format:
+
+  ```
+  s3:
+  	endpoint_url: http://localhost:9000
+  ```
+
+##### s3_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Config file format:
+
+  ```
+  s3:
+  	disable_ssl: false
+  ```
+
+##### s3_force_s3_path_style
+
+AWS S3 Force S3 Path Style.	Set this to `true` to force the request to use path-style addressing,
+i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`). 
+
+See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+
+  ```
+  s3:
+  	force_s3_path_style: false
+  ```
+
+##### s3_region
+
+AWS S3 Region. Leave blank to enable region discovery.
+
+- Default value: 
+- Environment variable: `FLEET_S3_REGION`
+- Config file format:
+
+  ```
+  s3:
+  	region: us-east-1
+  ```
+
+#### Vulnerabilities
+
+##### databases_path
 
 The path specified needs to exist and fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
@@ -1361,7 +1419,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
   	databases_path: /some/path
   ```
 
-###### periodicity
+##### periodicity
 
 How often vulnerabilities are checked.
 
@@ -1374,7 +1432,7 @@ How often vulnerabilities are checked.
   	periodicity: 1h
   ```
 
-###### cpe_database_url
+##### cpe_database_url
 
 URL to fetch the CPE dictionary database from. Some users want to control where fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
@@ -1387,7 +1445,7 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	cpe_database_url: ""
   ```
 
-###### cve_feed_prefix_url
+##### cve_feed_prefix_url
 
 Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
 
@@ -1400,7 +1458,7 @@ Similarly to the CPE dictionary, we allow users to define where to get the CVE f
   	cve_database_url: ""
   ```
 
-###### current_instance_checks
+##### current_instance_checks
 
 When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
 
@@ -1413,7 +1471,7 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   	current_instance_checks: yes
   ```
 
-###### disable_data_sync
+##### disable_data_sync
 
 Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
 
@@ -1428,6 +1486,7 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
   ```
   vulnerabilities:
   	disable_data_sync: true
+  ```
 
 ## Managing osquery configurations
 
@@ -1440,6 +1499,7 @@ Once you've verified that you can run Fleet in your shell, you'll likely want to
 Below is a sample unit file.
 
 ```
+
 [Unit]
 Description=Fleet
 After=network.target
@@ -1481,11 +1541,11 @@ sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
 
-## Configuring Single Sign On (SSO)
+## Configuring single sign on (SSO)
 
 Fleet supports SAML single sign on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML Single Sign On Options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML single sign on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
@@ -1510,7 +1570,7 @@ After supplying the above information, the IDP will generate an issuer URI and a
 
 ### Fleet SSO Configuration
 
-A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML Single Sign On Options**.
+A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
 
 If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field.
 
@@ -1536,7 +1596,7 @@ Otherwise, the following values are required:
 
 ### Creating SSO users in Fleet
 
-When an admin creates a new user to Fleet, they may select the `Enable Single Sign On` option. The
+When an admin creates a new user to Fleet, they may select the `Enable single sign on` option. The
 SSO enabled users will not be able to sign in with a regular user ID and password.
 
 It is strongly recommended that at least one admin user is set up to use the traditional password
@@ -1551,58 +1611,58 @@ configuration problems.
 
 > Individual users must also be setup on the IDP before they can sign in to Fleet.
 
-### Google Workspace IDP Configuration
+#### Google Workspace IDP Configuration
 
 Follow these steps to configure Fleet SSO with Google Workspace. This will require administrator permissions in Google Workspace.
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 47 36 PM" src="https://user-images.githubusercontent.com/575602/133529965-cb067c4a-3d11-460e-aa72-958a6462a6ae.png">
+  ![The Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
 2. Enter `Fleet` for the _App name_ and click _Continue_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 50 06 PM" src="https://user-images.githubusercontent.com/575602/133530058-95183355-6e6b-4dfd-b622-1b012809a1bd.png">
+  ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
 3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 52 56 PM" src="https://user-images.githubusercontent.com/575602/133530200-af839b88-0eba-4403-b095-2fed4632b6be.png">
+  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML Single Sign On Options_ section.
+4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign on options_ section.
 
-- Check the _Enable Single Sign On_ checkbox.
-- For _Identity Provider Name_ use `Google`.
-- For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-- For _Issuer URI_, paste the _SSO URL_ copied from step 3.
-- For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
-- All other fields can be left blank.
+  - Check the _Enable single sign on_ checkbox.
+  - For _Identity provider name_ use `Google`.
+  - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
+  - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
+  - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
+  - All other fields can be left blank.
 
-Click _Update settings_ at the bottom of the page.
+  Click _Update settings_ at the bottom of the page.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 5 32 25 PM" src="https://user-images.githubusercontent.com/575602/133530548-4651bf76-e0fc-489d-b84a-755736474dc5.png">
+  ![Fleet's SMAL single sign on options page](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-4.png)
 
 5. In Google Workspace, configure the _Service provider details_.
 
-- For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
-- For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
-- For _Name ID format_ choose `EMAIL`.
-- For _Name ID_ choose `Basic Information > Primary email`.
-- All other fields can be left blank.
+  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
+  - For _Name ID format_ choose `EMAIL`.
+  - For _Name ID_ choose `Basic Information > Primary email`.
+  - All other fields can be left blank.
 
-Click _Continue_ at the bottom of the page.
+  Click _Continue_ at the bottom of the page.
 
-<img width="1860" alt="Screen Shot 2021-09-15 at 5 36 56 PM" src="https://user-images.githubusercontent.com/575602/133530896-af561c81-ae54-4ee6-acca-5a6473b38b6b.png">
+  ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
 6. Click _Finish_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 57 20 PM" src="https://user-images.githubusercontent.com/575602/133530932-9157c17b-ee84-46d9-9520-8faa864d872b.png">
+  ![Finish configuring the new SMAL app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
 
 7. Click the down arrow on the _User access_ section of the app details page.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 57 51 PM" src="https://user-images.githubusercontent.com/575602/133531007-a3a00a3f-65d4-46b0-9d39-eb74abda0901.png">
+  ![The new SMAL app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
 
 8. Check _ON for everyone_. Click _Save_.
 
-<img width="1904" alt="Screen Shot 2021-09-15 at 2 58 09 PM" src="https://user-images.githubusercontent.com/575602/133531039-93e29f0f-ef20-423b-bc31-8cef05a61b13.png">
+  ![The new SMAL app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
@@ -1612,11 +1672,11 @@ Fleet features are sometimes gated behind feature flags. This will usually be du
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
 
-#### Software inventory
+### Software inventory
 
 Enable by setting the environment variable `FLEET_BETA_SOFTWARE_INVENTORY=1`.
 
-When enabled, Fleet will store a "software inventory" for hosts, updated along with the other host vitals. Note that it will take some time for the data to be available after setting this flag (it will be updated when the host details are next updated, configurable by [--osquery_detail_update_interval](#osquery_detail_update_interval)).
+When enabled, Fleet will store a "software inventory" for hosts, updated along with the other host vitals. Note that it will take some time for the data to be available after setting this flag (it will be updated when the host details are next updated, configurable by [--osquery_detail_update_interval](#osquery-detail-update-interval)).
 
 This is currently feature flagged because we would like to evaluate the performance characteristics on larger deployments.
 

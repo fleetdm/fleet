@@ -14,6 +14,9 @@ import hostsAPI, {
   IHostLoadOptions,
   ISortOption,
 } from "services/entities/hosts";
+import hostCountAPI, {
+  IHostCountLoadOptions,
+} from "services/entities/host_count";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -39,6 +42,7 @@ import Modal from "components/modals/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 
 import {
   defaultHiddenColumns,
@@ -59,16 +63,18 @@ import {
   getValidatedTeamId,
 } from "./helpers";
 import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
-import AddHostModal from "./components/AddHostModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
+import DeleteHostModal from "./components/DeleteHostModal";
+import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
+import CloseIcon from "../../../../assets/images/icon-action-close-16x15@2x.png";
+import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -80,7 +86,7 @@ interface IManageHostsProps {
 interface ILabelsResponse {
   labels: ILabel[];
 }
-interface IPolicyResponse {
+interface IPolicyAPIResponse {
   policy: IPolicy;
 }
 
@@ -114,9 +120,11 @@ const ManageHostsPage = ({
     isAnyTeamMaintainer,
     isTeamMaintainer,
     isOnGlobalTeam,
+    isOnlyObserver,
     isPremiumTier,
     currentTeam,
     setCurrentTeam,
+    enrollSecret: globalSecret,
   } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -143,7 +151,6 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
-  const [showAddHostModal, setShowAddHostModal] = useState<boolean>(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
     false
   );
@@ -156,6 +163,13 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
     false
   );
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
+    false
+  );
+  const [
+    showGenerateInstallerModal,
+    setShowGenerateInstallerModal,
+  ] = useState<boolean>(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
@@ -168,8 +182,11 @@ const ManageHostsPage = ({
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [filteredHostCount, setFilteredHostCount] = useState<number>();
+  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-  const [policyName, setPolicyName] = useState<string>();
+  const [policy, setPolicy] = useState<IPolicy>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   // ======== end states
 
@@ -192,6 +209,11 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
+
+  const generateInstallerTeam = currentTeam || {
+    name: "No team",
+    secrets: globalSecret,
+  };
 
   const {
     isLoading: isLabelsLoading,
@@ -217,38 +239,31 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ITeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ITeamsResponse) => data.teams,
+  });
 
-  useQuery<IPolicyResponse, Error>(
+  useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
     () => {
-      const request = currentTeam
-        ? teamPoliciesAPI.load(currentTeam.id, policyId)
+      const teamId = parseInt(queryParams?.team_id, 10) || 0;
+      const request = teamId
+        ? teamPoliciesAPI.load(teamId, policyId)
         : globalPoliciesAPI.load(policyId);
       return request;
     },
     {
       enabled: !!policyId,
-      onSuccess: ({ policy }) => {
-        setPolicyName(policy.query_name);
+      onSuccess: ({ policy: policyAPIResponse }) => {
+        setPolicy(policyAPIResponse);
       },
     }
   );
-
-  // const toggleEnrollSecretModal = () => {
-  //   setShowEnrollSecretModal(!showEnrollSecretModal);
-  // };
-
-  // const toggleAddHostModal = () => {
-  //   setShowAddHostModal(!showAddHostModal);
-  // };
 
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
@@ -256,6 +271,14 @@ const ManageHostsPage = ({
 
   const toggleTransferHostModal = () => {
     setShowTransferHostModal(!showTransferHostModal);
+  };
+
+  const toggleDeleteHostModal = () => {
+    setShowDeleteHostModal(!showDeleteHostModal);
+  };
+
+  const toggleGenerateInstallerModal = () => {
+    setShowGenerateInstallerModal(!showGenerateInstallerModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -298,6 +321,38 @@ const ManageHostsPage = ({
     }
   };
 
+  const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
+    setIsHostCountLoading(true);
+
+    options = {
+      ...options,
+      teamId: getValidatedTeamId(
+        teams || [],
+        options.teamId as number,
+        currentUser,
+        isOnGlobalTeam as boolean
+      ),
+    };
+
+    try {
+      const { count: returnedHostCount } = await hostCountAPI.load(options);
+      setFilteredHostCount(returnedHostCount);
+    } catch (error) {
+      console.error(error);
+      setHasHostCountErrors(true);
+    } finally {
+      setIsHostCountLoading(false);
+    }
+  };
+
+  const refetchHosts = (options: IHostLoadOptions) => {
+    retrieveHosts(options);
+    if (options.sortBy) {
+      delete options.sortBy;
+    }
+    retrieveHostCount(options);
+  };
+
   // triggered every time the route is changed
   // which means every filter click and text search
   useDeepEffect(() => {
@@ -331,7 +386,41 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-  }, [location, tableQueryData, labels]);
+  }, [location, labels]);
+
+  useDeepEffect(() => {
+    // set the team object in context
+    const teamId = parseInt(queryParams?.team_id, 10) || 0;
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
+
+    // set selected label
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+
+    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    setSelectedLabel(selected);
+
+    // get the hosts
+    const options: IHostLoadOptions = {
+      selectedLabels: selectedFilters,
+      globalFilter: searchQuery,
+      sortBy,
+      teamId: selectedTeam?.id,
+      policyId,
+      policyResponse,
+    };
+
+    retrieveHostCount(options);
+  }, [
+    queryParams.team_id,
+    searchQuery,
+    policyId,
+    policyResponse,
+    selectedFilters,
+  ]);
 
   const handleLabelChange = ({ slug }: ILabel) => {
     if (!slug) {
@@ -518,8 +607,8 @@ const ManageHostsPage = ({
 
     // Rebuild queryParams to dispatch new browser location to react-router
     const newQueryParams: { [key: string]: any } = {};
-    if (!isEmpty(searchQuery)) {
-      newQueryParams.query = searchQuery;
+    if (!isEmpty(searchText)) {
+      newQueryParams.query = searchText;
     }
 
     newQueryParams.order_key = sort[0].key || DEFAULT_SORT_HEADER;
@@ -638,6 +727,11 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  const onDeleteHostsClick = (hostIds: number[]) => {
+    toggleDeleteHostModal();
+    setSelectedHostIds(hostIds);
+  };
+
   const onTransferHostSubmit = async (team: ITeam) => {
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
@@ -670,7 +764,7 @@ const ManageHostsPage = ({
           : `Hosts successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      retrieveHosts({
+      refetchHosts({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
@@ -689,8 +783,59 @@ const ManageHostsPage = ({
     }
   };
 
+  const onDeleteHostSubmit = async () => {
+    let action = hostsAPI.destroyBulk(selectedHostIds);
+
+    if (isAllMatchingHostsSelected) {
+      let status = "";
+      let labelId = null;
+      const teamId = currentTeam?.id || null;
+      const selectedStatus = getStatusSelected();
+
+      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
+        status = getStatusSelected() || "";
+      } else {
+        labelId = selectedLabel?.id as number;
+      }
+
+      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+    }
+
+    try {
+      await action;
+
+      const successMessage = `${
+        selectedHostIds.length === 1 ? "Host" : "Hosts"
+      } successfully deleted.`;
+
+      dispatch(renderFlash("success", successMessage));
+      refetchHosts({
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        sortBy,
+        teamId: currentTeam?.id,
+        policyId,
+        policyResponse,
+      });
+
+      refetchLabels();
+      toggleDeleteHostModal();
+      setSelectedHostIds([]);
+      setIsAllMatchingHostsSelected(false);
+    } catch (error) {
+      dispatch(
+        renderFlash(
+          "error",
+          `Could not delete ${
+            selectedHostIds.length === 1 ? "host" : "hosts"
+          }. Please try again.`
+        )
+      );
+    }
+  };
+
   const renderTeamsFilterDropdown = () => {
-    if (!isPremiumTier || !teams) {
+    if (isPremiumTier && isLoadingTeams) {
       return null;
     }
 
@@ -699,13 +844,13 @@ const ManageHostsPage = ({
     }
 
     const teamOptions = generateTeamFilterDropdownOptions(
-      teams,
+      teams || [],
       currentUser,
       isOnGlobalTeam as boolean
     );
     const selectedTeamId = getValidatedTeamId(
       teams || [],
-      currentTeam?.id as number,
+      (policyId && policy?.team_id) || (currentTeam?.id as number),
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -727,15 +872,26 @@ const ManageHostsPage = ({
   };
 
   const renderPoliciesFilterBlock = () => {
+    const buttonText = (
+      <>
+        <img src={PolicyIcon} alt="Policy" />
+        {policy?.query_name}
+        <img src={CloseIcon} alt="Remove policy filter" />
+      </>
+    );
     return (
       <div className={`${baseClass}__policies-filter-block`}>
         <PoliciesFilter
           policyResponse={policyResponse}
           onChange={handleChangePoliciesFilter}
         />
-        <p>{policyName}</p>
-        <Button onClick={handleClearPoliciesFilter} variant={"text-icon"}>
-          <img src={CloseIcon} alt="Remove policy filter" />
+        <Button
+          className={`${baseClass}__clear-policies-filter`}
+          onClick={handleClearPoliciesFilter}
+          variant={"small-text-icon"}
+          title={policy?.query_name}
+        >
+          {buttonText}
         </Button>
       </div>
     );
@@ -753,7 +909,11 @@ const ManageHostsPage = ({
         className={`${baseClass}__invite-modal`}
       >
         <EditColumnsModal
-          columns={generateAvailableTableHeaders(config, currentUser)}
+          columns={generateAvailableTableHeaders(
+            config,
+            currentUser,
+            currentTeam
+          )}
           hiddenColumns={hiddenColumns}
           onSaveColumns={onSaveColumns}
           onCancelColumns={onCancelColumns}
@@ -778,27 +938,6 @@ const ManageHostsPage = ({
           teams={teams || []}
           onReturnToApp={() => setShowEnrollSecretModal(false)}
           isPremiumTier={isPremiumTier as boolean}
-        />
-      </Modal>
-    );
-  };
-
-  const renderAddHostModal = () => {
-    if (!canAddNewHosts || !showAddHostModal) {
-      return null;
-    }
-
-    return (
-      <Modal
-        title="New host"
-        onExit={() => setShowAddHostModal(false)}
-        className={`${baseClass}__invite-modal`}
-      >
-        <AddHostModal
-          teams={teams}
-          onReturnToApp={() => setShowAddHostModal(false)}
-          config={config}
-          currentUser={currentUser}
         />
       </Modal>
     );
@@ -845,6 +984,34 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderDeleteHostModal = () => {
+    if (!showDeleteHostModal) {
+      return null;
+    }
+
+    return (
+      <DeleteHostModal
+        selectedHostIds={selectedHostIds}
+        onSubmit={onDeleteHostSubmit}
+        onCancel={toggleDeleteHostModal}
+        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      />
+    );
+  };
+
+  const renderGenerateInstallerModal = () => {
+    if (!showGenerateInstallerModal) {
+      return null;
+    }
+
+    return (
+      <GenerateInstallerModal
+        onCancel={toggleGenerateInstallerModal}
+        selectedTeam={generateInstallerTeam}
+      />
+    );
+  };
+
   const renderHeaderLabelBlock = ({
     description,
     display_text: displayText,
@@ -856,7 +1023,7 @@ const ManageHostsPage = ({
       <div className={`${baseClass}__label-block`}>
         <div className="title">
           <span>{displayText}</span>
-          {labelType !== "builtin" && (
+          {labelType !== "builtin" && !isOnlyObserver && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
                 <img src={PencilIcon} alt="Edit label" />
@@ -977,7 +1144,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = () => {
+  const renderTable = (selectedTeam: number) => {
     if (
       !config ||
       !currentUser ||
@@ -988,24 +1155,43 @@ const ManageHostsPage = ({
       return null;
     }
 
-    if (hasHostErrors) {
+    if (hasHostErrors || hasHostCountErrors) {
       return <TableDataError />;
     }
 
     // Hosts have not been set up for this instance yet.
-    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
-      return <NoHosts />;
+    if (
+      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
+      (getStatusSelected() === ALL_HOSTS_LABEL &&
+        filteredHostCount === 0 &&
+        searchQuery === "")
+    ) {
+      return (
+        <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
+      );
     }
+
+    const secondarySelectActions: IActionButtonProps[] = [
+      {
+        name: "transfer",
+        onActionButtonClick: onTransferToTeamClick,
+        buttonText: "Transfer",
+        variant: "text-icon",
+        icon: "transfer",
+        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+      },
+    ];
 
     return (
       <TableContainer
         columns={generateVisibleTableColumns(
           hiddenColumns,
           config,
-          currentUser
+          currentUser,
+          currentTeam
         )}
         data={hosts}
-        isLoading={isHostsLoading}
+        isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1017,8 +1203,11 @@ const ManageHostsPage = ({
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
         onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onTransferToTeamClick}
-        primarySelectActionButtonText={"Transfer to team"}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        primarySelectActionButtonText={"Delete"}
+        primarySelectActionButtonIcon={"delete"}
+        primarySelectActionButtonVariant={"text-icon"}
+        secondarySelectActions={secondarySelectActions}
         onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
         emptyComponent={EmptyHosts}
@@ -1027,9 +1216,15 @@ const ManageHostsPage = ({
         toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
         customControl={renderStatusDropdown}
+        filteredCount={filteredHostCount}
+        searchToolTipText={
+          "Search hosts by hostname, UUID, machine serial or IP address"
+        }
       />
     );
   };
+
+  const selectedTeam = currentTeam?.id || 0;
 
   return (
     <div className="has-sidebar">
@@ -1045,29 +1240,38 @@ const ManageHostsPage = ({
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Show enroll secret</span>
+                  <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts && (
-                <Button
-                  onClick={() => setShowAddHostModal(true)}
-                  className={`${baseClass}__add-hosts button button--brand`}
-                >
-                  <span>Add new host</span>
-                </Button>
-              )}
+              {canAddNewHosts &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  selectedLabel?.count === 0
+                ) &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  filteredHostCount === 0
+                ) && (
+                  <Button
+                    onClick={toggleGenerateInstallerModal}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Generate installer</span>
+                  </Button>
+                )}
             </div>
           </div>
           {renderLabelOrPolicyBlock()}
-          {config && (!isPremiumTier || teams) && renderTable()}
+          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
       {renderEnrollSecretModal()}
-      {renderAddHostModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
+      {renderDeleteHostModal()}
+      {renderGenerateInstallerModal()}
     </div>
   );
 };

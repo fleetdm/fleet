@@ -122,8 +122,22 @@ services:
     environment:
       - SERVICES=firehose,kinesis
 
+  # s3 compatible object storage (file carving backend)
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123!
+    volumes:
+      - data-minio:/data
+
 volumes:
   mysql-persistent-volume:
+  data-minio:
 
 networks:
   cluster_network:

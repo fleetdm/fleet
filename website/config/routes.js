@@ -20,7 +20,7 @@ module.exports.routes = {
 
   'GET /company/contact': {
     action: 'view-contact',
-    locals:{
+    locals: {
       pageTitleForMeta: 'Contact us | Fleet for osquery',
       pageDescriptionForMeta: 'Get in touch with our team.'
     }
@@ -28,7 +28,8 @@ module.exports.routes = {
 
   'GET /get-started': {
     action: 'view-get-started' ,
-    locals:{
+    locals: {
+      currentPage: 'get started',
       pageTitleForMeta: 'Get started | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet.'
     }
@@ -36,7 +37,8 @@ module.exports.routes = {
 
   'GET /pricing': {
     action: 'view-pricing',
-    locals:{
+    locals: {
+      currentPage: 'pricing',
       pageTitleForMeta: 'Pricing | Fleet for osquery',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
@@ -44,7 +46,7 @@ module.exports.routes = {
 
   'GET /logos': {
     action: 'view-press-kit',
-    locals:{
+    locals: {
       pageTitleForMeta: 'Logos | Fleet for osquery',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
@@ -52,7 +54,8 @@ module.exports.routes = {
 
   'GET /queries': {
     action: 'view-query-library',
-    locals:{
+    locals: {
+      currentPage: 'queries',
       pageTitleForMeta: 'Queries | Fleet for osquery',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
@@ -60,11 +63,17 @@ module.exports.routes = {
 
   'GET /queries/:slug': {
     action: 'view-query-detail',
+    locals: {
+      currentPage: 'queries',
+    }
   },
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
+    locals: {
+      currentPage: 'docs',
+    }
   },// handles /docs and /docs/foo/bar
 
   'GET /handbook/?*':  {
@@ -74,7 +83,7 @@ module.exports.routes = {
 
   'GET /transparency': {
     action: 'view-transparency',
-    locals:{
+    locals: {
       pageTitleForMeta: 'Transparency | Fleet for osquery',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }

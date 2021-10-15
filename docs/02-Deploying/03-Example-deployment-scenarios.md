@@ -27,6 +27,7 @@
     - [Deploying Fleet](#deploying-fleet)
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
+- [Deploying Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
 - [Community projects](#community-projects)
 
 ## Fleet on CentOS
@@ -482,11 +483,11 @@ We will use this address when we configure the Kubernetes deployment, but if you
 
 ### Setting up and installing Fleet
 
-> #### A note on container versions
+> **A note on container versions**
 >
 > The Kubernetes files referenced by this tutorial use the Fleet container tagged at `1.0.5`. The tag is something that should be consistent across the migration job and the deployment specification. If you use these files, I suggest creating a workflow that allows you templatize the value of this tag. For further reading on this topic, see the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/overview/#container-images).
 
-#### Create server secrets
+#### Create server secrets
 
 It should be noted that by default Kubernetes stores secret data in plaintext in etcd. Using an alternative secret storage mechanism is outside the scope of this tutorial, but let this serve as a reminder to secure the storage of your secrets.
 
@@ -551,8 +552,35 @@ In this output, you should see an "EXTERNAL-IP" column. If this column says `<pe
 
 Once you have the public IP address for the load balancer, create an A record in your DNS server of choice. You should now be able to browse to your Fleet server from the internet!
 
-#### Community projects
+
+## Deploying Fleet on AWS ECS
+
+Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform)
+
+### Infrastructure Dependencies
+
+#### MySQL
+
+In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
+
+#### Redis
+
+In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/redis.tf#L13)
+
+#### Fleet Server
+
+Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L46)
+
+#### Fleet Migrations
+
+Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/tools/terraform#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229)
+
+Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
+
+---
+
+## Community projects
 
 Below are some projects created by Fleet community members. These projects provide additional solutions for deploying Fleet. Please submit a pull request if you'd like your project featured.
 
-- [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to setup FleetDM
+- [CptOfEvilMinions/FleetDM-Automation](https://github.com/CptOfEvilMinions/FleetDM-Automation) - Ansible and Docker code to set up Fleet

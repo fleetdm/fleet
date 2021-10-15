@@ -1,3 +1,48 @@
+## Fleet 4.4.2 (Oct 14, 2021)
+
+* Fix migration errors under some MySQL configurations due to use of temporary tables.
+
+* Fix pagination of hosts on host dashboard.
+
+* Optimize HTTP requests on host search.
+
+## Fleet 4.4.1 (Oct 8, 2021)
+
+* Fix database migrations error when updating from 4.3.2 to 4.4.0. This did not effect upgrades
+  between other versions and 4.4.0.
+
+* Improve logging of errors in fleet serve.
+
+## Fleet 4.4.0 (Oct 6, 2021)
+
+* Fleet Premium: Teams Schedules show inherited queries from All teams (global) Schedule.
+
+* Fleet Premium: Team Maintainers can modify and delete queries, and modify the Team Schedule.
+
+* Fleet Premium: Team Maintainers can delete hosts from their teams.
+
+* `fleetctl get hosts` now shows host additional queries if there are any.
+
+* Update default homepage to new dashboard.
+
+* Add ability to bulk delete hosts based on manual selection and applied filters.
+
+* Display macOS bundle identifiers on software table if available.
+
+* Fixed scroll position when navigating to different pages.
+
+* Fleet Premium: When transferring a host from team to team, clear the Policy results for that host.
+
+* Improve stability of host vitals (fix cases of dropping users table, disk space).
+
+* Improve performance and reliability of Policy database migrations.
+
+* Provide a more clear error when a user tries to delete a query that is set in a Policy.
+
+* Fix query editor Delete key and horizontal scroll issues.
+
+* Cleaner buttons and icons on Manage Hosts Page.
+
 ## Fleet 4.3.2 (Sept 29, 2021)
 
 * Improve database performance by reducing the amount of MySQL database queries when a host checks in.

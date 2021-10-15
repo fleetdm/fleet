@@ -69,7 +69,8 @@ require (
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+	github.com/valyala/fasthttp v1.31.0 // indirect
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0

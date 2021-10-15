@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { isEmpty, reduce } from "lodash";
+import { reduce } from "lodash";
 import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
@@ -24,7 +24,7 @@ interface IRootState {
 const PLATFORM_STRINGS = {
   macOS: ["macOS"],
   windows: ["MS Windows"],
-  linux: ["Red Hat Linux", "CentOS Linux", "Ubuntu Linux"],
+  linux: ["All Linux"],
 };
 
 const HostsSummary = (): JSX.Element => {
