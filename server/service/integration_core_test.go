@@ -610,7 +610,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, "foo", resp.Software.Name)
 
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID)
+	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID, "")
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
