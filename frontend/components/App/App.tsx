@@ -13,9 +13,16 @@ import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import { AppContext } from "context/app";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IAppProps {
   children: JSX.Element;
+}
+
+interface ISecretResponse {
+  spec: {
+    secrets: IEnrollSecret[];
+  };
 }
 
 interface IRootState {
@@ -31,10 +38,12 @@ const App = ({ children }: IAppProps) => {
   const {
     setCurrentUser,
     setConfig,
+    setEnrollSecret,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainer,
+    enrollSecret,
   } = useContext(AppContext);
 
   useDeepEffect(() => {
@@ -62,7 +71,11 @@ const App = ({ children }: IAppProps) => {
       !isAnyTeamMaintainer;
 
     if (canGetEnrollSecret) {
-      dispatch(getEnrollSecret()).catch(() => false);
+      dispatch(getEnrollSecret())
+        .then((response: ISecretResponse) => {
+          setEnrollSecret(response.spec.secrets);
+        })
+        .catch(() => false);
     }
   }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
