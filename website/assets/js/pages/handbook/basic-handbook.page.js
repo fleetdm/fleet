@@ -25,21 +25,14 @@ parasails.registerPage('basic-handbook', {
 
     // Algolia DocSearch
     docsearch({
-      appId: 'X0HLT4WWY2',
-      apiKey: '8caf918a6047be5b0897c20603d18d01',
-      indexName: 'handbook',
+      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      indexName: 'fleetdm',
       inputSelector: '#docsearch-query',
       debug: false,
       clickAnalytics: true,
-    });
-    // Algolia DocSearch
-    docsearch({
-      appId: 'X0HLT4WWY2',
-      apiKey: '8caf918a6047be5b0897c20603d18d01',
-      indexName: 'handbook',
-      inputSelector: '#docsearch-query-mobile',
-      debug: false,
-      clickAnalytics: true,
+      algoliaOptions: {
+        'facetFilters': ['tags:handbook']
+      },
     });
 
     this.subtopics = (() => {
