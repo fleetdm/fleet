@@ -264,11 +264,13 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
 
-Community version supported for bug fixes: Latest version only 
-Community support for support/troubleshooting: Current major version
+Community version supported for bug fixes: **Latest version only**
+ 
+Community support for support/troubleshooting: **Current major version**
 
-Premium version supported for bug fixes: Latest version only
-Premium support for support/troubleshooting: All versions
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
 
 ### Goals
 
