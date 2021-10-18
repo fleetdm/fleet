@@ -275,4 +275,12 @@
       align-items: center;
     }
   }
+
+  .issues__header,
+  .host-issue {
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
 }

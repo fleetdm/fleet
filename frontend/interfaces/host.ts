@@ -120,6 +120,10 @@ export interface IHost {
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];
+  issues: {
+    total_issues_count: number;
+    failing_policies_count: number;
+  };
   status: string;
   display_text: string;
   users: IHostUser[];
