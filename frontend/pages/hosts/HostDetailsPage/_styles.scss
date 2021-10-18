@@ -147,7 +147,6 @@
     flex-direction: row;
     justify-content: space-between;
     margin: 0;
-    min-width: 758px;
 
     .hostname-container {
       display: flex;
@@ -168,6 +167,7 @@
 
     .refetch {
       display: flex;
+      margin-right: $pad-small;
 
       .refetch-btn {
         color: $core-vibrant-blue;
