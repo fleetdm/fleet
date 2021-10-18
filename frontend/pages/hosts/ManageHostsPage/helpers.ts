@@ -57,6 +57,10 @@ export const isAcceptableStatus = (filter: string) => {
   );
 };
 
+export const isValidPolicyResponse = (filter: string) => {
+  return filter === "pass" || filter === "fail";
+};
+
 export const getNextLocationPath = ({
   pathPrefix = "",
   routeTemplate = "",

@@ -16,6 +16,7 @@ export interface IHostCountLoadOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  softwareId?: number;
 }
 
 export default {
@@ -27,6 +28,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const selectedLabels = options?.selectedLabels || [];
+    const softwareId = options?.softwareId || null;
 
     const labelPrefix = "labels/";
 
@@ -63,6 +65,11 @@ export default {
     if (!label && policyId) {
       queryString += `&policy_id=${policyId}`;
       queryString += `&policy_response=${policyResponse || "passing"}`; // TODO confirm whether there should be a default if there is an id but no response specified
+    }
+
+    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
+    if (!label && !policyId && softwareId) {
+      queryString += `&software_id=${softwareId}`;
     }
 
     // Append query string to endpoint route after slicing off the leading ampersand

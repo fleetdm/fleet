@@ -2,15 +2,23 @@ import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
 import PropTypes from "prop-types";
 import classnames from "classnames";
-import { useTable, useSortBy, useRowSelect, Row } from "react-table";
+import {
+  useTable,
+  useSortBy,
+  useRowSelect,
+  Row,
+  usePagination,
+} from "react-table";
 import { isString, kebabCase, noop } from "lodash";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
 
+import Button from "components/buttons/Button";
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/loaders/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-import Button from "../../buttons/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-container";
@@ -35,7 +43,10 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
+  clientSidePagination?: boolean;
 }
+
+const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
 // This data table uses react-table for implementation. The relevant documentation of the library
 // can be found here https://react-table.tanstack.com/docs/api/useTable
@@ -59,6 +70,7 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   onSelectSingleRow,
+  clientSidePagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -79,6 +91,18 @@ const DataTable = ({
     toggleAllRowsSelected,
     isAllRowsSelected,
     state: tableState,
+    page, // Instead of using 'rows', we'll use page,
+    // which has only the rows for the active page
+
+    // The rest of these things are super handy, too ;)
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
   } = useTable(
     {
       columns,
@@ -117,10 +141,11 @@ const DataTable = ({
       ),
     },
     useSortBy,
+    usePagination,
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds } = tableState;
+  const { sortBy, selectedRowIds, pageIndex, pageSize } = tableState;
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
@@ -263,14 +288,30 @@ const DataTable = ({
     showMarkAllPages &&
     !isAllPagesSelected;
 
+  const pageOrRows = clientSidePagination ? page : rows;
+
+  useEffect(() => {
+    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+  }, []);
+
+  const previousButton = (
+    <>
+      <FleetIcon name="chevronleft" /> Previous
+    </>
+  );
+  const nextButton = (
+    <>
+      Next <FleetIcon name="chevronright" />
+    </>
+  );
   return (
     <div className={baseClass}>
+      {isLoading && (
+        <div className={"loading-overlay"}>
+          <Spinner />
+        </div>
+      )}
       <div className={"data-table data-table__wrapper"}>
-        {isLoading && (
-          <div className={"loading-overlay"}>
-            <Spinner />
-          </div>
-        )}
         <table className={"data-table__table"}>
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
@@ -328,7 +369,7 @@ const DataTable = ({
             ))}
           </thead>
           <tbody>
-            {rows.map((row: any) => {
+            {pageOrRows.map((row: any) => {
               prepareRow(row);
 
               const rowStyles = classnames({
@@ -355,6 +396,24 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
+      {clientSidePagination && (
+        <div className={`${baseClass}__pagination`}>
+          <Button
+            variant="unstyled"
+            onClick={() => previousPage()}
+            disabled={!canPreviousPage}
+          >
+            {previousButton}
+          </Button>
+          <Button
+            variant="unstyled"
+            onClick={() => nextPage()}
+            disabled={!canNextPage}
+          >
+            {nextButton}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

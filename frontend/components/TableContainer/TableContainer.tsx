@@ -8,7 +8,6 @@ import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
-import scrollToTop from "utilities/scroll_to_top";
 import { useDeepEffect } from "utilities/hooks";
 import ReactTooltip from "react-tooltip";
 
@@ -62,6 +61,7 @@ interface ITableContainerProps {
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
+  clientSidePagination?: boolean;
 }
 
 const baseClass = "table-container";
@@ -107,14 +107,15 @@ const TableContainer = ({
   onSelectSingleRow,
   filteredCount,
   searchToolTipText,
+  clientSidePagination,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -142,7 +143,6 @@ const TableContainer = ({
   const onPaginationChange = (newPage: number) => {
     setPageIndex(newPage);
     hasPageIndexChangedRef.current = true;
-    scrollToTop();
   };
 
   // We use useRef to keep track of the previous searchQuery value. This allows us
@@ -200,6 +200,7 @@ const TableContainer = ({
   ]);
 
   const displayCount = filteredCount || data.length;
+
   return (
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
@@ -311,7 +312,7 @@ const TableContainer = ({
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
-              defaultPageSize={DEFAULT_PAGE_SIZE}
+              defaultPageSize={pageSize}
               primarySelectActionButtonVariant={
                 primarySelectActionButtonVariant
               }
@@ -320,8 +321,9 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
+              clientSidePagination={clientSidePagination}
             />
-            {!disablePagination && (
+            {!disablePagination && !clientSidePagination && (
               <Pagination
                 resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}

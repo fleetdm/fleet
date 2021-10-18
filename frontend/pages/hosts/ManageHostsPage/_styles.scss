@@ -176,4 +176,19 @@
     padding: $pad-small;
     margin-right: $pad-small;
   }
+
+  &__software-filter-block {
+    .button--small-text-icon {
+      margin-left: 0;
+      padding-left: 12px;
+    }
+    .software-filter-button {
+      display: inline-flex;
+      align-items: center;
+    }
+    .software-filter-tooltip {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
 }

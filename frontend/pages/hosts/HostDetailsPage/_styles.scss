@@ -373,6 +373,29 @@
     }
   }
 
+  .section--policies {
+    .linkToFilteredHosts__header {
+      width: 0;
+    }
+    .policy-link img {
+      width: 16px;
+    }
+    .table-container__header {
+      display: none;
+    }
+    .info-banner {
+      margin-bottom: 1rem;
+      p {
+        font-size: 0.875rem;
+        margin: 0;
+      }
+      a {
+        text-decoration: none;
+        font-weight: bold;
+      }
+    }
+  }
+
   .section--software {
     th {
       &:first-child {
@@ -380,11 +403,10 @@
         width: 16px;
         padding-right: 0px;
       }
-      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
-      // &:last-child {
-      //   width: 90px;
-      //   padding: 0px;
-      // }
+      &:last-child {
+        width: 90px;
+        padding: 0px;
+      }
     }
     tr {
       td {
