@@ -1,58 +1,16 @@
 package sso
 
 import (
-	"os"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newPool(t *testing.T, cluster bool) fleet.RedisPool {
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
-	}
-
-	if _, ok := os.LookupEnv("REDIS_TEST"); ok {
-		var (
-			addr     = "127.0.0.1:"
-			password = ""
-			database = 0
-			useTLS   = false
-			port     = "6379"
-		)
-		if cluster {
-			port = "7001"
-		}
-		addr += port
-
-		pool, err := redis.NewRedisPool(redis.PoolConfig{
-			Server:      addr,
-			Password:    password,
-			Database:    database,
-			UseTLS:      useTLS,
-			ConnTimeout: 5 * time.Second,
-			KeepAlive:   10 * time.Second,
-		})
-		require.NoError(t, err)
-		conn := pool.Get()
-		defer conn.Close()
-		_, err = conn.Do("PING")
-		require.Nil(t, err)
-		return pool
-	}
-	return nil
-}
-
 func TestSessionStore(t *testing.T) {
-	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
-		t.Skip("skipping sso session store tests")
-	}
-
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		store := NewSessionStore(pool)
 		require.NotNil(t, store)
@@ -72,16 +30,14 @@ func TestSessionStore(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		p := newPool(t, false)
+		p := redistest.SetupRedis(t, false, false, false)
 		require.NotNil(t, p)
-		defer p.Close()
 		runTest(t, p)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		p := newPool(t, true)
+		p := redistest.SetupRedis(t, true, false, false)
 		require.NotNil(t, p)
-		defer p.Close()
 		runTest(t, p)
 	})
 }

@@ -1,15 +1,11 @@
 package redis
 
 import (
-	"fmt"
 	"io"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -88,7 +84,7 @@ func TestConnectRetry(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.err.Error(), func(t *testing.T) {
 			start := time.Now()
-			_, err := NewRedisPool(PoolConfig{
+			_, err := NewPool(PoolConfig{
 				Server:               "127.0.0.1:12345",
 				ConnectRetryAttempts: c.retries,
 				testRedisDialFunc:    mockDial(c.err),
@@ -114,146 +110,4 @@ func TestConnectRetry(t *testing.T) {
 			require.Contains(t, err.Error(), wantErr.Error())
 		})
 	}
-}
-
-func TestRedisPoolConfigureDoer(t *testing.T) {
-	const prefix = "TestRedisPoolConfigureDoer:"
-
-	t.Run("standalone", func(t *testing.T) {
-		pool := setupRedisForTest(t, false, false)
-
-		c1 := pool.Get()
-		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
-		defer c2.Close()
-
-		// both conns work equally well, get nil because keys do not exist,
-		// but no redirection error (this is standalone redis).
-		_, err := redis.String(c1.Do("GET", prefix+"{a}"))
-		require.Equal(t, redis.ErrNil, err)
-		_, err = redis.String(c1.Do("GET", prefix+"{b}"))
-		require.Equal(t, redis.ErrNil, err)
-
-		_, err = redis.String(c2.Do("GET", prefix+"{a}"))
-		require.Equal(t, redis.ErrNil, err)
-		_, err = redis.String(c2.Do("GET", prefix+"{b}"))
-		require.Equal(t, redis.ErrNil, err)
-	})
-
-	t.Run("cluster", func(t *testing.T) {
-		pool := setupRedisForTest(t, true, true)
-
-		c1 := pool.Get()
-		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
-		defer c2.Close()
-
-		// unconfigured conn gets MOVED error on the second key
-		// (it is bound to {a}, {b} is on a different node)
-		_, err := redis.String(c1.Do("GET", prefix+"{a}"))
-		require.Equal(t, redis.ErrNil, err)
-		_, err = redis.String(c1.Do("GET", prefix+"{b}"))
-		rerr := redisc.ParseRedir(err)
-		require.Error(t, rerr)
-		require.Equal(t, "MOVED", rerr.Type)
-
-		// configured conn gets the nil value, it redirected automatically
-		_, err = redis.String(c2.Do("GET", prefix+"{a}"))
-		require.Equal(t, redis.ErrNil, err)
-		_, err = redis.String(c2.Do("GET", prefix+"{b}"))
-		require.Equal(t, redis.ErrNil, err)
-	})
-}
-
-func TestEachRedisNode(t *testing.T) {
-	const prefix = "TestEachRedisNode:"
-
-	runTest := func(t *testing.T, pool fleet.RedisPool) {
-		conn := pool.Get()
-		defer conn.Close()
-		if rc, err := redisc.RetryConn(conn, 3, 100*time.Millisecond); err == nil {
-			conn = rc
-		}
-
-		for i := 0; i < 10; i++ {
-			_, err := conn.Do("SET", fmt.Sprintf("%s%d", prefix, i), i)
-			require.NoError(t, err)
-		}
-
-		var keys []string
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
-			var cursor int
-			for {
-				res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", prefix+"*"))
-				if err != nil {
-					return err
-				}
-				var curKeys []string
-				if _, err = redis.Scan(res, &cursor, &curKeys); err != nil {
-					return err
-				}
-				keys = append(keys, curKeys...)
-				if cursor == 0 {
-					return nil
-				}
-			}
-		})
-		require.NoError(t, err)
-		require.Len(t, keys, 10)
-	}
-
-	t.Run("standalone", func(t *testing.T) {
-		pool := setupRedisForTest(t, false, false)
-		runTest(t, pool)
-	})
-
-	t.Run("cluster", func(t *testing.T) {
-		pool := setupRedisForTest(t, true, false)
-		runTest(t, pool)
-	})
-}
-
-func setupRedisForTest(t *testing.T, cluster, redir bool) (pool fleet.RedisPool) {
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
-	}
-
-	var (
-		addr     = "127.0.0.1:"
-		password = ""
-		database = 0
-		useTLS   = false
-		port     = "6379"
-	)
-	if cluster {
-		port = "7001"
-	}
-	addr += port
-
-	pool, err := NewRedisPool(PoolConfig{
-		Server:                    addr,
-		Password:                  password,
-		Database:                  database,
-		UseTLS:                    useTLS,
-		ConnTimeout:               5 * time.Second,
-		KeepAlive:                 10 * time.Second,
-		ClusterFollowRedirections: redir,
-	})
-	require.NoError(t, err)
-
-	conn := pool.Get()
-	defer conn.Close()
-	_, err = conn.Do("PING")
-	require.Nil(t, err)
-
-	t.Cleanup(func() {
-		err := EachRedisNode(pool, func(conn redis.Conn) error {
-			_, err := conn.Do("FLUSHDB")
-			return err
-		})
-		require.NoError(t, err)
-		pool.Close()
-	})
-
-	return pool
 }
