@@ -47,10 +47,7 @@ import {
 } from "fleet/helpers"; // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
-import {
-  generateTableHeaders,
-  generateDataSet,
-} from "./SoftwareTable/SoftwareTableConfig";
+import generateSoftwareTableHeaders from "./SoftwareTable/SoftwareTableConfig";
 import {
   generatePackTableHeaders,
   generatePackDataSet,
@@ -156,6 +153,7 @@ const HostDetailsPage = ({
           // );
           // console.log(timeout);
           if (
+            returnedHost.status !== "offline" &&
             differenceInMilliseconds(
               Date.now(),
               new Date(returnedHost.seen_time)
@@ -165,11 +163,19 @@ const HostDetailsPage = ({
               console.log("refetch attempt");
               fullyReloadHost();
             }, 1000);
+          } else if (returnedHost.status === "offline") {
+            dispatch(
+              renderFlash(
+                "error",
+                `This host is now offline. Please try refetching host vitals later.`
+              )
+            );
+            setShowRefetchLoadingSpinner(false);
           } else {
             dispatch(
               renderFlash(
                 "error",
-                `We're having trouble fetching this host. Please try again later.`
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               )
             );
           }
@@ -543,7 +549,7 @@ const HostDetailsPage = ({
   };
 
   const renderSoftware = () => {
-    const tableHeaders = generateTableHeaders();
+    const tableHeaders = generateSoftwareTableHeaders();
 
     return (
       <div className="section section--software">
@@ -565,7 +571,7 @@ const HostDetailsPage = ({
             {host?.software && (
               <TableContainer
                 columns={tableHeaders}
-                data={generateDataSet(softwareState)}
+                data={softwareState}
                 isLoading={isLoadingHost}
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
@@ -607,7 +613,9 @@ const HostDetailsPage = ({
             disabled={!isOnline}
             onClick={onRefetchHost}
           >
-            {showRefetchLoadingSpinner ? "Fetching..." : "Refetch"}
+            {showRefetchLoadingSpinner
+              ? "Fetching fresh vitals...this may take a moment"
+              : "Refetch"}
           </Button>
         </div>
         <ReactTooltip

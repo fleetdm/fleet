@@ -37,10 +37,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface ISoftwareTableData extends ISoftware {
-  type: string;
-}
-
 const TYPE_CONVERSION: Record<string, string> = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
@@ -61,9 +57,14 @@ const TYPE_CONVERSION: Record<string, string> = {
   pkg_packages: "Package (pkg)",
 };
 
+const formatSoftwareType = (source: string) => {
+  const DICT = TYPE_CONVERSION;
+  return DICT[source] || "Unknown";
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateSoftwareTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Vulnerabilities",
@@ -156,8 +157,10 @@ const generateTableHeaders = (): IDataColumn[] => {
         />
       ),
       disableSortBy: false,
-      accessor: "type",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "source",
+      Cell: (cellProps) => (
+        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+      ),
     },
     {
       title: "Installed version",
@@ -212,23 +215,23 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-  return Object.values(software).map((softwareItem) => {
-    return {
-      ...softwareItem,
-      // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
-      type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
-    };
-  });
-};
+// const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
+//   return Object.values(software).map((softwareItem) => {
+//     return {
+//       ...softwareItem,
+//       // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
+//       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
+//     };
+//   });
+// };
 
-const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
-  // Cannot pass undefined to enhanceSoftwareData
-  if (!software) {
-    return software;
-  }
+// const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
+//   // Cannot pass undefined to enhanceSoftwareData
+//   if (!software) {
+//     return software;
+//   }
 
-  return [...enhanceSoftwareData(software)];
-};
+//   return [...enhanceSoftwareData(software)];
+// };
 
-export { generateTableHeaders, generateDataSet };
+export default generateSoftwareTableHeaders;
