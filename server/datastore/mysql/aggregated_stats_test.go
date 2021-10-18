@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func slowStats(t *testing.T, ds *Datastore, id uint, percentile int) float64 {
+func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, table column string) float64 {
 	rows, err := ds.writer.Queryx(
-		`SELECT d.user_time / d.executions FROM scheduled_query_stats d WHERE d.scheduled_query_id=? ORDER BY (d.user_time / d.executions) ASC`,
+		fmt.Sprintf(`SELECT d.%s / d.executions FROM scheduled_query_stats d WHERE d.scheduled_query_id=? ORDER BY (d.%s / d.executions) ASC`, column, column),
 		id,
 	)
 	require.NoError(t, err)
@@ -32,7 +32,7 @@ func slowStats(t *testing.T, ds *Datastore, id uint, percentile int) float64 {
 		vals = append(vals, val)
 	}
 
-	return vals[int(math.Ceil(float64(len(vals))*float64(percentile)/100.0))]
+	return vals[int(math.Floor(float64(len(vals))*float64(percentile)/100.0))]
 }
 
 func TestAggregatedStats(t *testing.T) {
@@ -116,20 +116,35 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, ds.SaveHost(context.Background(), randomHost))
 	}
 
-	require.NoError(t, ds.UpdateAggregatedStats(context.Background()))
+	require.NoError(t, ds.UpdateScheduledQueryAggregatedStats(context.Background()))
 
 	var stats []struct {
-		ID  uint
-		P50 float64
-		P95 float64
+		ID            uint    `db:"id"`
+		SystemTimeP50 float64 `db:"system_time_p50"`
+		SystemTimeP95 float64 `db:"system_time_p95"`
+		UserTimeP50   float64 `db:"user_time_p50"`
+		UserTimeP95   float64 `db:"user_time_p95"`
 	}
 	require.NoError(t,
 		ds.writer.Select(&stats,
-			`select id, JSON_EXTRACT(json_value, "$.p50") as p50, JSON_EXTRACT(json_value, "$.p95") as p95 from aggregated_stats`))
+			`
+select 
+       id, 
+       JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50, 
+       JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
+       JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50, 
+       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95 
+from aggregated_stats where type="scheduled_query"`))
 
 	require.True(t, len(stats) > 0)
 	for _, stat := range stats {
-		slowp50 := slowStats(t, ds, stat.ID, 50)
-		assert.Equal(t, slowp50, stat.P50)
+		slowp50 := slowStats(t, ds, stat.ID, 50, "user_time")
+		assert.Equal(t, slowp50, stat.UserTimeP50)
+		slowp95 := slowStats(t, ds, stat.ID, 95, "user_time")
+		assert.Equal(t, slowp95, stat.UserTimeP95)
+		slowp50 = slowStats(t, ds, stat.ID, 50, "system_time")
+		assert.Equal(t, slowp50, stat.SystemTimeP50)
+		slowp95 = slowStats(t, ds, stat.ID, 95, "system_time")
+		assert.Equal(t, slowp95, stat.SystemTimeP95)
 	}
 }

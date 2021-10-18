@@ -22,6 +22,16 @@ type ScheduledQuery struct {
 	Version     *string `json:"version,omitempty"`
 	Shard       *uint   `json:"shard"`
 	Denylist    *bool   `json:"denylist"`
+
+	AggregatedStats `json:"scheduled_query_stats,omitempty"`
+}
+
+type AggregatedStats struct {
+	SystemTimeP50   *float64 `json:"system_time_p50" db:"system_time_p50"`
+	SystemTimeP95   *float64 `json:"system_time_p95" db:"system_time_p95"`
+	UserTimeP50     *float64 `json:"user_time_p50" db:"user_time_p50"`
+	UserTimeP95     *float64 `json:"user_time_p_95" db:"user_time_p95"`
+	TotalExecutions *float64 `json:"total_executions" db:"total_executions"`
 }
 
 type ScheduledQueryPayload struct {
