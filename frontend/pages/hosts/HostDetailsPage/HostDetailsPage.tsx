@@ -159,6 +159,7 @@ const HostDetailsPage = ({
       refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        setSoftwareState(returnedHost.software);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
           if (
@@ -323,22 +324,15 @@ const HostDetailsPage = ({
   };
 
   // Search functionality
-  const onSoftwareTableSearchChange = ({
-    searchQuery,
-    sortHeader,
-    sortDirection,
-  }: ITableSearchData) => {
-    let sortBy = [];
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
+  const onSoftwareTableSearchChange = ({ searchQuery }: ITableSearchData) => {
+    if (!host) {
+      return;
     }
-
-    if (!searchQuery && host) {
+    if (!searchQuery) {
       setSoftwareState(host.software);
       return;
     }
-
-    setSoftwareState(simpleSearch(searchQuery, host?.software));
+    setSoftwareState(simpleSearch(searchQuery, host.software));
   };
 
   const renderDeleteHostModal = () => (
