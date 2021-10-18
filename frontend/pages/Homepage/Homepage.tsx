@@ -20,10 +20,6 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-interface ISoftwareResponse {
-  software: ISoftware;
-}
-
 const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {

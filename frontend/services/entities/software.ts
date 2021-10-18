@@ -12,6 +12,10 @@ interface IGetSoftwareProps {
   teamId: boolean;
 }
 
+interface ISoftwareResponse {
+  software: ISoftware[];
+}
+
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
 const DEFAULT_PAGE = 0;
@@ -20,7 +24,7 @@ const ORDER_KEY = "hosts_count";
 const ORDER_DIRECTION = "desc";
 
 export default {
-  load: ({
+  load: async ({
     page = DEFAULT_PAGE,
     perPage = PER_PAGE,
     orderKey = ORDER_KEY,
@@ -28,51 +32,18 @@ export default {
     query,
     vulnerable,
     teamId,
-  }: ISoftwareParams): ISoftware[] => {
+  }: ISoftwareParams): Promise<ISoftware[]> => {
     const { SOFTWARE } = endpoints;
     const pagination = `page=${page}&per_page=${perPage}`;
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
     const team = teamId ? `team_id=${teamId}` : "";
     const path = `${SOFTWARE}?${pagination}&${sort}&${team}&${query}&${vulnerable}`;
 
-    // return sendRequest("GET", path);
-    return [
-      {
-        hosts_count: 124,
-        id: 1,
-        name: "Chrome.app",
-        version: "2.1.11",
-        source: "Application (macOS)",
-        generated_cpe: "",
-        vulnerabilities: null,
-      },
-      {
-        hosts_count: 112,
-        id: 2,
-        name: "Figma.app",
-        version: "2.1.11",
-        source: "Application (macOS)",
-        generated_cpe: "",
-        vulnerabilities: null,
-      },
-      {
-        hosts_count: 78,
-        id: 3,
-        name: "osquery",
-        version: "2.1.11",
-        source: "rpm_packages",
-        generated_cpe: "",
-        vulnerabilities: null,
-      },
-      {
-        hosts_count: 78,
-        id: 4,
-        name: "osquery",
-        version: "2.1.11",
-        source: "rpm_packages",
-        generated_cpe: "",
-        vulnerabilities: null,
-      },
-    ];
+    try {
+      const { software }: ISoftwareResponse = await sendRequest("GET", path);
+      return software;
+    } catch (error) {
+      throw error;
+    }
   },
 };
