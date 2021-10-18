@@ -34,6 +34,10 @@
   &__header {
     display: flex;
     align-items: center;
+    
+    .Select-control {
+      background-color: $ui-off-white !important;
+    }
   }
 
   &__title {

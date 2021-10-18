@@ -28,11 +28,9 @@ const TeamsDropdown = ({
     isOnGlobalTeam,
   } = useContext(AppContext);
   
-  if (isPremiumTier && isLoading) {
+  if (isLoading) {
     return null;
-  }
-
-  if (!isPremiumTier) {
+  } else if (!isPremiumTier) {
     return <h1>Hosts</h1>;
   }
 
@@ -52,7 +50,7 @@ const TeamsDropdown = ({
     <div>
       <Dropdown
         value={selectedTeamId}
-        placeholder={"All teams"}
+        placeholder="All teams"
         className={baseClass}
         options={teamOptions}
         searchable={false}
