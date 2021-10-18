@@ -12,7 +12,7 @@ const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const { config } = useContext(AppContext);
+  const { config, currentTeam } = useContext(AppContext);
 
   return (
     <div className={baseClass}>
@@ -35,7 +35,10 @@ const Homepage = (): JSX.Element => {
           <HostsSummary />
         </div>
       </div>
-      <div className={`${baseClass}__section one-column`}>
+      <div className={`
+        ${baseClass}__section 
+        ${currentTeam ? 'two' : 'one'}-column
+      `}>
         <div className={`${baseClass}__info-card`}>
           <div className={`${baseClass}__section-title`}>
             <h2>Activity</h2>

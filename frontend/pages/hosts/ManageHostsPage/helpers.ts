@@ -1,4 +1,3 @@
-import sortUtils from "utilities/sort";
 import {
   isString,
   isPlainObject,
@@ -6,11 +5,7 @@ import {
   reduce,
   trim,
   union,
-  memoize,
 } from "lodash";
-
-import { ITeam } from "interfaces/team";
-import { IUser } from "interfaces/user";
 
 interface ILocationParams {
   pathPrefix?: string;
@@ -110,65 +105,6 @@ export const getNextLocationPath = ({
   ).join("/");
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
-};
-
-const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
-
-export const generateTeamFilterDropdownOptions = (
-  teams: ITeam[],
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean
-) => {
-  let currentUserTeams: ITeam[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const allTeamsOption = [
-    {
-      disabled: false,
-      label: "All teams",
-      value: 0,
-    },
-  ];
-
-  const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
-
-  return allTeamsOption.concat(sortedCurrentUserTeamOptions);
-};
-
-export const getValidatedTeamId = (
-  teams: ITeam[],
-  teamId: number,
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean
-): number => {
-  let currentUserTeams: ITeam[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-  const validatedTeamId =
-    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
-      ? teamId
-      : 0;
-
-  return validatedTeamId;
 };
 
 export default { getNextLocationPath };
