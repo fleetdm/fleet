@@ -63,7 +63,7 @@ const TYPE_CONVERSION: Record<string, string> = {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateSoftwareTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Vulnerabilities",
@@ -222,7 +222,9 @@ const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
   });
 };
 
-const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
+const generateSoftwareDataSet = (
+  software: ISoftware[]
+): ISoftwareTableData[] => {
   // Cannot pass undefined to enhanceSoftwareData
   if (!software) {
     return software;
@@ -231,4 +233,4 @@ const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
   return [...enhanceSoftwareData(software)];
 };
 
-export { generateTableHeaders, generateDataSet };
+export { generateSoftwareTableHeaders, generateSoftwareDataSet };
