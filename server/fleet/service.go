@@ -399,10 +399,11 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software
@@ -413,7 +414,7 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)

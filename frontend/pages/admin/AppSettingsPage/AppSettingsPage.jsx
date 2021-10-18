@@ -11,7 +11,6 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import { updateConfig } from "redux/nodes/app/actions";
 
 export const baseClass = "app-settings";
-
 class AppSettingsPage extends Component {
   static propTypes = {
     appConfig: configInterface,
@@ -52,6 +51,10 @@ class AppSettingsPage extends Component {
 
     const formData = { ...appConfig, enable_smtp: smtpConfigured };
 
+    const scrollTo = (elementId) => {
+      document.getElementById(elementId).scrollIntoView(true);
+    };
+
     return (
       <div className={`${baseClass} body-wrap`}>
         <p className={`${baseClass}__page-description`}>
@@ -62,33 +65,45 @@ class AppSettingsPage extends Component {
           <nav>
             <ul className={`${baseClass}__form-nav-list`}>
               <li>
-                <a href="#organization-info">Organization info</a>
+                <a onClick={() => scrollTo("organization-info")}>
+                  Organization info
+                </a>
               </li>
               <li>
-                <a href="#fleet-web-address">Fleet web address</a>
+                <a onClick={() => scrollTo("fleet-web-address")}>
+                  Fleet web address
+                </a>
               </li>
               <li>
-                <a href="#saml">SAML single sign on options</a>
+                <a onClick={() => scrollTo("saml")}>
+                  SAML single sign on options
+                </a>
               </li>
               <li>
-                <a href="#smtp">SMTP options</a>
+                <a onClick={() => scrollTo("smtp")}>SMTP options</a>
               </li>
               <li>
-                <a href="#osquery-enrollment-secrets">
+                <a onClick={() => scrollTo("osquery-enrollment-secrets")}>
                   Osquery enrollment secrets
                 </a>
               </li>
               <li>
-                <a href="#agent-options">Global agent options</a>
+                <a onClick={() => scrollTo("agent-options")}>
+                  Global agent options
+                </a>
               </li>
               <li>
-                <a href="#host-status-webhook">Host status webhook</a>
+                <a onClick={() => scrollTo("host-status-webhook")}>
+                  Host status webhook
+                </a>
               </li>
               <li>
-                <a href="#usage-stats">Usage statistics</a>
+                <a onClick={() => scrollTo("usage-stats")}>Usage statistics</a>
               </li>
               <li>
-                <a href="#advanced-options">Advanced options</a>
+                <a onClick={() => scrollTo("advanced-options")}>
+                  Advanced options
+                </a>
               </li>
             </ul>
           </nav>

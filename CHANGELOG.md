@@ -1,3 +1,18 @@
+## Fleet 4.4.2 (Oct 14, 2021)
+
+* Fix migration errors under some MySQL configurations due to use of temporary tables.
+
+* Fix pagination of hosts on host dashboard.
+
+* Optimize HTTP requests on host search.
+
+## Fleet 4.4.1 (Oct 8, 2021)
+
+* Fix database migrations error when updating from 4.3.2 to 4.4.0. This did not effect upgrades
+  between other versions and 4.4.0.
+
+* Improve logging of errors in fleet serve.
+
 ## Fleet 4.4.0 (Oct 6, 2021)
 
 * Fleet Premium: Teams Schedules show inherited queries from All teams (global) Schedule.

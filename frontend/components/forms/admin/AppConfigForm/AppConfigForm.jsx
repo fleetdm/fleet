@@ -126,16 +126,6 @@ class AppConfigForm extends Component {
     };
   }
 
-  onToggleAdvancedOptions = (evt) => {
-    evt.preventDefault();
-
-    const { showAdvancedOptions } = this.state;
-
-    this.setState({ showAdvancedOptions: !showAdvancedOptions });
-
-    return false;
-  };
-
   toggleHostStatusWebhookPreviewModal = () => {
     const { showHostStatusWebhookPreviewModal } = this.state;
     this.setState({
@@ -713,7 +703,9 @@ class AppConfigForm extends Component {
           </div>
 
           <div className={`${baseClass}__section`}>
-            <h2>Advanced options</h2>
+            <h2>
+              <a id="advanced-options">Advanced options</a>
+            </h2>
             {renderAdvancedOptions()}
           </div>
           <Button type="submit" variant="brand">

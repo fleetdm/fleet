@@ -23,10 +23,11 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries []*fleet.QuerySpec
-	Teams   []*fleet.TeamSpec
-	Packs   []*fleet.PackSpec
-	Labels  []*fleet.LabelSpec
+	Queries  []*fleet.QuerySpec
+	Teams    []*fleet.TeamSpec
+	Packs    []*fleet.PackSpec
+	Labels   []*fleet.LabelSpec
+	Policies []*fleet.PolicySpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
 	AppConfig    interface{}
@@ -40,9 +41,10 @@ type TeamSpec struct {
 
 func specGroupFromBytes(b []byte) (*specGroup, error) {
 	specs := &specGroup{
-		Queries: []*fleet.QuerySpec{},
-		Packs:   []*fleet.PackSpec{},
-		Labels:  []*fleet.LabelSpec{},
+		Queries:  []*fleet.QuerySpec{},
+		Packs:    []*fleet.PackSpec{},
+		Labels:   []*fleet.LabelSpec{},
+		Policies: []*fleet.PolicySpec{},
 	}
 
 	for _, spec := range splitYaml(string(b)) {
@@ -114,6 +116,13 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
 			}
 			specs.Teams = append(specs.Teams, teamSpec.Team)
+
+		case fleet.PolicyKind:
+			var policySpec *fleet.PolicySpec
+			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
+				return nil, errors.Wrap(err, "unmarshaling "+kind+" spec")
+			}
+			specs.Policies = append(specs.Policies, policySpec)
 
 		default:
 			return nil, errors.Errorf("unknown kind %q", s.Kind)
@@ -201,7 +210,7 @@ func applyCommand() *cli.Command {
 
 			if len(specs.Teams) > 0 {
 				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
-					return errors.Wrap(err, "applying queries")
+					return errors.Wrap(err, "applying teams")
 				}
 				logf(c, "[+] applied %d teams\n", len(specs.Teams))
 			}
@@ -211,6 +220,13 @@ func applyCommand() *cli.Command {
 					return errors.Wrap(err, "applying user roles")
 				}
 				log(c, "[+] applied user roles\n")
+			}
+
+			if len(specs.Policies) > 0 {
+				if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
+					return errors.Wrap(err, "applying policies")
+				}
+				logf(c, "[+] applied %d policies\n", len(specs.Policies))
 			}
 
 			return nil

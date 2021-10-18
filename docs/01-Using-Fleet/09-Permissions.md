@@ -67,23 +67,29 @@ Users that are members of multiple teams can be assigned different roles for eac
 
 The following table depicts various permissions levels in a team.
 
-| Action                                                       | Observer | Maintainer |
-| ------------------------------------------------------------ | -------- | ---------- |
-| Browse hosts assigned to team                                | ✅       | ✅         |
-| Browse policies for hosts assigned to team                   | ✅       | ✅         |
-| Filter hosts assigned to team using policies                 | ✅       | ✅         |
-| Filter hosts assigned to team using labels                   | ✅       | ✅         |
-| Target hosts assigned to team using labels                   | ✅       | ✅         |
-| Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         |
-| Run custom queries as live queries on hosts assigned to team |          | ✅         |
-| Enroll hosts to member team                                  |          | ✅         |
-| Delete hosts belonging to member team                        |          | ✅         |
-| Edit queries they authored                                   |          | ✅         |
-| Delete queries they authored                                 |          | ✅         |
-| Create new team schedules                                    |          | ✅         |
-| Delete team schedules                                        |          | ✅         |
-| Browse global schedules                                      |          | ✅         |
-| Create new team policies                                     |          | ✅         |
-| Delete team policies                                         |          | ✅         |
-| Browse global policies                                       |          | ✅         |
-
+| Action                                                       | Observer | Maintainer | Admin   |
+| ------------------------------------------------------------ | -------- | ---------- | ------- |
+| Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
+| Browse policies for hosts assigned to team                   | ✅       | ✅         | ✅       |
+| Filter hosts assigned to team using policies                 | ✅       | ✅         | ✅       |
+| Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
+| Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
+| Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         | ✅       |
+| Run custom queries as live queries on hosts assigned to team |          | ✅         | ✅       |
+| Enroll hosts to member team                                  |          | ✅         | ✅       |
+| Delete hosts belonging to member team                        |          | ✅         | ✅       |
+| Create saved queries                                         |          | ✅         | ✅       |
+| Edit queries they authored                                   |          | ✅         | ✅       |
+| Delete queries they authored                                 |          | ✅         | ✅       |
+| Create new team schedules                                    |          | ✅         | ✅       |
+| Delete team schedules                                        |          | ✅         | ✅       |
+| Browse global schedules                                      |          | ✅         | ✅       |
+| Create new team policies                                     |          | ✅         | ✅       |
+| Delete team policies                                         |          | ✅         | ✅       |
+| Browse global policies                                       |          | ✅         | ✅       |
+| Create enroll secrets that belong to team                    |          |            | ✅       |
+| Edit enroll secrets that belong to team                      |          |            | ✅       |
+| Delete enroll secrets that belong to team                    |          |            | ✅       |
+| Edit users assigned to team                                  |          |            | ✅       |
+| Remove users assigned to team                                |          |            | ✅       |
+| Edit team level agent options                                |          |            | ✅       |

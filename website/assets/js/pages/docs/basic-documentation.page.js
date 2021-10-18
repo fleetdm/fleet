@@ -98,6 +98,16 @@ parasails.registerPage('basic-documentation', {
       debug: false,
     });
 
+    // Handle hashes in urls when coming from an external page.
+    if(window.location.hash){
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
+      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // If the hash matches a header's ID, we'll scroll to that section.
+      if(hashToScrollTo){
+        hashToScrollTo.scrollIntoView();
+      }
+    }
+
     // // Alternative jQuery approach to grab `on this page` links from top of markdown files
     // let subtopics = $('#body-content').find('h1 + ul').children().map((_, el) => el.innerHTML);
     // subtopics = $.makeArray(subtopics);

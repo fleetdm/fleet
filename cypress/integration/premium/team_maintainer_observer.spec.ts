@@ -27,7 +27,7 @@ describe(
       // On the Hosts page, they should…
 
       // See hosts
-      // cy.findByText(/kinda empty in here/i).should("not.exist");
+      // cy.findByText(/generate installer/i).should("not.exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See the “Teams” column in the Hosts table
@@ -140,17 +140,8 @@ describe(
       // cy.get("thead").contains(/team/i).should("exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
-      // See and select the “Add new host” button
-      cy.findByRole("button", { name: /add new host/i }).click();
-
-      // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-      cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
-      cy.get(".Select-menu-outer").within(() => {
-        cy.findByText(/no team/i).should("not.exist");
-        cy.findByText(/apples/i).should("not.exist");
-        cy.findByText(/oranges/i).should("exist");
-      });
-
+      // See and select the “Generate installer” button
+      cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
 
       // On the Host details page, they should…

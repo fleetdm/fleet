@@ -3,16 +3,16 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-
-	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -219,170 +219,6 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	assert.True(t, ms.SaveUserFuncInvoked)
 
 }
-
-// func TestRequestPasswordReset(t *testing.T) {
-// 	ds, err := inmem.New(config.TestConfig())
-// 	require.Nil(t, err)
-// 	createTestAppConfig(t, ds)
-
-// 	createTestUsers(t, ds)
-// 	admin1, err := ds.User("admin1")
-// 	assert.Nil(t, err)
-// 	user1, err := ds.User("user1")
-// 	assert.Nil(t, err)
-// 	var defaultEmailFn = func(e fleet.Email) error {
-// 		return nil
-// 	}
-// 	var errEmailFn = func(e fleet.Email) error {
-// 		return errors.New("test err")
-// 	}
-// 	authz, err := authz.NewAuthorizer()
-// 	require.NoError(t, err)
-// 	svc := service{
-// 		ds:     ds,
-// 		config: config.TestConfig(),
-// 		authz:  authz,
-// 	}
-
-// 	var requestPasswordResetTests = []struct {
-// 		email   string
-// 		emailFn func(e fleet.Email) error
-// 		wantErr error
-// 		user    *fleet.User
-// 		vc      *viewer.Viewer
-// 	}{
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    admin1,
-// 			vc:      &viewer.Viewer{User: admin1},
-// 		},
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    admin1,
-// 			vc:      nil,
-// 		},
-// 		{
-// 			email:   user1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    user1,
-// 			vc:      &viewer.Viewer{User: admin1},
-// 		},
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: errEmailFn,
-// 			user:    user1,
-// 			vc:      nil,
-// 			wantErr: errors.New("test err"),
-// 		},
-// 	}
-
-// 	for _, tt := range requestPasswordResetTests {
-// 		t.Run("", func(t *testing.T) {
-// 			ctx := context.Background()
-// 			if tt.vc != nil {
-// 				ctx = viewer.NewContext(ctx, *tt.vc)
-// 			}
-// 			mailer := &mockMailService{SendEmailFn: tt.emailFn}
-// 			svc.mailService = mailer
-// 			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
-// 			assert.Equal(t, tt.wantErr, serviceErr)
-// 			assert.True(t, mailer.Invoked, "email should be sent if vc is not admin")
-// 			if serviceErr == nil {
-// 				req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
-// 				assert.Nil(t, err)
-// 				assert.NotEmpty(t, req, "user should have at least one password reset request")
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestCreateUserFromInvite(t *testing.T) {
-// 	ds, _ := inmem.New(config.TestConfig())
-// 	svc, _ := newTestService(ds, nil, nil)
-// 	invites := setupInvites(t, ds, []string{"admin2@example.com", "admin3@example.com"})
-// 	ctx := context.Background()
-
-// 	var newUserTests = []struct {
-// 		Username           *string
-// 		Password           *string
-// 		Email              *string
-// 		NeedsPasswordReset *bool
-// 		InviteToken        *string
-// 		wantErr            error
-// 	}{
-// 		{
-// 			Username:    ptr.String("admin2"),
-// 			Password:    ptr.String("foobarbaz1234!"),
-// 			InviteToken: &invites["admin2@example.com"].Token,
-// 			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
-// 		},
-// 		{
-// 			Username: ptr.String("admin2"),
-// 			Password: ptr.String("foobarbaz1234!"),
-// 			Email:    ptr.String("admin2@example.com"),
-// 			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
-// 		},
-// 		{
-// 			Username:           ptr.String("admin2"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin2@example.com"].Token,
-// 		},
-// 		{ // should return ErrNotFound because the invite is deleted
-// 			// after a user signs up
-// 			Username:           ptr.String("admin2"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin2@example.com"].Token,
-// 			wantErr:            errors.New("Invite with token admin2@example.com was not found in the datastore"),
-// 		},
-// 		{
-// 			Username:           ptr.String("admin3"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              &invites["expired"].Email,
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["expired"].Token,
-// 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
-// 		},
-// 		{
-// 			Username:           ptr.String("admin3@example.com"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin3@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin3@example.com"].Token,
-// 		},
-// 	}
-
-// 	for _, tt := range newUserTests {
-// 		t.Run("", func(t *testing.T) {
-// 			payload := fleet.UserPayload{
-// 				Username:    tt.Username,
-// 				Password:    tt.Password,
-// 				Email:       tt.Email,
-// 				InviteToken: tt.InviteToken,
-// 			}
-// 			user, err := svc.CreateUserFromInvite(ctx, payload)
-// 			if tt.wantErr != nil {
-// 				require.Error(t, err)
-// 				assert.Equal(t, tt.wantErr.Error(), err.Error())
-// 				return
-// 			}
-// 			require.NoError(t, err)
-// 			assert.NotZero(t, user.ID)
-
-// 			err = user.ValidatePassword(*tt.Password)
-// 			assert.Nil(t, err)
-
-// 			err = user.ValidatePassword("different_password")
-// 			assert.NotNil(t, err)
-// 		})
-
-// 	}
-// }
 
 func TestChangePassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
@@ -644,6 +480,148 @@ func TestUserPasswordRequirements(t *testing.T) {
 			} else {
 				assert.Nil(t, err)
 			}
+		})
+	}
+}
+
+func TestUserAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	ds.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
+		return &fleet.Invite{
+			Email: "some@email.com",
+			Token: "ABCD",
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()}},
+		}, nil
+	}
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		return &fleet.User{}, nil
+	}
+	ds.DeleteInviteFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
+	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, fmt.Errorf("AA")
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		if id == 999 {
+			return &fleet.User{
+				ID:    999,
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
+			}, nil
+		}
+		return &fleet.User{
+			ID:         888,
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		}, nil
+	}
+	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
+		return nil
+	}
+
+	var testCases = []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
+		shouldFailRead        bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			true,
+			true,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+			false,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			false,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			teams := []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}
+			_, err := svc.CreateUser(ctx, fleet.UserPayload{
+				Name:     ptr.String("Some Name"),
+				Email:    ptr.String("some@email.com"),
+				Password: ptr.String("passw0rd."),
+				Teams:    &teams,
+			})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+				Name:       ptr.String("Some Name"),
+				Email:      ptr.String("some@email.com"),
+				Password:   ptr.String("passw0rd."),
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 999, fleet.UserPayload{Teams: &teams})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 888, fleet.UserPayload{Teams: &teams})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 888, fleet.UserPayload{GlobalRole: ptr.String(fleet.RoleMaintainer)})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
 }

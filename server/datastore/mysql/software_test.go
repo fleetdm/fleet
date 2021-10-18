@@ -263,6 +263,11 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, softByID)
+	require.Len(t, softByID.Vulnerabilities, 2)
+
 	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
 	require.Len(t, host.Software[0].Vulnerabilities, 2)
 	assert.Equal(t, "cve-123-123-132", host.Software[0].Vulnerabilities[0].CVE)
