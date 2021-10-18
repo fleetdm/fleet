@@ -1,13 +1,17 @@
 import React, { useState } from "react";
+import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import softwareAPI from "services/entities/software";
 import { ISoftware } from "interfaces/software";
 
 import Modal from "components/modals/Modal";
 import TabsWrapper from "components/TabsWrapper";
+import TableContainer from "components/TableContainer";
+
+import { generateTableHeaders } from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
-  software: ISoftware[] | undefined;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
@@ -15,12 +19,19 @@ interface ISoftwareCardProps {
 const baseClass = "home-software";
 
 const Software = ({
-  software,
   isModalOpen,
   setIsSoftwareModalOpen,
 }: ISoftwareCardProps): JSX.Element => {
-  const [navTabIndex, setNavTabIndex] = useState(0);
+  const [softwarePage, setSoftwarePage] = useState<number>(0);
+  const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
+  const { data: software, isLoading: isLoadingSoftware } = useQuery<
+    ISoftware[],
+    Error
+  >(["software", softwarePage], () => softwareAPI.load({}));
+
+  const tableHeaders = generateTableHeaders();
+  const vulnerableSoftware = software?.filter((s) => s.vulnerabilities);
   return (
     <div className={baseClass}>
       <TabsWrapper>
@@ -29,8 +40,38 @@ const Software = ({
             <Tab>All</Tab>
             <Tab>Vulnerable</Tab>
           </TabList>
-          <TabPanel>1</TabPanel>
-          <TabPanel>2</TabPanel>
+          <TabPanel>
+            <TableContainer
+              columns={tableHeaders}
+              data={software || []}
+              isLoading={isLoadingSoftware}
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              hideActionButton={true}
+              resultsTitle={"software"}
+              emptyComponent={() => <span>No software</span>}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableCount
+              disableActionButton
+            />
+          </TabPanel>
+          <TabPanel>
+            <TableContainer
+              columns={tableHeaders}
+              data={vulnerableSoftware || []}
+              isLoading={isLoadingSoftware}
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              hideActionButton={true}
+              resultsTitle={"software"}
+              emptyComponent={() => <span>No vulnerable software</span>}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableCount
+              disableActionButton
+            />
+          </TabPanel>
         </Tabs>
       </TabsWrapper>
       {isModalOpen && (
@@ -39,7 +80,23 @@ const Software = ({
           onExit={() => setIsSoftwareModalOpen(false)}
           className={`${baseClass}__software-modal`}
         >
-          <div>3</div>
+          <>
+            <p>Search for a specific software version to find the hosts that have it installed.</p>
+            <TableContainer
+              columns={tableHeaders}
+              data={software || []}
+              isLoading={isLoadingSoftware}
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              hideActionButton={true}
+              resultsTitle={"software items"}
+              emptyComponent={() => <span>No vulnerable software</span>}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              searchable
+              disableActionButton
+            />
+          </>
         </Modal>
       )}
     </div>

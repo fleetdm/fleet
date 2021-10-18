@@ -11,17 +11,18 @@
     font-weight: $regular;
     margin: 0;
   }
-
-  a {
+  
+  &__action-button {
+    display: flex;
+    align-items: center;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
-    text-decoration: none;
+    text-decoration: none !important;
   }
 
   #link-arrow {
     transform: scale(0.5);
-    margin-bottom: -4px;
   }
 
   &__header-wrap {
@@ -66,6 +67,10 @@
     width: 100%;
     display: grid;
 
+    &.two-column {
+      row-gap: $pad-medium;
+    }
+    
     @media screen and (min-width: 990px) {
       &.two-column {
         grid-template-columns: repeat(2, 1fr);

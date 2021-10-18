@@ -6,7 +6,6 @@ import { AppContext } from "context/app";
 import { find } from "lodash";
 
 import teamsAPI from "services/entities/teams";
-import softwareAPI from "services/entities/software";
 import { ITeam } from "interfaces/team";
 import { ISoftware } from "interfaces/software";
 
@@ -35,7 +34,6 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [softwarePage, setSoftwarePage] = useState<number>(0);
   const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(false);
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
@@ -46,11 +44,6 @@ const Homepage = (): JSX.Element => {
     enabled: !!isPremiumTier,
     select: (data: ITeamsResponse) => data.teams,
   });
-
-  const { data: software, isLoading: isLoadingSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(["software", softwarePage], () => softwareAPI.load({}));
 
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
@@ -75,7 +68,7 @@ const Homepage = (): JSX.Element => {
         <div className={`${baseClass}__info-card`}>
           <div className={`${baseClass}__section-title`}>
             <h2>Hosts</h2>
-            <Link to={MANAGE_HOSTS} className={`${baseClass}__host-link`}>
+            <Link to={MANAGE_HOSTS} className={`${baseClass}__action-button`}>
               <span>View all hosts</span>
               <img src={LinkArrow} alt="link arrow" id="link-arrow" />
             </Link>
@@ -83,7 +76,16 @@ const Homepage = (): JSX.Element => {
           <HostsSummary />
         </div>
       </div>
-      <div className={`
+      <div className={`${baseClass}__section one-column`}>
+        <div className={`${baseClass}__info-card`}>
+          <div className={`${baseClass}__section-title`}>
+            <h2>Activity</h2>
+          </div>
+          <ActivityFeed />
+        </div>
+      </div>
+      {/* TODO: Re-add this commented out section once the /software API is running */}
+      {/* <div className={`
         ${baseClass}__section 
         ${currentTeam ? 'one' : 'two'}-column
       `}>
@@ -92,9 +94,9 @@ const Homepage = (): JSX.Element => {
             <div className={`${baseClass}__section-title`}>
               <h2>Software</h2>
               <Button
-                className={`${baseClass}__all-software`}
-                  variant="text-link"
-                  onClick={() => setIsSoftwareModalOpen(true)}
+                className={`${baseClass}__action-button`}
+                variant="text-link"
+                onClick={() => setIsSoftwareModalOpen(true)}
               >
                 <>
                   <span>View all software</span>
@@ -103,7 +105,6 @@ const Homepage = (): JSX.Element => {
               </Button>
             </div>
             <Software
-              software={software}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
             />
@@ -115,7 +116,7 @@ const Homepage = (): JSX.Element => {
           </div>
           <ActivityFeed />
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
