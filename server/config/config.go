@@ -47,6 +47,10 @@ type RedisConfig struct {
 	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
 	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
 	ClusterReadFromReplica    bool          `yaml:"cluster_read_from_replica"`
+	TLSCert                   string        `yaml:"tls_cert"`
+	TLSKey                    string        `yaml:"tls_key"`
+	TLSCA                     string        `yaml:"tls_ca"`
+	TLSServerName             string        `yaml:"tls_server_name"`
 }
 
 const (
@@ -255,6 +259,10 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
 	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
+	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
+	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
+	man.addConfigString("redis.tls_ca", "", "Redis TLS server CA")
+	man.addConfigString("redis.tls_server_name", "", "Redis TLS server name")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -447,6 +455,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
 			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
 			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                   man.getConfigString("redis.tls_cert"),
+			TLSKey:                    man.getConfigString("redis.tls_key"),
+			TLSCA:                     man.getConfigString("redis.tls_ca"),
+			TLSServerName:             man.getConfigString("redis.tls_server_name"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
