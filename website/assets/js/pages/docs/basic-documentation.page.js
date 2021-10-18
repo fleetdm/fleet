@@ -97,7 +97,7 @@ parasails.registerPage('basic-documentation', {
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
       debug: false,
       algoliaOptions: {
-        'facetFilters': ["tags:docs"]
+        'facetFilters': ['tags:docs']
       },
     });
 
