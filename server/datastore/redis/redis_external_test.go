@@ -167,26 +167,38 @@ func TestPublishHasListeners(t *testing.T) {
 
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"a"))
-		// introduce a small delay so PUBLISH actually returns 1 listener and not
-		// 0, as this fails on CI otherwise - likely because Redis registers the
-		// listeners asynchronously, so PUBLISH returns no listener if done too
-		// soon after SUBSCRIBE.
-		time.Sleep(10 * time.Millisecond)
+
+		start := time.Now()
+		var loopOk bool
+	loop1:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Subscription:
+				require.Equal(t, msg.Count, 1)
+				loopOk = true
+				break loop1
+			}
+		}
+		require.True(t, loopOk, "timed out")
 
 		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		start := time.Now()
-	loop:
+		start = time.Now()
+		loopOk = false
+	loop2:
 		for time.Since(start) < 2*time.Second {
 			msg := psc.Receive()
 			switch msg := msg.(type) {
 			case redigo.Message:
 				require.Equal(t, "B", string(msg.Data))
-				break loop
+				loopOk = true
+				break loop2
 			}
 		}
+		require.True(t, loopOk, "timed out")
 	})
 
 	t.Run("cluster", func(t *testing.T) {
@@ -218,6 +230,7 @@ func TestPublishHasListeners(t *testing.T) {
 
 		start := time.Now()
 		want := "B"
+		var loopOk bool
 	loop:
 		for time.Since(start) < 2*time.Second {
 			msg := psc.Receive()
@@ -225,11 +238,13 @@ func TestPublishHasListeners(t *testing.T) {
 			case redigo.Message:
 				require.Equal(t, want, string(msg.Data))
 				if want == "C" {
+					loopOk = true
 					break loop
 				}
 				want = "C"
 			}
 		}
+		require.True(t, loopOk, "timed out")
 	})
 }
 
