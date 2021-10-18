@@ -1,16 +1,16 @@
 import React from "react";
-import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
-import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -197,7 +197,6 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
     //   },
     //   sortType: "dateStrings",
     // },
-    // TODO: Enable after manage hosts page has been updated to filter hosts by software id
     {
       title: "",
       Header: "",
@@ -219,24 +218,5 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
     },
   ];
 };
-
-// const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-//   return Object.values(software).map((softwareItem) => {
-//     return {
-//       ...softwareItem,
-//       // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
-//       type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
-//     };
-//   });
-// };
-
-// const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
-//   // Cannot pass undefined to enhanceSoftwareData
-//   if (!software) {
-//     return software;
-//   }
-
-//   return [...enhanceSoftwareData(software)];
-// };
 
 export default generateSoftwareTableHeaders;
