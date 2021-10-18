@@ -380,11 +380,10 @@
         width: 16px;
         padding-right: 0px;
       }
-      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
-      // &:last-child {
-      //   width: 90px;
-      //   padding: 0px;
-      // }
+      &:last-child {
+        width: 90px;
+        padding: 0px;
+      }
     }
     tr {
       td {

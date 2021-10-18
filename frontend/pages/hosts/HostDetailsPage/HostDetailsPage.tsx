@@ -24,7 +24,7 @@ import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal"; // @ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
 import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
 import TableContainer from "components/TableContainer";
 
@@ -522,7 +522,9 @@ const HostDetailsPage = ({
           </div>
         ) : (
           <>
-            <SoftwareVulnerabilities softwareList={host?.software} />
+            {host?.software && (
+              <SoftwareVulnerabilities softwareList={host?.software} />
+            )}
             {host?.software && (
               <TableContainer
                 columns={tableHeaders}
@@ -811,8 +813,8 @@ const HostDetailsPage = ({
       </div>
       {renderLabels()}
       {renderPacks()}
-      {renderUsers()}
       {host?.software && renderSoftware()}
+      {renderUsers()}
       {showDeleteHostModal && renderDeleteHostModal()}
       {showQueryHostModal && (
         <SelectQueryModal
