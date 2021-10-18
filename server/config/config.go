@@ -246,7 +246,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 		clientCert := make([]tls.Certificate, 0, 1)
 		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "load mysql client cert and key")
+			return nil, errors.Wrap(err, "load client cert and key")
 		}
 		clientCert = append(clientCert, certs)
 		cfg.Certificates = clientCert

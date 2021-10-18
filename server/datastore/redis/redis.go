@@ -52,6 +52,7 @@ type PoolConfig struct {
 	MaxOpenConns              int
 	ConnMaxLifetime           time.Duration
 	IdleTimeout               time.Duration
+	TLSSkipVerify             bool
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -249,6 +250,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 		if err != nil {
 			return nil, err
 		}
+		cfg.InsecureSkipVerify = conf.TLSSkipVerify
 
 		opts = append(opts,
 			redis.DialTLSConfig(cfg),
