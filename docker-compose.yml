@@ -1,5 +1,5 @@
 ---
-version: '2'
+version: "2"
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
   mysql:
@@ -20,7 +20,7 @@ services:
     image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
     platform: linux/x86_64
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
-    command: mysqld --datadir=/tmpfs --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON --innodb-file-per-table=OFF
+    command: mysqld --datadir=/tmpfs --slow_query_log=1 --log_output=TABLE --log-queries-not-using-indexes --event-scheduler=ON --innodb-file-per-table=OFF --enforce-gtid-consistency=ON --log-bin=bin.log --server-id=master-01
     environment: *mysql-default-environment
     ports:
       - "3307:3306"
@@ -54,7 +54,7 @@ services:
     image: redis:5
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - '7001:7001'
+      - "7001:7001"
     volumes:
       - ./tools/redis-tests/redis-cluster-1.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -65,7 +65,7 @@ services:
     image: redis:5
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - '7002:7002'
+      - "7002:7002"
     volumes:
       - ./tools/redis-tests/redis-cluster-2.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -76,7 +76,7 @@ services:
     image: redis:5
     command: redis-server /usr/local/etc/redis/redis.conf
     ports:
-      - '7003:7003'
+      - "7003:7003"
     volumes:
       - ./tools/redis-tests/redis-cluster-3.conf:/usr/local/etc/redis/redis.conf
     networks:
@@ -86,8 +86,8 @@ services:
   saml_idp:
     image: fleetdm/docker-idp:latest
     environment:
-      SIMPLESAMLPHP_SP_ENTITY_ID: 'https://localhost:8080'
-      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: 'https://localhost:8080/api/v1/fleet/sso/callback'
+      SIMPLESAMLPHP_SP_ENTITY_ID: "https://localhost:8080"
+      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: "https://localhost:8080/api/v1/fleet/sso/callback"
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
     ports:

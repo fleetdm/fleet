@@ -7,6 +7,7 @@ package authzcheck
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -45,6 +46,7 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked {
+				fmt.Println("missed auth error: ", err)
 				return nil, authz.CheckMissingWithResponse(response)
 			}
 
