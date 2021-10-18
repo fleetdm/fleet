@@ -3,6 +3,7 @@ import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+
 interface IIssueCellProps<T> {
   issues: {
     total_issues_count: number;
