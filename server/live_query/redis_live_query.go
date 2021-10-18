@@ -318,7 +318,7 @@ func mapBitfield(hostIDs []uint) []byte {
 func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
 
-	err := redis.EachNode(pool, func(conn redigo.Conn) error {
+	err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 		cursor := 0
 		for {
 			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern))

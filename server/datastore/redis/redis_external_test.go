@@ -78,7 +78,7 @@ func TestEachNode(t *testing.T) {
 		}
 
 		var keys []string
-		err := redis.EachNode(pool, func(conn redigo.Conn) error {
+		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 			var cursor int
 			for {
 				res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", prefix+"*"))
@@ -246,8 +246,7 @@ func TestReadOnlyConn(t *testing.T) {
 		defer conn.Close()
 
 		_, err := conn.Do("SET", prefix+"a", 1)
-		// TODO(mna): would require setting up replicas to the docker redis cluster infra
-		// for this to return an error
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "MOVED")
 	})
 }

@@ -118,9 +118,19 @@ func SplitKeysBySlot(pool fleet.RedisPool, keys ...string) [][]string {
 // automatically closed after the call. If fn returns an error, the iteration
 // of nodes stops and EachNode returns that error. For standalone redis,
 // fn is called only once.
-func EachNode(pool fleet.RedisPool, fn func(conn redis.Conn) error) error {
+//
+// If replicas is true, it will visit each replica node instead, otherwise the
+// primary nodes are visited. Keep in mind that if replicas is true, it will
+// visit all known replicas - which is great e.g. to run diagnostics on each
+// node, but can be surprising if the goal is e.g. to collect all keys, as it
+// is possible that more than one node is acting as replica for the same
+// primary, meaning that the same keys could be seen multiple times - you
+// should be prepared to handle this scenario. The connection provided to fn is
+// not a ReadOnly connection (conn.ReadOnly hasn't been called on it), it is up
+// to fn to execute the READONLY redis command if required.
+func EachNode(pool fleet.RedisPool, replicas bool, fn func(conn redis.Conn) error) error {
 	if cluster, isCluster := pool.(*clusterPool); isCluster {
-		return cluster.EachNode(false, func(_ string, conn redis.Conn) error {
+		return cluster.EachNode(replicas, func(_ string, conn redis.Conn) error {
 			return fn(conn)
 		})
 	}
@@ -167,26 +177,35 @@ func PublishHasListeners(pool fleet.RedisPool, conn redis.Conn, channel, message
 
 	errDone := errors.New("done")
 	var count int
-	err = EachNode(pool, func(conn redis.Conn) error {
-		res, err := redis.Values(conn.Do("PUBSUB", "NUMSUB", channel))
-		if err != nil {
-			return err
+
+	// subscribers can be subscribed on replicas, so we need to iterate on both
+	// primaries and replicas.
+	for _, replicas := range []bool{true, false} {
+		err = EachNode(pool, replicas, func(conn redis.Conn) error {
+			res, err := redis.Values(conn.Do("PUBSUB", "NUMSUB", channel))
+			if err != nil {
+				return err
+			}
+			var (
+				name string
+				n    int
+			)
+			_, err = redis.Scan(res, &name, &n)
+			if err != nil {
+				return err
+			}
+			count += n
+			if count > 0 {
+				// end early if we know it has subscribers
+				return errDone
+			}
+			return nil
+		})
+
+		if err == errDone {
+			break
 		}
-		var (
-			name string
-			n    int
-		)
-		_, err = redis.Scan(res, &name, &n)
-		if err != nil {
-			return err
-		}
-		count += n
-		if count > 0 {
-			// end early if we know it has subscribers
-			return errDone
-		}
-		return nil
-	})
+	}
 
 	// if it completed successfully
 	if err == nil || err == errDone {

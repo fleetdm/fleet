@@ -50,7 +50,7 @@ func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		err := redis.EachNode(pool, func(conn redigo.Conn) error {
+		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})
