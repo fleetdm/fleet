@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 )
 
@@ -46,7 +47,7 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 	if len(requestID) < 8 {
 		return errors.New("request id must be 8 or more characters in length")
 	}
-	conn := s.pool.ConfigureDoer(s.pool.Get())
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 	sess := Session{OriginalURL: originalURL, Metadata: metadata}
 	var writer bytes.Buffer
@@ -59,11 +60,14 @@ func (s *store) create(requestID, originalURL, metadata string, lifetimeSecs uin
 }
 
 func (s *store) Get(requestID string) (*Session, error) {
-	conn := s.pool.ConfigureDoer(s.pool.Get())
+	// not reading from a replica here as this gets called in close succession
+	// in the auth flow, with initiate SSO writing and callback SSO having to
+	// read that write.
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	val, err := redis.String(conn.Do("GET", requestID))
+	val, err := redigo.String(conn.Do("GET", requestID))
 	if err != nil {
-		if err == redis.ErrNil {
+		if err == redigo.ErrNil {
 			return nil, ErrSessionNotFound
 		}
 		return nil, err
@@ -81,7 +85,7 @@ func (s *store) Get(requestID string) (*Session, error) {
 var ErrSessionNotFound = errors.New("session not found")
 
 func (s *store) Expire(requestID string) error {
-	conn := s.pool.ConfigureDoer(s.pool.Get())
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 	_, err := conn.Do("DEL", requestID)
 	return err

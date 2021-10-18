@@ -77,7 +77,7 @@ func copyFile(srcPath, dstPath string, perm os.FileMode) error {
 	return nil
 }
 
-func initializeUpdates(updateOpt update.Options) error {
+func InitializeUpdates(updateOpt update.Options) error {
 	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
 	if err != nil {
 		return errors.Wrap(err, "failed to create local metadata store")

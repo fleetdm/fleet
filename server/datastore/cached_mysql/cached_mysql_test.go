@@ -3,12 +3,9 @@ package cached_mysql
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"runtime"
 	"testing"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -17,47 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newPool is basically repeated in every package that uses redis
-// I tried to move this to a datastoretest package, but there's an import loop with redis
-// so I decided to copy and past for now
-func newPool(t *testing.T, cluster bool) fleet.RedisPool {
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
-	}
-
-	if _, ok := os.LookupEnv("REDIS_TEST"); ok {
-		var (
-			addr     = "127.0.0.1:"
-			password = ""
-			database = 0
-			useTLS   = false
-			port     = "6379"
-		)
-		if cluster {
-			port = "7001"
-		}
-		addr += port
-
-		pool, err := redis.NewRedisPool(redis.PoolConfig{
-			Server:      addr,
-			Password:    password,
-			Database:    database,
-			UseTLS:      useTLS,
-			ConnTimeout: 5 * time.Second,
-			KeepAlive:   10 * time.Second,
-		})
-		require.NoError(t, err)
-		conn := pool.Get()
-		defer conn.Close()
-		_, err = conn.Do("PING")
-		require.Nil(t, err)
-		return pool
-	}
-	return nil
-}
-
 func TestCachedAppConfig(t *testing.T) {
-	pool := newPool(t, false)
+	pool := redistest.SetupRedis(t, false, false, false)
 	conn := pool.Get()
 	_, err := conn.Do("DEL", CacheKeyAppConfig)
 	require.NoError(t, err)

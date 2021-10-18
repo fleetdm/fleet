@@ -416,6 +416,20 @@ handled transparently instead of ending in an error.
     cluster_follow_redirections: true
   ```
 
+##### redis_cluster_read_from_replica
+
+Whether or not to prefer reading from a replica when possible. Applies only
+to Redis Cluster setups, ignored in standalone Redis.
+
+- Default value: false
+- Environment variable: `FLEET_REDIS_CLUSTER_READ_FROM_REPLICA`
+- Config file format:
+
+  ```
+  redis:
+    cluster_read_from_replica: true
+  ```
+
 #### Server
 
 ##### server_address
@@ -681,7 +695,7 @@ Valid time units are `s`, `m`, `h`.
   osquery:
   	label_update_interval: 30m
   ```
-  
+
 ##### osquery_policy_update_interval
 
 The interval at which Fleet will ask osquery agents to update their results for policy queries.
@@ -1346,7 +1360,7 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### s3_endpoint_url
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio), 
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -1376,7 +1390,7 @@ AWS S3 Disable SSL. Useful for local testing.
 AWS S3 Force S3 Path Style.	Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
 will use virtual hosted bucket addressing when possible
-(`http://BUCKET.s3.amazonaws.com/KEY`). 
+(`http://BUCKET.s3.amazonaws.com/KEY`).
 
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
@@ -1393,7 +1407,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-- Default value: 
+- Default value:
 - Environment variable: `FLEET_S3_REGION`
 - Config file format:
 

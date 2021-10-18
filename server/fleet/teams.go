@@ -61,6 +61,7 @@ type TeamUser struct {
 }
 
 var teamRoles = map[string]bool{
+	RoleAdmin:      true,
 	RoleObserver:   true,
 	RoleMaintainer: true,
 }

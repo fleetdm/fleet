@@ -1,5 +1,3 @@
-// TODO: Replace SoftwareVulnerabilities.jsx with this file upon completion of changes to ManageHostsPage planned that will display vulnerability information along with filter-by-software-id functionality
-
 import React from "react";
 
 import { ISoftware } from "interfaces/software";
