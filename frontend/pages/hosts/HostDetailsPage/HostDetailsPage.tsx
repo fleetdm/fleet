@@ -144,14 +144,8 @@ const HostDetailsPage = ({
       refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        // console.log(returnedHost);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
-          // const timeout = differenceInMilliseconds(
-          //   Date.now(),
-          //   new Date(returnedHost.seen_time)
-          // );
-          // console.log(timeout);
           if (
             returnedHost.status !== "offline" &&
             differenceInMilliseconds(
@@ -274,7 +268,6 @@ const HostDetailsPage = ({
       setShowRefetchLoadingSpinner(true);
       try {
         await hostAPI.refetch(host).then(() => {
-          console.log("start refetching: ");
           setTimeout(() => fullyReloadHost(), 1000);
         });
       } catch (error) {
@@ -315,7 +308,7 @@ const HostDetailsPage = ({
   };
 
   // Search functionality
-  const onTableSearchChange = ({
+  const onSoftwareTableSearchChange = ({
     searchQuery,
     sortHeader,
     sortDirection,
@@ -578,7 +571,7 @@ const HostDetailsPage = ({
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
-                onQueryChange={onTableSearchChange}
+                onQueryChange={onSoftwareTableSearchChange}
                 resultsTitle={"software items"}
                 emptyComponent={EmptySoftware}
                 showMarkAllPages={false}
