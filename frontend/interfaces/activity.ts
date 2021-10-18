@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { IQuery } from "./query";
 
 export enum ActivityType {
   CreatedPack = "created_pack",
@@ -10,8 +11,8 @@ export enum ActivityType {
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
   LiveQuery = "live_query",
-  AppliedPackSpec = "applied_pack_spec",
-  AppliedQuerySpec = "applied_query_spec",
+  AppliedSpecPack = "applied_spec_pack",
+  AppliedSpecSavedQuery = "applied_spec_saved_query",
 }
 export interface IActivity {
   created_at: string;
@@ -31,6 +32,7 @@ export interface IActivityDetails {
   team_id?: number;
   team_name?: string;
   targets_count?: number;
+  specs?: IQuery[];
 }
 
 export default PropTypes.shape({

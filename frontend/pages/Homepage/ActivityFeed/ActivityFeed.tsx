@@ -29,15 +29,27 @@ const TAGGED_TEMPLATES = {
       ? "ran a live query"
       : `ran a live query on ${count} ${count === 1 ? "host" : "hosts"}`;
   },
+  editPackCtlActivityTemplate: () => {
+    return "edited a pack using fleetctl";
+  },
+  editQueryCtlActivityTemplate: (activity: IActivity) => {
+    const count = activity.details?.specs?.length;
+    return typeof count === "undefined" || typeof count !== "number"
+      ? "edited a query using fleetctl"
+      : `edited ${count === 1 ? "a query" : "queries"} using fleetctl`;
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
     );
+
+    const activityType = lowerCase(activity.type).replace(" saved", "");
+
     return !entityName ? (
-      `${lowerCase(activity.type)}`
+      `${activityType}`
     ) : (
       <span>
-        {lowerCase(activity.type)} <b>{entityName}</b>
+        {activityType} <b>{entityName}</b>
       </span>
     );
   },
@@ -87,6 +99,12 @@ const ActivityFeed = (): JSX.Element => {
   const getDetail = (activity: IActivity) => {
     if (activity.type === ActivityType.LiveQuery) {
       return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
+    }
+    if (activity.type === ActivityType.AppliedSpecPack) {
+      return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
+    }
+    if (activity.type === ActivityType.AppliedSpecSavedQuery) {
+      return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
     }
     return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
   };
