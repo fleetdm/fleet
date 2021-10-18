@@ -57,6 +57,11 @@ type RedisConfig struct {
 	TLSServerName             string        `yaml:"tls_server_name"`
 	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
 	// TODO(mna): should we allow insecure skip verify option?
+	MaxIdleConns int `yaml:"max_idle_conns"`
+	MaxOpenConns int `yaml:"max_open_conns"`
+	// this config is an int on MysqlConfig, but it should be a time.Duration.
+	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
+	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 }
 
 const (
@@ -306,6 +311,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("redis.tls_ca", "", "Redis TLS server CA")
 	man.addConfigString("redis.tls_server_name", "", "Redis TLS server name")
 	man.addConfigDuration("redis.tls_handshake_timeout", 10*time.Second, "Redis TLS handshake timeout")
+	man.addConfigInt("redis.max_idle_conns", 3, "Redis maximum idle connections")
+	man.addConfigInt("redis.max_open_conns", 0, "Redis maximum open connections, 0 means no limit")
+	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
+	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -503,6 +512,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			TLSCA:                     man.getConfigString("redis.tls_ca"),
 			TLSServerName:             man.getConfigString("redis.tls_server_name"),
 			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
+			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

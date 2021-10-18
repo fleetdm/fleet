@@ -48,6 +48,10 @@ type PoolConfig struct {
 	TLSCA                     string
 	TLSServerName             string
 	TLSHandshakeTimeout       time.Duration
+	MaxIdleConns              int
+	MaxOpenConns              int
+	ConnMaxLifetime           time.Duration
+	IdleTimeout               time.Duration
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -261,10 +265,11 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 		StartupNodes: []string{conf.Server},
 		DialOptions:  opts,
 		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
-			// TODO: configure MaxIdle, MaxActive, MaxConnLifetime, IdleTimeout
 			return &redis.Pool{
-				MaxIdle:     3,
-				IdleTimeout: 240 * time.Second,
+				MaxIdle:         conf.MaxIdleConns,
+				MaxActive:       conf.MaxOpenConns,
+				IdleTimeout:     conf.IdleTimeout,
+				MaxConnLifetime: conf.ConnMaxLifetime,
 
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn
