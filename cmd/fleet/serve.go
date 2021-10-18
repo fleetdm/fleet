@@ -216,6 +216,7 @@ the way that the Fleet server works.
 				TLSKey:                    config.Redis.TLSKey,
 				TLSCA:                     config.Redis.TLSCA,
 				TLSServerName:             config.Redis.TLSServerName,
+				TLSHandshakeTimeout:       config.Redis.TLSHandshakeTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")

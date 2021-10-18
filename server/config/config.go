@@ -1,13 +1,17 @@
 package config
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,6 +55,8 @@ type RedisConfig struct {
 	TLSKey                    string        `yaml:"tls_key"`
 	TLSCA                     string        `yaml:"tls_ca"`
 	TLSServerName             string        `yaml:"tls_server_name"`
+	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
+	// TODO(mna): should we allow insecure skip verify option?
 }
 
 const (
@@ -211,6 +217,42 @@ type FleetConfig struct {
 	Vulnerabilities  VulnerabilitiesConfig
 }
 
+type TLS struct {
+	TLSCert       string
+	TLSKey        string
+	TLSCA         string
+	TLSServerName string
+}
+
+func (t *TLS) ToTLSConfig() (*tls.Config, error) {
+	rootCertPool := x509.NewCertPool()
+	pem, err := ioutil.ReadFile(t.TLSCA)
+	if err != nil {
+		return nil, errors.Wrap(err, "read server-ca pem")
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return nil, errors.New("failed to append PEM.")
+	}
+
+	cfg := &tls.Config{
+		RootCAs: rootCertPool,
+	}
+	if t.TLSCert != "" {
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "load mysql client cert and key")
+		}
+		clientCert = append(clientCert, certs)
+		cfg.Certificates = clientCert
+	}
+
+	if t.TLSServerName != "" {
+		cfg.ServerName = t.TLSServerName
+	}
+	return cfg, nil
+}
+
 // addConfigs adds the configuration keys and default values that will be
 // filled into the FleetConfig struct
 func (man Manager) addConfigs() {
@@ -263,6 +305,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
 	man.addConfigString("redis.tls_ca", "", "Redis TLS server CA")
 	man.addConfigString("redis.tls_server_name", "", "Redis TLS server name")
+	man.addConfigDuration("redis.tls_handshake_timeout", 10*time.Second, "Redis TLS handshake timeout")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -459,6 +502,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			TLSKey:                    man.getConfigString("redis.tls_key"),
 			TLSCA:                     man.getConfigString("redis.tls_ca"),
 			TLSServerName:             man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
