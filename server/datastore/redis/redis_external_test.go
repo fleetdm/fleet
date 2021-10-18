@@ -167,10 +167,10 @@ func TestPublishHasListeners(t *testing.T) {
 
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"a"))
-    // introduce a small delay so PUBLISH actually returns 1 listener and not
-    // 0, as this fails on CI otherwise - likely because Redis registers the
-    // listeners asynchronously, so PUBLISH returns no listener if done too
-    // soon after SUBSCRIBE.
+		// introduce a small delay so PUBLISH actually returns 1 listener and not
+		// 0, as this fails on CI otherwise - likely because Redis registers the
+		// listeners asynchronously, so PUBLISH returns no listener if done too
+		// soon after SUBSCRIBE.
 		time.Sleep(10 * time.Millisecond)
 
 		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
