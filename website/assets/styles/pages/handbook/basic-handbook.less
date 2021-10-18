@@ -58,27 +58,15 @@
     } &:focus {
       border: none;
     }
-
   }
   [purpose='breadcrumbs'] {
     padding-bottom: 16px;
     padding-top: 16px;
-
     p, a, strong {
       font-size: 12px;
       line-height: 24px;
     }
-  }
-
-  [purpose='mobile-breadcrumbs'] {
-    line-height: 24px;
-    padding-bottom: 16px;
-    padding-top: 16px;
-    p, strong {
-      font-size: 12px;
-    }
     a {
-      font-size: 12px;
       text-decoration: none;
       &.active {
         color: @core-vibrant-blue;
@@ -299,7 +287,9 @@
     .handbook-content {
       max-width: 100%;
     }
-
+    [purpose='search'] {
+      padding-bottom: 0px;
+    }
     [purpose='right-sidebar'] {
       max-width: 100%;
       margin: 0;

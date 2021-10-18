@@ -23,6 +23,18 @@ parasails.registerPage('basic-handbook', {
 
   mounted: async function() {
 
+    // Algolia DocSearch
+    docsearch({
+      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      indexName: 'fleetdm',
+      inputSelector: '#docsearch-query',
+      debug: false,
+      clickAnalytics: true,
+      algoliaOptions: {
+        'facetFilters': ['tags:handbook']
+      },
+    });
+
     this.subtopics = (() => {
       let subtopics;
       if(!this.isHandbookLandingPage){
