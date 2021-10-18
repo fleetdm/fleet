@@ -22,12 +22,7 @@ import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal"; // @ts-ignore
-<<<<<<< HEAD
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
-import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
-=======
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
->>>>>>> 897f4e3f (Client side pagination, cs buttons, case insensitive sorting)
 import TableContainer from "components/TableContainer";
 
 import {
