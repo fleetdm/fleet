@@ -42,6 +42,10 @@ type PoolConfig struct {
 	ConnectRetryAttempts      int
 	ClusterFollowRedirections bool
 	ClusterReadFromReplica    bool
+	TLSCert                   string
+	TLSKey                    string
+	TLSCA                     string
+	TLSServerName             string
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)

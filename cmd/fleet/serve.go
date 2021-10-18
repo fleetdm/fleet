@@ -212,6 +212,10 @@ the way that the Fleet server works.
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
 				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
 				ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
+				TLSCert:                   config.Redis.TLSCert,
+				TLSKey:                    config.Redis.TLSKey,
+				TLSCA:                     config.Redis.TLSCA,
+				TLSServerName:             config.Redis.TLSServerName,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
