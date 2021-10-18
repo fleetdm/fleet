@@ -2,9 +2,12 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
-import { generateTeamFilterDropdownOptions, getValidatedTeamId } from "fleet/helpers";
+import {
+  generateTeamFilterDropdownOptions,
+  getValidatedTeamId,
+} from "fleet/helpers";
 
-//@ts-ignore
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
 interface ITeamsDropdownProps {
@@ -22,12 +25,8 @@ const TeamsDropdown = ({
   currentTeamId,
   onChange,
 }: ITeamsDropdownProps) => {
-  const {
-    currentUser,
-    isPremiumTier,
-    isOnGlobalTeam,
-  } = useContext(AppContext);
-  
+  const { currentUser, isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+
   if (isLoading) {
     return null;
   } else if (!isPremiumTier) {

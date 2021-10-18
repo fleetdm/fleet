@@ -1,11 +1,4 @@
-import {
-  isString,
-  isPlainObject,
-  isEmpty,
-  reduce,
-  trim,
-  union,
-} from "lodash";
+import { isString, isPlainObject, isEmpty, reduce, trim, union } from "lodash";
 
 interface ILocationParams {
   pathPrefix?: string;

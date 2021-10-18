@@ -5,17 +5,13 @@ interface ITabsWrapperProps {
 }
 
 /*
-* This component exists so we can unify the styles
-* and overwrite the loaded React Tabs styles.
-*/
+ * This component exists so we can unify the styles
+ * and overwrite the loaded React Tabs styles.
+ */
 const baseClass = "component__tabs-wrapper";
 
 const TabsWrapper = ({ children }: ITabsWrapperProps) => {
-  return (
-    <div className={baseClass}>
-      {children}
-    </div>
-  );
+  return <div className={baseClass}>{children}</div>;
 };
 
 export default TabsWrapper;

@@ -805,8 +805,9 @@ const ManageHostsPage = ({
     try {
       await action;
 
-      const successMessage = `${selectedHostIds.length === 1 ? "Host" : "Hosts"
-        } successfully deleted.`;
+      const successMessage = `${
+        selectedHostIds.length === 1 ? "Host" : "Hosts"
+      } successfully deleted.`;
 
       dispatch(renderFlash("success", successMessage));
       refetchHosts({
@@ -826,7 +827,8 @@ const ManageHostsPage = ({
       dispatch(
         renderFlash(
           "error",
-          `Could not delete ${selectedHostIds.length === 1 ? "host" : "hosts"
+          `Could not delete ${
+            selectedHostIds.length === 1 ? "host" : "hosts"
           }. Please try again.`
         )
       );
@@ -837,7 +839,9 @@ const ManageHostsPage = ({
     <TeamsDropdown
       teams={teams || []}
       isLoading={isLoadingTeams}
-      currentTeamId={(policyId && policy?.team_id) || (currentTeam?.id as number)}
+      currentTeamId={
+        (policyId && policy?.team_id) || (currentTeam?.id as number)
+      }
       onChange={(newSelectedValue: number) =>
         handleChangeSelectedTeamFilter(newSelectedValue)
       }

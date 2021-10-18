@@ -5,7 +5,6 @@ import PATHS from "router/paths";
 import { ISoftware } from "interfaces/software";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Chevron from "../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
@@ -36,16 +35,14 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+export const generateTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Name",
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
       title: "Version",
@@ -81,4 +78,4 @@ const generateTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-export { generateTableHeaders };
+export default generateTableHeaders;

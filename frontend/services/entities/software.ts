@@ -32,7 +32,7 @@ export default {
     const { SOFTWARE } = endpoints;
     const pagination = `page=${page}&per_page=${perPage}`;
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
-    const team = teamId ? `team_id=${teamId}` : '';
+    const team = teamId ? `team_id=${teamId}` : "";
     const path = `${SOFTWARE}?${pagination}&${sort}&${team}&${query}&${vulnerable}`;
 
     // return sendRequest("GET", path);
@@ -44,7 +44,7 @@ export default {
         version: "2.1.11",
         source: "Application (macOS)",
         generated_cpe: "",
-        vulnerabilities: null
+        vulnerabilities: null,
       },
       {
         hosts_count: 112,
@@ -53,7 +53,7 @@ export default {
         version: "2.1.11",
         source: "Application (macOS)",
         generated_cpe: "",
-        vulnerabilities: null
+        vulnerabilities: null,
       },
       {
         hosts_count: 78,
@@ -62,7 +62,7 @@ export default {
         version: "2.1.11",
         source: "rpm_packages",
         generated_cpe: "",
-        vulnerabilities: null
+        vulnerabilities: null,
       },
       {
         hosts_count: 78,
@@ -71,7 +71,7 @@ export default {
         version: "2.1.11",
         source: "rpm_packages",
         generated_cpe: "",
-        vulnerabilities: null
+        vulnerabilities: null,
       },
     ];
   },

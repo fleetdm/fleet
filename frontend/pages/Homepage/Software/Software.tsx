@@ -47,7 +47,7 @@ const Software = ({
               isLoading={isLoadingSoftware}
               defaultSortHeader={"hosts_count"}
               defaultSortDirection={"desc"}
-              hideActionButton={true}
+              hideActionButton
               resultsTitle={"software"}
               emptyComponent={() => <span>No software</span>}
               showMarkAllPages={false}
@@ -63,7 +63,7 @@ const Software = ({
               isLoading={isLoadingSoftware}
               defaultSortHeader={"hosts_count"}
               defaultSortDirection={"desc"}
-              hideActionButton={true}
+              hideActionButton
               resultsTitle={"software"}
               emptyComponent={() => <span>No vulnerable software</span>}
               showMarkAllPages={false}
@@ -81,14 +81,17 @@ const Software = ({
           className={`${baseClass}__software-modal`}
         >
           <>
-            <p>Search for a specific software version to find the hosts that have it installed.</p>
+            <p>
+              Search for a specific software version to find the hosts that have
+              it installed.
+            </p>
             <TableContainer
               columns={tableHeaders}
               data={software || []}
               isLoading={isLoadingSoftware}
               defaultSortHeader={"hosts_count"}
               defaultSortDirection={"desc"}
-              hideActionButton={true}
+              hideActionButton
               resultsTitle={"software items"}
               emptyComponent={() => <span>No vulnerable software</span>}
               showMarkAllPages={false}

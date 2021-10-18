@@ -28,13 +28,11 @@ const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const {
-    currentTeam,
-    isPremiumTier,
-    setCurrentTeam,
-  } = useContext(AppContext);
+  const { currentTeam, isPremiumTier, setCurrentTeam } = useContext(AppContext);
 
-  const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(false);
+  const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(
+    false
+  );
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ITeamsResponse,
