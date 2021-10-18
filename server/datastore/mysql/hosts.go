@@ -951,3 +951,18 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	}
 	return policies, nil
 }
+
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
+	ac, err := appConfigDB(ctx, d.reader)
+	if err != nil {
+		return errors.Wrap(err, "getting app config")
+	}
+	if !ac.HostExpirySettings.HostExpiryEnabled {
+		return nil
+	}
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
+	if err != nil {
+		return errors.Wrap(err, "deleting expired hosts")
+	}
+	return nil
+}
