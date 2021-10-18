@@ -3,14 +3,16 @@ import { find, isEmpty, lowerCase } from "lodash";
 import moment from "moment";
 
 // @ts-ignore
-import Fleet from "fleet";
+// import Fleet from "fleet";
+import activitiesAPI from "services/entities/activities";
 import { addGravatarUrlToResource } from "fleet/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/loaders/Spinner"; // @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
 
 import ErrorIcon from "../../../../assets/images/icon-error-16x16@2x.png";
 import OpenNewTabIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -51,14 +53,16 @@ const ActivityFeed = (): JSX.Element => {
   useEffect((): void => {
     const getActivities = async (): Promise<void> => {
       try {
-        const responseActivities = await Fleet.activities.loadNext(pageIndex);
+        const { activities: responseActivities } = await activitiesAPI.loadNext(
+          pageIndex
+        );
+
         if (responseActivities.length) {
-          setActivities((prevActivities) =>
-            prevActivities.concat(responseActivities)
-          );
+          setActivities(responseActivities);
         } else {
           setShowMore(false);
         }
+
         setIsLoading(false);
       } catch (err) {
         setIsLoadingError(true);
@@ -69,7 +73,13 @@ const ActivityFeed = (): JSX.Element => {
     getActivities();
   }, [pageIndex]);
 
-  const onLoadMore = () => {
+  const onLoadPrevious = () => {
+    setIsLoading(true);
+    setShowMore(true);
+    setPageIndex(pageIndex - 1);
+  };
+
+  const onLoadNext = () => {
     setIsLoading(true);
     setPageIndex(pageIndex + 1);
   };
@@ -146,6 +156,7 @@ const ActivityFeed = (): JSX.Element => {
   const renderActivities = activities.map((activity: IActivity, i: number) =>
     renderActivityBlock(activity, i)
   );
+
   return (
     <div className={baseClass}>
       {isLoadingError && renderError()}
@@ -155,19 +166,28 @@ const ActivityFeed = (): JSX.Element => {
         <div>{renderActivities}</div>
       )}
       {isLoading && <Spinner />}
-      {!isLoadingError && !isEmpty(activities) && showMore && (
-        <Button
-          disabled={isLoading}
-          onClick={onLoadMore}
-          variant="unstyled"
-          className={`${baseClass}__load-more-button`}
-        >
-          Load more
-        </Button>
-      )}
-      {!isLoadingError && !isLoading && !isEmpty(activities) && !showMore && (
-        <div className={`${baseClass}__no-more-activities`}>
-          <p>You have no more recorded activity.</p>
+      {!isLoadingError && !isEmpty(activities) && (
+        <div className={`${baseClass}__pagination`}>
+          <Button
+            disabled={isLoading || pageIndex === 0}
+            onClick={onLoadPrevious}
+            variant="unstyled"
+            className={`${baseClass}__load-activities-button`}
+          >
+            <>
+              <FleetIcon name="chevronleft" /> Previous
+            </>
+          </Button>
+          <Button
+            disabled={isLoading || !showMore}
+            onClick={onLoadNext}
+            variant="unstyled"
+            className={`${baseClass}__load-activities-button`}
+          >
+            <>
+              Next <FleetIcon name="chevronright" />
+            </>
+          </Button>
         </div>
       )}
     </div>

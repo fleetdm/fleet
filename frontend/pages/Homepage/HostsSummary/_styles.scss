@@ -1,42 +1,34 @@
 .hosts-summary {
-  align-self: center;
+  margin-top: $pad-large;
   width: 100%;
-  max-width: 900px;
-
-  &__tiles {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-  }
+  display: flex;
+  justify-content: space-around;
+  font-size: $x-small;
 
   &__tile {
-    background-color: $ui-off-white;
-    height: 180px;
     flex-grow: 1;
-    margin-right: 16px;
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 4px;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
 
-    &:last-child {
-      margin-right: 0;
+    &:first-of-type {
+      justify-content: flex-end;
+    }
+    &:last-of-type {
+      justify-content: flex-start;
     }
   }
 
   &__tile-icon {
-    margin: -15px;
+    margin-right: px-to-rem(12);
+
+    img {
+      width: 48px;
+      vertical-align: middle;
+    }
   }
 
   &__tile-count {
     font-size: $large;
-  }
-
-  #mac-icon,
-  #windows-icon,
-  #linux-icon {
-    transform: scale(0.5);
   }
 }

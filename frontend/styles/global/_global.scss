@@ -1,6 +1,5 @@
 html {
   position: relative;
-  min-width: $min-width;
   height: 100%;
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
@@ -13,7 +12,6 @@ body {
   margin: 0;
   font-family: "Nunito Sans", sans-serif;
   font-size: $medium;
-  min-width: $medium-width;
   height: 100%;
 }
 
