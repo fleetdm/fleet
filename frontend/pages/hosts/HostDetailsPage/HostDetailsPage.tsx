@@ -162,6 +162,7 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setSoftwareState(returnedHost.software);
+        setUsersState(returnedHost.users);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
           if (
@@ -203,34 +204,27 @@ const HostDetailsPage = ({
   );
 
   useEffect(() => {
-    if (host) {
-      setUsersState(host.users);
-      setSoftwareState(host.software);
-    }
-  }, [host]);
-
-  useEffect(() => {
-    if (host) {
-      setUsersState(() => {
-        return host.users.filter((user) => {
+    setUsersState(() => {
+      return (
+        host?.users.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
-        });
-      });
-    }
+        }) || []
+      );
+    });
   }, [usersSearchString]);
 
   useEffect(() => {
-    if (host) {
-      setSoftwareState(() => {
-        return host.software.filter((softwareItem) => {
+    setSoftwareState(() => {
+      return (
+        host?.software.filter((softwareItem) => {
           return softwareItem.name
             .toLowerCase()
             .includes(softwareSearchString.toLowerCase());
-        });
-      });
-    }
+        }) || []
+      );
+    });
   }, [softwareSearchString]);
 
   // returns a mixture of props from host
@@ -356,17 +350,6 @@ const HostDetailsPage = ({
     }
   };
 
-  // Search functionality
-  // const onSoftwareTableSearchChange = ({ searchQuery }: ITableSearchData) => {
-  //   if (!host) {
-  //     return;
-  //   }
-  //   if (!searchQuery) {
-  //     setSoftwareState(host.software);
-  //     return;
-  //   }
-  //   setSoftwareState(simpleSearch(searchQuery, host.software));
-  // };
   const onSoftwareTableSearchChange = useCallback((queryData: any) => {
     const { searchQuery } = queryData;
     setSoftwareSearchString(searchQuery);
