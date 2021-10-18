@@ -281,6 +281,11 @@
     img {
       width: 16px;
       height: 16px;
+      vertical-align: sub;
     }
+  }
+
+  .total-issues-count {
+    margin-left: $pad-small;
   }
 }
