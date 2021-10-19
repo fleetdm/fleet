@@ -464,12 +464,13 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 }
 
 func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
+			ticker.Reset(1 * time.Hour)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
@@ -497,6 +498,14 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		err = ds.CleanupOrphanLabelMembership(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
+		}
+		err = ds.UpdateQueryAggregatedStats(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating query stats", "details", err)
+		}
+		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
 		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
