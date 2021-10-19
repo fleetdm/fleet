@@ -44,7 +44,7 @@ export class PackComposerPage extends Component {
   visitPackPage = (packID) => {
     const { dispatch } = this.props;
 
-    dispatch(push(PATHS.PACK({ id: packID })));
+    dispatch(push(PATHS.PACK(packID)));
 
     return false;
   };
@@ -58,10 +58,8 @@ export class PackComposerPage extends Component {
       .then((pack) => {
         const { id: packID } = pack;
 
-        return visitPackPage(packID);
-      })
-      .then(() => {
         dispatch(renderFlash("success", `Pack successfully created.`));
+        visitPackPage(packID);
       })
       .catch(() => {
         dispatch(renderFlash("error", "Unable to create pack."));
