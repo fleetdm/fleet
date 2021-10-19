@@ -5,7 +5,6 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
-import { differenceInMilliseconds } from "date-fns";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -114,6 +113,7 @@ const HostDetailsPage = ({
     setPolicyDetailsModal(!showPolicyDetailsModal);
   }, [showPolicyDetailsModal, setPolicyDetailsModal]);
 
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
@@ -160,37 +160,60 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
+
+      // The onSuccess method below will run each time react-query successfully fetches data from
+      // the hosts API through this useQuery hook.
+      // This includes the initial page load as well as whenever we call react-query's refetch method,
+      // which above we renamed to fullyReloadHost. For example, we use fullyReloadHost with the refetch
+      // button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
         setSoftwareState(returnedHost.software);
         setUsersState(returnedHost.users);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+
         if (returnedHost.refetch_requested) {
-          if (
-            returnedHost.status !== "offline" &&
-            differenceInMilliseconds(
-              Date.now(),
-              new Date(returnedHost.seen_time)
-            ) < 60000
-          ) {
-            setTimeout(() => {
-              console.log("refetch attempt");
-              fullyReloadHost();
-            }, 1000);
-          } else if (returnedHost.status === "offline") {
-            dispatch(
-              renderFlash(
-                "error",
-                `This host is now offline. Please try refetching host vitals later.`
-              )
-            );
-            setShowRefetchLoadingSpinner(false);
+          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
+          // host details. Here we set a one second timeout and poll the API again using
+          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
+          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
+          // or that the host has gone offline.
+          if (!refetchStartTime) {
+            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
+            // the first page loads), we start it now if the host is online. If the host is offline,
+            // we skip the refetch on page load.
+            if (returnedHost.status === "online") {
+              setRefetchStartTime(Date.now());
+              setTimeout(() => {
+                fullyReloadHost();
+              }, 1000);
+            } else {
+              setShowRefetchLoadingSpinner(false);
+            }
           } else {
-            dispatch(
-              renderFlash(
-                "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
-              )
-            );
+            const totalElapsedTime = Date.now() - refetchStartTime;
+            if (totalElapsedTime < 60000) {
+              if (returnedHost.status === "online") {
+                setTimeout(() => {
+                  fullyReloadHost();
+                }, 1000);
+              } else {
+                dispatch(
+                  renderFlash(
+                    "error",
+                    `This host is offline. Please try refetching host vitals later.`
+                  )
+                );
+                setShowRefetchLoadingSpinner(false);
+              }
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                )
+              );
+              setShowRefetchLoadingSpinner(false);
+            }
           }
         }
       },
@@ -307,15 +330,18 @@ const HostDetailsPage = ({
   const onRefetchHost = async () => {
     if (host) {
       // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error or until the user refreshes the page.
+      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+      // method.
       setShowRefetchLoadingSpinner(true);
       try {
         await hostAPI.refetch(host).then(() => {
+          setRefetchStartTime(Date.now());
           setTimeout(() => fullyReloadHost(), 1000);
         });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        setShowRefetchLoadingSpinner(false);
       }
     }
   };
