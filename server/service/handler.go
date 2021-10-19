@@ -61,7 +61,6 @@ type FleetEndpoints struct {
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
 	CreatePack                            endpoint.Endpoint
 	ModifyPack                            endpoint.Endpoint
-	GetPack                               endpoint.Endpoint
 	ListPacks                             endpoint.Endpoint
 	DeletePack                            endpoint.Endpoint
 	DeletePackByID                        endpoint.Endpoint
@@ -97,7 +96,6 @@ type FleetEndpoints struct {
 	HostByIdentifier                      endpoint.Endpoint
 	DeleteHost                            endpoint.Endpoint
 	RefetchHost                           endpoint.Endpoint
-	ListHosts                             endpoint.Endpoint
 	GetHostSummary                        endpoint.Endpoint
 	AddHostsToTeam                        endpoint.Endpoint
 	AddHostsToTeamByFilter                endpoint.Endpoint
@@ -184,7 +182,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
 		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
 		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
-		GetPack:                               authenticatedUser(svc, makeGetPackEndpoint(svc)),
 		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
 		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
 		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
@@ -201,7 +198,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
 		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
 		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
-		ListHosts:                             authenticatedUser(svc, makeListHostsEndpoint(svc)),
 		GetHostSummary:                        authenticatedUser(svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
 		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
@@ -295,7 +291,6 @@ type fleetHandlers struct {
 	CreateDistributedQueryCampaignByNames http.Handler
 	CreatePack                            http.Handler
 	ModifyPack                            http.Handler
-	GetPack                               http.Handler
 	ListPacks                             http.Handler
 	DeletePack                            http.Handler
 	DeletePackByID                        http.Handler
@@ -331,7 +326,6 @@ type fleetHandlers struct {
 	HostByIdentifier                      http.Handler
 	DeleteHost                            http.Handler
 	RefetchHost                           http.Handler
-	ListHosts                             http.Handler
 	GetHostSummary                        http.Handler
 	AddHostsToTeam                        http.Handler
 	AddHostsToTeamByFilter                http.Handler
@@ -405,7 +399,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
 		CreatePack:                            newServer(e.CreatePack, decodeCreatePackRequest),
 		ModifyPack:                            newServer(e.ModifyPack, decodeModifyPackRequest),
-		GetPack:                               newServer(e.GetPack, decodeGetPackRequest),
 		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
 		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
 		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
@@ -441,7 +434,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
 		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
 		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
-		ListHosts:                             newServer(e.ListHosts, decodeListHostsRequest),
 		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
 		AddHostsToTeamByFilter:                newServer(e.AddHostsToTeamByFilter, decodeAddHostsToTeamByFilterRequest),
@@ -615,7 +607,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 
 	r.Handle("/api/v1/fleet/packs", h.CreatePack).Methods("POST").Name("create_pack")
 	r.Handle("/api/v1/fleet/packs/{id}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/fleet/packs/{id}", h.GetPack).Methods("GET").Name("get_pack")
 	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
 	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/fleet/packs/id/{id}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
@@ -644,7 +635,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
-	r.Handle("/api/v1/fleet/hosts", h.ListHosts).Methods("GET").Name("list_hosts")
 	r.Handle("/api/v1/fleet/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id}", h.DeleteHost).Methods("DELETE").Name("delete_host")
@@ -719,8 +709,13 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
 
+	e.POST("/api/v1/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
+
+	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
+
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 
+	e.GET("/api/v1/fleet/hosts", listHostsEndpoint, listHostsRequest{})
 	e.POST("/api/v1/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
 	e.GET("/api/v1/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
 	e.GET("/api/v1/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})

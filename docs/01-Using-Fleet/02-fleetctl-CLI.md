@@ -266,7 +266,7 @@ Configure the following:
 - `FLEET_S3_SECRET_ACCESS_KEY=your_secret_access_key`
 - `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
-- `FLEET_S3_REGION=us-east-1` or any non-empty string otherwise Fleet will attempt to derive the region.
+- `FLEET_S3_REGION=minio` or any non-empty string otherwise Fleet will attempt to derive the region.
 
 ### Troubleshooting
 

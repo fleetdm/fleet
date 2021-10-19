@@ -6,7 +6,13 @@
   padding-bottom: 50px;
   min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-large;
+  gap: $pad-medium;
+
+  .header {
+    flex: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
   .section {
     flex: 100%;
@@ -140,17 +146,11 @@
   .title {
     flex-direction: row;
     justify-content: space-between;
-    border-bottom: 1px solid $ui-fleet-blue-15;
     margin: 0;
-
-    &__inner {
-      padding-bottom: $pad-medium;
-    }
 
     .hostname-container {
       display: flex;
       align-items: flex-end;
-      margin-bottom: $pad-large;
     }
 
     .hostname {
@@ -373,6 +373,29 @@
     }
   }
 
+  .section--policies {
+    .linkToFilteredHosts__header {
+      width: 0;
+    }
+    .policy-link img {
+      width: 16px;
+    }
+    .table-container__header {
+      display: none;
+    }
+    .info-banner {
+      margin-bottom: 1rem;
+      p {
+        font-size: 0.875rem;
+        margin: 0;
+      }
+      a {
+        text-decoration: none;
+        font-weight: bold;
+      }
+    }
+  }
+
   .section--software {
     th {
       &:first-child {
@@ -380,11 +403,10 @@
         width: 16px;
         padding-right: 0px;
       }
-      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
-      // &:last-child {
-      //   width: 90px;
-      //   padding: 0px;
-      // }
+      &:last-child {
+        width: 90px;
+        padding: 0px;
+      }
     }
     tr {
       td {
@@ -420,6 +442,7 @@
   &__back-link {
     display: flex;
     align-items: center;
+    padding-bottom: $pad-small;
     height: 16px;
     font-size: $x-small;
     color: $core-vibrant-blue;

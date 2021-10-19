@@ -22,23 +22,25 @@ describe(
       cy.visit("/hosts/manage");
 
       // Ensure page is loaded
-      // cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.contains("All hosts");
 
       // Settings restrictions
       cy.findByText(/settings/i).should("not.exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // Host manage page: No team UI, can add host and label
       cy.visit("/hosts/manage");
+
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/teams/i).should("not.exist");
-      cy.contains("button", /add new host/i).click();
-      cy.findByText("select a team").should("not.exist");
+      cy.contains("button", /generate installer/i).click();
       cy.contains("button", /done/i).click();
 
-      // See the “Show enroll secret” button. A modal appears after the user selects the button
-      cy.contains("button", /show enroll secret/i).click();
+      // See the “Manage enroll secret” button. A modal appears after the user selects the button
+      cy.contains("button", /manage enroll secret/i).click();
       cy.contains("button", /done/i).click();
 
       cy.contains("button", /add label/i).click();

@@ -481,6 +481,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -543,8 +544,25 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "team_id": null,
       "team_name": null,
       "pack_stats": null,
-    },
-  ]
+      "issues": {
+        "failing_policies_count": 2,
+        "total_issues_count": 2
+      }
+    }
+  ],
+  "software": {
+    "id": 42,
+    "name": "app",
+    "version": "1.0.0",
+    "source": "rpm_packages",
+    "generated_cpe": "cpe:2.3:a:vendor:product:*:*:*",
+    "vulnerabilities": [
+      {
+        "cve": "CVE-123-123-123",
+        "details_link": "https://link.to.cve"
+      }
+    ]
+  }
 }
 ```
 
@@ -783,7 +801,11 @@ The endpoint returns the host's installed `software` if the software inventory f
         "query_name": "SomeQuery3",
         "response": ""
       }
-    ]
+    ],
+    "issues": {
+      "failing_policies_count": 2,
+      "total_issues_count": 2
+    }
   }
 }
 ```
@@ -4352,6 +4374,7 @@ Returns the spec for the specified pack by pack name.
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
+- [Apply policy specs](#apply-policy-specs)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -4382,15 +4405,16 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 1,
       "query_id": 2,
       "query_name": "Gatekeeper enabled",
+      "resolution": "Resolution steps",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
       "query_id": 3,
       "query_name": "Primary disk encrypted",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -4404,7 +4428,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -4420,8 +4444,9 @@ Hosts that do not return results for a policy's query are "Failing."
     "id": 1,
     "query_id": 2,
     "query_name": "Gatekeeper enabled",
+    "resolution": "Resolution steps",
     "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "failing_host_count": 300
   }
 }
 ```
@@ -4432,9 +4457,10 @@ Hosts that do not return results for a policy's query are "Failing."
 
 #### Parameters
 
-| Name     | Type    | In   | Description                    |
-| -------- | ------- | ---- | ------------------------------ |
-| query_id | integer | body | **Required.** The query's ID.  |
+| Name       | Type    | In   | Description                           |
+| ---------- | ------- | ---- | ------------------------------------- |
+| query_id   | integer | body | **Required.** The query's ID.         |
+| resolution | string  | body | The resolution steps for the policy.  |
 
 #### Example
 
@@ -4458,9 +4484,10 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 2,
       "query_id": 2,
       "query_name": "Primary disk encrypted",
+      "resolution": "Some resolution steps",
       "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+      "failing_host_count": 0
+    }
 }
 ```
 
@@ -4495,6 +4522,47 @@ Hosts that do not return results for a policy's query are "Failing."
   "deleted": 1
 }
 ```
+
+### Apply policy specs
+
+Applies the supplied policy specs to Fleet. Each policy requires a `query` property, and optionally a `resolution` detail 
+to explain how to resolve the failure of the policy, and a `team` if the policy is at the specified team level.
+
+`POST /api/v1/fleet/spec/policies`
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| specs | list | body | A list of the policy to apply. Each policy requires a `query` and optionally `team` and `resolution`.         |
+
+#### Example
+
+`POST /api/v1/fleet/spec/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "query": "query name"
+    },
+    {
+      "query": "some other query name",
+      "team": "team1"
+    },
+    {
+      "query": "query3",
+      "resolution": "Add something to your config"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 

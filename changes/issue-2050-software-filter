@@ -1,0 +1,4 @@
+* Add new UI feature: filter hosts by software version
+* Move specific CVE information to appear alongside aggregate hosts filtered by software version
+rather than on individual host details page
+* Relocate users table to below software inventory on host details page

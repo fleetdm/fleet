@@ -28,7 +28,7 @@ describe("Manage Users", () => {
   //   cy.contains('button:enabled', /create user/i)
   //     .click();
   //
-  //   cy.findByPlaceholderText('Full Name')
+  //   cy.findByPlaceholderText('Full name')
   //     .type('New User');
   //
   //   cy.findByPlaceholderText('Email')

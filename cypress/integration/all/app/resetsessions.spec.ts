@@ -33,7 +33,6 @@ describe("Reset user sessions flow", () => {
     cy.findByText(/reset sessions/i).should("not.exist");
 
     // user should be logged out now so log in again and go to profile to get new API token
-    cy.visit("/");
     cy.findByRole("button", { name: /login/i }).should("exist");
     cy.login();
 

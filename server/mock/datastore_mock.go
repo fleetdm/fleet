@@ -259,6 +259,8 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
+type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -278,6 +280,8 @@ type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
+
+type ApplyPolicySpecsFunc func(ctx context.Context, specs []*fleet.PolicySpec) error
 
 type MigrateTablesFunc func(ctx context.Context) error
 
@@ -672,6 +676,9 @@ type DataStore struct {
 	InsertCVEForCPEFunc        InsertCVEForCPEFunc
 	InsertCVEForCPEFuncInvoked bool
 
+	SoftwareByIDFunc        SoftwareByIDFunc
+	SoftwareByIDFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -701,6 +708,9 @@ type DataStore struct {
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
+
+	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
+	ApplyPolicySpecsFuncInvoked bool
 
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
@@ -1353,6 +1363,11 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
+func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	s.SoftwareByIDFuncInvoked = true
+	return s.SoftwareByIDFunc(ctx, id)
+}
+
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	s.NewActivityFuncInvoked = true
 	return s.NewActivityFunc(ctx, user, activityType, details)
@@ -1373,7 +1388,7 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
 	return s.NewGlobalPolicyFunc(ctx, queryID)
 }
@@ -1403,6 +1418,11 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
+func (s *DataStore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
+	s.ApplyPolicySpecsFuncInvoked = true
+	return s.ApplyPolicySpecsFunc(ctx, specs)
+}
+
 func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
 	return s.MigrateTablesFunc(ctx)
@@ -1423,7 +1443,7 @@ func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.Li
 	return s.ListSoftwareFunc(ctx, teamId, opt)
 }
 
-func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
 	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
 }

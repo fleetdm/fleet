@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -562,4 +563,60 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+}
+
+func (s *integrationTestSuite) TestGetPack() {
+	t := s.T()
+
+	pack := &fleet.Pack{
+		Name: t.Name(),
+	}
+	pack, err := s.ds.NewPack(context.Background(), pack)
+	require.NoError(t, err)
+
+	var packResp getPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packResp.Pack.ID, pack.ID)
+
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+}
+
+func (s *integrationTestSuite) TestListHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+
+	host := hosts[2]
+	host.HostSoftware = fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		},
+	}
+	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, host.ID, resp.Hosts[0].ID)
+	assert.Equal(t, "foo", resp.Software.Name)
+
+	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
+	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }

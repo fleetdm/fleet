@@ -6,10 +6,10 @@
   - [Options](#options)
 - [Managing osquery configurations](#managing-osquery-configurations)
 - [Running with systemd](#running-with-systemd)
-- [Configuring Single Sign On](#configuring-single-sign-on)
-  - [Identity Provider (IDP) Configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO Configuration](#fleet-sso-configuration)
-  - [Creating SSO Users in Fleet](#creating-sso-users-in-fleet)
+- [Configuring single sign on](#configuring-single-sign-on)
+  - [Identity Provider (IDP) configuration](#identity-provider-IDP-configuration)
+  - [Fleet SSO configuration](#fleet-sso-configuration)
+  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
 - [Feature flags](#feature-flags)
 
 ## Configuring the Fleet binary
@@ -416,6 +416,20 @@ handled transparently instead of ending in an error.
     cluster_follow_redirections: true
   ```
 
+##### redis_cluster_read_from_replica
+
+Whether or not to prefer reading from a replica when possible. Applies only
+to Redis Cluster setups, ignored in standalone Redis.
+
+- Default value: false
+- Environment variable: `FLEET_REDIS_CLUSTER_READ_FROM_REPLICA`
+- Config file format:
+
+  ```
+  redis:
+    cluster_read_from_replica: true
+  ```
+
 #### Server
 
 ##### server_address
@@ -681,7 +695,7 @@ Valid time units are `s`, `m`, `h`.
   osquery:
   	label_update_interval: 30m
   ```
-  
+
 ##### osquery_policy_update_interval
 
 The interval at which Fleet will ask osquery agents to update their results for policy queries.
@@ -1346,7 +1360,7 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### s3_endpoint_url
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend, 
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -1376,7 +1390,7 @@ AWS S3 Disable SSL. Useful for local testing.
 AWS S3 Force S3 Path Style.	Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
 will use virtual hosted bucket addressing when possible
-(`http://BUCKET.s3.amazonaws.com/KEY`). 
+(`http://BUCKET.s3.amazonaws.com/KEY`).
 
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
@@ -1541,11 +1555,11 @@ sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
 
-## Configuring Single Sign On (SSO)
+## Configuring single sign on (SSO)
 
 Fleet supports SAML single sign on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML Single Sign On Options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML single sign on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
@@ -1570,7 +1584,7 @@ After supplying the above information, the IDP will generate an issuer URI and a
 
 ### Fleet SSO Configuration
 
-A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML Single Sign On Options**.
+A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
 
 If your IDP supports dynamic configuration, like Okta, you only need to provide an _Identity Provider Name_ and _Entity ID_, then paste a link in the metadata URL field.
 
@@ -1596,7 +1610,7 @@ Otherwise, the following values are required:
 
 ### Creating SSO users in Fleet
 
-When an admin creates a new user to Fleet, they may select the `Enable Single Sign On` option. The
+When an admin creates a new user to Fleet, they may select the `Enable single sign on` option. The
 SSO enabled users will not be able to sign in with a regular user ID and password.
 
 It is strongly recommended that at least one admin user is set up to use the traditional password
@@ -1627,10 +1641,10 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML Single Sign On Options_ section.
+4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign on options_ section.
 
-  - Check the _Enable Single Sign On_ checkbox.
-  - For _Identity Provider Name_ use `Google`.
+  - Check the _Enable single sign on_ checkbox.
+  - For _Identity provider name_ use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
   - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.

@@ -46,6 +46,7 @@ type RedisConfig struct {
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
 	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
 	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
+	ClusterReadFromReplica    bool          `yaml:"cluster_read_from_replica"`
 }
 
 const (
@@ -253,6 +254,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
 	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -444,6 +446,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
 			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
 			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
+			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

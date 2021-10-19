@@ -30,15 +30,6 @@ func decodeRefetchHostRequest(ctx context.Context, r *http.Request) (interface{}
 	return refetchHostRequest{ID: id}, nil
 }
 
-func decodeListHostsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	hopt, err := hostListOptionsFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return listHostsRequest{ListOptions: hopt}, nil
-}
-
 func decodeAddHostsToTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req addHostsToTeamRequest
 

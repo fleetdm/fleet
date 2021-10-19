@@ -51,7 +51,7 @@ func BuildPkg(opt Options) error {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := initializeUpdates(updateOpt); err != nil {
+	if err := InitializeUpdates(updateOpt); err != nil {
 		return errors.Wrap(err, "initialize updates")
 	}
 
