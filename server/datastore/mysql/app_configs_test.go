@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/ghodss/yaml"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
