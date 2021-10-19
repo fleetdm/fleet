@@ -1,5 +1,6 @@
 # Committing Changes
 - [External Contributors](#external-contributors)
+- [Fleet Device Management team members](#fleet-device-management-team-members)
 - [Pull Requests](#pull-requests)
   - [Merging Pull Requests](#merging-pull-requests)
   - [Commit Messages](#commit-messages)

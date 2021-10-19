@@ -234,3 +234,44 @@ spec:
 	assert.True(t, savedAppConfig.HostSettings.EnableHostUsers)
 	assert.True(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
 }
+
+func TestApplyPolicySpecs(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var gotPolicies []*fleet.PolicySpec
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		assert.Equal(t, "team1", name)
+		return &fleet.Team{ID: 123, Name: "team1"}, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, specs []*fleet.PolicySpec) error {
+		gotPolicies = specs
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: policy
+spec:
+  query: some query
+---
+apiVersion: v1
+kind: policy
+spec:
+  query: some other query
+  team: team1
+  resolution: something something
+`)
+
+	assert.Equal(t, "[+] applied 2 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, []*fleet.PolicySpec{
+		{
+			QueryName: "some query",
+		},
+		{
+			QueryName:  "some other query",
+			Team:       "team1",
+			Resolution: "something something",
+		},
+	}, gotPolicies)
+}

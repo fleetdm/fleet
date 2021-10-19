@@ -1,11 +1,11 @@
 package live_query
 
 import (
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
@@ -17,14 +17,12 @@ func TestRedisLiveQuery(t *testing.T) {
 	for _, f := range testFunctions {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
-				store, teardown := setupRedisLiveQuery(t, false)
-				defer teardown()
+				store := setupRedisLiveQuery(t, false)
 				f(t, store)
 			})
 
 			t.Run("cluster", func(t *testing.T) {
-				store, teardown := setupRedisLiveQuery(t, true)
-				defer teardown()
+				store := setupRedisLiveQuery(t, true)
 				f(t, store)
 			})
 		})
@@ -66,7 +64,7 @@ func TestMigrateKeys(t *testing.T) {
 		require.NoError(t, err)
 
 		got := make(map[string]string)
-		err = redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
+		err = redis.EachNode(store.pool, false, func(conn redigo.Conn) error {
 			keys, err := redigo.Strings(conn.Do("KEYS", "*"))
 			if err != nil {
 				return err
@@ -87,61 +85,19 @@ func TestMigrateKeys(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		store, teardown := setupRedisLiveQuery(t, false)
-		defer teardown()
+		store := setupRedisLiveQuery(t, false)
 		runTest(t, store)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		store, teardown := setupRedisLiveQuery(t, true)
-		defer teardown()
+		store := setupRedisLiveQuery(t, true)
 		runTest(t, store)
 	})
 }
 
-func setupRedisLiveQuery(t *testing.T, cluster bool) (store *redisLiveQuery, teardown func()) {
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		t.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
-	}
-
-	var (
-		addr     = "127.0.0.1:"
-		password = ""
-		database = 0
-		useTLS   = false
-		port     = "6379"
-	)
-	if cluster {
-		port = "7001"
-	}
-	addr += port
-
-	pool, err := redis.NewRedisPool(redis.PoolConfig{
-		Server:      addr,
-		Password:    password,
-		Database:    database,
-		UseTLS:      useTLS,
-		ConnTimeout: 5 * time.Second,
-		KeepAlive:   10 * time.Second,
-	})
-	require.NoError(t, err)
-	store = NewRedisLiveQuery(pool)
-
-	conn := store.pool.Get()
-	defer conn.Close()
-	_, err = conn.Do("PING")
-	require.NoError(t, err)
-
-	teardown = func() {
-		err := redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
-			_, err := conn.Do("FLUSHDB")
-			return err
-		})
-		require.NoError(t, err)
-		store.pool.Close()
-	}
-
-	return store, teardown
+func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
+	pool := redistest.SetupRedis(t, cluster, false, false)
+	return NewRedisLiveQuery(pool)
 }
 
 func TestMapBitfield(t *testing.T) {

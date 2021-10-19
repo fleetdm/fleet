@@ -70,6 +70,11 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
 
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, soft1ByID)
+	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
+
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
@@ -257,6 +262,11 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.InsertCVEForCPE(context.Background(), "cve-321-321-321", []string{"somecpe"}))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
+
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, softByID)
+	require.Len(t, softByID.Vulnerabilities, 2)
 
 	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
 	require.Len(t, host.Software[0].Vulnerabilities, 2)

@@ -61,6 +61,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 			true,
 		},
 		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			false,
+			false,
+		},
+		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			false,
@@ -75,6 +81,12 @@ func TestTeamScheduleAuth(t *testing.T) {
 		{
 			"team maintainer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
 			true,
 			true,
 		},

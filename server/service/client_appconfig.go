@@ -37,7 +37,7 @@ func (c *Client) ApplyAppConfig(payload interface{}) error {
 }
 
 // GetAppConfig fetches the application config from the server API
-func (c *Client) GetAppConfig() (*fleet.AppConfig, error) {
+func (c *Client) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/config", "", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "GET /api/v1/fleet/config")
@@ -52,7 +52,7 @@ func (c *Client) GetAppConfig() (*fleet.AppConfig, error) {
 		)
 	}
 
-	var responseBody *fleet.AppConfig
+	var responseBody *fleet.EnrichedAppConfig
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "decode get config response")
