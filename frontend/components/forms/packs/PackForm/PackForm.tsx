@@ -70,7 +70,7 @@ const EditPackForm = ({
     if (packName === "") {
       return setErrors({
         ...errors,
-        name: "Query name must be present",
+        name: "Pack name must be present",
       });
     }
 
