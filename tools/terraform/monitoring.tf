@@ -264,6 +264,7 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   period              = "86400" // 1 day in seconds
+  threshold           = 30      // days
   statistic           = "Average"
   namespace           = "AWS/CertificateManager"
   metric_name         = "DaysToExpiry"

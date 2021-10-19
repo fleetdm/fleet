@@ -93,6 +93,7 @@ resource "aws_ecs_service" "fleet" {
     container_port   = 8080
   }
 
+  // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#ignoring-changes-to-desired-count
   lifecycle {
     ignore_changes = [desired_count]
   }
