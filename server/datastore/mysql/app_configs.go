@@ -4,11 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -24,9 +21,13 @@ func (d *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*f
 }
 
 func (d *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	return appConfigDB(ctx, d.reader)
+}
+
+func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {
 	info := &fleet.AppConfig{}
 	var bytes []byte
-	err := sqlx.GetContext(ctx, d.reader, &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	err := sqlx.GetContext(ctx, q, &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, errors.Wrap(err, "selecting app config")
 	}
@@ -43,79 +44,13 @@ func (d *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return info, nil
 }
 
-func (d *Datastore) isEventSchedulerEnabled() (bool, error) {
-	rows, err := d.writer.Query("SELECT @@event_scheduler")
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		err := errors.New("Error detecting MySQL event scheduler status.")
-		if rerr := rows.Err(); rerr != nil {
-			err = rerr
-		}
-		return false, err
-	}
-	var value string
-	if err := rows.Scan(&value); err != nil {
-		return false, err
-	}
-
-	return value == "ON", nil
-}
-
-func manageHostExpiryEventDB(ctx context.Context, tx sqlx.ExtContext, hostExpiryEnabled bool, hostExpiryWindow int) error {
-	var err error
-	hostExpiryConfig := struct {
-		Window int `db:"host_expiry_window"`
-	}{}
-	if err = sqlx.GetContext(ctx, tx, &hostExpiryConfig, "SELECT host_expiry_window from app_configs LIMIT 1"); err != nil {
-		return errors.Wrap(err, "get expiry window setting")
-	}
-
-	shouldUpdateWindow := hostExpiryEnabled && hostExpiryConfig.Window != hostExpiryWindow
-
-	if !hostExpiryEnabled || shouldUpdateWindow {
-		if _, err := tx.ExecContext(ctx, "DROP EVENT IF EXISTS host_expiry"); err != nil {
-			if driverErr, ok := err.(*mysql.MySQLError); !ok || driverErr.Number != mysqlerr.ER_DBACCESS_DENIED_ERROR {
-				return errors.Wrap(err, "drop existing host_expiry event")
-			}
-		}
-	}
-
-	if shouldUpdateWindow {
-		sql := fmt.Sprintf("CREATE EVENT IF NOT EXISTS host_expiry ON SCHEDULE EVERY 1 HOUR ON COMPLETION PRESERVE DO DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL %d DAY)", hostExpiryWindow)
-		if _, err := tx.ExecContext(ctx, sql); err != nil {
-			return errors.Wrap(err, "create new host_expiry event")
-		}
-	}
-	return nil
-}
-
 func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
-	eventSchedulerEnabled, err := d.isEventSchedulerEnabled()
-	if err != nil {
-		return err
-	}
-
-	expiryEnabled := info.HostExpirySettings.HostExpiryEnabled
-	expiryWindow := info.HostExpirySettings.HostExpiryWindow
-
-	if !eventSchedulerEnabled && expiryEnabled {
-		return errors.New("MySQL event scheduler must be enabled to configure host expiry.")
-	}
-
 	configBytes, err := json.Marshal(info)
 	if err != nil {
 		return errors.Wrap(err, "marshaling config")
 	}
 
 	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if err := manageHostExpiryEventDB(ctx, tx, expiryEnabled, expiryWindow); err != nil {
-			return err
-		}
-
 		_, err := tx.ExecContext(ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 			configBytes,

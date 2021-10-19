@@ -231,6 +231,8 @@ type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
 type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
 
+type CleanupExpiredHostsFunc func(ctx context.Context) error
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -637,6 +639,9 @@ type DataStore struct {
 
 	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
 	CleanupOrphanLabelMembershipFuncInvoked bool
+
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -1301,6 +1306,11 @@ func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error 
 func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
 	s.CleanupOrphanLabelMembershipFuncInvoked = true
 	return s.CleanupOrphanLabelMembershipFunc(ctx)
+}
+
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {
+	s.CleanupExpiredHostsFuncInvoked = true
+	return s.CleanupExpiredHostsFunc(ctx)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
