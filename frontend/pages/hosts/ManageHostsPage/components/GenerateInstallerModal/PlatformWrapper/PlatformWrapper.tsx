@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import FileSaver from "file-saver";
 
 // @ts-ignore
-import Fleet from "fleet";
-import Button from "components/buttons/Button";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
+import Fleet from "fleet"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
-import FileSaver from "file-saver";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import Button from "components/buttons/Button"; // @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import TabsWrapper from "components/TabsWrapper";
+
 import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DownloadIcon from "../../../../../../../assets/images/icon-download-12x12@2x.png";
 
@@ -181,7 +181,7 @@ const PlatformWrapper = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__nav-header`}>
+      <TabsWrapper>
         <Tabs>
           <TabList>
             {platformSubNav.map((navItem) => {
@@ -204,7 +204,7 @@ const PlatformWrapper = ({
             );
           })}
         </Tabs>
-      </div>
+      </TabsWrapper>
       <div className={`${baseClass}__button-wrap`}>
         <Button onClick={onCancel} className="button button--brand">
           Done

@@ -41,7 +41,7 @@ services:
 
   redis-cluster-setup:
     image: redis:5
-    command: redis-cli --cluster create 172.20.0.31:7001 172.20.0.32:7002 172.20.0.33:7003 --cluster-yes
+    command: redis-cli --cluster create 172.20.0.31:7001 172.20.0.32:7002 172.20.0.33:7003 172.20.0.34:7004 172.20.0.35:7005 172.20.0.36:7006 --cluster-yes --cluster-replicas 1
     networks:
       cluster_network:
         ipv4_address: 172.20.0.30
@@ -49,6 +49,9 @@ services:
       - redis-cluster-1
       - redis-cluster-2
       - redis-cluster-3
+      - redis-cluster-4
+      - redis-cluster-5
+      - redis-cluster-6
 
   redis-cluster-1:
     image: redis:5
@@ -82,6 +85,39 @@ services:
     networks:
       cluster_network:
         ipv4_address: 172.20.0.33
+
+  redis-cluster-4:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7004:7004'
+    volumes:
+      - ./tools/redis-tests/redis-cluster-4.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.34
+
+  redis-cluster-5:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7005:7005'
+    volumes:
+      - ./tools/redis-tests/redis-cluster-5.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.35
+
+  redis-cluster-6:
+    image: redis:5
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '7006:7006'
+    volumes:
+      - ./tools/redis-tests/redis-cluster-6.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      cluster_network:
+        ipv4_address: 172.20.0.36
 
   saml_idp:
     image: fleetdm/docker-idp:latest

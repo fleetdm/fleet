@@ -1,5 +1,7 @@
 .data-table-container {
   position: relative;
+  display: inline-block;
+  width: 100%;
 
   .data-table {
     &__wrapper {
@@ -8,6 +10,8 @@
       border-radius: 6px;
       margin-top: $pad-small;
       box-shadow: inset -8px 0 17px -10px #e8edf4;
+      flex-grow: 1;
+      width: 100%;
     }
 
     &__table {
@@ -198,15 +202,64 @@
         text-transform: uppercase;
       }
     }
+  }
+  .loading-overlay {
+    display: flex;
+    flex-grow: 1;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 1;
+  }
 
-    .loading-overlay {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background-color: rgba(255, 255, 255, 0.8);
-      z-index: 1;
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-small;
+    margin-bottom: $pad-small;
+    margin-left: auto;
+    text-align: right;
+
+    button {
+      color: $core-vibrant-blue;
+      padding: 6px;
+
+      .fleeticon-chevronleft {
+        margin-right: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+
+      .fleeticon-chevronright {
+        margin-left: $pad-small;
+
+        &:before {
+          font-size: 0.6rem;
+          font-weight: $bold;
+          position: relative;
+          top: -2px;
+        }
+      }
+    }
+
+    button:hover {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    .button--disabled:hover {
+      background-color: transparent;
+    }
+
+    button:last-child {
+      margin-left: $pad-large;
     }
   }
 }

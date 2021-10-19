@@ -1,4 +1,5 @@
 .activity-feed {
+  margin-top: $pad-large;
   display: flex;
   flex-direction: column;
 
@@ -50,8 +51,35 @@
     color: $ui-fleet-black-25;
   }
 
-  &__load-more-button {
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__load-activities-button {
     color: $core-vibrant-blue;
+
+    .fleeticon-chevronleft,
+    .fleeticon-chevronright {
+      &:before {
+        font-size: 0.5rem;
+        font-weight: $bold;
+        position: relative;
+        top: -2px;
+      }
+    }
+
+    .fleeticon-chevronleft {
+      margin-right: $pad-small;
+    }
+
+    .fleeticon-chevronright {
+      margin-left: $pad-small;
+    }
+
+    &:first-of-type {
+      margin-right: $pad-large;
+    }
   }
 
   &__no-more-activities {

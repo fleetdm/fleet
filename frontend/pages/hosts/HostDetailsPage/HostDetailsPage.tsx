@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
@@ -13,20 +13,19 @@ import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
 import { IHost } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
+import { IHostPolicy } from "interfaces/host_policy";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer"; // @ts-ignore
+import { IQuery } from "interfaces/query"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
-import simpleSearch from "utilities/simple_search";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal"; // @ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnerabilities"; // @ts-ignore
-import HostUsersListRow from "pages/hosts/HostDetailsPage/HostUsersListRow";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
 import TableContainer from "components/TableContainer";
+import InfoBanner from "components/InfoBanner";
 
 import {
   Accordion,
@@ -46,15 +45,21 @@ import {
 } from "fleet/helpers"; // @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
+import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 import {
-  generateTableHeaders,
-  generateDataSet,
-} from "./SoftwareTable/SoftwareTableConfig";
+  generatePolicyTableHeaders,
+  generatePolicyDataSet,
+} from "./HostPoliciesTable/HostPoliciesTableConfig";
+import generateSoftwareTableHeaders from "./SoftwareTable/SoftwareTableConfig";
+import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 import {
   generatePackTableHeaders,
   generatePackDataSet,
 } from "./PackTable/PackTableConfig";
 import EmptySoftware from "./EmptySoftware";
+import EmptyUsers from "./EmptyUsers";
+import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
+import { isValidPolicyResponse } from "../ManageHostsPage/helpers";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
@@ -102,11 +107,21 @@ const HostDetailsPage = ({
     false
   );
   const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+
+  const togglePolicyDetailsModal = useCallback(() => {
+    setPolicyDetailsModal(!showPolicyDetailsModal);
+  }, [showPolicyDetailsModal, setPolicyDetailsModal]);
+
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
   ] = useState<boolean>(false);
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
+  const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
+  const [usersState, setUsersState] = useState<{ username: string }[]>([]);
+  const [usersSearchString, setUsersSearchString] = useState<string>("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -114,6 +129,9 @@ const HostDetailsPage = ({
     IQuery[]
   >("fleet queries", () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -123,6 +141,9 @@ const HostDetailsPage = ({
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && canTransferTeam,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: ITeamsResponse) => data.teams,
   });
 
@@ -131,13 +152,70 @@ const HostDetailsPage = ({
     data: host,
     refetch: fullyReloadHost,
   } = useQuery<IHostResponse, Error, IHost>(
-    "host",
+    ["host", hostIdFromURL],
     () => hostAPI.load(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
+
+      // The onSuccess method below will run each time react-query successfully fetches data from
+      // the hosts API through this useQuery hook.
+      // This includes the initial page load as well as whenever we call react-query's refetch method,
+      // which above we renamed to fullyReloadHost. For example, we use fullyReloadHost with the refetch
+      // button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
+        setSoftwareState(returnedHost.software);
+        setUsersState(returnedHost.users);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+
+        if (returnedHost.refetch_requested) {
+          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
+          // host details. Here we set a one second timeout and poll the API again using
+          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
+          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
+          // or that the host has gone offline.
+          if (!refetchStartTime) {
+            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
+            // the first page loads), we start it now if the host is online. If the host is offline,
+            // we skip the refetch on page load.
+            if (returnedHost.status === "online") {
+              setRefetchStartTime(Date.now());
+              setTimeout(() => {
+                fullyReloadHost();
+              }, 1000);
+            } else {
+              setShowRefetchLoadingSpinner(false);
+            }
+          } else {
+            const totalElapsedTime = Date.now() - refetchStartTime;
+            if (totalElapsedTime < 60000) {
+              if (returnedHost.status === "online") {
+                setTimeout(() => {
+                  fullyReloadHost();
+                }, 1000);
+              } else {
+                dispatch(
+                  renderFlash(
+                    "error",
+                    `This host is offline. Please try refetching host vitals later.`
+                  )
+                );
+                setShowRefetchLoadingSpinner(false);
+              }
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                )
+              );
+              setShowRefetchLoadingSpinner(false);
+            }
+          }
+        }
       },
       onError: (error) => {
         console.log(error);
@@ -147,6 +225,30 @@ const HostDetailsPage = ({
       },
     }
   );
+
+  useEffect(() => {
+    setUsersState(() => {
+      return (
+        host?.users.filter((user) => {
+          return user.username
+            .toLowerCase()
+            .includes(usersSearchString.toLowerCase());
+        }) || []
+      );
+    });
+  }, [usersSearchString]);
+
+  useEffect(() => {
+    setSoftwareState(() => {
+      return (
+        host?.software.filter((softwareItem) => {
+          return softwareItem.name
+            .toLowerCase()
+            .includes(softwareSearchString.toLowerCase());
+        }) || []
+      );
+    });
+  }, [softwareSearchString]);
 
   // returns a mixture of props from host
   const normalizeEmptyValues = (hostData: any): { [key: string]: any } => {
@@ -164,7 +266,7 @@ const HostDetailsPage = ({
     );
   };
 
-  const wrapKolideHelper = (
+  const wrapFleetHelper = (
     helperFn: (value: any) => string,
     value: string
   ): any => {
@@ -228,13 +330,18 @@ const HostDetailsPage = ({
   const onRefetchHost = async () => {
     if (host) {
       // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error or until the user refreshes the page.
+      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+      // method.
       setShowRefetchLoadingSpinner(true);
       try {
-        await hostAPI.refetch(host);
+        await hostAPI.refetch(host).then(() => {
+          setRefetchStartTime(Date.now());
+          setTimeout(() => fullyReloadHost(), 1000);
+        });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        setShowRefetchLoadingSpinner(false);
       }
     }
   };
@@ -269,24 +376,15 @@ const HostDetailsPage = ({
     }
   };
 
-  // Search functionality
-  const onTableSearchChange = ({
-    searchQuery,
-    sortHeader,
-    sortDirection,
-  }: ITableSearchData) => {
-    let sortBy = [];
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    }
+  const onSoftwareTableSearchChange = useCallback((queryData: any) => {
+    const { searchQuery } = queryData;
+    setSoftwareSearchString(searchQuery);
+  }, []);
 
-    if (!searchQuery && host) {
-      setSoftwareState(host.software);
-      return;
-    }
-
-    setSoftwareState(simpleSearch(searchQuery, host?.software));
-  };
+  const onUsersTableSearchChange = useCallback((queryData: any) => {
+    const { searchQuery } = queryData;
+    setUsersSearchString(searchQuery);
+  }, []);
 
   const renderDeleteHostModal = () => (
     <Modal
@@ -465,9 +563,63 @@ const HostDetailsPage = ({
     );
   };
 
+  const renderPolicies = () => {
+    const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
+    const noResponses: IHostPolicy[] =
+      host?.policies.filter(
+        (policy) => !isValidPolicyResponse(policy.response)
+      ) || [];
+    const failingResponses: IHostPolicy[] =
+      host?.policies.filter((policy) => policy.response === "fail") || [];
+
+    return (
+      <div className="section section--policies">
+        <p className="section__header">Policies</p>
+
+        {host?.policies.length && (
+          <>
+            {failingResponses.length > 0 && (
+              <PolicyFailingCount policyList={host?.policies} />
+            )}
+            {noResponses.length > 0 && (
+              <InfoBanner>
+                <p>
+                  This host is not updating the response for some policies.
+                  Check&nbsp;
+                  <a
+                    href="https://fleetdm.com/docs/using-fleet/faq#why-my-host-is-not-updating-a-policys-response"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    out the Fleet documentation on why the response might not be
+                    updating.
+                  </a>
+                </p>
+              </InfoBanner>
+            )}
+            <TableContainer
+              columns={tableHeaders}
+              data={generatePolicyDataSet(host.policies)}
+              isLoading={isLoadingHost}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
+              resultsTitle={"policy items"}
+              emptyComponent={() => <></>}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disablePagination
+              disableCount
+            />
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderUsers = () => {
     const { users } = host || {};
-    const wrapperClassName = `${baseClass}__table`;
+
+    const tableHeaders = generateUsersTableHeaders();
 
     if (users) {
       return (
@@ -478,25 +630,23 @@ const HostDetailsPage = ({
               No users were detected on this host.
             </p>
           ) : (
-            <div className={`${baseClass}__wrapper`}>
-              <table className={wrapperClassName}>
-                <thead>
-                  <tr>
-                    <th>Username</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((hostUser) => {
-                    return (
-                      <HostUsersListRow
-                        key={`host-users-row-${hostUser.username}`}
-                        hostUser={hostUser}
-                      />
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <TableContainer
+              columns={tableHeaders}
+              data={usersState}
+              isLoading={isLoadingHost}
+              defaultSortHeader={"username"}
+              defaultSortDirection={"asc"}
+              inputPlaceHolder={"Search users by username"}
+              onQueryChange={onUsersTableSearchChange}
+              resultsTitle={"users"}
+              emptyComponent={EmptyUsers}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              searchable
+              wideSearch
+              filteredCount={usersState.length}
+              clientSidePagination
+            />
           )}
         </div>
       );
@@ -504,7 +654,7 @@ const HostDetailsPage = ({
   };
 
   const renderSoftware = () => {
-    const tableHeaders = generateTableHeaders();
+    const tableHeaders = generateSoftwareTableHeaders();
 
     return (
       <div className="section section--software">
@@ -522,23 +672,26 @@ const HostDetailsPage = ({
           </div>
         ) : (
           <>
-            <SoftwareVulnerabilities softwareList={host?.software} />
+            {host?.software && (
+              <SoftwareVulnerabilities softwareList={host?.software} />
+            )}
             {host?.software && (
               <TableContainer
                 columns={tableHeaders}
-                data={generateDataSet(softwareState)}
+                data={softwareState}
                 isLoading={isLoadingHost}
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
                 inputPlaceHolder={"Filter software"}
-                onQueryChange={onTableSearchChange}
+                onQueryChange={onSoftwareTableSearchChange}
                 resultsTitle={"software items"}
                 emptyComponent={EmptySoftware}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
                 searchable
                 wideSearch
-                disablePagination
+                filteredCount={softwareState.length}
+                clientSidePagination
               />
             )}
           </>
@@ -569,7 +722,7 @@ const HostDetailsPage = ({
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
-              ? "Fetching, try refreshing this page in just a moment."
+              ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
           </Button>
         </div>
@@ -735,7 +888,7 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">RAM</span>
               <span className="info-flex__data">
-                {wrapKolideHelper(humanHostMemory, titleData.memory)}
+                {wrapFleetHelper(humanHostMemory, titleData.memory)}
               </span>
             </div>
             <div className="info-flex__item info-flex__item--title">
@@ -755,19 +908,19 @@ const HostDetailsPage = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Created at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Updated at</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostLastSeen, titleData.detail_updated_at)}
+              {wrapFleetHelper(humanHostLastSeen, titleData.detail_updated_at)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Uptime</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(humanHostUptime, aboutData.uptime)}
+              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
             </span>
           </div>
           <div className="info-grid__block">
@@ -786,33 +939,34 @@ const HostDetailsPage = ({
           {renderMDMData()}
         </div>
       </div>
+      {host?.policies && renderPolicies()}
       <div className="section osquery col-50">
         <p className="section__header">Agent options</p>
         <div className="info-grid">
           <div className="info-grid__block">
             <span className="info-grid__header">Config TLS refresh</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.config_tls_refresh)}
+              {wrapFleetHelper(secondsToHms, osqueryData.config_tls_refresh)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Logger TLS period</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.logger_tls_period)}
+              {wrapFleetHelper(secondsToHms, osqueryData.logger_tls_period)}
             </span>
           </div>
           <div className="info-grid__block">
             <span className="info-grid__header">Distributed interval</span>
             <span className="info-grid__data">
-              {wrapKolideHelper(secondsToHms, osqueryData.distributed_interval)}
+              {wrapFleetHelper(secondsToHms, osqueryData.distributed_interval)}
             </span>
           </div>
         </div>
       </div>
       {renderLabels()}
       {renderPacks()}
-      {renderUsers()}
       {host?.software && renderSoftware()}
+      {renderUsers()}
       {showDeleteHostModal && renderDeleteHostModal()}
       {showQueryHostModal && (
         <SelectQueryModal
@@ -831,6 +985,9 @@ const HostDetailsPage = ({
           teams={teams || []}
           isGlobalAdmin={isGlobalAdmin as boolean}
         />
+      )}
+      {!!host && showPolicyDetailsModal && (
+        <PolicyDetailsModal onCancel={togglePolicyDetailsModal} />
       )}
     </div>
   );

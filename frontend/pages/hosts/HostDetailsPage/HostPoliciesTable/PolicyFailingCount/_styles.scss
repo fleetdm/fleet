@@ -1,4 +1,4 @@
-.software-vulnerabilities {
+.policy-failing-count {
   font-size: $x-small;
   background-color: $ui-off-white;
   border: solid 1px $ui-fleet-black-50;
@@ -11,18 +11,14 @@
 
   p {
     padding-left: $pad-large;
-  }
-
-  a {
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
+    margin-top: $pad-medium;
+    margin-bottom: $pad-medium;
   }
 
   img {
     height: 16px;
     width: auto;
-    padding-right: $pad-small;
+    padding-right: 10px;
   }
 
   &__count {

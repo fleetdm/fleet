@@ -221,9 +221,21 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 #### Manual QA
 
-After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
+After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title= and assigned to the person responsible. 
 
-Documentation on conducting the manual QA pass can be found [here](#manual-qa). 
+Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
+
+#### Release freeze period
+
+In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged. 
+
+Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+1. Regressions
+2. Security concerns
+3. Issues with features targeted for current release
+
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between Product and Engineering teams. 
+
 
 ### Release day
 
@@ -247,6 +259,18 @@ The daily standup meeting at Fleet provides time to discuss highlights and answe
 3. What should we remember next time?
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
+
+### Version support
+
+In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+ 
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
 
 ### Goals
 

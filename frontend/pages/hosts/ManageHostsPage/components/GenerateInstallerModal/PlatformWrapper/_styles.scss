@@ -27,53 +27,6 @@
     padding: 0;
   }
 
-  .react-tabs {
-    .react-tabs__tab-list {
-      border-bottom: 1px solid $ui-gray;
-    }
-
-    &__tab {
-      font-size: $x-small;
-      border: none;
-      padding: 0 0 $pad-medium 0;
-      margin-left: $pad-xxlarge;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-
-      &:focus {
-        box-shadow: none;
-        outline: 0;
-      }
-
-      // Bolding text when the tab is active causes a layout shift
-      // so we add a hidden pseudo element with the same text string
-      &:before {
-        content: attr(data-text);
-        height: 0;
-        visibility: hidden;
-        overflow: hidden;
-        user-select: none;
-        pointer-events: none;
-        font-weight: $bold;
-      }
-
-      &:after {
-        background-color: transparent;
-      }
-
-      &:first-child {
-        margin-left: 0;
-      }
-    }
-
-    &__tab--selected,
-    &__tab--selected:focus {
-      font-weight: $bold;
-      border-bottom: 1px solid $core-vibrant-blue;
-    }
-  }
-
   &__info {
     margin-top: $pad-small;
   }

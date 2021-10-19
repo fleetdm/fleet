@@ -46,7 +46,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/throttled/throttled/v2/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -202,7 +201,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
+			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
@@ -211,10 +210,13 @@ the way that the Fleet server works.
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
 				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+				ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
+			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
+
 			ds = cached_mysql.New(ds, redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
@@ -277,9 +279,9 @@ the way that the Fleet server works.
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
-			limiterStore, err := redigostore.New(redisPool, "ratelimit::", 0)
-			if err != nil {
-				initFatal(err, "initialize rate limit store")
+			limiterStore := &redis.ThrottledStore{
+				Pool:      redisPool,
+				KeyPrefix: "ratelimit::",
 			}
 
 			var apiHandler, frontendHandler http.Handler

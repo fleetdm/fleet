@@ -1,40 +1,44 @@
 .homepage {
-  align-self: center;
+  min-height: 0;
+  padding: $pad-xxlarge;
   width: 100%;
-  max-width: 900px;
+  flex: 1;
+  background-color: $ui-off-white;
+  box-sizing: border-box;
 
   h2 {
     font-size: $small;
     font-weight: $regular;
     margin: 0;
   }
-
-  a {
+  
+  &__action-button {
+    display: flex;
+    align-items: center;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
-    text-decoration: none;
+    text-decoration: none !important;
   }
 
   #link-arrow {
     transform: scale(0.5);
-    margin-bottom: -4px;
-  }
-
-  &__wrapper {
-    padding: $pad-xxlarge 0 0;
   }
 
   &__header-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-xxlarge;
+    margin-bottom: $pad-large;
   }
 
   &__header {
     display: flex;
     align-items: center;
+    
+    .Select-control {
+      background-color: $ui-off-white !important;
+    }
   }
 
   &__title {
@@ -59,86 +63,34 @@
   }
 
   &__section {
-    width: 95%;
-    max-width: 800px;
-    margin: auto;
-    margin-bottom: $pad-xlarge;
+    margin-top: $pad-medium;
+    width: 100%;
+    display: grid;
+
+    &.two-column {
+      row-gap: $pad-medium;
+    }
+    
+    @media screen and (min-width: 990px) {
+      &.two-column {
+        grid-template-columns: repeat(2, 1fr);
+        column-gap: $pad-medium;
+      }
+    }
+  }
+
+  &__info-card {
+    padding: 32px;
+    width: 100%;
+    background-color: $core-white;
+    border: 1px solid $ui-fleet-blue-15;
+    border-radius: 8px;
+    box-shadow: 0 2px 0 0 $ui-fleet-blue-15;
+    box-sizing: border-box;
   }
 
   &__section-title {
     display: flex;
     justify-content: space-between;
-    padding-bottom: $pad-small;
-    border-bottom: solid 1px $ui-fleet-blue-15;
-    margin-bottom: $pad-large;
   }
-
-  &__section-details {
-    font-size: $x-small;
-  }
-
-  // For future use
-
-  // .ace-fleet {
-  //   margin-bottom: $pad-medium;
-  // }
-
-  //   &__label-actions {
-  //     button {
-  //       &:first-child {
-  //         margin-right: $pad-medium;
-  //       }
-  //     }
-  //   }
-
-  //   &__description {
-  //     margin: 0 0 $pad-medium;
-
-  //     h2 {
-  //       text-transform: uppercase;
-  //       color: $core-fleet-black;
-  //       font-weight: $regular;
-  //       font-size: $small;
-  //     }
-
-  //     p {
-  //       color: $core-fleet-blue;
-  //       margin: 0;
-  //       font-size: $x-small;
-  //       font-style: italic;
-  //     }
-  //   }
-
-  //   &__toggle-view {
-  //     .fleeticon {
-  //       width: 24px;
-  //       height: 24px;
-  //       margin-left: 12px;
-  //       fill: $ui-gray;
-  //     }
-
-  //     &--active {
-  //       .fleeticon {
-  //         fill: $core-fleet-purple;
-  //       }
-  //     }
-  //   }
-
-  //   .data-table-container {
-  //     .data-table {
-  //       &__wrapper {
-  //         overflow-x: scroll;
-  //       }
-  //     }
-  //   }
-
-  //   &__modal-buttons {
-  //     width: 100%;
-  //     display: flex;
-  //     justify-content: flex-end;
-
-  //     .button:first-child {
-  //       margin-right: $pad-medium;
-  //     }
-  //   }
 }

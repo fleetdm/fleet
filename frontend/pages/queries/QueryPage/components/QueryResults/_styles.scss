@@ -1,5 +1,5 @@
 .query-results {
-  padding: 80px 40px;
+  padding: $pad-xxxlarge $pad-xxlarge;
   
   &__text-wrapper {
     margin-top: 20px;
@@ -49,7 +49,8 @@
   }
 
   &__btn-wrapper {
-    margin-top: 25px;
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
     display: flex;
     align-items: center;
 
@@ -69,72 +70,6 @@
       margin-left: 8px;
       position: relative;
       top: -2px;
-    }
-  }
-
-  &__nav-header {
-    margin-top: $pad-xxlarge;
-    position: sticky;
-    top: 0;
-    background-color: $core-white;
-    z-index: 2;
-  }
-  
-  .react-tabs {
-    &__tab-list {
-      border-bottom: 1px solid $ui-gray;
-    }
-    &__tab {
-      padding-bottom: $pad-small;
-      font-size: $x-small;
-      border: none;
-      
-      &:focus {
-        box-shadow: none;
-        outline: 0;
-      }
-      &--selected {
-        text-shadow: -0.3px 0 #192147, 0.3px 0 #192147;
-
-        &::after {
-          content: '';
-          width: 100%;
-          height: 0;
-          border-bottom: 1px solid #6a67fe;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
-      }
-      &--disabled {
-        cursor: not-allowed;
-      }
-      &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
-        bottom: -2px;
-      }
-      .count {
-        margin-right: $pad-small;
-        padding: $pad-xxsmall 12px;
-        background-color: $core-vibrant-red;
-        display: inline-block;
-        border-radius: 29px;
-        color: $core-white;
-        font-weight: $bold;
-      }
-    }
-    &__tab-panel {
-      .no-results-message {
-        margin-top: $pad-xxlarge;
-        font-size: $small;
-        font-weight: $bold;
-
-        span {
-          margin-top: $pad-medium;
-          font-size: $x-small;
-          font-weight: $regular;
-          display: block;
-        }
-      }
     }
   }
 

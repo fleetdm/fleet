@@ -29,7 +29,7 @@ describe(
 
         cy.contains("button", /generate installer/i).click();
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(2000);
+        cy.wait(1000);
         cy.findByText(/rpm/i).click();
         cy.contains("a", /download/i)
           .first()
@@ -51,13 +51,13 @@ describe(
         cy.visit("/hosts/manage");
         cy.location("pathname").should("match", /hosts\/manage/i);
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(3000);
+        cy.wait(1000);
         cy.get('button[title="Online"]').click();
 
         // Go to host details page
         cy.location("pathname").should("match", /hosts\/[0-9]/i);
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(3000);
+        cy.wait(1000);
         cy.get("span.status").contains(/online/i);
       }
     );
