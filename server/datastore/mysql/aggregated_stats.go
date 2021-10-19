@@ -92,59 +92,11 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	statsTypeScheduledQuery := "scheduled_query"
 
-	// TODO: add logging with times and other stats!!
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		//var ids []uint
-		//
-		//rows, err := tx.QueryxContext(ctx, `SELECT id FROM scheduled_queries`)
-		//if err != nil {
-		//	return errors.Wrap(err, "querying pack ids")
-		//}
-		//defer rows.Close()
-		//
-		//for rows.Next() {
-		//	var id uint
-		//	err := rows.Scan(&id)
-		//	if err != nil {
-		//		return errors.Wrap(err, "scanning id for scheduled_query")
-		//	}
-		//	ids = append(ids, id)
-		//}
 		ids, err := getIdsForTable(ctx, tx, "scheduled_queries")
 		if err != nil {
 			return errors.Wrap(err, "getting ids")
 		}
-		//for _, id := range ids {
-		//	var totalExecutions int
-		//	statsMap := make(map[string]interface{})
-		//
-		//	// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
-		//	// so I went for the simpler approach first, we can optimize later
-		//	if err := setP50AndP95Map(ctx, tx, statsTypeScheduledQuery, "user_time", id, statsMap); err != nil {
-		//		return err
-		//	}
-		//	if err := setP50AndP95Map(ctx, tx, statsTypeScheduledQuery, "system_time", id, statsMap); err != nil {
-		//		return err
-		//	}
-		//	err = sqlx.GetContext(ctx, tx, &totalExecutions, `SELECT sum(executions) FROM scheduled_query_stats WHERE scheduled_query_id=?`, id)
-		//	if err != nil {
-		//		return errors.Wrapf(err, "getting total executions for scheduled query %d", id)
-		//	}
-		//	statsMap["total_executions"] = totalExecutions
-		//
-		//	statsJson, err := json.Marshal(statsMap)
-		//	if err != nil {
-		//		return errors.Wrap(err, "marshaling stats")
-		//	}
-		//
-		//	_, err = tx.ExecContext(ctx,
-		//		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
-		//		id, statsTypeScheduledQuery, statsJson,
-		//	)
-		//	if err != nil {
-		//		return errors.Wrapf(err, "inserting stats for scheduled query id %d", id)
-		//	}
-		//}
 		if err := calculatePercentiles(ctx, tx, statsTypeScheduledQuery, ids); err != nil {
 			return err
 		}

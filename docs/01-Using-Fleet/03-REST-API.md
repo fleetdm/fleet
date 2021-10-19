@@ -2317,7 +2317,14 @@ Returns a list of all queries in the Fleet instance.
         "platform": "",
         "disabled": true
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p_95": 3.00,
+      "total_executions": 3920
+    }
   },
   {
     "created_at": "2021-01-19T17:08:24Z",
@@ -3195,7 +3202,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3212,7 +3226,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -3244,7 +3265,7 @@ None.
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -3399,7 +3420,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "version": "",
       "removed": null,
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3416,7 +3444,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
