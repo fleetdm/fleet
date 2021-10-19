@@ -41,7 +41,7 @@ const PreviewLoginPage = () => {
   });
 
   const loginPreviewUser = (handleLogin: (formData: ILoginData) => void) => {
-    if (window.location.origin === "https://localhost:8080") {
+    if (window.location.origin === "http://localhost:1337") {
       handleLogin({
         email: "admin@example.com",
         password: "admin123#",
