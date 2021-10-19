@@ -57,8 +57,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 
 	if p.AdminForcedPasswordReset == nil {
 		// By default, force password reset for users created this way.
-		force := true
-		p.AdminForcedPasswordReset = &force
+		p.AdminForcedPasswordReset = ptr.Bool(true)
 	}
 
 	return svc.newUser(ctx, p)
