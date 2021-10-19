@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -9,26 +10,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+// These queries are a bit annoyingly written. The main reason they are this way is that we want rownum sorted. There's
+// a slightly simpler version but that adds the rownum before sorting.
+
 const scheduledQueryPercentileQuery = `
 SELECT
 	(t1.%s / t1.executions)
 FROM (
-	SELECT
-		@rownum := @rownum + 1 AS ` + "`" + `row_number` + "`" + `,
-		d.scheduled_query_id,
-		d.%s,
-		d.executions
-	FROM
-		scheduled_query_stats d,
-		(SELECT @rownum := 0) AS r
-	WHERE d.scheduled_query_id=?
-	ORDER BY (d.%s / d.executions) ASC
+	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+		SELECT d.scheduled_query_id, d.%s, d.executions
+		FROM scheduled_query_stats d 
+		WHERE d.scheduled_query_id=?
+		ORDER BY (d.%s / d.executions) ASC
+	) AS mm
 ) AS t1,
+(SELECT @rownum := 0) AS r,
 (
-	SELECT
-		count(*) AS total_rows
-	FROM
-		scheduled_query_stats d
+	SELECT count(*) AS total_rows
+	FROM scheduled_query_stats d
 	WHERE d.scheduled_query_id=?
 ) AS t2
 WHERE t1.row_number = floor(total_rows * %s) + 1;`
@@ -37,30 +36,25 @@ const queryPercentileQuery = `
 SELECT
 	(t1.%s / t1.executions)
 FROM (
-	SELECT
-		@rownum := @rownum + 1 AS ` + "`" + `row_number` + "`" + `,
-		d.scheduled_query_id,
-		d.%s,
-		d.executions
-	FROM
-		scheduled_query_stats d,
-		(SELECT @rownum := 0) AS r
-	JOIN queries q ON (q.id=d.query_id)
-	WHERE d.query_id=?
-	ORDER BY (d.%s / d.executions) ASC
+	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+		SELECT d.scheduled_query_id, d.%s, d.executions
+		FROM scheduled_query_stats d 
+		JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
+		WHERE sq.query_id=?
+		ORDER BY (d.%s / d.executions) ASC
+	) AS mm
 ) AS t1,
+(SELECT @rownum := 0) AS r,
 (
-	SELECT
-		count(*) AS total_rows
-	FROM
-		scheduled_query_stats d
-	JOIN queries q ON (q.id=d.query_id)
-	WHERE d.query_id=?
+	SELECT count(*) AS total_rows
+	FROM scheduled_query_stats d
+	JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
+	WHERE sq.query_id=?
 ) AS t2
 WHERE t1.row_number = floor(total_rows * %s) + 1;`
 
-const scheduledQueryTotalExecutions = `SELECT sum(executions) FROM scheduled_query_stats WHERE scheduled_query_id=?`
-const queryTotalExecutions = `SELECT sum(executions) FROM scheduled_query_stats sq JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
+const scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
+const queryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
 
 func getPercentileQuery(aggregate string, time string, percentile string) string {
 	switch aggregate {
@@ -77,12 +71,18 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 
 	err := sqlx.GetContext(ctx, tx, &p50, getPercentileQuery(aggregate, time, "0.5"), id, id)
 	if err != nil {
-		return errors.Wrapf(err, "getting %s p50 for scheduled query %d", time, id)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return errors.Wrapf(err, "getting %s p50 for %s %d", time, aggregate, id)
 	}
 	statsMap[time+"_p50"] = p50
 	err = sqlx.GetContext(ctx, tx, &p95, getPercentileQuery(aggregate, time, "0.95"), id, id)
 	if err != nil {
-		return errors.Wrapf(err, "getting %s p95 for scheduled query %d", time, id)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return errors.Wrapf(err, "getting %s p95 for %s %d", time, aggregate, id)
 	}
 	statsMap[time+"_p95"] = p95
 
@@ -91,8 +91,8 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 
 func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	statsTypeScheduledQuery := "scheduled_query"
-	//statsTypeQuery := "query"
 
+	// TODO: add logging with times and other stats!!
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		//var ids []uint
 		//

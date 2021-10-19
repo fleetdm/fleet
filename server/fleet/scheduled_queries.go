@@ -23,7 +23,7 @@ type ScheduledQuery struct {
 	Shard       *uint   `json:"shard"`
 	Denylist    *bool   `json:"denylist"`
 
-	AggregatedStats `json:"scheduled_query_stats,omitempty"`
+	AggregatedStats `json:"stats,omitempty"`
 }
 
 type AggregatedStats struct {
