@@ -65,7 +65,7 @@ describe(
       // delete custom label
       cy.get(".manage-hosts__label-block button").last().click();
 
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.get(".manage-hosts__modal-buttons > .button--alert")
         .contains("button", /delete/i)
         .click();
