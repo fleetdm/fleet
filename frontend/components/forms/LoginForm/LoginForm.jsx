@@ -74,7 +74,7 @@ class LoginForm extends Component {
       isHidden,
       ssoSettings,
     } = this.props;
-    const { sso_enabled: ssoEnabled } = ssoSettings;
+    const { sso_enabled: ssoEnabled } = ssoSettings || {};
     const { showSingleSignOnButton } = this;
 
     const loginFormClass = classnames(baseClass, {
