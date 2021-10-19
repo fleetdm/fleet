@@ -588,8 +588,6 @@ const HostDetailsPage = ({
     const failingResponses: IHostPolicy[] =
       host?.policies.filter((policy) => policy.response === "fail") || [];
 
-    console.log("host?.policies", host?.policies);
-
     return (
       <div className="section section--policies">
         <p className="section__header">Policies</p>

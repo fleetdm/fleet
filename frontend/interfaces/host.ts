@@ -127,10 +127,6 @@ export interface IHost {
     failing_policies_count: number;
   };
   status: string;
-  issues: {
-    total_issues_count: number;
-    failing_policies_count: number;
-  };
   display_text: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
