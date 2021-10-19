@@ -6,6 +6,7 @@ import React from "react";
 import { IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
@@ -21,6 +22,7 @@ import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
+import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -124,6 +126,18 @@ const allHostTableHeaders: IHostDataColumn[] = [
     disableSortBy: true,
     accessor: "status",
     Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Issues",
+    Header: () => <img alt="host issues" src={IssueIcon} />,
+    disableSortBy: true,
+    accessor: "issues",
+    Cell: (cellProps) => (
+      <IssueCell
+        issues={cellProps.row.original.issues}
+        rowId={cellProps.row.original.id}
+      />
+    ),
   },
   {
     title: "OS",
