@@ -16,7 +16,7 @@ const IssueCell = ({
   issues,
   rowId,
 }: IIssueCellProps<any>): JSX.Element | null => {
-  if (isEmpty(issues)) {
+  if (isEmpty(issues) || issues.total_issues_count === 0) {
     return null;
   }
 
