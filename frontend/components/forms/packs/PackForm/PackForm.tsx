@@ -7,15 +7,12 @@ import { useDeepEffect } from "utilities/hooks";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
 import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
-// @ts-ignore
-import validate from "./validate";
 
 const fieldNames = ["name", "description", "targets"];
 const baseClass = "pack-form";
@@ -82,18 +79,6 @@ const EditPackForm = ({
       description: packDescription,
       targets: [...packFormTargets],
     });
-  };
-
-  const validate = (formData: IEditPackFormData) => {
-    const errors: IFormErrors = {};
-
-    if (!formData.name) {
-      errors.name = "Title field must be completed";
-    }
-
-    const valid = !size(errors);
-
-    return { valid, errors };
   };
 
   const packFormClass = classnames(baseClass, className);
