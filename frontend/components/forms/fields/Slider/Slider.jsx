@@ -5,12 +5,8 @@ import { pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 
-const Slider = ({
-  onChange,
-  value,
-  inactiveText = "Off",
-  activeText = "On",
-}) => {
+const Slider = (props) => {
+  const { onChange, value, inactiveText = "Off", activeText = "On" } = props;
   const baseClass = "fleet-slider";
 
   const sliderBtnClass = classnames(baseClass, {
