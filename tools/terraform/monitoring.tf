@@ -1,6 +1,6 @@
 // sns topic to send cloudwatch alarms to
 resource "aws_sns_topic" "cloudwatch_alarm_topic" {
-  name = "fleet-cloudwatch-alarm"
+  name = "cloudwatch-alarm-${terraform.workspace}"
 }
 
 resource "aws_sns_topic_policy" "default" {
@@ -68,7 +68,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
 // Database alarms
 resource "aws_cloudwatch_metric_alarm" "cpu_utilization_too_high" {
   for_each            = toset(module.aurora_mysql.rds_cluster_instance_ids)
-  alarm_name          = "cpu_utilization_too_high-${each.key}"
+  alarm_name          = "rds_cpu_utilization_too_high-${each.key}-${terraform.workspace}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "CPUUtilization"
@@ -85,7 +85,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_utilization_too_high" {
 }
 
 resource "aws_db_event_subscription" "default" {
-  name      = "rds-event-sub"
+  name      = "rds-event-sub-${terraform.workspace}"
   sns_topic = aws_sns_topic.cloudwatch_alarm_topic.arn
 
   source_type = "db-instance"
@@ -107,7 +107,7 @@ resource "aws_db_event_subscription" "default" {
 
 // ECS Alarms
 resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
-  alarm_name          = "fleet-backend-healthyhosts-${terraform.workspace}"
+  alarm_name          = "backend-healthyhosts-${terraform.workspace}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "HealthyHostCount"
@@ -127,11 +127,11 @@ resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
 
 // alarm for target response time (anomaly detection)
 resource "aws_cloudwatch_metric_alarm" "target_response_time" {
-  alarm_name                = "fleet-backend-target-response-time"
+  alarm_name                = "backend-target-response-time-${terraform.workspace}"
   comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "2"
   threshold_metric_id       = "e1"
-  alarm_description         = "This alarm indicates the fleet server response time is greater than it usually is. Please investigate the ecs service \"${aws_ecs_service.fleet.name}\" because the backend might need to be scaled up."
+  alarm_description         = "This alarm indicates the Fleet server response time is greater than it usually is. Please investigate the ecs service \"${aws_ecs_service.fleet.name}\" because the backend might need to be scaled up."
   alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   insufficient_data_actions = []
@@ -162,7 +162,7 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
-  alarm_name          = "fleet-backend-load-balancer-5XX"
+  alarm_name          = "backend-load-balancer-5XX-${terraform.workspace}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "HTTPCode_ELB_5XX_Count"
@@ -181,7 +181,7 @@ resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
 // Elasticache (redis) alerts https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
   for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
-  alarm_name          = "fleet-redis-cpu-utilization-${each.key}"
+  alarm_name          = "redis-cpu-utilization-${each.key}-${terraform.workspace}"
   alarm_description   = "Redis cluster CPU utilization node ${each.key}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
@@ -203,7 +203,7 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
 
 resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
   for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
-  alarm_name          = "fleet-redis-cpu-engine-utilization-${each.key}"
+  alarm_name          = "redis-cpu-engine-utilization-${each.key}-${terraform.workspace}"
   alarm_description   = "Redis cluster CPU Engine utilization node ${each.key}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
@@ -225,8 +225,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
 
 resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
   for_each                  = toset(aws_elasticache_replication_group.default.member_clusters)
-  alarm_name                = "fleet-redis-cpu-engine-utilization-${each.key}"
-  alarm_description         = "Redis cluster CPU Engine utilization node ${each.key}"
+  alarm_name                = "redis-current-connections-${each.key}-${terraform.workspace}"
+  alarm_description         = "Redis current connections for node ${each.key}"
   comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
   evaluation_periods        = "3"
   threshold_metric_id       = "e1"
@@ -260,7 +260,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
 
 // ACM Certificate Manager
 resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
-  alarm_name          = "fleet-acm-cert-expiry-${terraform.workspace}"
+  alarm_name          = "acm-cert-expiry-${terraform.workspace}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   period              = "86400" // 1 day in seconds
