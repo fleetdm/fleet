@@ -24,7 +24,9 @@ const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const { currentTeam, isPremiumTier, setCurrentTeam } = useContext(AppContext);
+  const { config, currentTeam, isPremiumTier, setCurrentTeam } = useContext(
+    AppContext
+  );
 
   const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(
     false
@@ -44,18 +46,26 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam(selectedTeam);
   };
 
+  const canSeeActivity = !isPremiumTier || !currentTeam;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__header-wrap`}>
         <div className={`${baseClass}__header`}>
-          <TeamsDropdown
-            currentTeamId={currentTeam?.id || 0}
-            isLoading={isLoadingTeams}
-            teams={teams || []}
-            onChange={(newSelectedValue: number) =>
-              handleTeamSelect(newSelectedValue)
-            }
-          />
+          {isPremiumTier ? (
+            <TeamsDropdown
+              currentTeamId={currentTeam?.id || 0}
+              isLoading={isLoadingTeams}
+              teams={teams || []}
+              onChange={(newSelectedValue: number) =>
+                handleTeamSelect(newSelectedValue)
+              }
+            />
+          ) : (
+            <h1 className={`${baseClass}__title`}>
+              <span>{config?.org_name}</span>
+            </h1>
+          )}
         </div>
       </div>
       <div className={`${baseClass}__section one-column`}>
@@ -70,14 +80,16 @@ const Homepage = (): JSX.Element => {
           <HostsSummary />
         </div>
       </div>
-      <div className={`${baseClass}__section one-column`}>
-        <div className={`${baseClass}__info-card`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>Activity</h2>
+      {canSeeActivity && (
+        <div className={`${baseClass}__section one-column`}>
+          <div className={`${baseClass}__info-card`}>
+            <div className={`${baseClass}__section-title`}>
+              <h2>Activity</h2>
+            </div>
+            <ActivityFeed />
           </div>
-          <ActivityFeed />
         </div>
-      </div>
+      )}
       {/* TODO: Re-add this commented out section once the /software API is running */}
       {/* <div className={`
         ${baseClass}__section 
