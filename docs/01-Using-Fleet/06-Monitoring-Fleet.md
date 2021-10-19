@@ -48,7 +48,7 @@ in the terraform reference architecture (see `monitoring.tf`).
 * [Monitoring RDS (MySQL)](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/monitoring-cloudwatch.html)
 * [ElastiCache for Redis](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html)
 * [Monitoring ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-metrics.html)
-  * Reference alarms include evaluating healthy targets & response times. We also use target-tracking alarms to manage auto-scaling.
+* Reference alarms include evaluating healthy targets & response times. We also use target-tracking alarms to manage auto-scaling.
 
 ### Graphing
 
