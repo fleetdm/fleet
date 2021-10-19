@@ -4,7 +4,9 @@ describe("Settings flow", () => {
     cy.login();
   });
 
-  it("Modifies and updates all setting successfully", () => {
+  // We're using `scrollBehavior: 'center'` as a default
+  // because the sticky header blocks the elements.
+  it("Modifies and updates all setting successfully", { scrollBehavior: 'center' }, () => {
     cy.visit("/settings/organization");
 
     cy.findByLabelText(/organization name/i)
