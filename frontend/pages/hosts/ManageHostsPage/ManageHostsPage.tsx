@@ -45,7 +45,9 @@ import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
+import TeamsDropdown from "components/TeamsDropdown";
 
+import { getValidatedTeamId } from "fleet/helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -61,9 +63,8 @@ import {
   HOST_SELECT_STATUSES,
   isAcceptableStatus,
   getNextLocationPath,
-  generateTeamFilterDropdownOptions,
-  getValidatedTeamId,
 } from "./helpers";
+
 import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -873,42 +874,53 @@ const ManageHostsPage = ({
     }
   };
 
-  const renderTeamsFilterDropdown = () => {
-    if (isPremiumTier && isLoadingTeams) {
-      return null;
-    }
+  const renderTeamsFilterDropdown = () => (
+    <TeamsDropdown
+      teams={teams || []}
+      isLoading={isLoadingTeams}
+      currentTeamId={
+        (policyId && policy?.team_id) || (currentTeam?.id as number)
+      }
+      onChange={(newSelectedValue: number) =>
+        handleChangeSelectedTeamFilter(newSelectedValue)
+      }
+    />
+  );
+  //   if (isPremiumTier && isLoadingTeams) {
+  //     return null;
+  //   }
 
-    if (!isPremiumTier) {
-      return <h1>Hosts</h1>;
-    }
+  //   if (!isPremiumTier) {
+  //     return <h1>Hosts</h1>;
+  //   }
 
-    const teamOptions = generateTeamFilterDropdownOptions(
-      teams || [],
-      currentUser,
-      isOnGlobalTeam as boolean
-    );
-    const selectedTeamId = getValidatedTeamId(
-      teams || [],
-      (policyId && policy?.team_id) || (currentTeam?.id as number),
-      currentUser,
-      isOnGlobalTeam as boolean
-    );
+  //   const teamOptions = generateTeamFilterDropdownOptions(
+  //     teams || [],
+  //     currentUser,
+  //     isOnGlobalTeam as boolean
+  //   );
+  //   const selectedTeamId = getValidatedTeamId(
+  //     teams || [],
+  //     (policyId && policy?.team_id) || (currentTeam?.id as number),
+  //     currentUser,
+  //     isOnGlobalTeam as boolean
+  //   );
 
-    return (
-      <div>
-        <Dropdown
-          value={selectedTeamId}
-          placeholder={"All teams"}
-          className={`${baseClass}__team-dropdown`}
-          options={teamOptions}
-          searchable={false}
-          onChange={(newSelectedValue: number) =>
-            handleChangeSelectedTeamFilter(newSelectedValue)
-          }
-        />
-      </div>
-    );
-  };
+  //   return (
+  //     <div>
+  //       <Dropdown
+  //         value={selectedTeamId}
+  //         placeholder={"All teams"}
+  //         className={`${baseClass}__team-dropdown`}
+  //         options={teamOptions}
+  //         searchable={false}
+  //         onChange={(newSelectedValue: number) =>
+  //           handleChangeSelectedTeamFilter(newSelectedValue)
+  //         }
+  //       />
+  //     </div>
+  //   );
+  // };
 
   const renderPoliciesFilterBlock = () => {
     const buttonText = (

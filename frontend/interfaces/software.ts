@@ -17,7 +17,7 @@ export interface ISoftware {
   version: string; // e.g., "2.1.11"
   source: string; // e.g., "apps"
   generated_cpe: string;
-  vulnerabilities: IVulnerability[];
+  vulnerabilities: IVulnerability[] | null;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
   // type: string;

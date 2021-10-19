@@ -1,14 +1,18 @@
-import { flatMap, omit, pick, size } from "lodash";
+import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
-import stringUtils from "utilities/strings";
+
 import { ILabel } from "interfaces/label";
+import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
 import {
   IPackQueryFormData,
   IScheduledQuery,
 } from "interfaces/scheduled_query";
-import { ITeam } from "interfaces/team";
+
+import stringUtils from "utilities/strings";
+import sortUtils from "utilities/sort";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
@@ -643,6 +647,65 @@ export const syntaxHighlight = (json: JSON): string => {
   /* eslint-enable no-useless-escape */
 };
 
+const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+  teams
+    .map((team) => {
+      return {
+        disabled: false,
+        label: team.name,
+        value: team.id,
+      };
+    })
+    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
+);
+
+export const generateTeamFilterDropdownOptions = (
+  teams: ITeam[],
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+) => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const allTeamsOption = [
+    {
+      disabled: false,
+      label: "All teams",
+      value: 0,
+    },
+  ];
+
+  const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
+
+  return allTeamsOption.concat(sortedCurrentUserTeamOptions);
+};
+
+export const getValidatedTeamId = (
+  teams: ITeam[],
+  teamId: number,
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+): number => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+  const validatedTeamId =
+    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
+      ? teamId
+      : 0;
+
+  return validatedTeamId;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -672,4 +735,6 @@ export default {
   setupData,
   frontendFormattedConfig,
   syntaxHighlight,
+  generateTeamFilterDropdownOptions,
+  getValidatedTeamId,
 };

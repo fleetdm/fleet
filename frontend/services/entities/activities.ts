@@ -2,7 +2,7 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 
 const DEFAULT_PAGE = 0;
-const PER_PAGE = 10;
+const PER_PAGE = 8;
 const ORDER_KEY = "created_at";
 const ORDER_DIRECTION = "desc";
 
