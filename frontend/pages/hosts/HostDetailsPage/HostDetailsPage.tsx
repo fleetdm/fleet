@@ -115,8 +115,6 @@ const HostDetailsPage = ({
     null
   );
 
-  console.log("selectedPolicy", selectedPolicy);
-
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setPolicyDetailsModal(!showPolicyDetailsModal);
