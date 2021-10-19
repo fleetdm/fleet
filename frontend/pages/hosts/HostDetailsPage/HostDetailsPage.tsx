@@ -108,11 +108,27 @@ const HostDetailsPage = ({
     false
   );
   const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
+    false
+  );
+  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+    null
+  );
 
-  const togglePolicyDetailsModal = useCallback(() => {
+  console.log("selectedPolicy", selectedPolicy);
+
+  const togglePolicyDetailsModal = useCallback(
+    (policy: IHostPolicy) => {
+      setPolicyDetailsModal(!showPolicyDetailsModal);
+      setSelectedPolicy(policy);
+    },
+    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+  );
+
+  const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal]);
+    setSelectedPolicy(null);
+  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
@@ -574,6 +590,8 @@ const HostDetailsPage = ({
     const failingResponses: IHostPolicy[] =
       host?.policies.filter((policy) => policy.response === "fail") || [];
 
+    console.log("host?.policies", host?.policies);
+
     return (
       <div className="section section--policies">
         <p className="section__header">Policies</p>
@@ -1021,7 +1039,10 @@ const HostDetailsPage = ({
         />
       )}
       {!!host && showPolicyDetailsModal && (
-        <PolicyDetailsModal onCancel={togglePolicyDetailsModal} />
+        <PolicyDetailsModal
+          onCancel={onCancelPolicyDetailsModal}
+          policy={selectedPolicy}
+        />
       )}
     </div>
   );
