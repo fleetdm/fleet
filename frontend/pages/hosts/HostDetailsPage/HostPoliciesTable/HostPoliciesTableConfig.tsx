@@ -52,7 +52,7 @@ const getPolicyStatus = (policy: IHostPolicy): string => {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
-  togglePolicyDetails: () => void
+  togglePolicyDetails: (policy: IHostPolicy) => void
 ): IDataColumn[] => {
   return [
     {
@@ -64,7 +64,12 @@ const generatePolicyTableHeaders = (
         const { query_name } = cellProps.row.original;
         return (
           <>
-            <Button onClick={togglePolicyDetails} variant={"text-icon"}>
+            <Button
+              onClick={() => {
+                togglePolicyDetails(cellProps.row.original);
+              }}
+              variant={"text-icon"}
+            >
               <>
                 {query_name}
                 <img src={ArrowIcon} alt="View policy details" />
