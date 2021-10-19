@@ -46,7 +46,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/throttled/throttled/v2/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -280,9 +279,9 @@ the way that the Fleet server works.
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
-			limiterStore, err := redigostore.New(redisPool, "ratelimit::", 0)
-			if err != nil {
-				initFatal(err, "initialize rate limit store")
+			limiterStore := &redis.ThrottledStore{
+				Pool:      redisPool,
+				KeyPrefix: "ratelimit::",
 			}
 
 			var apiHandler, frontendHandler http.Handler
