@@ -135,10 +135,9 @@ interface ITeamOptions {
   value: string | number;
 }
 
-const ManageSchedulePage = (props: ITeamSchedulesPageProps): JSX.Element => {
-  const {
-    params: { team_id },
-  } = props;
+const ManageSchedulePage = ({
+  params: { team_id },
+}: ITeamSchedulesPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;

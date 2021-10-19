@@ -8,9 +8,7 @@ interface IPolicyDetailsProps {
 
 const baseClass = "policy-details-modal";
 
-const PolicyDetailsModal = (props: IPolicyDetailsProps): JSX.Element => {
-  const { onCancel } = props;
-
+const PolicyDetailsModal = ({ onCancel }: IPolicyDetailsProps): JSX.Element => {
   return (
     <Modal title={"Policy Name"} onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__modal-body`}>

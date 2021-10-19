@@ -45,12 +45,10 @@ const getTabIndex = (path: string): number => {
 
 const baseClass = "settings-wrapper";
 
-const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
-  const {
-    children,
-    location: { pathname },
-  } = props;
-
+const SettingsWrapper = ({
+  children,
+  location: { pathname },
+}: ISettingsWrapperProp): JSX.Element => {
   // Add Teams tab for premium tier only
   const config = useSelector((state: IRootState) => state.app.config);
 

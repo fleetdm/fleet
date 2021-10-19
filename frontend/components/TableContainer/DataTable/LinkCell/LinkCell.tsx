@@ -10,9 +10,7 @@ interface ILinkCellProps<T> {
   title?: string;
 }
 
-const LinkCell = (props: ILinkCellProps<any>): JSX.Element => {
-  const { value, path, title } = props;
-
+const LinkCell = ({ value, path, title }: ILinkCellProps<any>): JSX.Element => {
   const dispatch = useDispatch();
 
   const onClick = (): void => {

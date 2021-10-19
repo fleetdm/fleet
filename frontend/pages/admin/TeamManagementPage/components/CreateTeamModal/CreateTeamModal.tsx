@@ -17,9 +17,10 @@ interface ICreateTeamModalProps {
   onSubmit: (formData: ICreateTeamFormData) => void;
 }
 
-const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const CreateTeamModal = ({
+  onCancel,
+  onSubmit,
+}: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
 
   const onInputChange = useCallback(
