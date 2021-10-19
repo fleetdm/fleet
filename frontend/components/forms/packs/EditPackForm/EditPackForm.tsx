@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
+import { useDeepEffect } from "utilities/hooks";
 
 import Button from "components/buttons/Button";
 

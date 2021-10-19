@@ -1,0 +1,214 @@
+import React, { Component, useState } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { size } from "lodash";
+
+import { useDeepEffect } from "utilities/hooks";
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+import { IQuery } from "interfaces/query";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+// @ts-ignore
+import validate from "./validate";
+
+const fieldNames = ["name", "description", "targets"];
+const baseClass = "pack-form";
+
+interface IPackForm {
+  className?: string;
+  handleSubmit: (formData: IEditPackFormData) => void;
+  onFetchTargets?: (
+    query: IQuery,
+    targetsResponse: ITargetsAPIResponse
+  ) => boolean;
+  selectedTargetsCount?: number;
+  isPremiumTier?: boolean;
+  formData: IEditPackFormData;
+  baseError: any;
+}
+
+interface IEditPackFormData {
+  name: string;
+  description: string;
+  targets: ITarget[];
+}
+
+interface IFormErrors {
+  name?: string;
+}
+
+const EditPackForm = ({
+  className,
+  handleSubmit,
+  onFetchTargets,
+  selectedTargetsCount,
+  isPremiumTier,
+  formData,
+  baseError,
+}: IPackForm): JSX.Element => {
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [packName, setPackName] = useState<string>("");
+  const [packDescription, setPackDescription] = useState<string>("");
+  const [packFormTargets, setPackFormTargets] = useState<ITarget[] | []>([]);
+
+  const onChangePackName = (value: string) => {
+    setPackName(value);
+  };
+
+  const onChangePackDescription = (value: string) => {
+    setPackDescription(value);
+  };
+
+  const onChangePackTargets = (value: ITarget[]) => {
+    setPackFormTargets(value);
+  };
+
+  const onFormSubmit = () => {
+    if (packName === "") {
+      return setErrors({
+        ...errors,
+        name: "Query name must be present",
+      });
+    }
+
+    handleSubmit({
+      name: packName,
+      description: packDescription,
+      targets: [...packFormTargets],
+    });
+  };
+
+  const validate = (formData: IEditPackFormData) => {
+    const errors: IFormErrors = {};
+
+    if (!formData.name) {
+      errors.name = "Title field must be completed";
+    }
+
+    const valid = !size(errors);
+
+    return { valid, errors };
+  };
+
+  const packFormClass = classnames(baseClass, className);
+
+  return (
+    <form className={packFormClass} onSubmit={onFormSubmit}>
+      <h1>New pack</h1>
+      {baseError && <div className="form__base-error">{baseError}</div>}
+      <InputField
+        onChange={onChangePackName}
+        value={packName}
+        placeholder="Name"
+        label="Name"
+        name="name"
+        error={errors.name}
+        inputWrapperClass={`${baseClass}__pack-title`}
+      />
+      <InputField
+        onChange={onChangePackDescription}
+        value={packDescription}
+        inputWrapperClass={`${baseClass}__pack-description`}
+        label="Description"
+        name="description"
+        placeholder="Add a description of your pack"
+        type="textarea"
+      />
+      <div className={`${baseClass}__pack-targets`}>
+        <SelectTargetsDropdown
+          label="Select pack targets"
+          name="selected-pack-targets"
+          onFetchTargets={onFetchTargets}
+          onSelect={onChangePackTargets}
+          selectedTargets={packFormTargets}
+          targetsCount={selectedTargetsCount}
+          isPremiumTier={isPremiumTier}
+        />
+      </div>
+      <div className={`${baseClass}__pack-buttons`}>
+        <Button onClick={onFormSubmit} variant="brand">
+          Save query pack
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+// class PackForm extends Component {
+//   static propTypes = {
+//     baseError: PropTypes.string,
+//     className: PropTypes.string,
+//     fields: PropTypes.shape({
+//       description: formFieldInterface.isRequired,
+//       targets: formFieldInterface.isRequired,
+//       name: formFieldInterface.isRequired,
+//     }).isRequired,
+//     handleSubmit: PropTypes.func,
+//     onFetchTargets: PropTypes.func,
+//     selectedTargetsCount: PropTypes.number,
+//     isPremiumTier: PropTypes.bool,
+//   };
+
+//   render() {
+//     const {
+//       baseError,
+//       className,
+//       fields,
+//       handleSubmit,
+//       onFetchTargets,
+//       selectedTargetsCount,
+//       isPremiumTier,
+//     } = this.props;
+
+//     const packFormClass = classnames(baseClass, className);
+
+//     return (
+//       <form className={packFormClass} onSubmit={handleSubmit}>
+//         <h1>New pack</h1>
+//         {baseError && <div className="form__base-error">{baseError}</div>}
+//         <InputField
+//           {...fields.name}
+//           placeholder="Query pack title"
+//           label="Name"
+//           inputWrapperClass={`${baseClass}__pack-title`}
+//         />
+//         <InputField
+//           {...fields.description}
+//           inputWrapperClass={`${baseClass}__pack-description`}
+//           label="Description"
+//           placeholder="Add a description of your pack"
+//           type="textarea"
+//         />
+//         <div className={`${baseClass}__pack-targets`}>
+//           <SelectTargetsDropdown
+//             {...fields.targets}
+//             label="Select pack targets"
+//             onSelect={fields.targets.onChange}
+//             onFetchTargets={onFetchTargets}
+//             selectedTargets={fields.targets.value}
+//             targetsCount={selectedTargetsCount}
+//             isPremiumTier={isPremiumTier}
+//           />
+//         </div>
+//         <div className={`${baseClass}__pack-buttons`}>
+//           <Button type="submit" variant="brand">
+//             Save query pack
+//           </Button>
+//         </div>
+//       </form>
+//     );
+//   }
+// }
+
+export default EditPackForm;
+
+// export default Form(PackForm, {
+//   fields: fieldNames,
+//   validate,
+// });
