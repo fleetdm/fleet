@@ -190,6 +190,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "${aws_elasticache_replication_group.default.configuration_endpoint_address}:6379"
           },
           {
+            name = "FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS"
+            value = "true"
+          },
+          {
             name  = "FLEET_FIREHOSE_STATUS_STREAM"
             value = aws_kinesis_firehose_delivery_stream.osquery_status.name
           },
