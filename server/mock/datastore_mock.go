@@ -269,7 +269,7 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(ctx context.Context, queryID uint) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
@@ -291,7 +291,7 @@ type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error
 
 type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
 
-type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error)
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
@@ -302,6 +302,10 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
+
+type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -741,6 +745,12 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
+
+	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
+	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
+
+	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
+	UpdateQueryAggregatedStatsFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1390,7 +1400,7 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 
 func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(ctx, queryID)
+	return s.NewGlobalPolicyFunc(ctx, queryID, resolution)
 }
 
 func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -1445,7 +1455,7 @@ func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.Li
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
-	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
+	return s.NewTeamPolicyFunc(ctx, teamID, queryID, resolution)
 }
 
 func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
@@ -1471,4 +1481,14 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }

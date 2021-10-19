@@ -303,14 +303,6 @@ CREATE TABLE `labels` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `last_run` (
-  `type` varchar(255) NOT NULL,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `locks` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
@@ -515,8 +507,7 @@ CREATE TABLE `scheduled_query_stats` (
   `user_time` int(11) DEFAULT NULL,
   `wall_time` int(11) DEFAULT NULL,
   PRIMARY KEY (`host_id`,`scheduled_query_id`),
-  KEY `scheduled_query_id` (`scheduled_query_id`),
-  KEY `idx_scheduled_query_stats_last_executed` (`last_executed`)
+  KEY `scheduled_query_id` (`scheduled_query_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

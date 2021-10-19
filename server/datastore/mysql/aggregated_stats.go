@@ -92,67 +92,59 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	statsTypeScheduledQuery := "scheduled_query"
 
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		ids, err := getIdsForTable(ctx, tx, "scheduled_queries")
-		if err != nil {
-			return errors.Wrap(err, "getting ids")
-		}
-		if err := calculatePercentiles(ctx, tx, statsTypeScheduledQuery, ids); err != nil {
-			return err
-		}
-
-		return nil
+	err := walkIdsInTable(ctx, d.reader, "scheduled_queries", func(id uint) error {
+		return calculatePercentiles(ctx, d.writer, statsTypeScheduledQuery, id)
 	})
+	if err != nil {
+		return errors.Wrap(err, "looping through ids")
+	}
+
+	return nil
 }
 
 func (d *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	statsTypeQuery := "query"
 
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		ids, err := getIdsForTable(ctx, tx, "queries")
-		if err != nil {
-			return errors.Wrap(err, "getting ids")
-		}
-		if err := calculatePercentiles(ctx, tx, statsTypeQuery, ids); err != nil {
-			return err
-		}
-
-		return nil
+	err := walkIdsInTable(ctx, d.reader, "queries", func(id uint) error {
+		return calculatePercentiles(ctx, d.writer, statsTypeQuery, id)
 	})
+	if err != nil {
+		return errors.Wrap(err, "looping through ids")
+	}
+
+	return nil
 }
 
-func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate string, ids []uint) error {
-	for _, id := range ids {
-		var totalExecutions int
-		statsMap := make(map[string]interface{})
+func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate string, id uint) error {
+	var totalExecutions int
+	statsMap := make(map[string]interface{})
 
-		// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
-		// so I went for the simpler approach first, we can optimize later
-		if err := setP50AndP95Map(ctx, tx, aggregate, "user_time", id, statsMap); err != nil {
-			return err
-		}
-		if err := setP50AndP95Map(ctx, tx, aggregate, "system_time", id, statsMap); err != nil {
-			return err
-		}
+	// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
+	// so I went for the simpler approach first, we can optimize later
+	if err := setP50AndP95Map(ctx, tx, aggregate, "user_time", id, statsMap); err != nil {
+		return err
+	}
+	if err := setP50AndP95Map(ctx, tx, aggregate, "system_time", id, statsMap); err != nil {
+		return err
+	}
 
-		err := sqlx.GetContext(ctx, tx, &totalExecutions, getTotalExecutionsQuery(aggregate), id)
-		if err != nil {
-			return errors.Wrapf(err, "getting total executions for %s %d", aggregate, id)
-		}
-		statsMap["total_executions"] = totalExecutions
+	err := sqlx.GetContext(ctx, tx, &totalExecutions, getTotalExecutionsQuery(aggregate), id)
+	if err != nil {
+		return errors.Wrapf(err, "getting total executions for %s %d", aggregate, id)
+	}
+	statsMap["total_executions"] = totalExecutions
 
-		statsJson, err := json.Marshal(statsMap)
-		if err != nil {
-			return errors.Wrap(err, "marshaling stats")
-		}
+	statsJson, err := json.Marshal(statsMap)
+	if err != nil {
+		return errors.Wrap(err, "marshaling stats")
+	}
 
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
-			id, aggregate, statsJson,
-		)
-		if err != nil {
-			return errors.Wrapf(err, "inserting stats for %s id %d", aggregate, id)
-		}
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+		id, aggregate, statsJson,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "inserting stats for %s id %d", aggregate, id)
 	}
 	return nil
 }
@@ -167,21 +159,27 @@ func getTotalExecutionsQuery(aggregate string) string {
 	return ""
 }
 
-func getIdsForTable(ctx context.Context, tx sqlx.QueryerContext, table string) ([]uint, error) {
+func walkIdsInTable(
+	ctx context.Context,
+	tx sqlx.QueryerContext,
+	table string,
+	visitFunc func(id uint) error,
+) error {
 	rows, err := tx.QueryxContext(ctx, fmt.Sprintf(`SELECT id FROM %s`, table))
 	if err != nil {
-		return nil, errors.Wrapf(err, "querying %s ids", table)
+		return errors.Wrapf(err, "querying %s ids", table)
 	}
 	defer rows.Close()
 
-	var ids []uint
 	for rows.Next() {
 		var id uint
-		err := rows.Scan(&id)
-		if err != nil {
-			return nil, errors.Wrap(err, "scanning id for scheduled_query")
+
+		if err := rows.Scan(&id); err != nil {
+			return errors.Wrapf(err, "scanning id for %s", table)
 		}
-		ids = append(ids, id)
+		if err := visitFunc(id); err != nil {
+			return errors.Wrapf(err, "running visitFunc for %s", table)
+		}
 	}
-	return ids, nil
+	return nil
 }

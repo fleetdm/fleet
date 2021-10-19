@@ -25,20 +25,6 @@ func Up_20211013133707(tx *sql.Tx) error {
 	if _, err := tx.Exec(aggregatedStatsTable); err != nil {
 		return errors.Wrap(err, "create aggregated stats table")
 	}
-	aggregatedStatsUpdatesTable := `
-		CREATE TABLE IF NOT EXISTS last_run (
-			type VARCHAR(255) NOT NULL,
-			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			PRIMARY KEY (type)
-		);
-	`
-	if _, err := tx.Exec(aggregatedStatsUpdatesTable); err != nil {
-		return errors.Wrap(err, "create aggregated stats updates table")
-	}
-	lastExecutedIndex := `CREATE INDEX idx_scheduled_query_stats_last_executed on scheduled_query_stats(last_executed)`
-	if _, err := tx.Exec(lastExecutedIndex); err != nil {
-		return errors.Wrap(err, "create policies table")
-	}
 	return nil
 }
 
