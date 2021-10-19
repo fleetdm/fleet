@@ -270,3 +270,15 @@ func TestReadOnlyConn(t *testing.T) {
 		require.Contains(t, err.Error(), "MOVED")
 	})
 }
+
+func TestRedisMode(t *testing.T) {
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+		require.Equal(t, pool.Mode(), fleet.RedisStandalone)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, false)
+		require.Equal(t, pool.Mode(), fleet.RedisCluster)
+	})
+}

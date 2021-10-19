@@ -216,6 +216,8 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
+			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
+
 			ds = cached_mysql.New(ds, redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
