@@ -1,9 +1,6 @@
 // Command tlsconnect provides a way to manually test TLS connection to Redis.
-// A TLS-enabled redis server must be running locally - it was not added to the
-// docker-compose infrastructure as we already have many services to run and
-// testing TLS connection does not benefit much from recurring tests - this is
-// mostly to verify as a ~one-off that the configuration get properly passed
-// down to the pool creation, there's very little custom code involved.
+// A TLS-enabled redis server must be running locally, this is to verify that
+// the configuration get properly passed down to the pool creation.
 //
 // To run a TLS redis server:
 //     * Build redis from source with `make BUILD_TLS=yes` (https://redis.io/topics/encryption)
@@ -13,8 +10,8 @@
 //       ./tests/tls/ca.crt --tls-cert-file ./tests/tls/redis.crt --tls-key-file
 //       ./tests/tls/redis.key`
 //     * Run this command to test connection, e.g.:
-//       `go run ./tools/redis-tests/tlsconnect.go -- -port 7379 -cacert ./tests/tls/ca.crt
-//        -cert ./tests/tls/redis.crt -key ./tests/tls/redis.key PING`
+//       `go run ./tools/redis-tests/tlsconnect.go -- -addr localhost:7379 -cacert ./tests/tls/ca.crt
+//        -cert ./tests/tls/redis.crt -key ./tests/tls/redis.key PING` -skip
 package main
 
 import (
