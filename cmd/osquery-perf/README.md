@@ -1,8 +1,6 @@
 # Osquery Server Performance Tester
 
-> **TODO: Archive this repo and move its contents inline into https://github.com/fleetdm/fleet**
-
-This repository provides a tool to generate realistic traffic to an osquery
+This is a tool to generate realistic traffic to an osquery
 management server (primarily, [Fleet](https://github.com/fleetdm/fleet)). With
 this tool, many thousands of hosts can be simulated from a single host.
 
@@ -77,6 +75,3 @@ Run the following command in the shell before running the Fleet server _and_ bef
 ``` sh
 ulimit -n 64000
 ```
-
-## Bugs
-To report a bug, [click here](https://github.com/fleetdm/fleet).
