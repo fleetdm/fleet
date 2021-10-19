@@ -306,6 +306,17 @@ Maximum amount of time, in seconds, a connection may be reused.
 
 #### Redis
 
+Note that a TLS connection to a Redis instance can be tested by running the
+`tlsconnect` Go program in `tools/redis-tests`, e.g. from the root of the repository:
+
+```
+$ go run ./tools/redis-tests/tlsconnect.go -addr <redis_address> -cacert <redis_tls_ca> -cert <redis_tls_cert> -key <redis_tls_key>
+# run `go run ./tools/redis-tests/tlsconnect.go -h` for the full list of supported flags
+```
+
+By default, this will setup a Redis pool for that configuration and execute a
+`PING` command with a TLS connection, printing any error it encounters.
+
 ##### redis_address
 
 The address of the Redis server which Fleet should connect to. Include the hostname and port.
@@ -493,7 +504,7 @@ The timeout for the Redis TLS handshake part of the connection. A value of 0 mea
 
   ```
   redis:
-  	tls_handshake_timeout: 127.0.0.1
+  	tls_handshake_timeout: 10s
   ```
 
 ##### redis_max_idle_conns
