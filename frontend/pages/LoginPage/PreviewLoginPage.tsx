@@ -40,18 +40,13 @@ const PreviewLoginPage = () => {
       .catch(() => false);
   });
 
-  const loginPreviewUser = (handleLogin: (formData: ILoginData) => void) => {
+  useEffect(() => {
     if (window.location.origin === "http://localhost:1337") {
-      handleLogin({
+      onSubmit({
         email: "admin@example.com",
         password: "admin123#",
       });
     }
-  };
-
-  useEffect(() => {
-    // will do nothing if the URL is not for preview
-    loginPreviewUser(onSubmit);
   }, []);
 
   return (
