@@ -1,16 +1,16 @@
 import React from "react";
-import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
-import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -37,10 +37,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface ISoftwareTableData extends ISoftware {
-  type: string;
-}
-
 const TYPE_CONVERSION: Record<string, string> = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
@@ -59,6 +55,11 @@ const TYPE_CONVERSION: Record<string, string> = {
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
+};
+
+const formatSoftwareType = (source: string) => {
+  const DICT = TYPE_CONVERSION;
+  return DICT[source] || "Unknown";
 };
 
 // NOTE: cellProps come from react-table
@@ -156,8 +157,10 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         />
       ),
       disableSortBy: false,
-      accessor: "type",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "source",
+      Cell: (cellProps) => (
+        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+      ),
     },
     {
       title: "Installed version",
@@ -194,7 +197,6 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
     //   },
     //   sortType: "dateStrings",
     // },
-    // TODO: Enable after manage hosts page has been updated to filter hosts by software id
     {
       title: "",
       Header: "",
@@ -217,25 +219,4 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-  return Object.values(software).map((softwareItem) => {
-    return {
-      ...softwareItem,
-      // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
-      type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
-    };
-  });
-};
-
-const generateSoftwareDataSet = (
-  software: ISoftware[]
-): ISoftwareTableData[] => {
-  // Cannot pass undefined to enhanceSoftwareData
-  if (!software) {
-    return software;
-  }
-
-  return [...enhanceSoftwareData(software)];
-};
-
-export { generateSoftwareTableHeaders, generateSoftwareDataSet };
+export default generateSoftwareTableHeaders;

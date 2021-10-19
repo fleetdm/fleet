@@ -50,10 +50,7 @@ import {
   generatePolicyTableHeaders,
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
-import {
-  generateSoftwareTableHeaders,
-  generateSoftwareDataSet,
-} from "./SoftwareTable/SoftwareTableConfig";
+import generateSoftwareTableHeaders from "./SoftwareTable/SoftwareTableConfig";
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 import {
   generatePackTableHeaders,
@@ -116,6 +113,7 @@ const HostDetailsPage = ({
     setPolicyDetailsModal(!showPolicyDetailsModal);
   }, [showPolicyDetailsModal, setPolicyDetailsModal]);
 
+  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
@@ -131,6 +129,9 @@ const HostDetailsPage = ({
     IQuery[]
   >("fleet queries", () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
@@ -140,6 +141,9 @@ const HostDetailsPage = ({
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && canTransferTeam,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     select: (data: ITeamsResponse) => data.teams,
   });
 
@@ -148,13 +152,70 @@ const HostDetailsPage = ({
     data: host,
     refetch: fullyReloadHost,
   } = useQuery<IHostResponse, Error, IHost>(
-    "host",
+    ["host", hostIdFromURL],
     () => hostAPI.load(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
+
+      // The onSuccess method below will run each time react-query successfully fetches data from
+      // the hosts API through this useQuery hook.
+      // This includes the initial page load as well as whenever we call react-query's refetch method,
+      // which above we renamed to fullyReloadHost. For example, we use fullyReloadHost with the refetch
+      // button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
+        setSoftwareState(returnedHost.software);
+        setUsersState(returnedHost.users);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+
+        if (returnedHost.refetch_requested) {
+          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
+          // host details. Here we set a one second timeout and poll the API again using
+          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
+          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
+          // or that the host has gone offline.
+          if (!refetchStartTime) {
+            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
+            // the first page loads), we start it now if the host is online. If the host is offline,
+            // we skip the refetch on page load.
+            if (returnedHost.status === "online") {
+              setRefetchStartTime(Date.now());
+              setTimeout(() => {
+                fullyReloadHost();
+              }, 1000);
+            } else {
+              setShowRefetchLoadingSpinner(false);
+            }
+          } else {
+            const totalElapsedTime = Date.now() - refetchStartTime;
+            if (totalElapsedTime < 60000) {
+              if (returnedHost.status === "online") {
+                setTimeout(() => {
+                  fullyReloadHost();
+                }, 1000);
+              } else {
+                dispatch(
+                  renderFlash(
+                    "error",
+                    `This host is offline. Please try refetching host vitals later.`
+                  )
+                );
+                setShowRefetchLoadingSpinner(false);
+              }
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                )
+              );
+              setShowRefetchLoadingSpinner(false);
+            }
+          }
+        }
       },
       onError: (error) => {
         console.log(error);
@@ -166,34 +227,27 @@ const HostDetailsPage = ({
   );
 
   useEffect(() => {
-    if (host) {
-      setUsersState(host.users);
-      setSoftwareState(host.software);
-    }
-  }, [host]);
-
-  useEffect(() => {
-    if (host) {
-      setUsersState(() => {
-        return host.users.filter((user) => {
+    setUsersState(() => {
+      return (
+        host?.users.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
-        });
-      });
-    }
+        }) || []
+      );
+    });
   }, [usersSearchString]);
 
   useEffect(() => {
-    if (host) {
-      setSoftwareState(() => {
-        return host.software.filter((softwareItem) => {
+    setSoftwareState(() => {
+      return (
+        host?.software.filter((softwareItem) => {
           return softwareItem.name
             .toLowerCase()
             .includes(softwareSearchString.toLowerCase());
-        });
-      });
-    }
+        }) || []
+      );
+    });
   }, [softwareSearchString]);
 
   // returns a mixture of props from host
@@ -276,13 +330,18 @@ const HostDetailsPage = ({
   const onRefetchHost = async () => {
     if (host) {
       // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error or until the user refreshes the page.
+      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
+      // method.
       setShowRefetchLoadingSpinner(true);
       try {
-        await hostAPI.refetch(host);
+        await hostAPI.refetch(host).then(() => {
+          setRefetchStartTime(Date.now());
+          setTimeout(() => fullyReloadHost(), 1000);
+        });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        setShowRefetchLoadingSpinner(false);
       }
     }
   };
@@ -619,7 +678,7 @@ const HostDetailsPage = ({
             {host?.software && (
               <TableContainer
                 columns={tableHeaders}
-                data={generateSoftwareDataSet(softwareState)}
+                data={softwareState}
                 isLoading={isLoadingHost}
                 defaultSortHeader={"name"}
                 defaultSortDirection={"asc"}
@@ -663,7 +722,7 @@ const HostDetailsPage = ({
             onClick={onRefetchHost}
           >
             {showRefetchLoadingSpinner
-              ? "Fetching, try refreshing this page in just a moment."
+              ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
           </Button>
         </div>
