@@ -1,13 +1,17 @@
 package config
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -47,10 +51,18 @@ type RedisConfig struct {
 	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
 	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
 	ClusterReadFromReplica    bool          `yaml:"cluster_read_from_replica"`
-	MaxIdleConns              int           `yaml:"max_idle_conns"`
-	MaxOpenConns              int           `yaml:"max_open_conns"`
-	ConnMaxLifetime           time.Duration `yaml:"conn_max_lifetime"`
-	ConnWaitTimeout           time.Duration `yaml:"conn_wait_timeout"`
+	TLSCert                   string        `yaml:"tls_cert"`
+	TLSKey                    string        `yaml:"tls_key"`
+	TLSCA                     string        `yaml:"tls_ca"`
+	TLSServerName             string        `yaml:"tls_server_name"`
+	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
+	// TODO(mna): should we allow insecure skip verify option?
+	MaxIdleConns int `yaml:"max_idle_conns"`
+	MaxOpenConns int `yaml:"max_open_conns"`
+	// this config is an int on MysqlConfig, but it should be a time.Duration.
+	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
+	IdleTimeout     time.Duration `yaml:"idle_timeout"`
+	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 }
 
 const (
@@ -221,6 +233,42 @@ type FleetConfig struct {
 	Vulnerabilities  VulnerabilitiesConfig
 }
 
+type TLS struct {
+	TLSCert       string
+	TLSKey        string
+	TLSCA         string
+	TLSServerName string
+}
+
+func (t *TLS) ToTLSConfig() (*tls.Config, error) {
+	rootCertPool := x509.NewCertPool()
+	pem, err := ioutil.ReadFile(t.TLSCA)
+	if err != nil {
+		return nil, errors.Wrap(err, "read server-ca pem")
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return nil, errors.New("failed to append PEM.")
+	}
+
+	cfg := &tls.Config{
+		RootCAs: rootCertPool,
+	}
+	if t.TLSCert != "" {
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "load client cert and key")
+		}
+		clientCert = append(clientCert, certs)
+		cfg.Certificates = clientCert
+	}
+
+	if t.TLSServerName != "" {
+		cfg.ServerName = t.TLSServerName
+	}
+	return cfg, nil
+}
+
 // addConfigs adds the configuration keys and default values that will be
 // filled into the FleetConfig struct
 func (man Manager) addConfigs() {
@@ -269,10 +317,16 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
 	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
-	man.addConfigInt("redis.max_idle_conns", 3, "Maximum number of idle redis connections in the pool")
-	man.addConfigInt("redis.max_open_conns", 0, "Maximum number of open redis connections (0 for no limit)")
-	man.addConfigDuration("redis.conn_max_lifetime", 0, "Maximum amount of time a redis connection may be reused")
-	man.addConfigDuration("redis.conn_wait_timeout", 0, "Maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
+	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
+	man.addConfigString("redis.tls_ca", "", "Redis TLS server CA")
+	man.addConfigString("redis.tls_server_name", "", "Redis TLS server name")
+	man.addConfigDuration("redis.tls_handshake_timeout", 10*time.Second, "Redis TLS handshake timeout")
+	man.addConfigInt("redis.max_idle_conns", 3, "Redis maximum idle connections")
+	man.addConfigInt("redis.max_open_conns", 0, "Redis maximum open connections, 0 means no limit")
+	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
+	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -485,9 +539,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
 			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
 			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                   man.getConfigString("redis.tls_cert"),
+			TLSKey:                    man.getConfigString("redis.tls_key"),
+			TLSCA:                     man.getConfigString("redis.tls_ca"),
+			TLSServerName:             man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
 			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
 			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
 			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 		},
 		Server: ServerConfig{
