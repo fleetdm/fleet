@@ -12,8 +12,9 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID  uint `url:"team_id"`
-	QueryID uint `json:"query_id"`
+	TeamID     uint   `url:"team_id"`
+	QueryID    uint   `json:"query_id"`
+	Resolution string `json:"resolution"`
 }
 
 type teamPolicyResponse struct {
@@ -25,19 +26,19 @@ func (r teamPolicyResponse) error() error { return r.Err }
 
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*teamPolicyRequest)
-	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, req.QueryID)
+	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, req.QueryID, "")
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
 	}
 	return teamPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
+func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.NewTeamPolicy(ctx, teamID, queryID)
+	return svc.ds.NewTeamPolicy(ctx, teamID, queryID, resolution)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

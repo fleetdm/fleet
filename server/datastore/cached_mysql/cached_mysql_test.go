@@ -15,7 +15,7 @@ import (
 )
 
 func TestCachedAppConfig(t *testing.T) {
-	pool := redistest.SetupRedis(t, false, false)
+	pool := redistest.SetupRedis(t, false, false, false)
 	conn := pool.Get()
 	_, err := conn.Do("DEL", CacheKeyAppConfig)
 	require.NoError(t, err)

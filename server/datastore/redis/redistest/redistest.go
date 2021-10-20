@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
+func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")
 	}
@@ -32,7 +32,7 @@ func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
 	}
 	addr += port
 
-	pool, err := redis.NewRedisPool(redis.PoolConfig{
+	pool, err := redis.NewPool(redis.PoolConfig{
 		Server:                    addr,
 		Password:                  password,
 		Database:                  database,
@@ -40,6 +40,7 @@ func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
 		ConnTimeout:               5 * time.Second,
 		KeepAlive:                 10 * time.Second,
 		ClusterFollowRedirections: redir,
+		ClusterReadFromReplica:    readReplica,
 	})
 	require.NoError(tb, err)
 
@@ -49,7 +50,7 @@ func SetupRedis(tb testing.TB, cluster, redir bool) fleet.RedisPool {
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
+		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})

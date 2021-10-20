@@ -203,6 +203,12 @@ type Datastore interface {
 
 	DeleteHosts(ctx context.Context, ids []uint) error
 
+	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
+
+	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
+	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 
@@ -291,6 +297,7 @@ type Datastore interface {
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
 	CleanupOrphanLabelMembership(ctx context.Context) error
+	CleanupExpiredHosts(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -321,6 +328,7 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -337,7 +345,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
 
@@ -345,6 +353,7 @@ type Datastore interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
+	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
@@ -358,7 +367,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)

@@ -72,6 +72,7 @@ const routes = (
     <Router history={history}>
       <Route path={PATHS.ROOT} component={AppWrapper}>
         <Route path="setup" component={RegistrationPage} />
+        <Route path="previewlogin" component={LoginRoutes} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />
           <Route

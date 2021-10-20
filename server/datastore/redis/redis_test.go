@@ -84,7 +84,7 @@ func TestConnectRetry(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.err.Error(), func(t *testing.T) {
 			start := time.Now()
-			_, err := NewRedisPool(PoolConfig{
+			_, err := NewPool(PoolConfig{
 				Server:               "127.0.0.1:12345",
 				ConnectRetryAttempts: c.retries,
 				testRedisDialFunc:    mockDial(c.err),

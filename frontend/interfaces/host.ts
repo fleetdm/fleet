@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import hostPolicyInterface, { IHostPolicy } from "./host_policy";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";
@@ -56,6 +57,7 @@ export default PropTypes.shape({
   status: PropTypes.string,
   display_text: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
+  policies: PropTypes.arrayOf(hostPolicyInterface),
 });
 
 export interface IDeviceUser {
@@ -120,10 +122,15 @@ export interface IHost {
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];
+  issues: {
+    total_issues_count: number;
+    failing_policies_count: number;
+  };
   status: string;
   display_text: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
   mdm?: IMDMData;
+  policies: IHostPolicy[];
 }

@@ -25,10 +25,10 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 
 ## Prerequisites
 
-1. `fleetctl preview` is set up and running the desired test version using `--tag` parameters.
+1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://github.com/fleetdm/fleet/blob/main/handbook/product.md#manual-qa )
 2. Unless you are explicitly testing older browser versions, browser is up to date.
 3. Certificate & flagfile are in place to create new host.
-4. If using Firefox, clear local storage using devtools.
+4. In your browser, clear local storage using devtools.
 
 ## Instructions
 
@@ -72,3 +72,7 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 Issues found new to this version:
 
 Issues found that reproduce in last stable version: 
+
+What has not been tested:
+
+Include any notes on whether issues should block release or not as needed

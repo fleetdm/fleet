@@ -2,8 +2,11 @@ on:
   push:
     branches:
       - main
+      - patch-*
   pull_request:
+
 name: Run Tests
+
 jobs:
   test-e2e:
     strategy:

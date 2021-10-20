@@ -18,6 +18,19 @@ export default PropTypes.shape({
   denylist: PropTypes.bool,
 });
 
+export interface IPackQueryFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  pack_id?: number;
+  logging_type?: string;
+  removed?: boolean;
+  snapshot?: boolean;
+  platform: string;
+  version: string;
+}
 export interface IScheduledQuery {
   created_at: string;
   updated_at: string;
@@ -34,4 +47,5 @@ export interface IScheduledQuery {
   version?: string;
   shard: number | null;
   denylist?: boolean;
+  logging_type?: string;
 }

@@ -39,7 +39,7 @@ const QueryPage = ({
   router,
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
-}: IQueryPageProps) => {
+}: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
   const { isGlobalAdmin, isGlobalMaintainer, isAnyTeamMaintainer } = useContext(
     AppContext

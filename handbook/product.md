@@ -1,7 +1,7 @@
 
 ## Fleet EE
 
-#### Communicating design changes to Engineering
+### Communicating design changes to Engineering
 For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
 2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
@@ -16,25 +16,25 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 
 <img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
 
-#### Communicating unplanned design changes
+### Communicating unplanned design changes
 
 For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g, padding/spacing inconsistency etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
 
 ## Fleet docs
 
-#### Adding a link to Fleet docs
+### Adding a link to the Fleet docs
 You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
+However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
 
-#### Linking to a location on GitHub
+### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
 
 To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
-#### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+### How to fix a broken link
+For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
 
 An example of a link that lives outside of `/docs` is:
 
@@ -42,9 +42,23 @@ An example of a link that lives outside of `/docs` is:
 ../../tools/app/prometheus
 ```
 
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
+
+### Adding an image to the Fleet docs
+Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
+
+When adding images to the Fleet documentation, follow these guidelines:
+- Keep the images as simple as possible to maintain (screenshots can get out of date quickly as UIs change)
+- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
+- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
+- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
+
+Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
+The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
+
+> Note that the instructions above also apply to adding images in the Fleet handbook.
 
 ## Manual QA
 
@@ -175,7 +189,7 @@ Logout of your current user and log in with the newly created user.
 
 ## Release process
 
-This living document outlines the release process at Fleet.
+This section outlines the release process at Fleet.
 
 The current release cadence is once every 3 weeks and concentrated around Wednesdays. 
 
@@ -207,9 +221,21 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 #### Manual QA
 
-After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
+After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title= and assigned to the person responsible. 
 
-Documentation on conducting the manual QA pass can be found [here](#manual-qa). 
+Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
+
+#### Release freeze period
+
+In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged. 
+
+Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+1. Regressions
+2. Security concerns
+3. Issues with features targeted for current release
+
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between Product and Engineering teams. 
+
 
 ### Release day
 
@@ -217,7 +243,8 @@ Documentation on completing the release process can be found [here](../docs/03-C
 
 
 ## Support process
-This living document outlines the customer and community support process at Fleet.
+
+This section outlines the customer and community support process at Fleet.
 
 The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
 
@@ -232,6 +259,18 @@ The daily standup meeting at Fleet provides time to discuss highlights and answe
 3. What should we remember next time?
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
+
+### Version support
+
+In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+ 
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
 
 ### Goals
 

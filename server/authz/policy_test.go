@@ -318,7 +318,7 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamMaintainer, object: host, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
-		{user: teamMaintainer, object: hostTeam1, action: write, allow: false},
+		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
 	})
@@ -455,6 +455,45 @@ func TestAuthorizeCarves(t *testing.T) {
 		// Only admins allowed
 		{user: test.UserAdmin, object: carve, action: read, allow: true},
 		{user: test.UserAdmin, object: carve, action: write, allow: true},
+	})
+}
+
+func TestAuthorizePolicies(t *testing.T) {
+	t.Parallel()
+
+	policy := &fleet.Policy{}
+	teamPolicy := &fleet.Policy{TeamID: ptr.Uint(1)}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: policy, action: write, allow: false},
+
+		{user: test.UserAdmin, object: policy, action: write, allow: true},
+		{user: test.UserAdmin, object: policy, action: read, allow: true},
+		{user: test.UserMaintainer, object: policy, action: write, allow: true},
+		{user: test.UserMaintainer, object: policy, action: read, allow: true},
+		{user: test.UserObserver, object: policy, action: write, allow: false},
+		{user: test.UserObserver, object: policy, action: read, allow: true},
+
+		{user: test.UserAdmin, object: teamPolicy, action: write, allow: true},
+		{user: test.UserAdmin, object: teamPolicy, action: read, allow: true},
+		{user: test.UserMaintainer, object: teamPolicy, action: write, allow: false},
+		{user: test.UserMaintainer, object: teamPolicy, action: read, allow: true},
+		{user: test.UserObserver, object: teamPolicy, action: write, allow: false},
+		{user: test.UserObserver, object: teamPolicy, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: teamPolicy, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: teamPolicy, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: teamPolicy, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: teamPolicy, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: teamPolicy, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: teamPolicy, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: teamPolicy, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: teamPolicy, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: teamPolicy, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: teamPolicy, action: read, allow: true},
+		{user: test.UserTeamObserverTeam2, object: teamPolicy, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: teamPolicy, action: read, allow: false},
 	})
 }
 

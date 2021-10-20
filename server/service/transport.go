@@ -66,7 +66,7 @@ func idFromRequest(r *http.Request, name string) (uint, error) {
 	}
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "idFromRequest")
 	}
 	return uint(uid), nil
 }
@@ -184,9 +184,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	team_id := r.URL.Query().Get("team_id")
-	if team_id != "" {
-		id, err := strconv.Atoi(team_id)
+	teamID := r.URL.Query().Get("team_id")
+	if teamID != "" {
+		id, err := strconv.Atoi(teamID)
 		if err != nil {
 			return hopt, err
 		}
@@ -194,9 +194,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.TeamFilter = &tid
 	}
 
-	policy_id := r.URL.Query().Get("policy_id")
-	if policy_id != "" {
-		id, err := strconv.Atoi(policy_id)
+	policyID := r.URL.Query().Get("policy_id")
+	if policyID != "" {
+		id, err := strconv.Atoi(policyID)
 		if err != nil {
 			return hopt, err
 		}
@@ -204,16 +204,26 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PolicyIDFilter = &pid
 	}
 
-	policy_response := r.URL.Query().Get("policy_response")
-	if policy_response != "" {
+	policyResponse := r.URL.Query().Get("policy_response")
+	if policyResponse != "" {
 		var v *bool
-		switch policy_response {
+		switch policyResponse {
 		case "passing":
 			v = ptr.Bool(true)
 		case "failing":
 			v = ptr.Bool(false)
 		}
 		hopt.PolicyResponseFilter = v
+	}
+
+	softwareID := r.URL.Query().Get("software_id")
+	if softwareID != "" {
+		id, err := strconv.Atoi(softwareID)
+		if err != nil {
+			return hopt, err
+		}
+		sid := uint(id)
+		hopt.SoftwareIDFilter = &sid
 	}
 
 	return hopt, nil

@@ -45,19 +45,29 @@ func testInvitesCreate(t *testing.T, ds *Datastore) {
 		Name:  "user",
 		Token: "some_user",
 		Teams: []fleet.UserTeam{
-			{Role: "observer", Team: fleet.Team{ID: 1}},
-			{Role: "maintainer", Team: fleet.Team{ID: 3}},
+			{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+			{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 3}},
 		},
 	}
 
 	invite, err := ds.NewInvite(context.Background(), invite)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	verify, err := ds.InviteByEmail(context.Background(), invite.Email)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, invite.ID, verify.ID)
 	assert.Equal(t, invite.Email, verify.Email)
 	assert.Len(t, invite.Teams, 2)
+
+	_, err = ds.NewInvite(context.Background(), &fleet.Invite{
+		Email: "anotheruser@foo.com",
+		Name:  "anotheruser",
+		Token: "anothersome_user",
+		Teams: []fleet.UserTeam{
+			{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+		},
+	})
+	require.NoError(t, err)
 }
 
 func setupTestInvites(t *testing.T, ds fleet.Datastore) {

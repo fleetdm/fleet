@@ -12,6 +12,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
+import TabsWrapper from "components/TabsWrapper";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
@@ -166,7 +167,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__nav-header`}>
+      <TabsWrapper>
         <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__back-link`}>
           <img src={BackChevron} alt="back chevron" id="back-chevron" />
           <span>Back to teams</span>
@@ -210,7 +211,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
             })}
           </TabList>
         </Tabs>
-      </div>
+      </TabsWrapper>
       {showAddHostsRedirectModal ? (
         <AddHostsRedirectModal
           onCancel={toggleAddHostsRedirectModal}

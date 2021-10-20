@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Team observer/maintainer user",
+  "Premium tier - Team observer/maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -9,7 +9,8 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("apples");
+      cy.addDockerHost("oranges");
       cy.logout();
     });
     afterEach(() => {
@@ -20,13 +21,13 @@ describe(
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
-      // Ensure page is loaded
+      // Ensure page is loaded and teams are visible
       cy.contains("Hosts");
 
       // On the Hosts page, they should…
 
       // See hosts
-      // cy.findByText(/kinda empty in here/i).should("not.exist");
+      // cy.findByText(/generate installer/i).should("not.exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See the “Teams” column in the Hosts table
@@ -36,8 +37,10 @@ describe(
       cy.findByText(/settings/i).should("not.exist");
       cy.findByText(/schedule/i).should("exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // NOT see and select "add label"
@@ -137,17 +140,8 @@ describe(
       // cy.get("thead").contains(/team/i).should("exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
-      // See and select the “Add new host” button
-      cy.findByRole("button", { name: /add new host/i }).click();
-
-      // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-      cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
-      cy.get(".Select-menu-outer").within(() => {
-        cy.findByText(/no team/i).should("not.exist");
-        cy.findByText(/apples/i).should("not.exist");
-        cy.findByText(/oranges/i).should("exist");
-      });
-
+      // See and select the “Generate installer” button
+      cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
 
       // On the Host details page, they should…
@@ -197,6 +191,11 @@ describe(
       cy.findByText(/advanced/i).should("not.exist");
       cy.findByRole("button", { name: /schedule a query/i }).click();
       // TODO: Write e2e test for team maintainer to schedule a query
+
+      cy.visit("/hosts/manage");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
 
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section

@@ -41,7 +41,7 @@ sudo npm install -g yarn
 
 To install dependecies, we recommend using [Chocolatey](https://chocolatey.org/install). Chocolatey must be run in Powershell as an Administrator. Assuming your setup does not include any of our requirements, please run:
 ```
-choco install nodejs git golang docker make python2
+choco install nodejs git golang docker make python2 mingw
 npm install -g yarn
 ```
 
@@ -130,7 +130,7 @@ To set up a canonical development environment via Docker, run the following from
 docker-compose up
 ```
 
-##### Stopping the local development environment
+#### Stopping the local development environment
 
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
@@ -138,7 +138,7 @@ If you'd like to shut down the virtual infrastructure created by Docker, run the
 docker-compose down
 ```
 
-##### Setting up the database tables
+#### Setting up the database tables
 
 Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
