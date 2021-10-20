@@ -133,6 +133,7 @@ module.exports.routes = {
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
+  '/docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
 
   // Sitemap
   // =============================================================================================================
