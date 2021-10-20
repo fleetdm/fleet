@@ -95,9 +95,11 @@ func (c *collector) exec(ctx context.Context) {
 	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout.Seconds()))); err != nil {
 		var failed bool
 		// either redis failure or this collector didn't acquire the lock
-		if !errors.Is(err, redigo.ErrNil) && c.errHandler != nil {
-			c.errHandler(c.name, err)
+		if !errors.Is(err, redigo.ErrNil) {
 			failed = true
+			if c.errHandler != nil {
+				c.errHandler(c.name, err)
+			}
 		}
 		c.addSkipStats(failed)
 		return
