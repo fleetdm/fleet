@@ -46,3 +46,10 @@ type SoftwareIterator interface {
 	Err() error
 	Close() error
 }
+
+type SoftwareListOptions struct {
+	ListOptions
+
+	TeamID     *uint `query:"team_id,optional"`
+	Vulnerable bool  `query:"vulnerable,optional"`
+}

@@ -241,18 +241,18 @@ const (
 // listing objects
 type ListOptions struct {
 	// Which page to return (must be positive integer)
-	Page uint
+	Page uint `query:"page,optional"`
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
-	PerPage uint
+	PerPage uint `query:"per_page,optional"`
 	// Key to use for ordering
-	OrderKey string
+	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
-	OrderDirection OrderDirection
+	OrderDirection OrderDirection `query:"order_direction,optional"`
 	// MatchQuery is the query string to match against columns of the entity
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
-	MatchQuery string
+	MatchQuery string `query:"query,optional"`
 }
 
 type ListQueryOptions struct {
