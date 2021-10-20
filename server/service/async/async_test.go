@@ -32,7 +32,7 @@ func TestCollectLabelQueryExecutions(t *testing.T) {
 	})
 }
 
-func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool fleet.RedisPool) {
+func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fleet.RedisPool) {
 	ctx := context.Background()
 
 	type labelMembership struct {
@@ -205,19 +205,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 
 	selectRows := func(t *testing.T) ([]labelMembership, map[int]time.Time) {
 		var rows []labelMembership
-		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
 		})
-		require.NoError(t, err)
 
 		var hosts []struct {
 			ID             int       `db:"id"`
 			LabelUpdatedAt time.Time `db:"label_updated_at"`
 		}
-		err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, label_updated_at FROM hosts`)
 		})
-		require.NoError(t, err)
 
 		hostsUpdated := make(map[int]time.Time, len(hosts))
 		for _, h := range hosts {

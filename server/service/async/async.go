@@ -6,7 +6,6 @@ import (
 	"math"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -14,7 +13,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -191,65 +189,17 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 
 	runInsertBatch := func(batch [][2]uint) error {
 		stats.Inserts++
-
-		sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
-		sql += strings.Repeat(`(?, ?),`, len(batch))
-		sql = strings.TrimSuffix(sql, ",")
-		sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
-
-		vals := make([]interface{}, 0, len(batch)*2)
-		for _, tup := range batch {
-			vals = append(vals, tup[0], tup[1])
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, sql, vals...)
-			return errors.Wrap(err, "insert into label_membership")
-		})
+		return ds.AsyncBatchInsertLabelMembership(ctx, batch)
 	}
 
 	runDeleteBatch := func(batch [][2]uint) error {
 		stats.Deletes++
-
-		rest := strings.Repeat(`UNION ALL SELECT ?, ? `, len(batch)-1)
-		sql := fmt.Sprintf(`
-    DELETE
-      lm
-    FROM
-      label_membership lm
-    JOIN
-      (SELECT ? label_id, ? host_id %s) del_list
-    ON
-      lm.label_id = del_list.label_id AND
-      lm.host_id = del_list.host_id`, rest)
-
-		vals := make([]interface{}, 0, len(batch)*2)
-		for _, tup := range batch {
-			vals = append(vals, tup[0], tup[1])
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, sql, vals...)
-			return errors.Wrap(err, "delete from label_membership")
-		})
+		return ds.AsyncBatchDeleteLabelMembership(ctx, batch)
 	}
 
 	runUpdateBatch := func(ids []uint, ts time.Time) error {
 		stats.Updates++
-
-		sql := `
-      UPDATE
-        hosts
-      SET
-        label_updated_at = ?
-      WHERE
-        id IN (?)`
-		query, args, err := sqlx.In(sql, ts, ids)
-		if err != nil {
-			return errors.Wrap(err, "building query to update hosts.label_updated_at")
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, query, args...)
-			return errors.Wrap(err, "update hosts.label_updated_at")
-		})
+		return ds.AsyncBatchUpdateLabelTimestamp(ctx, ids, ts)
 	}
 
 	insertBatch := make([][2]uint, 0, t.InsertBatch)

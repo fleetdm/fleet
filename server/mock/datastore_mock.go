@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/jmoiron/sqlx"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -129,6 +128,12 @@ type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilt
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
+
+type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
+
+type AsyncBatchDeleteLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
+
+type AsyncBatchUpdateLabelTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
 
 type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
@@ -305,8 +310,6 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
-
-type AdhocRetryTxFunc func(ctx context.Context, fn func(sqlx.ExtContext) error) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -485,6 +488,15 @@ type DataStore struct {
 
 	LabelIDsByNameFunc        LabelIDsByNameFunc
 	LabelIDsByNameFuncInvoked bool
+
+	AsyncBatchInsertLabelMembershipFunc        AsyncBatchInsertLabelMembershipFunc
+	AsyncBatchInsertLabelMembershipFuncInvoked bool
+
+	AsyncBatchDeleteLabelMembershipFunc        AsyncBatchDeleteLabelMembershipFunc
+	AsyncBatchDeleteLabelMembershipFuncInvoked bool
+
+	AsyncBatchUpdateLabelTimestampFunc        AsyncBatchUpdateLabelTimestampFunc
+	AsyncBatchUpdateLabelTimestampFuncInvoked bool
 
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -749,9 +761,6 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
-
-	AdhocRetryTxFunc        AdhocRetryTxFunc
-	AdhocRetryTxFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1047,6 +1056,21 @@ func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
 	s.LabelIDsByNameFuncInvoked = true
 	return s.LabelIDsByNameFunc(ctx, labels)
+}
+
+func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
+	s.AsyncBatchInsertLabelMembershipFuncInvoked = true
+	return s.AsyncBatchInsertLabelMembershipFunc(ctx, batch)
+}
+
+func (s *DataStore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
+	s.AsyncBatchDeleteLabelMembershipFuncInvoked = true
+	return s.AsyncBatchDeleteLabelMembershipFunc(ctx, batch)
+}
+
+func (s *DataStore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	s.AsyncBatchUpdateLabelTimestampFuncInvoked = true
+	return s.AsyncBatchUpdateLabelTimestampFunc(ctx, ids, ts)
 }
 
 func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
@@ -1487,9 +1511,4 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
-}
-
-func (s *DataStore) AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error {
-	s.AdhocRetryTxFuncInvoked = true
-	return s.AdhocRetryTxFunc(ctx, fn)
 }

@@ -3,8 +3,6 @@ package fleet
 import (
 	"context"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type CarveStore interface {
@@ -163,6 +161,11 @@ type Datastore interface {
 
 	// LabelIDsByName Retrieve the IDs associated with the given labels
 	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
+
+	// Methods used for async processing of host label query results.
+	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostStore
@@ -386,9 +389,6 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
-
-	// Adhoc methods allow running adhoc statements using the datastore.
-	AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error
 }
 
 type MigrationStatus int
