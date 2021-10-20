@@ -218,12 +218,36 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 		Saved:    false,
 		AuthorID: &user.ID,
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	opts := fleet.ListQueryOptions{}
 	results, err := ds.ListQueries(context.Background(), opts)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 10, len(results))
+
+	idWithAgg := results[0].ID
+
+	_, err = ds.writer.Exec(
+		`INSERT INTO aggregated_stats(id,type,json_value) VALUES (?,?,?)`,
+		idWithAgg, "query", `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+	)
+	require.NoError(t, err)
+
+	results, err = ds.ListQueries(context.Background(), opts)
+	require.NoError(t, err)
+	assert.Equal(t, 10, len(results))
+
+	foundAgg := false
+	for _, q := range results {
+		if q.ID == idWithAgg {
+			foundAgg = true
+			require.NotNil(t, q.SystemTimeP50)
+			require.NotNil(t, q.SystemTimeP95)
+			assert.Equal(t, 0.6936, *q.SystemTimeP50)
+			assert.Equal(t, 95.8654, *q.SystemTimeP95)
+		}
+	}
+	require.True(t, foundAgg)
 }
 
 func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {

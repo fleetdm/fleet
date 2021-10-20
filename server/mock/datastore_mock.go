@@ -305,6 +305,10 @@ type LockFunc func(ctx context.Context, name string, owner string, expiration ti
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
 
+type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -746,6 +750,12 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
+
+	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
+	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
+
+	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
+	UpdateQueryAggregatedStatsFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1481,4 +1491,14 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }
