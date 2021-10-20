@@ -787,18 +787,24 @@ The endpoint returns the host's installed `software` if the software inventory f
         "id": 1,
         "query_id": 2,
         "query_name": "SomeQuery",
+        "query_description": "this is a query",
+        "resolution": "fix with these steps...",
         "response": "pass"
       },
       {
         "id": 2,
         "query_id": 4,
         "query_name": "SomeQuery2",
+        "query_description": "this is another query",
+        "resolution": "fix with these other steps...",
         "response": "fail"
       },
       {
         "id": 3,
         "query_id": 255,
         "query_name": "SomeQuery3",
+        "query_description": "",
+        "resolution": "",
         "response": ""
       }
     ],

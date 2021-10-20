@@ -350,7 +350,7 @@ func TestGetHosts(t *testing.T) {
 				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
 				actualSpecs[i] = spec
 			}
-			require.Equal(t, expectedSpecs, actualSpecs)
+			require.Equal(t, expectedSpecs, actualSpecs, actualResult)
 		})
 	}
 
