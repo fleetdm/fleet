@@ -45,7 +45,7 @@ const FlashMessage = ({
       // After 4 seconds, set hide to true.
       const timer = setTimeout(() => {
         setHide(true);
-        onRemoveFlash();
+        onRemoveFlash(); // This function resets notifications which allows CoreLayout reset of selected rows
       }, 4000);
       // Return a cleanup function that will clear this reset, in case another render happens
       // after this. We want that render to set a new timeout (if needed).
