@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -20,13 +21,13 @@ func TestCollectLabelQueryExecutions(t *testing.T) {
 
 	t.Run("standalone", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 		testCollectLabelQueryExecutions(t, ds, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
-		pool := redistest.SetupRedis(t, true, true)
+		pool := redistest.SetupRedis(t, true, true, false)
 		testCollectLabelQueryExecutions(t, ds, pool)
 	})
 }
@@ -172,7 +173,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	const batchSizes = 3
 
 	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
-		conn := pool.ConfigureDoer(pool.Get())
+		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
 
 		// store the host memberships and prepare the expected stats
@@ -308,13 +309,13 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, false, false)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})

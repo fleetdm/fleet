@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -88,7 +89,7 @@ func (c *collector) Start(ctx context.Context) {
 
 func (c *collector) exec(ctx context.Context) {
 	keyLock := fmt.Sprintf(collectorLockKey, c.name)
-	conn := c.pool.ConfigureDoer(c.pool.Get())
+	conn := redis.ConfigureDoer(c.pool, c.pool.Get())
 	defer conn.Close()
 
 	if _, err := redigo.String(conn.Do("SET", keyLock, 1, "NX", "EX", int(c.lockTimeout.Seconds()))); err != nil {

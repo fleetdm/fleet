@@ -141,7 +141,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 			return hostID, nil, nil, nil
 		}
 
-		conn := pool.ConfigureDoer(pool.Get())
+		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
 
 		for {
@@ -312,7 +312,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 
 func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
 	if t.AsyncEnabled {
-		conn := t.Pool.ConfigureDoer(t.Pool.Get())
+		conn := redis.ConfigureDoer(t.Pool, t.Pool.Get())
 		defer conn.Close()
 
 		key := fmt.Sprintf(labelMembershipReportedKey, host.ID)
