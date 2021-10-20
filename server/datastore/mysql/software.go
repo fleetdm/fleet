@@ -236,7 +236,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 		SELECT DISTINCT s.id, scv.cve
 		FROM host_software hs
 		JOIN hosts h ON (hs.host_id=h.id)
-		JOIN software s
+		JOIN software s ON (s.id=hs.software_id)
 		JOIN software_cpe scp ON (s.id=scp.software_id)
 		JOIN software_cve scv ON (scp.id=scv.cpe_id)
 		WHERE %s AND %s
