@@ -73,7 +73,7 @@ func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitt
 		ds:           t.Datastore,
 		execInterval: interval,
 		jitterPct:    jitterPct,
-		lockTimeout:  time.Minute,
+		lockTimeout:  t.LockTimeout,
 		handler:      t.collectPolicyQueryExecutions,
 		errHandler: func(name string, err error) {
 			level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
@@ -123,7 +123,7 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	// convert results to LPUSH arguments, store as policy_id=1 for pass,
 	// policy_id=-1 for fail.
 	args := make(redigo.Args, 0, 4+len(results))
-	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost) // TODO: const or config for max items
+	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost)
 	for k, v := range results {
 		pass := -1
 		if v != nil && *v {
