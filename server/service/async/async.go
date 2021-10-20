@@ -318,7 +318,9 @@ func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) tim
 		key := fmt.Sprintf(labelMembershipReportedKey, host.ID)
 		epoch, err := redigo.Int64(conn.Do("GET", key))
 		if err == nil {
-			return time.Unix(epoch, 0)
+			if reported := time.Unix(epoch, 0); reported.After(host.LabelUpdatedAt) {
+				return reported
+			}
 		}
 	}
 	return host.LabelUpdatedAt
