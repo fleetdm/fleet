@@ -358,6 +358,10 @@ type Datastore interface {
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
 
+	// Methods used for async processing of host policy query results.
+	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
+	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
+
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
 	// MigrateData populates built-in data

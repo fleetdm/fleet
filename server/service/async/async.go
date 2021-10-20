@@ -14,7 +14,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -152,12 +151,6 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 	}
 	stats.Keys = len(keys)
 
-	type policyTuple struct {
-		HostID   uint
-		PolicyID uint
-		Passes   bool
-	}
-
 	// need to use a script as the RPOP command only supports a COUNT since
 	// 6.2. Because we use LTRIM when inserting, we know the total number
 	// of results is at most maxRedisPolicyResultsPerHost, so it is capped
@@ -168,7 +161,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
     return res
   `)
 
-	getKeyTuples := func(key string) (inserts []policyTuple, err error) {
+	getKeyTuples := func(key string) (inserts []fleet.PolicyMembershipResult, err error) {
 		var hostID uint
 		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
 			if id, _ := strconv.ParseUint(matches[1], 10, 32); id > 0 {
@@ -190,7 +183,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 			return nil, errors.Wrap(err, "redis LRANGE script")
 		}
 
-		inserts = make([]policyTuple, 0, len(res))
+		inserts = make([]fleet.PolicyMembershipResult, 0, len(res))
 		stats.Items += len(res)
 		for _, item := range res {
 			parts := strings.Split(item, "=")
@@ -198,7 +191,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 				continue
 			}
 
-			var tup policyTuple
+			var tup fleet.PolicyMembershipResult
 			if id, _ := strconv.ParseUint(parts[0], 10, 32); id > 0 {
 				tup.HostID = hostID
 				tup.PolicyID = uint(id)
@@ -216,46 +209,17 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 		return inserts, nil
 	}
 
-	runInsertBatch := func(batch []policyTuple) error {
+	runInsertBatch := func(batch []fleet.PolicyMembershipResult) error {
 		stats.Inserts++
-
-		// TODO: INSERT IGNORE, to avoid failing if policy id does not exist? Or this should
-		// never happen as policies cannot come and go like labels do?
-		sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
-		sql += strings.Repeat(`(?, ?, ?),`, len(batch))
-		sql = strings.TrimSuffix(sql, ",")
-
-		vals := make([]interface{}, 0, len(batch)*3)
-		for _, tup := range batch {
-			vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, sql, vals...)
-			return errors.Wrap(err, "insert into policy_membership_history")
-		})
+		return ds.AsyncBatchInsertPolicyMembership(ctx, batch)
 	}
 
 	runUpdateBatch := func(ids []uint, ts time.Time) error {
 		stats.Updates++
-
-		sql := `
-      UPDATE
-        hosts
-      SET
-        policy_updated_at = ?
-      WHERE
-        id IN (?)`
-		query, args, err := sqlx.In(sql, ts, ids)
-		if err != nil {
-			return errors.Wrap(err, "building query to update hosts.policy_updated_at")
-		}
-		return ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, query, args...)
-			return errors.Wrap(err, "update hosts.policy_updated_at")
-		})
+		return ds.AsyncBatchUpdatePolicyTimestamp(ctx, ids, ts)
 	}
 
-	insertBatch := make([]policyTuple, 0, t.InsertBatch)
+	insertBatch := make([]fleet.PolicyMembershipResult, 0, t.InsertBatch)
 	hostIDs := make([]uint, 0, len(keys))
 	for _, key := range keys {
 		ins, err := getKeyTuples(key)

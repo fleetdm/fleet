@@ -254,3 +254,46 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.Policy
 		return nil
 	})
 }
+
+// AsyncBatchInsertPolicyMembership inserts into the policy_membership_history
+// table the batch of policy membership results.
+func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	// TODO: INSERT IGNORE, to avoid failing if policy id does not exist? Or this should
+	// never happen as policies cannot come and go like labels do?
+	sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
+	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
+	sql = strings.TrimSuffix(sql, ",")
+
+	vals := make([]interface{}, 0, len(batch)*3)
+	for _, tup := range batch {
+		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return errors.Wrap(err, "insert into policy_membership_history")
+	})
+}
+
+// AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
+// for the batch of host ids provided.
+func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	sql := `
+      UPDATE
+        hosts
+      SET
+        policy_updated_at = ?
+      WHERE
+        id IN (?)`
+	query, args, err := sqlx.In(sql, ts, ids)
+	if err != nil {
+		return errors.Wrap(err, "building query to update hosts.policy_updated_at")
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, args...)
+		return errors.Wrap(err, "update hosts.policy_updated_at")
+	})
+}

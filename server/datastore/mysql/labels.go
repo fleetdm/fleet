@@ -713,7 +713,7 @@ func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [
 	})
 }
 
-// AsyncBatchUpdateLabelTimestamp updates the  table the hosts' label_updated_at timestamp
+// AsyncBatchUpdateLabelTimestamp updates the hosts' label_updated_at timestamp
 // for the batch of host ids provided.
 func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
 	// NOTE: this is tested via the server/service/async package tests.

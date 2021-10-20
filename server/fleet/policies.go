@@ -32,3 +32,9 @@ type PolicySpec struct {
 	Resolution string `json:"resolution,omitempty"`
 	Team       string `json:"team,omitempty"`
 }
+
+type PolicyMembershipResult struct {
+	HostID   uint
+	PolicyID uint
+	Passes   bool
+}
