@@ -49,9 +49,9 @@ func TestAggregatedStats(t *testing.T) {
 	var args []interface{}
 
 	batchSize := 4000
-	hostCount := 2000
-	scheduledQueryCount := 400
-	queryCount := 1000
+	hostCount := 10           // 2000
+	scheduledQueryCount := 20 // 400
+	queryCount := 30          // 1000
 
 	start := time.Now()
 	for i := 0; i < queryCount; i++ {
@@ -63,7 +63,7 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions) VALUES %s`
-	scheduledQueryStatsCount := 1000000
+	scheduledQueryStatsCount := 100 // 1000000
 	for i := 0; i < scheduledQueryStatsCount; i++ {
 		if len(args) > batchSize {
 			values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
