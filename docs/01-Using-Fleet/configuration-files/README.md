@@ -4,6 +4,7 @@
 - [Packs](#packs)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
+- [Teams](#teams)
 - [Organization settings](#organization-settings)
 
 Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in yaml syntax.
@@ -163,10 +164,41 @@ kind: enroll_secret
 spec:
   secrets:
     - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-    - secret: reallyworks
-    - secret: thissecretwontwork!
+    - secret: YBh0n4pvRplKyWiowv9bf3zp6BBOJ13O
 ```
 
+### Teams
+
+`Applies only to Fleet Premium`
+
+The following is an example configuration file for a Team.
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineerin
+    agent_options:
+      config:
+        decorators:
+          load:
+            - SELECT uuid AS host_uuid FROM system_info;
+            - SELECT hostname AS hostname FROM system_info;
+        options:
+          disable_distributed: false
+          distributed_interval: 10
+          distributed_plugin: tls
+          distributed_tls_max_attempts: 3
+          logger_plugin: tls
+          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_period: 10
+          pack_delimiter: /
+      overrides: {}
+    secrets:
+      - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+      - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+```
 ### Organization settings
 
 The following file describes organization settings applied to the Fleet server.
