@@ -92,7 +92,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 }
 
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{})
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -210,7 +210,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, op
 		teamWhere = "TRUE"
 	}
 	vulnerableJoin := "LEFT JOIN software_cpe scp ON (s.id=scp.software_id)"
-	if opt.Vulnerable {
+	if opt.VulnerableOnly {
 		vulnerableJoin = `JOIN software_cpe scp ON (s.id=scp.software_id)
 		JOIN software_cve scv ON (scp.id=scv.cpe_id)`
 	}
@@ -223,7 +223,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, op
 		WHERE %s AND %s
 	`, vulnerableJoin, hostWhere, teamWhere)
 
-	var result []*fleet.Software
+	var result []fleet.Software
 	vars := []interface{}{}
 	if hostID != nil {
 		vars = append(vars, hostID)
@@ -236,6 +236,10 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, op
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	if err := sqlx.SelectContext(ctx, q, &result, sql, listVars...); err != nil {
 		return nil, errors.Wrap(err, "load host software")
+	}
+
+	if opt.SkipLoadingCVEs {
+		return result, nil
 	}
 
 	sql = fmt.Sprintf(`
@@ -272,7 +276,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, op
 	var resultWithCVEs []fleet.Software
 	for _, software := range result {
 		software.Vulnerabilities = cvesBySoftware[software.ID]
-		resultWithCVEs = append(resultWithCVEs, *software)
+		resultWithCVEs = append(resultWithCVEs, software)
 	}
 
 	return resultWithCVEs, nil

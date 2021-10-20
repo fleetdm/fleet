@@ -479,7 +479,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{Vulnerable: true})
+		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{VulnerableOnly: true})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
