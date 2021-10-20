@@ -1,29 +1,25 @@
 #basic-documentation {
 
   h1 {
-    font-size: 36px;
-    line-height: 48px;
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  h2 {
+    font-size: 24px;
+    line-height: 28px;
   }
 
   h3 {
-    font-size: 22px;
-    line-height: 36px;
+    font-size: 20px;
+    line-height: 24px;
   }
 
   h4 {
     font-size: 18px;
-    padding-top: 24px;
+    line-height: 24px;
   }
 
-  h5 {
-    font-weight: 800;
-  }
-
-  h6 {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: @main-font;
-  }
 
   a {
     color: @core-vibrant-blue;
@@ -47,6 +43,33 @@
       content: url('/images/icon-link-16x16@2x.png');
     }
 
+  }
+  .markdown-heading.copied::before {
+    content: 'Link copied to clipboard';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: -25px;
+    height: 0px;
+    font-size: 14px;
+    // line-height: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+  .markdown-heading.copied:hover::before {
+    // right: -15px;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
   }
 
 
@@ -350,39 +373,62 @@
 
     [purpose='content'] {
 
+      hr {
+        margin: 0px;
+        padding: 0px;
+        display: none;
+      }
       h1 {
         padding-bottom: 16px;
-        margin-bottom: 0px;
       }
 
       h2 {
-        font-size: 28px;
-        line-height: 36px;
-        padding-top: 24px;
+        border-top: 1px solid @core-fleet-black-25;
+        margin-top: 24px;
+        padding-top: 40px;
         padding-bottom: 24px;
+
+        &:first-of-type {
+          border-top: none;
+          padding-top: 24px;
+          margin-top: 0px;
+        }
       }
 
       h3 {
-        font-size: 24px;
-        line-height: 28px;
         padding-top: 24px;
         padding-bottom: 24px;
         margin-bottom: 0px;
       }
 
       h4 {
-        padding-bottom: 16px;
+        padding-top: 8px;
+        padding-bottom: 24px;
         margin-bottom: 0px;
       }
 
       h5 {
-        margin-top: 16px;
+        font-size: 16px;
+        font-weight: 700;
+        font-family: @main-font;
         margin-bottom: 16px;
+      }
+      pre + hr + h3 {
+        padding-top: 0px;
+      }
+      pre +  h3 {
+        padding-top: 0px;
+      }
+      blockquote {
+        margin: 0px;
       }
 
       ul {
         list-style-type: disc;
         padding-left: 32px;
+        pre {
+          margin: 0px 0px 16px;
+        }
       }
 
       img {
@@ -399,7 +445,7 @@
       }
 
       h2 + h3 {
-        padding-top: 8px;
+        // padding-top: 8px;
       }
 
       table {
@@ -427,11 +473,14 @@
         border-radius: 12px;
         text-decoration: none;
       }
+      ol {
+        padding-inline-start: 16px;
+      }
 
     }
 
     // for larger screens
-    @media (min-width: 990px) {
+    @media (min-width: 992px) {
 
       ul {
         .topic {
@@ -486,7 +535,7 @@
     }
 
     // for smaller screens
-    @media (max-width: 990px) {
+    @media (max-width: 991px) {
 
       padding: 0px 40px;
 

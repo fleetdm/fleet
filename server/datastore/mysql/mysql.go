@@ -3,8 +3,6 @@ package mysql
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -92,20 +90,6 @@ func retryableError(err error) bool {
 	}
 
 	return false
-}
-
-// TODO: The Adhoc family of functions allow packages outside mysql to run
-// adhoc SQL statements, as a sort of escape hatch to the method-oriented
-// Datastore interface. TBD if this should remain in place, as it breaks the
-// isolation of SQL statements inside that package only, although it makes it
-// easy to find where outsiders are in the codebase (and could probably even be
-// enforced so that only certain allowed packages could make those calls). For
-// now, this is used for the asynchronous processing of hosts, as the exact SQL
-// boundaries are not clear and will likely be a moving target for a while, as
-// we test for performance to find the best batching strategy.
-
-func (d *Datastore) AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error {
-	return d.withRetryTxx(ctx, fn)
 }
 
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
@@ -510,32 +494,18 @@ func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.
-func registerTLS(config config.MysqlConfig) error {
-	rootCertPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile(config.TLSCA)
+func registerTLS(conf config.MysqlConfig) error {
+	tlsCfg := config.TLS{
+		TLSCert:       conf.TLSCert,
+		TLSKey:        conf.TLSKey,
+		TLSCA:         conf.TLSCA,
+		TLSServerName: conf.TLSServerName,
+	}
+	cfg, err := tlsCfg.ToTLSConfig()
 	if err != nil {
-		return errors.Wrap(err, "read server-ca pem")
+		return err
 	}
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return errors.New("failed to append PEM.")
-	}
-	cfg := tls.Config{
-		RootCAs: rootCertPool,
-	}
-	if config.TLSCert != "" {
-		clientCert := make([]tls.Certificate, 0, 1)
-		certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
-		if err != nil {
-			return errors.Wrap(err, "load mysql client cert and key")
-		}
-		clientCert = append(clientCert, certs)
-
-		cfg.Certificates = clientCert
-	}
-	if config.TLSServerName != "" {
-		cfg.ServerName = config.TLSServerName
-	}
-	if err := mysql.RegisterTLSConfig(config.TLSConfig, &cfg); err != nil {
+	if err := mysql.RegisterTLSConfig(conf.TLSConfig, cfg); err != nil {
 		return errors.Wrap(err, "register mysql tls config")
 	}
 	return nil

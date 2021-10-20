@@ -64,7 +64,7 @@ func TestMigrateKeys(t *testing.T) {
 		require.NoError(t, err)
 
 		got := make(map[string]string)
-		err = redis.EachRedisNode(store.pool, func(conn redigo.Conn) error {
+		err = redis.EachNode(store.pool, false, func(conn redigo.Conn) error {
 			keys, err := redigo.Strings(conn.Do("KEYS", "*"))
 			if err != nil {
 				return err
@@ -96,7 +96,7 @@ func TestMigrateKeys(t *testing.T) {
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
-	pool := redistest.SetupRedis(t, cluster, false)
+	pool := redistest.SetupRedis(t, cluster, false, false)
 	return NewRedisLiveQuery(pool)
 }
 

@@ -17,11 +17,11 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	const prefix = "TestRedisPoolConfigureDoer:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
+		c2 := redis.ConfigureDoer(pool, pool.Get())
 		defer c2.Close()
 
 		// both conns work equally well, get nil because keys do not exist,
@@ -38,11 +38,11 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true)
+		pool := redistest.SetupRedis(t, true, true, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
-		c2 := pool.ConfigureDoer(pool.Get())
+		c2 := redis.ConfigureDoer(pool, pool.Get())
 		defer c2.Close()
 
 		// unconfigured conn gets MOVED error on the second key
@@ -62,8 +62,8 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 }
 
-func TestEachRedisNode(t *testing.T) {
-	const prefix = "TestEachRedisNode:"
+func TestEachNode(t *testing.T) {
+	const prefix = "TestEachNode:"
 
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		conn := pool.Get()
@@ -78,7 +78,7 @@ func TestEachRedisNode(t *testing.T) {
 		}
 
 		var keys []string
-		err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
+		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 			var cursor int
 			for {
 				res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", prefix+"*"))
@@ -100,12 +100,12 @@ func TestEachRedisNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, false, false)
 		runTest(t, pool)
 	})
 }
@@ -114,7 +114,7 @@ func TestBindConn(t *testing.T) {
 	const prefix = "TestBindConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -130,7 +130,7 @@ func TestBindConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false)
+		pool := redistest.SetupRedis(t, true, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -147,5 +147,138 @@ func TestBindConn(t *testing.T) {
 		require.Equal(t, redigo.ErrNil, err)
 		_, err = redigo.String(conn.Do("GET", prefix+"{z}c"))
 		require.Equal(t, redigo.ErrNil, err)
+	})
+}
+
+func TestPublishHasListeners(t *testing.T) {
+	const prefix = "TestPublishHasListeners:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+
+		pconn := pool.Get()
+		defer pconn.Close()
+		sconn := pool.Get()
+		defer sconn.Close()
+
+		ok, err := redis.PublishHasListeners(pool, pconn, prefix+"a", "A")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		psc := redigo.PubSubConn{Conn: sconn}
+		require.NoError(t, psc.Subscribe(prefix+"a"))
+
+		start := time.Now()
+		var loopOk bool
+	loop1:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Subscription:
+				require.Equal(t, msg.Count, 1)
+				loopOk = true
+				break loop1
+			}
+		}
+		require.True(t, loopOk, "timed out")
+
+		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		start = time.Now()
+		loopOk = false
+	loop2:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Message:
+				require.Equal(t, "B", string(msg.Data))
+				loopOk = true
+				break loop2
+			}
+		}
+		require.True(t, loopOk, "timed out")
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, false)
+
+		pconn := pool.Get()
+		defer pconn.Close()
+		sconn := pool.Get()
+		defer sconn.Close()
+
+		ok, err := redis.PublishHasListeners(pool, pconn, prefix+"{a}", "A")
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		// one listener on a different node
+		redis.BindConn(pool, sconn, "b")
+		psc := redigo.PubSubConn{Conn: sconn}
+		require.NoError(t, psc.Subscribe(prefix+"{a}"))
+
+		// a standard PUBLISH returns 0
+		n, err := redigo.Int(pconn.Do("PUBLISH", prefix+"{a}", "B"))
+		require.NoError(t, err)
+		require.Equal(t, 0, n)
+
+		// but this returns true
+		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"{a}", "C")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		start := time.Now()
+		want := "B"
+		var loopOk bool
+	loop:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Message:
+				require.Equal(t, want, string(msg.Data))
+				if want == "C" {
+					loopOk = true
+					break loop
+				}
+				want = "C"
+			}
+		}
+		require.True(t, loopOk, "timed out")
+	})
+}
+
+func TestReadOnlyConn(t *testing.T) {
+	const prefix = "TestReadOnlyConn:"
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, true)
+		conn := redis.ReadOnlyConn(pool, pool.Get())
+		defer conn.Close()
+
+		_, err := conn.Do("SET", prefix+"a", 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, true)
+		conn := redis.ReadOnlyConn(pool, pool.Get())
+		defer conn.Close()
+
+		_, err := conn.Do("SET", prefix+"a", 1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "MOVED")
+	})
+}
+
+func TestRedisMode(t *testing.T) {
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+		require.Equal(t, pool.Mode(), fleet.RedisStandalone)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, false, false)
+		require.Equal(t, pool.Mode(), fleet.RedisCluster)
 	})
 }

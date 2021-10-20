@@ -1,0 +1,79 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test package",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "cwd": "${fileDirname}",
+            "env": {
+                "MYSQL_TEST": 1,
+                "REDIS_TEST": 1
+            },
+            "buildFlags": "--tags='full,fts5'",
+            "program": "${fileDirname}"
+        },
+        {
+            "name": "Test file",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "cwd": "${fileDirname}",
+            "env": {
+                "MYSQL_TEST": 1,
+                "REDIS_TEST": 1
+            },
+            "buildFlags": "--tags='full,fts5'",
+            "program": "${file}"
+        },
+        {
+            "name": "Fleet serve",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "buildFlags": "--tags='full,fts5'",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/fleet",
+            "args": [
+                "serve",
+                "--dev"
+            ]
+        },
+        {
+            "name": "Fleet serve (licensed)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "buildFlags": "--tags='full,fts5'",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/fleet",
+            "args": [
+                "serve",
+                "--dev",
+                "--dev_license"
+            ]
+        },
+        {
+            "type": "pwa-chrome",
+            "name": "Fleet UI (Chrome)",
+            "request": "launch",
+            "url": "https://localhost:8080"
+        },
+        {
+            "type": "firefox",
+            "name": "Fleet UI (Firefox)",
+            "request": "launch",
+            "url": "https://localhost:8080",
+            "pathMappings": [
+                {
+                    "url": "webpack:///frontend",
+                    "path": "${workspaceFolder}/frontend"
+                }
+            ]
+        }
+    ]
+}

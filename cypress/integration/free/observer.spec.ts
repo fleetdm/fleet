@@ -19,6 +19,13 @@ describe("Free tier - Observer user", () => {
     // Ensure page is loaded
     cy.contains("All hosts");
 
+    // we expect a 402 error from the teams API
+    // in Cypress, we can't update the context for if we're
+    // in the premium tier, so the tests runs the teams API
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
+
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
     cy.findByText(/schedule/i).should("not.exist");
@@ -32,9 +39,9 @@ describe("Free tier - Observer user", () => {
     // Host manage page: No team UI, cannot add host, add label, nor enroll secret
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
-    cy.contains("button", /add new host/i).should("not.exist");
+    cy.contains("button", /generate installer/i).should("not.exist");
     cy.contains("button", /add label/i).should("not.exist");
-    cy.contains("button", /show enroll secret/i).should("not.exist");
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {

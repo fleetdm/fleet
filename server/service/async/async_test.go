@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -27,13 +28,13 @@ func TestCollectQueryExecutions(t *testing.T) {
 	t.Run("Label", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, false, false)
+			pool := redistest.SetupRedis(t, false, false, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, true, true)
+			pool := redistest.SetupRedis(t, true, true, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
 	})
@@ -41,19 +42,19 @@ func TestCollectQueryExecutions(t *testing.T) {
 	t.Run("Policy", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, false, false)
+			pool := redistest.SetupRedis(t, false, false, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
-			pool := redistest.SetupRedis(t, true, true)
+			pool := redistest.SetupRedis(t, true, true, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 	})
 }
 
-func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool fleet.RedisPool) {
+func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fleet.RedisPool) {
 	ctx := context.Background()
 
 	type labelMembership struct {
@@ -195,7 +196,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	const batchSizes = 3
 
 	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
-		conn := pool.ConfigureDoer(pool.Get())
+		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
 
 		// store the host memberships and prepare the expected stats
@@ -227,19 +228,17 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 
 	selectRows := func(t *testing.T) ([]labelMembership, map[int]time.Time) {
 		var rows []labelMembership
-		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, label_id, updated_at FROM label_membership ORDER BY 1, 2`)
 		})
-		require.NoError(t, err)
 
 		var hosts []struct {
 			ID             int       `db:"id"`
 			LabelUpdatedAt time.Time `db:"label_updated_at"`
 		}
-		err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, label_updated_at FROM hosts`)
 		})
-		require.NoError(t, err)
 
 		hostsUpdated := make(map[int]time.Time, len(hosts))
 		for _, h := range hosts {
@@ -324,7 +323,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds fleet.Datastore, pool flee
 	require.True(t, h1l1Before.UpdatedAt.Before(h1l1After.UpdatedAt))
 }
 
-func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fleet.RedisPool) {
+func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fleet.RedisPool) {
 	ctx := context.Background()
 
 	type policyMembership struct {
@@ -565,7 +564,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 	const batchSizes = 3
 
 	setupTest := func(t *testing.T, data map[int]map[int]bool) collectorExecStats {
-		conn := pool.ConfigureDoer(pool.Get())
+		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
 
 		// store the host memberships and prepare the expected stats
@@ -596,21 +595,19 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds fleet.Datastore, pool fle
 
 	selectRows := func(t *testing.T) ([]policyMembership, map[int]time.Time) {
 		var rows []policyMembership
-		err := ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, policy_id, passes, updated_at
         FROM policy_membership_history
         ORDER BY host_id, policy_id, id`)
 		})
-		require.NoError(t, err)
 
 		var hosts []struct {
 			ID              int       `db:"id"`
 			PolicyUpdatedAt time.Time `db:"policy_updated_at"`
 		}
-		err = ds.AdhocRetryTx(ctx, func(tx sqlx.ExtContext) error {
+		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, policy_updated_at FROM hosts`)
 		})
-		require.NoError(t, err)
 
 		hostsUpdated := make(map[int]time.Time, len(hosts))
 		for _, h := range hosts {
@@ -666,13 +663,13 @@ func TestRecordPolicyQueryExecutions(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 		t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true)
+		pool := redistest.SetupRedis(t, true, true, false)
 		t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 	})
@@ -776,13 +773,13 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false)
+		pool := redistest.SetupRedis(t, false, false, false)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true)
+		pool := redistest.SetupRedis(t, true, true, false)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})
@@ -898,11 +895,11 @@ func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []ui
 	return ids
 }
 
-func createPolicies(t *testing.T, ds fleet.Datastore, count int) []uint {
+func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 	ctx := context.Background()
 
 	ids := make([]uint, count)
-	err := ds.AdhocRetryTx(context.Background(), func(tx sqlx.ExtContext) error {
+	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO queries (name, description, query) VALUES (?, ?, ?)`,
 			t.Name(),
 			t.Name(),
@@ -922,6 +919,5 @@ func createPolicies(t *testing.T, ds fleet.Datastore, count int) []uint {
 		}
 		return nil
 	})
-	require.NoError(t, err)
 	return ids
 }

@@ -3,8 +3,6 @@ package fleet
 import (
 	"context"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type CarveStore interface {
@@ -164,6 +162,11 @@ type Datastore interface {
 	// LabelIDsByName Retrieve the IDs associated with the given labels
 	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
 
+	// Methods used for async processing of host label query results.
+	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// HostStore
 
@@ -202,6 +205,12 @@ type Datastore interface {
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
 
 	DeleteHosts(ctx context.Context, ids []uint) error
+
+	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
+
+	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
+	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -291,6 +300,7 @@ type Datastore interface {
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupOrphanScheduledQueryStats(ctx context.Context) error
 	CleanupOrphanLabelMembership(ctx context.Context) error
+	CleanupExpiredHosts(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -321,6 +331,7 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -337,7 +348,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
 
@@ -345,6 +356,7 @@ type Datastore interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
+	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
@@ -358,7 +370,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -377,9 +389,6 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
-
-	// Adhoc methods allow running adhoc statements using the datastore.
-	AdhocRetryTx(ctx context.Context, fn func(sqlx.ExtContext) error) error
 }
 
 type MigrationStatus int

@@ -6,7 +6,13 @@
   padding-bottom: 50px;
   min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-large;
+  gap: $pad-medium;
+
+  .header {
+    flex: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
   .section {
     flex: 100%;
@@ -36,10 +42,20 @@
         &--title {
           margin-right: $pad-xxlarge;
 
-          .info__data {
+          .info-flex__data {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+
+            img {
+              width: 16px;
+              height: 16px;
+              vertical-align: sub;
+            }
+
+            .total-issues-count {
+              margin-left: $pad-small;
+            }
           }
         }
       }
@@ -140,17 +156,11 @@
   .title {
     flex-direction: row;
     justify-content: space-between;
-    border-bottom: 1px solid $ui-fleet-blue-15;
     margin: 0;
-
-    &__inner {
-      padding-bottom: $pad-medium;
-    }
 
     .hostname-container {
       display: flex;
-      align-items: flex-end;
-      margin-bottom: $pad-large;
+      align-items: center;
     }
 
     .hostname {
@@ -167,13 +177,14 @@
 
     .refetch {
       display: flex;
+      margin-right: $pad-small;
 
       .refetch-btn {
         color: $core-vibrant-blue;
         cursor: default;
         font-size: $x-small;
-        display: inline;
-        margin: 9px 0 0 0; // aligns with spinner
+        height: 38px;
+        margin-right: $pad-small;
 
         &::before {
           display: inline-block;
@@ -181,8 +192,7 @@
           padding: 5px 0 0 0; // centers spin
           content: url(../assets/images/icon-refetch-12x12@2x.png);
           transform: scale(0.5);
-          vertical-align: bottom;
-          height: 20px;
+          height: 28px;
         }
 
         &:hover {
@@ -202,14 +212,13 @@
         color: $core-vibrant-blue;
         cursor: default;
         font-size: $x-small;
-        display: inline;
+        height: 38px;
         opacity: 50%;
         filter: saturate(100%);
 
         &::before {
           display: inline-block;
           position: relative;
-          top: 7px; // aligns with text
           padding: 5px 0 0 0; // centers spin
           display: inline-block;
           content: url(../assets/images/icon-refetch-12x12@2x.png);
@@ -304,7 +313,7 @@
 
   &__action-button-container {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
   }
 
   &__query-button,
@@ -373,6 +382,29 @@
     }
   }
 
+  .section--policies {
+    .linkToFilteredHosts__header {
+      width: 0;
+    }
+    .policy-link img {
+      width: 16px;
+    }
+    .table-container__header {
+      display: none;
+    }
+    .info-banner {
+      margin-bottom: 1rem;
+      p {
+        font-size: 0.875rem;
+        margin: 0;
+      }
+      a {
+        text-decoration: none;
+        font-weight: bold;
+      }
+    }
+  }
+
   .section--software {
     th {
       &:first-child {
@@ -380,11 +412,10 @@
         width: 16px;
         padding-right: 0px;
       }
-      // TODO: Enable for link to filtered hosts page after manage hosts page has been updated to filter hosts by software id
-      // &:last-child {
-      //   width: 90px;
-      //   padding: 0px;
-      // }
+      &:last-child {
+        width: 90px;
+        padding: 0px;
+      }
     }
     tr {
       td {
@@ -420,6 +451,7 @@
   &__back-link {
     display: flex;
     align-items: center;
+    padding-bottom: $pad-small;
     height: 16px;
     font-size: $x-small;
     color: $core-vibrant-blue;
@@ -586,7 +618,7 @@
 
   .software-link {
     img {
-      transform: rotate(0.75turn);
+      transform: rotate(-90deg);
       height: 16px;
       width: auto;
       vertical-align: middle;

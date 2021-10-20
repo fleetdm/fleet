@@ -31,7 +31,7 @@ If you get an `undefined: Asset` error it is likely because you did not run `mak
 
 The `osquery` directory contains a docker-compose.yml and additional configuration files to start containerized osquery agents.
 
-To start osquery, first retrieve the "Enroll Secret" from Fleet (by clicking the "Add New Host") button in the Fleet dashboard, or with `fleetctl get enroll-secret`).
+To start osquery, first retrieve the "Enroll secret" from Fleet (by clicking the "Add New Host") button in the Fleet dashboard, or with `fleetctl get enroll-secret`).
 
 ```
 cd tools/osquery

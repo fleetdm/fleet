@@ -1,0 +1,31 @@
+.policy-failing-count {
+  font-size: $x-small;
+  background-color: $ui-off-white;
+  border: solid 1px $ui-fleet-black-50;
+  box-sizing: border-box;
+  border-radius: 10px;
+  overflow: auto;
+  margin-bottom: $pad-large;
+  padding: $pad-large;
+  padding-bottom: $pad-small;
+
+  p {
+    padding-left: $pad-large;
+    margin-top: $pad-medium;
+    margin-bottom: $pad-medium;
+  }
+
+  img {
+    height: 16px;
+    width: auto;
+    padding-right: 10px;
+  }
+
+  &__count {
+    display: flex;
+    align-content: center;
+    align-items: center;
+    font-size: $small;
+    font-weight: $bold;
+  }
+}

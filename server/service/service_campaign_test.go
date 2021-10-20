@@ -26,7 +26,7 @@ import (
 func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	t.Skip("Seems to be a bit problematic in CI")
 
-	store := pubsub.SetupRedisForTest(t, false)
+	store := pubsub.SetupRedisForTest(t, false, false)
 
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)

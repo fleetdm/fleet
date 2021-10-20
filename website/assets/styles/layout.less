@@ -1,4 +1,4 @@
-@footer-height: 280px;
+@footer-height: 288px;
 @container-md-max-width: 1100px;
 
 [v-cloak] { display: none; }
@@ -122,6 +122,14 @@ html, body {
   .header-link {
     color: #192147;
     font-weight: @bold;
+  }
+  .current-page {
+    color: #6a67fe;
+    svg {
+      path {
+        fill: #6a67fe;
+      }
+    }
   }
   .header-link:hover {
     color: #6a67fe;

@@ -33,15 +33,13 @@ interface IRootState {
   };
 }
 
-const PacksListWrapper = (props: IPacksListWrapperProps): JSX.Element => {
-  const {
-    onRemovePackClick,
-    onEnablePackClick,
-    onDisablePackClick,
-    onCreatePackClick,
-    packsList,
-  } = props;
-
+const PacksListWrapper = ({
+  onRemovePackClick,
+  onEnablePackClick,
+  onDisablePackClick,
+  onCreatePackClick,
+  packsList,
+}: IPacksListWrapperProps): JSX.Element => {
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.packs.isLoading
   );

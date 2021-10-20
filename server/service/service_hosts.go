@@ -8,20 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (svc Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	return svc.ds.ListHosts(ctx, filter, opt)
-}
-
 func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
@@ -43,7 +29,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, err
 }
 
 func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +61,12 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 		return nil, errors.Wrap(err, "get packs for host")
 	}
 
-	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs}, nil
+	policies, err := svc.ds.ListPoliciesForHost(ctx, host.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "get policies for host")
+	}
+
+	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
 }
 
 func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, error) {
@@ -101,7 +92,7 @@ func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, erro
 }
 
 func (svc Service) DeleteHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
@@ -130,7 +121,7 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -142,7 +133,7 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
 	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
@@ -158,21 +149,13 @@ func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt
 }
 
 func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	filter, err := processHostFilters(ctx, opt, lid)
+	if err != nil {
+		return nil, err
 	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	if opt.StatusFilter != "" && lid != nil {
-		return nil, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
-	}
-
-	opt.PerPage = fleet.PerPageUnlimited
 
 	// Load hosts, either from label if provided or from all hosts.
 	var hosts []*fleet.Host
-	var err error
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
@@ -193,7 +176,45 @@ func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOpt
 	return hostIDs, nil
 }
 
+func (svc Service) countHostFromFilters(ctx context.Context, labelID *uint, opt fleet.HostListOptions) (int, error) {
+	filter, err := processHostFilters(ctx, opt, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	if labelID != nil {
+		count, err = svc.ds.CountHostsInLabel(ctx, filter, *labelID, opt)
+	} else {
+		count, err = svc.ds.CountHosts(ctx, filter, opt)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) (fleet.TeamFilter, error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.TeamFilter{}, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	if opt.StatusFilter != "" && lid != nil {
+		return fleet.TeamFilter{}, fleet.NewInvalidArgumentError("status", "may not be provided with label_id")
+	}
+
+	opt.PerPage = fleet.PerPageUnlimited
+	return filter, nil
+}
+
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return errors.Wrap(err, "find host for refetch")
