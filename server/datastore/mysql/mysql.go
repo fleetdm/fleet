@@ -3,8 +3,6 @@ package mysql
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -496,32 +494,18 @@ func (d *Datastore) whereOmitIDs(colName string, omit []uint) string {
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.
-func registerTLS(config config.MysqlConfig) error {
-	rootCertPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile(config.TLSCA)
+func registerTLS(conf config.MysqlConfig) error {
+	tlsCfg := config.TLS{
+		TLSCert:       conf.TLSCert,
+		TLSKey:        conf.TLSKey,
+		TLSCA:         conf.TLSCA,
+		TLSServerName: conf.TLSServerName,
+	}
+	cfg, err := tlsCfg.ToTLSConfig()
 	if err != nil {
-		return errors.Wrap(err, "read server-ca pem")
+		return err
 	}
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return errors.New("failed to append PEM.")
-	}
-	cfg := tls.Config{
-		RootCAs: rootCertPool,
-	}
-	if config.TLSCert != "" {
-		clientCert := make([]tls.Certificate, 0, 1)
-		certs, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
-		if err != nil {
-			return errors.Wrap(err, "load mysql client cert and key")
-		}
-		clientCert = append(clientCert, certs)
-
-		cfg.Certificates = clientCert
-	}
-	if config.TLSServerName != "" {
-		cfg.ServerName = config.TLSServerName
-	}
-	if err := mysql.RegisterTLSConfig(config.TLSConfig, &cfg); err != nil {
+	if err := mysql.RegisterTLSConfig(conf.TLSConfig, cfg); err != nil {
 		return errors.Wrap(err, "register mysql tls config")
 	}
 	return nil
