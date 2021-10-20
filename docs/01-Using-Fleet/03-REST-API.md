@@ -549,7 +549,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
         "total_issues_count": 2
       }
     }
-  ],
+  ]
 }
 ```
 
