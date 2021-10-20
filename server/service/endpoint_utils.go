@@ -148,14 +148,14 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					return nil, err
 				}
 				queryVal := r.URL.Query().Get(queryTagValue)
-				if field.Kind() == reflect.Ptr {
-					// if optional and it's a ptr, leave as nil
-					if queryVal == "" {
-						if optional {
-							continue
-						}
-						return nil, errors.Errorf("Param %s is required", f.Name)
+				// if optional and it's a ptr, leave as nil
+				if queryVal == "" {
+					if optional {
+						continue
 					}
+					return nil, errors.Errorf("Param %s is required", f.Name)
+				}
+				if field.Kind() == reflect.Ptr {
 					// create the new instance of whatever it is
 					field.Set(reflect.New(field.Type().Elem()))
 					field = field.Elem()

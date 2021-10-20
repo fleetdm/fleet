@@ -92,7 +92,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 }
 
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, nil, fleet.SoftwareListOptions{})
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -200,17 +200,17 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, teamID *uint, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	hostWhere := `hs.host_id=?`
 	if hostID == nil {
 		hostWhere = "TRUE"
 	}
 	teamWhere := `h.team_id=?`
-	if teamID == nil {
+	if opt.TeamID == nil {
 		teamWhere = "TRUE"
 	}
 	vulnerableJoin := "LEFT JOIN software_cpe scp ON (s.id=scp.software_id)"
-	if opt.OnlyVulnerable {
+	if opt.Vulnerable {
 		vulnerableJoin = `JOIN software_cpe scp ON (s.id=scp.software_id)
 		JOIN software_cve scv ON (scp.id=scv.cpe_id)`
 	}
@@ -228,8 +228,8 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 	if hostID != nil {
 		vars = append(vars, hostID)
 	}
-	if teamID != nil {
-		vars = append(vars, teamID)
+	if opt.TeamID != nil {
+		vars = append(vars, opt.TeamID)
 	}
 	sql, listVars := searchLike(sql, vars, opt.MatchQuery, "s.name", "s.version")
 	sql += ` GROUP BY s.id, s.name, s.version, s.source, generated_cpe `
@@ -280,7 +280,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 
 func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(ctx, d.reader, &host.ID, nil, fleet.SoftwareListOptions{})
+	software, err := listSoftwareDB(ctx, d.reader, &host.ID, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err
 	}
@@ -363,8 +363,8 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return nil
 }
 
-func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, onlyVulnerable bool, opt fleet.ListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, d.reader, nil, teamId, fleet.SoftwareListOptions{ListOptions: opt, OnlyVulnerable: onlyVulnerable})
+func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	return listSoftwareDB(ctx, d.reader, nil, opt)
 }
 
 func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {

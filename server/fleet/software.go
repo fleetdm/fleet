@@ -50,5 +50,6 @@ type SoftwareIterator interface {
 type SoftwareListOptions struct {
 	ListOptions
 
-	OnlyVulnerable bool
+	TeamID     *uint `query:"team_id,optional"`
+	Vulnerable bool  `query:"vulnerable,optional"`
 }

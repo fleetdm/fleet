@@ -291,7 +291,7 @@ type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
-type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
+type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
@@ -1448,9 +1448,9 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 	return s.MigrationStatusFunc(ctx)
 }
 
-func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, onlyVulnerable bool, opt fleet.ListOptions) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
-	return s.ListSoftwareFunc(ctx, teamId, opt)
+	return s.ListSoftwareFunc(ctx, opt)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {

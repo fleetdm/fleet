@@ -16,9 +16,9 @@ func TestService_ListSoftware(t *testing.T) {
 	ds := new(mock.Store)
 
 	var calledWithTeamID *uint
-	var calledWithOpt fleet.ListOptions
-	ds.ListSoftwareFunc = func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-		calledWithTeamID = teamId
+	var calledWithOpt fleet.SoftwareListOptions
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+		calledWithTeamID = opt.TeamID
 		calledWithOpt = opt
 		return []fleet.Software{}, nil
 	}
@@ -29,10 +29,10 @@ func TestService_ListSoftware(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	_, err := svc.ListSoftware(ctx, ptr.Uint(42), false, fleet.ListOptions{PerPage: 77, Page: 4})
+	_, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: ptr.Uint(42), ListOptions: fleet.ListOptions{PerPage: 77, Page: 4}})
 	require.NoError(t, err)
 
 	assert.True(t, ds.ListSoftwareFuncInvoked)
 	assert.Equal(t, ptr.Uint(42), calledWithTeamID)
-	assert.Equal(t, fleet.ListOptions{PerPage: 77, Page: 4}, calledWithOpt)
+	assert.Equal(t, fleet.ListOptions{PerPage: 77, Page: 4}, calledWithOpt.ListOptions)
 }

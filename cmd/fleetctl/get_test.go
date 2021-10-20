@@ -532,8 +532,8 @@ func TestGetSoftawre(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-		gotTeamID = teamId
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+		gotTeamID = opt.TeamID
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
 	}
 
