@@ -65,6 +65,7 @@ import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png"
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
+import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-details";
 
@@ -107,11 +108,25 @@ const HostDetailsPage = ({
     false
   );
   const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
+    false
+  );
+  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+    null
+  );
 
-  const togglePolicyDetailsModal = useCallback(() => {
+  const togglePolicyDetailsModal = useCallback(
+    (policy: IHostPolicy) => {
+      setPolicyDetailsModal(!showPolicyDetailsModal);
+      setSelectedPolicy(policy);
+    },
+    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+  );
+
+  const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal]);
+    setSelectedPolicy(null);
+  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
@@ -276,6 +291,7 @@ const HostDetailsPage = ({
   const titleData = normalizeEmptyValues(
     pick(host, [
       "status",
+      "issues",
       "memory",
       "cpu_type",
       "os_version",
@@ -741,6 +757,37 @@ const HostDetailsPage = ({
     );
   };
 
+  const renderIssues = () => (
+    <div className="info-flex__item info-flex__item--title">
+      <span className="info-flex__header">Issues</span>
+      <span className="info-flex__data">
+        <span
+          className="host-issue tooltip__tooltip-icon"
+          data-tip
+          data-for="host-issue-count"
+          data-tip-disable={false}
+        >
+          <img alt="host issue" src={IssueIcon} />
+        </span>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id="host-issue-count"
+          data-html
+        >
+          <span className={`tooltip__tooltip-text`}>
+            Failing policies ({host?.issues.failing_policies_count})
+          </span>
+        </ReactTooltip>
+        <span className={`total-issues-count`}>
+          {host?.issues.total_issues_count}
+        </span>
+      </span>
+    </div>
+  );
+
   const renderHostTeam = () => (
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">Team</span>
@@ -879,6 +926,7 @@ const HostDetailsPage = ({
                 {titleData.status}
               </span>
             </div>
+            {titleData.issues.total_issues_count > 0 && renderIssues()}
             {isPremiumTier && renderHostTeam()}
             {renderDeviceUser()}
             <div className="info-flex__item info-flex__item--title">
@@ -987,7 +1035,10 @@ const HostDetailsPage = ({
         />
       )}
       {!!host && showPolicyDetailsModal && (
-        <PolicyDetailsModal onCancel={togglePolicyDetailsModal} />
+        <PolicyDetailsModal
+          onCancel={onCancelPolicyDetailsModal}
+          policy={selectedPolicy}
+        />
       )}
     </div>
   );

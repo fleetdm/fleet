@@ -1,8 +1,18 @@
 .policy-details-modal {
+  &__resolution {
+    p {
+      margin-top: $pad-xsmall;
+    }
+  }
+
+  &__resolve-header {
+    font-weight: $bold;
+  }
+
   &__btn-wrap {
     display: flex;
     flex-direction: row-reverse;
-    margin-top: $pad-xxlarge;
+    margin-top: $pad-large;
   }
 
   &__btn {

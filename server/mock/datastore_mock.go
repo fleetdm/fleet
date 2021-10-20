@@ -231,6 +231,8 @@ type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
 type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
 
+type CleanupExpiredHostsFunc func(ctx context.Context) error
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -269,7 +271,7 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(ctx context.Context, queryID uint) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
@@ -291,7 +293,7 @@ type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error
 
 type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
 
-type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error)
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
@@ -633,6 +635,9 @@ type DataStore struct {
 
 	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
 	CleanupOrphanLabelMembershipFuncInvoked bool
+
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -1293,6 +1298,11 @@ func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
 	return s.CleanupOrphanLabelMembershipFunc(ctx)
 }
 
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {
+	s.CleanupExpiredHostsFuncInvoked = true
+	return s.CleanupExpiredHostsFunc(ctx)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
 	return s.NewTeamFunc(ctx, team)
@@ -1390,7 +1400,7 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 
 func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(ctx, queryID)
+	return s.NewGlobalPolicyFunc(ctx, queryID, resolution)
 }
 
 func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -1445,7 +1455,7 @@ func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.Li
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
-	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
+	return s.NewTeamPolicyFunc(ctx, teamID, queryID, resolution)
 }
 
 func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {

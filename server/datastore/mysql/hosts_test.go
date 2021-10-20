@@ -84,6 +84,7 @@ func TestHosts(t *testing.T) {
 		{"AuthenticateHostLoadsDisk", testAuthenticateHostLoadsDisk},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", testHostsListFailingPolicies},
+		{"HostsExpiration", testHostsExpiration},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1971,4 +1972,64 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	case <-ticker.C:
 		require.Fail(t, "timed out")
 	}
+}
+
+func testHostsExpiration(t *testing.T, ds *Datastore) {
+	hostExpiryWindow := 70
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		seenTime := time.Now()
+		if i >= 5 {
+			seenTime = seenTime.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+		}
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        seenTime,
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	// host expiration is still disabled
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+
+	// And it doesn't remove more than it should
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
 }

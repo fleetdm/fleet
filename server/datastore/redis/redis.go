@@ -25,10 +25,18 @@ func (p *standalonePool) Stats() map[string]redis.PoolStats {
 	}
 }
 
+func (p *standalonePool) Mode() fleet.RedisMode {
+	return fleet.RedisStandalone
+}
+
 type clusterPool struct {
 	*redisc.Cluster
 	followRedirs bool
 	readReplica  bool
+}
+
+func (p *clusterPool) Mode() fleet.RedisMode {
+	return fleet.RedisCluster
 }
 
 // PoolConfig holds the redis pool configuration options.
