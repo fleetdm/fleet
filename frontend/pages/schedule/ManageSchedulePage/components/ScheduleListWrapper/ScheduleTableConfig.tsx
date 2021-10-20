@@ -12,6 +12,7 @@ import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+
 interface IHeaderProps {
   column: {
     title: string;
