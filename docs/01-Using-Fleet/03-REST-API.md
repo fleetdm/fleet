@@ -550,19 +550,6 @@ If `additional_info_filters` is not specified, no `additional` information will 
       }
     }
   ],
-  "software": {
-    "id": 42,
-    "name": "app",
-    "version": "1.0.0",
-    "source": "rpm_packages",
-    "generated_cpe": "cpe:2.3:a:vendor:product:*:*:*",
-    "vulnerabilities": [
-      {
-        "cve": "CVE-123-123-123",
-        "details_link": "https://link.to.cve"
-      }
-    ]
-  }
 }
 ```
 
