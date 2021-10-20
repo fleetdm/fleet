@@ -169,6 +169,8 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, errors.Wrap(err, "parsing uint from query")
 					}
 					field.SetUint(uint64(queryValUint))
+				case reflect.Bool:
+					field.SetBool(queryVal == "1" || queryVal == "true")
 				default:
 					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
 				}

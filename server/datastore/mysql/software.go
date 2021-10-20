@@ -92,7 +92,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 }
 
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, nil, fleet.ListOptions{})
+	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, nil, fleet.SoftwareListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "loading current software for host")
 	}
@@ -200,7 +200,7 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, teamID *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, teamID *uint, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	hostWhere := `hs.host_id=?`
 	if hostID == nil {
 		hostWhere = "TRUE"
@@ -209,16 +209,19 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 	if teamID == nil {
 		teamWhere = "TRUE"
 	}
+	vulnerableJoin := "LEFT JOIN software_cpe scp ON (s.id=scp.software_id)"
+	if opt.OnlyVulnerable {
+		vulnerableJoin = `JOIN software_cpe scp ON (s.id=scp.software_id)
+		JOIN software_cve scv ON (scp.id=scv.cpe_id)`
+	}
 	sql := fmt.Sprintf(`
 		SELECT DISTINCT s.*, coalesce(scp.cpe, "") as generated_cpe
 		FROM host_software hs
 		JOIN hosts h ON (hs.host_id=h.id)
 		JOIN software s ON (hs.software_id=s.id)
-		LEFT JOIN software_cpe scp ON (s.id=scp.software_id)
+		%s
 		WHERE %s AND %s
-		GROUP BY s.id, s.name, s.version, s.source, generated_cpe
-	`, hostWhere, teamWhere)
-	sql = appendListOptionsToSQL(sql, opt)
+	`, vulnerableJoin, hostWhere, teamWhere)
 
 	var result []*fleet.Software
 	vars := []interface{}{}
@@ -228,16 +231,18 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 	if teamID != nil {
 		vars = append(vars, teamID)
 	}
-	if err := sqlx.SelectContext(ctx, q, &result, sql, vars...); err != nil {
+	sql, listVars := searchLike(sql, vars, opt.MatchQuery, "s.name", "s.version")
+	sql += ` GROUP BY s.id, s.name, s.version, s.source, generated_cpe `
+	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+	if err := sqlx.SelectContext(ctx, q, &result, sql, listVars...); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
 	sql = fmt.Sprintf(`
-		SELECT DISTINCT s.id, scv.cve
+		SELECT DISTINCT hs.software_id, scv.cve
 		FROM host_software hs
 		JOIN hosts h ON (hs.host_id=h.id)
-		JOIN software s ON (s.id=hs.software_id)
-		JOIN software_cpe scp ON (s.id=scp.software_id)
+		JOIN software_cpe scp ON (hs.software_id=scp.software_id)
 		JOIN software_cve scv ON (scp.id=scv.cpe_id)
 		WHERE %s AND %s
 	`, hostWhere, teamWhere)
@@ -275,7 +280,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, te
 
 func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
 	host.HostSoftware = fleet.HostSoftware{Modified: false}
-	software, err := listSoftwareDB(ctx, d.reader, &host.ID, nil, fleet.ListOptions{})
+	software, err := listSoftwareDB(ctx, d.reader, &host.ID, nil, fleet.SoftwareListOptions{})
 	if err != nil {
 		return err
 	}
@@ -358,8 +363,8 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return nil
 }
 
-func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, d.reader, nil, teamId, opt)
+func (d *Datastore) ListSoftware(ctx context.Context, teamId *uint, onlyVulnerable bool, opt fleet.ListOptions) ([]fleet.Software, error) {
+	return listSoftwareDB(ctx, d.reader, nil, teamId, fleet.SoftwareListOptions{ListOptions: opt, OnlyVulnerable: onlyVulnerable})
 }
 
 func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {

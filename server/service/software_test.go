@@ -29,7 +29,7 @@ func TestService_ListSoftware(t *testing.T) {
 	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	_, err := svc.ListSoftware(ctx, ptr.Uint(42), fleet.ListOptions{PerPage: 77, Page: 4})
+	_, err := svc.ListSoftware(ctx, ptr.Uint(42), false, fleet.ListOptions{PerPage: 77, Page: 4})
 	require.NoError(t, err)
 
 	assert.True(t, ds.ListSoftwareFuncInvoked)

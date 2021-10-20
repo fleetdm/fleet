@@ -426,7 +426,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
 
 	t.Run("lists everything", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{})
+		software, err := ds.ListSoftware(context.Background(), nil, false, fleet.ListOptions{})
 		require.NoError(t, err)
 
 		require.Len(t, software, 4)
@@ -435,7 +435,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("limits the results", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{PerPage: 1, OrderKey: "version"})
+		software, err := ds.ListSoftware(context.Background(), nil, false, fleet.ListOptions{PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
@@ -444,7 +444,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), nil, fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"})
+		software, err := ds.ListSoftware(context.Background(), nil, false, fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
@@ -457,7 +457,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{OrderKey: "version"})
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, false, fleet.ListOptions{OrderKey: "version"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 2)
@@ -470,11 +470,29 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"})
+		software, err := ds.ListSoftware(context.Background(), &team1.ID, false, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
 		expected := []fleet.Software{foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters vulnerable software", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, true, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{foo001}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("filters by query", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), nil, false, fleet.ListOptions{MatchQuery: "bar"})
+		require.NoError(t, err)
+
+		require.Len(t, software, 1)
+		expected := []fleet.Software{bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 }

@@ -46,3 +46,9 @@ type SoftwareIterator interface {
 	Err() error
 	Close() error
 }
+
+type SoftwareListOptions struct {
+	ListOptions
+
+	OnlyVulnerable bool
+}

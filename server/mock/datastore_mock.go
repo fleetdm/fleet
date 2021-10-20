@@ -1448,7 +1448,7 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 	return s.MigrationStatusFunc(ctx)
 }
 
-func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, onlyVulnerable bool, opt fleet.ListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
 	return s.ListSoftwareFunc(ctx, teamId, opt)
 }
