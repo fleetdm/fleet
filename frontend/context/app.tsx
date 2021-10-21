@@ -15,6 +15,7 @@ type InitialStateType = {
   currentUser: IUser | null;
   currentTeam: ITeam | undefined;
   enrollSecret: IEnrollSecret[] | null;
+  isPreview: boolean | undefined;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -35,6 +36,7 @@ const initialState = {
   currentUser: null,
   currentTeam: undefined,
   enrollSecret: null,
+  isPreview: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -55,6 +57,10 @@ const actions = {
   SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
   SET_CONFIG: "SET_CONFIG",
   SET_ENROLL_SECRET: "SET_ENROLL_SECRET",
+};
+
+const detectPreview = () => {
+  return window.location.origin === "http://localhost:1337";
 };
 
 // helper function - this is run every
@@ -121,6 +127,7 @@ const AppProvider = ({ children }: Props) => {
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
+    isPreview: detectPreview(),
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,

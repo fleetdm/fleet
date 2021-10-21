@@ -20,7 +20,7 @@ interface ILoginData {
 
 const PreviewLoginPage = () => {
   const dispatch = useDispatch();
-  const { setCurrentUser } = useContext(AppContext);
+  const { isPreview, setCurrentUser } = useContext(AppContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
   const onSubmit = debounce((formData: ILoginData) => {
@@ -41,7 +41,7 @@ const PreviewLoginPage = () => {
   });
 
   useEffect(() => {
-    if (window.location.origin === "http://localhost:1337") {
+    if (isPreview) {
       onSubmit({
         email: "admin@example.com",
         password: "admin123#",
