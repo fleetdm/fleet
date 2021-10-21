@@ -549,20 +549,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
         "total_issues_count": 2
       }
     }
-  ],
-  "software": {
-    "id": 42,
-    "name": "app",
-    "version": "1.0.0",
-    "source": "rpm_packages",
-    "generated_cpe": "cpe:2.3:a:vendor:product:*:*:*",
-    "vulnerabilities": [
-      {
-        "cve": "CVE-123-123-123",
-        "details_link": "https://link.to.cve"
-      }
-    ]
-  }
+  ]
 }
 ```
 
@@ -787,18 +774,24 @@ The endpoint returns the host's installed `software` if the software inventory f
         "id": 1,
         "query_id": 2,
         "query_name": "SomeQuery",
+        "query_description": "this is a query",
+        "resolution": "fix with these steps...",
         "response": "pass"
       },
       {
         "id": 2,
         "query_id": 4,
         "query_name": "SomeQuery2",
+        "query_description": "this is another query",
+        "resolution": "fix with these other steps...",
         "response": "fail"
       },
       {
         "id": 3,
         "query_id": 255,
         "query_name": "SomeQuery3",
+        "query_description": "",
+        "resolution": "",
         "response": ""
       }
     ],
@@ -2317,7 +2310,14 @@ Returns a list of all queries in the Fleet instance.
         "platform": "",
         "disabled": true
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p_95": 3.00,
+      "total_executions": 3920
+    }
   },
   {
     "created_at": "2021-01-19T17:08:24Z",
@@ -3195,7 +3195,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3212,7 +3219,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -3244,7 +3258,7 @@ None.
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -3399,7 +3413,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "version": "",
       "removed": null,
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3416,7 +3437,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p_95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -6446,6 +6474,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
 

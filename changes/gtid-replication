@@ -1,0 +1,1 @@
+* Fix migration compatibility with MySQL GTID replication.

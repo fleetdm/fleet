@@ -262,7 +262,7 @@ The server name or IP address used by the client certificate.
 
   ```
   mysql:
-  	servername: 127.0.0.1
+  	server_name: 127.0.0.1
   ```
 
 ##### mysql_max_open_conns
@@ -305,6 +305,17 @@ Maximum amount of time, in seconds, a connection may be reused.
   ```
 
 #### Redis
+
+Note that a TLS connection to a Redis instance can be tested by running the
+`tlsconnect` Go program in `tools/redis-tests`, e.g. from the root of the repository:
+
+```
+$ go run ./tools/redis-tests/tlsconnect.go -addr <redis_address> -cacert <redis_tls_ca> -cert <redis_tls_cert> -key <redis_tls_key>
+# run `go run ./tools/redis-tests/tlsconnect.go -h` for the full list of supported flags
+```
+
+By default, this will setup a Redis pool for that configuration and execute a
+`PING` command with a TLS connection, printing any error it encounters.
 
 ##### redis_address
 
@@ -428,6 +439,124 @@ to Redis Cluster setups, ignored in standalone Redis.
   ```
   redis:
     cluster_read_from_replica: true
+  ```
+
+##### redis_tls_cert
+
+The path to a PEM-encoded certificate used for tls authentication.
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_TLS_CERT`
+- Config file format:
+
+  ```
+  redis:
+  	tls_cert: /path/to/certificate.pem
+  ```
+
+##### redis_tls_key
+
+The path to a PEM-encoded private key used for tls authentication.
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_TLS_KEY`
+- Config file format:
+
+  ```
+  redis:
+  	tls_key: /path/to/key.pem
+  ```
+
+##### redis_tls_ca
+
+The path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
+Required to use TLS connections.
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_TLS_CA`
+- Config file format:
+
+  ```
+  redis:
+  	tls_ca: /path/to/server-ca.pem
+  ```
+
+##### redis_tls_server_name
+
+The server name or IP address used by the client certificate.
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_TLS_SERVER_NAME`
+- Config file format:
+
+  ```
+  redis:
+  	server_name: 127.0.0.1
+  ```
+
+##### redis_tls_handshake_timeout
+
+The timeout for the Redis TLS handshake part of the connection. A value of 0 means no timeout.
+
+- Default value: 10s
+- Environment variable: `FLEET_REDIS_TLS_HANDSHAKE_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	tls_handshake_timeout: 10s
+  ```
+
+##### redis_max_idle_conns
+
+Maximum idle connections to Redis. This value should be equal to or less than `redis_max_open_conns`.
+
+- Default value: 3
+- Environment variable: `FLEET_REDIS_MAX_IDLE_CONNS`
+- Config file format:
+
+  ```
+  redis:
+  	max_idle_conns: 50
+  ```
+
+##### redis_max_open_conns
+
+Maximum open connections to Redis. A value of 0 means no limit.
+
+- Default value: 0
+- Environment variable: `FLEET_REDIS_MAX_OPEN_CONNS`
+- Config file format:
+
+  ```
+  redis:
+  	max_open_conns: 100
+  ```
+
+##### redis_conn_max_lifetime
+
+Maximum amount of time a Redis connection may be reused. A value of 0 means no limit.
+
+- Default value: 0 (Unlimited)
+- Environment variable: `FLEET_REDIS_CONN_MAX_LIFETIME`
+- Config file format:
+
+  ```
+  redis:
+  	conn_max_lifetime: 30m
+  ```
+
+##### redis_idle_timeout
+
+Maximum amount of time a Redis connection may stay idle. A value of 0 means no limit.
+
+- Default value: 240s
+- Environment variable: `FLEET_REDIS_IDLE_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	idle_timeout: 5m
   ```
 
 #### Server

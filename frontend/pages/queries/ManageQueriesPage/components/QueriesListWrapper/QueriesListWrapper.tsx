@@ -55,7 +55,7 @@ const QueriesListWrapper = ({
                 </p>
                 <p>
                   Create a new query, or go to GitHub to{" "}
-                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
+                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
                     import Fleet’s standard query library
                   </a>
                   .

@@ -281,7 +281,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		SeenTime:        time.Now(),
 		NodeKey:         t.Name() + "1",
 		UUID:            t.Name() + "1",
-		Hostname:        "foo.local",
+		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 	})
@@ -330,6 +330,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// ignoring other things like timestamps and things that are outside the cope of this ticket
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
+
+	lsReq := listSoftwareRequest{}
+	lsResp := listSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true")
+	assert.Len(t, lsResp.Software, 1)
+	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
