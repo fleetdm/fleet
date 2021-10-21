@@ -27,7 +27,7 @@ interface IFleetQueriesResponse {
   queries: IQuery[];
 }
 interface IQueryTableData extends IQuery {
-  platforms: string[];
+  platforms?: string[];
 }
 
 const PLATFORM_FILTER_OPTIONS = [
@@ -90,39 +90,41 @@ const ManageQueriesPage = (): JSX.Element => {
       // refetchOnReconnect: false,
       // refetchOnWindowFocus: false,
       select: (data: IFleetQueriesResponse) =>
-        data.queries.map((q) => {
-          return {
-            ...q,
-            platforms: getPlatforms(q.query),
-          };
-        }),
+        // data.queries.map((q) => {
+        //   return {
+        //     ...q,
+        //     platforms: getPlatforms(q.query),
+        //   };
+        // }),
+        data.queries,
       // TODO: Try moving queriesByPlatform into the select method
-      onSuccess: (queriesList) => {
-        setQueriesByPlatform(
-          queriesList.reduce(
-            (acc: Record<string, IQueryTableData[]>, q) => {
-              q.platforms.forEach((p) => acc[p]?.push(q));
-              return acc;
-            },
-            { darwin: [], linux: [], windows: [] }
-          )
-        );
-      },
+      // onSuccess: (queriesList) => {
+      //   setQueriesByPlatform(
+      //     queriesList.reduce(
+      //       (acc: Record<string, IQueryTableData[]>, q) => {
+      //         q.platforms.forEach((p) => acc[p]?.push(q));
+      //         return acc;
+      //       },
+      //       { darwin: [], linux: [], windows: [] }
+      //     )
+      //   );
+      // },
     }
   );
 
   useEffect(() => {
-    let queriesList =
-      selectedPlatform !== "all"
-        ? queriesByPlatform[selectedPlatform]
-        : fleetQueries || [];
+    let queriesList = fleetQueries;
+    // selectedPlatform !== "all"
+    //   ? queriesByPlatform[selectedPlatform]
+    //   : fleetQueries || [];
     if (searchString) {
-      queriesList = queriesList.filter((q) =>
+      queriesList = queriesList?.filter((q) =>
         q.name.toLowerCase().includes(searchString.toLowerCase())
       );
     }
-    setFilteredQueries(queriesList);
-  }, [fleetQueries, queriesByPlatform, searchString, selectedPlatform]);
+    setFilteredQueries(queriesList || []);
+    // }, [fleetQueries, queriesByPlatform, searchString, selectedPlatform]);
+  }, [fleetQueries, searchString]);
 
   const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
 
@@ -181,19 +183,19 @@ const ManageQueriesPage = (): JSX.Element => {
       });
   }, [dispatch, selectedQueryIds]);
 
-  const renderPlatformDropdown = () => {
-    return fleetQueries?.length ? (
-      <Dropdown
-        value={selectedPlatform}
-        className={`${baseClass}__platform_dropdown`}
-        options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
-        onChange={setSelectedPlatform}
-      />
-    ) : (
-      <></>
-    );
-  };
+  // const renderPlatformDropdown = () => {
+  //   return fleetQueries?.length ? (
+  //     <Dropdown
+  //       value={selectedPlatform}
+  //       className={`${baseClass}__platform_dropdown`}
+  //       options={PLATFORM_FILTER_OPTIONS}
+  //       searchable={false}
+  //       onChange={setSelectedPlatform}
+  //     />
+  //   ) : (
+  //     <></>
+  //   );
+  // };
 
   return (
     <div className={baseClass}>
@@ -235,7 +237,7 @@ const ManageQueriesPage = (): JSX.Element => {
               onRemoveQueryClick={onRemoveQueryClick}
               searchable={!!fleetQueries?.length}
               onSearchChange={setSearchString}
-              customControl={renderPlatformDropdown}
+              // customControl={renderPlatformDropdown}
             />
           )}
         </div>

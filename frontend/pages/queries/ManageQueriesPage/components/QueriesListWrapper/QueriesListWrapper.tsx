@@ -13,7 +13,7 @@ import generateTableHeaders from "./QueriesTableConfig";
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
 interface IQueryTableData extends IQuery {
-  platforms: string[];
+  platforms?: string[];
 }
 interface IQueriesListWrapperProps {
   queriesList: IQueryTableData[];
@@ -22,7 +22,7 @@ interface IQueriesListWrapperProps {
   onCreateQueryClick: () => void;
   searchable: boolean;
   onSearchChange: (searchString: string) => void;
-  customControl: () => JSX.Element;
+  customControl?: () => JSX.Element;
 }
 
 const QueriesListWrapper = ({
