@@ -938,7 +938,7 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 			ELSE '' 
 		END AS response,
 		q.description,
-		p.resolution
+		coalesce(p.resolution, '') as resolution
 	FROM (
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
