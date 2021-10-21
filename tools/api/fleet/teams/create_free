@@ -13,7 +13,8 @@ data='{
   "email": "anna@organization.com",
   "password": "user123#",
   "invited_by": 1,
-  "global_role": "admin"
+  "global_role": "admin",
+  "admin_forced_password_reset": false
 }'
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
 
@@ -23,7 +24,8 @@ data='{
   "email": "mary@organization.com",
   "password": "user123#",
   "invited_by": 1,
-  "global_role": "maintainer"
+  "global_role": "maintainer",
+  "admin_forced_password_reset": false
 }'
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
 
@@ -33,6 +35,7 @@ data='{
   "email": "oliver@organization.com",
   "password": "user123#",
   "invited_by": 1,
-  "global_role": "observer"
+  "global_role": "observer",
+  "admin_forced_password_reset": false
 }'
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
