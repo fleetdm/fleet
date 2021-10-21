@@ -4,9 +4,9 @@ import { reduce } from "lodash";
 import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
-import WindowsIcon from "../../../../assets/images/icon-windows-48x48@2x.png";
-import LinuxIcon from "../../../../assets/images/icon-linux-48x48@2x.png";
-import MacIcon from "../../../../assets/images/icon-mac-48x48@2x.png";
+import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
+import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
+import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
 
 const baseClass = "hosts-summary";
 

@@ -15,7 +15,7 @@ type InitialStateType = {
   currentUser: IUser | null;
   currentTeam: ITeam | undefined;
   enrollSecret: IEnrollSecret[] | null;
-  isPreview: boolean | undefined;
+  isPreviewMode: boolean | undefined;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -36,7 +36,7 @@ const initialState = {
   currentUser: null,
   currentTeam: undefined,
   enrollSecret: null,
-  isPreview: false,
+  isPreviewMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -127,7 +127,7 @@ const AppProvider = ({ children }: Props) => {
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
-    isPreview: detectPreview(),
+    isPreviewMode: detectPreview(),
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,

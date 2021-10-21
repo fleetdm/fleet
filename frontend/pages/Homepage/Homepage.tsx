@@ -11,10 +11,12 @@ import { ISoftware } from "interfaces/software";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Button from "components/buttons/Button";
-import HostsSummary from "./HostsSummary";
-import ActivityFeed from "./ActivityFeed";
+import InfoCard from "./components/InfoCard";
+import HostsSummary from "./cards/HostsSummary";
+import ActivityFeed from "./cards/ActivityFeed";
+import Software from "./cards/Software";
+import LearnFleet from "./cards/LearnFleet";
 import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
-import Software from "./Software";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -24,9 +26,13 @@ const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const { config, currentTeam, isPremiumTier, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const { 
+    config, 
+    currentTeam, 
+    isPremiumTier, 
+    isPreviewMode,
+    setCurrentTeam,
+  } = useContext(AppContext);
 
   const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(
     false
@@ -46,7 +52,7 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam(selectedTeam);
   };
 
-  const canSeeActivity = !isPremiumTier || !currentTeam;
+  const canSeeActivity = !isPreviewMode && (!isPremiumTier || !currentTeam);
 
   return (
     <div className={baseClass}>
@@ -69,25 +75,28 @@ const Homepage = (): JSX.Element => {
         </div>
       </div>
       <div className={`${baseClass}__section one-column`}>
-        <div className={`${baseClass}__info-card`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>Hosts</h2>
-            <Link to={MANAGE_HOSTS} className={`${baseClass}__action-button`}>
-              <span>View all hosts</span>
-              <img src={LinkArrow} alt="link arrow" id="link-arrow" />
-            </Link>
-          </div>
+        <InfoCard
+          title="Hosts"
+          action={{ type: "link", to: MANAGE_HOSTS, text: "View all hosts" }}
+        >
           <HostsSummary />
-        </div>
+        </InfoCard>
       </div>
+      {!isPreviewMode && (
+        <div className={`${baseClass}__section two-column`}>
+          <InfoCard title="Welcome to Fleet">
+            <LearnFleet />
+          </InfoCard>
+          <InfoCard title="Learn how to use Fleet">
+            <ActivityFeed />
+          </InfoCard>
+        </div>
+      )}
       {canSeeActivity && (
         <div className={`${baseClass}__section one-column`}>
-          <div className={`${baseClass}__info-card`}>
-            <div className={`${baseClass}__section-title`}>
-              <h2>Activity</h2>
-            </div>
+          <InfoCard title="Activity">
             <ActivityFeed />
-          </div>
+          </InfoCard>
         </div>
       )}
       {/* TODO: Re-add this commented out section once the /software API is running */}
@@ -96,32 +105,23 @@ const Homepage = (): JSX.Element => {
         ${currentTeam ? 'one' : 'two'}-column
       `}>
         {!currentTeam && (
-          <div className={`${baseClass}__info-card`}>
-            <div className={`${baseClass}__section-title`}>
-              <h2>Software</h2>
-              <Button
-                className={`${baseClass}__action-button`}
-                variant="text-link"
-                onClick={() => setIsSoftwareModalOpen(true)}
-              >
-                <>
-                  <span>View all software</span>
-                  <img src={LinkArrow} alt="link arrow" id="link-arrow" />
-                </>
-              </Button>
-            </div>
+          <InfoCard 
+            title="Software"
+            action={{ 
+              type: button, 
+              text: "View all software", 
+              onClick: () => setIsSoftwareModalOpen(true)
+            }}
+          >
             <Software
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
             />
-          </div>
+          </InfoCard>
         )}
-        <div className={`${baseClass}__info-card`}>
-          <div className={`${baseClass}__section-title`}>
-            <h2>Activity</h2>
-          </div>
+        <InfoCard title="Activity">
           <ActivityFeed />
-        </div>
+        </InfoCard>
       </div> */}
     </div>
   );
