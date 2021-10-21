@@ -32,16 +32,20 @@ const PlatformCell = ({
   );
   return (
     <span>
-      {orderedList.map((platform) => {
-        return ICONS[platform] ? (
-          <img
-            className={`${baseClass}__icon`}
-            key={`platform-icon-${platform}`}
-            alt={platform}
-            src={ICONS[platform]}
-          />
-        ) : null;
-      })}
+      {orderedList.length ? (
+        orderedList.map((platform) => {
+          return ICONS[platform] ? (
+            <img
+              className={`${baseClass}__icon`}
+              key={`platform-icon-${platform}`}
+              alt={platform}
+              src={ICONS[platform]}
+            />
+          ) : null;
+        })
+      ) : (
+        <span className={`${baseClass}__muted`}>---</span>
+      )}
     </span>
   );
 };

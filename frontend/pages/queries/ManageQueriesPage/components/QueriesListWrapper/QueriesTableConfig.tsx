@@ -3,11 +3,8 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import ReactTooltip from "react-tooltip";
-
 import format from "date-fns/format";
-import { memoize } from "lodash";
-// @ts-ignore
-import sqlTools from "utilities/sql_tools";
+
 import permissionsUtils from "utilities/permissions";
 
 // @ts-ignore
@@ -61,8 +58,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const memoizedSqlTables = memoize(sqlTools.parseSqlTables);
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
@@ -91,13 +86,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       title: "Platform",
       Header: "Platform",
       disableSortBy: true,
-      accessor: "query",
+      accessor: "platforms",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const platforms = sqlTools.listCompatiblePlatforms(
-          memoizedSqlTables(cellProps.cell.value)
-        );
-
-        return <PlatformCell value={platforms} />;
+        return <PlatformCell value={cellProps.cell.value} />;
       },
     },
     {

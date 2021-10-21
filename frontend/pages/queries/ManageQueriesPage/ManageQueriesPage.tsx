@@ -73,6 +73,9 @@ const ManageQueriesPage = (): JSX.Element => {
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+  const [queriesByPlatform, setQueriesByPlatform] = useState<
+    Record<string, IQueryTableData[]>
+  >({ darwin: [], linux: [], windows: [] });
 
   const {
     data: fleetQueries,
@@ -93,23 +96,33 @@ const ManageQueriesPage = (): JSX.Element => {
             platforms: getPlatforms(q.query),
           };
         }),
+      // TODO: Try moving queriesByPlatform into the select method
+      onSuccess: (queriesList) => {
+        setQueriesByPlatform(
+          queriesList.reduce(
+            (acc: Record<string, IQueryTableData[]>, q) => {
+              q.platforms.forEach((p) => acc[p]?.push(q));
+              return acc;
+            },
+            { darwin: [], linux: [], windows: [] }
+          )
+        );
+      },
     }
   );
 
   useEffect(() => {
-    let queriesList = fleetQueries || [];
-    if (selectedPlatform !== "all") {
-      queriesList = queriesList.filter((q) =>
-        q.platforms.includes(selectedPlatform)
-      );
-    }
+    let queriesList =
+      selectedPlatform !== "all"
+        ? queriesByPlatform[selectedPlatform]
+        : fleetQueries || [];
     if (searchString) {
       queriesList = queriesList.filter((q) =>
         q.name.toLowerCase().includes(searchString.toLowerCase())
       );
     }
     setFilteredQueries(queriesList);
-  }, [fleetQueries, searchString, selectedPlatform]);
+  }, [fleetQueries, queriesByPlatform, searchString, selectedPlatform]);
 
   const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
 
