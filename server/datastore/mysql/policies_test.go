@@ -305,9 +305,17 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(
 		context.Background(), host2, map[uint]*bool{gp.ID: nil}, time.Now()))
 
+	// insert a null resolution
+	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (query_id) VALUES (?)`, q.ID)
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(
+		context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now()))
+
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 1)
+	require.Len(t, policies, 2)
 
 	assert.Equal(t, "query1 desc", policies[0].QueryDescription)
 	assert.Equal(t, "some gp resolution", policies[0].Resolution)
