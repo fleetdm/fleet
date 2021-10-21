@@ -71,6 +71,7 @@ describe(
 
       cy.visit("/hosts/manage");
 
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(3000);
 
       cy.get("tbody").within(() => {
@@ -114,6 +115,7 @@ describe(
 
       cy.visit("/hosts/manage");
 
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(3000);
       cy.get("@hostLink")
         // Set hostname variable for later assertions
