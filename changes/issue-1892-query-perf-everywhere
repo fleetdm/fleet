@@ -1,1 +1,2 @@
-* Add performance statistics to queries and scheduled queries.
+* Add performance statistics to queries and scheduled queries on backend.
+* Add performance impact column to UI: host details packs tables, schedule tables, edit pack query table, and manage queries table
