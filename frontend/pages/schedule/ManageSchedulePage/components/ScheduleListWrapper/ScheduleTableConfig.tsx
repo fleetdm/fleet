@@ -143,6 +143,13 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
+    {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+    },
   ];
 };
 
