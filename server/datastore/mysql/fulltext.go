@@ -10,11 +10,9 @@ var mysqlFTSSymbolRegexp = regexp.MustCompile("[-+]+")
 // queryMinLength returns true if the query argument is longer than a "short" word.
 // What defines a "short" word is MySQL's "ft_min_word_len" VARIABLE, generally set
 // to 4 by default in Fleet deployments.
+//
+// TODO(lucas): Remove this method on #2627.
 func queryMinLength(query string) bool {
-	// TODO(lucas): Change to 4 (on a separate ticket/PR).
-	// There's currently no bug because we always append the truncation operation "*".
-	// From Oracle docs: "If a word is specified with the truncation operator, it is not
-	// stripped from a boolean query, even if it is too short or a stopword."
 	return countLongestTerm(query) >= 3
 }
 
