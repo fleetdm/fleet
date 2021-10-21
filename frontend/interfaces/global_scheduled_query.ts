@@ -1,5 +1,9 @@
 import PropTypes from "prop-types";
 
+import scheduledQueryStatsInterface, {
+  IScheduledQueryStats,
+} from "./scheduled_query_stats";
+
 export default PropTypes.shape({
   created_at: PropTypes.string,
   updated_at: PropTypes.string,
@@ -16,11 +20,7 @@ export default PropTypes.shape({
   version: PropTypes.string,
   shard: PropTypes.number,
   denylist: PropTypes.bool,
-  scheduled_query_stats: PropTypes.shape({
-    total_user_time: PropTypes.number,
-    total_system_time: PropTypes.number,
-    executions: PropTypes.number,
-  }),
+  stats: scheduledQueryStatsInterface,
 });
 
 export interface IGlobalScheduledQuery {
@@ -39,9 +39,5 @@ export interface IGlobalScheduledQuery {
   version?: string;
   shard?: number;
   denylist?: boolean;
-  scheduled_query_stats: {
-    total_user_time: number;
-    total_system_time: number;
-    executions: number;
-  };
+  stats?: IScheduledQueryStats;
 }

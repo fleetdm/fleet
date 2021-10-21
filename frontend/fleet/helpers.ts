@@ -18,6 +18,7 @@ import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -594,22 +595,23 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
 };
 
 // IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
-export const performanceIndicator = (scheduledQuery: any): string => {
-  if (scheduledQuery.executions === 0) {
+export const performanceIndicator = (
+  scheduledQueryStats: IScheduledQueryStats
+): string => {
+  if (
+    scheduledQueryStats.total_executions === 0 ||
+    scheduledQueryStats.total_executions === null
+  ) {
     return "Undetermined";
-  }
-  if (scheduledQuery.denylisted === true) {
-    return "Denylisted";
   }
 
   const indicator =
-    (scheduledQuery.user_time + scheduledQuery.system_time) /
-    scheduledQuery.executions;
+    scheduledQueryStats.p50_user_time + scheduledQueryStats.p50_system_time;
 
   if (indicator < 2000) {
     return "Minimal";
   }
-  if (indicator >= 2000 && indicator <= 4000) {
+  if (indicator >= 2000 && indicator < 4000) {
     return "Considerable";
   }
   return "Excessive";
