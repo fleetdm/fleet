@@ -598,7 +598,7 @@ export const performanceIndicator = (
 
   if (
     scheduledQueryStats.total_executions === 0 ||
-    scheduledQueryStats.total_executions === undefined
+    scheduledQueryStats.total_executions === null
   ) {
     return "Undetermined";
   }
