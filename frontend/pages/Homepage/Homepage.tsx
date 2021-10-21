@@ -85,10 +85,10 @@ const Homepage = (): JSX.Element => {
       {!isPreviewMode && (
         <div className={`${baseClass}__section two-column`}>
           <InfoCard title="Welcome to Fleet">
-            <LearnFleet />
+            <ActivityFeed />
           </InfoCard>
           <InfoCard title="Learn how to use Fleet">
-            <ActivityFeed />
+            <LearnFleet />
           </InfoCard>
         </div>
       )}
