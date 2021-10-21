@@ -1,4 +1,7 @@
 import PropTypes from "prop-types";
+import scheduledQueryStatsInterface, {
+  IScheduledQueryStats,
+} from "./scheduled_query_stats";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -16,13 +19,7 @@ export default PropTypes.shape({
   version: PropTypes.string,
   shard: PropTypes.number,
   denylist: PropTypes.bool,
-  stats: PropTypes.shape({
-    p50_user_time: PropTypes.number,
-    p95_user_time: PropTypes.number,
-    p50_system_time: PropTypes.number,
-    p95_system_time: PropTypes.number,
-    total_executions: PropTypes.number,
-  }),
+  stats: scheduledQueryStatsInterface,
 });
 
 export interface IPackQueryFormData {
@@ -55,9 +52,5 @@ export interface IScheduledQuery {
   shard: number | null;
   denylist?: boolean;
   logging_type?: string;
-  stats: {
-    total_user_time: number;
-    total_system_time: number;
-    executions: number;
-  };
+  stats: IScheduledQueryStats;
 }

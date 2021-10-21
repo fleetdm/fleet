@@ -169,11 +169,9 @@ const enhanceAllScheduledQueryData = (
   return all_scheduled_queries.map(
     (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
       const scheduledQueryPerformance = {
-        denylisted: all_scheduled_query.denylist,
-        user_time: all_scheduled_query.scheduled_query_stats.total_user_time,
-        system_time:
-          all_scheduled_query.scheduled_query_stats.total_system_time,
-        executions: all_scheduled_query.scheduled_query_stats.executions,
+        p50_user_time: all_scheduled_query.stats?.p50_user_time,
+        p50_system_time: all_scheduled_query.stats?.p50_system_time,
+        total_executions: all_scheduled_query.stats?.total_executions,
       };
       return {
         name: all_scheduled_query.name,

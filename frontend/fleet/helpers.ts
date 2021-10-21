@@ -605,14 +605,19 @@ export const performanceIndicator = (
     return "Undetermined";
   }
 
-  const indicator =
-    scheduledQueryStats.p50_user_time + scheduledQueryStats.p50_system_time;
+  if (
+    scheduledQueryStats.p50_user_time &&
+    scheduledQueryStats.p50_system_time
+  ) {
+    const indicator =
+      scheduledQueryStats.p50_user_time + scheduledQueryStats.p50_system_time;
 
-  if (indicator < 2000) {
-    return "Minimal";
-  }
-  if (indicator >= 2000 && indicator < 4000) {
-    return "Considerable";
+    if (indicator < 2000) {
+      return "Minimal";
+    }
+    if (indicator >= 2000 && indicator < 4000) {
+      return "Considerable";
+    }
   }
   return "Excessive";
 };

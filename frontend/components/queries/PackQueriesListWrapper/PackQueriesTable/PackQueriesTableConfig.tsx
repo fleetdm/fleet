@@ -4,6 +4,7 @@
 import React from "react";
 import { find } from "lodash";
 
+import { performanceIndicator } from "fleet/helpers";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -200,6 +201,11 @@ const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
   return packQueries.map((query) => {
+    const scheduledQueryPerformance = {
+      p50_user_time: query.stats?.p50_user_time,
+      p50_system_time: query.stats?.p50_system_time,
+      total_executions: query.stats?.total_executions,
+    };
     return {
       id: query.id,
       name: query.name,
@@ -222,6 +228,11 @@ const enhancePackQueriesData = (
       updated_at: query.updated_at,
       query_name: query.query_name,
       actions: generateActionDropdownOptions(),
+      performance: [
+        performanceIndicator(scheduledQueryPerformance),
+        query.query_id,
+      ],
+      stats: query.stats,
     };
   });
 };
