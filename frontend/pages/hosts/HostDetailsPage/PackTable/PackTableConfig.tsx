@@ -94,9 +94,9 @@ const generatePackTableHeaders = (): IDataColumn[] => {
 const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
   return Object.values(query_stats).map((query) => {
     const scheduledQueryPerformance = {
-      p50_user_time: query.stats?.p50_user_time,
-      p50_system_time: query.stats?.p50_system_time,
-      total_executions: query.stats?.total_executions,
+      p50_user_time: query.user_time,
+      p50_system_time: query.system_time,
+      total_executions: query.executions,
     };
     return {
       scheduled_query_name: query.scheduled_query_name,

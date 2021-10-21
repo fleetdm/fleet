@@ -234,8 +234,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
 
 const enhanceQueryData = (queries: IQuery[]): IQueryTableData[] => {
   return queries.map((query: IQuery) => {
-    console.log("query", query);
-
     const scheduledQueryPerformance = {
       p50_user_time: query.stats?.p50_user_time,
       p50_system_time: query.stats?.p50_system_time,

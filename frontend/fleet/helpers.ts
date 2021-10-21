@@ -594,9 +594,8 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {
-  console.log("scheduledQueryStats", scheduledQueryStats);
-
   if (
+    !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
     scheduledQueryStats.total_executions === null
   ) {
@@ -604,8 +603,8 @@ export const performanceIndicator = (
   }
 
   if (
-    scheduledQueryStats.p50_user_time &&
-    scheduledQueryStats.p50_system_time
+    typeof scheduledQueryStats.p50_user_time === "number" &&
+    typeof scheduledQueryStats.p50_system_time === "number"
   ) {
     const indicator =
       scheduledQueryStats.p50_user_time + scheduledQueryStats.p50_system_time;
@@ -613,7 +612,7 @@ export const performanceIndicator = (
     if (indicator < 2000) {
       return "Minimal";
     }
-    if (indicator >= 2000 && indicator < 4000) {
+    if (indicator < 4000) {
       return "Considerable";
     }
   }
