@@ -537,32 +537,6 @@
       width: 192px;
     }
 
-    .data-table__pill--undetermined {
-      color: $ui-fleet-black-50;
-      font-style: italic;
-      font-weight: 400;
-      padding: 0;
-      border-radius: 0;
-    }
-
-    .data-table__pill--denylisted {
-      font-weight: 400;
-      padding: 0;
-      border-radius: 0;
-    }
-
-    .data-table__pill--minimal {
-      background-color: $ui-vibrant-blue-10;
-    }
-
-    .data-table__pill--considerable {
-      background-color: $ui-vibrant-blue-25;
-    }
-
-    .data-table__pill--excessive {
-      background-color: $ui-vibrant-blue-50;
-    }
-
     .data-table__table {
       table-layout: fixed;
 

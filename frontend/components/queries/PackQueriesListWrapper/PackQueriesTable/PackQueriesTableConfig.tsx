@@ -6,9 +6,10 @@ import { find } from "lodash";
 
 import { performanceIndicator } from "fleet/helpers";
 import Checkbox from "components/forms/fields/Checkbox";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -108,6 +109,13 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "loggingTypeString",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
     },
     {
       title: "Actions",

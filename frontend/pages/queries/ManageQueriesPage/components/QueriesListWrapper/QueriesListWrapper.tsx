@@ -107,7 +107,7 @@ const QueriesListWrapper = (
     );
   }, [searchString, onCreateQueryClick]);
 
-  const tableHeaders = generateTableHeaders(isOnlyObserver);
+  const tableHeaders = generateTableHeaders(currentUser);
   const dataSet = generateDataSet(filteredQueries);
 
   return !isLoading ? (

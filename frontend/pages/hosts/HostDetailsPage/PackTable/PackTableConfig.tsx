@@ -93,6 +93,11 @@ const generatePackTableHeaders = (): IDataColumn[] => {
 
 const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
   return Object.values(query_stats).map((query) => {
+    const scheduledQueryPerformance = {
+      p50_user_time: query.stats?.p50_user_time,
+      p50_system_time: query.stats?.p50_system_time,
+      total_executions: query.stats?.total_executions,
+    };
     return {
       scheduled_query_name: query.scheduled_query_name,
       scheduled_query_id: query.scheduled_query_id,
@@ -104,7 +109,10 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
-      performance: [performanceIndicator(query), query.scheduled_query_id],
+      performance: [
+        performanceIndicator(scheduledQueryPerformance),
+        query.scheduled_query_id,
+      ],
       average_memory: query.average_memory,
       denylisted: query.denylisted,
       executions: query.executions,

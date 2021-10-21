@@ -29,8 +29,6 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
         return false;
       case "Excessive":
         return false;
-      case "Denylisted":
-        return false;
       default:
         return true;
     }
@@ -92,7 +90,7 @@ const PillCell = (props: IPillCellProps): JSX.Element => {
       >
         <span
           className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
-          style={{ width: "196px" }}
+          style={{ textAlign: "center" }}
         >
           {tooltipText()}
         </span>

@@ -6,14 +6,10 @@ import yaml from "js-yaml";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import {
-  IPackQueryFormData,
-  IScheduledQuery,
-} from "interfaces/scheduled_query";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
-import { IQueryStats } from "interfaces/query_stats";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
@@ -598,9 +594,11 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {
+  console.log("scheduledQueryStats", scheduledQueryStats);
+
   if (
     scheduledQueryStats.total_executions === 0 ||
-    scheduledQueryStats.total_executions === null
+    scheduledQueryStats.total_executions === undefined
   ) {
     return "Undetermined";
   }

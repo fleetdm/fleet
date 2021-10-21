@@ -234,11 +234,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
 
 const enhanceQueryData = (queries: IQuery[]): IQueryTableData[] => {
   return queries.map((query: IQuery) => {
+    console.log("query", query);
+
     const scheduledQueryPerformance = {
-      denylisted: false, // denylist is only on scheduled queries
-      user_time: query.scheduled_query_stats.total_user_time,
-      system_time: query.scheduled_query_stats.total_system_time,
-      executions: query.scheduled_query_stats.executions,
+      p50_user_time: query.stats?.p50_user_time,
+      p50_system_time: query.stats?.p50_system_time,
+      total_executions: query.stats?.total_executions,
     };
     return {
       name: query.name,
