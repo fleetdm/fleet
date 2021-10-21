@@ -1,9 +1,10 @@
 <div id="get-started">
   <div style="max-width: 800px; padding-top: 80px; padding-bottom: 80px;" class="container-fluid px-3">
     <h1 class="pb-4 m-0">Get started</h1>
+    <p>Try out a preview of Fleet and osquery on your laptop before deploying at scale.</p>
     <div class="pt-3 pb-4">
-      <h2 class="mb-3">1. Install Node and Docker</h2>
-      <p>If you don't have them already, you can install Node.js and Docker to run Fleet on your laptop.</p>
+      <h2 class="mb-3">1. Install Node and Docker (optional)</h2>
+      <p>The quickest way to install Fleet is with Node.js and Docker.</p>
       <div class="d-sm-flex">
         <a href="https://nodejs.org/en/download/" target="_blank" class="d-flex btn btn-md btn-node justify-content-center align-items-center mr-sm-3">
           <img class="pr-3" alt="NodeJS logo" src="/images/logo-node-59x36@2x.png"/>
@@ -14,13 +15,14 @@
           Get Docker
         </a>
       </div>
+      <p class="pt-4"><img alt="A small circle with an I inside of it" style="width: 16px; display: inline; margin-right: 8px; margin-bottom: 3px" src="/images/info-16x16@2x.png">We use NPM to install <code>fleetctl</code>. It can also be installed via the <a href="https://github.com/fleetdm/fleet/releases" target="_blank">release page</a> or <a href="/docs/contributing/building-fleet" target="_blank">built from source</a>.</p>
     </div>
-    <div class="pt-3">
+    <div>
       <h2 class="pt-3 mb-3">2. Install Fleet</h2>
       <p>To install Fleet:</p>
       <div class="muted">
         <p class="comment"># Install the Fleet command-line tool</p>
-        <p class="command">npm install -g fleetctl</p>
+        <p class="command">sudo npm install -g fleetctl</p>
         <p class="comment"># Run a local demo of the Fleet server</p>
         <p class="command">sudo fleetctl preview</p>
       </div>
