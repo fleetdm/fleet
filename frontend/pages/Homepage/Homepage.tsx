@@ -16,6 +16,7 @@ import HostsSummary from "./cards/HostsSummary";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
+import WelcomeHost from "./cards/WelcomeHost";
 import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 interface ITeamsResponse {
@@ -85,7 +86,7 @@ const Homepage = (): JSX.Element => {
       {!isPreviewMode && (
         <div className={`${baseClass}__section two-column`}>
           <InfoCard title="Welcome to Fleet">
-            <ActivityFeed />
+            <WelcomeHost />
           </InfoCard>
           <InfoCard title="Learn how to use Fleet">
             <LearnFleet />
