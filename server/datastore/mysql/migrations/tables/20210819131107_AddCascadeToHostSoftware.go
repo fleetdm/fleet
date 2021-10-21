@@ -45,12 +45,12 @@ func Up_20210819131107(tx *sql.Tx) error {
 		return errors.Wrap(err, "add fk on host_software hosts & software")
 	}
 
-	_, err = tx.Exec(`INSERT IGNORE INTO temp_host_software SELECT * FROM host_software;`)
+	_, err = tx.Exec(`INSERT IGNORE INTO temp_host_software SELECT * FROM host_software`)
 	if err != nil {
 		return errors.Wrap(err, "reinsert host software")
 	}
 
-	_, err = tx.Exec(`DROP TABLE host_software;`)
+	_, err = tx.Exec(`DROP TABLE IF EXISTS host_software`)
 	if err != nil {
 		return errors.Wrap(err, "clear all host software")
 	}
