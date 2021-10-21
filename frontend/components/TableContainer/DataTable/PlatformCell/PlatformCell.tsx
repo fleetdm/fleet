@@ -19,9 +19,9 @@ const DISPLAY_ORDER = [
   "darwin",
   "linux",
   "windows",
-  "freebsd",
-  "None",
-  "Invalid query",
+  // "freebsd",
+  // "None",
+  // "Invalid query",
 ];
 
 const PlatformCell = ({
@@ -40,9 +40,7 @@ const PlatformCell = ({
             alt={platform}
             src={ICONS[platform]}
           />
-        ) : (
-          platform
-        );
+        ) : null;
       })}
     </span>
   );
