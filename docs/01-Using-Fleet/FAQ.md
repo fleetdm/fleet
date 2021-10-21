@@ -15,6 +15,7 @@
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
+- [How do I detect vulnerabilities with Fleet?](#how-do-i-detect-vulnerabilities-with-fleet)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -145,3 +146,9 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
 Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
+
+## How do I detect vulnerabilities with Fleet??
+
+Fleet's CVE detection is currently in beta and disabled by default.
+You can find more information about this feature and how to enable it in our [vulnerability processing documentation](./13-vulnerability-processing.md#setup).
+When enabled this feature will surface any CVE detections found in the software section of the host details page in Fleet. More features, including sorting by detected CVEs are planned for a future release of Fleet. 
