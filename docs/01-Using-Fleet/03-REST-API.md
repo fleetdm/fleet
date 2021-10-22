@@ -2317,7 +2317,7 @@ Returns a list of all queries in the Fleet instance.
       "system_time_p50": 1.32,
       "system_time_p95": 4.02,
       "user_time_p50": 3.55,
-      "user_time_p_95": 3.00,
+      "user_time_p95": 3.00,
       "total_executions": 3920
     }
   },
@@ -3202,7 +3202,7 @@ None.
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
         "user_time_p50": 3.55,
-        "user_time_p_95": 3.00,
+        "user_time_p95": 3.00,
         "total_executions": 3920
       }
     },
@@ -3226,7 +3226,7 @@ None.
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
         "user_time_p50": 3.55,
-        "user_time_p_95": 3.00,
+        "user_time_p95": 3.00,
         "total_executions": 3920
       }
     }
@@ -3420,7 +3420,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
         "user_time_p50": 3.55,
-        "user_time_p_95": 3.00,
+        "user_time_p95": 3.00,
         "total_executions": 3920
       }
     },
@@ -3444,7 +3444,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
         "user_time_p50": 3.55,
-        "user_time_p_95": 3.00,
+        "user_time_p95": 3.00,
         "total_executions": 3920
       }
     }
