@@ -1,4 +1,12 @@
-import { isEqual } from "lodash";
+import {
+  isEmpty,
+  isEqual,
+  isPlainObject,
+  isString,
+  reduce,
+  trim,
+  union,
+} from "lodash";
 
 import { IInvite } from "interfaces/invite";
 import { IUser, IUserUpdateBody } from "interfaces/user";
@@ -8,6 +16,12 @@ type ICurrentUserData = Pick<
   IUser,
   "global_role" | "teams" | "name" | "email" | "sso_enabled"
 >;
+
+interface ILocationParams {
+  pathPrefix?: string;
+  routeTemplate?: string;
+  routeParams?: { [key: string]: any };
+}
 
 /**
  * Helper function that will compare the current user with data from the editing
@@ -49,6 +63,36 @@ const generateUpdateData = (
   );
 };
 
+export const getNextLocationPath = ({
+  pathPrefix = "",
+  routeTemplate = "",
+  routeParams = {},
+}: ILocationParams): string => {
+  const pathPrefixFinal = isString(pathPrefix) ? pathPrefix : "";
+  const routeTemplateFinal = (isString(routeTemplate) && routeTemplate) || "";
+  const routeParamsFinal = isPlainObject(routeParams) ? routeParams : {};
+
+  let routeString = "";
+
+  if (!isEmpty(routeParamsFinal)) {
+    routeString = reduce(
+      routeParamsFinal,
+      (string, value, key) => {
+        return string.replace(`:${key}`, encodeURIComponent(value));
+      },
+      routeTemplateFinal
+    );
+  }
+
+  const nextLocation = union(
+    trim(pathPrefixFinal, "/").split("/"),
+    routeString.split("/")
+  ).join("/");
+
+  return `/${nextLocation}`;
+};
+
 export default {
   generateUpdateData,
+  getNextLocationPath,
 };

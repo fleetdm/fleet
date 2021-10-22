@@ -8,7 +8,7 @@ import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
-interface IAuthAnyMaintainerGlobalAdminRoutesProps {
+interface IAuthAnyAdminRoutesProps {
   children: JSX.Element;
 }
 
@@ -21,11 +21,13 @@ interface IRootState {
 const { HOME } = paths;
 
 /**
- * Checks if a user is a global admin or global maintainer when routing
+ * Checks if a user is any admin when routing
  */
-const AuthAnyMaintainerGlobalAdminRoutes = ({
-  children,
-}: IAuthAnyMaintainerGlobalAdminRoutesProps): JSX.Element | null => {
+const AuthAnyAdminRoutes = (
+  props: IAuthAnyAdminRoutesProps
+): JSX.Element | null => {
+  const { children } = props;
+
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
 
@@ -35,8 +37,7 @@ const AuthAnyMaintainerGlobalAdminRoutes = ({
 
   if (
     !permissionUtils.isGlobalAdmin(user) &&
-    !permissionUtils.isGlobalMaintainer(user) &&
-    !permissionUtils.isAnyTeamMaintainer(user)
+    !permissionUtils.isAnyTeamAdmin(user)
   ) {
     dispatch(push(HOME));
     dispatch(renderFlash("error", "You do not have permissions for that page"));
@@ -45,4 +46,4 @@ const AuthAnyMaintainerGlobalAdminRoutes = ({
   return <>{children}</>;
 };
 
-export default AuthAnyMaintainerGlobalAdminRoutes;
+export default AuthAnyAdminRoutes;

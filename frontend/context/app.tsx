@@ -23,6 +23,8 @@ type InitialStateType = {
   isOnGlobalTeam: boolean | undefined;
   isAnyTeamMaintainer: boolean | undefined;
   isTeamMaintainer: boolean | undefined;
+  isAnyTeamAdmin: boolean | undefined;
+  isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeam | undefined) => void;
@@ -43,6 +45,8 @@ const initialState = {
   isOnGlobalTeam: undefined,
   isAnyTeamMaintainer: undefined,
   isTeamMaintainer: undefined,
+  isAnyTeamAdmin: undefined,
+  isTeamAdmin: undefined,
   isOnlyObserver: undefined,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -129,6 +133,8 @@ const AppProvider = ({ children }: Props) => {
     isOnGlobalTeam: state.isOnGlobalTeam,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
     isTeamMaintainer: state.isTeamMaintainer,
+    isTeamAdmin: state.isTeamAdmin,
+    isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
     setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: actions.SET_CURRENT_USER, currentUser });

@@ -6,10 +6,7 @@ import yaml from "js-yaml";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import {
-  IPackQueryFormData,
-  IScheduledQuery,
-} from "interfaces/scheduled_query";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -662,7 +659,8 @@ const getSortedTeamOptions = memoize((teams: ITeam[]) =>
 export const generateTeamFilterDropdownOptions = (
   teams: ITeam[],
   currentUser: IUser | null,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  hideAllTeamsOption: boolean
 ) => {
   let currentUserTeams: ITeam[] = [];
   if (isOnGlobalTeam) {
@@ -671,17 +669,19 @@ export const generateTeamFilterDropdownOptions = (
     currentUserTeams = currentUser.teams;
   }
 
-  const allTeamsOption = [
-    {
+  const allTeamOption = [];
+
+  if (!hideAllTeamsOption) {
+    allTeamOption.push({
       disabled: false,
       label: "All teams",
       value: 0,
-    },
-  ];
+    });
+  }
 
   const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
 
-  return allTeamsOption.concat(sortedCurrentUserTeamOptions);
+  return allTeamOption.concat(sortedCurrentUserTeamOptions);
 };
 
 export const getValidatedTeamId = (
