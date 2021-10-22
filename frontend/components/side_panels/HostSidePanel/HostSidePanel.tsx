@@ -25,15 +25,13 @@ interface IHostSidePanelProps {
   canAddNewLabel: boolean;
 }
 
-const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
-  const {
-    labels,
-    onAddLabelClick,
-    onLabelClick,
-    selectedFilter,
-    canAddNewLabel,
-  } = props;
-
+const HostSidePanel = ({
+  labels,
+  onAddLabelClick,
+  onLabelClick,
+  selectedFilter,
+  canAddNewLabel,
+}: IHostSidePanelProps): JSX.Element => {
   const [labelFilter, setLabelFilter] = useState<string>("");
 
   const onFilterLabels = useCallback(

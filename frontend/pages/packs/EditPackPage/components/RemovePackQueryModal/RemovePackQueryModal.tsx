@@ -13,10 +13,12 @@ interface IRemovePackQueryModalProps {
   selectedQueryIds: number[];
 }
 
-const RemovePackQueryModal = (
-  props: IRemovePackQueryModalProps
-): JSX.Element => {
-  const { onCancel, onSubmit, selectedQuery, selectedQueryIds } = props;
+const RemovePackQueryModal = ({
+  onCancel,
+  onSubmit,
+  selectedQuery,
+  selectedQueryIds,
+}: IRemovePackQueryModalProps): JSX.Element => {
   const queryOrQueries =
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (

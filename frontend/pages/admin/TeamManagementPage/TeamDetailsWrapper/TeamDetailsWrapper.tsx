@@ -77,13 +77,11 @@ const getTabIndex = (path: string, teamId: number): number => {
   });
 };
 
-const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
-  const {
-    children,
-    location: { pathname },
-    params: { team_id },
-  } = props;
-
+const TeamDetailsWrapper = ({
+  children,
+  location: { pathname },
+  params: { team_id },
+}: ITeamDetailsPageProps): JSX.Element => {
   const isLoadingTeams = useSelector(
     (state: IRootState) => state.entities.teams.loading
   );

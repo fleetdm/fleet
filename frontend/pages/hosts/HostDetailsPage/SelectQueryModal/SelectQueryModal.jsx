@@ -35,16 +35,14 @@ const onQueryHostSaved = (host, selectedQuery, dispatch) => {
   );
 };
 
-const SelectQueryModal = (props) => {
-  const {
-    host,
-    onCancel,
-    dispatch,
-    queries,
-    queryErrors,
-    isOnlyObserver,
-  } = props;
-
+const SelectQueryModal = ({
+  host,
+  onCancel,
+  dispatch,
+  queries,
+  queryErrors,
+  isOnlyObserver,
+}) => {
   let queriesAvailableToRun = queries;
 
   if (isOnlyObserver) {
