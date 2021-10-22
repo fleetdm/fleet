@@ -223,6 +223,23 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
   depends_on = [aws_elasticache_replication_group.default]
 }
 
+resource "aws_cloudwatch_metric_alarm" "redis-database-memory-percentage" {
+  alarm_name          = "redis-database-memory-percentage-${terraform.workspace}"
+  alarm_description   = "Percentage of the memory available for the cluster that is in use. This is calculated using used_memory/maxmemory."
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "DatabaseMemoryUsagePercentage"
+  namespace           = "AWS/ElastiCache"
+  period              = "300"
+  statistic           = "Average"
+  alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+
+  threshold = "80"
+
+  depends_on = [aws_elasticache_replication_group.default]
+}
+
 resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
   for_each                  = toset(aws_elasticache_replication_group.default.member_clusters)
   alarm_name                = "redis-current-connections-${each.key}-${terraform.workspace}"
@@ -254,6 +271,35 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
       dimensions = {
         CacheClusterId = each.key
       }
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
+  alarm_name                = "redis-replication-lag-${terraform.workspace}"
+  alarm_description         = "This metric is only applicable for a node running as a read replica. It represents how far behind, in seconds, the replica is in applying changes from the primary node. For Redis engine version 5.0.6 onwards, the lag can be measured in milliseconds."
+  comparison_operator       = "GreaterThanUpperThreshold"
+  evaluation_periods        = "1"
+  threshold_metric_id       = "e1"
+  alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
+  insufficient_data_actions = []
+
+  metric_query {
+    id          = "e1"
+    expression  = "ANOMALY_DETECTION_BAND(m1)"
+    label       = "ReplicationLag (expected)"
+    return_data = "true"
+  }
+
+  metric_query {
+    id          = "m1"
+    return_data = "true"
+    metric {
+      metric_name = "ReplicationLag"
+      namespace   = "AWS/ElastiCache"
+      period      = "300"
+      stat        = "p90"
     }
   }
 }
