@@ -20,7 +20,7 @@ const baseClass = "enroll-secrets";
 class EnrollSecretRow extends Component {
   static propTypes = {
     secret: PropTypes.string.isRequired,
-    toggleEditSecretModal: PropTypes.func,
+    toggleSecretEditorModal: PropTypes.func,
     toggleDeleteSecretModal: PropTypes.func,
   };
 
@@ -83,11 +83,11 @@ class EnrollSecretRow extends Component {
   render() {
     const {
       secret,
-      toggleEditSecretModal,
+      toggleSecretEditorModal,
       toggleDeleteSecretModal,
     } = this.props;
     const { showSecret } = this.state;
-    const { renderLabel, onDownloadSecret } = this;
+    const { renderLabel } = this;
 
     return (
       <div className={`${baseClass}__secret`}>
@@ -100,7 +100,7 @@ class EnrollSecretRow extends Component {
           value={secret}
         />
         <Button
-          onClick={toggleEditSecretModal}
+          onClick={toggleSecretEditorModal}
           className={`${baseClass}__edit-secret-btn`}
           variant="text-icon"
         >

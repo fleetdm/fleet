@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import Modal from "components/modals/Modal";
 import Button from "components/buttons/Button";
@@ -38,7 +38,9 @@ const AddSecretModal = ({
     (state: IRootState) => state.app.enrollSecret
   );
 
-  const [enrollSecretString, setEnrollSecretString] = useState<string>("");
+  const [enrollSecretString, setEnrollSecretString] = useState<string>(
+    selectedSecret ? selectedSecret.secret : randomSecretGenerator
+  );
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
@@ -50,6 +52,10 @@ const AddSecretModal = ({
     return teams.find((team) => team.id === selectedTeam);
   };
 
+  const onSecretChange = (value: string) => {
+    setEnrollSecretString(value);
+  };
+
   const randomSecretGenerator = () => {
     const randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     let result = "";
@@ -58,18 +64,11 @@ const AddSecretModal = ({
         Math.floor(Math.random() * randomChars.length)
       );
     }
+    console.log("result", result);
     return result;
   };
 
-  const randomGeneratedSecret = randomSecretGenerator();
-
-  if (!selectedSecret) {
-    setEnrollSecretString(randomGeneratedSecret);
-  }
-
-  const onSecretChange = (value: string) => {
-    setEnrollSecretString(value);
-  };
+  console.log("enrollSecretString", enrollSecretString);
 
   return (
     <Modal
@@ -88,9 +87,8 @@ const AddSecretModal = ({
             name="osqueryd-secret"
             label={"Secret"}
             type={"text"}
-            value={
-              selectedSecret ? selectedSecret.secret : randomGeneratedSecret
-            }
+            // value={selectedSecret ? selectedSecret.secret : enrollSecretString}
+            value={enrollSecretString}
             onChange={onSecretChange}
           />
         </div>
