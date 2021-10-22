@@ -29,7 +29,7 @@ spec:
 ```
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 
-For instructions on submitting pull requests to Fleet check out [the Committing Changes section](../../3-Contributing/4-Committing-Changes.md#committing-changes) in the Contributors documentation.
+For instructions on submitting pull requests to Fleet check out [the Committing Changes section](../../03-Contributing/04-Committing-Changes.md#committing-changes) in the Contributors documentation.
 
 ## Additional resources
 
