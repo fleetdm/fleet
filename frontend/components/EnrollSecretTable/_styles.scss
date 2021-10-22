@@ -2,15 +2,21 @@
   max-height: 10em;
   overflow: auto;
 
+  &__secret {
+    display: flex;
+  }
   &__secret-input {
     .form-field__label {
       position: relative;
       font-size: $x-small;
       font-weight: $bold;
       margin-top: $pad-small;
+      width: 560px;
     }
 
     .input-field {
+      width: 560px;
+
       &--disabled {
         letter-spacing: 0;
       }
@@ -109,5 +115,13 @@
     .enroll-secrets__secret-download-icon {
       margin-bottom: $pad-medium;
     }
+  }
+
+  &__edit-secret-btn {
+    margin: $pad-small $pad-small $pad-medium $pad-large;
+  }
+
+  &__delete-secret-btn {
+    margin: $pad-small 0 $pad-medium;
   }
 }

@@ -278,6 +278,18 @@ const ManageHostsPage = ({
     }
   );
 
+  const toggleAddSecretModal = () => {
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
+
+  const toggleEditSecretModal = () => {
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
+
+  const toggleDeleteSecretModal = () => {
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
+
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
   };
@@ -1012,6 +1024,9 @@ const ManageHostsPage = ({
           teams={teams || []}
           onReturnToApp={() => setShowEnrollSecretModal(false)}
           isPremiumTier={isPremiumTier as boolean}
+          toggleAddSecretModal={toggleAddSecretModal}
+          toggleEditSecretModal={toggleEditSecretModal}
+          toggleDeleteSecretModal={toggleDeleteSecretModal}
         />
       </Modal>
     );

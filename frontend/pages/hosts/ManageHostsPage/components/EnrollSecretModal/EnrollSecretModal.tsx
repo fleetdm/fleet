@@ -7,11 +7,16 @@ import EnrollSecretTable from "components/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
+import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
+
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
   isPremiumTier: boolean;
   teams: ITeam[];
+  toggleAddSecretModal: () => void;
+  toggleEditSecretModal: () => void;
+  toggleDeleteSecretModal: () => void;
 }
 
 interface IRootState {
@@ -27,6 +32,9 @@ const EnrollSecretModal = ({
   selectedTeam,
   isPremiumTier,
   teams,
+  toggleAddSecretModal,
+  toggleEditSecretModal,
+  toggleDeleteSecretModal,
 }: IEnrollSecretModal): JSX.Element => {
   const globalSecret = useSelector(
     (state: IRootState) => state.app.enrollSecret
@@ -51,11 +59,30 @@ const EnrollSecretModal = ({
         </div>
         <div className={`${baseClass}__secret-wrapper`}>
           {isPremiumTier && (
-            <EnrollSecretTable secrets={renderTeam()?.secrets} />
+            <EnrollSecretTable
+              secrets={renderTeam()?.secrets}
+              toggleEditSecretModal={toggleEditSecretModal}
+              toggleDeleteSecretModal={toggleDeleteSecretModal}
+            />
           )}
           {!isPremiumTier && (
-            <EnrollSecretTable secrets={renderTeam()?.secrets} />
+            <EnrollSecretTable
+              secrets={renderTeam()?.secrets}
+              toggleEditSecretModal={toggleEditSecretModal}
+              toggleDeleteSecretModal={toggleDeleteSecretModal}
+            />
           )}
+        </div>
+        <div className={`${baseClass}__add-secret`}>
+          <Button
+            onClick={toggleAddSecretModal}
+            className={`${baseClass}__add-secret-btn`}
+            variant="text-icon"
+          >
+            <>
+              Add secret <img src={PlusIcon} alt="Add secret icon" />
+            </>
+          </Button>
         </div>
         <div className={`${baseClass}__button-wrap`}>
           <Button onClick={onReturnToApp} className="button button--brand">

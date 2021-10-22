@@ -7,14 +7,22 @@ import enrollSecretInterface from "interfaces/enroll_secret";
 import InputField from "components/forms/fields/InputField";
 import FleetIcon from "components/icons/FleetIcon";
 import { stringToClipboard } from "utilities/copy_text";
+<<<<<<< HEAD:frontend/components/EnrollSecretTable/EnrollSecretTable.jsx
 import EyeIcon from "../../../assets/images/icon-eye-16x16@2x.png";
 import DownloadIcon from "../../../assets/images/icon-download-12x12@2x.png";
+=======
+import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
+import EditIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
+import DeleteIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
+>>>>>>> 46530194 (Styling):frontend/components/config/EnrollSecretTable/EnrollSecretTable.jsx
 
 const baseClass = "enroll-secrets";
 
 class EnrollSecretRow extends Component {
   static propTypes = {
     secret: PropTypes.string.isRequired,
+    toggleEditSecretModal: PropTypes.func,
+    toggleDeleteSecretModal: PropTypes.func,
   };
 
   constructor(props) {
@@ -33,19 +41,6 @@ class EnrollSecretRow extends Component {
 
     // Clear message after 1 second
     setTimeout(() => this.setState({ copyMessage: "" }), 1000);
-
-    return false;
-  };
-
-  onDownloadSecret = (evt) => {
-    evt.preventDefault();
-
-    const { secret } = this.props;
-
-    const filename = "secret.txt";
-    const file = new global.window.File([secret], filename);
-
-    FileSaver.saveAs(file);
 
     return false;
   };
@@ -87,12 +82,16 @@ class EnrollSecretRow extends Component {
   };
 
   render() {
-    const { secret } = this.props;
+    const {
+      secret,
+      toggleEditSecretModal,
+      toggleDeleteSecretModal,
+    } = this.props;
     const { showSecret } = this.state;
     const { renderLabel, onDownloadSecret } = this;
 
     return (
-      <div>
+      <div className={`${baseClass}__secret`}>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__secret-input`}
@@ -101,15 +100,24 @@ class EnrollSecretRow extends Component {
           type={showSecret ? "text" : "password"}
           value={secret}
         />
-        <a
-          href="#onDownloadSecret"
-          variant="unstyled"
-          className={`${baseClass}__secret-download-icon`}
-          onClick={onDownloadSecret}
+        <Button
+          onClick={toggleEditSecretModal}
+          className={`${baseClass}__edit-secret-btn`}
+          variant="text-icon"
         >
-          Download
-          <img src={DownloadIcon} alt="download" />
-        </a>
+          <>
+            <img src={EditIcon} alt="Edit secret icon" />
+          </>
+        </Button>
+        <Button
+          onClick={toggleDeleteSecretModal}
+          className={`${baseClass}__delete-secret-btn`}
+          variant="text-icon"
+        >
+          <>
+            <img src={DeleteIcon} alt="Delete secret icon" />
+          </>
+        </Button>
       </div>
     );
   }
