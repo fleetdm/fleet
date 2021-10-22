@@ -46,7 +46,7 @@ Due to the structure of the Fleet documentation and GitHub's unique markdown fil
 
 When including a link to a different file in the Fleet documentation please use relative links when possible. 
 
-For example, let's say you're working on changes in the Contribution docs and you'd like to add a link to the REST API docs. The relative link would look something like `../1-Using-Fleet/3-REST-API.md`.
+For example, let's say you're working on changes in the Contribution docs and you'd like to add a link to the REST API docs. The relative link would look something like `../01-Using-Fleet/03-REST-API.md`.
 
 #### Special characters in anchor links
 

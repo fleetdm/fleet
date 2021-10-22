@@ -23,7 +23,7 @@ For issues related to something that was ALREADY in Figma Fleet EE (current, dev
 ## Fleet docs
 
 ### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
@@ -152,7 +152,7 @@ You should see your local machine returned. If your host isn't showing up, you m
 
 Apply the standard query library by running the following command:
 
-`fleetctl apply -f docs/1-Using-Fleet/standard-query-library/standard-query-library.yml`
+`fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml`
 
 Make sure all queries were successfully added by running the following command:
 
@@ -166,9 +166,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 Apply a pack by running the following commands:
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
 
@@ -178,7 +178,7 @@ Make sure the pack was successfully added by running the following command:
 
 Apply organization settings by running the following command:
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
 
 #### Manage users flow
 

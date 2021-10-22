@@ -92,7 +92,7 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license and contact us for help."
 	testCases := []struct {
 		name                    string
 		license                 *fleet.LicenseInfo
