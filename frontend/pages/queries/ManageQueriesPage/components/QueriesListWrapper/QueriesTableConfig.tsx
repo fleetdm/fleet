@@ -97,12 +97,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       Header: "Performance impact",
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => {
-        console.log(cellProps.cell.value, cellProps.row.original.id);
-        return (
-          <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
-        );
-      },
+      Cell: (cellProps) => (
+        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+      ),
     },
     {
       title: "Author",
