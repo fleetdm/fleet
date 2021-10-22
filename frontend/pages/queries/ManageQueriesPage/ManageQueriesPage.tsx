@@ -104,7 +104,7 @@ const ManageQueriesPage = (): JSX.Element => {
     isLoading: isLoadingFleetQueries,
     refetch: refetchFleetQueries,
   } = useQuery<IFleetQueriesResponse, Error, IQueriesByPlatform>(
-    "fleet queries",
+    "fleet queries by platform",
     () => fleetQueriesAPI.loadAll(),
     {
       // refetchOnMount: false,
