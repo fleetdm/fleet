@@ -229,14 +229,15 @@ Then, in the "SMTP options" section, enter any email address in the "Sender addr
 
 Visit [locahost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
 
-## Database Backup/Restore
+## Development database management
 
-In the course of development (particularly when crafting database migrations), it may be useful to backup and restore the MySQL database. This can be achieved with the following commands:
+In the course of development (particularly when crafting database migrations), it may be useful to
+backup, restore, and reset the MySQL database. This can be achieved with the following commands:
 
 Backup:
 
 ```
-./tools/backup_db/backup.sh
+make db-backup
 ```
 
 The database dump is stored in `backup.sql.gz`.
@@ -244,10 +245,17 @@ The database dump is stored in `backup.sql.gz`.
 Restore:
 
 ```
-./tools/backup_db/restore.sh
+make db-restore
 ```
 
 Note that a "restore" will replace the state of the development database with the state from the backup.
+
+Reset:
+
+```
+make db-reset
+```
+
 
 ## MySQL shell
 
