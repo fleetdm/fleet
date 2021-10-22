@@ -26,6 +26,8 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
 }
 
+var invalidSessionErr = errors.New("Invalid session. Please log in with: fleetctl login")
+
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleet, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
@@ -53,6 +55,22 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		fleet.SetToken(token)
 	} else {
 		return nil, errors.Errorf("token config value was not a string: %+v", t)
+	}
+
+	// Perform a "/me" request to verify the session is valid.
+	response, err := fleet.AuthenticatedDo("GET", "/api/v1/fleet/me", "", nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to execute session check")
+	}
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case http.StatusOK:
+		// OK
+	case http.StatusUnauthorized:
+		return nil, invalidSessionErr
+	default:
+		return nil, errors.Errorf("session check received status: %d", response.StatusCode)
 	}
 
 	return fleet, nil
