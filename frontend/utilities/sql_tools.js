@@ -37,38 +37,33 @@ export const listCompatiblePlatforms = (tablesList) => {
   const compatiblePlatforms = intersection(
     ...tablesList?.map((tableName) => platformsByTableDictionary[tableName])
   );
-  // console.log("compatiblePlatforms: ", compatiblePlatforms);
+
   return compatiblePlatforms.length ? compatiblePlatforms : ["None"];
 };
 
 export const parseSqlTables = (sqlString) => {
   const tablesList = [];
-  // const _callback = (node) => {
-  //   if (node) {
-  //     if (node.variant === "recursive") {
-  //       throw new Error(
-  //         "Invalid usage: `recursive` is not supported by `parseSqlTables`"
-  //       );
-  //     } else if (node.variant === "table") {
-  //       tablesList.push(node.name);
-  //     }
-  //   }
-  // };
+
+  const _callback = (node) => {
+    if (node) {
+      if (node.variant === "recursive") {
+        throw new Error(
+          "Invalid usage: `recursive` is not supported by `parseSqlTables`"
+        );
+      } else if (node.variant === "table") {
+        tablesList.push(node.name);
+      }
+    }
+  };
 
   try {
     const sqlTree = sqliteParser(sqlString);
-
-    _visit(
-      sqlTree,
-      (node) => node && node.variant === "table" && tablesList.push(node.name)
-    );
-    // console.log("AST: ", sqlTree);
-    // console.log("tablesList: ", tablesList);
+    _visit(sqlTree, _callback);
 
     return tablesList;
   } catch (err) {
-    console.log(err);
-    // return null;
+    console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
+
     return ["Invalid query"];
   }
 };

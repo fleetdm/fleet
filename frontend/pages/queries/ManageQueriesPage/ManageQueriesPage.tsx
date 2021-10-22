@@ -27,8 +27,16 @@ interface IFleetQueriesResponse {
   queries: IQuery[];
 }
 interface IQueryTableData extends IQuery {
-  platforms?: string[];
+  platforms: string[];
 }
+interface IQueriesByPlatform extends Record<string, IQueryTableData[]> {
+  all: IQueryTableData[];
+  darwin: IQueryTableData[];
+  linux: IQueryTableData[];
+  windows: IQueryTableData[];
+}
+
+const PLATFORMS = ["darwin", "linux", "windows"];
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -59,30 +67,31 @@ const PLATFORM_FILTER_OPTIONS = [
 
 const memoizedSqlTables = memoize(sqlTools.parseSqlTables);
 const getPlatforms = (queryString: string): string[] =>
-  sqlTools.listCompatiblePlatforms(memoizedSqlTables(queryString));
+  sqlTools
+    .listCompatiblePlatforms(memoizedSqlTables(queryString))
+    .filter((p: string) => PLATFORMS.includes(p));
 
 const ManageQueriesPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
   const { isOnlyObserver } = useContext(AppContext);
 
-  const [filteredQueries, setFilteredQueries] = useState<IQueryTableData[]>([]);
+  const [filteredQueries, setFilteredQueries] = useState<
+    IQueryTableData[] | null
+  >(null);
   const [searchString, setSearchString] = useState<string>("");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
-  const [queriesByPlatform, setQueriesByPlatform] = useState<
-    Record<string, IQueryTableData[]>
-  >({ darwin: [], linux: [], windows: [] });
 
   const {
-    data: fleetQueries,
+    data: fleetQueriesByPlatform,
     error: fleetQueriesError,
     isLoading: isLoadingFleetQueries,
     refetch: refetchFleetQueries,
-  } = useQuery<IFleetQueriesResponse, Error, IQueryTableData[]>(
+  } = useQuery<IFleetQueriesResponse, Error, IQueriesByPlatform>(
     "fleet queries",
     () => fleetQueriesAPI.loadAll(),
     {
@@ -90,41 +99,37 @@ const ManageQueriesPage = (): JSX.Element => {
       // refetchOnReconnect: false,
       // refetchOnWindowFocus: false,
       select: (data: IFleetQueriesResponse) =>
-        // data.queries.map((q) => {
-        //   return {
-        //     ...q,
-        //     platforms: getPlatforms(q.query),
-        //   };
-        // }),
-        data.queries,
-      // TODO: Try moving queriesByPlatform into the select method
-      // onSuccess: (queriesList) => {
-      //   setQueriesByPlatform(
-      //     queriesList.reduce(
-      //       (acc: Record<string, IQueryTableData[]>, q) => {
-      //         q.platforms.forEach((p) => acc[p]?.push(q));
-      //         return acc;
-      //       },
-      //       { darwin: [], linux: [], windows: [] }
-      //     )
-      //   );
-      // },
+        data.queries.reduce(
+          (dictionary: IQueriesByPlatform, q) => {
+            const queryEntry = { ...q, platforms: getPlatforms(q.query) };
+            dictionary.all.push(queryEntry);
+            queryEntry.platforms.forEach((platform) =>
+              dictionary[platform]?.push(queryEntry)
+            );
+
+            return dictionary;
+          },
+          { all: [], darwin: [], linux: [], windows: [] }
+        ),
     }
   );
 
   useEffect(() => {
-    let queriesList = fleetQueries;
-    // selectedPlatform !== "all"
-    //   ? queriesByPlatform[selectedPlatform]
-    //   : fleetQueries || [];
-    if (searchString) {
-      queriesList = queriesList?.filter((q) =>
-        q.name.toLowerCase().includes(searchString.toLowerCase())
-      );
+    if (!isLoadingFleetQueries && fleetQueriesByPlatform) {
+      let queriesList = fleetQueriesByPlatform[selectedPlatform];
+      if (searchString) {
+        queriesList = queriesList.filter((q) =>
+          q.name.toLowerCase().includes(searchString.toLowerCase())
+        );
+      }
+      setFilteredQueries(queriesList);
     }
-    setFilteredQueries(queriesList || []);
-    // }, [fleetQueries, queriesByPlatform, searchString, selectedPlatform]);
-  }, [fleetQueries, searchString]);
+  }, [
+    fleetQueriesByPlatform,
+    isLoadingFleetQueries,
+    searchString,
+    selectedPlatform,
+  ]);
 
   const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
 
@@ -183,19 +188,21 @@ const ManageQueriesPage = (): JSX.Element => {
       });
   }, [dispatch, selectedQueryIds]);
 
-  // const renderPlatformDropdown = () => {
-  //   return fleetQueries?.length ? (
-  //     <Dropdown
-  //       value={selectedPlatform}
-  //       className={`${baseClass}__platform_dropdown`}
-  //       options={PLATFORM_FILTER_OPTIONS}
-  //       searchable={false}
-  //       onChange={setSelectedPlatform}
-  //     />
-  //   ) : (
-  //     <></>
-  //   );
-  // };
+  const renderPlatformDropdown = () => {
+    return fleetQueriesByPlatform?.all.length ? (
+      <Dropdown
+        value={selectedPlatform}
+        className={`${baseClass}__platform_dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        searchable={false}
+        onChange={setSelectedPlatform}
+      />
+    ) : (
+      <></>
+    );
+  };
+
+  const isTableDataLoading = isLoadingFleetQueries || filteredQueries === null;
 
   return (
     <div className={baseClass}>
@@ -213,7 +220,7 @@ const ManageQueriesPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && !!fleetQueries?.length && (
+          {!isOnlyObserver && !!fleetQueriesByPlatform?.all.length && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -226,18 +233,18 @@ const ManageQueriesPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {isLoadingFleetQueries && <Spinner />}
-          {!isLoadingFleetQueries && fleetQueriesError ? (
+          {isTableDataLoading && !fleetQueriesError && <Spinner />}
+          {!isTableDataLoading && fleetQueriesError ? (
             <TableDataError />
           ) : (
             <QueriesListWrapper
               queriesList={filteredQueries}
-              isLoading={isLoadingFleetQueries}
+              isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onRemoveQueryClick={onRemoveQueryClick}
-              searchable={!!fleetQueries?.length}
+              searchable={!!fleetQueriesByPlatform?.all.length}
               onSearchChange={setSearchString}
-              // customControl={renderPlatformDropdown}
+              customControl={renderPlatformDropdown}
             />
           )}
         </div>

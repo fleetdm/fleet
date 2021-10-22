@@ -13,10 +13,10 @@ import generateTableHeaders from "./QueriesTableConfig";
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
 interface IQueryTableData extends IQuery {
-  platforms?: string[];
+  platforms: string[];
 }
 interface IQueriesListWrapperProps {
-  queriesList: IQueryTableData[];
+  queriesList: IQueryTableData[] | null;
   isLoading: boolean;
   onRemoveQueryClick: any;
   onCreateQueryClick: () => void;

@@ -82,15 +82,15 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       sortType: "caseInsensitive",
     },
-    // {
-    //   title: "Platform",
-    //   Header: "Platform",
-    //   disableSortBy: true,
-    //   accessor: "platforms",
-    //   Cell: (cellProps: ICellProps): JSX.Element => {
-    //     return <PlatformCell value={cellProps.cell.value} />;
-    //   },
-    // },
+    {
+      title: "Platform",
+      Header: "Platform",
+      disableSortBy: true,
+      accessor: "platforms",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        return <PlatformCell value={cellProps.cell.value} />;
+      },
+    },
     {
       title: "Author",
       Header: (cellProps) => (

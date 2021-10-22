@@ -93,6 +93,7 @@ const QueryForm = ({
       listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
     );
   }, [lastEditedQueryBody]);
+
   const hasTeamMaintainerPermissions = isEditMode
     ? isAnyTeamMaintainer &&
       storedQuery &&
