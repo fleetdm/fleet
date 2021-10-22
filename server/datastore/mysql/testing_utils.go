@@ -52,6 +52,8 @@ func connectMySQL(t *testing.T, testName string, opts *DatastoreTestOptions) *Da
 }
 
 func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+	t.Helper()
+
 	// create the context that will cancel the replication goroutine on test exit
 	var cancel func()
 	ctx := context.Background()
@@ -132,7 +134,11 @@ func setupReadReplica(t *testing.T, testName string, ds *Datastore, opts *Datast
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
-					stmt = fmt.Sprintf(`CREATE TABLE %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
+					stmt = fmt.Sprintf(`CREATE TABLE %s.%s LIKE %s.%s`, replicaDB, tbl, testName, tbl)
+					t.Log(stmt)
+					_, err = replica.ExecContext(ctx, stmt)
+					require.NoError(t, err)
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)

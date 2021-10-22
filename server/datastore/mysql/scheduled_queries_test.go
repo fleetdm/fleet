@@ -41,7 +41,7 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
 		{
@@ -57,10 +57,10 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 		},
 	}
 	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	gotQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, gotQueries, 1)
 	assert.Equal(t, uint(60), gotQueries[0].Interval)
 	assert.Equal(t, "test_foo", gotQueries[0].Description)
@@ -93,11 +93,35 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 		},
 	}
 	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, gotQueries, 3)
+
+	idWithAgg := gotQueries[0].ID
+
+	_, err = ds.writer.Exec(
+		`INSERT INTO aggregated_stats(id,type,json_value) VALUES (?,?,?)`,
+		idWithAgg, "scheduled_query", `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+	)
+	require.NoError(t, err)
+
+	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, gotQueries, 3)
+
+	foundAgg := false
+	for _, sq := range gotQueries {
+		if sq.ID == idWithAgg {
+			foundAgg = true
+			require.NotNil(t, sq.SystemTimeP50)
+			require.NotNil(t, sq.SystemTimeP95)
+			assert.Equal(t, 0.6936, *sq.SystemTimeP50)
+			assert.Equal(t, 95.8654, *sq.SystemTimeP95)
+		}
+	}
+	require.True(t, foundAgg)
 }
 
 func testScheduledQueriesNew(t *testing.T, ds *Datastore) {

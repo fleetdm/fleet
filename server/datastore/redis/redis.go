@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
@@ -50,6 +51,16 @@ type PoolConfig struct {
 	ConnectRetryAttempts      int
 	ClusterFollowRedirections bool
 	ClusterReadFromReplica    bool
+	TLSCert                   string
+	TLSKey                    string
+	TLSCA                     string
+	TLSServerName             string
+	TLSHandshakeTimeout       time.Duration
+	MaxIdleConns              int
+	MaxOpenConns              int
+	ConnMaxLifetime           time.Duration
+	IdleTimeout               time.Duration
+	TLSSkipVerify             bool
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -58,11 +69,14 @@ type PoolConfig struct {
 // NewPool creates a Redis connection pool using the provided server
 // address, password and database.
 func NewPool(config PoolConfig) (fleet.RedisPool, error) {
-	cluster := newCluster(config)
+	cluster, err := newCluster(config)
+	if err != nil {
+		return nil, err
+	}
 	if err := cluster.Refresh(); err != nil {
 		if isClusterDisabled(err) || isClusterCommandUnknown(err) {
 			// not a Redis Cluster setup, use a standalone Redis pool
-			pool, _ := cluster.CreatePool(config.Server)
+			pool, _ := cluster.CreatePool(config.Server, cluster.DialOptions...)
 			cluster.Close()
 			return &standalonePool{pool, config.Server}, nil
 		}
@@ -222,30 +236,50 @@ func PublishHasListeners(pool fleet.RedisPool, conn redis.Conn, channel, message
 	return false, errors.Wrap(err, "checking for active subscribers")
 }
 
-func newCluster(config PoolConfig) *redisc.Cluster {
+func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 	opts := []redis.DialOption{
-		redis.DialDatabase(config.Database),
-		redis.DialUseTLS(config.UseTLS),
-		redis.DialConnectTimeout(config.ConnTimeout),
-		redis.DialKeepAlive(config.KeepAlive),
+		redis.DialDatabase(conf.Database),
+		redis.DialUseTLS(conf.UseTLS),
+		redis.DialConnectTimeout(conf.ConnTimeout),
+		redis.DialKeepAlive(conf.KeepAlive),
+		redis.DialPassword(conf.Password),
 		// Read/Write timeouts not set here because we may see results
 		// only rarely on the pub/sub channel.
 	}
-	if config.Password != "" {
-		opts = append(opts, redis.DialPassword(config.Password))
+
+	if conf.UseTLS {
+		tlsCfg := config.TLS{
+			TLSCA:         conf.TLSCA,
+			TLSCert:       conf.TLSCert,
+			TLSKey:        conf.TLSKey,
+			TLSServerName: conf.TLSServerName,
+		}
+		cfg, err := tlsCfg.ToTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		cfg.InsecureSkipVerify = conf.TLSSkipVerify
+
+		opts = append(opts,
+			redis.DialTLSConfig(cfg),
+			redis.DialUseTLS(true),
+			redis.DialTLSHandshakeTimeout(conf.TLSHandshakeTimeout))
 	}
 
 	dialFn := redis.Dial
-	if config.testRedisDialFunc != nil {
-		dialFn = config.testRedisDialFunc
+	if conf.testRedisDialFunc != nil {
+		dialFn = conf.testRedisDialFunc
 	}
 
 	return &redisc.Cluster{
-		StartupNodes: []string{config.Server},
-		CreatePool: func(server string, _ ...redis.DialOption) (*redis.Pool, error) {
+		StartupNodes: []string{conf.Server},
+		DialOptions:  opts,
+		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
-				MaxIdle:     3,
-				IdleTimeout: 240 * time.Second,
+				MaxIdle:         conf.MaxIdleConns,
+				MaxActive:       conf.MaxOpenConns,
+				IdleTimeout:     conf.IdleTimeout,
+				MaxConnLifetime: conf.ConnMaxLifetime,
 
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn
@@ -269,8 +303,8 @@ func newCluster(config PoolConfig) *redisc.Cluster {
 						return nil
 					}
 
-					if config.ConnectRetryAttempts > 0 {
-						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(config.ConnectRetryAttempts))
+					if conf.ConnectRetryAttempts > 0 {
+						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(conf.ConnectRetryAttempts))
 						if err := backoff.Retry(op, boff); err != nil {
 							return nil, err
 						}
@@ -289,7 +323,7 @@ func newCluster(config PoolConfig) *redisc.Cluster {
 				},
 			}, nil
 		},
-	}
+	}, nil
 }
 
 func isClusterDisabled(err error) bool {

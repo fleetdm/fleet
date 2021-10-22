@@ -1,0 +1,1 @@
+* Add vulnerable=true/false/1/0 query parameter to the software listing endpoint and wire up the query search for filtering software by name.
