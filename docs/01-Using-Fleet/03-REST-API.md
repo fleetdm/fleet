@@ -280,11 +280,11 @@ Resets a user's password. Which user is determined by the password reset token u
 
 Retrieves the user data for the authenticated user.
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 #### Example
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 ##### Default response
 

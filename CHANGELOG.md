@@ -1,3 +1,13 @@
+## Fleet 4.4.3 (Oct 21, 2021)
+
+* Cache AppConfig in redis to speed up requests and reduce MySQL load.
+
+* Fix migration compatibility with MySQL GTID replication.
+
+* Improve performance of software listing query.
+
+* Improve MSI generation compatibility (for macOS M1 and some Virtualization configurations) in `fleetctl package`.
+
 ## Fleet 4.4.2 (Oct 14, 2021)
 
 * Fix migration errors under some MySQL configurations due to use of temporary tables.

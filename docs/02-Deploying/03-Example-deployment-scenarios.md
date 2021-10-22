@@ -521,7 +521,7 @@ kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
 ```
-kubectl apply -f ./docs/1-Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
+kubectl apply -f ./docs/01-Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:

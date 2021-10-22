@@ -122,8 +122,6 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       },
       isGlobalUser: props.defaultGlobalRole !== null,
     };
-
-    const { isPremiumTier } = props;
   }
 
   onInputChange = (formField: string): ((value: string) => void) => {

@@ -12,8 +12,7 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = (props: IPillCellProps): JSX.Element => {
-  const { value, customIdPrefix } = props;
+const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
   const [pillText, id] = value;
 
   const pillClassName = classnames(

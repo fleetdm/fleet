@@ -63,9 +63,6 @@ describe(
       }
     );
 
-    // Test commented out
-    // Pending fix to prevent consistent failing in GitHub
-
     it("Can query a host and delete a host from host details page", () => {
       let hostname = "";
 
