@@ -17,8 +17,8 @@ interface IHostResponse {
   host: IHost;
 }
 
-const baseClass = "learn-fleet";
-const HOST_ID = 1;
+const baseClass = "welcome-host";
+const HOST_ID = 37;
 
 const WelcomeHost = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -114,7 +114,7 @@ const WelcomeHost = (): JSX.Element => {
         </div>
       </div>
     );
-  }console.log(host?.hostname)
+  }
 
   if (host && !host.policies) {
     return (
@@ -135,7 +135,7 @@ const WelcomeHost = (): JSX.Element => {
           <div className="info">
             <Link to={PATHS.HOST_DETAILS(host)}>
               {host.hostname}
-              <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+              <img src={LinkArrow} />
             </Link>
             <p>Your device is successully connected to this local preview of Fleet.</p>
           </div>

@@ -1,5 +1,36 @@
-.learn-fleet {
+.welcome-host {
   p {
     font-size: $small;
+  }
+
+  &__intro {
+    margin-top: $pad-large;
+    display: flex;
+    align-items: center;
+
+    & > img {
+      width: 126px;
+    }
+    .info {
+      margin-left: $pad-medium;
+      flex: 1;
+
+      a {
+        display: flex;
+        align-items: center;
+        font-size: $x-small;
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+        text-decoration: none !important;
+      
+        img {
+          transform: scale(0.5);
+        }
+      }
+      p {
+        margin: 0;
+        margin-top: $pad-small;
+      }
+    }
   }
 }
