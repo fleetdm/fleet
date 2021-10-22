@@ -8,8 +8,8 @@ import classnames from "classnames";
 
 import PATHS from "router/paths";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
 import { AppContext } from "context/app";
-import { getValidatedTeamId } from "fleet/helpers";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -47,6 +47,9 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
 ];
 
 interface IRootState {
+  auth: {
+    user: IUser;
+  };
   entities: {
     teams: {
       loading: boolean;
@@ -110,6 +113,9 @@ const TeamDetailsWrapper = ({
   });
   const teams = useSelector((state: IRootState) => {
     return memoizedGetTeams(state.entities.teams.data);
+  });
+  const userTeams = useSelector((state: IRootState) => {
+    return state.auth.user.teams;
   });
   const routeTemplate = route && route.path ? route.path : "";
 
@@ -219,6 +225,10 @@ const TeamDetailsWrapper = ({
   }
   const hostsCount = team.host_count;
   const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
+  const userAdminTeams = userTeams.filter(
+    (thisTeam) => thisTeam.role === "admin"
+  );
+  const adminTeams = isGlobalAdmin ? teams : userAdminTeams;
 
   return (
     <div className={teamDetailsClasses}>
@@ -233,13 +243,13 @@ const TeamDetailsWrapper = ({
         </>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
-            {teams.length === 1 ? (
+            {adminTeams.length === 1 ? (
               <h1>{team.name}</h1>
             ) : (
               <TeamsDropdown
                 currentTeamId={toNumber(routeParams.team_id)}
                 isLoading={isLoadingTeams}
-                teams={teams || []}
+                teams={adminTeams || []}
                 hideAllTeamsOption
                 onChange={(newSelectedValue: number) =>
                   handleTeamSelect(newSelectedValue)

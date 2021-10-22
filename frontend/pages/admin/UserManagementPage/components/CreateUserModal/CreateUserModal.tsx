@@ -58,7 +58,7 @@ const CreateUserModal = (props: ICreateUserModalProps): JSX.Element => {
           onCancel={onCancel}
           onSubmit={onSubmit}
           availableTeams={availableTeams}
-          submitText={"Save"}
+          submitText={"Create"}
           isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
