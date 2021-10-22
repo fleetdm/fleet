@@ -221,7 +221,7 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 #### Manual QA
 
-After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title= and assigned to the person responsible. 
+After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title=) and assigned to the person responsible. 
 
 Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
 
