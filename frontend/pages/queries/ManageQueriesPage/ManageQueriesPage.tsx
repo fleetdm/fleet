@@ -2,9 +2,10 @@ import React, { useContext, useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { push } from "react-router-redux";
-import { memoize } from "lodash";
+import { memoize, pick } from "lodash";
 
 import { AppContext } from "context/app";
+import { performanceIndicator } from "fleet/helpers";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 // @ts-ignore
@@ -27,6 +28,7 @@ interface IFleetQueriesResponse {
   queries: IQuery[];
 }
 interface IQueryTableData extends IQuery {
+  performance: string;
   platforms: string[];
 }
 interface IQueriesByPlatform extends Record<string, IQueryTableData[]> {
@@ -71,6 +73,24 @@ const getPlatforms = (queryString: string): string[] =>
     .listCompatiblePlatforms(memoizedSqlTables(queryString))
     .filter((p: string) => PLATFORMS.includes(p));
 
+const enhanceQuery = (q: IQuery) => {
+  // const stats = pick(q.stats, [
+  //   "user_time_p50",
+  //   "system_time_p50",
+  //   "total_executions",
+  // ]);
+  // console.log(stats);
+  // const perf = performanceIndicator(stats);
+  // console.log(perf);
+  return {
+    ...q,
+    performance: performanceIndicator(
+      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
+    ),
+    platforms: getPlatforms(q.query),
+  };
+};
+
 const ManageQueriesPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
@@ -101,7 +121,7 @@ const ManageQueriesPage = (): JSX.Element => {
       select: (data: IFleetQueriesResponse) =>
         data.queries.reduce(
           (dictionary: IQueriesByPlatform, q) => {
-            const queryEntry = { ...q, platforms: getPlatforms(q.query) };
+            const queryEntry = enhanceQuery(q);
             dictionary.all.push(queryEntry);
             queryEntry.platforms.forEach((platform) =>
               dictionary[platform]?.push(queryEntry)
