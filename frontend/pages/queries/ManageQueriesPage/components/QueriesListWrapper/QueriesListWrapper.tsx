@@ -7,12 +7,12 @@ import { ITableSearchData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-
-import generateTableHeaders from "./QueriesTableConfig";
+import { generateTableHeaders } from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
 interface IQueryTableData extends IQuery {
+  performance: string;
   platforms: string[];
 }
 interface IQueriesListWrapperProps {
@@ -55,7 +55,7 @@ const QueriesListWrapper = ({
                 </p>
                 <p>
                   Create a new query, or go to GitHub to{" "}
-                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
+                  <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
                     import Fleet’s standard query library
                   </a>
                   .

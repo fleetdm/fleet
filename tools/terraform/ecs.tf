@@ -93,6 +93,11 @@ resource "aws_ecs_service" "fleet" {
     container_port   = 8080
   }
 
+  // https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#ignoring-changes-to-desired-count
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+
   network_configuration {
     subnets         = module.vpc.private_subnets
     security_groups = [aws_security_group.backend.id]
@@ -228,6 +233,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_LOGGING_DEBUG"
             value = var.logging_debug
+          },
+          {
+            name = "FLEET_LOGGING_JSON"
+            value = var.logging_json
           },
           {
             name  = "FLEET_S3_BUCKET"

@@ -68,13 +68,21 @@ module.exports.routes = {
     }
   },
 
-  'GET /docs/?*': {
+  'GET /docs/*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals: {
       currentPage: 'docs',
     }
-  },// handles /docs and /docs/foo/bar
+  },// handles /docs/foo/bar
+
+  'GET /docs': {
+    skipAssets: false,
+    action: 'docs/view-basic-documentation',
+    locals: {
+      currentPage: 'docs',
+    }
+  },// handles /docs, TODO: Remove this route once this bug is fixed in Sails
 
   'GET /handbook/?*':  {
     skipAssets: false,
@@ -111,6 +119,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /try-fleet':                  '/get-started',
+  'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
 
 
 

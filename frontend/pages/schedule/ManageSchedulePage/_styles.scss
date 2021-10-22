@@ -235,11 +235,16 @@
     }
 
     .query_name__header {
-      width: calc(63%);
+      width: calc(50%);
     }
 
     .interval__header {
-      width: calc(37%);
+      width: calc(20%);
+    }
+
+    .performance_header {
+      width: calc(30%);
+      max-width: none;
     }
   }
 }
