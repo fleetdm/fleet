@@ -5,8 +5,7 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-
-import generateTableHeaders from "./QueriesTableConfig";
+import { generateTableHeaders, generateDataSet } from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
@@ -109,13 +108,14 @@ const QueriesListWrapper = (
   }, [searchString, onCreateQueryClick]);
 
   const tableHeaders = generateTableHeaders(currentUser);
+  const dataSet = generateDataSet(filteredQueries);
 
   return !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={filteredQueries}
+        data={dataSet}
         isLoading={isLoading}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

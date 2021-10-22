@@ -117,7 +117,8 @@ select
        JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50, 
        JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
        JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50, 
-       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95 
+       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95,
+       JSON_EXTRACT(json_value, "$.total_executions") as total_executions
 from aggregated_stats where type=?`, tt.aggregate))
 
 			require.True(t, len(stats) > 0)
@@ -126,6 +127,8 @@ from aggregated_stats where type=?`, tt.aggregate))
 				checkAgainstSlowStats(t, ds, stat.ID, 95, tt.table, "user_time", stat.UserTimeP95)
 				checkAgainstSlowStats(t, ds, stat.ID, 50, tt.table, "system_time", stat.SystemTimeP50)
 				checkAgainstSlowStats(t, ds, stat.ID, 95, tt.table, "system_time", stat.SystemTimeP95)
+				require.NotNil(t, stat.TotalExecutions)
+				assert.True(t, *stat.TotalExecutions >= 0)
 			}
 		})
 	}

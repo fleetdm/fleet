@@ -178,7 +178,8 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 		       JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50,
 		       JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
 		       JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50,
-		       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95
+		       JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95,
+					 JSON_EXTRACT(json_value, "$.total_executions") as total_executions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
 		LEFT JOIN aggregated_stats ag ON (ag.id=q.id AND ag.type="query")
