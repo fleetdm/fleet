@@ -149,7 +149,7 @@ Check out the [documentation on running database migrations](./08-Updating-Fleet
 
 ## Why my host is not updating a policy's response.
 
-A host may not be updating a policy's for one or more of the following reasons:
+The following are reasons why a host may not be updating a policy's response:
 
 * The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
 
