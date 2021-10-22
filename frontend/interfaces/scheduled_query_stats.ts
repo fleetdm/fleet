@@ -1,17 +1,17 @@
 import PropTypes, { number } from "prop-types";
 
 export default PropTypes.shape({
-  p50_user_time: PropTypes.number,
-  p95_user_time: PropTypes.number,
-  p50_system_time: PropTypes.number,
-  p95_system_time: PropTypes.number,
+  user_time_p50: PropTypes.number,
+  user_time_p95: PropTypes.number,
+  system_time_p50: PropTypes.number,
+  system_time_p95: PropTypes.number,
   total_executions: PropTypes.number,
 });
 
 export interface IScheduledQueryStats {
-  p50_user_time?: number;
-  p95_user_time?: number;
-  p50_system_time?: number;
-  p95_system_time?: number;
+  user_time_p50?: number;
+  user_time_p95?: number;
+  system_time_p50?: number;
+  system_time_p95?: number;
   total_executions?: number;
 }

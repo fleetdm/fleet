@@ -176,8 +176,8 @@ const enhanceAllScheduledQueryData = (
   return all_scheduled_queries.map(
     (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
       const scheduledQueryPerformance = {
-        p50_user_time: all_scheduled_query.stats?.p50_user_time,
-        p50_system_time: all_scheduled_query.stats?.p50_system_time,
+        user_time_p50: all_scheduled_query.stats?.user_time_p50,
+        system_time_p50: all_scheduled_query.stats?.system_time_p50,
         total_executions: all_scheduled_query.stats?.total_executions,
       };
       return {

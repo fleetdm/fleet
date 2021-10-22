@@ -603,11 +603,11 @@ export const performanceIndicator = (
   }
 
   if (
-    typeof scheduledQueryStats.p50_user_time === "number" &&
-    typeof scheduledQueryStats.p50_system_time === "number"
+    typeof scheduledQueryStats.user_time_p50 === "number" &&
+    typeof scheduledQueryStats.system_time_p50 === "number"
   ) {
     const indicator =
-      scheduledQueryStats.p50_user_time + scheduledQueryStats.p50_system_time;
+      scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
 
     if (indicator < 2000) {
       return "Minimal";
