@@ -95,8 +95,8 @@
         <div class="category__informational">
           <div v-for="query of queriesList">
             <div class="card results" @click="clickCard(query.slug)">
-              <div class="card-body query-card">
-                <div class="row justify-content-between align-items-center">
+              <div class="card-body">
+                <div class="row justify-content-between align-items-center query-card">
                   <div class="col-sm-9 col-md-9">
                     <h5 class="card-title m-0">{{query.name}}</h5>
                     <p class="font-italic mb-1 p-0 description">{{query.description}}</p>
