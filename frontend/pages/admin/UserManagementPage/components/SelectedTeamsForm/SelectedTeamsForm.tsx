@@ -119,8 +119,11 @@ const useSelectedTeamState = (
   return [teamsFormList, updateSelectedTeams] as const;
 };
 
-const SelectedTeamsForm = (props: ISelectedTeamsFormProps): JSX.Element => {
-  const { availableTeams, usersCurrentTeams, onFormChange } = props;
+const SelectedTeamsForm = ({
+  availableTeams,
+  usersCurrentTeams,
+  onFormChange,
+}: ISelectedTeamsFormProps): JSX.Element => {
   const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(
     availableTeams,
     usersCurrentTeams,

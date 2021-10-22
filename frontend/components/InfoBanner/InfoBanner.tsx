@@ -8,8 +8,7 @@ interface IInfoBannerProps {
   className?: string;
 }
 
-const InfoBanner = (props: IInfoBannerProps): JSX.Element => {
-  const { children, className } = props;
+const InfoBanner = ({ children, className }: IInfoBannerProps): JSX.Element => {
   const wrapperClasses = classNames(baseClass, className);
 
   return <div className={wrapperClasses}>{children}</div>;

@@ -10,9 +10,10 @@ interface IRemovePoliciesModalProps {
   onSubmit: () => void;
 }
 
-const RemovePoliciesModal = (props: IRemovePoliciesModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemovePoliciesModal = ({
+  onCancel,
+  onSubmit,
+}: IRemovePoliciesModalProps): JSX.Element => {
   return (
     <Modal title={"Remove policies"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>

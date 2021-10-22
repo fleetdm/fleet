@@ -17,9 +17,11 @@ interface IEditTeamModalProps {
   defaultName: string;
 }
 
-const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit, defaultName } = props;
-
+const EditTeamModal = ({
+  onCancel,
+  onSubmit,
+  defaultName,
+}: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
 
   const onInputChange = useCallback(

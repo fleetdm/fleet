@@ -24,22 +24,26 @@ import (
 var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
 }{
-	0: {uuid: "6D14C88F-8ECF-48D5-9197-777647BF6B26",
+	0: {
+		uuid:     "6D14C88F-8ECF-48D5-9197-777647BF6B26",
 		hostname: "web.fleet.co",
 		platform: "linux",
 		nodeKey:  "key0",
 	},
-	1: {uuid: "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
+	1: {
+		uuid:     "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
 		hostname: "mail.fleet.co",
 		platform: "linux",
 		nodeKey:  "key1",
 	},
-	2: {uuid: "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
+	2: {
+		uuid:     "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
 		hostname: "home.fleet.co",
 		platform: "darwin",
 		nodeKey:  "key2",
 	},
-	3: {uuid: "uuid123",
+	3: {
+		uuid:     "uuid123",
 		hostname: "fakehostname",
 		platform: "darwin",
 		nodeKey:  "key3",
@@ -848,6 +852,26 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "f")
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "f", h3.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "fx")
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "x")
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "x", h3.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
 }
 
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {

@@ -37,7 +37,7 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>Update flow</td><td>
 
-1. remove all fleet processes/agents/etc from Docker for a clean slate
+1. remove all fleet processes/agents/etc using `fleetctl preview reset` for a clean slate
 1. run `fleetctl preview` with no tag for latest stable
 1. create a host/query to later confirm upgrade with
 1. STOP fleet-preview-server instances in containers/apps on Docker
@@ -45,7 +45,6 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
-2. Login with SSO
 </td><td>
 
 1. text fields prompt when blank

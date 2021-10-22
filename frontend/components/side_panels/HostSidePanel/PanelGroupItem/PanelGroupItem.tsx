@@ -38,8 +38,11 @@ interface IPanelGroupItemProps {
   isSelected: boolean;
 }
 
-const PanelGroupItem = (props: IPanelGroupItemProps): JSX.Element => {
-  const { item, onLabelClick, isSelected } = props;
+const PanelGroupItem = ({
+  item,
+  onLabelClick,
+  isSelected,
+}: IPanelGroupItemProps): JSX.Element => {
   const {
     count,
     display_text: displayText,

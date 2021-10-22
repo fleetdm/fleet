@@ -72,10 +72,9 @@ const memoizedGetTeams = memoize(getTeams);
 // with the same table query params after we have made an edit to a user.
 let tableQueryData = {};
 
-const MembersPage = (props: IMembersPageProps): JSX.Element => {
-  const {
-    params: { team_id },
-  } = props;
+const MembersPage = ({
+  params: { team_id },
+}: IMembersPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 

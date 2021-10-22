@@ -5,9 +5,7 @@ interface IHeaderCellProps {
   isSortedDesc?: boolean;
 }
 
-const HeaderCell = (props: IHeaderCellProps): JSX.Element => {
-  const { value, isSortedDesc } = props;
-
+const HeaderCell = ({ value, isSortedDesc }: IHeaderCellProps): JSX.Element => {
   let sortArrowClass = "";
   if (isSortedDesc === undefined) {
     sortArrowClass = "";
