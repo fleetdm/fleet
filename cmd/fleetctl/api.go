@@ -26,6 +26,8 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
 }
 
+var invalidSessionErr = errors.New("Invalid session. Please log in with: fleetctl login")
+
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleet, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
@@ -66,7 +68,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	case http.StatusOK:
 		// OK
 	case http.StatusUnauthorized:
-		return nil, errors.New("Invalid session. Please log in with: fleetctl login")
+		return nil, invalidSessionErr
 	default:
 		return nil, errors.Errorf("session check received status: %d", response.StatusCode)
 	}
