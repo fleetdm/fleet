@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
-// @ts-ignore
+
+import { AppContext } from "context/app"; // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
@@ -49,6 +50,7 @@ const PlatformWrapper = ({
   selectedTeam,
   onCancel,
 }: IPlatformWrapperProp): JSX.Element => {
+  const { config } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
   const [certificate, setCertificate] = useState<string | undefined>(undefined);
   const [fetchCertificateError, setFetchCertificateError] = useState<
@@ -86,7 +88,7 @@ const PlatformWrapper = ({
       enrollSecret = selectedTeam.secrets[0].secret;
     }
 
-    let installerString = `fleetctl package --type=${platform} --fleet-url=https://localhost:8412 --enroll-secret=${enrollSecret}`;
+    let installerString = `fleetctl package --type=${platform} --fleet-url=${config?.server_url} --enroll-secret=${enrollSecret}`;
     if (platform === "rpm" || platform === "deb") {
       installerString +=
         " --fleet-certificate=/home/username/Downloads/fleet.pem";
