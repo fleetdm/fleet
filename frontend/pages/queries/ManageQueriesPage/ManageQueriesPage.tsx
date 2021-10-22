@@ -74,14 +74,6 @@ const getPlatforms = (queryString: string): string[] =>
     .filter((p: string) => PLATFORMS.includes(p));
 
 const enhanceQuery = (q: IQuery) => {
-  // const stats = pick(q.stats, [
-  //   "user_time_p50",
-  //   "system_time_p50",
-  //   "total_executions",
-  // ]);
-  // console.log(stats);
-  // const perf = performanceIndicator(stats);
-  // console.log(perf);
   return {
     ...q,
     performance: performanceIndicator(

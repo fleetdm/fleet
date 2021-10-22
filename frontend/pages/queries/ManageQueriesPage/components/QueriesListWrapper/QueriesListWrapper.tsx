@@ -7,7 +7,7 @@ import { ITableSearchData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders } from "./QueriesTableConfig";
+import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
