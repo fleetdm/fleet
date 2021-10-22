@@ -502,8 +502,8 @@ kind: query
 spec:
   name: Check for artifacts of the Floxif trojan
   platforms: Windows
-  description: Checks for artifacts from the Floxif trojan on Windows machines. See https://github.com/osquery/osquery/blob/b8085572ed1a58ff635683e5f2225cd49cd27bc1/packs/windows-attacks.conf#L4-L10 for more details
-  query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';,
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
   purpose: Informational
   contributors: micheal-o
 ---
