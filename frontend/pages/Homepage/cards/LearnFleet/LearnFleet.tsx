@@ -8,10 +8,12 @@ const LearnFleet = (): JSX.Element => {
   return (
     <div className={baseClass}>
       <p>
-        Want to explore Fleet&apos;s features? Learn how to ask questions about your device using queries.
+        Want to explore Fleet&apos;s features? Learn how to ask questions about
+        your device using queries.
       </p>
       <a
         target="_blank"
+        rel="noreferrer noopener"
         className="homepage-info-card__action-button"
         href="https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet"
       >

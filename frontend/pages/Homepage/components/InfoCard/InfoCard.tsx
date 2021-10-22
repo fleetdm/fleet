@@ -7,24 +7,22 @@ import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blu
 interface IInfoCardProps {
   title: string;
   children: React.ReactChild | React.ReactChild[];
-  action?: {
-    type: "link",
-    to: string;
-    text: string;
-  } | {
-    type: "button",
-    text: string;
-    onClick?: () => void;
-  }
+  action?:
+    | {
+        type: "link";
+        to: string;
+        text: string;
+      }
+    | {
+        type: "button";
+        text: string;
+        onClick?: () => void;
+      };
 }
 
 const baseClass = "homepage-info-card";
 
-const InfoCard = ({
-  title,
-  children,
-  action,
-}: IInfoCardProps) => {
+const InfoCard = ({ title, children, action }: IInfoCardProps) => {
   const renderAction = () => {
     if (action) {
       if (action.type === "button") {

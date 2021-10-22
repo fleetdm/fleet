@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
-
 import { AppContext } from "context/app"; // @ts-ignore
 import Fleet from "fleet"; // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";

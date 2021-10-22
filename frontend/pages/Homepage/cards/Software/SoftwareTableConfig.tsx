@@ -6,7 +6,7 @@ import { ISoftware } from "interfaces/software";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Chevron from "../../../../assets/images/icon-chevron-blue-16x16@2x.png";
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {

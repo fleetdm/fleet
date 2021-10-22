@@ -7,7 +7,7 @@ import moment from "moment";
 
 import { IHost } from "interfaces/host";
 import { IHostPolicy } from "interfaces/host_policy";
-import hostAPI from "services/entities/hosts"; //@ts-ignore
+import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
 import Spinner from "components/loaders/Spinner";
@@ -96,7 +96,7 @@ const WelcomeHost = (): JSX.Element => {
       },
     }
   );
-  
+
   const onRefetchHost = async () => {
     if (host) {
       setShowRefetchLoadingSpinner(true);
@@ -122,7 +122,7 @@ const WelcomeHost = (): JSX.Element => {
       setShowPolicyModal(true);
     }
   };
-  
+
   if (isLoadingHost) {
     return (
       <div className={baseClass}>
@@ -138,7 +138,10 @@ const WelcomeHost = (): JSX.Element => {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
-          <p><img alt="" src={IconDisabled} />Your device is not communicating with Fleet.</p>
+          <p>
+            <img alt="" src={IconDisabled} />
+            Your device is not communicating with Fleet.
+          </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
         </div>
       </div>
@@ -149,7 +152,10 @@ const WelcomeHost = (): JSX.Element => {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
-          <p><img alt="" src={IconDisabled} />No policies apply to your device.</p>
+          <p>
+            <img alt="" src={IconDisabled} />
+            No policies apply to your device.
+          </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
         </div>
       </div>
@@ -164,38 +170,56 @@ const WelcomeHost = (): JSX.Element => {
           <div className="info">
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
               {host.hostname}
-              <img src={LinkArrow} />
+              <img alt="" src={LinkArrow} />
             </Link>
-            <p>Your device is successully connected to this local preview of Fleet.</p>
+            <p>
+              Your device is successully connected to this local preview of
+              Fleet.
+            </p>
           </div>
         </div>
         <div className={`${baseClass}__blurb`}>
-          <p>Fleet already ran the following checks to assess the security of your device: </p>
+          <p>
+            Fleet already ran the following checks to assess the security of
+            your device:{" "}
+          </p>
         </div>
         <div className={`${baseClass}__policies`}>
           {host.policies?.slice(0, 10).map((p) => (
             <div className="policy-block">
               <div className="info">
-                <img alt={p.response} src={p.response === "passing" ? IconPassed : IconError} />
+                <img
+                  alt={p.response}
+                  src={p.response === "passing" ? IconPassed : IconError}
+                />
                 {p.query_name}
               </div>
-              <Button variant="text-icon" onClick={() => handlePolicyModal(p.id)}><img alt="" src={IconChevron} /></Button>
+              <Button
+                variant="text-icon"
+                onClick={() => handlePolicyModal(p.id)}
+              >
+                <img alt="" src={IconChevron} />
+              </Button>
             </div>
           ))}
           {host.policies?.length > 10 && (
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
               Go to Host details to see all checks
-              <img src={LinkArrow} />
+              <img alt="" src={LinkArrow} />
             </Link>
           )}
         </div>
         <div className={`${baseClass}__blurb`}>
-          <p>Resolved a failing check? Refetch your device information to verify.</p>
+          <p>
+            Resolved a failing check? Refetch your device information to verify.
+          </p>
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button
             variant="blue-green"
-            className={`refetch-spinner ${showRefetchLoadingSpinner ? "spin" : ""}`}
+            className={`refetch-spinner ${
+              showRefetchLoadingSpinner ? "spin" : ""
+            }`}
             onClick={onRefetchHost}
             disabled={showRefetchLoadingSpinner}
           >
@@ -218,7 +242,12 @@ const WelcomeHost = (): JSX.Element => {
                 </p>
               )}
               <div className="done">
-                <Button variant="brand" onClick={() => setShowPolicyModal(false)}>Done</Button>
+                <Button
+                  variant="brand"
+                  onClick={() => setShowPolicyModal(false)}
+                >
+                  Done
+                </Button>
               </div>
             </>
           </Modal>

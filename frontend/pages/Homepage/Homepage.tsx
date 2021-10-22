@@ -27,10 +27,10 @@ const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const { 
-    config, 
-    currentTeam, 
-    isPremiumTier, 
+  const {
+    config,
+    currentTeam,
+    isPremiumTier,
     isPreviewMode,
     setCurrentTeam,
   } = useContext(AppContext);
