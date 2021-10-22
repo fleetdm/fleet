@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore
 
 export GO111MODULE=on
 
@@ -247,3 +247,20 @@ changelog:
 	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md" 
 	sh -c "cat new-CHANGELOG.md CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md CHANGELOG.md"
 	sh -c "git rm changes/*"
+
+###
+# Development DB commands
+###
+
+# Reset the development DB
+db-reset:
+	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | mysql -uroot -ptoor'
+	./build/fleet prepare db --dev
+
+# Back up the development DB to file
+db-backup:
+	./tools/backup_db/backup.sh
+
+# Restore the development DB from file
+db-restore:
+	./tools/backup_db/restore.sh
