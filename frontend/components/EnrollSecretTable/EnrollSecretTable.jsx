@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import FileSaver from "file-saver";
 
 import Button from "components/buttons/Button";
 import enrollSecretInterface from "interfaces/enroll_secret";

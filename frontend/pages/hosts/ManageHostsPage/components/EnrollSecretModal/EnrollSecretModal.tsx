@@ -14,8 +14,7 @@ interface IEnrollSecretModal {
   onReturnToApp: () => void;
   isPremiumTier: boolean;
   teams: ITeam[];
-  toggleAddSecretModal: () => void;
-  toggleEditSecretModal: () => void;
+  toggleSecretEditorModal: () => void;
   toggleDeleteSecretModal: () => void;
 }
 
@@ -32,8 +31,7 @@ const EnrollSecretModal = ({
   selectedTeam,
   isPremiumTier,
   teams,
-  toggleAddSecretModal,
-  toggleEditSecretModal,
+  toggleSecretEditorModal,
   toggleDeleteSecretModal,
 }: IEnrollSecretModal): JSX.Element => {
   const globalSecret = useSelector(
@@ -61,21 +59,21 @@ const EnrollSecretModal = ({
           {isPremiumTier && (
             <EnrollSecretTable
               secrets={renderTeam()?.secrets}
-              toggleEditSecretModal={toggleEditSecretModal}
+              toggleSecretEditorModal={toggleSecretEditorModal}
               toggleDeleteSecretModal={toggleDeleteSecretModal}
             />
           )}
           {!isPremiumTier && (
             <EnrollSecretTable
               secrets={renderTeam()?.secrets}
-              toggleEditSecretModal={toggleEditSecretModal}
+              toggleSecretEditorModal={toggleSecretEditorModal}
               toggleDeleteSecretModal={toggleDeleteSecretModal}
             />
           )}
         </div>
         <div className={`${baseClass}__add-secret`}>
           <Button
-            onClick={toggleAddSecretModal}
+            onClick={toggleSecretEditorModal}
             className={`${baseClass}__add-secret-btn`}
             variant="text-icon"
           >
