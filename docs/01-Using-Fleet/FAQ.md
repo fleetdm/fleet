@@ -15,6 +15,7 @@
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
+- [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -145,3 +146,11 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
 Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
+
+## Why my host is not updating a policy's response.
+
+A host may not be updating a policy's for one or more of the following reasons:
+
+* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
+
+* The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
