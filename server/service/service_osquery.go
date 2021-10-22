@@ -402,19 +402,19 @@ const hostPolicyQueryPrefix = "fleet_policy_query_"
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
-// hostDetailQueries returns the map of queries that should be executed by
-// osqueryd to fill in the host details
+// hostDetailQueries returns the map of detail+additional queries that should be executed by
+// osqueryd to fill in the host details.
 func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map[string]string, error) {
-	queries := make(map[string]string)
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
-		// No need to update already fresh details
-		return queries, nil
-	}
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, osqueryError{message: "get additional queries: " + err.Error()}
+		return nil, nil
 	}
 
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, errors.Errorf("read app config: %s", err)
+	}
+
+	queries := make(map[string]string)
 	detailQueries := osquery_utils.GetDetailQueries(config)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
@@ -422,7 +422,6 @@ func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map
 		}
 	}
 
-	// Get additional queries
 	if config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, nil
@@ -430,7 +429,7 @@ func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map
 
 	var additionalQueries map[string]string
 	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, osqueryError{message: "unmarshal additional queries: " + err.Error()}
+		return nil, errors.Errorf("unmarshal additional queries: %s", err)
 	}
 
 	for name, query := range additionalQueries {
@@ -453,6 +452,28 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) 
 	return lastUpdated.Before(cutoff)
 }
 
+func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	if !svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval) && !host.RefetchRequested {
+		return nil, nil
+	}
+	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, errors.Errorf("retrieve label queries: %s", err)
+	}
+	return labelQueries, nil
+}
+
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) && !host.RefetchRequested {
+		return nil, nil
+	}
+	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, errors.Errorf("retrieve policy queries: %s", err)
+	}
+	return policyQueries, nil
+}
+
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -464,41 +485,38 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	queries, err := svc.hostDetailQueries(ctx, host)
+	queries := make(map[string]string)
+
+	hostDetailQueries, err := svc.hostDetailQueries(ctx, host)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range hostDetailQueries {
+		queries[name] = query
 	}
 
-	// Retrieve the label queries that should be updated
-	if svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval) {
-		labelQueries, err := svc.ds.LabelQueriesForHost(ctx, &host)
-		if err != nil {
-			return nil, 0, osqueryError{message: "retrieving label queries: " + err.Error()}
-		}
-
-		for name, query := range labelQueries {
-			queries[hostLabelQueryPrefix+name] = query
-		}
+	labelQueries, err := svc.labelQueriesForHost(ctx, &host)
+	if err != nil {
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range labelQueries {
+		queries[hostLabelQueryPrefix+name] = query
 	}
 
 	liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID)
 	if err != nil {
 		return nil, 0, osqueryError{message: "retrieve live queries: " + err.Error()}
 	}
-
 	for name, query := range liveQueries {
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	if svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) {
-		policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, &host)
-		if err != nil {
-			return nil, 0, osqueryError{message: "retrieving policy queries: " + err.Error()}
-		}
-
-		for name, query := range policyQueries {
-			queries[hostPolicyQueryPrefix+name] = query
-		}
+	policyQueries, err := svc.policyQueriesForHost(ctx, &host)
+	if err != nil {
+		return nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range policyQueries {
+		queries[hostPolicyQueryPrefix+name] = query
 	}
 
 	accelerate := uint(0)
@@ -534,9 +552,6 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 			message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
 		}
 	}
-
-	// Refetch is no longer needed after ingesting details.
-	host.RefetchRequested = false
 
 	return nil
 }
@@ -644,7 +659,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	logIPs(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
-
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
@@ -732,6 +746,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
+
+	if host.RefetchRequested {
+		host.RefetchRequested = false
+		host.Modified = true
+	}
 
 	if host.Modified {
 		err = svc.ds.SaveHost(ctx, &host)

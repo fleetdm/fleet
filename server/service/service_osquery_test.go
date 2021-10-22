@@ -284,7 +284,7 @@ func TestHostDetailQueries(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, queries)
 
-	// With refetch requested queries should be returned
+	// With refetch requested detail queries should be returned
 	host.RefetchRequested = true
 	queries, err = svc.hostDetailQueries(context.Background(), host)
 	assert.Nil(t, err)
@@ -330,7 +330,8 @@ func TestLabelQueries(t *testing.T) {
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -351,7 +352,7 @@ func TestLabelQueries(t *testing.T) {
 	assert.Len(t, queries, expectedDetailQueries)
 	assert.NotZero(t, acc)
 
-	// Simulate the detail queries being added
+	// Simulate the detail queries being added.
 	host.DetailUpdatedAt = mockClock.Now().Add(-1 * time.Minute)
 	host.Hostname = "zwass.local"
 	ctx = hostctx.NewContext(ctx, *host)
@@ -394,7 +395,7 @@ func TestLabelQueries(t *testing.T) {
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
 	assert.Equal(t, host, gotHost)
 	assert.Equal(t, mockClock.Now(), gotTime)
@@ -422,6 +423,51 @@ func TestLabelQueries(t *testing.T) {
 		assert.Equal(t, true, *gotResults[2])
 		assert.Equal(t, false, *gotResults[3])
 	}
+
+	// We should get no labels now.
+	host.LabelUpdatedAt = mockClock.Now()
+	ctx = hostctx.NewContext(ctx, *host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	assert.Nil(t, err)
+	assert.Len(t, queries, 0)
+	assert.Zero(t, acc)
+
+	// With refetch requested details+label queries should be returned.
+	host.RefetchRequested = true
+	ctx = hostctx.NewContext(ctx, *host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, queries, expectedDetailQueries+3)
+	assert.Zero(t, acc)
+
+	// Record a query execution
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "3": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+	)
+	assert.NoError(t, err)
+	host.LabelUpdatedAt = mockClock.Now()
+	assert.Equal(t, host, gotHost)
+	assert.Equal(t, mockClock.Now(), gotTime)
+	if assert.Len(t, gotResults, 2) {
+		assert.Equal(t, true, *gotResults[2])
+		assert.Equal(t, false, *gotResults[3])
+	}
+
+	// SubmitDistributedQueryResults will set RefetchRequested to false.
+	require.False(t, host.RefetchRequested)
+
+	// There shouldn't be any labels now.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, acc, err = svc.GetDistributedQueries(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, queries, 0)
+	assert.Zero(t, acc)
 }
 
 func TestGetClientConfig(t *testing.T) {
@@ -1809,9 +1855,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
-	//var gotQuery *fleet.Query
+	// var gotQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		//gotQuery = query
+		// gotQuery = query
 		query.ID = 42
 		return query, nil
 	}
@@ -1874,21 +1920,25 @@ func TestPolicyQueries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
 
-	hasPolicy1, hasPolicy2 := false, false
-	for name := range queries {
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			if name[len(hostPolicyQueryPrefix):] == "1" {
-				hasPolicy1 = true
-			}
-			if name[len(hostPolicyQueryPrefix):] == "2" {
-				hasPolicy2 = true
+	checkPolicyResults := func(queries map[string]string) {
+		hasPolicy1, hasPolicy2 := false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				if name[len(hostPolicyQueryPrefix):] == "1" {
+					hasPolicy1 = true
+				}
+				if name[len(hostPolicyQueryPrefix):] == "2" {
+					hasPolicy2 = true
+				}
 			}
 		}
+		assert.True(t, hasPolicy1)
+		assert.True(t, hasPolicy2)
 	}
-	assert.True(t, hasPolicy1)
-	assert.True(t, hasPolicy2)
 
-	// Record a query execution
+	checkPolicyResults(queries)
+
+	// Record a query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
@@ -1904,39 +1954,86 @@ func TestPolicyQueries(t *testing.T) {
 	require.Equal(t, true, *recordedResults[1])
 	require.Nil(t, recordedResults[2])
 
+	noPolicyResults := func(queries map[string]string) {
+		hasAnyPolicy := false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				hasAnyPolicy = true
+				break
+			}
+		}
+		assert.False(t, hasAnyPolicy)
+	}
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies.
 	ctx = hostctx.NewContext(context.Background(), *host)
 	queries, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
 
-	// After the first time we get policies and update the host, then there shouldn't be any policies
-	hasAnyPolicy := false
-	for name := range queries {
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			hasAnyPolicy = true
-			break
-		}
-	}
-	assert.False(t, hasAnyPolicy)
-
-	// Let's move time forward, there should be policies now
+	// Let's move time forward, there should be policies now.
 	mockClock.AddTime(2 * time.Hour)
 
 	queries, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
 
-	hasPolicy1, hasPolicy2 = false, false
-	for name := range queries {
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			if name[len(hostPolicyQueryPrefix):] == "1" {
-				hasPolicy1 = true
-			}
-			if name[len(hostPolicyQueryPrefix):] == "2" {
-				hasPolicy2 = true
-			}
-		}
-	}
-	assert.True(t, hasPolicy1)
-	assert.True(t, hasPolicy2)
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recordedResults[1])
+	require.Equal(t, true, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// With refetch requested policy queries should be returned.
+	host.RefetchRequested = true
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recordedResults[1])
+	require.Equal(t, true, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
+
+	// SubmitDistributedQueryResults will set RefetchRequested to false.
+	require.False(t, host.RefetchRequested)
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
 }
