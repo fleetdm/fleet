@@ -74,6 +74,7 @@ const EditPackForm = ({
   isPremiumTier,
   formData,
 }: IEditPackForm): JSX.Element => {
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [packName, setPackName] = useState<string>(formData.name);
   const [packDescription, setPackDescription] = useState<string>(
     formData.description
@@ -101,6 +102,13 @@ const EditPackForm = ({
   };
 
   const onFormSubmit = () => {
+    if (packName === "") {
+      return setErrors({
+        ...errors,
+        name: "Pack name must be present",
+      });
+    }
+
     handleSubmit({
       name: packName,
       description: packDescription,
@@ -117,6 +125,7 @@ const EditPackForm = ({
         placeholder="Name"
         label="Name"
         name="name"
+        error={errors.name}
         inputWrapperClass={`${baseClass}__pack-title`}
       />
       <InputField

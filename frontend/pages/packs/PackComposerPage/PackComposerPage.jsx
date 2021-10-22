@@ -61,8 +61,17 @@ export class PackComposerPage extends Component {
         dispatch(renderFlash("success", `Pack successfully created.`));
         visitPackPage(packID);
       })
-      .catch(() => {
-        dispatch(renderFlash("error", "Unable to create pack."));
+      .catch((response) => {
+        if (response.base.slice(0, 27) === "Error 1062: Duplicate entry") {
+          dispatch(
+            renderFlash(
+              "error",
+              "Unable to create pack. Pack names must be unique."
+            )
+          );
+        } else {
+          dispatch(renderFlash("error", "Unable to create pack."));
+        }
       });
   };
 

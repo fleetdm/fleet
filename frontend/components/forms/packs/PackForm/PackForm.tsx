@@ -1,12 +1,8 @@
 import React, { Component, useState } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
-import { size } from "lodash";
 
-import { useDeepEffect } from "utilities/hooks";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Form from "components/forms/Form";
 import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 // @ts-ignore
@@ -14,7 +10,6 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
-const fieldNames = ["name", "description", "targets"];
 const baseClass = "pack-form";
 
 interface IPackForm {
