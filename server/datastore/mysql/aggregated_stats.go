@@ -15,7 +15,7 @@ import (
 
 const scheduledQueryPercentileQuery = `
 SELECT
-	(t1.%s / t1.executions)
+	coalesce((t1.%s / t1.executions), 0)
 FROM (
 	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
@@ -34,7 +34,7 @@ WHERE t1.row_number = floor(total_rows * %s) + 1;`
 
 const queryPercentileQuery = `
 SELECT
-	(t1.%s / t1.executions)
+	coalesce((t1.%s / t1.executions), 0)
 FROM (
 	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions

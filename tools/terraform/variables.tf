@@ -44,6 +44,10 @@ variable "logging_debug" {
 default = "false"
 }
 
+variable "logging_json" {
+  default = "true"
+}
+
 variable "database_user" {
   description = "database user fleet will authenticate and query with"
   default     = "fleet"

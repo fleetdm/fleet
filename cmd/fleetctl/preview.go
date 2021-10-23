@@ -141,7 +141,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error creating Fleet API client handler")
 			}
 
-			token, err := fleetClient.Setup(email, "Admin", password, "Fleet Preview")
+			token, err := fleetClient.Setup(email, "Admin", password, "Fleet for osquery")
 			if err != nil {
 				switch errors.Cause(err).(type) {
 				case service.SetupAlreadyErr:
@@ -232,7 +232,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			// disable anonymous analytics collection for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
-				"server_settings": {"enable_analytics": false}},
+				"server_settings": {"enable_analytics": false},
+			},
 			); err != nil {
 				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
 			}

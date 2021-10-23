@@ -1,5 +1,9 @@
 import PropTypes from "prop-types";
 
+import scheduledQueryStatsInterface, {
+  IScheduledQueryStats,
+} from "./scheduled_query_stats";
+
 export default PropTypes.shape({
   created_at: PropTypes.string,
   updated_at: PropTypes.string,
@@ -15,6 +19,8 @@ export default PropTypes.shape({
   shard: PropTypes.number,
   platform: PropTypes.string,
   version: PropTypes.string,
+  denylist: PropTypes.bool,
+  stats: scheduledQueryStatsInterface,
 });
 
 export interface ITeamScheduledQuery {
@@ -32,4 +38,6 @@ export interface ITeamScheduledQuery {
   platform?: string;
   version?: string;
   shard?: number;
+  denylist?: boolean;
+  stats?: IScheduledQueryStats;
 }

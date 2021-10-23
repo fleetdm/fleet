@@ -46,7 +46,7 @@ When the Actions Workflow has completed:
 
 ### Upgrading
 
-Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet#updating-the-fleet-binary) for upgrade instructions.
+Please visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) for upgrade instructions.
 
 ### Documentation
 

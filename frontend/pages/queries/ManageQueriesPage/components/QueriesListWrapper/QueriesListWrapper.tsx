@@ -5,8 +5,7 @@ import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-
-import generateTableHeaders from "./QueriesTableConfig";
+import { generateTableHeaders, generateDataSet } from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
@@ -80,7 +79,7 @@ const QueriesListWrapper = (
                 </p>
                 <p>
                   Create a new query, or go to GitHub to{" "}
-                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
+                  <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
                     import Fleet’s standard query library
                   </a>
                   .
@@ -109,13 +108,14 @@ const QueriesListWrapper = (
   }, [searchString, onCreateQueryClick]);
 
   const tableHeaders = generateTableHeaders(currentUser);
+  const dataSet = generateDataSet(filteredQueries);
 
   return !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={filteredQueries}
+        data={dataSet}
         isLoading={isLoading}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}
