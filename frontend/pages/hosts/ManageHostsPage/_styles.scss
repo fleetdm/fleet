@@ -172,24 +172,46 @@
     }
   }
 
+  &__policies-filter-name-card,
+  &__software-filter-name-card {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: 4px;
+    box-shadow: none;
+    margin-left: $pad-medium;
+    color: $core-fleet-black;
+    font-size: $xx-small;
+    font-weight: $bold;
+    cursor: default;
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+    }
+
+    button {
+      height: auto;
+      padding: 0px;
+      border: none;
+      margin-left: $pad-small;
+
+      img {
+        padding: 0px;
+        margin: 0px;
+      }
+    }
+  }
+
+  &__software-filter-name-card {
+    margin-left: 0px;
+  }
+
   &__enroll-hosts {
     padding: $pad-small;
     margin-right: $pad-small;
-  }
-
-  &__software-filter-block {
-    .button--small-text-icon {
-      margin-left: 0;
-      padding-left: 12px;
-    }
-    .software-filter-button {
-      display: inline-flex;
-      align-items: center;
-    }
-    .software-filter-tooltip {
-      display: inline-flex;
-      align-items: center;
-    }
   }
 
   .issues__header,

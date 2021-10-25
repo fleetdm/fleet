@@ -77,7 +77,7 @@ import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-action-close-16x15@2x.png";
+import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 interface IManageHostsProps {
@@ -923,27 +923,24 @@ const ManageHostsPage = ({
   // };
 
   const renderPoliciesFilterBlock = () => {
-    const buttonText = (
-      <>
-        <img src={PolicyIcon} alt="Policy" />
-        {policy?.query_name}
-        <img src={CloseIcon} alt="Remove policy filter" />
-      </>
-    );
     return (
       <div className={`${baseClass}__policies-filter-block`}>
         <PoliciesFilter
           policyResponse={policyResponse}
           onChange={handleChangePoliciesFilter}
         />
-        <Button
-          className={`${baseClass}__clear-policies-filter`}
-          onClick={handleClearPoliciesFilter}
-          variant={"small-text-icon"}
-          title={policy?.query_name}
-        >
-          {buttonText}
-        </Button>
+        <div className={`${baseClass}__policies-filter-name-card`}>
+          <img src={PolicyIcon} alt="Policy" />
+          {policy?.query_name}
+          <Button
+            className={`${baseClass}__clear-policies-filter`}
+            onClick={handleClearPoliciesFilter}
+            variant={"small-text-icon"}
+            title={policy?.query_name}
+          >
+            <img src={CloseIcon} alt="Remove policy filter" />
+          </Button>
+        </div>
       </div>
     );
   };
@@ -954,37 +951,39 @@ const ManageHostsPage = ({
       const buttonText = name && version ? `${name} ${version}` : "";
       return (
         <div className={`${baseClass}__software-filter-block`}>
-          <Button
-            className={`${baseClass}__clear-software-filter`}
-            onClick={handleClearSoftwareFilter}
-            variant={"small-text-icon"}
-            title={name}
-          >
-            <span className="software-filter-button">
-              <span
-                className="software-filter-tooltip"
-                data-tip
-                data-for="software-filter-tooltip"
-                data-tip-disable={!name || !version}
-              >
+          <div>
+            <span
+              className="software-filter-tooltip"
+              data-tip
+              data-for="software-filter-tooltip"
+              data-tip-disable={!name || !version}
+            >
+              <div className={`${baseClass}__software-filter-name-card`}>
                 {buttonText}
-                <img src={CloseIcon} alt="Remove software filter" />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="software-filter-tooltip"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  {`Hosts with ${name}`},<br />
-                  {`${version} installed`}
-                </span>
-              </ReactTooltip>
+                <Button
+                  className={`${baseClass}__clear-policies-filter`}
+                  onClick={handleClearSoftwareFilter}
+                  variant={"small-text-icon"}
+                  title={buttonText}
+                >
+                  <img src={CloseIcon} alt="Remove policy filter" />
+                </Button>
+              </div>
             </span>
-          </Button>
+            <ReactTooltip
+              place="bottom"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="software-filter-tooltip"
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>
+                {`Hosts with ${name}`},<br />
+                {`${version} installed`}
+              </span>
+            </ReactTooltip>
+          </div>
         </div>
       );
     }
