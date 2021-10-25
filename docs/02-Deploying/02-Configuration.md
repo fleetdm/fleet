@@ -356,6 +356,19 @@ The database to use when connecting to the Redis instance.
     database: 14
   ```
 
+##### redis_use_tls
+
+Use a TLS connection to the Redis server.
+
+- Default value: `false`
+- Environment variable: `FLEET_REDIS_USE_TLS`
+- Config file format:
+
+  ```
+  redis:
+    use_tls: true
+  ```
+
 ##### redis_duplicate_results
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
@@ -470,7 +483,6 @@ The path to a PEM-encoded private key used for tls authentication.
 ##### redis_tls_ca
 
 The path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
-Required to use TLS connections.
 
 - Default value: none
 - Environment variable: `FLEET_REDIS_TLS_CA`
@@ -1536,7 +1548,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-- Default value: 
+- Default value:
 - Environment variable: `FLEET_S3_REGION`
 - Config file format:
 
