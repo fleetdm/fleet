@@ -14,6 +14,7 @@ import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import { AppContext } from "context/app";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
 
 interface IAppProps {
   children: JSX.Element;
@@ -84,7 +85,9 @@ const App = ({ children }: IAppProps) => {
     <QueryClientProvider client={queryClient}>
       <TableProvider>
         <QueryProvider>
-          <div className={wrapperStyles}>{children}</div>
+          <FleetErrorBoundary>
+            <div className={wrapperStyles}>{children}</div>
+          </FleetErrorBoundary>
         </QueryProvider>
       </TableProvider>
     </QueryClientProvider>
