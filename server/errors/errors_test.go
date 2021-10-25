@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -65,18 +66,19 @@ func TestHashErrEris(t *testing.T) {
 	generatedErr := eris.New("some err")
 	res, jsonBytes, err := hashErr(generatedErr)
 	require.NoError(t, err)
-	assert.Equal(t, "ur33yN3AcASxv0gjHnuQUKY1HA8gPEajVZ8RWL2VXA8=", res)
-	assert.Equal(t, fmt.Sprintf(`{
-  "root": {
+	assert.NotEmpty(t, res)
+
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+  "root": \{
     "message": "some err",
-    "stack": [
-      "errors.TestHashErrEris:%s/errors_test.go:33"
-    ]
-  }
-}`, wd), jsonBytes)
+    "stack": \[
+      "errors.TestHashErrEris:%s/errors_test\.go:\d+"
+    \]
+  \}
+\}`, regexp.QuoteMeta(wd))), jsonBytes)
 }
 
-func TestErroHandler(t *testing.T) {
+func TestErrorHandler(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -97,8 +99,7 @@ func TestErroHandler(t *testing.T) {
 		}
 	})
 
-	store, teardown := pubsub.SetupRedisForTest(t, false)
-	defer teardown()
+	store := pubsub.SetupRedisForTest(t, false, false)
 
 	eh := NewHandler(ctx, store.Pool(), kitlog.NewNopLogger())
 	eh.Flush()

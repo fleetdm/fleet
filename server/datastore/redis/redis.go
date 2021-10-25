@@ -340,7 +340,7 @@ func isClusterCommandUnknown(err error) bool {
 func ScanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
 
-	err := EachRedisNode(pool, func(conn redis.Conn) error {
+	err := EachNode(pool, false, func(conn redis.Conn) error {
 		cursor := 0
 		for {
 			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern))

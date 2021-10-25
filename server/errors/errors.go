@@ -46,7 +46,7 @@ func (e *errorHandler) Flush() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	keysBySlot := redis.SplitRedisKeysBySlot(e.pool, errorKeys...)
+	keysBySlot := redis.SplitKeysBySlot(e.pool, errorKeys...)
 	var errors []string
 	for _, qkeys := range keysBySlot {
 		gotErrors, err := e.collectBatchErrors(qkeys)
