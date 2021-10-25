@@ -1,10 +1,37 @@
 ## Terraform
 
-`terraform init && terraform workspace new dev`
+### Bootstrapping remote state
 
-`terraform plan`
+First we need to bootstrap our terraform remote state management. This lives outside the main project to avoid "chicken before the egg"
+issues. We are going to create the remote state S3 bucket and DynamoDB state locking table and then use hardcoded values
+in parent folder `main.tf`.
+1. `cd remote-state`
+2. `terraform init`
+3. `terraform apply`
 
-`terraform apply`
+### Creating the Fleet infrastructure
+If you have a Fleet license we suggest you create a secret in AWS Secrets Manager called `/fleet/license`
+and the value with the Fleet license key.
+
+If you don't have a Fleet license please comment out the following lines in `ecs.tf`:
+
+```terraform
+data "aws_secretsmanager_secret" "license" {
+  name = "/fleet/license"
+}
+```
+and the license key in secret in the task definition:
+```terraform
+  {
+    name      = "FLEET_LICENSE_KEY"
+    valueFrom = data.aws_secretsmanager_secret.license.arn
+  }
+```
+
+To deploy the infrastructure:
+1. `terraform init && terraform workspace new prod`
+2. `terraform plan`
+3. `terraform apply`
 
 ### Configuration
 

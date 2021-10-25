@@ -235,7 +235,7 @@ resource "aws_ecs_task_definition" "backend" {
             value = var.logging_debug
           },
           {
-            name = "FLEET_LOGGING_JSON"
+            name  = "FLEET_LOGGING_JSON"
             value = var.logging_json
           },
           {
