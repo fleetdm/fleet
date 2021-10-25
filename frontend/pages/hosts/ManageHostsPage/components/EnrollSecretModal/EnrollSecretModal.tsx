@@ -61,27 +61,43 @@ const EnrollSecretModal = ({
   return (
     <Modal onExit={onReturnToApp} title={"Enroll secret"} className={baseClass}>
       <div className={baseClass}>
-        <div className={`${baseClass}__description`}>
-          Use these secret(s) to enroll devices to <b>{renderTeam()?.name}</b>:
-        </div>
-        <div className={`${baseClass}__secret-wrapper`}>
-          {isPremiumTier && (
-            <EnrollSecretTable
-              secrets={renderTeam()?.secrets}
-              toggleSecretEditorModal={toggleSecretEditorModal}
-              toggleDeleteSecretModal={toggleDeleteSecretModal}
-              setSelectedSecret={setSelectedSecret}
-            />
-          )}
-          {!isPremiumTier && (
-            <EnrollSecretTable
-              secrets={renderTeam()?.secrets}
-              toggleSecretEditorModal={toggleSecretEditorModal}
-              toggleDeleteSecretModal={toggleDeleteSecretModal}
-              setSelectedSecret={setSelectedSecret}
-            />
-          )}
-        </div>
+        {renderTeam()?.secrets ? (
+          <>
+            <div className={`${baseClass}__description`}>
+              Use these secret(s) to enroll hosts to <b>{renderTeam()?.name}</b>
+              :
+            </div>
+            <div className={`${baseClass}__secret-wrapper`}>
+              {isPremiumTier && (
+                <EnrollSecretTable
+                  secrets={renderTeam()?.secrets}
+                  toggleSecretEditorModal={toggleSecretEditorModal}
+                  toggleDeleteSecretModal={toggleDeleteSecretModal}
+                  setSelectedSecret={setSelectedSecret}
+                />
+              )}
+              {!isPremiumTier && (
+                <EnrollSecretTable
+                  secrets={renderTeam()?.secrets}
+                  toggleSecretEditorModal={toggleSecretEditorModal}
+                  toggleDeleteSecretModal={toggleDeleteSecretModal}
+                  setSelectedSecret={setSelectedSecret}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={`${baseClass}__description`}>
+              <p>
+                <b>You have no enroll secrets.</b>
+              </p>
+              <p>
+                Add secret(s) to enroll hosts to <b>{renderTeam()?.name}</b>.
+              </p>
+            </div>
+          </>
+        )}
         <div className={`${baseClass}__add-secret`}>
           <Button
             onClick={addNewSecretClick}
