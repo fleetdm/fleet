@@ -83,7 +83,7 @@ const Homepage = (): JSX.Element => {
           <HostsSummary />
         </InfoCard>
       </div>
-      {!isPreviewMode && (
+      {isPreviewMode && (
         <div className={`${baseClass}__section two-column`}>
           <InfoCard title="Welcome to Fleet">
             <WelcomeHost />
