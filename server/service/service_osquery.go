@@ -402,16 +402,16 @@ const hostPolicyQueryPrefix = "fleet_policy_query_"
 // run from a distributed query campaign
 const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
-// hostDetailQueries returns the map of detail+additional queries that should be executed by
+// detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
-func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map[string]string, error) {
+func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (map[string]string, error) {
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Errorf("read app config: %s", err)
+		return nil, errors.Wrap(err, "read app config")
 	}
 
 	queries := make(map[string]string)
@@ -429,7 +429,7 @@ func (svc *Service) hostDetailQueries(ctx context.Context, host fleet.Host) (map
 
 	var additionalQueries map[string]string
 	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, errors.Errorf("unmarshal additional queries: %s", err)
+		return nil, errors.Wrap(err, "unmarshal additional queries")
 	}
 
 	for name, query := range additionalQueries {
@@ -458,7 +458,7 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, errors.Errorf("retrieve label queries: %s", err)
+		return nil, errors.Wrap(err, "retrieve label queries")
 	}
 	return labelQueries, nil
 }
@@ -469,7 +469,7 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, errors.Errorf("retrieve policy queries: %s", err)
+		return nil, errors.Wrap(err, "retrieve policy queries")
 	}
 	return policyQueries, nil
 }
@@ -487,11 +487,11 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	queries := make(map[string]string)
 
-	hostDetailQueries, err := svc.hostDetailQueries(ctx, host)
+	detailQueries, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
-	for name, query := range hostDetailQueries {
+	for name, query := range detailQueries {
 		queries[name] = query
 	}
 
