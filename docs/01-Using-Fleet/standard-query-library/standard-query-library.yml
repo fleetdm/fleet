@@ -452,8 +452,8 @@ kind: query
 spec:
   name: Get user files matching a specific hash
   platforms: macOS, Linux
-  description:  Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
-  query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
   purpose: Informational
   contributors: alphabrevity
 ---
@@ -462,7 +462,7 @@ kind: query
 spec:
   name: Get local administrator accounts on macOS
   platforms: macOS
-  description: The query allows you to check macOS systems for local administrator accounts. 
+  description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   contributors: alphabrevity
@@ -474,7 +474,7 @@ spec:
   platforms: Linux, macOS, Windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
-  purpose: Informational 
+  purpose: Informational
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -493,7 +493,7 @@ spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
-  query: select case cnt when 0 then "NONE_INSTALLED" else "INSTALLED" end as "Malicious Python Packages",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
   contributors: alphabrevity
 ---
@@ -503,14 +503,14 @@ spec:
   name: Check for artifacts of the Floxif trojan
   platforms: Windows
   description: Checks for artifacts from the Floxif trojan on Windows machines.
-  query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
   purpose: Informational
   contributors: micheal-o
 ---
 apiVersion: v1
 kind: query
 spec:
-  name: Get shimcache table 
+  name: Get shimcache table
   platforms: Windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
   query: select * from shimcache
