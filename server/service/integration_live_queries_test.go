@@ -34,7 +34,7 @@ type liveQueriesTestSuite struct {
 }
 
 func (s *liveQueriesTestSuite) SetupSuite() {
-	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "10s"))
+	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s"))
 
 	s.withDS.SetupSuite("liveQueriesTestSuite")
 
@@ -92,16 +92,19 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
+
+	cid := getCIDForQ(s, q1)
+
 	distributedReq := submitDistributedQueryResultsRequest{
 		NodeKey: host.NodeKey,
 		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): {{"col1": "a", "col2": "b"}},
+			hostDistributedQueryPrefix + cid: {{"col1": "a", "col2": "b"}},
 		},
 		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): 0,
+			hostDistributedQueryPrefix + cid: 0,
 		},
 		Messages: map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): "some msg",
+			hostDistributedQueryPrefix + cid: "some msg",
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -152,19 +155,23 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
+
+	cid1 := getCIDForQ(s, q1)
+	cid2 := getCIDForQ(s, q2)
+
 	distributedReq := submitDistributedQueryResultsRequest{
 		NodeKey: host.NodeKey,
 		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): {{"col1": "a", "col2": "b"}},
-			hostDistributedQueryPrefix + fmt.Sprint(q2.ID): {{"col3": "c", "col4": "d"}, {"col3": "e", "col4": "f"}},
+			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
+			hostDistributedQueryPrefix + cid2: {{"col3": "c", "col4": "d"}, {"col3": "e", "col4": "f"}},
 		},
 		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): 0,
-			hostDistributedQueryPrefix + fmt.Sprint(q2.ID): 0,
+			hostDistributedQueryPrefix + cid1: 0,
+			hostDistributedQueryPrefix + cid2: 0,
 		},
 		Messages: map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): "some msg",
-			hostDistributedQueryPrefix + fmt.Sprint(q2.ID): "some other msg",
+			hostDistributedQueryPrefix + cid1: "some msg",
+			hostDistributedQueryPrefix + cid2: "some other msg",
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -196,6 +203,15 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 	assert.Equal(t, "d", q2Results.Rows[0]["col4"])
 	assert.Equal(t, "e", q2Results.Rows[1]["col3"])
 	assert.Equal(t, "f", q2Results.Rows[1]["col4"])
+}
+
+func getCIDForQ(s *liveQueriesTestSuite, q1 *fleet.Query) string {
+	t := s.T()
+	campaigns, err := s.ds.DistributedQueryCampaignsForQuery(context.Background(), q1.ID)
+	require.NoError(t, err)
+	require.Len(t, campaigns, 1)
+	cid1 := fmt.Sprint(campaigns[0].ID)
+	return cid1
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
@@ -238,20 +254,22 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
+	cid1 := getCIDForQ(s, q1)
+	cid2 := getCIDForQ(s, q2)
 	for i, h := range []*fleet.Host{h1, h2} {
 		distributedReq := submitDistributedQueryResultsRequest{
 			NodeKey: h.NodeKey,
 			Results: map[string][]map[string]string{
-				hostDistributedQueryPrefix + fmt.Sprint(q1.ID): {{"col1": fmt.Sprintf("a%d", i), "col2": fmt.Sprintf("b%d", i)}},
-				hostDistributedQueryPrefix + fmt.Sprint(q2.ID): {{"col3": fmt.Sprintf("c%d", i), "col4": fmt.Sprintf("d%d", i)}, {"col3": fmt.Sprintf("e%d", i), "col4": fmt.Sprintf("f%d", i)}},
+				hostDistributedQueryPrefix + cid1: {{"col1": fmt.Sprintf("a%d", i), "col2": fmt.Sprintf("b%d", i)}},
+				hostDistributedQueryPrefix + cid2: {{"col3": fmt.Sprintf("c%d", i), "col4": fmt.Sprintf("d%d", i)}, {"col3": fmt.Sprintf("e%d", i), "col4": fmt.Sprintf("f%d", i)}},
 			},
 			Statuses: map[string]fleet.OsqueryStatus{
-				hostDistributedQueryPrefix + fmt.Sprint(q1.ID): 0,
-				hostDistributedQueryPrefix + fmt.Sprint(q2.ID): 0,
+				hostDistributedQueryPrefix + cid1: 0,
+				hostDistributedQueryPrefix + cid2: 0,
 			},
 			Messages: map[string]string{
-				hostDistributedQueryPrefix + fmt.Sprint(q1.ID): "some msg",
-				hostDistributedQueryPrefix + fmt.Sprint(q2.ID): "some other msg",
+				hostDistributedQueryPrefix + cid1: "some msg",
+				hostDistributedQueryPrefix + cid2: "some other msg",
 			},
 		}
 		distributedResp := submitDistributedQueryResultsResponse{}
@@ -333,16 +351,17 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
+	cid1 := getCIDForQ(s, q1)
 	distributedReq := submitDistributedQueryResultsRequest{
 		NodeKey: h1.NodeKey,
 		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): {{"col1": "a", "col2": "b"}},
+			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
 		},
 		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): 0,
+			hostDistributedQueryPrefix + cid1: 0,
 		},
 		Messages: map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): "some msg",
+			hostDistributedQueryPrefix + cid1: "some msg",
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -351,13 +370,13 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	distributedReq = submitDistributedQueryResultsRequest{
 		NodeKey: h2.NodeKey,
 		Results: map[string][]map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): {},
+			hostDistributedQueryPrefix + cid1: {},
 		},
 		Statuses: map[string]fleet.OsqueryStatus{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): 123,
+			hostDistributedQueryPrefix + cid1: 123,
 		},
 		Messages: map[string]string{
-			hostDistributedQueryPrefix + fmt.Sprint(q1.ID): "some error!",
+			hostDistributedQueryPrefix + cid1: "some error!",
 		},
 	}
 	distributedResp = submitDistributedQueryResultsResponse{}
