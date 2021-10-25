@@ -26,10 +26,6 @@ variable "vulnerabilities_path" {
   default = "/home/fleet"
 }
 
-variable "license_key" {
-  default = ""
-}
-
 variable "fleet_backend_cpu" {
   default = 256
   type = number
