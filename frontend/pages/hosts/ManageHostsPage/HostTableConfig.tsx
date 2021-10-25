@@ -4,10 +4,9 @@
 import React from "react";
 
 import { IHost } from "interfaces/host";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
@@ -19,9 +18,11 @@ import {
   hostTeamName,
 } from "fleet/helpers";
 import { IConfig } from "interfaces/config";
+import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
+import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -125,6 +126,18 @@ const allHostTableHeaders: IHostDataColumn[] = [
     disableSortBy: true,
     accessor: "status",
     Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Issues",
+    Header: () => <img alt="host issues" src={IssueIcon} />,
+    disableSortBy: true,
+    accessor: "issues",
+    Cell: (cellProps) => (
+      <IssueCell
+        issues={cellProps.row.original.issues}
+        rowId={cellProps.row.original.id}
+      />
+    ),
   },
   {
     title: "OS",
@@ -244,7 +257,7 @@ const allHostTableHeaders: IHostDataColumn[] = [
     Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Serial Number",
+    title: "Serial number",
     Header: (cellProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -284,22 +297,32 @@ const defaultHiddenColumns = [
  */
 const generateAvailableTableHeaders = (
   config: IConfig,
-  currentUser: IUser
+  currentUser: IUser,
+  currentTeam: ITeam | undefined
 ): IHostDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
-      // skip over column headers that are not shown in free tier
-      if (permissionUtils.isFreeTier(config)) {
+      // skip over column headers that are not shown in free observer tier
+      if (
+        permissionUtils.isFreeTier(config) &&
+        permissionUtils.isGlobalObserver(currentUser)
+      ) {
         if (
           currentColumn.accessor === "team_name" ||
           currentColumn.id === "selection"
         ) {
           return columns;
         }
-        // In base tier, we want to check user role to enable/disable select column
+        // skip over column headers that are not shown in free admin/maintainer
+      } else if (permissionUtils.isFreeTier(config)) {
+        if (currentColumn.accessor === "team_name") {
+          return columns;
+        }
       } else if (
+        // In premium tier, we want to check user role to enable/disable select column
         !permissionUtils.isGlobalAdmin(currentUser) &&
-        !permissionUtils.isGlobalMaintainer(currentUser)
+        !permissionUtils.isGlobalMaintainer(currentUser) &&
+        !permissionUtils.isTeamMaintainer(currentUser, currentTeam?.id || null)
       ) {
         if (currentColumn.id === "selection") {
           return columns;
@@ -320,12 +343,15 @@ const generateAvailableTableHeaders = (
 const generateVisibleTableColumns = (
   hiddenColumns: string[],
   config: IConfig,
-  currentUser: IUser
+  currentUser: IUser,
+  currentTeam: ITeam | undefined
 ): IHostDataColumn[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders(config, currentUser).filter((column) => {
-    return !hiddenColumns.includes(column.accessor as string);
-  });
+  return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(
+    (column) => {
+      return !hiddenColumns.includes(column.accessor as string);
+    }
+  );
 };
 
 export {

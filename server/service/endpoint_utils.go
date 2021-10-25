@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -107,29 +108,72 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				if err != nil {
 					return nil, err
 				}
-			}
 
-			if ok && urlTagValue == "list_options" {
-				opts, err := listOptionsFromRequest(r)
-				if err != nil {
-					return nil, err
-				}
-				field.Set(reflect.ValueOf(opts))
-				continue
-			}
+				switch urlTagValue {
+				case "list_options":
+					opts, err := listOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
+				case "host_options":
+					opts, err := hostListOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
+				default:
+					id, err := idFromRequest(r, urlTagValue)
+					if err != nil {
+						if err == errBadRoute && optional {
+							continue
+						}
 
-			if ok {
-				id, err := idFromRequest(r, urlTagValue)
-				if err != nil && err == errBadRoute && !optional {
-					return nil, err
+						return nil, err
+					}
+					field.SetUint(uint64(id))
 				}
-				field.SetUint(uint64(id))
-				continue
 			}
 
 			_, jsonExpected := f.Tag.Lookup("json")
 			if jsonExpected && nilBody {
 				return nil, errors.New("Expected JSON Body")
+			}
+
+			queryTagValue, ok := f.Tag.Lookup("query")
+
+			if ok {
+				queryTagValue, optional, err = parseTag(queryTagValue)
+				if err != nil {
+					return nil, err
+				}
+				queryVal := r.URL.Query().Get(queryTagValue)
+				// if optional and it's a ptr, leave as nil
+				if queryVal == "" {
+					if optional {
+						continue
+					}
+					return nil, errors.Errorf("Param %s is required", f.Name)
+				}
+				if field.Kind() == reflect.Ptr {
+					// create the new instance of whatever it is
+					field.Set(reflect.New(field.Type().Elem()))
+					field = field.Elem()
+				}
+				switch field.Kind() {
+				case reflect.String:
+					field.SetString(queryVal)
+				case reflect.Uint:
+					queryValUint, err := strconv.Atoi(queryVal)
+					if err != nil {
+						return nil, errors.Wrap(err, "parsing uint from query")
+					}
+					field.SetUint(uint64(queryValUint))
+				case reflect.Bool:
+					field.SetBool(queryVal == "1" || queryVal == "true")
+				default:
+					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
+				}
 			}
 		}
 

@@ -9,9 +9,10 @@ interface IAddHostsModalProps {
 
 const baseClass = "add-hosts-redirect-modal";
 
-const AddHostsRedirectModal = (props: IAddHostsModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const AddHostsRedirectModal = ({
+  onCancel,
+  onSubmit,
+}: IAddHostsModalProps): JSX.Element => {
   return (
     <Modal title={"Add hosts"} onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__modal-body`}>

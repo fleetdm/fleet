@@ -120,6 +120,18 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 }
 
+// EnrichedAppConfig contains the AppConfig along with additional fleet
+// instance configuration settings as returned by the
+// "GET /api/v1/fleet/config" API endpoint (and fleetctl get config).
+type EnrichedAppConfig struct {
+	AppConfig
+
+	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License         *LicenseInfo           `json:"license,omitempty"`
+	Logging         *Logging               `json:"logging,omitempty"`
+}
+
 type Duration struct {
 	time.Duration
 }
@@ -229,18 +241,24 @@ const (
 // listing objects
 type ListOptions struct {
 	// Which page to return (must be positive integer)
-	Page uint
+	Page uint `query:"page,optional"`
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
-	PerPage uint
+	PerPage uint `query:"per_page,optional"`
 	// Key to use for ordering
-	OrderKey string
+	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
-	OrderDirection OrderDirection
+	OrderDirection OrderDirection `query:"order_direction,optional"`
 	// MatchQuery is the query string to match against columns of the entity
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
-	MatchQuery string
+	MatchQuery string `query:"query,optional"`
+}
+
+type ListQueryOptions struct {
+	ListOptions
+
+	OnlyObserverCanRun bool
 }
 
 // EnrollSecret contains information about an enroll secret, name, and active
@@ -316,6 +334,20 @@ type Logging struct {
 
 type UpdateIntervalConfig struct {
 	OSQueryDetail time.Duration `json:"osquery_detail"`
+	OSQueryPolicy time.Duration `json:"osquery_policy"`
+}
+
+// VulnerabilitiesConfig contains the vulnerabilities configuration of the
+// fleet instance (as configured for the cli, either via flags, env vars or the
+// config file), not to be confused with VulnerabilitySettings which is the
+// configuration in AppConfig.
+type VulnerabilitiesConfig struct {
+	DatabasesPath         string        `json:"databases_path"`
+	Periodicity           time.Duration `json:"periodicity"`
+	CPEDatabaseURL        string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks string        `json:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync"`
 }
 
 type LoggingPlugin struct {

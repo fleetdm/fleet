@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
+import { push } from "react-router-redux";
 
 import { filter, includes } from "lodash";
+
+import PATHS from "router/paths";
+import queryInterface from "interfaces/query";
+import hostInterface from "interfaces/host";
 
 import Button from "components/buttons/Button";
 import Modal from "components/modals/Modal";
 import InputField from "components/forms/fields/InputField";
-
-import queryInterface from "interfaces/query";
-import hostInterface from "interfaces/host";
-
-import helpers from "../helpers";
 
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
@@ -18,31 +18,31 @@ import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 const baseClass = "select-query-modal";
 
 const onQueryHostCustom = (host, dispatch) => {
-  const { queryHostCustom } = helpers;
-
-  queryHostCustom(dispatch, host);
-
-  return false;
+  return dispatch(
+    push({
+      pathname: PATHS.NEW_QUERY,
+      query: { host_ids: [host.id] },
+    })
+  );
 };
 
 const onQueryHostSaved = (host, selectedQuery, dispatch) => {
-  const { queryHostSaved } = helpers;
-
-  queryHostSaved(dispatch, host, selectedQuery);
-
-  return false;
+  return dispatch(
+    push({
+      pathname: PATHS.EDIT_QUERY(selectedQuery),
+      query: { host_ids: [host.id] },
+    })
+  );
 };
 
-const SelectQueryModal = (props) => {
-  const {
-    host,
-    onCancel,
-    dispatch,
-    queries,
-    queryErrors,
-    isOnlyObserver,
-  } = props;
-
+const SelectQueryModal = ({
+  host,
+  onCancel,
+  dispatch,
+  queries,
+  queryErrors,
+  isOnlyObserver,
+}) => {
   let queriesAvailableToRun = queries;
 
   if (isOnlyObserver) {
@@ -112,7 +112,7 @@ const SelectQueryModal = (props) => {
               <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
             </a>
           </span>
-          {customQueryButton()}
+          {!isOnlyObserver && customQueryButton()}
         </div>
       );
     }
@@ -125,7 +125,7 @@ const SelectQueryModal = (props) => {
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
-          {customQueryButton()}
+          {!isOnlyObserver && customQueryButton()}
         </div>
       );
     }
@@ -179,10 +179,12 @@ const SelectQueryModal = (props) => {
                 value={queriesFilter}
               />
             </div>
-            <div className={`${baseClass}__create-query`}>
-              <span>OR</span>
-              {customQueryButton()}
-            </div>
+            {!isOnlyObserver && (
+              <div className={`${baseClass}__create-query`}>
+                <span>OR</span>
+                {customQueryButton()}
+              </div>
+            )}
           </div>
           <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
@@ -202,7 +204,7 @@ const SelectQueryModal = (props) => {
   return (
     <Modal
       title="Select a query"
-      onExit={onCancel(null)}
+      onExit={onCancel}
       className={`${baseClass}__modal`}
     >
       {results()}

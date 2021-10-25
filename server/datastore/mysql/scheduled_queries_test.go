@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,17 +12,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListScheduledQueriesInPack(t *testing.T) {
+func TestScheduledQueries(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"ListInPack", testScheduledQueriesListInPack},
+		{"New", testScheduledQueriesNew},
+		{"Get", testScheduledQueriesGet},
+		{"Delete", testScheduledQueriesDelete},
+		{"CascadingDelete", testScheduledQueriesCascadingDelete},
+		{"CleanupOrphanStats", testScheduledQueriesCleanupOrphanStats},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
-	err := ds.ApplyQueries(zwass.ID, queries)
-	require.Nil(t, err)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
 		{
@@ -36,11 +56,11 @@ func TestListScheduledQueriesInPack(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
-	require.Nil(t, err)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
+	require.NoError(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
-	require.Nil(t, err)
+	gotQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	require.NoError(t, err)
 	require.Len(t, gotQueries, 1)
 	assert.Equal(t, uint(60), gotQueries[0].Interval)
 	assert.Equal(t, "test_foo", gotQueries[0].Description)
@@ -72,23 +92,44 @@ func TestListScheduledQueriesInPack(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
-	require.Nil(t, err)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
+	require.NoError(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
-	require.Nil(t, err)
+	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	require.NoError(t, err)
 	require.Len(t, gotQueries, 3)
+
+	idWithAgg := gotQueries[0].ID
+
+	_, err = ds.writer.Exec(
+		`INSERT INTO aggregated_stats(id,type,json_value) VALUES (?,?,?)`,
+		idWithAgg, "scheduled_query", `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+	)
+	require.NoError(t, err)
+
+	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, gotQueries, 3)
+
+	foundAgg := false
+	for _, sq := range gotQueries {
+		if sq.ID == idWithAgg {
+			foundAgg = true
+			require.NotNil(t, sq.SystemTimeP50)
+			require.NotNil(t, sq.SystemTimeP95)
+			assert.Equal(t, 0.6936, *sq.SystemTimeP50)
+			assert.Equal(t, 95.8654, *sq.SystemTimeP95)
+		}
+	}
+	require.True(t, foundAgg)
 }
 
-func TestNewScheduledQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testScheduledQueriesNew(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 
-	query, err := ds.NewScheduledQuery(&fleet.ScheduledQuery{
+	query, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
 		PackID:  p1.ID,
 		QueryID: q1.ID,
 		Name:    "foo-scheduled",
@@ -99,16 +140,13 @@ func TestNewScheduledQuery(t *testing.T) {
 	assert.Equal(t, "select * from time;", query.Query)
 }
 
-func TestScheduledQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testScheduledQueriesGet(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
 
-	query, err := ds.ScheduledQuery(sq1.ID)
+	query, err := ds.ScheduledQuery(context.Background(), sq1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, uint(60), query.Interval)
 	assert.Nil(t, query.Denylist)
@@ -116,46 +154,40 @@ func TestScheduledQuery(t *testing.T) {
 	denylist := false
 	query.Denylist = &denylist
 
-	_, err = ds.SaveScheduledQuery(query)
+	_, err = ds.SaveScheduledQuery(context.Background(), query)
 	require.Nil(t, err)
 
-	query, err = ds.ScheduledQuery(sq1.ID)
+	query, err = ds.ScheduledQuery(context.Background(), sq1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, uint(60), query.Interval)
 	require.NotNil(t, query.Denylist)
 	assert.False(t, *query.Denylist)
 }
 
-func TestDeleteScheduledQuery(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testScheduledQueriesDelete(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "")
 
-	query, err := ds.ScheduledQuery(sq1.ID)
+	query, err := ds.ScheduledQuery(context.Background(), sq1.ID)
 	require.Nil(t, err)
 	assert.Equal(t, uint(60), query.Interval)
 
-	err = ds.DeleteScheduledQuery(sq1.ID)
+	err = ds.DeleteScheduledQuery(context.Background(), sq1.ID)
 	require.Nil(t, err)
 
-	_, err = ds.ScheduledQuery(sq1.ID)
+	_, err = ds.ScheduledQuery(context.Background(), sq1.ID)
 	require.NotNil(t, err)
 }
 
-func TestCascadingDeletionOfQueries(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
-	err := ds.ApplyQueries(zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
 	require.Nil(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -183,25 +215,22 @@ func TestCascadingDeletionOfQueries(t *testing.T) {
 			},
 		},
 	}
-	err = ds.ApplyPackSpecs(specs)
+	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
+	gotQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 
-	err = ds.DeleteQuery(queries[1].Name)
+	err = ds.DeleteQuery(context.Background(), queries[1].Name)
 	require.Nil(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(1, fleet.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
 }
 
-func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
 	p1 := test.NewPack(t, ds, "baz")
@@ -217,9 +246,9 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	require.NoError(t, err)
 
 	// Cleanup doesn't remove stats that are ok
-	require.NoError(t, ds.CleanupOrphanScheduledQueryStats())
+	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
 
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -235,7 +264,7 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	require.NoError(t, err)
 
 	// And we don't see it in the host
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -246,13 +275,13 @@ func TestCleanupOrphanScheduledQueryStats(t *testing.T) {
 	assert.Equal(t, 3, count)
 
 	// now we clean it up
-	require.NoError(t, ds.CleanupOrphanScheduledQueryStats())
+	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
 
 	err = ds.writer.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	h1, err = ds.Host(h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 }

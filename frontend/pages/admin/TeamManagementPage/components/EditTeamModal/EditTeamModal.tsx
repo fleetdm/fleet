@@ -17,9 +17,11 @@ interface IEditTeamModalProps {
   defaultName: string;
 }
 
-const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit, defaultName } = props;
-
+const EditTeamModal = ({
+  onCancel,
+  onSubmit,
+  defaultName,
+}: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
 
   const onInputChange = useCallback(
@@ -37,7 +39,7 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`}>
+      <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <InputFieldWithIcon
           autofocus
           // error={errors.name}
@@ -47,12 +49,7 @@ const EditTeamModal = (props: IEditTeamModalProps): JSX.Element => {
           value={name}
         />
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={onFormSubmit}
-          >
+          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Save
           </Button>
           <Button

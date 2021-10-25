@@ -1,19 +1,31 @@
 <html>
   <head>
     <style>
-      div.columns       { width: 900px; padding-top: 10px; padding-bottom: 10px; }
-      div.columns div   { width: 300px; float: left; }
-      div.clear         { clear: both; }
-      div.content       { width: 900px; padding-top: 10px; padding-bottom: 10px; }
+      div.columns {
+        width: 900px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      div.columns div {
+        width: 300px;
+        float: left;
+      }
+      div.clear {
+        clear: both;
+      }
+      div.content {
+        width: 900px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
     </style>
     <script
       src="https://code.jquery.com/jquery-3.2.1.js"
       integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE="
-      crossorigin="anonymous">
-    </script>
+      crossorigin="anonymous"
+    ></script>
     <script>
-
-    $(document).ready(function(){
+      $(document).ready(function () {
         // User agent handling for SSO
 
         // Check for existing session token indicating user has already started SSO process.
@@ -23,86 +35,95 @@
         // we always delete the token in the user agent. We use the session token
         // to keep track of state from the user agent (Kolide SPA), the service provider
         // (Kolide back end), to the identity provider (IDP) and back.
-        var sessionToken = localStorage.getItem("FLEET::auth_token")
-        if( sessionToken != null ) {
-          console.log("user should be authenticated, fetching user with token " + sessionToken);
+        var sessionToken = localStorage.getItem("FLEET::auth_token");
+        if (sessionToken != null) {
+          console.log(
+            "user should be authenticated, fetching user with token " +
+              sessionToken
+          );
           $.ajax({
             type: "GET",
             url: "https://localhost:8080/api/v1/fleet/me",
-            headers: {"Authorization": "Bearer " + sessionToken},
+            headers: { Authorization: "Bearer " + sessionToken },
             contentType: "text/plain;",
             dataType: "json",
-            success: function(data) {
+            success: function (data) {
               // We've successfully created a login session with a token that
               // we can use in subsequent api calls to Kolide.
               console.log("sso login succeeded " + data);
               $("#displayarea").empty();
               $("#displayarea").append(
-                "<h3>Authentication Succeeded</h3>" +
-                "<p>Token: " + localStorage.getItem("FLEET::auth_token").substring(0, 16) + "..." + "</p>" +
-                "<p>User: " + data.user.email + "</p>"
+                "<h3>Authentication succeeded</h3>" +
+                  "<p>Token: " +
+                  localStorage.getItem("FLEET::auth_token").substring(0, 16) +
+                  "..." +
+                  "</p>" +
+                  "<p>User: " +
+                  data.user.email +
+                  "</p>"
               );
               // print user stuff
             },
-            error: function(err) {
+            error: function (err) {
               console.log("sso login failed " + data);
               $("#displayarea").empty();
-              $("#displayarea").append(
-                "<h3>Auth Failed</h3>"
-              );
-            }
+              $("#displayarea").append("<h3>Auth failed</h3>");
+            },
           });
           console.log("removing token " + localStorage.getItem("ssoSession"));
           localStorage.removeItem("ssoSession");
         }
         // Single sign on invocation. User agent chooses single sign on for a particular
         // IDP trigger the following post.
-        $(".clicker").click(function(e){
+        $(".clicker").click(function (e) {
           e.preventDefault();
 
-            $.ajax({
-              type: "POST",
-              url: "https://localhost:8080/api/v1/fleet/sso",
-              data: JSON.stringify(
-                {
-                  // supply the url of the resource user was trying to access when
-                  // prompted for login
-                  relay_url: $("#relay").val(),
-                }
-              ),
-              contentType: "text/plain;",
-              dataType: "json",
-              success: function(data){
-                console.log(data);
-                // on success we redirect to IDP URL which is in response
-                window.location.href = data.url;
-              },
-              error: function(errMsg) {console.log(errMsg);}
-            });
+          $.ajax({
+            type: "POST",
+            url: "https://localhost:8080/api/v1/fleet/sso",
+            data: JSON.stringify({
+              // supply the url of the resource user was trying to access when
+              // prompted for login
+              relay_url: $("#relay").val(),
+            }),
+            contentType: "text/plain;",
+            dataType: "json",
+            success: function (data) {
+              console.log(data);
+              // on success we redirect to IDP URL which is in response
+              window.location.href = data.url;
+            },
+            error: function (errMsg) {
+              console.log(errMsg);
+            },
+          });
         });
-    });
+      });
     </script>
   </head>
   <body>
-    <h3>Single Sign On Test Page</h3>
+    <h3>Single sign on test page</h3>
     <div class="content">
-      This page is used to test single sign on identity providers.  The <strong>Relay URL</strong> field contains
-      the URL of the Kolide resource to invoke after authentication with the IDP. It defaults to this page.
-      Click <a class='clicker' href='#'>Request Authorization</a>
-      to trigger the authorization process. The browser's javascript console may contain useful
-      debugging information. The <a href="https://addons.mozilla.org/en-US/firefox/addon/saml-tracer/">SAML Tracer</a> add-on
-      for Firefox is also useful in diagnosing problems with a particular identity provider.
+      This page is used to test single sign on identity providers. The
+      <strong>Relay URL</strong> field contains the URL of the Kolide resource
+      to invoke after authentication with the IDP. It defaults to this page.
+      Click <a class="clicker" href="#">Request Authorization</a> to trigger the
+      authorization process. The browser's javascript console may contain useful
+      debugging information. The
+      <a href="https://addons.mozilla.org/en-US/firefox/addon/saml-tracer/"
+        >SAML Tracer</a
+      >
+      add-on for Firefox is also useful in diagnosing problems with a particular
+      identity provider.
     </div>
     <div class="columns">
+      <div>Relay URL:</div>
       <div>
-          Relay URL:
-      </div>
-      <div>
-        <input type="text" name="relay" id="relay" value="/test"/>
+        <input type="text" name="relay" id="relay" value="/test" />
       </div>
     </div>
     <div class="clear"></div>
-    <p><a class='clicker' href='#'>Request Authorization</a></p>
+    <p><a class="clicker" href="#">Request Authorization</a></p>
     <div id="displayarea"></div>
   </body>
 </html>

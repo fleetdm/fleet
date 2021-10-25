@@ -1,0 +1,1 @@
+* Improve fleetctl to run a session check before running some commands.

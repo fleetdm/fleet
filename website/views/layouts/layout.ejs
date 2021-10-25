@@ -7,14 +7,15 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title>Fleet for osquery | Open source device management</title>
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="Open source device management" />
-    <meta name="twitter:description" content="Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live." />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Open source device management' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
     <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
@@ -100,10 +101,10 @@
             </div>
           </div>
           <div class="d-none d-lg-flex">
-            <a href="/get-started" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style="text-decoration: none; line-height: 23px;">Get started</a>
-            <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Docs</a>
-            <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Queries</a>
-            <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Pricing</a>
+            <a href="/get-started" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'get started' ? 'current-page' : '' %>" style="text-decoration: none; line-height: 23px;">Get started</a>
+            <a href="/docs" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'docs' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Docs</a>
+            <a href="/queries" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'queries' ? 'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Queries</a>
+            <a href="/pricing" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none <%= typeof currentPage !== 'undefined' && currentPage === 'pricing' ?  'current-page' : '' %>" style=" text-decoration: none; line-height: 23px;">Pricing</a>
             <a target="_blank" href="/blog" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Blog</a>
             <!-- <a href="/company/contact" class="header-link d-flex align-items-center px-3 py-2 mr-4 text-decoration-none" style=" text-decoration: none; line-height: 23px;">Contact</a> -->
             <a target="_blank" href="https://github.com/fleetdm/fleet" class="header-link d-flex align-items-center px-3 py-2" style=" text-decoration: none;line-height: 23px;">
@@ -123,50 +124,60 @@
       <%- body %>
 
       <div style="background-color: #201E43;" purpose="page-footer">
-        <div style="background-color: #201E43;">
-          <div style="max-width: 1248px;" class="container-fluid d-flex flex-column flex-lg-row justify-content-center justify-content-lg-between px-3 px-md-4 pt-4 pb-0 mt-md-5">
-          <div class="d-flex flex-grow-1 flex-column align-items-center">
-            <div class="container-fluid d-block d-md-flex flex-md-row text-center justify-content-between justify-content-lg-end px-5 px-lg-0 pt-lg-3 pb-4 pb-md-0">
-              <a href="/get-started" class="d-block pr-lg-4 pb-4">Get started</a>
-              <a href="/docs" class="d-block pr-lg-4 pb-4">Docs</a>
-              <a href="/queries" class="d-block pr-lg-4 pb-4">Queries</a>
-              <a href="/pricing" class="d-block pr-lg-4 pb-4">Pricing</a>
-              <a href="/blog" class="d-block pr-lg-4 pb-4">Blog</a>
-              <a href="/apply" class="d-block pr-lg-4 pb-4">Jobs</a>
-              <a href="/docs/contributing" class="d-block pr-lg-4 pb-4">Contribute</a>
-              <a href="/press-kit" class="d-block pr-lg-4 pb-4">Press Kit</a>
-              <a href="/hall-of-fame" class="d-block pb-4">Hall of fame</a>
-            </div>
-    
-            <div class="container-fluid d-flex flex-column flex-md-row font-weight-bold justify-content-center justify-content-lg-end px-0 pt-3 pt-md-0">
-              <a href="https://twitter.com/fleetctl" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
-                <img alt="Twitter logo" src="/images/logo-twitter-32x26@2x.png" style="height: 25px; width: auto;" class="mr-3"/>
-                Follow us on Twitter
-              </a>
-              <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="d-flex flex-nowrap justify-content-center align-items-center px-1 px-sm-5 pb-4 pb-lg-0">
-                <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
-                <span>Join the community<span purpose="join-the-community-on-slack-expanded-text"> on Slack</span></span>
-              </a>
-              <a href="https://github.com/fleetdm/fleet" class="d-flex flex-shrink-1 justify-content-center align-items-center px-0 pb-4 pb-lg-0">
-                <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" style="height: 25px; width: auto" class="mr-3"/>
-                GitHub
-              </a>
-            </div>  
-          </div>
-          <div class="d-flex flex-column order-lg-first">
-            <div class="d-none d-lg-flex">
-              <a href="/">
-                <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
-              </a>  
-            </div>    
-            <div style="font-family: 'Lato', sans-serif; font-size: 13px;" class="d-flex flex-column justify-content-center justify-content-lg-start pt-5 pb-5 pt-md-4">
-              <div class="text-center text-lg-left">
+          <div style="max-width: 1248px; background-color: #201E43;" purpose="footer-container" class="container-fluid d-flex flex-column flex-xl-row align-items-xl-end justify-content-center justify-content-xl-between">
+            <div class="d-flex flex-column order-first justify-content-start">
+              <div class="d-flex pb-4 pb-xl-0">
+                <a class="pb-3" href="/">
+                  <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
+                </a>
+              </div>
+              <div style="font-size: 11px; line-height: 18px;" class="d-none d-xl-flex flex-column pt-lg-4 text-nowrap">
                 <span>&copy; 2021 Fleet Device Management Inc.</span>
+                <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-80x15@2x.png" style="width: 80px"/>
               </div>
             </div>
+            <div class="d-flex flex-grow-1 flex-column">
+              <div purpose="footer-nav" class="justify-content-between justify-content-xl-end pb-4  pb-xl-2 px-lg-0">
+                <div class="flex-column">
+                  <a href="/get-started" class="d-block pr-lg-5 pb-2">Get started</a>
+                  <a href="/docs" class="d-block pr-lg-5 pb-2">Docs</a>
+                  <a href="/transparency" class="d-block pr-lg-5 pb-2 pb-xl-0">Transparency</a>
+                </div>
+                <div class="flex-column">
+                  <a href="/pricing" class="d-block px-lg-5 pb-2">Pricing</a>
+                  <a href="/blog" class="d-block px-lg-5 pb-2">Blog</a>
+                  <a href="/logos" class="d-block px-lg-5 pb-2 pb-xl-0">Logos/artwork</a>
+                </div>
+                <div class="flex-column">
+                  <a href="/handbook" class="d-block pr-lg-2 pl-lg-5 pb-2">Handbook</a>
+                  <a href="/docs/contributing" class="d-block pr-lg-2 pl-lg-5 pb-2">Contribute</a>
+                  <a href="/hall-of-fame" class="d-block pr-lg-2 pl-lg-5 pb-2 pb-xl-0">Hall of fame</a>
+                </div>
+              </div>
+              <div style="font-size: 14px;" class="container-fluid d-flex flex-column flex-md-row font-weight-bold text-nowrap justify-content-start justify-content-md-between justify-content-xl-end px-0 pt-xl-4 pb-3">
+                <a href="https://twitter.com/fleetctl" class="d-flex flex-nowrap px-xl-3 pb-3 pb-lg-0">
+                  <img alt="Twitter logo" src="/images/logo-twitter-32x26@2x.png" style="height: 20px; width: auto; margin-top:2px" class="mr-2"/>
+                  Follow us on Twitter
+                </a>
+                <a href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="d-flex flex-nowrap px-xl-3 pb-3 pb-lg-0">
+                  <img alt="Youtube logo" src="/images/logo-youtube-57x40@2x.png" style="height: 20px; width: auto; margin-top:2px" class="mr-2"/>
+                  <span>Watch on YouTube</span>
+                </a>
+                <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" class="d-flex flex-nowrap px-xl-3 pb-3 pb-lg-0">
+                  <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 20px; width: auto; margin-top:2px" class="mr-2"/>
+                  <span>Join the community<span purpose="join-the-community-on-slack-expanded-text"> on Slack</span></span>
+                </a>
+                <a href="https://github.com/fleetdm/fleet" class="d-flex flex-nowrap px-xl-3 pb-4 pb-lg-0 pr-3">
+                  <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" style="height: 20px; width: auto; margin-top:2px" class="mr-2"/>
+                  GitHub
+                </a>
+              </div>
+            </div>
+            <div style="font-size: 11px; line-height: 18px;" class="d-block d-xl-none pt-lg-4 pr-5 pr-sm-0">
+              <span class="mb-2"> </span>
+              <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-80x15@2x.png" style="width: 80px"/>
+            </div>
           </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -178,7 +189,8 @@
       by the asset pipeline between "SCRIPTS" and "SCRIPTS END", or both.
       (https://sailsjs.com/docs/concepts/assets/task-automation)
     */ %>
-
+    <% /* Cookie consent banner */ %>
+    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% /* Chat (Papercups) */ %>
     <script>window.Papercups = { config: { accountId: '5b59eeac-1578-4fdb-b946-e17c1dca0c51', requireEmailUpfront: true } };</script>
     <script type="text/javascript" async defer src="https://app.papercups.io/widget.js"></script>

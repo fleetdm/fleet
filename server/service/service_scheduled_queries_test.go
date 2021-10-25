@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,7 +21,7 @@ func TestScheduleQuery(t *testing.T) {
 		QueryID:   3,
 	}
 
-	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(ctx context.Context, q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}
@@ -40,19 +41,19 @@ func TestScheduleQueryNoName(t *testing.T) {
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
-			&fleet.ScheduledQuery{
+			{
 				Name: "froobling",
 			},
 		}, nil
 	}
-	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(ctx context.Context, q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}
@@ -75,19 +76,19 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		QueryID:   3,
 	}
 
-	ds.QueryFunc = func(qid uint) (*fleet.Query, error) {
+	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
-			&fleet.ScheduledQuery{
+			{
 				Name: "foobar",
 			},
 		}, nil
 	}
-	ds.NewScheduledQueryFunc = func(q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+	ds.NewScheduledQueryFunc = func(ctx context.Context, q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 		assert.Equal(t, expectedQuery, q)
 		return expectedQuery, nil
 	}

@@ -12,6 +12,8 @@ type Software struct {
 	Name string `json:"name" db:"name"`
 	// Version is reported version.
 	Version string `json:"version" db:"version"`
+	// BundleIdentifier is the CFBundleIdentifier label from the info properties
+	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
 
@@ -19,6 +21,10 @@ type Software struct {
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
+}
+
+func (Software) AuthzType() string {
+	return "software"
 }
 
 type VulnerabilitiesSlice []SoftwareCVE
@@ -39,4 +45,13 @@ type SoftwareIterator interface {
 	Value() (*Software, error)
 	Err() error
 	Close() error
+}
+
+type SoftwareListOptions struct {
+	ListOptions
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
+
+	SkipLoadingCVEs bool
 }

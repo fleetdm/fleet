@@ -13,7 +13,11 @@ import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
+import {
+  generateInheritedQueriesTableHeaders,
+  generateTableHeaders,
+  generateDataSet,
+} from "./ScheduleTableConfig";
 // @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/schedule.svg";
 
@@ -21,11 +25,15 @@ const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
 interface IScheduleListWrapperProps {
-  onRemoveScheduledQueryClick: any;
-  onEditScheduledQueryClick: any;
+  onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
+  onEditScheduledQueryClick?: (
+    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
+  ) => void;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
-  toggleScheduleEditorModal: () => void;
+  toggleScheduleEditorModal?: () => void;
   teamId: number;
+  inheritedQueries?: boolean;
+  isTeamMaintainer: boolean;
 }
 interface IRootState {
   entities: {
@@ -40,14 +48,15 @@ interface IRootState {
   };
 }
 
-const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
-  const {
-    onRemoveScheduledQueryClick,
-    allScheduledQueriesList,
-    toggleScheduleEditorModal,
-    onEditScheduledQueryClick,
-    teamId,
-  } = props;
+const ScheduleListWrapper = ({
+  onRemoveScheduledQueryClick,
+  allScheduledQueriesList,
+  toggleScheduleEditorModal,
+  onEditScheduledQueryClick,
+  teamId,
+  inheritedQueries,
+  isTeamMaintainer,
+}: IScheduleListWrapperProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 
@@ -61,8 +70,9 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
           <div className={`${noScheduleClass}__inner-text`}>
             <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
-              Schedule a query, or go to your osquery packs via the
-              &lsquo;Advanced&rsquo; button.
+              {!isTeamMaintainer
+                ? "Schedule a query, or go to your osquery packs via the 'Advanced' button."
+                : "Schedule a query to run on hosts assigned to this team."}
             </p>
             <div className={`${noScheduleClass}__-cta-buttons`}>
               <Button
@@ -72,13 +82,15 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
               >
                 Schedule a query
               </Button>
-              <Button
-                variant="inverse"
-                onClick={handleAdvanced}
-                className={`${baseClass}__advanced-button`}
-              >
-                Advanced
-              </Button>
+              {!isTeamMaintainer && (
+                <Button
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
+                >
+                  Advanced
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -92,10 +104,14 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
   ): void => {
     switch (action) {
       case "edit":
-        onEditScheduledQueryClick(global_scheduled_query);
+        if (onEditScheduledQueryClick) {
+          onEditScheduledQueryClick(global_scheduled_query);
+        }
         break;
       default:
-        onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        if (onRemoveScheduledQueryClick) {
+          onRemoveScheduledQueryClick([global_scheduled_query.id]);
+        }
         break;
     }
   };
@@ -122,6 +138,33 @@ const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
     },
     [dispatch]
   );
+
+  const loadingInheritedQueriesTableData = useSelector((state: IRootState) => {
+    return state.entities.global_scheduled_queries.isLoading;
+  });
+
+  if (inheritedQueries) {
+    const inheritedQueriesTableHeaders = generateInheritedQueriesTableHeaders();
+
+    return (
+      <div className={`${baseClass}`}>
+        <TableContainer
+          resultsTitle={"queries"}
+          columns={inheritedQueriesTableHeaders}
+          data={generateDataSet(allScheduledQueriesList, teamId)}
+          isLoading={loadingInheritedQueriesTableData}
+          defaultSortHeader={"query"}
+          defaultSortDirection={"desc"}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          searchable={false}
+          disablePagination
+          disableCount
+          emptyComponent={NoScheduledQueries}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`${baseClass}`}>

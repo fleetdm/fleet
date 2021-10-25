@@ -1,10 +1,11 @@
 package service
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -13,33 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestListHosts(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-
-	hosts, err := svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
-
-	storedTime := time.Now().UTC()
-
-	_, err = ds.NewHost(&fleet.Host{
-		Hostname:        "foo",
-		SeenTime:        storedTime,
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-	})
-	require.NoError(t, err)
-
-	hosts, err = svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
-	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	format := "%Y-%m-%d %HH:%MM:%SS %Z"
-	assert.Equal(t, storedTime.Format(format), hosts[0].SeenTime.Format(format))
-}
 
 func TestDeleteHost(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
@@ -55,7 +29,7 @@ func TestDeleteHost(t *testing.T) {
 	assert.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts, err := ds.ListHosts(filter, fleet.HostListOptions{})
+	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 }
@@ -71,7 +45,7 @@ func TestHostDetails(t *testing.T) {
 			Description: "the foobar label",
 		},
 	}
-	ds.ListLabelsForHostFunc = func(hid uint) ([]*fleet.Label, error) {
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return expectedLabels, nil
 	}
 	expectedPacks := []*fleet.Pack{
@@ -82,11 +56,14 @@ func TestHostDetails(t *testing.T) {
 			Name: "pack2",
 		},
 	}
-	ds.ListPacksForHostFunc = func(hid uint) ([]*fleet.Pack, error) {
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
 	}
 
 	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
@@ -101,10 +78,10 @@ func TestRefetchHost(t *testing.T) {
 
 	host := &fleet.Host{ID: 3}
 
-	ds.HostFunc = func(hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		assert.True(t, host.RefetchRequested)
 		return nil
 	}
@@ -120,10 +97,10 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
-	ds.HostFunc = func(hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(host *fleet.Host) error {
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		assert.True(t, host.RefetchRequested)
 		return nil
 	}
@@ -154,14 +131,14 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &fleet.Host{ID: id})
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		assert.Equal(t, expectedTeam, teamID)
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
@@ -178,7 +155,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	expectedTeam := ptr.Uint(1)
 	expectedLabel := ptr.Uint(2)
 
-	ds.ListHostsInLabelFunc = func(filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		assert.Equal(t, *expectedLabel, lid)
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
@@ -186,7 +163,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
@@ -198,13 +175,167 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListHostsFunc = func(filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
 	}
-	ds.AddHostsToTeamFunc = func(teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		t.Error("add hosts func should not have been called")
 		return nil
 	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+}
+
+func TestHostAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	teamHost := &fleet.Host{TeamID: ptr.Uint(1)}
+	globalHost := &fleet.Host{}
+
+	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
+		return nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == 1 {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == "1" {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return nil, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		return nil
+	}
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
+
+	var testCases = []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalWrite bool
+		shouldFailGlobalRead  bool
+		shouldFailTeamWrite   bool
+		shouldFailTeamRead    bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			false,
+			true,
+			false,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			false,
+			false,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.HostByIdentifier(ctx, "1")
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.GetHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.HostByIdentifier(ctx, "2")
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			err = svc.DeleteHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.DeleteHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{1}, fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.RefetchHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+		})
+	}
+
+	// List, GetHostSummary, FlushSeenHost work for all
 }

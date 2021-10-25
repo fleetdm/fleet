@@ -20,14 +20,11 @@ describe("Reset user sessions flow", () => {
 
     // first select the table cell with the user's email address then go back up to the containing row
     // so we can select reset sessions from actions dropdown
-    cy.get("tbody>tr>td")
-      .contains(/admin@example.com/i)
-      .parent()
-      .parent()
-      .within(() => {
-        cy.findByText(/actions/i).click();
-        cy.findByText(/reset sessions/i).click();
-      });
+    cy.contains("div.Select-placeholder", /actions/i);
+    // eslint-disable-next-line cypress/no-unnecessary-waiting
+    cy.wait(500);
+    cy.contains("div.Select-placeholder", /actions/i).click();
+    cy.contains(/reset sessions/i).click();
 
     cy.get(".modal__modal_container").within(() => {
       cy.findByText(/reset sessions/i).should("exist");
@@ -36,7 +33,6 @@ describe("Reset user sessions flow", () => {
     cy.findByText(/reset sessions/i).should("not.exist");
 
     // user should be logged out now so log in again and go to profile to get new API token
-    cy.visit("/");
     cy.findByRole("button", { name: /login/i }).should("exist");
     cy.login();
 

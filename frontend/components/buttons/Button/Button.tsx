@@ -20,7 +20,8 @@ export type ButtonVariant =
   | "disabled"
   | "unstyled"
   | "unstyled-modal-query"
-  | "contextual-nav-item";
+  | "contextual-nav-item"
+  | "small-text-icon";
 
 interface IButtonProps {
   autofocus?: boolean;

@@ -38,7 +38,7 @@ func TestCreateAppConfig(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -61,13 +61,13 @@ func TestCreateAppConfig(t *testing.T) {
 
 	for _, tt := range appConfigTests {
 		var result *fleet.AppConfig
-		ds.NewAppConfigFunc = func(config *fleet.AppConfig) (*fleet.AppConfig, error) {
+		ds.NewAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) (*fleet.AppConfig, error) {
 			result = config
 			return config, nil
 		}
 
 		var gotSecrets []*fleet.EnrollSecret
-		ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*fleet.EnrollSecret) error {
+		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 			gotSecrets = secrets
 			return nil
 		}
@@ -93,10 +93,10 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*fleet.EnrollSecret) error {
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
@@ -311,11 +311,11 @@ func TestModifyAppConfigPatches(t *testing.T) {
 
 	storedConfig := &fleet.AppConfig{}
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return storedConfig, nil
 	}
 
-	ds.SaveAppConfigFunc = func(info *fleet.AppConfig) error {
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
 		storedConfig = info
 		return nil
 	}

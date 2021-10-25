@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	yamlFlagName        = "yaml"
-	jsonFlagName        = "json"
-	withQueriesFlagName = "with-queries"
-	expiredFlagName     = "expired"
-	stdoutFlagName      = "stdout"
+	yamlFlagName                = "yaml"
+	jsonFlagName                = "json"
+	withQueriesFlagName         = "with-queries"
+	expiredFlagName             = "expired"
+	stdoutFlagName              = "stdout"
+	includeServerConfigFlagName = "include-server-config"
 )
 
 type specGeneric struct {
@@ -142,7 +143,7 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	return printSpec(c, spec)
 }
 
-func printConfig(c *cli.Context, config *fleet.AppConfig) error {
+func printConfig(c *cli.Context, config interface{}) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -237,6 +238,7 @@ func getCommand() *cli.Command {
 			getCarvesCommand(),
 			getUserRolesCommand(),
 			getTeamsCommand(),
+			getSoftwareCommand(),
 		},
 	}
 }
@@ -536,13 +538,17 @@ func getEnrollSecretCommand() *cli.Command {
 func getAppConfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
-		Usage: "Retrieve the Fleet configuration",
+		Usage: "Retrieve the Fleet app configuration",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  includeServerConfigFlagName,
+				Usage: "Include the server configuration in the output",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -555,7 +561,11 @@ func getAppConfigCommand() *cli.Command {
 				return err
 			}
 
-			err = printConfig(c, config)
+			if c.Bool(includeServerConfigFlagName) {
+				err = printConfig(c, config)
+			} else {
+				err = printConfig(c, config.AppConfig)
+			}
 			if err != nil {
 				return err
 			}
@@ -591,9 +601,9 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := ""
+				query := `additional_info_filters=*`
 				if c.Uint("team") > 0 {
-					query = fmt.Sprintf("team_id=%d", c.Uint("team"))
+					query += fmt.Sprintf("&team_id=%d", c.Uint("team"))
 				}
 				hosts, err := client.GetHosts(query)
 				if err != nil {
@@ -893,6 +903,82 @@ func getTeamsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"Team Name", "Description", "User count"}
+			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getSoftwareCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "software",
+		Aliases: []string{"s"},
+		Usage:   "List software",
+		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "Only list software of hosts that belong to the specified team",
+			},
+			jsonFlag(),
+			yamlFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			if c.Bool(yamlFlagName) && c.Bool(jsonFlagName) {
+				return errors.New("Can't specify both yaml and json flags.")
+			}
+
+			var teamID *uint
+
+			teamIDFlag := c.Uint(teamFlagName)
+			if teamIDFlag != 0 {
+				teamID = &teamIDFlag
+			}
+
+			software, err := client.ListSoftware(teamID)
+			if err != nil {
+				return errors.Wrap(err, "could not list software")
+			}
+
+			if len(software) == 0 {
+				log(c, "No software found")
+				return nil
+			}
+
+			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+				spec := specGeneric{
+					Kind:    "software",
+					Version: "1",
+					Spec:    software,
+				}
+				err = printSpec(c, spec)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			// Default to printing as table
+			data := [][]string{}
+
+			for _, s := range software {
+				data = append(data, []string{
+					s.Name,
+					s.Version,
+					s.Source,
+					s.GenerateCPE,
+					fmt.Sprint(len(s.Vulnerabilities)),
+				})
+			}
+			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
 			printTable(c, columns, data)
 
 			return nil

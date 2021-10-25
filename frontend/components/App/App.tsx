@@ -13,9 +13,16 @@ import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import { AppContext } from "context/app";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IAppProps {
   children: JSX.Element;
+}
+
+interface ISecretResponse {
+  spec: {
+    secrets: IEnrollSecret[];
+  };
 }
 
 interface IRootState {
@@ -26,9 +33,18 @@ interface IRootState {
 
 const App = ({ children }: IAppProps) => {
   const dispatch = useDispatch();
-  const { setCurrentUser, setConfig } = useContext(AppContext);
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
+  const {
+    setCurrentUser,
+    setConfig,
+    setEnrollSecret,
+    currentUser,
+    isGlobalObserver,
+    isOnlyObserver,
+    isAnyTeamMaintainer,
+    enrollSecret,
+  } = useContext(AppContext);
 
   useDeepEffect(() => {
     // on page refresh
@@ -41,9 +57,27 @@ const App = ({ children }: IAppProps) => {
       dispatch(getConfig())
         .then((config: IConfig) => setConfig(config))
         .catch(() => false);
-      dispatch(getEnrollSecret()).catch(() => false);
     }
   }, [user]);
+
+  useDeepEffect(() => {
+    const canGetEnrollSecret =
+      currentUser &&
+      typeof isGlobalObserver !== "undefined" &&
+      !isGlobalObserver &&
+      typeof isOnlyObserver !== "undefined" &&
+      !isOnlyObserver &&
+      typeof isAnyTeamMaintainer !== "undefined" &&
+      !isAnyTeamMaintainer;
+
+    if (canGetEnrollSecret) {
+      dispatch(getEnrollSecret())
+        .then((response: ISecretResponse) => {
+          setEnrollSecret(response.spec.secrets);
+        })
+        .catch(() => false);
+    }
+  }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
   const wrapperStyles = classnames("wrapper");
   return (

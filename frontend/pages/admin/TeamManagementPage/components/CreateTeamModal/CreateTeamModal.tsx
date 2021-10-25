@@ -17,9 +17,10 @@ interface ICreateTeamModalProps {
   onSubmit: (formData: ICreateTeamFormData) => void;
 }
 
-const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const CreateTeamModal = ({
+  onCancel,
+  onSubmit,
+}: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
 
   const onInputChange = useCallback(
@@ -41,7 +42,7 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
 
   return (
     <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`}>
+      <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <InputFieldWithIcon
           autofocus
           // error={errors.name}
@@ -61,12 +62,7 @@ const CreateTeamModal = (props: ICreateTeamModalProps): JSX.Element => {
           </p>
         </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={onFormSubmit}
-          >
+          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Create
           </Button>
           <Button

@@ -13,19 +13,89 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
-  'GET /':                   { action: 'view-homepage-or-redirect', locals: { isHomepage: true } },
-  'GET /company/contact':    { action: 'view-contact' },
-  'GET /get-started':        { action: 'view-get-started' },
-  'GET /pricing':            { action: 'view-pricing' },
-  'GET /press-kit':          { action: 'view-press-kit' },
+  'GET /': {
+    action: 'view-homepage-or-redirect',
+    locals: { isHomepage: true }
+  },
 
-  'GET /queries':            { action: 'view-query-library' },
-  'GET /queries/:slug':      { action: 'view-query-detail' },
+  'GET /company/contact': {
+    action: 'view-contact',
+    locals: {
+      pageTitleForMeta: 'Contact us | Fleet for osquery',
+      pageDescriptionForMeta: 'Get in touch with our team.'
+    }
+  },
 
-  'GET /docs/?*':            { skipAssets: false, action: 'docs/view-basic-documentation' },// handles /docs and /docs/foo/bar
-  // 'GET /handbook/?*':        { skipAssets: false, action: 'handbook/view-basic-handbook' },// handles /handbook and /handbook/foo/bar
+  'GET /get-started': {
+    action: 'view-get-started' ,
+    locals: {
+      currentPage: 'get started',
+      pageTitleForMeta: 'Get started | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
+    }
+  },
 
-  'GET /transparency':       { action: 'view-transparency' },
+  'GET /pricing': {
+    action: 'view-pricing',
+    locals: {
+      currentPage: 'pricing',
+      pageTitleForMeta: 'Pricing | Fleet for osquery',
+      pageDescriptionForMeta: 'View Fleet plans and pricing details.'
+    }
+  },
+
+  'GET /logos': {
+    action: 'view-press-kit',
+    locals: {
+      pageTitleForMeta: 'Logos | Fleet for osquery',
+      pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
+    }
+  },
+
+  'GET /queries': {
+    action: 'view-query-library',
+    locals: {
+      currentPage: 'queries',
+      pageTitleForMeta: 'Queries | Fleet for osquery',
+      pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
+    }
+  },
+
+  'GET /queries/:slug': {
+    action: 'view-query-detail',
+    locals: {
+      currentPage: 'queries',
+    }
+  },
+
+  'GET /docs/*': {
+    skipAssets: false,
+    action: 'docs/view-basic-documentation',
+    locals: {
+      currentPage: 'docs',
+    }
+  },// handles /docs/foo/bar
+
+  'GET /docs': {
+    skipAssets: false,
+    action: 'docs/view-basic-documentation',
+    locals: {
+      currentPage: 'docs',
+    }
+  },// handles /docs, TODO: Remove this route once this bug is fixed in Sails
+
+  'GET /handbook/?*':  {
+    skipAssets: false,
+    action: 'handbook/view-basic-handbook',
+  },// handles /handbook and /handbook/foo/bar
+
+  'GET /transparency': {
+    action: 'view-transparency',
+    locals: {
+      pageTitleForMeta: 'Transparency | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn what data osquery can see.',
+    }
+  },
 
 
 
@@ -49,6 +119,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /try-fleet':                  '/get-started',
+  'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
 
 
 
@@ -87,7 +158,6 @@ module.exports.routes = {
   'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
-  'GET /handbook':               'https://github.com/fleetdm/fleet/tree/main/handbook',// TODO: Bring back the above when styles are ready
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
 

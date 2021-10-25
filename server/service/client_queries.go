@@ -136,3 +136,20 @@ func (c *Client) DeleteQuery(name string) error {
 
 	return nil
 }
+
+func (c *Client) CreateQuery(name, query, description string) (*fleet.Query, error) {
+	req := createQueryRequest{
+		payload: fleet.QueryPayload{
+			Name:        &name,
+			Description: &description,
+			Query:       &query,
+		},
+	}
+	verb, path := "POST", "/api/v1/fleet/queries"
+	var responseBody createQueryResponse
+	err := c.authenticatedRequest(req.payload, verb, path, &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Query, nil
+}

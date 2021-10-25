@@ -1,99 +1,91 @@
-describe(
-  "Premium tier - Observer user",
-  {
-    defaultCommandTimeout: 20000,
-  },
-  () => {
-    beforeEach(() => {
-      cy.setup();
-      cy.login();
-      cy.seedPremium();
-      cy.seedQueries();
-      cy.addDockerHost("apples");
-      cy.logout();
+describe("Premium tier - Observer user", () => {
+  beforeEach(() => {
+    cy.setup();
+    cy.login();
+    cy.seedPremium();
+    cy.seedQueries();
+    cy.addDockerHost("apples");
+    cy.logout();
+  });
+
+  afterEach(() => {
+    cy.stopDockerHost();
+  });
+
+  it("Can perform the appropriate basic global observer actions", () => {
+    cy.login("oliver@organization.com", "user123#");
+    // Host manage page: Can see team column
+    cy.visit("/hosts/manage");
+
+    // Ensure page is loaded
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.contains("All hosts");
+
+    cy.get("thead").within(() => {
+      cy.findByText(/team/i).should("exist");
     });
 
-    afterEach(() => {
-      cy.stopDockerHost();
+    // Host details page: Can see team on host
+    cy.get("tbody").within(() => {
+      // Test host text varies
+      cy.findByRole("button").click();
     });
 
-    it("Can perform the appropriate basic global observer actions", () => {
-      cy.login("oliver@organization.com", "user123#");
-      cy.visit("/");
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.findByText("Team").should("exist");
+    cy.contains("button", /transfer/i).should("not.exist");
+    cy.contains("button", /delete/i).should("not.exist");
+    cy.contains("button", /query/i).click();
+    cy.contains("button", /create custom query/i).should("not.exist");
 
-      // Ensure page is loaded
-      cy.contains("All hosts");
+    // Not see the “Manage enroll secret” button
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
 
-      // Host manage page: Can see team column
-      cy.visit("/hosts/manage");
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+    // TODO - Fix tests according to improved query experience - MP
+    // Query pages: Can see team in select targets dropdown
+    // cy.visit("/queries/manage");
 
-      cy.get("thead").within(() => {
-        cy.findByText(/team/i).should("exist");
-      });
+    // cy.findByText(/detect presence/i).click();
 
-      // Host details page: Can see team on host
-      cy.get("tbody").within(() => {
-        // Test host text varies
-        cy.findByRole("button").click();
-      });
-      cy.get(".title").within(() => {
-        cy.findByText("Team").should("exist");
-      });
-      cy.contains("button", /transfer/i).should("not.exist");
-      cy.contains("button", /delete/i).should("not.exist");
-      cy.contains("button", /query/i).click();
-      cy.contains("button", /create custom query/i).should("not.exist");
+    // cy.findByRole("button", { name: /run/i }).click();
 
-      // Not see the “Show enroll secret” button
-      cy.contains("button", /show enroll secret/i).should("not.exist");
+    // cy.get(".target-select").within(() => {
+    //   cy.findByText(/Label name, host name, IP address, etc./i).click();
+    //   cy.findByText(/teams/i).should("exist");
+    // });
+  });
 
-      // TODO - Fix tests according to improved query experience - MP
-      // Query pages: Can see team in select targets dropdown
-      // cy.visit("/queries/manage");
+  // Pseudo code for team observer only
+  // TODO: Rebuild this test according to new manual QA
+  it("Can perform the appropriate basic team observer only actions", () => {
+    cy.login("toni@organization.com", "user123#");
+    cy.visit("/hosts/manage");
+    cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      // cy.findByText(/detect presence/i).click();
+    // Ensure the page is loaded and teams are visible
+    cy.findByText("Hosts").should("exist");
+    cy.contains(".table-container .data-table__table th", "Team").should(
+      "be.visible"
+    );
 
-      // cy.findByRole("button", { name: /run/i }).click();
+    // Nav restrictions
+    cy.findByText(/settings/i).should("not.exist");
+    cy.findByText(/schedule/i).should("not.exist");
+    cy.visit("/settings/organization");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/packs/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
+    cy.visit("/schedule/manage");
+    cy.findByText(/you do not have permissions/i).should("exist");
 
-      // cy.get(".target-select").within(() => {
-      //   cy.findByText(/Label name, host name, IP address, etc./i).click();
-      //   cy.findByText(/teams/i).should("exist");
-      // });
-    });
-
-    // Pseudo code for team observer only
-    // TODO: Rebuild this test according to new manual QA
-    it("Can perform the appropriate basic team observer only actions", () => {
-      cy.login("toni@organization.com", "user123#");
-      cy.visit("/hosts/manage");
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-      cy.findByText("Hosts").should("exist");
-
-      // Nav restrictions
-      cy.findByText(/settings/i).should("not.exist");
-      cy.findByText(/schedule/i).should("not.exist");
-      cy.visit("/settings/organization");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/schedule/manage");
-      cy.findByText(/you do not have permissions/i).should("exist");
-
-      cy.contains(".table-container .data-table__table th", "Team").should(
-        "be.visible"
-      );
-
-      // On the Profile page, they should…
-      // See Global in the Team section and Observer in the Role section
-      cy.visit("/profile");
-      cy.findByText(/team/i)
-        .next()
-        .contains(/apples/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/observer/i);
-    });
-  }
-);
+    // On the Profile page, they should…
+    // See Global in the Team section and Observer in the Role section
+    cy.visit("/profile");
+    cy.findByText(/team/i)
+      .next()
+      .contains(/apples/i);
+    cy.findByText("Role")
+      .next()
+      .contains(/observer/i);
+  });
+});

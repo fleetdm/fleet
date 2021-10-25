@@ -3,16 +3,16 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-
-	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,13 +20,12 @@ import (
 
 func TestAuthenticatedUser(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
-	admin1, err := ds.UserByEmail("admin1@example.com")
+	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	assert.Nil(t, err)
-	admin1Session, err := ds.NewSession(&fleet.Session{
+	admin1Session, err := ds.NewSession(context.Background(), &fleet.Session{
 		UserID: admin1.ID,
 		Key:    "admin1",
 	})
@@ -46,13 +45,13 @@ func TestModifyUserEmail(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -64,7 +63,7 @@ func TestModifyUserEmail(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		// verify this isn't changed yet
 		assert.Equal(t, "foo@bar.com", u.Email)
 		// verify is changed per bug 1123
@@ -83,7 +82,6 @@ func TestModifyUserEmail(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyUserEmailNoPassword(t *testing.T) {
@@ -93,13 +91,13 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -111,7 +109,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -129,7 +127,6 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
@@ -139,13 +136,13 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -157,7 +154,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -175,7 +172,6 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyAdminUserEmailPassword(t *testing.T) {
@@ -185,13 +181,13 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	}
 	user.SetPassword("password", 10, 10)
 	ms := new(mock.Store)
-	ms.PendingEmailChangeFunc = func(id uint, em, tk string) error {
+	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
-	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return user, nil
 	}
-	ms.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		config := &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
 				SMTPConfigured:         true,
@@ -203,7 +199,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		}
 		return config, nil
 	}
-	ms.SaveUserFunc = func(u *fleet.User) error {
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
 	svc := newTestService(ms, nil, nil)
@@ -217,180 +213,14 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
-
 }
-
-// func TestRequestPasswordReset(t *testing.T) {
-// 	ds, err := inmem.New(config.TestConfig())
-// 	require.Nil(t, err)
-// 	createTestAppConfig(t, ds)
-
-// 	createTestUsers(t, ds)
-// 	admin1, err := ds.User("admin1")
-// 	assert.Nil(t, err)
-// 	user1, err := ds.User("user1")
-// 	assert.Nil(t, err)
-// 	var defaultEmailFn = func(e fleet.Email) error {
-// 		return nil
-// 	}
-// 	var errEmailFn = func(e fleet.Email) error {
-// 		return errors.New("test err")
-// 	}
-// 	authz, err := authz.NewAuthorizer()
-// 	require.NoError(t, err)
-// 	svc := service{
-// 		ds:     ds,
-// 		config: config.TestConfig(),
-// 		authz:  authz,
-// 	}
-
-// 	var requestPasswordResetTests = []struct {
-// 		email   string
-// 		emailFn func(e fleet.Email) error
-// 		wantErr error
-// 		user    *fleet.User
-// 		vc      *viewer.Viewer
-// 	}{
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    admin1,
-// 			vc:      &viewer.Viewer{User: admin1},
-// 		},
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    admin1,
-// 			vc:      nil,
-// 		},
-// 		{
-// 			email:   user1.Email,
-// 			emailFn: defaultEmailFn,
-// 			user:    user1,
-// 			vc:      &viewer.Viewer{User: admin1},
-// 		},
-// 		{
-// 			email:   admin1.Email,
-// 			emailFn: errEmailFn,
-// 			user:    user1,
-// 			vc:      nil,
-// 			wantErr: errors.New("test err"),
-// 		},
-// 	}
-
-// 	for _, tt := range requestPasswordResetTests {
-// 		t.Run("", func(t *testing.T) {
-// 			ctx := context.Background()
-// 			if tt.vc != nil {
-// 				ctx = viewer.NewContext(ctx, *tt.vc)
-// 			}
-// 			mailer := &mockMailService{SendEmailFn: tt.emailFn}
-// 			svc.mailService = mailer
-// 			serviceErr := svc.RequestPasswordReset(ctx, tt.email)
-// 			assert.Equal(t, tt.wantErr, serviceErr)
-// 			assert.True(t, mailer.Invoked, "email should be sent if vc is not admin")
-// 			if serviceErr == nil {
-// 				req, err := ds.FindPassswordResetsByUserID(tt.user.ID)
-// 				assert.Nil(t, err)
-// 				assert.NotEmpty(t, req, "user should have at least one password reset request")
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestCreateUserFromInvite(t *testing.T) {
-// 	ds, _ := inmem.New(config.TestConfig())
-// 	svc, _ := newTestService(ds, nil, nil)
-// 	invites := setupInvites(t, ds, []string{"admin2@example.com", "admin3@example.com"})
-// 	ctx := context.Background()
-
-// 	var newUserTests = []struct {
-// 		Username           *string
-// 		Password           *string
-// 		Email              *string
-// 		NeedsPasswordReset *bool
-// 		InviteToken        *string
-// 		wantErr            error
-// 	}{
-// 		{
-// 			Username:    ptr.String("admin2"),
-// 			Password:    ptr.String("foobarbaz1234!"),
-// 			InviteToken: &invites["admin2@example.com"].Token,
-// 			wantErr:     &invalidArgumentError{invalidArgument{name: "email", reason: "missing required argument"}},
-// 		},
-// 		{
-// 			Username: ptr.String("admin2"),
-// 			Password: ptr.String("foobarbaz1234!"),
-// 			Email:    ptr.String("admin2@example.com"),
-// 			wantErr:  &invalidArgumentError{invalidArgument{name: "invite_token", reason: "missing required argument"}},
-// 		},
-// 		{
-// 			Username:           ptr.String("admin2"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin2@example.com"].Token,
-// 		},
-// 		{ // should return ErrNotFound because the invite is deleted
-// 			// after a user signs up
-// 			Username:           ptr.String("admin2"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin2@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin2@example.com"].Token,
-// 			wantErr:            errors.New("Invite with token admin2@example.com was not found in the datastore"),
-// 		},
-// 		{
-// 			Username:           ptr.String("admin3"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              &invites["expired"].Email,
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["expired"].Token,
-// 			wantErr:            &invalidArgumentError{{name: "invite_token", reason: "Invite token has expired."}},
-// 		},
-// 		{
-// 			Username:           ptr.String("admin3@example.com"),
-// 			Password:           ptr.String("foobarbaz1234!"),
-// 			Email:              ptr.String("admin3@example.com"),
-// 			NeedsPasswordReset: ptr.Bool(true),
-// 			InviteToken:        &invites["admin3@example.com"].Token,
-// 		},
-// 	}
-
-// 	for _, tt := range newUserTests {
-// 		t.Run("", func(t *testing.T) {
-// 			payload := fleet.UserPayload{
-// 				Username:    tt.Username,
-// 				Password:    tt.Password,
-// 				Email:       tt.Email,
-// 				InviteToken: tt.InviteToken,
-// 			}
-// 			user, err := svc.CreateUserFromInvite(ctx, payload)
-// 			if tt.wantErr != nil {
-// 				require.Error(t, err)
-// 				assert.Equal(t, tt.wantErr.Error(), err.Error())
-// 				return
-// 			}
-// 			require.NoError(t, err)
-// 			assert.NotZero(t, user.ID)
-
-// 			err = user.ValidatePassword(*tt.Password)
-// 			assert.Nil(t, err)
-
-// 			err = user.ValidatePassword("different_password")
-// 			assert.NotNil(t, err)
-// 		})
-
-// 	}
-// }
 
 func TestChangePassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
-	var passwordChangeTests = []struct {
+	passwordChangeTests := []struct {
 		user        fleet.User
 		oldPassword string
 		newPassword string
@@ -452,11 +282,10 @@ func TestChangePassword(t *testing.T) {
 
 func TestResetPassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
-	var passwordResetTests = []struct {
+	passwordResetTests := []struct {
 		token       string
 		newPassword string
 		wantErr     error
@@ -496,7 +325,7 @@ func TestResetPassword(t *testing.T) {
 				UserID:    1,
 				Token:     "abcd",
 			}
-			_, err := ds.NewPasswordResetRequest(request)
+			_, err := ds.NewPasswordResetRequest(context.Background(), request)
 			assert.Nil(t, err)
 
 			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)
@@ -511,14 +340,13 @@ func TestResetPassword(t *testing.T) {
 
 func TestRequirePasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
 
 	for _, tt := range testUsers {
 		t.Run(tt.Email, func(t *testing.T) {
-			user, err := ds.UserByEmail(tt.Email)
+			user, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 
 			var sessions []*fleet.Session
@@ -534,7 +362,7 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err := svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 			assert.True(t, retUser.AdminForcedPasswordReset)
-			checkUser, err := ds.UserByEmail(tt.Email)
+			checkUser, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.True(t, checkUser.AdminForcedPasswordReset)
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
@@ -545,16 +373,15 @@ func TestRequirePasswordReset(t *testing.T) {
 			retUser, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, false)
 			require.Nil(t, err)
 			assert.False(t, retUser.AdminForcedPasswordReset)
-			checkUser, err = ds.UserByEmail(tt.Email)
+			checkUser, err = ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.False(t, checkUser.AdminForcedPasswordReset)
-
 		})
 	}
 }
 
 func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
-	reloadedUser, err := ds.UserByEmail(user.Email)
+	reloadedUser, err := ds.UserByEmail(ctx, user.Email)
 	require.NoError(t, err)
 
 	return viewer.NewContext(ctx, viewer.Viewer{User: reloadedUser, Session: session})
@@ -562,7 +389,6 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 
@@ -570,7 +396,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 	for _, tt := range testUsers {
 		t.Run(tt.Email, func(t *testing.T) {
-			user, err := ds.UserByEmail(tt.Email)
+			user, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 
 			ctx := context.Background()
@@ -580,7 +406,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(&fleet.Session{UserID: user.ID})
+			session, err := ds.NewSession(context.Background(), &fleet.Session{UserID: user.ID})
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
 
@@ -615,7 +441,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 }
 
 func TestUserPasswordRequirements(t *testing.T) {
-	var passwordTests = []struct {
+	passwordTests := []struct {
 		password string
 		wantErr  bool
 	}{
@@ -646,4 +472,179 @@ func TestUserPasswordRequirements(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUserAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	ds.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
+		return &fleet.Invite{
+			Email: "some@email.com",
+			Token: "ABCD",
+			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+			},
+		}, nil
+	}
+	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		return &fleet.User{}, nil
+	}
+	ds.DeleteInviteFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
+	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, fmt.Errorf("AA")
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		if id == 999 {
+			return &fleet.User{
+				ID:    999,
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
+			}, nil
+		}
+		return &fleet.User{
+			ID:         888,
+			GlobalRole: ptr.String(fleet.RoleMaintainer),
+		}, nil
+	}
+	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
+		shouldFailRead        bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			true,
+			true,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+			false,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			false,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			teams := []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}
+			_, err := svc.CreateUser(ctx, fleet.UserPayload{
+				Name:     ptr.String("Some Name"),
+				Email:    ptr.String("some@email.com"),
+				Password: ptr.String("passw0rd."),
+				Teams:    &teams,
+			})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+				Name:       ptr.String("Some Name"),
+				Email:      ptr.String("some@email.com"),
+				Password:   ptr.String("passw0rd."),
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 999, fleet.UserPayload{Teams: &teams})
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 888, fleet.UserPayload{Teams: &teams})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			_, err = svc.ModifyUser(ctx, 888, fleet.UserPayload{GlobalRole: ptr.String(fleet.RoleMaintainer)})
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+		})
+	}
+}
+
+// Test that CreateUser creates a user that will be forced to
+// reset its password upon first login (see #2570).
+func TestCreateUserForcePasswdReset(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	svc := newTestService(ds, nil, nil)
+
+	// Create admin user.
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	err := admin.SetPassword("p4ssw0rd.", 10, 10)
+	require.NoError(t, err)
+	admin, err = ds.NewUser(context.Background(), admin)
+	require.NoError(t, err)
+
+	// As the admin, create a new user.
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+	user, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:       ptr.String("Some Observer"),
+		Email:      ptr.String("some-observer@email.com"),
+		Password:   ptr.String("passw0rd."),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+
+	user, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.True(t, user.AdminForcedPasswordReset)
 }

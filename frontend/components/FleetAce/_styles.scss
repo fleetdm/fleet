@@ -1,25 +1,23 @@
 .fleet-ace {
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
-    display: block;
-    margin-bottom: $pad-xsmall;
-    min-height: 25px;
-
+    height: 25px;
+    margin-bottom: $pad-small;
+    display: flex;
+    align-items: center;
+    
+    p {
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-fleet-black;
+      margin: 0;
+      flex: 1;
+    }
     &--error {
       color: $ui-error;
     }
     &--with-action {
-      min-height: 0;
-      display: flex;
       justify-content: space-between;
-      align-items: center;
 
-      p {
-        margin: 0;
-        flex: 1;
-      }
       button {
         height: 36px; // aligning space between label and textarea
       }
@@ -45,5 +43,9 @@
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
+  }
+
+  .loading-spinner {
+    margin: 0;
   }
 }

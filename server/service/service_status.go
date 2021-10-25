@@ -20,7 +20,7 @@ func (svc *Service) StatusLiveQuery(ctx context.Context) error {
 		return err
 	}
 
-	cfg, err := svc.ds.AppConfig()
+	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return errors.Wrap(err, "retrieve app config")
 	}

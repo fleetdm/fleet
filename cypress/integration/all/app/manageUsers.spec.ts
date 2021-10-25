@@ -6,15 +6,7 @@ describe("Manage Users", () => {
   });
 
   it("Searching for a user", () => {
-    cy.intercept({
-      method: "GET",
-      url: "/api/v1/fleet/users",
-    }).as("getUsers");
-
     cy.visit("/settings/users");
-    cy.url().should("match", /\/settings\/users$/i);
-
-    cy.wait("@getUsers");
 
     cy.findByText("admin@example.com").should("exist");
     cy.findByText("maintainer@example.com").should("exist");
@@ -22,8 +14,6 @@ describe("Manage Users", () => {
     cy.findByText("sso_user@example.com").should("exist");
 
     cy.findByPlaceholderText("Search").type("admin");
-
-    cy.wait("@getUsers");
 
     cy.findByText("admin@example.com").should("exist");
     cy.findByText("maintainer@example.com").should("not.exist");
@@ -38,7 +28,7 @@ describe("Manage Users", () => {
   //   cy.contains('button:enabled', /create user/i)
   //     .click();
   //
-  //   cy.findByPlaceholderText('Full Name')
+  //   cy.findByPlaceholderText('Full name')
   //     .type('New User');
   //
   //   cy.findByPlaceholderText('Email')

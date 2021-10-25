@@ -19,7 +19,7 @@ describe(
 
     it("Can perform the appropriate free-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");
-      cy.visit("/");
+      cy.visit("/hosts/manage");
 
       // Ensure page is loaded
       cy.contains("All hosts");
@@ -37,13 +37,12 @@ describe(
         cy.findByText(/settings/i).should("exist");
       });
 
-      // See and select "add new host"
-      cy.findByRole("button", { name: /new host/i }).click();
-      cy.contains(/team/i).should("not.exist");
+      // See and select "generate installer"
+      cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
 
-      // See the “Show enroll secret” button. A modal appears after the user selects the button
-      cy.contains("button", /show enroll secret/i).click();
+      // See the "Manage enroll secret” button. A modal appears after the user selects the button
+      cy.contains("button", /manage enroll secret/i).click();
       cy.contains("button", /done/i).click();
 
       // See and select "add label"

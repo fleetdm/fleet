@@ -56,21 +56,17 @@ const generateOptionLabel = (user: IUser, team: ITeam): string => {
   return user.name;
 };
 
-const AutocompleteDropdown = (
-  props: IAutocompleteDropdownProps
-): JSX.Element => {
-  const {
-    className,
-    disabled,
-    disabledOptions,
-    placeholder,
-    onChange,
-    id,
-    resourceUrl,
-    value,
-    team,
-  } = props;
-
+const AutocompleteDropdown = ({
+  className,
+  disabled,
+  disabledOptions,
+  placeholder,
+  onChange,
+  id,
+  resourceUrl,
+  value,
+  team,
+}: IAutocompleteDropdownProps): JSX.Element => {
   const wrapperClass = classnames(baseClass, className);
 
   // We disable any filtering client side as the server filters the results

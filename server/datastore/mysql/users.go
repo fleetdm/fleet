@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,12 +14,12 @@ import (
 var userSearchColumns = []string{"name", "email"}
 
 // NewUser creates a new user
-func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
+func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return nil, err
 	}
 
-	err := d.withTx(func(tx *sqlx.Tx) error {
+	err := d.withTx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
       INSERT INTO users (
       	password,
@@ -33,7 +34,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		global_role
       ) VALUES (?,?,?,?,?,?,?,?,?,?)
       `
-		result, err := tx.Exec(sqlStatement,
+		result, err := tx.ExecContext(ctx, sqlStatement,
 			user.Password,
 			user.Salt,
 			user.Name,
@@ -51,7 +52,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 		id, _ := result.LastInsertId()
 		user.ID = uint(id)
 
-		if err := saveTeamsForUserDB(tx, user); err != nil {
+		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err
 		}
 		return nil
@@ -63,7 +64,7 @@ func (d *Datastore) NewUser(user *fleet.User) (*fleet.User, error) {
 	return user, nil
 }
 
-func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.User, error) {
+func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
 		"SELECT * FROM users "+
 			"WHERE %s = ? LIMIT 1",
@@ -72,7 +73,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 
 	user := &fleet.User{}
 
-	err := d.reader.Get(user, sqlStatement, searchVal)
+	err := sqlx.GetContext(ctx, d.reader, user, sqlStatement, searchVal)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, notFound("User").
 			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal))
@@ -80,7 +81,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 		return nil, errors.Wrap(err, "find user")
 	}
 
-	if err := d.loadTeamsForUsers([]*fleet.User{user}); err != nil {
+	if err := d.loadTeamsForUsers(ctx, []*fleet.User{user}); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -89,7 +90,7 @@ func (d *Datastore) findUser(searchCol string, searchVal interface{}) (*fleet.Us
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
-func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) {
+func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	sqlStatement := `
 		SELECT * FROM users
 		WHERE TRUE
@@ -104,11 +105,11 @@ func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) 
 	sqlStatement = appendListOptionsToSQL(sqlStatement, opt.ListOptions)
 	users := []*fleet.User{}
 
-	if err := d.reader.Select(&users, sqlStatement, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &users, sqlStatement, params...); err != nil {
 		return nil, errors.Wrap(err, "list users")
 	}
 
-	if err := d.loadTeamsForUsers(users); err != nil {
+	if err := d.loadTeamsForUsers(ctx, users); err != nil {
 		return nil, errors.Wrap(err, "load teams")
 	}
 
@@ -116,24 +117,24 @@ func (d *Datastore) ListUsers(opt fleet.UserListOptions) ([]*fleet.User, error) 
 
 }
 
-func (d *Datastore) UserByEmail(email string) (*fleet.User, error) {
-	return d.findUser("email", email)
+func (d *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
+	return d.findUser(ctx, "email", email)
 }
 
-func (d *Datastore) UserByID(id uint) (*fleet.User, error) {
-	return d.findUser("id", id)
+func (d *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	return d.findUser(ctx, "id", id)
 }
 
-func (d *Datastore) SaveUser(user *fleet.User) error {
-	return d.withTx(func(tx *sqlx.Tx) error {
-		return saveUserDB(tx, user)
+func (d *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
+	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return saveUserDB(ctx, tx, user)
 	})
 }
 
-func (d *Datastore) SaveUsers(users []*fleet.User) error {
-	return d.withTx(func(tx *sqlx.Tx) error {
+func (d *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
+	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
 		for _, user := range users {
-			err := saveUserDB(tx, user)
+			err := saveUserDB(ctx, tx, user)
 			if err != nil {
 				return err
 			}
@@ -142,7 +143,7 @@ func (d *Datastore) SaveUsers(users []*fleet.User) error {
 	})
 }
 
-func saveUserDB(tx *sqlx.Tx, user *fleet.User) error {
+func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
 		return err
 	}
@@ -160,7 +161,7 @@ func saveUserDB(tx *sqlx.Tx, user *fleet.User) error {
 		global_role = ?
       WHERE id = ?
       `
-	result, err := tx.Exec(sqlStatement,
+	result, err := tx.ExecContext(ctx, sqlStatement,
 		user.Password,
 		user.Salt,
 		user.Name,
@@ -184,7 +185,7 @@ func saveUserDB(tx *sqlx.Tx, user *fleet.User) error {
 	}
 
 	// REVIEW: Check if teams have been set?
-	if err := saveTeamsForUserDB(tx, user); err != nil {
+	if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 		return err
 	}
 
@@ -192,7 +193,7 @@ func saveUserDB(tx *sqlx.Tx, user *fleet.User) error {
 }
 
 // loadTeamsForUsers will load the teams/roles for the provided users.
-func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
+func (d *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User) error {
 	userIDs := make([]uint, 0, len(users)+1)
 	// Make sure the slice is never empty for IN by filling a nonexistent ID
 	userIDs = append(userIDs, 0)
@@ -221,7 +222,7 @@ func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
 		fleet.UserTeam
 		UserID uint `db:"user_id"`
 	}
-	if err := d.reader.Select(&rows, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &rows, sql, args...); err != nil {
 		return errors.Wrap(err, "get loadTeamsForUsers")
 	}
 
@@ -234,13 +235,13 @@ func (d *Datastore) loadTeamsForUsers(users []*fleet.User) error {
 	return nil
 }
 
-func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
+func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {
 	// Do a full teams update by deleting existing teams and then inserting all
 	// the current teams in a single transaction.
 
 	// Delete before insert
 	sql := `DELETE FROM user_teams WHERE user_id = ?`
-	if _, err := tx.Exec(sql, user.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, sql, user.ID); err != nil {
 		return errors.Wrap(err, "delete existing teams")
 	}
 
@@ -257,7 +258,7 @@ func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
 	sql = "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
 		strings.Repeat(valueStr, len(user.Teams))
 	sql = strings.TrimSuffix(sql, ",")
-	if _, err := tx.Exec(sql, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
 		return errors.Wrap(err, "insert teams")
 	}
 
@@ -265,6 +266,6 @@ func saveTeamsForUserDB(tx *sqlx.Tx, user *fleet.User) error {
 }
 
 // DeleteUser deletes the associated user
-func (d *Datastore) DeleteUser(id uint) error {
-	return d.deleteEntity("users", id)
+func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
+	return d.deleteEntity(ctx, usersTable, id)
 }

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
+import { QueryContext } from "context/query";
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -14,21 +15,22 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
+// import { useLastEditedQueryInfo } from "../helpers";
 import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
-  typedQueryBody: string;
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
   queryIdForEdit: number | null;
+  setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
 const RunQuery = ({
-  typedQueryBody,
   storedQuery,
   selectedTargets,
   queryIdForEdit,
+  setSelectedTargets,
   goToQueryEditor,
 }: IRunQueryProps) => {
   const dispatch = useDispatch();
@@ -37,6 +39,7 @@ const RunQuery = ({
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
+  const { lastEditedQueryBody } = useContext(QueryContext);
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -134,9 +137,7 @@ const RunQuery = ({
   };
 
   const onRunQuery = debounce(async () => {
-    const sql = queryIdForEdit ? storedQuery?.query : typedQueryBody;
-
-    if (!sql) {
+    if (!lastEditedQueryBody) {
       dispatch(
         renderFlash(
           "error",
@@ -152,9 +153,13 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
+      const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
+
+      // because we are not using the saved query id if user edits the SQL
+      const queryId = isStoredQueryEdited ? null : queryIdForEdit;
       const returnedCampaign = await queryAPI.run({
-        query: sql,
-        queryId: queryIdForEdit,
+        query: lastEditedQueryBody,
+        queryId,
         selected,
       });
 
@@ -190,15 +195,15 @@ const RunQuery = ({
     }
   });
 
-  useEffect(() => {
-    onRunQuery();
-  }, []);
-
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     return teardownDistributedQuery();
   };
+
+  useEffect(() => {
+    onRunQuery();
+  }, []);
 
   const { campaign } = campaignState;
   return (
@@ -207,6 +212,7 @@ const RunQuery = ({
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
       isQueryFinished={isQueryFinished}
+      setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
     />
   );

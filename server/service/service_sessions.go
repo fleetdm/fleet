@@ -23,7 +23,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "SessionSSOSettings getting app config")
 	}
@@ -43,7 +43,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
 	}
@@ -109,7 +109,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 
 	logging.WithLevel(ctx, level.Info)
 
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "get config for sso")
 	}
@@ -161,7 +161,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 
 	// Get and log in user
-	user, err := svc.ds.UserByEmail(auth.UserID())
+	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
 		return nil, errors.Wrap(err, "find user in sso callback")
 	}
@@ -169,7 +169,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	if !user.SSOEnabled {
 		return nil, errors.New("user not configured to use sso")
 	}
-	token, err := svc.makeSession(user.ID)
+	token, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "make session in sso callback")
 	}
@@ -196,7 +196,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		}
 	}(time.Now())
 
-	user, err := svc.ds.UserByEmail(email)
+	user, err := svc.ds.UserByEmail(ctx, email)
 	if _, ok := err.(fleet.NotFoundError); ok {
 		return nil, "", fleet.NewAuthFailedError("user not found")
 	}
@@ -212,7 +212,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		return nil, "", fleet.NewAuthFailedError("password login disabled for sso users")
 	}
 
-	token, err := svc.makeSession(user.ID)
+	token, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, "", fleet.NewAuthFailedError(err.Error())
 	}
@@ -221,7 +221,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 }
 
 // makeSession is a helper that creates a new session after authentication
-func (svc *Service) makeSession(id uint) (string, error) {
+func (svc *Service) makeSession(ctx context.Context, id uint) (string, error) {
 	sessionKeySize := svc.config.Session.KeySize
 	key := make([]byte, sessionKeySize)
 	_, err := rand.Read(key)
@@ -236,7 +236,7 @@ func (svc *Service) makeSession(id uint) (string, error) {
 		AccessedAt: time.Now().UTC(),
 	}
 
-	_, err = svc.ds.NewSession(session)
+	_, err = svc.ds.NewSession(ctx, session)
 	if err != nil {
 		return "", errors.Wrap(err, "creating new session")
 	}
@@ -260,7 +260,7 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return fleet.ErrNoContext
 	}
 
-	session, err := svc.ds.SessionByID(vc.SessionID())
+	session, err := svc.ds.SessionByID(ctx, vc.SessionID())
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return err
 	}
 
-	return svc.ds.DestroySession(session)
+	return svc.ds.DestroySession(ctx, session)
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
@@ -279,13 +279,13 @@ func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([
 
 	var validatedSessions []*fleet.Session
 
-	sessions, err := svc.ds.ListSessionsForUser(id)
+	sessions, err := svc.ds.ListSessionsForUser(ctx, id)
 	if err != nil {
 		return validatedSessions, err
 	}
 
 	for _, session := range sessions {
-		if svc.validateSession(session) == nil {
+		if svc.validateSession(ctx, session) == nil {
 			validatedSessions = append(validatedSessions, session)
 		}
 	}
@@ -298,11 +298,11 @@ func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DestroyAllSessionsForUser(id)
+	return svc.ds.DestroyAllSessionsForUser(ctx, id)
 }
 
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
-	session, err := svc.ds.SessionByID(id)
+	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Se
 		return nil, err
 	}
 
-	err = svc.validateSession(session)
+	err = svc.validateSession(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -320,12 +320,12 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Se
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
-	session, err := svc.ds.SessionByKey(key)
+	session, err := svc.ds.SessionByKey(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
-	err = svc.validateSession(session)
+	err = svc.validateSession(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 }
 
 func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
-	session, err := svc.ds.SessionByID(id)
+	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -343,10 +343,10 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DestroySession(session)
+	return svc.ds.DestroySession(ctx, session)
 }
 
-func (svc *Service) validateSession(session *fleet.Session) error {
+func (svc *Service) validateSession(ctx context.Context, session *fleet.Session) error {
 	if session == nil {
 		return fleet.NewAuthRequiredError("active session not present")
 	}
@@ -354,12 +354,12 @@ func (svc *Service) validateSession(session *fleet.Session) error {
 	sessionDuration := svc.config.Session.Duration
 	// duration 0 = unlimited
 	if sessionDuration != 0 && time.Since(session.AccessedAt) >= sessionDuration {
-		err := svc.ds.DestroySession(session)
+		err := svc.ds.DestroySession(ctx, session)
 		if err != nil {
 			return errors.Wrap(err, "destroying session")
 		}
 		return fleet.NewAuthRequiredError("expired session")
 	}
 
-	return svc.ds.MarkSessionAccessed(session)
+	return svc.ds.MarkSessionAccessed(ctx, session)
 }

@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // waitTimeout waits for the waitgroup for the specified max timeout.
@@ -28,38 +31,51 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 
 func TestQueryResultsStoreErrors(t *testing.T) {
 	runTest := func(t *testing.T, store *redisQueryResults) {
-		// Write with no subscriber
-		err := store.WriteResult(
-			fleet.DistributedQueryResult{
-				DistributedQueryCampaignID: 9999,
-				Rows:                       []map[string]string{{"bing": "fds"}},
-				Host: fleet.Host{
-					ID: 4,
-					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-						UpdateTimestamp: fleet.UpdateTimestamp{
-							UpdatedAt: time.Now().UTC(),
-						},
+		result := fleet.DistributedQueryResult{
+			DistributedQueryCampaignID: 9999,
+			Rows:                       []map[string]string{{"bing": "fds"}},
+			Host: fleet.Host{
+				ID: 4,
+				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+					UpdateTimestamp: fleet.UpdateTimestamp{
+						UpdatedAt: time.Now().UTC(),
 					},
-					DetailUpdatedAt: time.Now().UTC(),
 				},
+				DetailUpdatedAt: time.Now().UTC(),
 			},
-		)
-		assert.NotNil(t, err)
+		}
+
+		// Write with no subscriber
+		err := store.WriteResult(result)
+		require.Error(t, err)
 		castErr, ok := err.(Error)
 		if assert.True(t, ok, "err should be pubsub.Error") {
 			assert.True(t, castErr.NoSubscriber(), "NoSubscriber() should be true")
 		}
+
+		// Write with one subscriber, force it to bind to a different node if
+		// this is a cluster, so we don't rely on publishing/subscribing on the
+		// same nodes.
+		conn := redis.ReadOnlyConn(store.pool, store.pool.Get())
+		defer conn.Close()
+		err = redis.BindConn(store.pool, conn, "ZZZ")
+		require.NoError(t, err)
+
+		psc := &redigo.PubSubConn{Conn: conn}
+		pubSubName := pubSubForID(9999)
+		require.NoError(t, psc.Subscribe(pubSubName))
+
+		err = store.WriteResult(result)
+		require.NoError(t, err)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		store, teardown := SetupRedisForTest(t, false)
-		defer teardown()
+		store := SetupRedisForTest(t, false, false)
 		runTest(t, store)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		store, teardown := SetupRedisForTest(t, true)
-		defer teardown()
+		store := SetupRedisForTest(t, true, true)
 		runTest(t, store)
 	})
 }
@@ -240,14 +256,12 @@ func TestQueryResultsStore(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		store, teardown := SetupRedisForTest(t, false)
-		defer teardown()
+		store := SetupRedisForTest(t, false, false)
 		runTest(t, store)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		store, teardown := SetupRedisForTest(t, true)
-		defer teardown()
+		store := SetupRedisForTest(t, true, true)
 		runTest(t, store)
 	})
 }

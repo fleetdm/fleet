@@ -19,8 +19,6 @@ parasails.registerPage('query-detail', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-
     clickAvatar: function (contributor) {
       window.location = contributor.htmlUrl;
     },

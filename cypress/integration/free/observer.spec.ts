@@ -14,10 +14,17 @@ describe("Free tier - Observer user", () => {
 
   it("Can perform the appropriate free global observer actions", () => {
     cy.login("oliver@organization.com", "user123#");
-    cy.visit("/");
+    cy.visit("/hosts/manage");
 
     // Ensure page is loaded
     cy.contains("All hosts");
+
+    // we expect a 402 error from the teams API
+    // in Cypress, we can't update the context for if we're
+    // in the premium tier, so the tests runs the teams API
+    Cypress.on("uncaught:exception", () => {
+      return false;
+    });
 
     // Nav restrictions
     cy.findByText(/settings/i).should("not.exist");
@@ -32,9 +39,9 @@ describe("Free tier - Observer user", () => {
     // Host manage page: No team UI, cannot add host, add label, nor enroll secret
     cy.visit("/hosts/manage");
     cy.findByText(/teams/i).should("not.exist");
-    cy.contains("button", /add new host/i).should("not.exist");
+    cy.contains("button", /generate installer/i).should("not.exist");
     cy.contains("button", /add label/i).should("not.exist");
-    cy.contains("button", /show enroll secret/i).should("not.exist");
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
 
     // Host details page: No team UI, cannot delete or query
     cy.get("tbody").within(() => {
@@ -65,20 +72,11 @@ describe("Free tier - Observer user", () => {
     cy.findByText(/show sql/i).click();
     cy.findByRole("button", { name: /run query/i }).should("exist");
 
-    cy.visit("/queries/manage");
-
-    cy.findByText(/get authorized/i).click();
-    cy.findByText(/packs/i).should("not.exist");
-    cy.findByLabelText(/query name/i).should("not.exist");
-    cy.findByLabelText(/sql/i).should("not.exist");
-    cy.findByLabelText(/description/i).should("not.exist");
-    cy.findByLabelText(/observer can run/i).should("not.exist");
-    cy.findByText(/show sql/i).click();
-    cy.findByRole("button", { name: /run query/i }).should("not.exist");
-
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section
     cy.visit("/profile");
+
+    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/teams/i).should("not.exist");
     cy.findByText("Role")
       .next()

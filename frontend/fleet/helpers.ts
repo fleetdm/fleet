@@ -1,13 +1,20 @@
-import { flatMap, omit, pick, size } from "lodash";
+import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
-import stringUtils from "utilities/strings";
+
+import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
+
+import stringUtils from "utilities/strings";
+import sortUtils from "utilities/sort";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -173,6 +180,7 @@ export const frontendFormattedConfig = (config: any) => {
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    update_interval: updateInterval,
     license,
   } = config;
 
@@ -187,17 +195,19 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...webhookSettings,
+    ...updateInterval,
     ...license,
     agent_options: config.agent_options,
   };
 };
 
-const formatLabelResponse = (response: any): { [index: string]: any } => {
+const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: any) => {
     return {
       ...label,
       slug: labelSlug(label),
       type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      target_type: "labels",
     };
   });
 
@@ -220,7 +230,9 @@ export const formatSelectedTargetsForApi = (
   return { hosts, labels, teams };
 };
 
-export const formatScheduledQueryForServer = (scheduledQuery: any) => {
+export const formatScheduledQueryForServer = (
+  scheduledQuery: IPackQueryFormData
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -520,6 +532,13 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
+export const humanTimeAgo = (dateSince: string): number => {
+  const now = moment();
+  const mDateSince = moment(dateSince);
+
+  return now.diff(mDateSince, "days");
+};
+
 export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const milliseconds = inMilliseconds(uptimeInNanoseconds);
 
@@ -569,6 +588,35 @@ export const humanQueryLastRun = (lastRun: string): string => {
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
   return moment(moment()).isAfter(expiration);
+};
+
+// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
+export const performanceIndicator = (
+  scheduledQueryStats: IScheduledQueryStats
+): string => {
+  if (
+    !scheduledQueryStats.total_executions ||
+    scheduledQueryStats.total_executions === 0 ||
+    scheduledQueryStats.total_executions === null
+  ) {
+    return "Undetermined";
+  }
+
+  if (
+    typeof scheduledQueryStats.user_time_p50 === "number" &&
+    typeof scheduledQueryStats.system_time_p50 === "number"
+  ) {
+    const indicator =
+      scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
+
+    if (indicator < 2000) {
+      return "Minimal";
+    }
+    if (indicator < 4000) {
+      return "Considerable";
+    }
+  }
+  return "Excessive";
 };
 
 export const secondsToHms = (d: number): string => {
@@ -626,6 +674,65 @@ export const syntaxHighlight = (json: JSON): string => {
   /* eslint-enable no-useless-escape */
 };
 
+const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+  teams
+    .map((team) => {
+      return {
+        disabled: false,
+        label: team.name,
+        value: team.id,
+      };
+    })
+    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
+);
+
+export const generateTeamFilterDropdownOptions = (
+  teams: ITeam[],
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+) => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const allTeamsOption = [
+    {
+      disabled: false,
+      label: "All teams",
+      value: 0,
+    },
+  ];
+
+  const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
+
+  return allTeamsOption.concat(sortedCurrentUserTeamOptions);
+};
+
+export const getValidatedTeamId = (
+  teams: ITeam[],
+  teamId: number,
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+): number => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+  const validatedTeamId =
+    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
+      ? teamId
+      : 0;
+
+  return validatedTeamId;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -655,4 +762,6 @@ export default {
   setupData,
   frontendFormattedConfig,
   syntaxHighlight,
+  generateTeamFilterDropdownOptions,
+  getValidatedTeamId,
 };

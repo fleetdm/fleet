@@ -18,20 +18,20 @@ const baseClass = "host-side-panel";
 interface IHostSidePanelProps {
   labels: ILabel[];
   onAddLabelClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  onLabelClick: (selectedLabel: ILabel) => boolean;
-  selectedFilter: string;
+  onLabelClick: (
+    selectedLabel: ILabel
+  ) => (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  selectedFilter: string | undefined;
   canAddNewLabel: boolean;
 }
 
-const HostSidePanel = (props: IHostSidePanelProps): JSX.Element => {
-  const {
-    labels,
-    onAddLabelClick,
-    onLabelClick,
-    selectedFilter,
-    canAddNewLabel,
-  } = props;
-
+const HostSidePanel = ({
+  labels,
+  onAddLabelClick,
+  onLabelClick,
+  selectedFilter,
+  canAddNewLabel,
+}: IHostSidePanelProps): JSX.Element => {
   const [labelFilter, setLabelFilter] = useState<string>("");
 
   const onFilterLabels = useCallback(

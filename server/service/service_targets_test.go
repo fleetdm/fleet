@@ -32,15 +32,15 @@ func TestSearchTargets(t *testing.T) {
 		{Name: "team1"},
 	}
 
-	ds.SearchHostsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 		assert.Equal(t, user, filter.User)
 		return hosts, nil
 	}
-	ds.SearchLabelsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 		assert.Equal(t, user, filter.User)
 		return labels, nil
 	}
-	ds.SearchTeamsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
 		assert.Equal(t, user, filter.User)
 		return teams, nil
 	}
@@ -59,17 +59,17 @@ func TestSearchWithOmit(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
-	ds.SearchHostsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{1, 2}, omit)
 		return nil, nil
 	}
-	ds.SearchLabelsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{3, 4}, omit)
 		return nil, nil
 	}
-	ds.SearchTeamsFunc = func(filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
 		assert.Equal(t, user, filter.User)
 		assert.Equal(t, []uint{5, 6}, omit)
 		return nil, nil

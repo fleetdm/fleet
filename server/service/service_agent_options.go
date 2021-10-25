@@ -11,7 +11,7 @@ import (
 func (svc *Service) AgentOptionsForHost(ctx context.Context, host *fleet.Host) (json.RawMessage, error) {
 	// If host has a team and team has non-empty options, prioritize that.
 	if host.TeamID != nil {
-		team, err := svc.ds.Team(*host.TeamID)
+		team, err := svc.ds.Team(ctx, *host.TeamID)
 		if err != nil {
 			return nil, errors.Wrap(err, "load team for host")
 		}
@@ -27,7 +27,7 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, host *fleet.Host) (
 	}
 
 	// Otherwise return the appropriate override for global options.
-	appConfig, err := svc.ds.AppConfig()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "load global agent options")
 	}

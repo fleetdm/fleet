@@ -68,6 +68,13 @@ export interface IFormData {
   invited_by?: number;
 }
 
+interface IUserFormErrors {
+  email: string | null;
+  name: string | null;
+  password: string | null;
+  sso_enabled: boolean | null;
+}
+
 interface ICreateUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
@@ -83,16 +90,11 @@ interface ICreateUserFormProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
-  validationErrors: any[]; // TODO: proper interface for validationErrors
+  serverErrors?: IUserFormErrors; // "server" because this form does its own client validation
 }
 
 interface ICreateUserFormState {
-  errors: {
-    email: string | null;
-    name: string | null;
-    password: string | null;
-    sso_enabled: boolean | null;
-  };
+  errors: IUserFormErrors;
   formData: IFormData;
   isGlobalUser: boolean;
 }
@@ -120,8 +122,6 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       },
       isGlobalUser: props.defaultGlobalRole !== null,
     };
-
-    const { isPremiumTier } = props;
   }
 
   onInputChange = (formField: string): ((value: string) => void) => {
@@ -303,7 +303,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
               manage or observe all users, entities, and settings in Fleet.
             </p>
             <a
-              href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#permissions"
+              href="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -360,7 +360,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
             observe team-specific users, entities, and settings in Fleet.
           </p>
           <a
-            href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/9-Permissions.md#team-member-permissions"
+            href="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -394,6 +394,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       smtpConfigured,
       canUseSso,
       isNewUser,
+      serverErrors,
     } = this.props;
     const {
       onFormSubmit,
@@ -430,7 +431,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
           data-tip-disable={isNewUser || smtpConfigured}
         >
           <InputFieldWithIcon
-            error={errors.email}
+            error={errors.email || serverErrors?.email}
             name="email"
             onChange={onInputChange("email")}
             placeholder="Email"

@@ -230,13 +230,13 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		fmt.Fprintf(os.Stderr, "Read body error: %v", err)
 		return nil, err
 	}
-	res.Body = ioutil.NopCloser(resBody)
+	res.Body = io.NopCloser(resBody)
 
 	return res, nil
 }
 
-func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
-	response, err := c.AuthenticatedDo(verb, path, "", params)
+func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, path string, responseDest interface{}, query string) error {
+	response, err := c.AuthenticatedDo(verb, path, query, params)
 	if err != nil {
 		return errors.Wrapf(err, "%s %s", verb, path)
 	}
@@ -263,4 +263,8 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	}
 
 	return nil
+}
+
+func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
+	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }

@@ -1,13 +1,328 @@
 #basic-handbook {
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // For a starting point on how to approach styling this generated HTML, please see @RachelElysia's draft in:
-  // https://github.com/fleetdm/fleet/commit/bfb758d9dc81c423538f75fc86244b06cc810c1a
-  // https://github.com/fleetdm/fleet/commit/e4c77b981627bde0e6225c805c89143467a9bca1
-  //
-  // Note that handbook and documentation can probably share many of the same styles.  (Consider a dedicated mixin.)
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  a {
+    color: @core-vibrant-blue;
+  }
 
-  //…
+  ul {
+    list-style: none;
+    padding-left: 8px;
+
+    li {
+      padding-bottom: 8px;
+    }
+  }
+
+  [purpose='search'] {
+
+    padding-bottom: 16px;
+
+    input {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+      } &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+    .input-group {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+    }
+
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+
+    .docsearch-input {
+      height: 100%;
+      width: 98%;
+    }
+
+    .ds-input:focus {
+      outline: rgba(0, 0, 0, 0);
+    }
+
+    .input-group-text {
+      color: @core-fleet-black-50;
+    }
+
+    .form-control {
+      height: 36px;
+      padding: 0px;
+      font-size: 16px;
+    } &:focus {
+      border: none;
+    }
+  }
+  [purpose='breadcrumbs'] {
+    padding-bottom: 16px;
+    padding-top: 16px;
+    p, a, strong {
+      font-size: 12px;
+      line-height: 24px;
+    }
+    a {
+      text-decoration: none;
+      &.active {
+        color: @core-vibrant-blue;
+      }
+    }
+  }
+
+  [purpose='right-sidebar'] {
+    min-width: max-content;
+    max-width: 210px;
+    margin: 0px 40px;
+    p, a {
+      font-size: 14px;
+    }
+
+    h4 {
+      padding-top: 16px;
+      font-size: 16px;
+    }
+
+    [purpose='maintainer'] {
+
+      padding-top: 24px;
+      padding-bottom: 8px;
+      .maintainer-image {
+        height: 32px;
+        width: 32px;
+        border-radius: 100%;
+        margin-bottom: 24px;
+      }
+
+      a {
+        font-size: 14px;
+      }
+
+      h4 {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+    }
+
+    [purpose='subtopics'] {
+      color: @core-fleet-black;
+      border-left: 1px solid @core-vibrant-blue-25;
+      box-sizing: content-box;
+
+      ul {
+        li:last-child {
+          padding-bottom: 0px;
+        }
+      }
+      a {
+        text-decoration: none;
+        &:hover {
+          color: @core-vibrant-blue;
+        }
+
+      }
+
+      .active:before {
+        border: 1.5px solid @core-vibrant-blue;
+        background-color: @core-vibrant-blue;
+        border-radius: 3px;
+        content: '';
+        margin-right: 14px;
+        margin-left: -2px;
+      }
+    }
+  }
+
+  [purpose='content'] {
+
+    h1 {
+      padding-bottom: 16px;
+      margin-bottom: 0px;
+      font-size: 36px;
+      line-height: 48px;
+    }
+    h2 {
+      border-top: 1px solid @core-fleet-black-25;
+      font-weight: 800;
+      font-size: 24px;
+      line-height: 28px;
+      padding-top: 40px;
+      padding-bottom: 24px;
+      margin-top: 40px;
+      &:first-of-type {
+        border-top: none;
+        padding-top: 24px;
+        margin-top: 0px;
+      }
+    }
+    h3 {
+      font-size: 20px;
+      line-height: 28px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      margin-bottom: 0px;
+      font-weight: 700;
+    }
+    h4 {
+      font-size: 18px;
+      padding-top: 24px;
+      padding-bottom: 16px;
+      margin-bottom: 0px;
+    }
+    h5 {
+      font-weight: 700;
+      font-size: 16px;
+      padding-top: 16px;
+      margin-bottom: 16px;
+    }
+    a {
+      word-wrap: break-word;
+    }
+    p {
+      font-family: @header-font;
+    }
+    ul {
+      list-style-type: disc;
+      padding-left: 32px;
+    }
+    img {
+      display: flex;
+      width: calc(100% - 32px);
+      height: auto;
+      padding: 24px 16px;
+      margin: auto;
+    }
+    code:not(.nohighlight) {
+      background-color: @ui-off-white;
+      border: 1px solid @border-lt-gray;
+      color: @core-fleet-black-75;
+      font-size: 13px;
+      padding: 4px 8px;
+      line-height: 16px;
+      font-family: @code-font;
+      display: inline-block;
+      border-radius: 6px;
+    }
+    pre:not(.algolia-autocomplete):not(.ds-dropdown-menu) {
+      padding: 24px;
+      border: 1px solid @border-lt-gray;
+      color: @core-fleet-black-75;
+      border-radius: 6px;
+      margin: 16px 0px 32px;
+      font-family: @code-font;
+      background: @ui-off-white;
+      &.muted {
+        color: @core-fleet-black-75;
+        background: @ui-off-white;
+        margin: 16px 0px 40px;
+      }
+    }
+  }
+
+
+  // for larger screens
+  @media (min-width: 992px) {
+    ul {
+      .topic {
+        padding-left: 8px;
+      }
+    }
+    [purpose='right-sidebar'] {
+      max-width: 210px;
+      margin-left: 40px;
+    }
+    [purpose='page-title'] {
+      h1 {
+        display: block;
+      }
+    }
+    [purpose='content'] {
+      min-width: 0px; // in order for <pre> elements to shrink properly, the parent flex element needs to override min-width auto
+    }
+  }
+
+  // for smaller screens
+  @media (max-width: 991px) {
+    padding: 0px 40px;
+
+    [purpose='search'] {
+
+      padding-bottom: 24px;
+    }
+
+    [purpose='right-sidebar'] {
+      max-width: 150px;
+      margin-left: 40px;
+      margin-right: 0px;
+
+      [purpose='subtopics'] {
+        color: @core-fleet-black;
+
+        a {
+          word-wrap: break-word;
+        }
+      }
+    }
+
+    [purpose='content'] {
+
+      h1:first-of-type {
+        display: none;  // hides on mobile
+      }
+    }
+    .handbook-content {
+      max-width: 80%;
+    }
+
+  }
+  // for even smaller screens
+  @media (max-width: 767px) {
+    padding: 0px 40px;
+
+    .handbook-content {
+      max-width: 100%;
+    }
+    [purpose='search'] {
+      padding-bottom: 0px;
+    }
+    [purpose='right-sidebar'] {
+      max-width: 100%;
+      margin: 0;
+
+      [purpose='subtopics'] {
+        border-left: none;
+
+        .active:before {
+          border: none;
+          padding: 0px;
+          margin: 0px;
+          content: '';
+        }
+      }
+    }
+
+    [purpose='content'] {
+
+      img {
+        margin: auto;
+      }
+    }
+  }
+
+  // for mobile
+  @media (max-width: 576px) {
+    padding: 0px 24px;
+
+    [purpose='search'] {
+      min-width: calc(100% - 48px);
+    }
+  }
+
+
 
 }

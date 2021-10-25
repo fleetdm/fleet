@@ -4,9 +4,8 @@ import { useSelector } from "react-redux";
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import Button from "components/buttons/Button";
-import permissionUtils from "utilities/permissions";
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./QueriesTableConfig";
+import { generateTableHeaders, generateDataSet } from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
@@ -43,7 +42,6 @@ const QueriesListWrapper = (
   }, [loadingQueries]);
 
   const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
   const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
   const [searchString, setSearchString] = useState<string>("");
@@ -81,7 +79,7 @@ const QueriesListWrapper = (
                 </p>
                 <p>
                   Create a new query, or go to GitHub to{" "}
-                  <a href="https://github.com/fleetdm/fleet/tree/main/docs/1-Using-Fleet/standard-query-library#importing-the-queries-in-fleet">
+                  <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
                     import Fleet’s standard query library
                   </a>
                   .
@@ -107,16 +105,17 @@ const QueriesListWrapper = (
         </div>
       </div>
     );
-  }, [searchString]);
+  }, [searchString, onCreateQueryClick]);
 
-  const tableHeaders = generateTableHeaders(isOnlyObserver);
+  const tableHeaders = generateTableHeaders(currentUser);
+  const dataSet = generateDataSet(filteredQueries);
 
   return !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={filteredQueries}
+        data={dataSet}
         isLoading={isLoading}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

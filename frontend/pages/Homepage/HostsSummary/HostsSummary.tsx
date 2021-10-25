@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { isEmpty, reduce } from "lodash";
+import { reduce } from "lodash";
 import { ILabel } from "interfaces/label";
 // @ts-ignore
 import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
@@ -24,7 +24,7 @@ interface IRootState {
 const PLATFORM_STRINGS = {
   macOS: ["macOS"],
   windows: ["MS Windows"],
-  linux: ["Red Hat Linux", "CentOS Linux", "Ubuntu Linux"],
+  linux: ["All Linux"],
 };
 
 const HostsSummary = (): JSX.Element => {
@@ -59,27 +59,31 @@ const HostsSummary = (): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__tiles`}>
-        <div className={`${baseClass}__tile mac-tile`}>
-          <div className={`${baseClass}__tile-icon`}>
-            <img src={MacIcon} alt="mac icon" id="mac-icon" />
-          </div>
+      <div className={`${baseClass}__tile mac-tile`}>
+        <div className={`${baseClass}__tile-icon`}>
+          <img src={MacIcon} alt="mac icon" id="mac-icon" />
+        </div>
+        <div>
           <div className={`${baseClass}__tile-count mac-count`}>{macCount}</div>
           <div className={`${baseClass}__tile-description`}>macOS hosts</div>
         </div>
-        <div className={`${baseClass}__tile windows-tile`}>
-          <div className={`${baseClass}__tile-icon`}>
-            <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
-          </div>
+      </div>
+      <div className={`${baseClass}__tile windows-tile`}>
+        <div className={`${baseClass}__tile-icon`}>
+          <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
+        </div>
+        <div>
           <div className={`${baseClass}__tile-count windows-count`}>
             {windowsCount}
           </div>
           <div className={`${baseClass}__tile-description`}>Windows hosts</div>
         </div>
-        <div className={`${baseClass}__tile linux-tile`}>
-          <div className={`${baseClass}__tile-icon`}>
-            <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
-          </div>
+      </div>
+      <div className={`${baseClass}__tile linux-tile`}>
+        <div className={`${baseClass}__tile-icon`}>
+          <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
+        </div>
+        <div>
           <div className={`${baseClass}__tile-count linux-count`}>
             {linuxCount}
           </div>

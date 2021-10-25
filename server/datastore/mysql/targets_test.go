@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -13,10 +14,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCountHostsInTargets(t *testing.T) {
+func TestTargets(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	defer ds.Close()
 
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"CountHosts", testTargetsCountHosts},
+		{"HostStatus", testTargetsHostStatus},
+		{"HostIDsInTargets", testTargetsHostIDsInTargets},
+		{"HostIDsInTargetsTeam", testTargetsHostIDsInTargetsTeam},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -25,10 +43,11 @@ func TestCountHostsInTargets(t *testing.T) {
 	hostCount := 0
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -36,15 +55,15 @@ func TestCountHostsInTargets(t *testing.T) {
 			TeamID:              teamID,
 		})
 		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(h, seenTime))
+		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
 		return h
 	}
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(&fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-	team3, err := ds.NewTeam(&fleet.Team{Name: "team3"})
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
 	require.NoError(t, err)
 
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)
@@ -65,82 +84,82 @@ func TestCountHostsInTargets(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	require.NoError(t, ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2}))
+	require.NoError(t, ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now())
 		assert.Nil(t, err)
 	}
 
-	metrics, err := ds.CountHostsInTargets(filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}, TeamIDs: []uint{team1.ID, team2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}, TeamIDs: []uint{team1.ID, team2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), metrics.TotalHosts)
 	assert.Equal(t, uint(1), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, TeamIDs: []uint{team2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, TeamIDs: []uint{team2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(4), metrics.TotalHosts)
 	assert.Equal(t, uint(2), metrics.OnlineHosts)
 	assert.Equal(t, uint(2), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(4), metrics.TotalHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{}, LabelIDs: []uint{}, TeamIDs: []uint{}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{}, LabelIDs: []uint{}, TeamIDs: []uint{}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), metrics.TotalHosts)
 	assert.Equal(t, uint(1), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{TeamIDs: []uint{team2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(3), metrics.TotalHosts)
 	assert.Equal(t, uint(1), metrics.OnlineHosts)
@@ -149,24 +168,20 @@ func TestCountHostsInTargets(t *testing.T) {
 
 	// Advance clock so all hosts are offline
 	mockClock.AddTime(2 * time.Minute)
-	metrics, err = ds.CountHostsInTargets(filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(5), metrics.OfflineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
-
 }
 
-func TestHostStatus(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost("1", "key1", nil, 0)
+	h, err := ds.EnrollHost(context.Background(), "1", "key1", nil, 0)
 	require.Nil(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -208,34 +223,32 @@ func TestHostStatus(t *testing.T) {
 			// Save interval values
 			h.DistributedInterval = tt.distributedInterval
 			h.ConfigTLSRefresh = tt.configTLSRefresh
-			require.Nil(t, ds.SaveHost(h))
+			require.Nil(t, ds.SaveHost(context.Background(), h))
 
 			// Mark seen
-			require.Nil(t, ds.MarkHostSeen(h, tt.seenTime))
+			require.Nil(t, ds.MarkHostSeen(context.Background(), h, tt.seenTime))
 
 			// Verify status
-			metrics, err := ds.CountHostsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h.ID}}, mockClock.Now())
+			metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h.ID}}, mockClock.Now())
 			require.Nil(t, err)
 			assert.Equal(t, tt.metrics, metrics)
 		})
 	}
 }
 
-func TestHostIDsInTargets(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
 	hostCount := 0
 	initHost := func() *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:   strconv.Itoa(hostCount),
 			NodeKey:         strconv.Itoa(hostCount),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
 		})
 		require.Nil(t, err)
@@ -259,52 +272,49 @@ func TestHostIDsInTargets(t *testing.T) {
 		Name:  "label bar",
 		Query: "query bar",
 	}
-	err := ds.ApplyLabelSpecs([]*fleet.LabelSpec{&l1, &l2})
+	err := ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2})
 	require.Nil(t, err)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
 	for _, h := range []*fleet.Host{h3, h4, h5} {
-		err = ds.RecordLabelQueryExecutions(h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
 		assert.Nil(t, err)
 	}
 
-	ids, err := ds.HostIDsInTargets(filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}})
+	ids, err := ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 4, 5, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID}, LabelIDs: []uint{l1.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l1.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l1.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 2, 3, 4, 6}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l2.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{4}, LabelIDs: []uint{l2.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{3, 4, 5}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{}, LabelIDs: []uint{l2.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{}, LabelIDs: []uint{l2.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{3, 4, 5}, ids)
 
-	ids, err = ds.HostIDsInTargets(filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
 }
 
-func TestHostIDsInTargetsTeam(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
@@ -313,10 +323,11 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 	hostCount := 0
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
-		h, err := ds.NewHost(&fleet.Host{
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			OsqueryHostID:       strconv.Itoa(hostCount),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
+			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
 			NodeKey:             strconv.Itoa(hostCount),
 			DistributedInterval: distributedInterval,
@@ -324,16 +335,16 @@ func TestHostIDsInTargetsTeam(t *testing.T) {
 			TeamID:              teamID,
 		})
 		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(h, seenTime))
+		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
 		return h
 	}
 
-	team1, err := ds.NewTeam(&fleet.Team{Name: t.Name() + "team1"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)
 
-	targets, err := ds.HostIDsInTargets(filter, fleet.HostTargets{TeamIDs: []uint{team1.ID}})
+	targets, err := ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID}})
 	require.NoError(t, err)
 	assert.Equal(t, []uint{h1.ID}, targets)
 }

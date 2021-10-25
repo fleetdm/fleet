@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io/ioutil"
@@ -16,7 +17,7 @@ import (
 )
 
 var userRoleSpecList = []*fleet.User{
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -26,7 +27,7 @@ var userRoleSpecList = []*fleet.User{
 		Email:      "admin1@example.com",
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	},
-	&fleet.User{
+	{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
@@ -40,21 +41,20 @@ var userRoleSpecList = []*fleet.User{
 }
 
 func TestApplyUserRoles(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
 	}
 
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
 		}
 		return userRoleSpecList[1], nil
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{
 			ID:        1,
 			CreatedAt: time.Now(),
@@ -62,7 +62,7 @@ func TestApplyUserRoles(t *testing.T) {
 		}, nil
 	}
 
-	ds.SaveUsersFunc = func(users []*fleet.User) error {
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
 		for _, u := range users {
 			switch u.Email {
 			case "admin1@example.com":
@@ -101,18 +101,17 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	server, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
 
 	teamsByName := map[string]*fleet.Team{
-		"team1": &fleet.Team{
+		"team1": {
 			ID:          42,
 			Name:        "team1",
 			Description: "team1 description",
 		},
 	}
 
-	ds.TeamByNameFunc = func(name string) (*fleet.Team, error) {
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		team, ok := teamsByName[name]
 		if !ok {
 			return nil, sql.ErrNoRows
@@ -121,7 +120,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	i := 1
-	ds.NewTeamFunc = func(team *fleet.Team) (*fleet.Team, error) {
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = uint(i)
 		i++
 		teamsByName[team.Name] = team
@@ -129,17 +128,17 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
 	}
 
-	ds.SaveTeamFunc = func(team *fleet.Team) (*fleet.Team, error) {
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		teamsByName[team.Name] = team
 		return team, nil
 	}
 
 	enrolledSecretsCalled := make(map[uint][]*fleet.EnrollSecret)
-	ds.ApplyEnrollSecretsFunc = func(teamID *uint, secrets []*fleet.EnrollSecret) error {
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecretsCalled[*teamID] = secrets
 		return nil
 	}
@@ -184,26 +183,25 @@ func writeTmpYml(t *testing.T, contents string) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
-	server, ds := runServerWithMockedDS(t)
-	defer server.Close()
+	_, ds := runServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(opt fleet.UserListOptions) ([]*fleet.User, error) {
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
 	}
 
-	ds.UserByEmailFunc = func(email string) (*fleet.User, error) {
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
 		}
 		return userRoleSpecList[1], nil
 	}
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
-	ds.SaveAppConfigFunc = func(config *fleet.AppConfig) error {
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
 	}

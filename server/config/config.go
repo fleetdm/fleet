@@ -1,13 +1,17 @@
 package config
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,13 +41,27 @@ type MysqlConfig struct {
 
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
-	Address          string
-	Password         string
-	Database         int
-	UseTLS           bool          `yaml:"use_tls"`
-	DuplicateResults bool          `yaml:"duplicate_results"`
-	ConnectTimeout   time.Duration `yaml:"connect_timeout"`
-	KeepAlive        time.Duration `yaml:"keep_alive"`
+	Address                   string
+	Password                  string
+	Database                  int
+	UseTLS                    bool          `yaml:"use_tls"`
+	DuplicateResults          bool          `yaml:"duplicate_results"`
+	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
+	KeepAlive                 time.Duration `yaml:"keep_alive"`
+	ConnectRetryAttempts      int           `yaml:"connect_retry_attempts"`
+	ClusterFollowRedirections bool          `yaml:"cluster_follow_redirections"`
+	ClusterReadFromReplica    bool          `yaml:"cluster_read_from_replica"`
+	TLSCert                   string        `yaml:"tls_cert"`
+	TLSKey                    string        `yaml:"tls_key"`
+	TLSCA                     string        `yaml:"tls_ca"`
+	TLSServerName             string        `yaml:"tls_server_name"`
+	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
+	// TODO(mna): should we allow insecure skip verify option?
+	MaxIdleConns int `yaml:"max_idle_conns"`
+	MaxOpenConns int `yaml:"max_open_conns"`
+	// this config is an int on MysqlConfig, but it should be a time.Duration.
+	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
+	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 }
 
 const (
@@ -89,10 +107,12 @@ type OsqueryConfig struct {
 	StatusLogPlugin      string        `yaml:"status_log_plugin"`
 	ResultLogPlugin      string        `yaml:"result_log_plugin"`
 	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
 	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
 	StatusLogFile        string        `yaml:"status_log_file"`
 	ResultLogFile        string        `yaml:"result_log_file"`
 	EnableLogRotation    bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent     int           `yaml:"max_jitter_percent"`
 }
 
 // LoggingConfig defines configs related to logging
@@ -136,11 +156,15 @@ type LambdaConfig struct {
 
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
-	Bucket           string
-	Prefix           string
+	Bucket           string `yaml:"bucket"`
+	Prefix           string `yaml:"prefix"`
+	Region           string `yaml:"region"`
+	EndpointURL      string `yaml:"endpoint_url"`
 	AccessKeyID      string `yaml:"access_key_id"`
 	SecretAccessKey  string `yaml:"secret_access_key"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	DisableSSL       bool   `yaml:"disable_ssl"`
+	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -171,6 +195,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -195,6 +220,42 @@ type FleetConfig struct {
 	Filesystem       FilesystemConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
+}
+
+type TLS struct {
+	TLSCert       string
+	TLSKey        string
+	TLSCA         string
+	TLSServerName string
+}
+
+func (t *TLS) ToTLSConfig() (*tls.Config, error) {
+	rootCertPool := x509.NewCertPool()
+	pem, err := ioutil.ReadFile(t.TLSCA)
+	if err != nil {
+		return nil, errors.Wrap(err, "read server-ca pem")
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return nil, errors.New("failed to append PEM.")
+	}
+
+	cfg := &tls.Config{
+		RootCAs: rootCertPool,
+	}
+	if t.TLSCert != "" {
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "load client cert and key")
+		}
+		clientCert = append(clientCert, certs)
+		cfg.Certificates = clientCert
+	}
+
+	if t.TLSServerName != "" {
+		cfg.ServerName = t.TLSServerName
+	}
+	return cfg, nil
 }
 
 // addConfigs adds the configuration keys and default values that will be
@@ -242,6 +303,18 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.duplicate_results", false, "Duplicate Live Query results to another Redis channel")
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
+	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
+	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
+	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
+	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
+	man.addConfigString("redis.tls_ca", "", "Redis TLS server CA")
+	man.addConfigString("redis.tls_server_name", "", "Redis TLS server name")
+	man.addConfigDuration("redis.tls_handshake_timeout", 10*time.Second, "Redis TLS handshake timeout")
+	man.addConfigInt("redis.max_idle_conns", 3, "Redis maximum idle connections")
+	man.addConfigInt("redis.max_open_conns", 0, "Redis maximum open connections, 0 means no limit")
+	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
+	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -293,6 +366,8 @@ func (man Manager) addConfigs() {
 		"Log plugin to use for result logs")
 	man.addConfigDuration("osquery.label_update_interval", 1*time.Hour,
 		"Interval to update host label membership (i.e. 1h)")
+	man.addConfigDuration("osquery.policy_update_interval", 1*time.Hour,
+		"Interval to update host policy membership (i.e. 1h)")
 	man.addConfigDuration("osquery.detail_update_interval", 1*time.Hour,
 		"Interval to update host details (i.e. 1h)")
 	man.addConfigString("osquery.status_log_file", "",
@@ -301,6 +376,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.result_log_file) Path for osqueryd result logs")
 	man.addConfigBool("osquery.enable_log_rotation", false,
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
+	man.addConfigInt("osquery.max_jitter_percent", 10,
+		"Maximum percentage of the interval to add as jitter")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -350,9 +427,13 @@ func (man Manager) addConfigs() {
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
 	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
 	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
 	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -384,6 +465,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
+	man.addConfigBool("vulnerabilities.disable_data_sync", false,
+		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -414,13 +497,25 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:          man.getConfigString("redis.address"),
-			Password:         man.getConfigString("redis.password"),
-			Database:         man.getConfigInt("redis.database"),
-			UseTLS:           man.getConfigBool("redis.use_tls"),
-			DuplicateResults: man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:   man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:        man.getConfigDuration("redis.keep_alive"),
+			Address:                   man.getConfigString("redis.address"),
+			Password:                  man.getConfigString("redis.password"),
+			Database:                  man.getConfigInt("redis.database"),
+			UseTLS:                    man.getConfigBool("redis.use_tls"),
+			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
+			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                   man.getConfigString("redis.tls_cert"),
+			TLSKey:                    man.getConfigString("redis.tls_key"),
+			TLSCA:                     man.getConfigString("redis.tls_ca"),
+			TLSServerName:             man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
+			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -452,8 +547,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			StatusLogFile:        man.getConfigString("osquery.status_log_file"),
 			ResultLogFile:        man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:  man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval: man.getConfigDuration("osquery.policy_update_interval"),
 			DetailUpdateInterval: man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:    man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
 		},
 		Logging: LoggingConfig{
 			Debug:         man.getConfigBool("logging.debug"),
@@ -489,9 +586,13 @@ func (man Manager) LoadConfig() FleetConfig {
 		S3: S3Config{
 			Bucket:           man.getConfigString("s3.bucket"),
 			Prefix:           man.getConfigString("s3.prefix"),
+			Region:           man.getConfigString("s3.region"),
+			EndpointURL:      man.getConfigString("s3.endpoint_url"),
 			AccessKeyID:      man.getConfigString("s3.access_key_id"),
 			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
 			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
+			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -514,6 +615,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
 			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
 		},
 	}
 }
@@ -738,7 +840,9 @@ func TestConfig() FleetConfig {
 			StatusLogPlugin:      "filesystem",
 			ResultLogPlugin:      "filesystem",
 			LabelUpdateInterval:  1 * time.Hour,
+			PolicyUpdateInterval: 1 * time.Hour,
 			DetailUpdateInterval: 1 * time.Hour,
+			MaxJitterPercent:     0,
 		},
 		Logging: LoggingConfig{
 			Debug:         true,

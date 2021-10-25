@@ -1,3 +1,0 @@
-- Add checks for loading state API requests for /config and /teams
-- Refactor getNextLocationPath in TypeScript as a separate helper
-- Update routing for various actions and persist route/query params in url

@@ -5,5 +5,1122 @@
   "_generatedWith": {
     "sails": "1.2.5",
     "sails-generate": "2.0.0"
+  },
+  "builtStaticContent": {
+    "markdownPages": [
+      {
+        "url": "/docs",
+        "title": "Readme.md",
+        "lastModifiedAt": 1624049901000,
+        "htmlId": "docs--readme--27004f4448",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/installation",
+        "title": "Installation",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-installation--c1f7b7262d",
+        "sectionRelativeRepoPath": "02-Deploying/01-Installation.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/configuration",
+        "title": "Configuration",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-configuration--25bb47a163",
+        "sectionRelativeRepoPath": "02-Deploying/02-Configuration.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/example-deployment-scenarios",
+        "title": "Example deployment scenarios",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--03-example-deploymen--1d32b988ab",
+        "sectionRelativeRepoPath": "02-Deploying/03-Example-deployment-scenarios.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/fleetctl-agent-updates",
+        "title": "Fleetctl agent updates",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-fleetctl-agent-up--92c6890fa9",
+        "sectionRelativeRepoPath": "02-Deploying/04-fleetctl-agent-updates.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--3ad91393ce",
+        "sectionRelativeRepoPath": "02-Deploying/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying",
+        "title": "Deploying",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--fb635b427f",
+        "sectionRelativeRepoPath": "02-Deploying/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/building-fleet",
+        "title": "Building Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-building-fleet--abcea456d8",
+        "sectionRelativeRepoPath": "03-Contributing/01-Building-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/testing",
+        "title": "Testing",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-testing--2f307719a6",
+        "sectionRelativeRepoPath": "03-Contributing/02-Testing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/migrations",
+        "title": "Migrations",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--03-migrations--b553b6254f",
+        "sectionRelativeRepoPath": "03-Contributing/03-Migrations.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/committing-changes",
+        "title": "Committing changes",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-committing-change--9b92fdc560",
+        "sectionRelativeRepoPath": "03-Contributing/04-Committing-Changes.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/releasing-fleet",
+        "title": "Releasing Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--05-releasing-fleet--1f39f77c64",
+        "sectionRelativeRepoPath": "03-Contributing/05-Releasing-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/seeding-data",
+        "title": "Seeding data",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--06-seeding-data--af5ac86a99",
+        "sectionRelativeRepoPath": "03-Contributing/06-Seeding-Data.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--1b33e57806",
+        "sectionRelativeRepoPath": "03-Contributing/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing",
+        "title": "Contributing",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--6de1bc799d",
+        "sectionRelativeRepoPath": "03-Contributing/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleet-ui",
+        "title": "Fleet UI",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--01-fleet-ui--4b5755ee58",
+        "sectionRelativeRepoPath": "01-Using-Fleet/01-Fleet-UI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleetctl-cli",
+        "title": "Fleetctl CLI",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--02-fleetctl-cli--2a521b49d6",
+        "sectionRelativeRepoPath": "01-Using-Fleet/02-fleetctl-CLI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/rest-api",
+        "title": "REST API",
+        "lastModifiedAt": 1632174198000,
+        "htmlId": "docs--03-rest-api--f0b4e26bae",
+        "sectionRelativeRepoPath": "01-Using-Fleet/03-REST-API.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/adding-hosts",
+        "title": "Adding hosts",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--04-adding-hosts--9ffccb2221",
+        "sectionRelativeRepoPath": "01-Using-Fleet/04-Adding-hosts.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/osquery-logs",
+        "title": "Osquery logs",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--05-osquery-logs--7fbf2c5c5a",
+        "sectionRelativeRepoPath": "01-Using-Fleet/05-Osquery-logs.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/monitoring-fleet",
+        "title": "Monitoring Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--06-monitoring-fleet--83f7cca9f9",
+        "sectionRelativeRepoPath": "01-Using-Fleet/06-Monitoring-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/security-best-practices",
+        "title": "Security best practices",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--07-security-best-pra--7ba1af6048",
+        "sectionRelativeRepoPath": "01-Using-Fleet/07-Security-best-practices.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/updating-fleet",
+        "title": "Updating Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--08-updating-fleet--3b4e821ee3",
+        "sectionRelativeRepoPath": "01-Using-Fleet/08-Updating-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/permissions",
+        "title": "Permissions",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--09-permissions--eb9ac05ff5",
+        "sectionRelativeRepoPath": "01-Using-Fleet/09-Permissions.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/teams",
+        "title": "Teams",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--10-teams--bd0bdf9444",
+        "sectionRelativeRepoPath": "01-Using-Fleet/10-Teams.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/usage-statistics",
+        "title": "Usage statistics",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--11-usage-statistics--ccd73f532c",
+        "sectionRelativeRepoPath": "01-Using-Fleet/11-Usage-statistics.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/supported-browsers",
+        "title": "Supported browsers",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--12-supported-browser--c3a9c18d40",
+        "sectionRelativeRepoPath": "01-Using-Fleet/12-Supported-browsers.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/vulnerability-processing",
+        "title": "Vulnerability processing",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--13-vulnerability-pro--7a9b62b621",
+        "sectionRelativeRepoPath": "01-Using-Fleet/13-Vulnerability-Processing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--faq--75e099695e",
+        "sectionRelativeRepoPath": "01-Using-Fleet/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet",
+        "title": "Using Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--0b226f5257",
+        "sectionRelativeRepoPath": "01-Using-Fleet/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/learn-how-to-use-fleet",
+        "title": "Learn how to use Fleet",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--00-learn-how-to-use---95b515dfd1",
+        "sectionRelativeRepoPath": "01-Using-Fleet/00-Learn-how-to-use-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/configuration-files",
+        "title": "Configuration files",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--dc5df431cb",
+        "sectionRelativeRepoPath": "01-Using-Fleet/configuration-files/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/standard-query-library",
+        "title": "Standard query library",
+        "lastModifiedAt": 1632163704000,
+        "htmlId": "docs--readme--db16aa6f37",
+        "sectionRelativeRepoPath": "01-Using-Fleet/standard-query-library/README.md",
+        "meta": {}
+      }
+    ],
+    "queries": [
+      {
+        "name": "Count Apple applications installed",
+        "platforms": "macOS",
+        "description": "Count the number of Apple applications installed on the machine.",
+        "query": "SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Mike Thomas",
+            "handle": "mike-j-thomas",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/78363703?v=4",
+            "htmlUrl": "https://github.com/mike-j-thomas"
+          },
+          {
+            "name": null,
+            "handle": "noahtalerman",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/47070608?v=4",
+            "htmlUrl": "https://github.com/noahtalerman"
+          },
+          {
+            "name": "Mike McNeil",
+            "handle": "mikermcneil",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/618009?v=4",
+            "htmlUrl": "https://github.com/mikermcneil"
+          }
+        ],
+        "slug": "count-apple-applications-installed",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get OpenSSL versions",
+        "platforms": "Linux",
+        "description": "Retrieves the OpenSSL version.",
+        "query": "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-open-ssl-versions",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get whether Gatekeeper is disabled",
+        "platforms": "macOS",
+        "description": "Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+        "query": "SELECT * FROM gatekeeper WHERE assessments_enabled = 0;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-whether-gatekeeper-is-disabled",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get authorized SSH keys",
+        "platforms": "macOS, Linux",
+        "description": "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
+        "query": "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": [
+          {
+            "name": "Mike Thomas",
+            "handle": "mike-j-thomas",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/78363703?v=4",
+            "htmlUrl": "https://github.com/mike-j-thomas"
+          }
+        ],
+        "slug": "get-authorized-ssh-keys"
+      },
+      {
+        "name": "Get authorized keys for Local Accounts",
+        "platforms": "macOS, Linux",
+        "description": "List authorized_keys for each user on the system.",
+        "query": "SELECT * FROM users CROSS JOIN authorized_keys USING (uid);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-authorized-keys-for-local-accounts",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get authorized keys for Domain Joined Accounts",
+        "platforms": "macOS, Linux",
+        "description": "List authorized_keys for each user on the system.",
+        "query": "SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-authorized-keys-for-domain-joined-accounts",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get crashes",
+        "platforms": "macOS",
+        "description": "Retrieve application, system, and mobile app crash logs.",
+        "query": "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-crashes",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Chrome Extensions",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "List installed Chrome Extensions for all users.",
+        "query": "SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-chrome-extensions",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed FreeBSD software",
+        "platforms": "FreeBSD",
+        "description": "Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-free-bsd-software",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Homebrew Packages",
+        "platforms": "macOS",
+        "description": "Get the installed homebrew package database.",
+        "query": "SELECT * FROM homebrew_packages;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-homebrew-packages",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Linux software",
+        "platforms": "Linux",
+        "description": "Get all software installed on a Linux computer, including browser plugins and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-linux-software",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed macOS software",
+        "platforms": "macOS",
+        "description": "Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-mac-os-software",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Safari extensions",
+        "platforms": "macOS",
+        "description": "Retrieves the list of installed Safari Extensions for all users in the target system.",
+        "query": "SELECT safari_extensions.* FROM users join safari_extensions USING (uid);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-safari-extensions",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get installed Windows software",
+        "platforms": "Windows",
+        "description": "Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-installed-windows-software",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get laptops with failing batteries",
+        "platforms": "macOS",
+        "description": null,
+        "query": "SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-laptops-with-failing-batteries",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get macOS disk free space percentage",
+        "platforms": "macOS",
+        "description": "Displays the percentage of free space available on the primary disk partition.",
+        "query": "SELECT (blocks_available * 100 / blocks) AS pct, * FROM mounts WHERE path = '/';",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-mac-os-disk-free-space-percentage",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get mounts",
+        "platforms": "macOS, Linux",
+        "description": "Shows system mounted devices and filesystems (not process specific).",
+        "query": "SELECT device, device_alias, path, type, blocks_size FROM mounts;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-mounts",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get the version of the resident operating system",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows system mounted devices and filesystems (not process specific).",
+        "query": "SELECT * FROM os_version;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-the-version-of-the-resident-operating-system",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get platform info",
+        "platforms": "macOS",
+        "description": "Shows information about the host platform",
+        "query": "SELECT vendor, version, date, revision from platform_info;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-platform-info",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get startup items",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows applications and binaries set as user/login startup items.",
+        "query": "SELECT * FROM startup_items;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-startup-items",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get system logins and logouts",
+        "platforms": "macOS",
+        "description": "Get a list of system logins and logouts.",
+        "query": "SELECT * FROM last;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-system-logins-and-logouts",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get current users with active shell/console on the system",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Get current users with active shell/console on the system and associated process",
+        "query": "SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-current-users-with-active-shell-console-on-the-system",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get system uptime",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Shows the system uptime.",
+        "query": "SELECT * FROM uptime;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-system-uptime",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get USB devices",
+        "platforms": "macOS, Linux",
+        "description": "Shows all USB devices that are actively plugged into the host system.",
+        "query": "SELECT * FROM usb_devices;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-usb-devices",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get wifi status",
+        "platforms": "macOS",
+        "description": "Shows information about the wifi network that a host is currently connected to.",
+        "query": "SELECT * FROM wifi_status;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-wifi-status",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Windows machines with unencrypted hard disks",
+        "platforms": "Windows",
+        "description": null,
+        "query": "SELECT * FROM bitlocker_info WHERE protection_status = 0;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-windows-machines-with-unencrypted-hard-disks",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get disk encryption status",
+        "platforms": "macOS, Linux",
+        "description": "Disk encryption status and information.",
+        "query": "SELECT * FROM disk_encryption;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-disk-encryption-status",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get unencrypted SSH keys for local accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-unencrypted-ssh-keys-for-local-accounts"
+      },
+      {
+        "name": "Get unencrypted SSH keys for domain joined accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-unencrypted-ssh-keys-for-domain-joined-accounts"
+      },
+      {
+        "name": "Get crontab jobs",
+        "platforms": "macOS, Linux",
+        "description": "Line parsed values from system and user cron/tab.",
+        "query": "SELECT * FROM crontab;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-crontab-jobs",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get suid binaries",
+        "platforms": "macOS, Linux",
+        "description": "suid binaries in common locations.",
+        "query": "SELECT * FROM suid_bin;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Zach Wasserman",
+            "handle": "zwass",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/575602?v=4",
+            "htmlUrl": "https://github.com/zwass"
+          }
+        ],
+        "slug": "get-suid-binaries",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get dynamic linker hijacking on Linux (MITRE. T1574.006)",
+        "platforms": "Linux",
+        "description": "Detect any processes that run with LD_PRELOAD environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-dynamic-linker-hijacking-on-linux-mitre-t-1574-006"
+      },
+      {
+        "name": "Get dynamic linker hijacking on macOS (MITRE. T1574.006)",
+        "platforms": "macOS",
+        "description": "Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';",
+        "purpose": "Informational",
+        "remediation": "N/A",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006"
+      },
+      {
+        "name": "Get etc hosts entries",
+        "platforms": "macOS, Linux",
+        "description": "Line-parsed /etc/hosts",
+        "query": "SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-etc-hosts-entries",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get network interfaces",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Network interfaces MAC address",
+        "query": "SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-network-interfaces",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get local user accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
+        "query": "SELECT uid, gid, username, description,directory, shell FROM users;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-local-user-accounts",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get active user accounts on servers",
+        "platforms": "Linux",
+        "description": "Domain Joined environment normally have root or other service account only and users are SSH-ing using their Domain Accounts.",
+        "query": "SELECT * FROM shadow WHERE password_status='active' and username!='root';",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-active-user-accounts-on-servers",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Nmap scanner",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Get Nmap scanner process, as well as its user, parent, and process details.",
+        "query": "SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent, (SELECT name FROM processes WHERE pid=p.parent) AS parent_name, (SELECT username FROM users WHERE uid=p.uid) AS username FROM processes as p WHERE cmdline like 'nmap%';",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-nmap-scanner",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get docker images on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker images information, can be used on normal system or a kubenode.",
+        "query": "SELECT * FROM docker_images;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-docker-images-on-a-system",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get docker running containers on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker containers information, can be used on normal system or a kubenode.",
+        "query": "SELECT * FROM docker_containers;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-docker-running-containers-on-a-system",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get docker running process on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker containers Processes, can be used on normal system or a kubenode.",
+        "query": "SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "Ahmed Elshaer",
+            "handle": "anelshaer",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/4087461?v=4",
+            "htmlUrl": "https://github.com/anelshaer"
+          }
+        ],
+        "slug": "get-docker-running-process-on-a-system",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get Windows print spooler remote code execution vulnerability",
+        "platforms": "Windows",
+        "description": "Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.",
+        "query": "SELECT CASE cnt WHEN 2 THEN \"TRUE\" ELSE \"FALSE\" END \"Vulnerable\" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": null,
+            "handle": "maravedi",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/9169890?v=4",
+            "htmlUrl": "https://github.com/maravedi"
+          }
+        ],
+        "slug": "get-windows-print-spooler-remote-code-execution-vulnerability",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get local users and their privileges",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Collects the local user accounts and their respective user group.",
+        "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": null,
+            "handle": "noahtalerman",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/47070608?v=4",
+            "htmlUrl": "https://github.com/noahtalerman"
+          }
+        ],
+        "slug": "get-local-users-and-their-privileges",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get processes that no longer exist on disk",
+        "platforms": "Linux, macOS, Windows",
+        "description": "Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.",
+        "query": "SELECT name, path, pid FROM processes WHERE on_disk = 0;",
+        "purpose": "Incident response",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-processes-that-no-longer-exist-on-disk",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get user files matching a specific hash",
+        "platforms": "macOS, Linux",
+        "description": "Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)",
+        "query": "SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE \"\"/Users/%/Documents/%%\"\") AND sha256 = \"\"16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75\"\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-user-files-matching-a-specific-hash",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get local administrator accounts on macOS",
+        "platforms": "macOS",
+        "description": "The query allows you to check macOS systems for local administrator accounts.",
+        "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-local-administrator-accounts-on-mac-os",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get all listening ports, by process",
+        "platforms": "Linux, macOS, Windows",
+        "description": "List ports that are listening on all interfaces, along with the process to which they are attached.",
+        "query": "SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = \"0.0.0.0\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-all-listening-ports-by-process",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get whether TeamViewer is installed/running",
+        "platforms": "Windows",
+        "description": "Looks for the TeamViewer service running on machines. This is used often when attackers gain access to a machine, running TeamViewer to allow them to access a machine.",
+        "query": "SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE \"%teamviewer%\";",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-whether-team-viewer-is-installed-running",
+        "remediation": "N/A"
+      },
+      {
+        "name": "Get malicious Python backdoors",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
+        "query": "select case cnt when 0 then \"NONE_INSTALLED\" else \"INSTALLED\" end as \"Malicious Python Packages\",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));",
+        "purpose": "Informational",
+        "contributors": [
+          {
+            "name": "AndrewB",
+            "handle": "alphabrevity",
+            "avatarUrl": "https://avatars.githubusercontent.com/u/3847973?v=4",
+            "htmlUrl": "https://github.com/alphabrevity"
+          }
+        ],
+        "slug": "get-malicious-python-backdoors",
+        "remediation": "N/A"
+      }
+    ],
+    "queryLibraryYmlRepoPath": "docs/01-Using-Fleet/standard-query-library/standard-query-library.yml",
+    "compiledPagePartialsAppPath": "views/partials/built-from-markdown"
   }
 }

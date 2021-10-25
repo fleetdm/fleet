@@ -65,7 +65,7 @@ export const QUERIES_PAGE_STEPS = {
 
 export const DEFAULT_QUERY = {
   description: "",
-  name: "New query",
+  name: "",
   query: "SELECT * FROM osquery_info",
   id: 0,
   interval: 0,
@@ -116,7 +116,7 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 // as returned by the TARGETS API; based on display_text
 export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
-  "All Hosts": "All Hosts",
+  "All Hosts": "All hosts",
   "All Linux": "Linux",
   "CentOS Linux": "CentOS Linux",
   macOS: "macOS",

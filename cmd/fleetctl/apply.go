@@ -201,7 +201,7 @@ func applyCommand() *cli.Command {
 
 			if len(specs.Teams) > 0 {
 				if err := fleetClient.ApplyTeams(specs.Teams); err != nil {
-					return errors.Wrap(err, "applying queries")
+					return errors.Wrap(err, "applying teams")
 				}
 				logf(c, "[+] applied %d teams\n", len(specs.Teams))
 			}

@@ -9,12 +9,14 @@ import { filter, get, keys, omit } from "lodash";
 import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
 import filterArrayByHash from "utilities/filter_array_by_hash";
 import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
+import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/loaders/Spinner";
+import TabsWrapper from "components/TabsWrapper";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IQueryResultsProps {
@@ -22,6 +24,7 @@ interface IQueryResultsProps {
   isQueryFinished: boolean;
   onRunQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
@@ -41,6 +44,7 @@ const QueryResults = ({
   isQueryFinished,
   onRunQuery,
   onStopQuery,
+  setSelectedTargets,
   goToQueryEditor,
 }: IQueryResultsProps) => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
@@ -124,6 +128,11 @@ const QueryResults = ({
     }
   };
 
+  const onQueryDone = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
   const renderTableHeaderColumn = (column: string, index: number) => {
     const filterable = column === "hostname" ? "host_hostname" : column;
     const filterIconClassName = classnames(`${baseClass}__filter-icon`, {
@@ -178,6 +187,28 @@ const QueryResults = ({
   };
 
   const renderTable = () => {
+    const emptyResults = !queryResults || !queryResults.length;
+    const hasNoResultsYet = !isQueryFinished && emptyResults;
+    const finishedWithNoResults =
+      isQueryFinished && (!hostsCount.successful || emptyResults);
+
+    if (hasNoResultsYet) {
+      return null;
+    }
+
+    if (finishedWithNoResults) {
+      return (
+        <p className="no-results-message">
+          Your live query returned no results.
+          <span>
+            Expecting to see results? Check to see if the hosts you targeted
+            reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
+            table.
+          </span>
+        </p>
+      );
+    }
+
     return (
       <div className={`${baseClass}__results-table-container`}>
         <Button
@@ -225,7 +256,7 @@ const QueryResults = ({
     <div className={`${baseClass}__btn-wrapper`}>
       <Button
         className={`${baseClass}__done-btn`}
-        onClick={goToQueryEditor}
+        onClick={onQueryDone}
         variant="brand"
       >
         Done
@@ -255,10 +286,6 @@ const QueryResults = ({
     </div>
   );
 
-  const hasNoResults =
-    isQueryFinished &&
-    (!hostsCount.successful || !queryResults || !queryResults.length);
-
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
   });
@@ -280,7 +307,7 @@ const QueryResults = ({
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
-      <div className={`${baseClass}__nav-header`}>
+      <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
@@ -291,24 +318,10 @@ const QueryResults = ({
               {NAV_TITLES.ERRORS}
             </Tab>
           </TabList>
-          <TabPanel>
-            {isQueryFinished && hasNoResults ? (
-              <p className="no-results-message">
-                Your live query returned no results.
-                <br />
-                <span>
-                  Expecting to see results? Check to see if the hosts you
-                  targeted reported &ldquo;Online&rdquo; or check out the
-                  &ldquo;Errors&rdquo; table.
-                </span>
-              </p>
-            ) : (
-              renderTable()
-            )}
-          </TabPanel>
+          <TabPanel>{renderTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
-      </div>
+      </TabsWrapper>
     </div>
   );
 };

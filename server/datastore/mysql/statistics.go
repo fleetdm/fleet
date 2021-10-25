@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kit/version"
 )
 
@@ -14,21 +16,21 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	amountEnrolledHosts, err := amountEnrolledHostsDB(d.writer)
 	if err != nil {
 		return fleet.StatisticsPayload{}, false, err
 	}
 
 	dest := statistics{}
-	err = d.writer.Get(&dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err = sqlx.GetContext(ctx, d.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, err
 			}
-			_, err = d.writer.Exec(`INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
+			_, err = d.writer.ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, err
 			}
@@ -54,7 +56,7 @@ func (d *Datastore) ShouldSendStatistics(frequency time.Duration) (fleet.Statist
 	}, true, nil
 }
 
-func (d *Datastore) RecordStatisticsSent() error {
-	_, err := d.writer.Exec(`UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
+func (d *Datastore) RecordStatisticsSent(ctx context.Context) error {
+	_, err := d.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return err
 }

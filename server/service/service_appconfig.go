@@ -37,7 +37,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	// skipauth: No user context yet when the app config is first created.
 	svc.authz.SkipAuthorization(ctx)
 
-	newConfig, err := svc.ds.NewAppConfig(&p)
+	newConfig, err := svc.ds.NewAppConfig(ctx, &p)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 			Secret: secret,
 		},
 	}
-	err = svc.ds.ApplyEnrollSecrets(nil, secrets)
+	err = svc.ds.ApplyEnrollSecrets(ctx, nil, secrets)
 	if err != nil {
 		return nil, errors.Wrap(err, "save enroll secret")
 	}
@@ -65,7 +65,7 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 		return nil, err
 	}
 
-	return svc.ds.AppConfig()
+	return svc.ds.AppConfig(ctx)
 }
 
 func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) error {
@@ -116,7 +116,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	if err := svc.ds.SaveAppConfig(appConfig); err != nil {
+	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
 	return appConfig, nil
@@ -137,7 +137,7 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		}
 	}
 
-	return svc.ds.ApplyEnrollSecrets(nil, spec.Secrets)
+	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
 }
 
 func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecretSpec, error) {
@@ -145,7 +145,7 @@ func (svc *Service) GetEnrollSecretSpec(ctx context.Context) (*fleet.EnrollSecre
 		return nil, err
 	}
 
-	secrets, err := svc.ds.GetEnrollSecrets(nil)
+	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	users, err := svc.ds.ListUsers(fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
+	users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
 	if err != nil {
 		return false, err
 	}
@@ -181,7 +181,21 @@ func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
 }
 
 func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateIntervalConfig, error) {
-	return &fleet.UpdateIntervalConfig{OSQueryDetail: svc.config.Osquery.DetailUpdateInterval}, nil
+	return &fleet.UpdateIntervalConfig{
+		OSQueryDetail: svc.config.Osquery.DetailUpdateInterval,
+		OSQueryPolicy: svc.config.Osquery.PolicyUpdateInterval,
+	}, nil
+}
+
+func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
+	return &fleet.VulnerabilitiesConfig{
+		DatabasesPath:         svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:           svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:        svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:      svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks: svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:       svc.config.Vulnerabilities.DisableDataSync,
+	}, nil
 }
 
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {

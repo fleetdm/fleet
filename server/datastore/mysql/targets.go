@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Datastore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics
 
@@ -52,7 +53,7 @@ func (d *Datastore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.H
 	}
 
 	res := fleet.TargetMetrics{}
-	err = d.reader.Get(&res, query, args...)
+	err = sqlx.GetContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
 		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
 	}
@@ -60,7 +61,7 @@ func (d *Datastore) CountHostsInTargets(filter fleet.TeamFilter, targets fleet.H
 	return res, nil
 }
 
-func (d *Datastore) HostIDsInTargets(filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
 		return []uint{}, nil
@@ -98,7 +99,7 @@ func (d *Datastore) HostIDsInTargets(filter fleet.TeamFilter, targets fleet.Host
 	}
 
 	var res []uint
-	err = d.reader.Select(&res, query, args...)
+	err = sqlx.SelectContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "sqlx.Get HostIDsInTargets")
 	}

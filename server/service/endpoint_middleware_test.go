@@ -192,10 +192,10 @@ func TestAuthenticatedHost(t *testing.T) {
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
 
-	ds.AppConfigFunc = func() (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.AuthenticateHostFunc = func(secret string) (*fleet.Host, error) {
+	ds.AuthenticateHostFunc = func(ctx context.Context, secret string) (*fleet.Host, error) {
 		switch secret {
 		case goodNodeKey:
 			return &expectedHost, nil
@@ -204,7 +204,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 		}
 	}
-	ds.MarkHostSeenFunc = func(host *fleet.Host, t time.Time) error {
+	ds.MarkHostSeenFunc = func(ctx context.Context, host *fleet.Host, t time.Time) error {
 		return nil
 	}
 

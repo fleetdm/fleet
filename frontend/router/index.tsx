@@ -70,8 +70,9 @@ const AppWrapper = ({ children }: IAppWrapperProps) => (
 const routes = (
   <Provider store={store}>
     <Router history={history}>
-      <Route path={PATHS.HOME} component={AppWrapper}>
+      <Route path={PATHS.ROOT} component={AppWrapper}>
         <Route path="setup" component={RegistrationPage} />
+        <Route path="previewlogin" component={LoginRoutes} />
         <Route path="login" component={LoginRoutes}>
           <Route path="invites/:invite_token" component={ConfirmInvitePage} />
           <Route
@@ -85,8 +86,8 @@ const routes = (
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
           <Route component={CoreLayout}>
-            <IndexRedirect to={PATHS.MANAGE_HOSTS} />
-            <Route path="home/dashboard" component={Homepage} />
+            <IndexRedirect to={"dashboard"} />
+            <Route path="dashboard" component={Homepage} />
             <Route path="settings" component={AuthenticatedAdminRoutes}>
               <Route component={SettingsWrapper}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -126,9 +127,8 @@ const routes = (
                   <Route path="edit" component={EditPackPage} />
                 </Route>
               </Route>
-              <Route path="policies" component={PoliciesPageWrapper}>
-                <Route path="manage" component={ManagePoliciesPage} />
-              </Route>
+            </Route>
+            <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
                 <Route
@@ -143,6 +143,9 @@ const routes = (
                 <Route path="new" component={QueryPage} />
               </Route>
               <Route path=":id" component={QueryPage} />
+            </Route>
+            <Route path="policies" component={PoliciesPageWrapper}>
+              <Route path="manage" component={ManagePoliciesPage} />
             </Route>
             <Route path="profile" component={UserSettingsPage} />
           </Route>
