@@ -9,9 +9,7 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const StatusCell = (props: IStatusCellProps): JSX.Element => {
-  const { value } = props;
-
+const StatusCell = ({ value }: IStatusCellProps): JSX.Element => {
   const statusClassName = classnames(
     "data-table__status",
     `data-table__status--${generateClassTag(value)}`

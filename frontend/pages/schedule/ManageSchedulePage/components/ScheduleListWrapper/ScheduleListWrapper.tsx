@@ -48,16 +48,15 @@ interface IRootState {
   };
 }
 
-const ScheduleListWrapper = (props: IScheduleListWrapperProps): JSX.Element => {
-  const {
-    onRemoveScheduledQueryClick,
-    allScheduledQueriesList,
-    toggleScheduleEditorModal,
-    onEditScheduledQueryClick,
-    teamId,
-    inheritedQueries,
-    isTeamMaintainer,
-  } = props;
+const ScheduleListWrapper = ({
+  onRemoveScheduledQueryClick,
+  allScheduledQueriesList,
+  toggleScheduleEditorModal,
+  onEditScheduledQueryClick,
+  teamId,
+  inheritedQueries,
+  isTeamMaintainer,
+}: IScheduleListWrapperProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 

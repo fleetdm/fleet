@@ -92,7 +92,7 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license and contact us for help."
 	testCases := []struct {
 		name                    string
 		license                 *fleet.LicenseInfo
@@ -350,7 +350,7 @@ func TestGetHosts(t *testing.T) {
 				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
 				actualSpecs[i] = spec
 			}
-			require.Equal(t, expectedSpecs, actualSpecs)
+			require.Equal(t, expectedSpecs, actualSpecs, actualResult)
 		})
 	}
 
@@ -532,8 +532,8 @@ func TestGetSoftawre(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
-		gotTeamID = teamId
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+		gotTeamID = opt.TeamID
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
 	}
 

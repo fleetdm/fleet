@@ -1,0 +1,1 @@
+* Fix SearchHosts to match for one-char and two-chars queries.

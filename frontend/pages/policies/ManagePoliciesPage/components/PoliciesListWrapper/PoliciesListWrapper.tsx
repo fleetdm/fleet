@@ -20,18 +20,16 @@ interface IPoliciesListWrapperProps {
   tableType?: string;
 }
 
-const PoliciesListWrapper = (props: IPoliciesListWrapperProps): JSX.Element => {
-  const {
-    policiesList,
-    isLoading,
-    onRemovePoliciesClick,
-    toggleAddPolicyModal,
-    resultsTitle,
-    selectedTeamId,
-    canAddOrRemovePolicy,
-    tableType,
-  } = props;
-
+const PoliciesListWrapper = ({
+  policiesList,
+  isLoading,
+  onRemovePoliciesClick,
+  toggleAddPolicyModal,
+  resultsTitle,
+  selectedTeamId,
+  canAddOrRemovePolicy,
+  tableType,
+}: IPoliciesListWrapperProps): JSX.Element => {
   const NoPolicies = () => {
     return (
       <div className={`${noPoliciesClass}`}>

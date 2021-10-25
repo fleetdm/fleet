@@ -46,7 +46,7 @@ When the Actions Workflow has completed:
 
 ### Upgrading
 
-Please visit our [update guide](https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/8-Updating-Fleet.md) for upgrade instructions.
+Please visit our [update guide](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/08-Updating-Fleet.md) for upgrade instructions.
 
 ### Documentation
 

@@ -22,7 +22,7 @@ const expirationMessage = (
     Your license for Fleet Premium is about to expire. If you’d like to renew or
     have questions about downgrading,{" "}
     <a
-      href="https://github.com/fleetdm/fleet/blob/main/docs/1-Using-Fleet/10-Teams.md#expired_license"
+      href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license"
       target="_blank"
       rel="noopener noreferrer"
     >

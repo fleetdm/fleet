@@ -301,7 +301,7 @@ type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
-type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
+type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
@@ -314,6 +314,10 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
+
+type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -771,6 +775,12 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
+
+	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
+	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
+
+	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
+	UpdateQueryAggregatedStatsFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1498,9 +1508,9 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 	return s.MigrationStatusFunc(ctx)
 }
 
-func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
-	return s.ListSoftwareFunc(ctx, teamId, opt)
+	return s.ListSoftwareFunc(ctx, opt)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
@@ -1531,4 +1541,14 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }

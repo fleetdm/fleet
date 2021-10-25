@@ -12,9 +12,12 @@ interface IDeleteTeamModalProps {
   onCancel: () => void;
 }
 
-const RemoveMemberModal = (props: IDeleteTeamModalProps): JSX.Element => {
-  const { memberName, teamName, onSubmit, onCancel } = props;
-
+const RemoveMemberModal = ({
+  memberName,
+  teamName,
+  onSubmit,
+  onCancel,
+}: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal title={"Delete team"} onExit={onCancel} className={baseClass}>
       <form className={`${baseClass}__form`}>

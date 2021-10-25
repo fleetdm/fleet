@@ -369,7 +369,7 @@ type Datastore interface {
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (MigrationStatus, error)
 
-	ListSoftware(ctx context.Context, teamId *uint, opt ListOptions) ([]Software, error)
+	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -380,7 +380,7 @@ type Datastore interface {
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Team Policies
+	// Locking
 
 	// Lock tries to get an atomic lock on an instance named with `name`
 	// and an `owner` identified by a random string per instance.
@@ -393,6 +393,12 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Aggregated Stats
+
+	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
+	UpdateQueryAggregatedStats(ctx context.Context) error
 }
 
 type MigrationStatus int

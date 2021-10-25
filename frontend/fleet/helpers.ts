@@ -6,10 +6,7 @@ import yaml from "js-yaml";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import {
-  IPackQueryFormData,
-  IScheduledQuery,
-} from "interfaces/scheduled_query";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -17,6 +14,7 @@ import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -590,6 +588,35 @@ export const humanQueryLastRun = (lastRun: string): string => {
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
   return moment(moment()).isAfter(expiration);
+};
+
+// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
+export const performanceIndicator = (
+  scheduledQueryStats: IScheduledQueryStats
+): string => {
+  if (
+    !scheduledQueryStats.total_executions ||
+    scheduledQueryStats.total_executions === 0 ||
+    scheduledQueryStats.total_executions === null
+  ) {
+    return "Undetermined";
+  }
+
+  if (
+    typeof scheduledQueryStats.user_time_p50 === "number" &&
+    typeof scheduledQueryStats.system_time_p50 === "number"
+  ) {
+    const indicator =
+      scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
+
+    if (indicator < 2000) {
+      return "Minimal";
+    }
+    if (indicator < 4000) {
+      return "Considerable";
+    }
+  }
+  return "Excessive";
 };
 
 export const secondsToHms = (d: number): string => {

@@ -23,11 +23,9 @@ const { HOME } = paths;
 /**
  * Checks if a user is a global admin or global maintainer when routing
  */
-const AuthGlobalAdminMaintainerRoutes = (
-  props: IAuthGlobalAdminMaintainerRoutesProps
-) => {
-  const { children } = props;
-
+const AuthGlobalAdminMaintainerRoutes = ({
+  children,
+}: IAuthGlobalAdminMaintainerRoutesProps) => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
 

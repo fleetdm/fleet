@@ -267,7 +267,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Saved:       true,
 	})
 	require.NoError(t, err)
-	gp, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	gp, err := ds.NewGlobalPolicy(context.Background(), q.ID, "some gp resolution")
 	require.NoError(t, err)
 
 	q2, err := ds.NewQuery(context.Background(), &fleet.Query{
@@ -277,7 +277,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Saved:       true,
 	})
 	require.NoError(t, err)
-	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, q2.ID, "")
+	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, q2.ID, "some other gp resolution")
 	require.NoError(t, err)
 
 	queries, err := ds.PolicyQueriesForHost(context.Background(), host1)
@@ -305,9 +305,20 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(
 		context.Background(), host2, map[uint]*bool{gp.ID: nil}, time.Now()))
 
+	// insert a null resolution
+	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (query_id) VALUES (?)`, q.ID)
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(
+		context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now()))
+
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 1)
+	require.Len(t, policies, 2)
+
+	assert.Equal(t, "query1 desc", policies[0].QueryDescription)
+	assert.Equal(t, "some gp resolution", policies[0].Resolution)
 }
 
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {

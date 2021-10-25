@@ -1,6 +1,9 @@
 import PropTypes from "prop-types";
 import { IFormField } from "./form_field";
 import packInterface, { IPack } from "./pack";
+import scheduledQueryStatsInterface, {
+  IScheduledQueryStats,
+} from "./scheduled_query_stats";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -14,6 +17,7 @@ export default PropTypes.shape({
   author_name: PropTypes.string,
   observer_can_run: PropTypes.bool,
   packs: PropTypes.arrayOf(packInterface),
+  stats: scheduledQueryStatsInterface,
 });
 export interface IQueryFormData {
   description?: string | number | boolean | any[] | undefined;
@@ -34,6 +38,7 @@ export interface IQuery {
   author_name: string;
   observer_can_run: boolean;
   packs: IPack[];
+  stats?: IScheduledQueryStats;
 }
 
 export interface IQueryFormFields {
