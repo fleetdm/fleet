@@ -16,9 +16,12 @@ interface IAddMemberModal {
   onSubmit: (userIds: INewMembersBody) => void;
 }
 
-const AddMemberModal = (props: IAddMemberModal): JSX.Element => {
-  const { disabledMembers, onCancel, onSubmit, team } = props;
-
+const AddMemberModal = ({
+  disabledMembers,
+  onCancel,
+  onSubmit,
+  team,
+}: IAddMemberModal): JSX.Element => {
   const [selectedMembers, setSelectedMembers] = useState([]);
 
   const onChangeDropdown = useCallback(

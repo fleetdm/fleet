@@ -55,6 +55,11 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, errors.Errorf("%s already invited", *p.Email)
 	}
 
+	if p.AdminForcedPasswordReset == nil {
+		// By default, force password reset for users created this way.
+		p.AdminForcedPasswordReset = ptr.Bool(true)
+	}
+
 	return svc.newUser(ctx, p)
 }
 

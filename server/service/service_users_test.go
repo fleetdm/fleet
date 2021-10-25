@@ -20,7 +20,6 @@ import (
 
 func TestAuthenticatedUser(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	createTestUsers(t, ds)
 	svc := newTestService(ds, nil, nil)
@@ -83,7 +82,6 @@ func TestModifyUserEmail(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyUserEmailNoPassword(t *testing.T) {
@@ -129,7 +127,6 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
@@ -175,7 +172,6 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	require.Len(t, *invalid, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestModifyAdminUserEmailPassword(t *testing.T) {
@@ -217,16 +213,14 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
-
 }
 
 func TestChangePassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	users := createTestUsers(t, ds)
-	var passwordChangeTests = []struct {
+	passwordChangeTests := []struct {
 		user        fleet.User
 		oldPassword string
 		newPassword string
@@ -288,11 +282,10 @@ func TestChangePassword(t *testing.T) {
 
 func TestResetPassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
-	var passwordResetTests = []struct {
+	passwordResetTests := []struct {
 		token       string
 		newPassword string
 		wantErr     error
@@ -347,7 +340,6 @@ func TestResetPassword(t *testing.T) {
 
 func TestRequirePasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 	createTestUsers(t, ds)
@@ -384,7 +376,6 @@ func TestRequirePasswordReset(t *testing.T) {
 			checkUser, err = ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.False(t, checkUser.AdminForcedPasswordReset)
-
 		})
 	}
 }
@@ -398,7 +389,6 @@ func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Da
 
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
 
 	svc := newTestService(ds, nil, nil)
 
@@ -451,7 +441,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 }
 
 func TestUserPasswordRequirements(t *testing.T) {
-	var passwordTests = []struct {
+	passwordTests := []struct {
 		password string
 		wantErr  bool
 	}{
@@ -494,7 +484,8 @@ func TestUserAuth(t *testing.T) {
 			Token: "ABCD",
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()}},
+				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+			},
 		}, nil
 	}
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -522,7 +513,7 @@ func TestUserAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name                  string
 		user                  *fleet.User
 		shouldFailGlobalWrite bool
@@ -624,4 +615,36 @@ func TestUserAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
+}
+
+// Test that CreateUser creates a user that will be forced to
+// reset its password upon first login (see #2570).
+func TestCreateUserForcePasswdReset(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	svc := newTestService(ds, nil, nil)
+
+	// Create admin user.
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	err := admin.SetPassword("p4ssw0rd.", 10, 10)
+	require.NoError(t, err)
+	admin, err = ds.NewUser(context.Background(), admin)
+	require.NoError(t, err)
+
+	// As the admin, create a new user.
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+	user, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:       ptr.String("Some Observer"),
+		Email:      ptr.String("some-observer@email.com"),
+		Password:   ptr.String("passw0rd."),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+
+	user, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.True(t, user.AdminForcedPasswordReset)
 }

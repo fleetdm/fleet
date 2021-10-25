@@ -33,6 +33,8 @@ type Query struct {
 	// Packs is loaded when retrieving queries, but is stored in a join
 	// table in the MySQL backend.
 	Packs []Pack `json:"packs" db:"-"`
+
+	AggregatedStats `json:"stats,omitempty"`
 }
 
 func (q Query) AuthzType() string {

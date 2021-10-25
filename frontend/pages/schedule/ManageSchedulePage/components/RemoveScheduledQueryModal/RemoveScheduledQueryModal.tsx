@@ -10,11 +10,10 @@ interface IRemoveScheduledQueryModalProps {
   onSubmit: () => void;
 }
 
-const RemoveScheduledQueryModal = (
-  props: IRemoveScheduledQueryModalProps
-): JSX.Element => {
-  const { onCancel, onSubmit } = props;
-
+const RemoveScheduledQueryModal = ({
+  onCancel,
+  onSubmit,
+}: IRemoveScheduledQueryModalProps): JSX.Element => {
   return (
     <Modal
       title={"Remove scheduled query"}

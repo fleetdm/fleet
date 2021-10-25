@@ -4,10 +4,12 @@
 import React from "react";
 import { find } from "lodash";
 
+import { performanceIndicator } from "fleet/helpers";
 import Checkbox from "components/forms/fields/Checkbox";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -109,6 +111,13 @@ const generateTableHeaders = (
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+    },
+    {
       title: "Actions",
       Header: "",
       disableSortBy: true,
@@ -200,6 +209,11 @@ const enhancePackQueriesData = (
   packQueries: IScheduledQuery[]
 ): IPackQueriesTableData[] => {
   return packQueries.map((query) => {
+    const scheduledQueryPerformance = {
+      user_time_p50: query.stats?.user_time_p50,
+      system_time_p50: query.stats?.system_time_p50,
+      total_executions: query.stats?.total_executions,
+    };
     return {
       id: query.id,
       name: query.name,
@@ -222,6 +236,11 @@ const enhancePackQueriesData = (
       updated_at: query.updated_at,
       query_name: query.query_name,
       actions: generateActionDropdownOptions(),
+      performance: [
+        performanceIndicator(scheduledQueryPerformance),
+        query.query_id,
+      ],
+      stats: query.stats,
     };
   });
 };
