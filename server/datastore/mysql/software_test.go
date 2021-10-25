@@ -59,6 +59,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
+			{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},
 		},
 	}
 	host2.HostSoftware = soft2
@@ -119,6 +120,36 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
 	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
+
+	soft2 = fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
+			{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "com.zoo"}, // "empty" -> "non-empty"
+		},
+	}
+	host2.HostSoftware = soft2
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	assert.False(t, host2.HostSoftware.Modified)
+	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+
+	soft2 = fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other"}, // "non-empty" -> "non-empty"
+			{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},               // non-empty -> empty
+		},
+	}
+	host2.HostSoftware = soft2
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	assert.False(t, host2.HostSoftware.Modified)
+	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
 }
 
 func testSoftwareCPE(t *testing.T, ds *Datastore) {
