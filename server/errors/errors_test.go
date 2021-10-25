@@ -111,6 +111,8 @@ func TestErrorHandler(t *testing.T) {
 		alwaysNewError()
 		alwaysNewError() // and it doesnt repeat them
 
+		time.Sleep(1 * time.Second)
+
 		errors, err := eh.Flush()
 		require.NoError(t, err)
 		require.Len(t, errors, 1)
