@@ -31,7 +31,7 @@ type ErrorFlusher interface {
 }
 
 func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger) ErrorFlusher {
-	errCh = make(chan error)
+	errCh = make(chan error, 1)
 
 	e := &errorHandler{
 		pool:   pool,
@@ -46,6 +46,7 @@ func (e *errorHandler) Flush() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	keysBySlot := redis.SplitKeysBySlot(e.pool, errorKeys...)
 	var errors []string
 	for _, qkeys := range keysBySlot {
@@ -116,27 +117,30 @@ func (e errorHandler) handleErrors(ctx context.Context) {
 		atomic.StoreInt32(&running, 0)
 	}()
 
-	conn := e.pool.Get()
-	defer conn.Close()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case err := <-errCh:
-			errorHash, errorJson, err := hashErr(err)
-			if err != nil {
-				// TODO: log
-				continue
-			}
-
-			jsonKey := fmt.Sprintf("error:%s:json", errorHash)
-
-			_, err = conn.Do("SET", jsonKey, errorJson, "EX", (24 * time.Hour).Seconds())
-			if err != nil {
-				// TODO: log
-				continue
-			}
+			e.storeError(ctx, err)
 		}
+	}
+}
+
+func (e errorHandler) storeError(ctx context.Context, err error) {
+	conn := e.pool.Get()
+	defer conn.Close()
+
+	errorHash, errorJson, err := hashErr(err)
+	if err != nil {
+		// TODO: log
+		return
+	}
+
+	jsonKey := fmt.Sprintf("error:%s:json", errorHash)
+	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", int((24 * time.Hour).Seconds())); err != nil {
+		// TODO: log
+		return
 	}
 }
 
@@ -148,6 +152,7 @@ func New(err error) error {
 	// TODO: wrap in eris error with timestamp and other metadata
 
 	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 	select {
 	case errCh <- err:
 	case <-ticker.C:

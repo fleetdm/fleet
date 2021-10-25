@@ -79,25 +79,28 @@ func TestHashErrEris(t *testing.T) {
 }
 
 func TestErrorHandler(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
 	t.Run("works if the error handler is down", func(t *testing.T) {
 		doneCh := make(chan struct{})
 		go func() {
 			New(pkgErrors.New("test"))
 			close(doneCh)
 		}()
-		ticker := time.NewTicker(2 * time.Second)
+
+		// should not even block in the call to New as there is no handler running
+		ticker := time.NewTicker(1 * time.Second)
 		select {
 		case <-doneCh:
 		case <-ticker.C:
 			t.FailNow()
 		}
 	})
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	wd = regexp.QuoteMeta(wd)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 
 	store := pubsub.SetupRedisForTest(t, false, false)
 
@@ -111,15 +114,16 @@ func TestErrorHandler(t *testing.T) {
 		errors, err := eh.Flush()
 		require.NoError(t, err)
 		require.Len(t, errors, 1)
-		assert.Equal(t, fmt.Sprintf(`{
-  "root": {
+
+		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+  "root": \{
     "message": "always new errors",
-    "stack": [
-      "errors.TestErroHandler.func2:%s/errors_test.go:108",
-      "errors.alwaysNewError:%s/errors_test.go:27"
-    ]
-  }
-}`, wd, wd), errors[0])
+    "stack": \[
+      "errors\.TestErrorHandler\.func2:%s/errors_test\.go:\d+",
+      "errors\.alwaysNewError:%s/errors_test\.go:\d+"
+    \]
+  \}
+\}`, wd, wd)), errors[0])
 
 		// and then errors are gone
 		errors, err = eh.Flush()
@@ -137,23 +141,25 @@ func TestErrorHandler(t *testing.T) {
 		errors, err := eh.Flush()
 		require.NoError(t, err)
 		require.Len(t, errors, 2)
-		assert.Equal(t, fmt.Sprintf(`{
-  "root": {
+
+		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+  "root": \{
     "message": "always new errors two",
-    "stack": [
-      "errors.TestErroHandler.func3:%s/errors_test.go:132",
-      "errors.alwaysNewErrorTwo:%s/errors_test.go:29"
-    ]
-  }
-}`, wd, wd), errors[0])
-		assert.Equal(t, fmt.Sprintf(`{
-  "root": {
+    "stack": \[
+      "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
+      "errors\.alwaysNewErrorTwo:%s/errors_test\.go:\d+"
+    \]
+  \}
+\}`, wd, wd)), errors[0])
+
+		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+  "root": \{
     "message": "always new errors",
-    "stack": [
-      "errors.TestErroHandler.func3:%s/errors_test.go:131",
-      "errors.alwaysNewError:%s/errors_test.go:27"
-    ]
-  }
-}`, wd, wd), errors[1])
+    "stack": \[
+      "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
+      "errors\.alwaysNewError:%s/errors_test\.go:\d+"
+    \]
+  \}
+\}`, wd, wd)), errors[1])
 	})
 }
