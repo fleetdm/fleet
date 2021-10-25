@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import errors from "interfaces/errors";
 
 interface IAddSecretModal {
   selectedTeam: number;
@@ -54,6 +55,8 @@ const SecretEditorModal = ({
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
+  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
@@ -69,7 +72,17 @@ const SecretEditorModal = ({
     setEnrollSecretString(value);
   };
 
+  console.log("errors", errors);
   const onSaveSecretClick = () => {
+    console.log("clicked Save!");
+    console.log("enrollSecretString.length", enrollSecretString.length);
+    if (enrollSecretString.length < 32) {
+      setErrors({
+        secret: "Secret",
+      });
+    } else {
+      setErrors({});
+    }
     setNewEnrollSecretString(enrollSecretString);
     onSaveSecret;
   };
@@ -91,9 +104,10 @@ const SecretEditorModal = ({
             name="osqueryd-secret"
             label={"Secret"}
             type={"text"}
-            // value={selectedSecret ? selectedSecret.secret : enrollSecretString}
             value={enrollSecretString}
             onChange={onSecretChange}
+            error={errors.secret}
+            hint={"Must contain at least 32 characters."}
           />
         </div>
         <div className={`${baseClass}__button-wrap`}>
