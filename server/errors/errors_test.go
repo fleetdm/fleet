@@ -6,10 +6,11 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	kitlog "github.com/go-kit/kit/log"
 	pkgErrors "github.com/pkg/errors"
 	"github.com/rotisserie/eris"
@@ -25,9 +26,9 @@ func alwaysErisErrors() error { return eris.New("always eris errors") }
 
 func alwaysCallsAlwaysErisErrors() error { return alwaysErisErrors() }
 
-func alwaysNewError() error { return New(eris.New("always new errors")) }
+func alwaysNewError(eh *Handler) error { return eh.New(eris.New("always new errors")) }
 
-func alwaysNewErrorTwo() error { return New(eris.New("always new errors two")) }
+func alwaysNewErrorTwo(eh *Handler) error { return eh.New(eris.New("always new errors two")) }
 
 func TestHashErr(t *testing.T) {
 	t.Run("same error, same hash", func(t *testing.T) {
@@ -80,9 +81,14 @@ func TestHashErrEris(t *testing.T) {
 
 func TestErrorHandler(t *testing.T) {
 	t.Run("works if the error handler is down", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // cancel immediately
+
+		eh := NewHandler(ctx, nil, kitlog.NewNopLogger())
+
 		doneCh := make(chan struct{})
 		go func() {
-			New(pkgErrors.New("test"))
+			eh.New(pkgErrors.New("test"))
 			close(doneCh)
 		}()
 
@@ -99,19 +105,36 @@ func TestErrorHandler(t *testing.T) {
 	require.NoError(t, err)
 	wd = regexp.QuoteMeta(wd)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	store := pubsub.SetupRedisForTest(t, false, false)
-
-	eh := NewHandler(ctx, store.Pool(), kitlog.NewNopLogger())
-	eh.Flush()
+	pool := redistest.SetupRedis(t, false, false, false)
 
 	t.Run("collects errors", func(t *testing.T) {
-		alwaysNewError()
-		alwaysNewError() // and it doesnt repeat them
+		t.Cleanup(func() {
+			testOnStart, testOnStore = nil, nil
+		})
 
-		time.Sleep(1 * time.Second)
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		chGo, chDone := make(chan struct{}), make(chan struct{})
+
+		var storeCalls int32 = 2
+		testOnStart = func() {
+			close(chGo)
+		}
+		testOnStore = func(err error) {
+			require.NoError(t, err)
+			if atomic.AddInt32(&storeCalls, -1) == 0 {
+				close(chDone)
+			}
+		}
+		eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+
+		<-chGo
+
+		alwaysNewError(eh)
+		alwaysNewError(eh) // and it doesnt repeat them
+
+		<-chDone
 
 		errors, err := eh.Flush()
 		require.NoError(t, err)
@@ -134,15 +157,44 @@ func TestErrorHandler(t *testing.T) {
 	})
 
 	t.Run("collects different errors", func(t *testing.T) {
-		alwaysNewError()
-		alwaysNewError() // and it doesnt repeat them
-		alwaysNewErrorTwo()
+		t.Cleanup(func() {
+			testOnStart, testOnStore = nil, nil
+		})
 
-		time.Sleep(1 * time.Second)
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		var storeCalls int32 = 3
+
+		chGo, chDone := make(chan struct{}), make(chan struct{})
+		testOnStart = func() {
+			close(chGo)
+		}
+		testOnStore = func(err error) {
+			require.NoError(t, err)
+			if atomic.AddInt32(&storeCalls, -1) == 0 {
+				close(chDone)
+			}
+		}
+
+		eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+
+		<-chGo
+
+		alwaysNewError(eh)
+		alwaysNewError(eh) // and it doesnt repeat them
+		alwaysNewErrorTwo(eh)
+
+		<-chDone
 
 		errors, err := eh.Flush()
 		require.NoError(t, err)
 		require.Len(t, errors, 2)
+
+		// order is not guaranteed by scan keys, so reorder to catch error two first
+		if strings.Contains(errors[1], "new errors two") {
+			errors[0], errors[1] = errors[1], errors[0]
+		}
 
 		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
