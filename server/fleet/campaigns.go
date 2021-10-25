@@ -31,17 +31,6 @@ type DistributedQueryCampaignTarget struct {
 	TargetID                   uint `db:"target_id"`
 }
 
-// DistributedQueryExecutionStatus is the status of a distributed query
-// execution on a single host.
-type DistributedQueryExecutionStatus int
-
-const (
-	ExecutionWaiting DistributedQueryExecutionStatus = iota
-	ExecutionRequested
-	ExecutionSucceeded
-	ExecutionFailed
-)
-
 // DistributedQueryResult is the result returned from the execution of a
 // distributed query on a single host.
 type DistributedQueryResult struct {

@@ -222,31 +222,13 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Open the channel from which we will receive incoming query results
 	// (probably from the redis pubsub implementation)
-	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 	defer cancelFunc()
-
-	readChan, err := svc.resultStore.ReadChannel(cancelCtx, *campaign)
-	if err != nil {
-		conn.WriteJSONError(fmt.Sprintf("cannot open read channel for campaign %d ", campaignID))
-		return
-	}
-
-	// Setting status to running will cause the query to be returned to the
-	// targets when they check in for their queries
-	campaign.Status = fleet.QueryRunning
-	if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
-		conn.WriteJSONError("error saving campaign state")
-		return
-	}
 
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer func() {
-		campaign.Status = fleet.QueryComplete
-		_ = svc.ds.SaveDistributedQueryCampaign(ctx, campaign)
-		_ = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
-	}()
+	defer svc.CompleteCampaign(ctx, campaign)
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
