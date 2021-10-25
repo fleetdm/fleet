@@ -189,14 +189,15 @@ const TeamDetailsWrapper = ({
     const selectedTeam = find(teams, ["id", teamId]);
     const { ADMIN_TEAMS } = PATHS;
 
-    routeParams.team_id = selectedTeam
-      ? (routeParams.team_id = selectedTeam.id)
-      : teamId;
+    const newRouteParams = {
+      ...routeParams,
+      team_id: selectedTeam ? selectedTeam.id : teamId,
+    };
 
     const nextLocation = getNextLocationPath({
       pathPrefix: ADMIN_TEAMS,
       routeTemplate,
-      routeParams,
+      routeParams: newRouteParams,
     });
 
     router.replace(`${nextLocation}/members`);

@@ -669,19 +669,19 @@ export const generateTeamFilterDropdownOptions = (
     currentUserTeams = currentUser.teams;
   }
 
-  const allTeamOption = [];
-
-  if (!hideAllTeamsOption) {
-    allTeamOption.push({
+  const allTeamOption = [
+    {
       disabled: false,
       label: "All teams",
       value: 0,
-    });
-  }
+    },
+  ];
 
   const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
 
-  return allTeamOption.concat(sortedCurrentUserTeamOptions);
+  return !hideAllTeamsOption
+    ? allTeamOption.concat(sortedCurrentUserTeamOptions)
+    : sortedCurrentUserTeamOptions;
 };
 
 export const getValidatedTeamId = (
