@@ -23,11 +23,9 @@ const { HOME } = paths;
 /**
  * Checks if a user is any admin when routing
  */
-const AuthAnyAdminRoutes = (
-  props: IAuthAnyAdminRoutesProps
-): JSX.Element | null => {
-  const { children } = props;
-
+const AuthAnyAdminRoutes = ({
+  children,
+}: IAuthAnyAdminRoutesProps): JSX.Element | null => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
 

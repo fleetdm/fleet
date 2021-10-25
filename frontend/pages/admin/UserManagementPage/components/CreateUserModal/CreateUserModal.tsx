@@ -25,23 +25,21 @@ interface ICreateUserModalProps {
 
 const baseClass = "create-user-modal";
 
-const CreateUserModal = (props: ICreateUserModalProps): JSX.Element => {
-  const {
-    onCancel,
-    onSubmit,
-    currentTeam,
-    defaultGlobalRole,
-    defaultTeamRole,
-    defaultTeams,
-    availableTeams,
-    isPremiumTier,
-    smtpConfigured,
-    canUseSso,
-    isModifiedByGlobalAdmin,
-    isFormSubmitting,
-    serverErrors,
-  } = props;
-
+const CreateUserModal = ({
+  onCancel,
+  onSubmit,
+  currentTeam,
+  defaultGlobalRole,
+  defaultTeamRole,
+  defaultTeams,
+  availableTeams,
+  isPremiumTier,
+  smtpConfigured,
+  canUseSso,
+  isModifiedByGlobalAdmin,
+  isFormSubmitting,
+  serverErrors,
+}: ICreateUserModalProps): JSX.Element => {
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>

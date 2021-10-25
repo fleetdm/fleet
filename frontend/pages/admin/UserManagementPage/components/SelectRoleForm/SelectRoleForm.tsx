@@ -54,9 +54,12 @@ const generateSelectedTeamData = (
   return filtered;
 };
 
-const SelectRoleForm = (props: ISelectRoleFormProps): JSX.Element => {
-  const { defaultTeamRole, currentTeam, teams, onFormChange } = props;
-
+const SelectRoleForm = ({
+  defaultTeamRole,
+  currentTeam,
+  teams,
+  onFormChange,
+}: ISelectRoleFormProps): JSX.Element => {
   const [selectedRole, setSelectedRole] = useState<string>(
     defaultTeamRole.toLowerCase()
   );
