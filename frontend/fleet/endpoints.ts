@@ -12,6 +12,7 @@ export default {
   ENABLE_USER: (id: number): string => {
     return `/v1/fleet/users/${id}/enable`;
   },
+  ENROLL_SECRET: "/v1/fleet/spec/enroll_secret",
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
   GLOBAL_POLICIES: "/v1/fleet/global/policies",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",

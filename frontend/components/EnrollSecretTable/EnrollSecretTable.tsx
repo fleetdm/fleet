@@ -1,5 +1,4 @@
-import React, { Component, useState } from "react";
-import PropTypes from "prop-types";
+import React from "react";
 
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import EnrollSecretRow from "./EnrollSecretRow";
@@ -10,11 +9,15 @@ interface IEnrollSecretRowProps {
   secrets: IEnrollSecret[] | undefined;
   toggleSecretEditorModal?: () => void;
   toggleDeleteSecretModal?: () => void;
+  setSelectedSecret: React.Dispatch<
+    React.SetStateAction<IEnrollSecret | undefined>
+  >;
 }
 const EnrollSecretTable = ({
   secrets,
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
+  setSelectedSecret,
 }: IEnrollSecretRowProps): JSX.Element | null => {
   let enrollSecretsClass = baseClass;
   if (!secrets) {
@@ -33,12 +36,13 @@ const EnrollSecretTable = ({
   if (toggleSecretEditorModal && toggleDeleteSecretModal) {
     return (
       <div className={enrollSecretsClass}>
-        {secrets.map(({ secret }) => (
+        {secrets.map((secretInfo) => (
           <EnrollSecretRow
-            secret={secret}
-            key={secret}
+            secret={secretInfo}
+            key={secretInfo.secret}
             toggleSecretEditorModal={toggleSecretEditorModal}
             toggleDeleteSecretModal={toggleDeleteSecretModal}
+            setSelectedSecret={setSelectedSecret}
           />
         ))}
       </div>
@@ -46,8 +50,8 @@ const EnrollSecretTable = ({
   }
   return (
     <div className={enrollSecretsClass}>
-      {secrets.map(({ secret }) => (
-        <EnrollSecretRow secret={secret} />
+      {secrets.map((secretInfo) => (
+        <EnrollSecretRow secret={secretInfo} key={secretInfo.secret} />
       ))}
     </div>
   );

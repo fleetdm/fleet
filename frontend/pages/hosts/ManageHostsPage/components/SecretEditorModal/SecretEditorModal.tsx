@@ -11,10 +11,12 @@ interface IAddSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
   onSaveSecret: () => void;
-  isPremiumTier: boolean;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
   selectedSecret: IEnrollSecret | undefined;
+  setNewEnrollSecretString: React.Dispatch<
+    React.SetStateAction<string | undefined>
+  >;
 }
 
 interface IRootState {
@@ -33,18 +35,17 @@ const randomSecretGenerator = () => {
       Math.floor(Math.random() * randomChars.length)
     );
   }
-  console.log("result", result);
   return result;
 };
 
 const SecretEditorModal = ({
-  onReturnToApp,
+  onReturnToApp, // do we want to return to app or back to previous modal?
   onSaveSecret,
   selectedTeam,
-  isPremiumTier,
   teams,
   toggleSecretEditorModal,
   selectedSecret,
+  setNewEnrollSecretString,
 }: IAddSecretModal): JSX.Element => {
   const globalSecret = useSelector(
     (state: IRootState) => state.app.enrollSecret
@@ -68,11 +69,14 @@ const SecretEditorModal = ({
     setEnrollSecretString(value);
   };
 
-  console.log("enrollSecretString", enrollSecretString);
+  const onSaveSecretClick = () => {
+    setNewEnrollSecretString(enrollSecretString);
+    onSaveSecret;
+  };
 
   return (
     <Modal
-      onExit={onReturnToApp}
+      onExit={toggleSecretEditorModal}
       title={selectedSecret ? "Edit secret" : "Add secret"}
       className={baseClass}
     >
@@ -93,7 +97,7 @@ const SecretEditorModal = ({
           />
         </div>
         <div className={`${baseClass}__button-wrap`}>
-          <Button onClick={onSaveSecret} className="button button--brand">
+          <Button onClick={onSaveSecretClick} className="button button--brand">
             Save
           </Button>
         </div>

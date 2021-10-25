@@ -27,7 +27,6 @@ const baseClass = "delete-secret-modal";
 
 const DeleteSecretModal = ({
   selectedTeam,
-  isPremiumTier,
   teams,
   onDeleteSecret,
   toggleDeleteSecretModal,
@@ -69,18 +68,18 @@ const DeleteSecretModal = ({
         <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__btn`}
+            onClick={toggleDeleteSecretModal}
+            variant="inverse-alert"
+          >
+            Cancel
+          </Button>
+          <Button
+            className={`${baseClass}__btn`}
             type="button"
             variant="alert"
             onClick={onDeleteSecret}
           >
             Delete
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={toggleDeleteSecretModal}
-            variant="inverse-alert"
-          >
-            Cancel
           </Button>
         </div>
       </div>

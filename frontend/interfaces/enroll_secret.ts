@@ -8,6 +8,6 @@ export default PropTypes.shape({
 
 export interface IEnrollSecret {
   secret: string;
-  created_at: string;
+  created_at?: string;
   team_id?: number;
 }

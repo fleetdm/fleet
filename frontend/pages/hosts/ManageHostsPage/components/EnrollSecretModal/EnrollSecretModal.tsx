@@ -16,6 +16,9 @@ interface IEnrollSecretModal {
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
   toggleDeleteSecretModal: () => void;
+  setSelectedSecret: React.Dispatch<
+    React.SetStateAction<IEnrollSecret | undefined>
+  >;
 }
 
 interface IRootState {
@@ -33,6 +36,7 @@ const EnrollSecretModal = ({
   teams,
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
+  setSelectedSecret,
 }: IEnrollSecretModal): JSX.Element => {
   const globalSecret = useSelector(
     (state: IRootState) => state.app.enrollSecret
@@ -49,6 +53,11 @@ const EnrollSecretModal = ({
     return teams.find((team) => team.id === selectedTeam);
   };
 
+  const addNewSecretClick = () => {
+    setSelectedSecret(undefined);
+    toggleSecretEditorModal();
+  };
+
   return (
     <Modal onExit={onReturnToApp} title={"Enroll secret"} className={baseClass}>
       <div className={baseClass}>
@@ -61,6 +70,7 @@ const EnrollSecretModal = ({
               secrets={renderTeam()?.secrets}
               toggleSecretEditorModal={toggleSecretEditorModal}
               toggleDeleteSecretModal={toggleDeleteSecretModal}
+              setSelectedSecret={setSelectedSecret}
             />
           )}
           {!isPremiumTier && (
@@ -68,12 +78,13 @@ const EnrollSecretModal = ({
               secrets={renderTeam()?.secrets}
               toggleSecretEditorModal={toggleSecretEditorModal}
               toggleDeleteSecretModal={toggleDeleteSecretModal}
+              setSelectedSecret={setSelectedSecret}
             />
           )}
         </div>
         <div className={`${baseClass}__add-secret`}>
           <Button
-            onClick={toggleSecretEditorModal}
+            onClick={addNewSecretClick}
             className={`${baseClass}__add-secret-btn`}
             variant="text-icon"
           >

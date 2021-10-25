@@ -7,6 +7,7 @@ import InputField from "components/forms/fields/InputField";
 import FleetIcon from "components/icons/FleetIcon";
 // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
 import EditIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
@@ -14,16 +15,18 @@ import DeleteIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
 const baseClass = "enroll-secrets";
 
 interface IEnrollSecretRowProps {
-  secret: string;
-  key: string;
+  secret: IEnrollSecret;
   toggleSecretEditorModal?: () => void;
   toggleDeleteSecretModal?: () => void;
+  setSelectedSecret?: React.Dispatch<
+    React.SetStateAction<IEnrollSecret | undefined>
+  >;
 }
 const EnrollSecretRow = ({
   secret,
-  key,
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
+  setSelectedSecret,
 }: IEnrollSecretRowProps): JSX.Element | null => {
   const [showSecret, setShowSecret] = useState<boolean>(false);
   const [copyMessage, setCopyMessage] = useState<string>("");
@@ -31,7 +34,7 @@ const EnrollSecretRow = ({
   const onCopySecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    stringToClipboard(secret)
+    stringToClipboard(secret.secret)
       .then(() => setCopyMessage("Copied!"))
       .catch(() => setCopyMessage("Copy failed"));
 
@@ -49,13 +52,17 @@ const EnrollSecretRow = ({
   };
 
   const onEditSecretClick = () => {
-    console.log("edit clicked!");
-    toggleSecretEditorModal;
+    if (toggleSecretEditorModal && setSelectedSecret) {
+      setSelectedSecret(secret);
+      toggleSecretEditorModal();
+    }
   };
 
   const onDeleteSecretClick = () => {
-    console.log("delete clicked!");
-    toggleDeleteSecretModal;
+    if (toggleDeleteSecretModal && setSelectedSecret) {
+      setSelectedSecret(secret);
+      toggleDeleteSecretModal();
+    }
   };
 
   const renderLabel = () => {
@@ -83,14 +90,14 @@ const EnrollSecretRow = ({
   };
 
   return (
-    <div className={`${baseClass}__secret`} key={key}>
+    <div className={`${baseClass}__secret`} key={secret.secret}>
       <InputField
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}
         name="osqueryd-secret"
         label={renderLabel()}
         type={showSecret ? "text" : "password"}
-        value={secret}
+        value={secret.secret}
       />
       {toggleSecretEditorModal && toggleDeleteSecretModal ? (
         <>
