@@ -294,6 +294,7 @@ const ManageHostsPage = ({
   };
 
   const toggleSecretEditorModal = () => {
+    console.log("toggleSecretEditorModal fired on Manage host page");
     setShowSecretEditorModal(!showSecretEditorModal);
     setShowEnrollSecretModal(!showEnrollSecretModal);
   };

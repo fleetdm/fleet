@@ -25,7 +25,19 @@ interface IRootState {
 
 const baseClass = "secret-editor-modal";
 
-const AddSecretModal = ({
+const randomSecretGenerator = () => {
+  const randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let result = "";
+  for (var i = 0; i < 32; i++) {
+    result += randomChars.charAt(
+      Math.floor(Math.random() * randomChars.length)
+    );
+  }
+  console.log("result", result);
+  return result;
+};
+
+const SecretEditorModal = ({
   onReturnToApp,
   onSaveSecret,
   selectedTeam,
@@ -39,7 +51,7 @@ const AddSecretModal = ({
   );
 
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
-    selectedSecret ? selectedSecret.secret : randomSecretGenerator
+    selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
@@ -54,18 +66,6 @@ const AddSecretModal = ({
 
   const onSecretChange = (value: string) => {
     setEnrollSecretString(value);
-  };
-
-  const randomSecretGenerator = () => {
-    const randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let result = "";
-    for (var i = 0; i < 32; i++) {
-      result += randomChars.charAt(
-        Math.floor(Math.random() * randomChars.length)
-      );
-    }
-    console.log("result", result);
-    return result;
   };
 
   console.log("enrollSecretString", enrollSecretString);
@@ -102,4 +102,4 @@ const AddSecretModal = ({
   );
 };
 
-export default AddSecretModal;
+export default SecretEditorModal;
