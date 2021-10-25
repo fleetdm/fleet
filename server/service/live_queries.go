@@ -3,29 +3,45 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/pkg/errors"
 )
 
 type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_id"`
+	QueryIDs []uint `json:"query_ids"`
 	HostIDs  []uint `json:"host_ids"`
 }
 
+type summaryPayload struct {
+	TargetedHostCount  int `json:"targeted_host_count"`
+	RespondedHostCount int `json:"responded_host_count"`
+}
+
 type runLiveQueryResponse struct {
-	Err error `json:"error,omitempty"`
+	Summary summaryPayload `json:"summary"`
+	Err     error          `json:"error,omitempty"`
+
+	Results []queryCampaignResult `json:"live_query_results"`
 }
 
 func (r runLiveQueryResponse) error() error { return r.Err }
 
+type queryResult struct {
+	HostID uint                `json:"host_id"`
+	Rows   []map[string]string `json:"rows"`
+	Error  *string             `json:"error"`
+}
+
 type queryCampaignResult struct {
 	QueryID uint          `json:"query_id"`
-	Errors  []error       `json:"errors"`
-	Results []interface{} `json:"results"`
+	Error   *string       `json:"error,omitempty"`
+	Results []queryResult `json:"results"`
 }
 
 func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
@@ -34,6 +50,9 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 	resultsCh := make(chan queryCampaignResult)
 
+	counterMutex := sync.Mutex{}
+	counter := make(map[uint]struct{})
+
 	for _, queryID := range req.QueryIDs {
 		queryID := queryID
 		wg.Add(1)
@@ -41,23 +60,31 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			defer wg.Done()
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: req.HostIDs})
 			if err != nil {
-				resultsCh <- queryCampaignResult{QueryID: queryID, Errors: []error{err}}
+				resultsCh <- queryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				return
 			}
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			defer cancelFunc()
 			if err != nil {
-				resultsCh <- queryCampaignResult{QueryID: queryID, Errors: []error{err}}
+				resultsCh <- queryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				return
 			}
 
 			defer svc.CompleteCampaign(ctx, campaign)
 
-			ticker := time.NewTicker(30 * time.Second)
+			period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
+			if period == "" {
+				period = "90s"
+			}
+			duration, err := time.ParseDuration(period)
+			if err != nil {
+				duration = 90 * time.Second
+			}
+			ticker := time.NewTicker(duration)
 			defer ticker.Stop()
 
-			var results []interface{}
+			var results []queryResult
 		loop:
 			for {
 				select {
@@ -65,7 +92,10 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 					// Receive a result and push it over the websocket
 					switch res := res.(type) {
 					case fleet.DistributedQueryResult:
-						results = append(results, res)
+						results = append(results, queryResult{HostID: res.Host.ID, Rows: res.Rows, Error: res.Error})
+						counterMutex.Lock()
+						counter[res.Host.ID] = struct{}{}
+						counterMutex.Unlock()
 					}
 				case <-ticker.C:
 					break loop
@@ -75,13 +105,25 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		}()
 	}
 
-	for result := range resultsCh {
-		fmt.Println(result)
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	res := runLiveQueryResponse{
+		Summary: summaryPayload{
+			TargetedHostCount:  len(req.HostIDs),
+			RespondedHostCount: 0,
+		},
 	}
 
-	wg.Wait()
+	for result := range resultsCh {
+		res.Results = append(res.Results, result)
+	}
 
-	return runLiveQueryResponse{}, nil
+	res.Summary.RespondedHostCount = len(counter)
+
+	return res, nil
 }
 
 func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error) {
