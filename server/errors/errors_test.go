@@ -27,9 +27,13 @@ func alwaysErisErrors() error { return eris.New("always eris errors") }
 
 func alwaysCallsAlwaysErisErrors() error { return alwaysErisErrors() }
 
-func alwaysNewError(eh *Handler) error { return eh.New(eris.New("always new errors")) }
+func alwaysNewError(eh *Handler) error {
+	return eh.New(context.Background(), eris.New("always new errors"))
+}
 
-func alwaysNewErrorTwo(eh *Handler) error { return eh.New(eris.New("always new errors two")) }
+func alwaysNewErrorTwo(eh *Handler) error {
+	return eh.New(context.Background(), eris.New("always new errors two"))
+}
 
 func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
 
@@ -96,7 +100,7 @@ func TestErrorHandler(t *testing.T) {
 
 		doneCh := make(chan struct{})
 		go func() {
-			eh.New(pkgErrors.New("test"))
+			eh.New(context.Background(), pkgErrors.New("test"))
 			close(doneCh)
 		}()
 
@@ -155,8 +159,7 @@ func TestErrorHandler(t *testing.T) {
       "errors\.TestErrorHandler\.func2:%s/errors_test\.go:\d+",
       "errors\.alwaysNewError:%s/errors_test\.go:\d+"
     \]
-  \}
-\}`, wd, wd)), errors[0])
+  \}`, wd, wd)), errors[0])
 
 		// and then errors are gone
 		errors, err = eh.Flush()
@@ -211,8 +214,7 @@ func TestErrorHandler(t *testing.T) {
       "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
       "errors\.alwaysNewErrorTwo:%s/errors_test\.go:\d+"
     \]
-  \}
-\}`, wd, wd)), errors[0])
+  \}`, wd, wd)), errors[0])
 
 		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
@@ -221,7 +223,6 @@ func TestErrorHandler(t *testing.T) {
       "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
       "errors\.alwaysNewError:%s/errors_test\.go:\d+"
     \]
-  \}
-\}`, wd, wd)), errors[1])
+  \}`, wd, wd)), errors[1])
 	})
 }
