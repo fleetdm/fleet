@@ -6,7 +6,7 @@
         <div purpose="maintainer" class="mb-lg-3">
           <h4>Maintained by:</h4>
           <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
-          <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/tree/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
+          <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/edit/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
         </div>
         <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
         <div purpose="subtopics">
