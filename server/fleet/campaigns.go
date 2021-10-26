@@ -43,3 +43,15 @@ type DistributedQueryResult struct {
 	// implementing that interface may not (un)marshal properly
 	Error *string `json:"error"`
 }
+
+type QueryResult struct {
+	HostID uint                `json:"host_id"`
+	Rows   []map[string]string `json:"rows"`
+	Error  *string             `json:"error"`
+}
+
+type QueryCampaignResult struct {
+	QueryID uint          `json:"query_id"`
+	Error   *string       `json:"error,omitempty"`
+	Results []QueryResult `json:"results"`
+}

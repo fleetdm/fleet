@@ -3223,30 +3223,6 @@ fleet instance crashing.
 }
 ```
 
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "Metrics": {
-          "TotalHosts": 1,
-          "OnlineHosts": 0,
-          "OfflineHosts": 1,
-          "MissingInActionHosts": 0,
-          "NewHosts": 1
-      },
-      "id": 1,
-      "query_id": 3,
-      "status": 0,
-      "user_id": 1
-  }
-}
-```
-
 ---
 
 ## Schedule
