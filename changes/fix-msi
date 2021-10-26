@@ -1,0 +1,1 @@
+* Fix MSI generation in `fleetctl package` on Windows.
