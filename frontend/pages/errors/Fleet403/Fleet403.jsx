@@ -3,8 +3,8 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 
-import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
-import backgroundImg from "../../../assets/images/403.svg";
+import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
+import backgroundImg from "../../../../assets/images/403.svg";
 
 const baseClass = "fleet-403";
 

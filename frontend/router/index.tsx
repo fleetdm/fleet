@@ -44,9 +44,8 @@ import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
 import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
 import ApiOnlyUser from "pages/ApiOnlyUser";
-import Fleet403 from "pages/Fleet403";
-import Fleet404 from "pages/Fleet404";
-import Fleet500 from "pages/Fleet500";
+import Fleet403 from "pages/errors/Fleet403";
+import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage";
@@ -155,7 +154,6 @@ const routes = (
         </Route>
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
-      <Route path="/500" component={Fleet500} />
       <Route path="/404" component={Fleet404} />
       <Route path="/403" component={Fleet403} />
       <Route path="*" component={Fleet404} />
