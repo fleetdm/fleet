@@ -1,6 +1,23 @@
 .welcome-host {
   p {
-    font-size: $small;
+    font-size: $x-small;
+  }
+
+  .button-slack {
+    width: 173px;
+    margin-top: 4px;
+  }
+
+  .icon-disabled {
+    width: 16px;
+    margin-right: 8px;
+    position: relative;
+    top: 3px;
+  }
+
+  p.error-message {
+    font-weight: $bold;
+    margin: 1.5rem 0;
   }
 
   .external-link {
@@ -10,7 +27,7 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
-  
+
     img {
       transform: scale(0.5);
     }
@@ -110,7 +127,8 @@
       }
     }
     span {
-      font-size: $small;
+      padding-left: 4px;
+      font-size: $x-small;
     }
   }
   &__policy-modal {

@@ -53,8 +53,6 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam(selectedTeam);
   };
 
-  const canSeeActivity = !isPreviewMode && (!isPremiumTier || !currentTeam);
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__header-wrap`}>
@@ -93,7 +91,7 @@ const Homepage = (): JSX.Element => {
           </InfoCard>
         </div>
       )}
-      {canSeeActivity && (
+      {!isPreviewMode && !currentTeam && (
         <div className={`${baseClass}__section one-column`}>
           <InfoCard title="Activity">
             <ActivityFeed />

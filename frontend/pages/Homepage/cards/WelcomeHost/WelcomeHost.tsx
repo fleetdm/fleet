@@ -19,6 +19,7 @@ import IconDisabled from "../../../../../assets/images/icon-action-disable-red-1
 import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
 import IconError from "../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 import IconChevron from "../../../../../assets/images/icon-chevron-purple-9x6@2x.png";
+import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
 interface IHostResponse {
   host: IHost;
@@ -139,10 +140,25 @@ const WelcomeHost = (): JSX.Element => {
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
           <p>
-            <img alt="" src={IconDisabled} />
+            <img
+              alt="Disabled icon"
+              className="icon-disabled"
+              src={IconDisabled}
+            />
             Your device is not communicating with Fleet.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://osquery.slack.com/archives/C01DXJL16D8"
+          >
+            <img
+              alt="Get help on Slack"
+              className="button-slack"
+              src={SlackButton}
+            />
+          </a>
         </div>
       </div>
     );
@@ -152,11 +168,26 @@ const WelcomeHost = (): JSX.Element => {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
-          <p>
-            <img alt="" src={IconDisabled} />
+          <p className="error-message">
+            <img
+              alt="Disabled icon"
+              className="icon-disabled"
+              src={IconDisabled}
+            />
             No policies apply to your device.
           </p>
           <p>Join the #fleet Slack channel for help troubleshooting.</p>
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href="https://osquery.slack.com/archives/C01DXJL16D8"
+          >
+            <img
+              alt="Get help on Slack"
+              className="button-slack"
+              src={SlackButton}
+            />
+          </a>
         </div>
       </div>
     );
