@@ -221,6 +221,9 @@ type Service interface {
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
 
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
 
