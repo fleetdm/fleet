@@ -229,10 +229,22 @@ const EditPacksPage = ({
         window.scrollTo(0, 0);
         dispatch(renderFlash("success", `Successfully updated this pack.`));
       })
-      .catch(() => {
-        dispatch(
-          renderFlash("error", `Could not update pack. Please try again.`)
-        );
+      .catch((response) => {
+        if (
+          response.errors[0].reason.slice(0, 27) ===
+          "Error 1062: Duplicate entry"
+        ) {
+          dispatch(
+            renderFlash(
+              "error",
+              "Unable to update pack. Pack names must be unique."
+            )
+          );
+        } else {
+          dispatch(
+            renderFlash("error", `Could not update pack. Please try again.`)
+          );
+        }
       });
   };
 

@@ -12,7 +12,9 @@ describe(
     it("Create, check, edit, and delete a query successfully and create, edit, and delete a global scheduled query successfully", () => {
       cy.visit("/queries/manage");
 
-      cy.findByRole("button", { name: /create new query/i }).click();
+      // cy.findByRole("button", { name: /create new query/i }).click();
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.get(".queries-list-wrapper__create-button").click();
 
       // Using class selector because third party element doesn't work with Cypress Testing Selector Library
       cy.get(".ace_scroller")

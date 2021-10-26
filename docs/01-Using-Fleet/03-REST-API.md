@@ -893,7 +893,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-Flags the host details to be refetched the next time the host checks in for live queries. Note that we cannot be certain when the host will actually check in and update these details. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
 `POST /api/v1/fleet/hosts/{id}/refetch`
 
