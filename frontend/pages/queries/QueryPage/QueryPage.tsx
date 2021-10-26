@@ -41,9 +41,11 @@ const QueryPage = ({
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const { isGlobalAdmin, isGlobalMaintainer, isAnyTeamMaintainer } = useContext(
-    AppContext
-  );
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isAtLeastAnyTeamMaintainer,
+  } = useContext(AppContext);
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
@@ -212,7 +214,7 @@ const QueryPage = ({
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
-    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainer);
+    (isGlobalAdmin || isGlobalMaintainer || isAtLeastAnyTeamMaintainer);
 
   return (
     <div className={`${baseClass} ${sidebarClass}`}>

@@ -83,7 +83,7 @@ const QueryForm = ({
     currentUser,
     isOnlyObserver,
     isGlobalObserver,
-    isAnyTeamMaintainer,
+    isAtLeastAnyTeamMaintainer,
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
@@ -95,11 +95,11 @@ const QueryForm = ({
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainer &&
+    ? isAtLeastAnyTeamMaintainer &&
       storedQuery &&
       currentUser &&
       storedQuery.author_id === currentUser.id
-    : isAnyTeamMaintainer;
+    : isAtLeastAnyTeamMaintainer;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -313,7 +313,7 @@ const QueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainer) && (
+          {(hasSavePermissions || isAtLeastAnyTeamMaintainer) && (
             <>
               {isEditMode && (
                 <Button
@@ -330,7 +330,10 @@ const QueryForm = ({
                   data-tip
                   data-for="save-query-button"
                   data-tip-disable={
-                    !(isAnyTeamMaintainer && !hasTeamMaintainerPermissions)
+                    !(
+                      isAtLeastAnyTeamMaintainer &&
+                      !hasTeamMaintainerPermissions
+                    )
                   }
                 >
                   <Button
@@ -338,7 +341,8 @@ const QueryForm = ({
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
-                      isAnyTeamMaintainer && !hasTeamMaintainerPermissions
+                      isAtLeastAnyTeamMaintainer &&
+                      !hasTeamMaintainerPermissions
                     }
                   >
                     Save

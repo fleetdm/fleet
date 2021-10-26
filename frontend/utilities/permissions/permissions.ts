@@ -45,9 +45,11 @@ const isTeamAdmin = (user: IUser | null, teamId: number | null): boolean => {
 };
 
 // This checks against all teams
-const isAnyTeamMaintainer = (user: IUser): boolean => {
+const isAtLeastAnyTeamMaintainer = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
-    return user.teams.some((team) => team?.role === "maintainer");
+    return user.teams.some(
+      (team) => team?.role === "maintainer" || team?.role === "admin"
+    );
   }
 
   return false;
@@ -68,7 +70,9 @@ const isOnlyObserver = (user: IUser): boolean => {
 
   // Return false if any role is team maintainer
   if (!isOnGlobalTeam(user)) {
-    return !user.teams.some((team) => team?.role === "maintainer");
+    return !user.teams.some(
+      (team) => team?.role === "maintainer" || team?.role === "admin"
+    );
   }
 
   return false;
@@ -83,7 +87,7 @@ export default {
   isOnGlobalTeam,
   isTeamObserver,
   isTeamMaintainer,
-  isAnyTeamMaintainer,
+  isAtLeastAnyTeamMaintainer,
   isTeamAdmin,
   isAnyTeamAdmin,
   isOnlyObserver,
