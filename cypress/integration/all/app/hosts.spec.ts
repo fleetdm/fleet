@@ -141,7 +141,7 @@ describe(
               cy.findByRole("button", { name: /delete/i }).click();
             })
             .then(() => {
-              cy.findByText(/add your devices to fleet/i).should("exist");
+              cy.findByText(/add your hosts to fleet/i).should("exist");
               cy.findByText(/add new host/i).should("exist");
               cy.findByText(/about this host/i).should("not.exist");
               cy.findByText(hostname).should("not.exist");
