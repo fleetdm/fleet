@@ -2,7 +2,10 @@
 // request has had an authorization check performed before returning results.
 package authz
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type key int
 
@@ -22,6 +25,19 @@ func FromContext(ctx context.Context) (*AuthorizationContext, bool) {
 // AuthorizationContext contains the context information used for the
 // authorization check.
 type AuthorizationContext struct {
-	// Checked indicates whether a call was made to check authorization for the request.
-	Checked bool
+	l sync.Mutex
+	// checked indicates whether a call was made to check authorization for the request.
+	checked bool
+}
+
+func (a *AuthorizationContext) Checked() bool {
+	a.l.Lock()
+	defer a.l.Unlock()
+	return a.checked
+}
+
+func (a *AuthorizationContext) SetChecked() {
+	a.l.Lock()
+	defer a.l.Unlock()
+	a.checked = true
 }

@@ -224,6 +224,10 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// (probably from the redis pubsub implementation)
 	readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 	defer cancelFunc()
+	if err != nil {
+		conn.WriteJSONError("error getting campaign reader: " + err.Error())
+		return
+	}
 
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up

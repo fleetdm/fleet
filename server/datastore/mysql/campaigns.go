@@ -66,7 +66,7 @@ func (d *Datastore) SaveDistributedQueryCampaign(ctx context.Context, camp *flee
 
 func (d *Datastore) DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error) {
 	var campaigns []*fleet.DistributedQueryCampaign
-	err := d.writer.SelectContext(ctx, &campaigns, `SELECT * FROM distributed_query_campaigns WHERE query_id=?`, queryID)
+	err := sqlx.SelectContext(ctx, d.reader, &campaigns, `SELECT * FROM distributed_query_campaigns WHERE query_id=?`, queryID)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting campaigns for query")
 	}

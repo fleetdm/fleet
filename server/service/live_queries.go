@@ -53,6 +53,15 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	counterMutex := sync.Mutex{}
 	counter := make(map[uint]struct{})
 
+	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
+	if period == "" {
+		period = "90s"
+	}
+	duration, err := time.ParseDuration(period)
+	if err != nil {
+		duration = 90 * time.Second
+	}
+
 	for _, queryID := range req.QueryIDs {
 		queryID := queryID
 		wg.Add(1)
@@ -71,16 +80,13 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 				return
 			}
 
-			defer svc.CompleteCampaign(ctx, campaign)
+			defer func() {
+				err := svc.CompleteCampaign(ctx, campaign)
+				if err != nil {
+					resultsCh <- queryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
+				}
+			}()
 
-			period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
-			if period == "" {
-				period = "90s"
-			}
-			duration, err := time.ParseDuration(period)
-			if err != nil {
-				duration = 90 * time.Second
-			}
 			ticker := time.NewTicker(duration)
 			defer ticker.Stop()
 
