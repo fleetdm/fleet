@@ -94,6 +94,7 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 			}()
 
 			var results []fleet.QueryResult
+			timeout := time.After(deadline)
 		loop:
 			for {
 				select {
@@ -108,7 +109,7 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error())}
 						return
 					}
-				case <-time.After(deadline):
+				case <-timeout:
 					break loop
 				case <-ctx.Done():
 					break loop
