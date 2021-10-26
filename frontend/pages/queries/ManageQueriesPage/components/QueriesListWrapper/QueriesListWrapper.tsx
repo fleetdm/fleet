@@ -1,70 +1,46 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+/* eslint-disable react/prop-types */
+import React, { useCallback, useContext, useState } from "react";
 
+import { AppContext } from "context/app";
 import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
+import { ITableSearchData } from "components/TableContainer/TableContainer";
+
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders, generateDataSet } from "./QueriesTableConfig";
+import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
-
+interface IQueryTableData extends IQuery {
+  performance: string;
+  platforms: string[];
+}
 interface IQueriesListWrapperProps {
+  queriesList: IQueryTableData[] | null;
+  isLoading: boolean;
   onRemoveQueryClick: any;
-  onCreateQueryClick: any;
-  queriesList: IQuery[];
+  onCreateQueryClick: () => void;
+  searchable: boolean;
+  onSearchChange: (searchString: string) => void;
+  customControl?: () => JSX.Element;
 }
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-  entities: {
-    queries: {
-      loading: boolean;
-      data: IQuery[];
-    };
-  };
-}
-
-const QueriesListWrapper = (
-  listProps: IQueriesListWrapperProps
-): JSX.Element | null => {
-  const { onRemoveQueryClick, onCreateQueryClick, queriesList } = listProps;
-
-  const loadingQueries = useSelector(
-    (state: IRootState) => state.entities.queries.loading
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  useEffect(() => {
-    setIsLoading(loadingQueries);
-  }, [loadingQueries]);
-
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-
-  const [filteredQueries, setFilteredQueries] = useState<IQuery[]>(queriesList);
+const QueriesListWrapper = ({
+  queriesList,
+  isLoading,
+  onRemoveQueryClick,
+  onCreateQueryClick,
+  searchable,
+  onSearchChange,
+  customControl,
+}: IQueriesListWrapperProps): JSX.Element | null => {
+  const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
-  useEffect(() => {
-    setFilteredQueries(
-      !searchString
-        ? queriesList
-        : queriesList.filter((query) => {
-            return query.name
-              .toLowerCase()
-              .includes(searchString.toLowerCase());
-          })
-    );
-  }, [queriesList, searchString, setFilteredQueries]);
-
-  const onQueryChange = useCallback(
-    (queryData) => {
-      const { searchQuery } = queryData;
-      setSearchString(searchQuery);
-    },
-    [setSearchString]
-  );
+  const handleSearchChange = ({ searchQuery }: ITableSearchData) => {
+    onSearchChange(searchQuery);
+    setSearchString(searchQuery);
+  };
 
   const NoQueriesComponent = useCallback(() => {
     return (
@@ -107,29 +83,29 @@ const QueriesListWrapper = (
     );
   }, [searchString, onCreateQueryClick]);
 
-  const tableHeaders = generateTableHeaders(currentUser);
-  const dataSet = generateDataSet(filteredQueries);
+  const tableHeaders = currentUser && generateTableHeaders(currentUser);
 
-  return !isLoading ? (
+  return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={dataSet}
+        data={queriesList}
         isLoading={isLoading}
-        defaultSortHeader={"query"}
+        defaultSortHeader={"updated_at"}
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        onQueryChange={onQueryChange}
+        onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
-        searchable={queriesList.length > 0}
+        searchable={searchable}
         disablePagination
         onPrimarySelectActionClick={onRemoveQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
+        customControl={customControl}
       />
     </div>
   ) : null;

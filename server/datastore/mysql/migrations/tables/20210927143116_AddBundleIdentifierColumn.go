@@ -29,7 +29,7 @@ func Up_20210927143116(tx *sql.Tx) error {
 	}
 
 	if _, err := tx.Exec(`ALTER TABLE software ADD COLUMN bundle_identifier VARCHAR(255) DEFAULT ''`); err != nil {
-		return errors.Wrap(err, "add column team_id")
+		return errors.Wrap(err, "add column bundle_identifier")
 	}
 	return nil
 }

@@ -1,0 +1,10 @@
+.platform-cell {
+  &__icon {
+    height: 12px;
+    width: auto;
+    padding-right: $pad-small;
+  }
+  &__muted {
+    color: $ui-fleet-black-50;
+  }
+}
