@@ -104,7 +104,7 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 						respondedHostIDs[res.Host.ID] = struct{}{}
 						counterMutex.Unlock()
 					}
-				case <-time.After(duration):
+				case <-time.After(deadline):
 					break loop
 				}
 			}
