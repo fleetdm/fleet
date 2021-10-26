@@ -32,13 +32,10 @@ jobs:
       run: make deps-go
 
     - name: Generate static files
-      run: |
-        export PATH=$PATH:~/go/bin
-        make generate-go
+      run: make generate-go
 
     - name: Build fleetctl
-      run: |
-        make fleetctl
+      run: make fleetctl
 
     - name: Build MSI
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
