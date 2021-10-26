@@ -7,6 +7,7 @@ require (
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
+	github.com/Shopify/go-lua v0.0.0-20210302141115-d8ac5566562d // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
