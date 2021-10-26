@@ -205,16 +205,23 @@ func (h *Handler) New(ctx context.Context, err error) error {
 
 // NewHttpHandler creates an http.HandlerFunc that flushes the errors stored
 // by the provided ErrorFlusher and returns them in the response as JSON.
-func NewHttpHandler(eh ErrorFlusher) func(w http.ResponseWriter, r *http.Request) {
+func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		errors, err := eh.Flush()
 		if err != nil {
 			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
-		// TODO: I think those will be double-marshaled as the errors are stored as JSON
-		// in Redis.
-		bytes, err := json.Marshal(errors)
+
+		// each string returned by eh.Flush is already JSON-encoded, so to prevent
+		// double-marshaling while still marshaling the list of errors as a JSON
+		// array, treat them as raw json messages.
+		raw := make([]json.RawMessage, len(errors))
+		for i, s := range errors {
+			raw[i] = json.RawMessage(s)
+		}
+
+		bytes, err := json.Marshal(raw)
 		if err != nil {
 			w.WriteHeader(http.StatusBadGateway)
 			return

@@ -2,8 +2,10 @@ package errors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	pkgErrors "github.com/pkg/errors"
 	"github.com/rotisserie/eris"
@@ -117,112 +120,175 @@ func TestErrorHandler(t *testing.T) {
 	require.NoError(t, err)
 	wd = regexp.QuoteMeta(wd)
 
-	pool := redistest.SetupRedis(t, false, false, false)
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, false, false, false)
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+	})
 
-	t.Run("collects errors", func(t *testing.T) {
-		t.Cleanup(func() {
-			testOnStart, testOnStore = nil, nil
-		})
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, true, true, false)
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+	})
+}
 
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		defer cancelFunc()
+func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+	t.Cleanup(func() {
+		testOnStart, testOnStore = nil, nil
+	})
 
-		chGo, chDone := make(chan struct{}), make(chan struct{})
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 
-		var storeCalls int32 = 2
-		testOnStart = func() {
-			close(chGo)
-		}
-		testOnStore = func(err error) {
-			require.NoError(t, err)
-			if atomic.AddInt32(&storeCalls, -1) == 0 {
-				close(chDone)
-			}
-		}
-		eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+	chGo, chDone := make(chan struct{}), make(chan struct{})
 
-		<-chGo
-
-		alwaysNewError(eh)
-		alwaysNewError(eh) // and it doesnt repeat them
-
-		<-chDone
-
-		errors, err := eh.Flush()
+	var storeCalls int32 = 2
+	testOnStart = func() {
+		close(chGo)
+	}
+	testOnStore = func(err error) {
 		require.NoError(t, err)
-		require.Len(t, errors, 1)
+		if atomic.AddInt32(&storeCalls, -1) == 0 {
+			close(chDone)
+		}
+	}
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
 
-		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+	<-chGo
+
+	alwaysNewError(eh)
+	alwaysNewError(eh) // and it doesnt repeat them
+
+	<-chDone
+
+	errors, err := eh.Flush()
+	require.NoError(t, err)
+	require.Len(t, errors, 1)
+
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "always new errors",
     "stack": \[
-      "errors\.TestErrorHandler\.func2:%s/errors_test\.go:\d+",
+      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errors\.testErrorHandlerCollectsErrors:%[1]s/errors_test\.go:\d+",
       "errors\.alwaysNewError:%s/errors_test\.go:\d+"
     \]
   \}`, wd, wd)), errors[0])
 
-		// and then errors are gone
-		errors, err = eh.Flush()
-		require.NoError(t, err)
-		assert.Len(t, errors, 0)
+	// and then errors are gone
+	errors, err = eh.Flush()
+	require.NoError(t, err)
+	assert.Len(t, errors, 0)
+}
+
+func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+	t.Cleanup(func() {
+		testOnStart, testOnStore = nil, nil
 	})
 
-	t.Run("collects different errors", func(t *testing.T) {
-		t.Cleanup(func() {
-			testOnStart, testOnStore = nil, nil
-		})
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		defer cancelFunc()
+	var storeCalls int32 = 3
 
-		var storeCalls int32 = 3
-
-		chGo, chDone := make(chan struct{}), make(chan struct{})
-		testOnStart = func() {
-			close(chGo)
-		}
-		testOnStore = func(err error) {
-			require.NoError(t, err)
-			if atomic.AddInt32(&storeCalls, -1) == 0 {
-				close(chDone)
-			}
-		}
-
-		eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
-
-		<-chGo
-
-		alwaysNewError(eh)
-		alwaysNewError(eh) // and it doesnt repeat them
-		alwaysNewErrorTwo(eh)
-
-		<-chDone
-
-		errors, err := eh.Flush()
+	chGo, chDone := make(chan struct{}), make(chan struct{})
+	testOnStart = func() {
+		close(chGo)
+	}
+	testOnStore = func(err error) {
 		require.NoError(t, err)
-		require.Len(t, errors, 2)
-
-		// order is not guaranteed by scan keys, so reorder to catch error two first
-		if strings.Contains(errors[1], "new errors two") {
-			errors[0], errors[1] = errors[1], errors[0]
+		if atomic.AddInt32(&storeCalls, -1) == 0 {
+			close(chDone)
 		}
+	}
 
-		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+
+	<-chGo
+
+	alwaysNewError(eh)
+	alwaysNewError(eh) // and it doesnt repeat them
+	alwaysNewErrorTwo(eh)
+
+	<-chDone
+
+	errors, err := eh.Flush()
+	require.NoError(t, err)
+	require.Len(t, errors, 2)
+
+	// order is not guaranteed by scan keys, so reorder to catch error two first
+	if strings.Contains(errors[1], "new errors two") {
+		errors[0], errors[1] = errors[1], errors[0]
+	}
+
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "always new errors two",
     "stack": \[
-      "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
-      "errors\.alwaysNewErrorTwo:%s/errors_test\.go:\d+"
+      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errors\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
+      "errors\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
     \]
-  \}`, wd, wd)), errors[0])
+  \}`, wd)), errors[0])
 
-		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "always new errors",
     "stack": \[
-      "errors\.TestErrorHandler\.func3:%s/errors_test\.go:\d+",
-      "errors\.alwaysNewError:%s/errors_test\.go:\d+"
+      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errors\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
+      "errors\.alwaysNewError:%[1]s/errors_test\.go:\d+"
     \]
-  \}`, wd, wd)), errors[1])
+  \}`, wd)), errors[1])
+}
+
+func TestHttpHandler(t *testing.T) {
+	t.Cleanup(func() {
+		testOnStart, testOnStore = nil, nil
 	})
+
+	pool := redistest.SetupRedis(t, false, false, false)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	var storeCalls int32 = 2
+
+	chGo, chDone := make(chan struct{}), make(chan struct{})
+	testOnStart = func() {
+		close(chGo)
+	}
+	testOnStore = func(err error) {
+		require.NoError(t, err)
+		if atomic.AddInt32(&storeCalls, -1) == 0 {
+			close(chDone)
+		}
+	}
+
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+
+	<-chGo
+	// store two errors
+	alwaysNewError(eh)
+	alwaysNewErrorTwo(eh)
+	<-chDone
+
+	handler := NewHttpHandler(eh)
+	req := httptest.NewRequest("GET", "/", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	require.Equal(t, res.Code, 200)
+	var errs []struct {
+		Root struct {
+			Message string
+		}
+		Wrap []struct {
+			Message string
+		}
+	}
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+	require.Len(t, errs, 2)
+	require.NotEmpty(t, errs[0].Root.Message)
+	require.NotEmpty(t, errs[1].Root.Message)
 }
