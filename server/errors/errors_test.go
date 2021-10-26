@@ -3,6 +3,7 @@ package errors
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -30,31 +31,38 @@ func alwaysNewError(eh *Handler) error { return eh.New(eris.New("always new erro
 
 func alwaysNewErrorTwo(eh *Handler) error { return eh.New(eris.New("always new errors two")) }
 
+func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
+
 func TestHashErr(t *testing.T) {
 	t.Run("same error, same hash", func(t *testing.T) {
 		err1 := alwaysErrors()
 		err2 := alwaysCallsAlwaysErrors()
 		assert.Equal(t, hashErrorLocation(err1), hashErrorLocation(err2))
+
 		eris1 := alwaysErisErrors()
 		eris2 := alwaysCallsAlwaysErisErrors()
 		assert.Equal(t, hashErrorLocation(eris1), hashErrorLocation(eris2))
 		assert.NotEqual(t, err1, eris1)
 		assert.NotEmpty(t, err1)
 		assert.NotEmpty(t, eris2)
+
+		werr1, werr2 := alwaysWrappedErr(), alwaysWrappedErr()
+		assert.Equal(t, hashErrorLocation(werr1), hashErrorLocation(werr2))
+		assert.NotEqual(t, werr1, werr2)
 	})
 
 	t.Run("generates json", func(t *testing.T) {
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashErr(generatedErr)
 		require.NoError(t, err)
-		assert.Equal(t, "uNq0wUK9_ATMiyFvkXhrVoREEBDJjRtuPLJ9xJ2R7vI=", res)
+		assert.Equal(t, "WdNPM7u0wl1NrEbnP4qd-wJadSA9cvQPRDJCL5D3wkU=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some err`))
 
 		generatedErr2 := pkgErrors.New("some other err")
 		res, jsonBytes, err = hashErr(generatedErr2)
 		require.NoError(t, err)
-		assert.Equal(t, "Dtkt3vUS5WAyVmYOPY113I-30fK0Mx7ZtqOxRsqmjmk=", res)
+		assert.Equal(t, "Xjx3bjQ5kF7Rv_c_xHL4Nqr5VPYS6iwugQzjhyuj7YM=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some other err`))
 	})

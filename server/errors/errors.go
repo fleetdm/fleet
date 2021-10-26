@@ -91,7 +91,12 @@ func sha256b64(s string) string {
 func hashErrorLocation(err error) string {
 	unpackedErr := eris.Unpack(err)
 	if unpackedErr.ErrExternal != nil {
-		return sha256b64(unpackedErr.ErrExternal.Error())
+		// TODO(mna): this returns the same hash for the same error type+message
+		// that happens in different places, e.g. if io.EOF is wrapped in different
+		// locations, this would only save one instance. Not sure this is the
+		// intention.
+		s := fmt.Sprintf("%T\n%s", unpackedErr.ErrExternal, unpackedErr.ErrExternal.Error())
+		return sha256b64(s)
 	}
 
 	if len(unpackedErr.ErrRoot.Stack) == 0 {
@@ -102,7 +107,7 @@ func hashErrorLocation(err error) string {
 	return sha256b64(fmt.Sprintf("%s:%d", lastFrame.File, lastFrame.Line))
 }
 
-func hashErr(externalErr error) (string, string, error) {
+func hashErr(externalErr error) (errHash string, errAsJson string, err error) {
 	m := eris.ToJSON(externalErr, true)
 	bytes, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
