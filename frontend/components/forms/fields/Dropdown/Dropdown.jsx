@@ -21,6 +21,8 @@ class Dropdown extends Component {
     multi: PropTypes.bool,
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onOpen: PropTypes.func,
+    onClose: PropTypes.func,
     options: PropTypes.arrayOf(dropdownOptionInterface).isRequired,
     placeholder: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     value: PropTypes.oneOfType([
@@ -33,12 +35,24 @@ class Dropdown extends Component {
 
   static defaultProps = {
     onChange: noop,
+    onOpen: noop,
+    onClose: noop,
     clearable: false,
     searchable: true,
     disabled: false,
     multi: false,
     name: "targets",
     placeholder: "Select One...",
+  };
+
+  onMenuOpen = () => {
+    const { onOpen } = this.props;
+    onOpen();
+  };
+
+  onMenuClose = () => {
+    const { onClose } = this.props;
+    onClose();
   };
 
   handleChange = (selected) => {
@@ -84,7 +98,7 @@ class Dropdown extends Component {
   };
 
   render() {
-    const { handleChange, renderOption } = this;
+    const { handleChange, renderOption, onMenuOpen, onMenuClose } = this;
     const {
       error,
       className,
@@ -122,6 +136,8 @@ class Dropdown extends Component {
           optionRenderer={renderOption}
           placeholder={placeholder}
           value={value}
+          onOpen={onMenuOpen}
+          onClose={onMenuClose}
         />
       </FormField>
     );

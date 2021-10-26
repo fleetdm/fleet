@@ -150,3 +150,10 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "Linux", value: "linux" },
   { label: "macOS", value: "darwin" },
 ];
+
+export const DEFAULT_CREATE_USER_ERRORS = {
+  email: "",
+  name: "",
+  password: "",
+  sso_enabled: null,
+};

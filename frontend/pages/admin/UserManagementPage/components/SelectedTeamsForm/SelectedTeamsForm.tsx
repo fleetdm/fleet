@@ -30,6 +30,11 @@ const roles = [
     label: "Maintainer",
     value: "maintainer",
   },
+  {
+    disabled: false,
+    label: "Admin",
+    value: "admin",
+  },
 ];
 
 const generateFormListItems = (

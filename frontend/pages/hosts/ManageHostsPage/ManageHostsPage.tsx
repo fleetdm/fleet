@@ -123,6 +123,8 @@ const ManageHostsPage = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isTeamMaintainer,
+    isAnyTeamAdmin,
+    isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -213,9 +215,12 @@ const ManageHostsPage = ({
   // ===== end filter matching
 
   const canAddNewHosts =
-    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainer;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
   const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer;
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
 
   const generateInstallerTeam = currentTeam || {
