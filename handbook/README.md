@@ -20,8 +20,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
-[Fleet EE](./product.md#fleet-ee)
-
 [Fleet docs](./product.md#fleet-docs)
 
 [Manual QA](./product.md#manual-qa)
@@ -29,6 +27,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Release process](./product.md#release-process)
 
 [Support process](./product.md#release-process)
+
+[UI design](./product.md#ui-design)
 
 ### Growth
 

@@ -7,7 +7,7 @@
       margin: 0;
       margin-top: $pad-large;
     }
-    
+
     .form-field--input {
       margin: 0;
     }
@@ -88,12 +88,12 @@
       margin-left: $pad-medium;
     }
   }
-  
+
   &__button-wrap--save-query-button:first-child {
     margin-right: $pad-medium;
   }
 
-  &__button-wrap--save-query-button:not(:first-child){
+  &__button-wrap--save-query-button:not(:first-child) {
     margin-left: $pad-medium;
   }
 
@@ -106,5 +106,30 @@
     color: $core-fleet-black;
     display: inline-block;
     font-size: $large;
+  }
+
+  &__platform-compatibility {
+    display: flex;
+    align-items: center;
+    padding-top: $pad-medium;
+
+    b,
+    img,
+    span {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    b,
+    span {
+      padding-right: $pad-small;
+      margin-right: $pad-xsmall;
+    }
+
+    img {
+      height: 16px;
+      width: auto;
+      padding-left: $pad-xsmall;
+    }
   }
 }

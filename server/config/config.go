@@ -230,13 +230,16 @@ type TLS struct {
 }
 
 func (t *TLS) ToTLSConfig() (*tls.Config, error) {
-	rootCertPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile(t.TLSCA)
-	if err != nil {
-		return nil, errors.Wrap(err, "read server-ca pem")
-	}
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return nil, errors.New("failed to append PEM.")
+	var rootCertPool *x509.CertPool
+	if t.TLSCA != "" {
+		rootCertPool = x509.NewCertPool()
+		pem, err := ioutil.ReadFile(t.TLSCA)
+		if err != nil {
+			return nil, errors.Wrap(err, "read server-ca pem")
+		}
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			return nil, errors.New("failed to append PEM.")
+		}
 	}
 
 	cfg := &tls.Config{

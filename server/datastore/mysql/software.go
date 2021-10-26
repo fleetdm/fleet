@@ -149,8 +149,8 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	var existingId []int64
 	if err := sqlx.SelectContext(ctx, tx,
 		&existingId,
-		`SELECT id FROM software WHERE name = ? and version = ? and source = ?`,
-		s.Name, s.Version, s.Source,
+		`SELECT id FROM software WHERE name = ? AND version = ? AND source = ? AND bundle_identifier = ?`,
+		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	); err != nil {
 		return 0, err
 	}
@@ -159,7 +159,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`INSERT IGNORE INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)`,
+		`REPLACE INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)`,
 		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	)
 	if err != nil {

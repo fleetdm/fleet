@@ -1,88 +1,149 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-
+import React, { useContext, useCallback, useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
+import { useQuery } from "react-query";
 import { push } from "react-router-redux";
-import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
+import { memoize, pick } from "lodash";
 
+import { AppContext } from "context/app";
+import { performanceIndicator } from "fleet/helpers";
+import { IQuery } from "interfaces/query";
+import fleetQueriesAPI from "services/entities/queries";
 // @ts-ignore
-import queryActions from "redux/nodes/entities/queries/actions";
+import queryActions from "redux/nodes/entities/queries/actions"; // TODO: Delete this after redux dependencies have been removed.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-
-import paths from "router/paths";
-import permissionUtils from "utilities/permissions";
-
+import PATHS from "router/paths";
+// @ts-ignore
+import sqlTools from "utilities/sql_tools";
 import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/loaders/Spinner";
 import TableDataError from "components/TableDataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
 const baseClass = "manage-queries-page";
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-  entities: {
-    queries: {
-      loading: boolean;
-      data: IQuery[];
-      errors: { name: string; reason: string }[];
-    };
-  };
+interface IFleetQueriesResponse {
+  queries: IQuery[];
+}
+interface IQueryTableData extends IQuery {
+  performance: string;
+  platforms: string[];
+}
+interface IQueriesByPlatform extends Record<string, IQueryTableData[]> {
+  all: IQueryTableData[];
+  darwin: IQueryTableData[];
+  linux: IQueryTableData[];
+  windows: IQueryTableData[];
 }
 
-const renderTable = (
-  onRemoveQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  onCreateQueryClick: React.MouseEventHandler<HTMLButtonElement>,
-  queriesList: IQuery[],
-  queriesErrors: any
-): JSX.Element => {
-  if (Object.keys(queriesErrors).length > 0) {
-    return <TableDataError />;
-  }
+const PLATFORMS = ["darwin", "linux", "windows"];
 
-  return (
-    <QueriesListWrapper
-      onRemoveQueryClick={onRemoveQueryClick}
-      onCreateQueryClick={onCreateQueryClick}
-      queriesList={queriesList}
-    />
-  );
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "All platforms",
+    value: "all",
+    helpText: "All queries.",
+  },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+    helpText: "Queries that are compatible with Linux operating systems.",
+  },
+  {
+    disabled: false,
+    label: "macOS",
+    value: "darwin",
+    helpText: "Queries that are compatible with macOS operating systems.",
+  },
+  {
+    disabled: false,
+    label: "Windows",
+    value: "windows",
+    helpText: "Queries that are compatible with Windows operating systems.",
+  },
+];
+
+const memoizedSqlTables = memoize(sqlTools.parseSqlTables);
+const getPlatforms = (queryString: string): string[] =>
+  sqlTools
+    .listCompatiblePlatforms(memoizedSqlTables(queryString))
+    .filter((p: string) => PLATFORMS.includes(p));
+
+const enhanceQuery = (q: IQuery) => {
+  return {
+    ...q,
+    performance: performanceIndicator(
+      pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
+    ),
+    platforms: getPlatforms(q.query),
+  };
 };
 
 const ManageQueriesPage = (): JSX.Element => {
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
-
   const dispatch = useDispatch();
-  const { NEW_QUERY } = paths;
-  const onCreateQueryClick = () => dispatch(push(NEW_QUERY));
 
-  useEffect(() => {
-    dispatch(queryActions.loadAll());
-  }, [dispatch]);
+  const { isOnlyObserver } = useContext(AppContext);
 
-  const loadingQueries = useSelector(
-    (state: IRootState) => state.entities.queries.loading
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  useEffect(() => {
-    setIsLoading(loadingQueries);
-  }, [loadingQueries]);
-  useEffect(() => {
-    setIsLoading(true);
-  }, []);
-
-  const queries = useSelector((state: IRootState) => state.entities.queries);
-  const queriesList = Object.values(queries.data);
-  const queriesErrors = queries.errors;
-
+  const [filteredQueries, setFilteredQueries] = useState<
+    IQueryTableData[] | null
+  >(null);
+  const [searchString, setSearchString] = useState<string>("");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+
+  const {
+    data: fleetQueriesByPlatform,
+    error: fleetQueriesError,
+    isLoading: isLoadingFleetQueries,
+    refetch: refetchFleetQueries,
+  } = useQuery<IFleetQueriesResponse, Error, IQueriesByPlatform>(
+    "fleet queries by platform",
+    () => fleetQueriesAPI.loadAll(),
+    {
+      // refetchOnMount: false,
+      // refetchOnReconnect: false,
+      // refetchOnWindowFocus: false,
+      select: (data: IFleetQueriesResponse) =>
+        data.queries.reduce(
+          (dictionary: IQueriesByPlatform, q) => {
+            const queryEntry = enhanceQuery(q);
+            dictionary.all.push(queryEntry);
+            queryEntry.platforms.forEach((platform) =>
+              dictionary[platform]?.push(queryEntry)
+            );
+
+            return dictionary;
+          },
+          { all: [], darwin: [], linux: [], windows: [] }
+        ),
+    }
+  );
+
+  useEffect(() => {
+    if (!isLoadingFleetQueries && fleetQueriesByPlatform) {
+      let queriesList = fleetQueriesByPlatform[selectedPlatform];
+      if (searchString) {
+        queriesList = queriesList.filter((q) =>
+          q.name.toLowerCase().includes(searchString.toLowerCase())
+        );
+      }
+      setFilteredQueries(queriesList);
+    }
+  }, [
+    fleetQueriesByPlatform,
+    isLoadingFleetQueries,
+    searchString,
+    selectedPlatform,
+  ]);
+
+  const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
@@ -97,7 +158,7 @@ const ManageQueriesPage = (): JSX.Element => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
     const promises = selectedQueryIds.map((id: number) => {
-      return dispatch(queryActions.destroy({ id }));
+      return fleetQueriesAPI.destroy(id);
     });
 
     return Promise.all(promises)
@@ -106,12 +167,14 @@ const ManageQueriesPage = (): JSX.Element => {
           renderFlash("success", `Successfully removed ${queryOrQueries}.`)
         );
         toggleRemoveQueryModal();
-        dispatch(queryActions.loadAll());
       })
       .catch((response) => {
         if (
-          response.base.slice(0, 47) ===
-          "the operation violates a foreign key constraint"
+          response?.errors?.filter((error: Record<string, string>) =>
+            error.reason?.includes(
+              "the operation violates a foreign key constraint"
+            )
+          ).length
         ) {
           dispatch(
             renderFlash(
@@ -119,7 +182,6 @@ const ManageQueriesPage = (): JSX.Element => {
               `Could not delete query because this query is used as a policy. First remove the policy and then try deleting the query again.`
             )
           );
-          dispatch(queryActions.loadAll());
         } else {
           dispatch(
             renderFlash(
@@ -128,9 +190,31 @@ const ManageQueriesPage = (): JSX.Element => {
             )
           );
         }
+      })
+      .finally(() => {
+        refetchFleetQueries();
+        // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
+        // depends on redux state for queries).
+        dispatch(queryActions.loadAll());
         toggleRemoveQueryModal();
       });
-  }, [dispatch, selectedQueryIds, toggleRemoveQueryModal]);
+  }, [dispatch, selectedQueryIds]);
+
+  const renderPlatformDropdown = () => {
+    return fleetQueriesByPlatform?.all.length ? (
+      <Dropdown
+        value={selectedPlatform}
+        className={`${baseClass}__platform_dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        searchable={false}
+        onChange={setSelectedPlatform}
+      />
+    ) : (
+      <></>
+    );
+  };
+
+  const isTableDataLoading = isLoadingFleetQueries || filteredQueries === null;
 
   return (
     <div className={baseClass}>
@@ -148,7 +232,7 @@ const ManageQueriesPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && queriesList.length > 0 && (
+          {!isOnlyObserver && !!fleetQueriesByPlatform?.all.length && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -161,15 +245,19 @@ const ManageQueriesPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {!isLoading ? (
-            renderTable(
-              onRemoveQueryClick,
-              onCreateQueryClick,
-              queriesList,
-              queriesErrors
-            )
+          {isTableDataLoading && !fleetQueriesError && <Spinner />}
+          {!isTableDataLoading && fleetQueriesError ? (
+            <TableDataError />
           ) : (
-            <Spinner />
+            <QueriesListWrapper
+              queriesList={filteredQueries}
+              isLoading={isTableDataLoading}
+              onCreateQueryClick={onCreateQueryClick}
+              onRemoveQueryClick={onRemoveQueryClick}
+              searchable={!!fleetQueriesByPlatform?.all.length}
+              onSearchChange={setSearchString}
+              customControl={renderPlatformDropdown}
+            />
           )}
         </div>
         {showRemoveQueryModal && (

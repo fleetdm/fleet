@@ -3,23 +3,22 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import format from "date-fns/format";
 
-import moment from "moment";
+import permissionsUtils from "utilities/permissions";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import { performanceIndicator } from "fleet/helpers";
 
 import PATHS from "router/paths";
 
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
-
-import permissionsUtils from "utilities/permissions";
 
 interface IQueryRow {
   id: string;
@@ -59,13 +58,6 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-interface IQueryTableData {
-  name: string;
-  id: number;
-  author_name: string;
-  updated_at: string;
-  performance: (string | number)[];
-}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -92,11 +84,22 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       sortType: "caseInsensitive",
     },
     {
+      title: "Platform",
+      Header: "Platform",
+      disableSortBy: true,
+      accessor: "platforms",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        return <PlatformCell value={cellProps.cell.value} />;
+      },
+    },
+    {
       title: "Performance impact",
       Header: "Performance impact",
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+      ),
     },
     {
       title: "Author",
@@ -122,7 +125,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/DD/YY")} />
       ),
     },
   ];
@@ -149,7 +152,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               // so we need to do some filtering and then modify the toggle select all
               // behavior for the header checkbox
               const userAuthoredQueries = rows.filter(
-                (r: any) => r.original.author_id === currentUser.id
+                (r: IQueryRow) => r.original.author_id === currentUser.id
               );
               if (
                 selectedFlatRows.length &&
@@ -157,12 +160,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               ) {
                 // If some but not all of the user authored queries are already selected,
                 // we toggle all of the user's unselected queries to true
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id, true)
                 );
               } else {
                 // Otherwise, we toggle all of the user's queries to the opposite of their current state
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id)
                 );
               }
@@ -212,7 +215,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
       disableHidden: true,
     });
-    tableHeaders.splice(3, 0, {
+    tableHeaders.splice(2, 0, {
       title: "Observer can run",
       Header: (cellProps) => (
         <HeaderCell
@@ -232,25 +235,4 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   return tableHeaders;
 };
 
-const enhanceQueryData = (queries: IQuery[]): IQueryTableData[] => {
-  return queries.map((query: IQuery) => {
-    const scheduledQueryPerformance = {
-      user_time_p50: query.stats?.user_time_p50,
-      system_time_p50: query.stats?.system_time_p50,
-      total_executions: query.stats?.total_executions,
-    };
-    return {
-      name: query.name,
-      id: query.id,
-      author_name: query.author_name,
-      updated_at: query.updated_at,
-      performance: [performanceIndicator(scheduledQueryPerformance), query.id],
-    };
-  });
-};
-
-const generateDataSet = (queries: IQuery[]): IQueryTableData[] => {
-  return [...enhanceQueryData(queries)];
-};
-
-export { generateTableHeaders, generateDataSet };
+export default generateTableHeaders;
