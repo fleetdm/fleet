@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/pkg/errors"
@@ -42,6 +43,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	duration, err := time.ParseDuration(period)
 	if err != nil {
 		duration = 90 * time.Second
+		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
 	res := runLiveQueryResponse{
@@ -96,15 +98,19 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 			for {
 				select {
 				case res := <-readChan:
-					// Receive a result and push it over the websocket
 					switch res := res.(type) {
 					case fleet.DistributedQueryResult:
 						results = append(results, fleet.QueryResult{HostID: res.Host.ID, Rows: res.Rows, Error: res.Error})
 						counterMutex.Lock()
 						respondedHostIDs[res.Host.ID] = struct{}{}
 						counterMutex.Unlock()
+					case error:
+						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error())}
+						return
 					}
 				case <-time.After(deadline):
+					break loop
+				case <-ctx.Done():
 					break loop
 				}
 			}
