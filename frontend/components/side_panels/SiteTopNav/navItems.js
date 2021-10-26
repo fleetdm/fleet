@@ -85,7 +85,7 @@ export default (currentUser) => {
 
   if (
     permissionUtils.isGlobalMaintainer(currentUser) ||
-    permissionUtils.isAtLeastAnyTeamMaintainer(currentUser)
+    permissionUtils.isAnyTeamMaintainerOrTeamAdmin(currentUser)
   ) {
     return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
   }

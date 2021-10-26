@@ -59,7 +59,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const {
     config,
     currentUser,
-    isAtLeastAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
@@ -287,7 +287,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
     // so a falsiness check cannot be used here. Null case here allows us to skip API call.
     if (selectedTeamId !== null) {
-      if (isOnGlobalTeam || isAtLeastAnyTeamMaintainer) {
+      if (isOnGlobalTeam || isAnyTeamMaintainerOrTeamAdmin) {
         getGlobalPolicies();
       }
       if (selectedTeamId) {
@@ -297,7 +297,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   }, [
     getGlobalPolicies,
     getTeamPolicies,
-    isAtLeastAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isOnGlobalTeam,
     selectedTeamId,
   ]);

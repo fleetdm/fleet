@@ -43,7 +43,7 @@ const App = ({ children }: IAppProps) => {
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
-    isAtLeastAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     enrollSecret,
   } = useContext(AppContext);
 
@@ -68,8 +68,8 @@ const App = ({ children }: IAppProps) => {
       !isGlobalObserver &&
       typeof isOnlyObserver !== "undefined" &&
       !isOnlyObserver &&
-      typeof isAtLeastAnyTeamMaintainer !== "undefined" &&
-      !isAtLeastAnyTeamMaintainer;
+      typeof isAnyTeamMaintainerOrTeamAdmin !== "undefined" &&
+      !isAnyTeamMaintainerOrTeamAdmin;
 
     if (canGetEnrollSecret) {
       dispatch(getEnrollSecret())

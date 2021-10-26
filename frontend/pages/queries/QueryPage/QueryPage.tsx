@@ -44,7 +44,7 @@ const QueryPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAtLeastAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
   const {
     selectedOsqueryTable,
@@ -214,7 +214,7 @@ const QueryPage = ({
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
-    (isGlobalAdmin || isGlobalMaintainer || isAtLeastAnyTeamMaintainer);
+    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
     <div className={`${baseClass} ${sidebarClass}`}>

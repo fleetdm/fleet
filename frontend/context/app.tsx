@@ -21,7 +21,7 @@ type InitialStateType = {
   isGlobalMaintainer: boolean | undefined;
   isGlobalObserver: boolean | undefined;
   isOnGlobalTeam: boolean | undefined;
-  isAtLeastAnyTeamMaintainer: boolean | undefined;
+  isAnyTeamMaintainerOrTeamAdmin: boolean | undefined;
   isTeamMaintainer: boolean | undefined;
   isAnyTeamAdmin: boolean | undefined;
   isTeamAdmin: boolean | undefined;
@@ -43,7 +43,7 @@ const initialState = {
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
-  isAtLeastAnyTeamMaintainer: undefined,
+  isAnyTeamMaintainerOrTeamAdmin: undefined,
   isTeamMaintainer: undefined,
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
@@ -75,7 +75,9 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
-    isAtLeastAnyTeamMaintainer: permissions.isAtLeastAnyTeamMaintainer(user),
+    isAnyTeamMaintainerOrTeamAdmin: permissions.isAnyTeamMaintainerOrTeamAdmin(
+      user
+    ),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isOnlyObserver: permissions.isOnlyObserver(user),
   };
@@ -131,7 +133,7 @@ const AppProvider = ({ children }: Props) => {
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
-    isAtLeastAnyTeamMaintainer: state.isAtLeastAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin: state.isAnyTeamMaintainerOrTeamAdmin,
     isTeamMaintainer: state.isTeamMaintainer,
     isTeamAdmin: state.isTeamAdmin,
     isAnyTeamAdmin: state.isAnyTeamAdmin,

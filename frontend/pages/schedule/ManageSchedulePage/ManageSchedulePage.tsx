@@ -164,7 +164,7 @@ const ManageSchedulePage = ({
   );
 
   const isTeamMaintainer = useSelector((state: IRootState): boolean => {
-    return permissionUtils.isAtLeastAnyTeamMaintainer(state.auth.user);
+    return permissionUtils.isAnyTeamMaintainer(state.auth.user);
   });
 
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
