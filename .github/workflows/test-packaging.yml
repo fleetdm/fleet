@@ -42,13 +42,13 @@ jobs:
       run: brew install docker && brew install --cask docker && open /Applications/Docker.app
 
     - name: Build MSI
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: go run ./cmd/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build PKG
-      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: go run ./cmd/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build DEB
-      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: go run ./cmd/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build RPM
-      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: go run ./cmd/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
