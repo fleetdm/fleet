@@ -95,6 +95,6 @@ describe(
       cy.findByText("Role")
         .next()
         .contains(/maintainer/i);
-    };);
+    });
   }
 );
