@@ -30,8 +30,8 @@ resource "aws_elasticache_replication_group" "default" {
   replication_group_description = "fleetdm-redis"
 
   cluster_mode {
-    replicas_per_node_group = 1
-    num_node_groups         = 3
+    replicas_per_node_group = 0
+    num_node_groups         = 8
   }
 }
 
