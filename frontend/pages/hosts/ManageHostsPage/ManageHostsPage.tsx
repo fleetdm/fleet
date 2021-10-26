@@ -72,7 +72,7 @@ import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
+import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities"; // @ts-ignore
 import AddHostModal from "./components/AddHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
