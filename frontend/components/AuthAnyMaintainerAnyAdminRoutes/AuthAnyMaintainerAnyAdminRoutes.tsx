@@ -37,7 +37,7 @@ const AuthAnyMaintainerAnyAdminRoutes = ({
     !permissionUtils.isGlobalAdmin(user) &&
     !permissionUtils.isGlobalMaintainer(user) &&
     !permissionUtils.isAnyTeamAdmin(user) &&
-    !permissionUtils.isAnyTeamMaintainerOrTeamAdmin(user)
+    !permissionUtils.isAnyTeamMaintainer(user)
   ) {
     dispatch(push(HOME));
     dispatch(renderFlash("error", "You do not have permissions for that page"));

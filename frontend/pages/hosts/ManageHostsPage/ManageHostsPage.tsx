@@ -121,7 +121,7 @@ const ManageHostsPage = ({
     config,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
+    isAnyTeamMaintainer,
     isTeamMaintainer,
     isAnyTeamAdmin,
     isTeamAdmin,
@@ -218,7 +218,7 @@ const ManageHostsPage = ({
     isGlobalAdmin ||
     isGlobalMaintainer ||
     isAnyTeamAdmin ||
-    isAnyTeamMaintainerOrTeamAdmin;
+    isAnyTeamMaintainer;
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
