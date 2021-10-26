@@ -72,8 +72,8 @@ import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
-import GenerateInstallerModal from "./components/GenerateInstallerModal";
+import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities"; // @ts-ignore
+import AddHostModal from "./components/AddHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -157,6 +157,7 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
+  const [showAddHostModal, setShowAddHostModal] = useState<boolean>(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
     false
   );
@@ -172,10 +173,6 @@ const ManageHostsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
   );
-  const [
-    showGenerateInstallerModal,
-    setShowGenerateInstallerModal,
-  ] = useState<boolean>(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
@@ -222,11 +219,6 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
-
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecret,
-  };
 
   const {
     isLoading: isLabelsLoading,
@@ -290,16 +282,33 @@ const ManageHostsPage = ({
     setShowDeleteHostModal(!showDeleteHostModal);
   };
 
-  const toggleGenerateInstallerModal = () => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
-  };
-
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
     if (typeof shouldSelect !== "undefined") {
       setIsAllMatchingHostsSelected(shouldSelect);
     } else {
       setIsAllMatchingHostsSelected(!isAllMatchingHostsSelected);
     }
+  };
+
+  const renderAddHostModal = () => {
+    if (!canAddNewHosts || !showAddHostModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        title="New host"
+        onExit={() => setShowAddHostModal(false)}
+        className={`${baseClass}__invite-modal`}
+      >
+        <AddHostModal
+          teams={teams}
+          onReturnToApp={() => setShowAddHostModal(false)}
+          config={config}
+          currentUser={currentUser}
+        />
+      </Modal>
+    );
   };
 
   const getLabelSelected = () => {
@@ -1098,19 +1107,6 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderGenerateInstallerModal = () => {
-    if (!showGenerateInstallerModal) {
-      return null;
-    }
-
-    return (
-      <GenerateInstallerModal
-        onCancel={toggleGenerateInstallerModal}
-        selectedTeam={generateInstallerTeam}
-      />
-    );
-  };
-
   const renderHeaderLabelBlock = () => {
     if (selectedLabel) {
       const {
@@ -1261,7 +1257,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = (selectedTeam: number) => {
+  const renderTable = () => {
     if (
       !config ||
       !currentUser ||
@@ -1277,15 +1273,8 @@ const ManageHostsPage = ({
     }
 
     // Hosts have not been set up for this instance yet.
-    if (
-      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
-      (getStatusSelected() === ALL_HOSTS_LABEL &&
-        filteredHostCount === 0 &&
-        searchQuery === "")
-    ) {
-      return (
-        <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
-      );
+    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
+      return <NoHosts setShowAddHostModal={setShowAddHostModal} />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1357,7 +1346,7 @@ const ManageHostsPage = ({
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Manage enroll secret</span>
+                  <span>Show enroll secret</span>
                 </Button>
               )}
               {canAddNewHosts &&
@@ -1370,26 +1359,26 @@ const ManageHostsPage = ({
                   filteredHostCount === 0
                 ) && (
                   <Button
-                    onClick={toggleGenerateInstallerModal}
+                    onClick={() => setShowAddHostModal(true)}
                     className={`${baseClass}__add-hosts button button--brand`}
                   >
-                    <span>Generate installer</span>
+                    <span>Add new host</span>
                   </Button>
                 )}
             </div>
           </div>
           {renderActiveFilterBlock()}
           {renderSoftwareVulnerabilities()}
-          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
+          {config && (!isPremiumTier || teams) && renderTable()}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
+      {renderAddHostModal()}
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
       {renderDeleteHostModal()}
-      {renderGenerateInstallerModal()}
     </div>
   );
 };
