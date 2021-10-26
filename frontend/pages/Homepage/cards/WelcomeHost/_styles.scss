@@ -64,6 +64,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin: 10px 0;
 
       .info {
         font-size: $small;
@@ -72,7 +73,7 @@
         line-height: 1;
 
         img {
-          margin-right: $pad-large;
+          margin-right: $pad-small;
           transform: scale(0.5);
           position: relative;
           top: -1px;
