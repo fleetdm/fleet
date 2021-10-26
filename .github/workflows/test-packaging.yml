@@ -37,6 +37,10 @@ jobs:
     - name: Build fleetctl
       run: make fleetctl
 
+    - name: Install Docker
+      if: matrix.os == 'macos-latest'
+      run: brew install docker && brew install --cask docker && open /Applications/Docker.app
+
     - name: Build MSI
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
