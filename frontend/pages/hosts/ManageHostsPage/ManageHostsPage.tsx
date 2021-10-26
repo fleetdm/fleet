@@ -1274,7 +1274,7 @@ const ManageHostsPage = ({
 
     // Hosts have not been set up for this instance yet.
     if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
-      return <NoHosts />;
+      return <NoHosts setShowAddHostModal={setShowAddHostModal} />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1349,14 +1349,22 @@ const ManageHostsPage = ({
                   <span>Show enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts && (
-                <Button
-                  onClick={() => setShowAddHostModal(true)}
-                  className={`${baseClass}__add-hosts button button--brand`}
-                >
-                  <span>Add new host</span>
-                </Button>
-              )}
+              {canAddNewHosts &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  selectedLabel?.count === 0
+                ) &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  filteredHostCount === 0
+                ) && (
+                  <Button
+                    onClick={() => setShowAddHostModal(true)}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Add new host</span>
+                  </Button>
+                )}
             </div>
           </div>
           {renderActiveFilterBlock()}
