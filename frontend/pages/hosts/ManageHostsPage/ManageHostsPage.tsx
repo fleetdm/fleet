@@ -73,7 +73,7 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
-import GenerateInstallerModal from "./components/GenerateInstallerModal";
+import AddHostModal from "./components/AddHostModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -157,6 +157,7 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
+  const [showAddHostModal, setShowAddHostModal] = useState<boolean>(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
     false
   );
@@ -172,10 +173,6 @@ const ManageHostsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
   );
-  const [
-    showGenerateInstallerModal,
-    setShowGenerateInstallerModal,
-  ] = useState<boolean>(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
