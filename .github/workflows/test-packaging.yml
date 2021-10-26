@@ -1,0 +1,47 @@
+name: Test packaging
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+  pull_request:
+    paths:
+      - '**.go'
+
+jobs:
+  test-go:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ['^1.17.0']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    # It seems faster not to cache Go dependencies
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build fleetctl
+      run: |
+        make fleetctl
+
+    - name: Build MSI
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build PKG
+      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build DEB
+      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build RPM
+      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
