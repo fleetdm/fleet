@@ -13,24 +13,20 @@ interface INoHostsProps {
 
 const baseClass = "no-hosts";
 
-const NoHosts = ({
-  toggleGenerateInstallerModal,
-}: INoHostsProps): JSX.Element => {
+const NoHosts = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <img src={RoboDogImage} alt="No Hosts" />
         <div>
-          <h2>Add your devices to Fleet</h2>
-          <p>Generate an installer to add your own devices.</p>
-          <div className={`${baseClass}__no-hosts-button`}>
-            <Button
-              onClick={toggleGenerateInstallerModal}
-              type="button"
-              className="button button--brand"
-            >
-              Generate installer
-            </Button>
+          <h1>It&#39;s kinda empty in here...</h1>
+          <h2>Get started adding hosts to Fleet.</h2>
+          <p>Add your laptops and servers to securely monitor them.</p>
+          <div className={`${baseClass}__no-hosts-contact`}>
+            <p>Still having trouble?</p>
+            <a href="https://github.com/fleetdm/fleet/issues">
+              File a GitHub issue
+            </a>
           </div>
         </div>
       </div>

@@ -220,11 +220,6 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
 
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecret,
-  };
-
   const {
     isLoading: isLabelsLoading,
     data: labels,
@@ -287,16 +282,33 @@ const ManageHostsPage = ({
     setShowDeleteHostModal(!showDeleteHostModal);
   };
 
-  const toggleGenerateInstallerModal = () => {
-    setShowGenerateInstallerModal(!showGenerateInstallerModal);
-  };
-
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
     if (typeof shouldSelect !== "undefined") {
       setIsAllMatchingHostsSelected(shouldSelect);
     } else {
       setIsAllMatchingHostsSelected(!isAllMatchingHostsSelected);
     }
+  };
+
+  const renderAddHostModal = () => {
+    if (!canAddNewHosts || !showAddHostModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        title="New host"
+        onExit={() => setShowAddHostModal(false)}
+        className={`${baseClass}__invite-modal`}
+      >
+        <AddHostModal
+          teams={teams}
+          onReturnToApp={() => setShowAddHostModal(false)}
+          config={config}
+          currentUser={currentUser}
+        />
+      </Modal>
+    );
   };
 
   const getLabelSelected = () => {
@@ -1095,19 +1107,6 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderGenerateInstallerModal = () => {
-    if (!showGenerateInstallerModal) {
-      return null;
-    }
-
-    return (
-      <GenerateInstallerModal
-        onCancel={toggleGenerateInstallerModal}
-        selectedTeam={generateInstallerTeam}
-      />
-    );
-  };
-
   const renderHeaderLabelBlock = () => {
     if (selectedLabel) {
       const {
@@ -1258,7 +1257,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = (selectedTeam: number) => {
+  const renderTable = () => {
     if (
       !config ||
       !currentUser ||
@@ -1274,15 +1273,8 @@ const ManageHostsPage = ({
     }
 
     // Hosts have not been set up for this instance yet.
-    if (
-      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
-      (getStatusSelected() === ALL_HOSTS_LABEL &&
-        filteredHostCount === 0 &&
-        searchQuery === "")
-    ) {
-      return (
-        <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
-      );
+    if (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) {
+      return <NoHosts />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1354,39 +1346,31 @@ const ManageHostsPage = ({
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Manage enroll secret</span>
+                  <span>Show enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  filteredHostCount === 0
-                ) && (
-                  <Button
-                    onClick={toggleGenerateInstallerModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
-                  >
-                    <span>Generate installer</span>
-                  </Button>
-                )}
+              {canAddNewHosts && (
+                <Button
+                  onClick={() => setShowAddHostModal(true)}
+                  className={`${baseClass}__add-hosts button button--brand`}
+                >
+                  <span>Add new host</span>
+                </Button>
+              )}
             </div>
           </div>
           {renderActiveFilterBlock()}
           {renderSoftwareVulnerabilities()}
-          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
+          {config && (!isPremiumTier || teams) && renderTable()}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
+      {renderAddHostModal()}
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
       {renderTransferHostModal()}
       {renderDeleteHostModal()}
-      {renderGenerateInstallerModal()}
     </div>
   );
 };
