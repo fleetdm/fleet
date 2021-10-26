@@ -74,11 +74,11 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			}
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
-			defer cancelFunc()
 			if err != nil {
 				resultsCh <- queryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
 				return
 			}
+			defer cancelFunc()
 
 			defer func() {
 				err := svc.CompleteCampaign(ctx, campaign)
