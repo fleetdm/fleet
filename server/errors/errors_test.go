@@ -62,14 +62,14 @@ func TestHashErr(t *testing.T) {
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashErr(generatedErr)
 		require.NoError(t, err)
-		assert.Equal(t, "WdNPM7u0wl1NrEbnP4qd-wJadSA9cvQPRDJCL5D3wkU=", res)
+		assert.Equal(t, "mWoqz7iS1IPOZXGhpzHLl_DVQOyemWxCmvkpLz8uEZk=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some err`))
 
 		generatedErr2 := pkgErrors.New("some other err")
 		res, jsonBytes, err = hashErr(generatedErr2)
 		require.NoError(t, err)
-		assert.Equal(t, "Xjx3bjQ5kF7Rv_c_xHL4Nqr5VPYS6iwugQzjhyuj7YM=", res)
+		assert.Equal(t, "8AXruOzQmQLF4H3SrzLxXSwFQgZ8DcbkoF1owo0RhTs=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some other err`))
 	})
