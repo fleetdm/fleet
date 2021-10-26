@@ -3,7 +3,6 @@ package packaging
 
 import (
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -48,6 +47,22 @@ type Options struct {
 	UpdateRoots string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
+}
+
+func initializeTempDir() (string, error) {
+	// Initialize directories
+	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create temp dir")
+	}
+
+	if err := os.Chmod(tmpDir, 0755); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		return "", errors.Wrap(err, "change temp directory permissions")
+	}
+	log.Debug().Str("path", tmpDir).Msg("created temp directory")
+
+	return tmpDir, nil
 }
 
 func copyFile(srcPath, dstPath string, perm os.FileMode) error {
@@ -118,18 +133,4 @@ func writeSecret(opt Options, orbitRoot string) error {
 	}
 
 	return nil
-}
-
-func chmodRecursive(path string, perm os.FileMode) error {
-	return filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return errors.Wrap(err, "walk error")
-		}
-
-		if err := os.Chmod(path, perm); err != nil {
-			return errors.Wrap(err, "chmod")
-		}
-
-		return nil
-	})
 }
