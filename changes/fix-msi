@@ -1,1 +1,3 @@
-* Fix MSI generation in `fleetctl package` on Windows.
+* Fix .msi generation in `fleetctl package` on Windows.
+
+* Fix .pkg generation in `fleetctl package` on Linux.

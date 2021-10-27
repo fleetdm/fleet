@@ -52,14 +52,14 @@ jobs:
     - name: Build fleetctl
       run: make fleetctl
 
-    - name: Build MSI
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
-
-    - name: Build PKG
-      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
-
     - name: Build DEB
       run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build RPM
       run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build MSI
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build PKG
+      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
