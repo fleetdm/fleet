@@ -250,6 +250,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "downloading orbit and osqueryd")
 			}
 
+			// Give it a bit of time so the current device is the one with id 1
+			time.Sleep(2 * time.Second)
+
 			fmt.Println("Starting simulated hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
