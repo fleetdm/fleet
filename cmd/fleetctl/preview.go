@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -549,7 +550,31 @@ func readPidFromFile(destDir string) (int, error) {
 	return strconv.Atoi(string(data))
 }
 
+func isOrbitAlreadyRunning(destDir string) bool {
+	pid, err := readPidFromFile(destDir)
+	if err != nil {
+		// if any error occurs reading the pid file, we assume orbit is not running
+		return false
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		// if there are any errors looking for process, we assume orbit is not running
+		return false
+	}
+	// otherwise, we found the process, so it's running
+	err = process.Signal(syscall.Signal(0))
+	if err != nil {
+		// Unix will always return a process for the pid, so we try sending a signal to see if it's running
+		return false
+	}
+	return true
+}
+
 func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+	if isOrbitAlreadyRunning(destDir) {
+		fmt.Println("Orbit is already running.")
+		return nil
+	}
 	updateOpt := update.DefaultOptions
 	switch runtime.GOOS {
 	case "linux":
