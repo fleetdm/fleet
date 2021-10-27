@@ -19,6 +19,21 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: Install Docker
+      if: matrix.os == 'macos-latest'
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
+    - name: Pull fleetdm/wix
+      # Run in background while other steps complete to speed up the workflow
+      run: docker pull fleetdm/wix:latest &
+
     - name: Install Go
       uses: actions/setup-go@v2
       with:
@@ -36,16 +51,6 @@ jobs:
 
     - name: Build fleetctl
       run: make fleetctl
-
-    - name: Install Docker
-      if: matrix.os == 'macos-latest'
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-      run: |
-        brew install --cask docker
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-        echo "Docker is ready."
 
     - name: Build MSI
       run: go run ./cmd/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
