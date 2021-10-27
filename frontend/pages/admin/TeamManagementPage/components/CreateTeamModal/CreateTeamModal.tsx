@@ -45,7 +45,6 @@ const CreateTeamModal = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <InputFieldWithIcon
           autofocus
-          // error={errors.name}
           name="name"
           onChange={onInputChange}
           placeholder="Team name"
@@ -62,7 +61,12 @@ const CreateTeamModal = ({
           </p>
         </InfoBanner>
         <div className={`${baseClass}__btn-wrap`}>
-          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
+          <Button
+            className={`${baseClass}__btn`}
+            type="submit"
+            variant="brand"
+            disabled={name === ""}
+          >
             Create
           </Button>
           <Button
