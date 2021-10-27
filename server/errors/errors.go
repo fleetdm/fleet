@@ -237,8 +237,6 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 // storing the error, otherwise it waits for a predefined period of time to try
 // to store the error.
 func (h *Handler) New(ctx context.Context, err error) error {
-	// TODO: wrap in eris error with other metadata
-	err = eris.Wrapf(err, "timestamp: %v", time.Now().Format(time.RFC3339))
 	if atomic.LoadInt32(&h.running) == 0 {
 		return err
 	}

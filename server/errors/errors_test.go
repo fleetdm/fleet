@@ -106,6 +106,13 @@ func TestHashErrEris(t *testing.T) {
 		h1, h2 := hashError(werr1), hashError(werr2)
 		assert.Equal(t, wantHash, h1)
 		assert.Equal(t, wantHash, h2)
+
+		// hashing with eris is safe, it keeps the root location intact
+		werr3 := eris.Wrap(err, "eris wrap")
+		werr4 := eris.Wrap(werr3, "eris wrap again")
+		h3, h4 := hashError(werr3), hashError(werr4)
+		assert.Equal(t, wantHash, h3)
+		assert.Equal(t, wantHash, h4)
 	})
 
 	t.Run("HashNew", func(t *testing.T) {
