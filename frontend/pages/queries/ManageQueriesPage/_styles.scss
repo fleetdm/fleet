@@ -116,9 +116,22 @@
     .data-table__table {
       table-layout: fixed;
 
+      .selection__header {
+        text-align: center;
+      }
+
       thead {
-        th:not(:nth-child(1)) {
-          width: 134px;
+        th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
+          width: 100px;
+        }
+        th:nth-child(1) {
+          width: 8px;
+        }
+        th:nth-child(2) {
+          width: 200px;
+        }
+        th:nth-child(4) {
+          width: 40px;
         }
         @include breakpoint(tablet) {
           th:nth-child(3),
@@ -128,17 +141,20 @@
           }
         }
         @include breakpoint(ltdesktop) {
+          th:nth-child(1) {
+            width: 8px;
+          }
           th:nth-child(3),
           th:nth-child(5) {
             display: none;
           }
         }
-        th.platforms__header {
-          width: 54px;
-        }
       }
 
       tbody {
+        td:nth-child(1) {
+          text-align: center;
+        }
         @include breakpoint(tablet) {
           td:nth-child(3),
           td:nth-child(5),
