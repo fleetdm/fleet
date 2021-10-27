@@ -10,7 +10,7 @@ on:
       - '**.go'
 
 jobs:
-  test-go:
+  test-packaging:
     strategy:
       fail-fast: false
       matrix:
@@ -53,13 +53,13 @@ jobs:
       run: make fleetctl
 
     - name: Build MSI
-      run: go run ./cmd/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build PKG
-      run: go run ./cmd/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build DEB
-      run: go run ./cmd/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build RPM
-      run: go run ./cmd/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
