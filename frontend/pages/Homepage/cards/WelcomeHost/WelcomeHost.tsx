@@ -55,7 +55,6 @@ const WelcomeHost = (): JSX.Element => {
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
           (p) => p.response === "passing" || p.response === "failing"
         );
-        console.log({ anyPassingOrFailingPolicy });
         setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
 
         if (returnedHost.refetch_requested) {
