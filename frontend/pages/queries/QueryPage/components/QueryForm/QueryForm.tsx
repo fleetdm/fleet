@@ -252,7 +252,7 @@ const QueryForm = ({
 
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
-      <form className={`${baseClass}__wrapper`}>
+      <form className={`${baseClass}__wrapper`} autoComplete="off">
         {isEditMode ? (
           <InputField
             id="query-name"

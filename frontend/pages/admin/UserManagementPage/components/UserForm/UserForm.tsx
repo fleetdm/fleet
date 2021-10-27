@@ -449,7 +449,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
     }
 
     return (
-      <form className={baseClass}>
+      <form className={baseClass} autoComplete="off">
         {/* {baseError && <div className="form__base-error">{baseError}</div>} */}
         <InputFieldWithIcon
           autofocus

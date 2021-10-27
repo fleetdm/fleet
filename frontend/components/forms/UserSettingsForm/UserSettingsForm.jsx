@@ -44,7 +44,7 @@ class UserSettingsForm extends Component {
     const { renderEmailHint } = this;
 
     return (
-      <form onSubmit={handleSubmit} className={baseClass}>
+      <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
         <div
           className="smtp-not-configured"
           data-tip

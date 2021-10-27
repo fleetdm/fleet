@@ -324,7 +324,7 @@ class AppConfigForm extends Component {
 
     return (
       <>
-        <form className={baseClass} onSubmit={handleSubmit}>
+        <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
           <div className={`${baseClass}__section`}>
             <h2>
               <a id="organization-info">Organization info</a>

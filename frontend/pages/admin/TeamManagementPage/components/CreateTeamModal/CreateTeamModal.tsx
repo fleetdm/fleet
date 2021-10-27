@@ -42,7 +42,11 @@ const CreateTeamModal = ({
 
   return (
     <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputFieldWithIcon
           autofocus
           // error={errors.name}
