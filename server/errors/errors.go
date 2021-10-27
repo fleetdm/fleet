@@ -107,20 +107,63 @@ func sha256b64(s string) string {
 }
 
 func hashError(err error) string {
+	// Ok so the hashing process is as follows:
+	//
+	// a) we want to hash the type and error message of the *root* error (the
+	// last unwrapped error) so that if by mistake the same error is sent to
+	// Handler.Handle in multiple places in the code, after being wrapped
+	// differently any number of times, it still hashes to the same value
+	// (because the root is the same). The type is not sufficient because some
+	// errors have the same type but variable parts (e.g.  a struct value that
+	// implements the error interface and the message contains a file name that
+	// caused the error and that is stored in a struct field).
+	//
+	// b) in addition that a), we also want to hash the location closest to where
+	// the error occurred, so that the same error type and message (say,
+	// sql.ErrNoRows or io.UnexpectedEOF) caused at two different places in the
+	// code are not considered the same error. To get that location, the error
+	// must be wrapped at some point by eris.Wrap (or must be a user-created
+	// error via eris.New).
+	//
+	// c) if we call eris.Unpack on an error that is not *directly* an "eris"
+	// error (i.e. an error value returned from eris.Wrap or eris.New), then
+	// eris.Unpack will not return any location information. So if for example
+	// the error was wrapped with the pkg/errors.Wrap or the stdlib's fmt.Errorf
+	// calls at some point, eris.Unpack will not give us any location info. To
+	// get around this, we look for an eris-created error in the wrapped chain,
+	// and only give up hashing the location if we can't find any.
+	//
+	// d) there is no easy way to identify an "eris" error (i.e. we cannot simply
+	// use errors.As(err, <some Eris error type>)) as eris does not export its
+	// error type, and it actually uses 2 different internal error types. To get
+	// around this, we look for an error that has the `StackFrames() []uintptr`
+	// method, as both of eris internal errors implement that (see
+	// https://github.com/rotisserie/eris/blob/v0.5.1/eris.go#L182).
+
+	var sf interface{ StackFrames() []uintptr }
+	if errors.As(err, &sf) {
+		err = sf.(error)
+	}
+
 	unpackedErr := eris.Unpack(err)
 
-	if unpackedErr.ErrExternal == nil && len(unpackedErr.ErrRoot.Stack) == 0 {
+	if unpackedErr.ErrExternal == nil &&
+		len(unpackedErr.ErrRoot.Stack) == 0 &&
+		len(unpackedErr.ErrChain) == 0 {
 		return sha256b64(unpackedErr.ErrRoot.Msg)
 	}
 
 	var sb strings.Builder
 	if unpackedErr.ErrExternal != nil {
-		root := unwrapAll(unpackedErr.ErrExternal)
+		root := eris.Cause(unpackedErr.ErrExternal)
 		fmt.Fprintf(&sb, "%T\n%s\n", root, root.Error())
 	}
 
 	if len(unpackedErr.ErrRoot.Stack) > 0 {
 		lastFrame := unpackedErr.ErrRoot.Stack[0]
+		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
+	} else if len(unpackedErr.ErrChain) > 0 {
+		lastFrame := unpackedErr.ErrChain[0].Frame
 		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
 	}
 	return sha256b64(sb.String())
@@ -236,14 +279,4 @@ func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
 		}
 		w.Write(bytes)
 	}
-}
-
-// returns the root error from err, unwrapping until finding an error that
-// cannot be unwrapped anymore. Returns nil if err is nil.
-func unwrapAll(err error) error {
-	var root error
-	for e := err; e != nil; e = errors.Unwrap(e) {
-		root = e
-	}
-	return root
 }

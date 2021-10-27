@@ -77,22 +77,57 @@ func TestHashErr(t *testing.T) {
 }
 
 func TestHashErrEris(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
+	t.Run("Marshal", func(t *testing.T) {
+		wd, err := os.Getwd()
+		require.NoError(t, err)
 
-	generatedErr := eris.New("some err")
-	res, jsonBytes, err := hashAndMarshalError(generatedErr)
-	require.NoError(t, err)
-	assert.NotEmpty(t, res)
+		generatedErr := eris.New("some err")
+		res, jsonBytes, err := hashAndMarshalError(generatedErr)
+		require.NoError(t, err)
+		assert.NotEmpty(t, res)
 
-	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "some err",
     "stack": \[
-      "errors.TestHashErrEris:%s/errors_test\.go:\d+"
+      "errors.TestHashErrEris\.func\d+:%s/errors_test\.go:\d+"
     \]
   \}
 \}`, regexp.QuoteMeta(wd))), jsonBytes)
+	})
+
+	t.Run("HashWrapped", func(t *testing.T) {
+		// hashing an eris error that wraps a root error hashes to the same
+		// value if it is from the same location, even if wrapped differently
+		// afterwards.
+		err := alwaysWrappedErr()
+		werr1, werr2 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
+		wantHash := hashError(err)
+		h1, h2 := hashError(werr1), hashError(werr2)
+		assert.Equal(t, wantHash, h1)
+		assert.Equal(t, wantHash, h2)
+	})
+
+	t.Run("HashNew", func(t *testing.T) {
+		err := alwaysErisErrors()
+		werr := eris.Wrap(err, "wrap eris")
+		werr1, werr2 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
+		wantHash := hashError(err)
+		h0, h1, h2 := hashError(werr), hashError(werr1), hashError(werr2)
+		assert.Equal(t, wantHash, h0)
+		assert.Equal(t, wantHash, h1)
+		assert.Equal(t, wantHash, h2)
+	})
+
+	t.Run("HashSameRootDifferentLocation", func(t *testing.T) {
+		err1 := alwaysWrappedErr()
+		err2 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
+		err3 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
+		h1, h2, h3 := hashError(err1), hashError(err2), hashError(err3)
+		assert.NotEqual(t, h1, h2)
+		assert.NotEqual(t, h1, h3)
+		assert.NotEqual(t, h2, h3)
+	})
 }
 
 func TestUnwrapAll(t *testing.T) {
@@ -102,9 +137,9 @@ func TestUnwrapAll(t *testing.T) {
 	eerr := eris.Wrap(gerr, "eris wrap")
 	eerr2 := eris.Wrap(eerr, "eris wrap 2")
 
-	uw := unwrapAll(eerr2)
+	uw := eris.Cause(eerr2)
 	assert.Equal(t, uw, root)
-	assert.Nil(t, unwrapAll(nil))
+	assert.Nil(t, eris.Cause(nil))
 }
 
 func TestErrorHandler(t *testing.T) {
