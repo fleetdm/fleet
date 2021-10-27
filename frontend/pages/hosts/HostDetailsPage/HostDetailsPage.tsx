@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import classnames from "classnames";
-import { find, isEmpty, pick, reduce } from "lodash";
+import { isEmpty, pick, reduce } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -16,14 +16,17 @@ import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/host_policy";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
+import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal"; // @ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
+import Modal from "components/modals/Modal";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner";
 
@@ -42,7 +45,8 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "fleet/helpers"; // @ts-ignore
+} from "fleet/helpers";
+// @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
 import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
@@ -97,10 +101,21 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
-    setCurrentTeam,
+    currentUser,
   } = useContext(AppContext);
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+
+  const canDeleteHost = (user: IUser, host: IHost) => {
+    if (
+      (isPremiumTier && (isGlobalAdmin || isGlobalMaintainer)) ||
+      permissionUtils.isTeamAdmin(user, host.team_id) ||
+      permissionUtils.isTeamMaintainer(user, host.team_id)
+    ) {
+      return true;
+    }
+    return false;
+  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
@@ -135,7 +150,6 @@ const HostDetailsPage = ({
     setShowRefetchLoadingSpinner,
   ] = useState<boolean>(false);
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
-  const [teamsState, setTeamsState] = useState<ITeam[]>([]);
   const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState<string>("");
@@ -157,14 +171,11 @@ const HostDetailsPage = ({
     Error,
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
+    enabled: !!hostIdFromURL && isPremiumTier,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     select: (data: ITeamsResponse) => data.teams,
-    onSuccess: (returnedTeams) => {
-      setTeamsState(returnedTeams);
-    },
   });
 
   const {
@@ -172,7 +183,7 @@ const HostDetailsPage = ({
     data: host,
     refetch: fullyReloadHost,
   } = useQuery<IHostResponse, Error, IHost>(
-    teamsState && ["host", hostIdFromURL],
+    ["host", hostIdFromURL],
     () => hostAPI.load(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
@@ -187,11 +198,9 @@ const HostDetailsPage = ({
       // which above we renamed to fullyReloadHost. For example, we use fullyReloadHost with the refetch
       // button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
-        const selectedTeam = find(teamsState, ["id", returnedHost.team_id]);
-
         setSoftwareState(returnedHost.software);
         setUsersState(returnedHost.users);
-        setCurrentTeam(selectedTeam);
+        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
 
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -481,7 +490,7 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {!isOnlyObserver && (
+        {currentUser && host && canDeleteHost(currentUser, host) && (
           <Button
             onClick={() => setShowDeleteHostModal(true)}
             variant="text-icon"

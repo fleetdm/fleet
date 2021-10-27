@@ -71,11 +71,8 @@ const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
   return false;
 };
 
-const isOnlyObserver = (user: IUser, teamId?: number): boolean => {
+const isOnlyObserver = (user: IUser): boolean => {
   if (isGlobalObserver(user)) {
-    return true;
-  }
-  if (teamId && isTeamObserver(user, teamId)) {
     return true;
   }
 
