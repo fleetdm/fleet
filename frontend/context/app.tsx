@@ -90,7 +90,7 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
     isAnyTeamAdmin: permissions.isAnyTeamAdmin(user),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isTeamAdmin: permissions.isTeamAdmin(user, teamId),
-    isOnlyObserver: permissions.isOnlyObserver(user),
+    isOnlyObserver: permissions.isOnlyObserver(user, teamId),
   };
 };
 
