@@ -120,10 +120,18 @@
         th:not(:nth-child(1)) {
           width: 134px;
         }
-        th:nth-child(3),
-        th:nth-child(5),
-        th:nth-child(7) {
-          display: none;
+        @include breakpoint(tablet) {
+          th:nth-child(3),
+          th:nth-child(5),
+          th:nth-child(7) {
+            display: none;
+          }
+        }
+        @include breakpoint(ltdesktop) {
+          th:nth-child(3),
+          th:nth-child(5) {
+            display: none;
+          }
         }
         th.platforms__header {
           width: 54px;
@@ -131,10 +139,18 @@
       }
 
       tbody {
-        td:nth-child(3),
-        td:nth-child(5),
-        td:nth-child(7) {
-          display: none;
+        @include breakpoint(tablet) {
+          td:nth-child(3),
+          td:nth-child(5),
+          td:nth-child(7) {
+            display: none;
+          }
+        }
+        @include breakpoint(ltdesktop) {
+          td:nth-child(3),
+          td:nth-child(5) {
+            display: none;
+          }
         }
         td {
           overflow: hidden;

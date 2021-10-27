@@ -1,14 +1,9 @@
-$min-width: 768px;
 $medium-width: 1024px;
 $desktop-width: 1200px;
 $max-width: 2560px;
 
 @mixin breakpoint($size: desktop) {
-  @if ($size == small) {
-    @media (max-width: $medium-width) {
-      @content;
-    }
-  } @else if ($size == tablet) {
+  @if ($size == tablet) {
     @media (max-width: $medium-width) {
       @content;
     }
@@ -22,6 +17,10 @@ $max-width: 2560px;
     }
   } @else if ($size == smalldesk) {
     @media (max-width: 1185px) {
+      @content;
+    }
+  } @else if ($size == largedesk) {
+    @media (min-width: $desktop-width) {
       @content;
     }
   } @else {
