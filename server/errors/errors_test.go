@@ -2,6 +2,7 @@ package errors
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,14 +61,14 @@ func TestHashErr(t *testing.T) {
 
 	t.Run("generates json", func(t *testing.T) {
 		generatedErr := pkgErrors.New("some err")
-		res, jsonBytes, err := hashErr(generatedErr)
+		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.Equal(t, "mWoqz7iS1IPOZXGhpzHLl_DVQOyemWxCmvkpLz8uEZk=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some err`))
 
 		generatedErr2 := pkgErrors.New("some other err")
-		res, jsonBytes, err = hashErr(generatedErr2)
+		res, jsonBytes, err = hashAndMarshalError(generatedErr2)
 		require.NoError(t, err)
 		assert.Equal(t, "8AXruOzQmQLF4H3SrzLxXSwFQgZ8DcbkoF1owo0RhTs=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
@@ -80,7 +81,7 @@ func TestHashErrEris(t *testing.T) {
 	require.NoError(t, err)
 
 	generatedErr := eris.New("some err")
-	res, jsonBytes, err := hashErr(generatedErr)
+	res, jsonBytes, err := hashAndMarshalError(generatedErr)
 	require.NoError(t, err)
 	assert.NotEmpty(t, res)
 
@@ -92,6 +93,18 @@ func TestHashErrEris(t *testing.T) {
     \]
   \}
 \}`, regexp.QuoteMeta(wd))), jsonBytes)
+}
+
+func TestUnwrapAll(t *testing.T) {
+	root := sql.ErrNoRows
+	werr := pkgErrors.Wrap(root, "pkg wrap")
+	gerr := fmt.Errorf("fmt wrap: %w", werr)
+	eerr := eris.Wrap(gerr, "eris wrap")
+	eerr2 := eris.Wrap(eerr, "eris wrap 2")
+
+	uw := unwrapAll(eerr2)
+	assert.Equal(t, uw, root)
+	assert.Nil(t, unwrapAll(nil))
 }
 
 func TestErrorHandler(t *testing.T) {

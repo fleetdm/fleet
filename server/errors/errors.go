@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -114,7 +115,8 @@ func hashError(err error) string {
 
 	var sb strings.Builder
 	if unpackedErr.ErrExternal != nil {
-		fmt.Fprintf(&sb, "%T\n%s\n", unpackedErr.ErrExternal, unpackedErr.ErrExternal.Error())
+		root := unwrapAll(unpackedErr.ErrExternal)
+		fmt.Fprintf(&sb, "%T\n%s\n", root, root.Error())
 	}
 
 	if len(unpackedErr.ErrRoot.Stack) > 0 {
@@ -124,7 +126,7 @@ func hashError(err error) string {
 	return sha256b64(sb.String())
 }
 
-func hashErr(externalErr error) (errHash string, errAsJson string, err error) {
+func hashAndMarshalError(externalErr error) (errHash string, errAsJson string, err error) {
 	m := eris.ToJSON(externalErr, true)
 	bytes, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
@@ -154,7 +156,7 @@ func (h *Handler) handleErrors(ctx context.Context) {
 }
 
 func (h *Handler) storeError(ctx context.Context, err error) {
-	errorHash, errorJson, err := hashErr(err)
+	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
 		if testOnStore != nil {
@@ -234,4 +236,14 @@ func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
 		}
 		w.Write(bytes)
 	}
+}
+
+// returns the root error from err, unwrapping until finding an error that
+// cannot be unwrapped anymore. Returns nil if err is nil.
+func unwrapAll(err error) error {
+	var root error
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		root = e
+	}
+	return root
 }
