@@ -251,7 +251,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			// Give it a bit of time so the current device is the one with id 1
-			time.Sleep(2 * time.Second)
+			fmt.Println("Waiting for current host to enroll...")
+			if err := waitFirstHost(client); err != nil {
+				return errors.Wrap(err, "wait for current host")
+			}
 
 			fmt.Println("Starting simulated hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
@@ -407,6 +410,30 @@ func waitStartup() error {
 		retryStrategy,
 	); err != nil {
 		return errors.Wrap(err, "checking server health")
+	}
+
+	return nil
+}
+
+func waitFirstHost(client *service.Client) error {
+	retryStrategy := backoff.NewExponentialBackOff()
+	retryStrategy.MaxInterval = 1 * time.Second
+
+	if err := backoff.Retry(
+		func() error {
+			hosts, err := client.GetHosts("")
+			if err != nil {
+				return err
+			}
+			if len(hosts) == 0 {
+				return errors.New("no hosts yet")
+			}
+
+			return nil
+		},
+		retryStrategy,
+	); err != nil {
+		return errors.Wrap(err, "checking host count")
 	}
 
 	return nil
