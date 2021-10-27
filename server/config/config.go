@@ -117,9 +117,10 @@ type OsqueryConfig struct {
 
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
-	Debug         bool
-	JSON          bool
-	DisableBanner bool `yaml:"disable_banner"`
+	Debug                bool
+	JSON                 bool
+	DisableBanner        bool          `yaml:"disable_banner"`
+	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -389,6 +390,8 @@ func (man Manager) addConfigs() {
 		"Log in JSON format")
 	man.addConfigBool("logging.disable_banner", false,
 		"Disable startup banner")
+	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
+		"Amount of time to keep errors")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -556,9 +559,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxJitterPercent:     man.getConfigInt("osquery.max_jitter_percent"),
 		},
 		Logging: LoggingConfig{
-			Debug:         man.getConfigBool("logging.debug"),
-			JSON:          man.getConfigBool("logging.json"),
-			DisableBanner: man.getConfigBool("logging.disable_banner"),
+			Debug:                man.getConfigBool("logging.debug"),
+			JSON:                 man.getConfigBool("logging.json"),
+			DisableBanner:        man.getConfigBool("logging.disable_banner"),
+			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),

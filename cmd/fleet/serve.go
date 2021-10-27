@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/url"
 
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -338,7 +340,7 @@ the way that the Fleet server works.
 			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			eh := fleetErrors.NewHandler(ctx, redisPool, logger)
+			eh := fleetErrors.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
@@ -383,6 +385,7 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
+			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           launcher.Handler(rootMux),
@@ -391,6 +394,9 @@ the way that the Fleet server works.
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
+				BaseContext: func(l net.Listener) context.Context {
+					return httpSrvCtx
+				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)

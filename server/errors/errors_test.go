@@ -99,7 +99,7 @@ func TestErrorHandler(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately
 
-		eh := NewHandler(ctx, nil, kitlog.NewNopLogger())
+		eh := NewHandler(ctx, nil, kitlog.NewNopLogger(), time.Minute)
 
 		doneCh := make(chan struct{})
 		go func() {
@@ -153,7 +153,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 			close(chDone)
 		}
 	}
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
 
 	<-chGo
 
@@ -203,7 +203,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 		}
 	}
 
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
 
 	<-chGo
 
@@ -265,7 +265,7 @@ func TestHttpHandler(t *testing.T) {
 		}
 	}
 
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger())
+	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
 
 	<-chGo
 	// store two errors

@@ -38,19 +38,21 @@ var (
 type Handler struct {
 	pool    fleet.RedisPool
 	logger  kitlog.Logger
-	running int32
+	ttl     time.Duration
+	running int32 // accessed atomically
 	errCh   chan error
 }
 
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
-// errors when ctx is cancelled.
-func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger) *Handler {
+// errors when ctx is cancelled. Errors are kept for the duration of ttl.
+func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration) *Handler {
 	ch := make(chan error, 1)
 
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
+		ttl:    ttl,
 		errCh:  ch,
 	}
 	go eh.handleErrors(ctx)
@@ -165,7 +167,11 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
-	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", int((24 * time.Hour).Seconds())); err != nil {
+	secs := int(h.ttl.Seconds())
+	if secs <= 0 {
+		secs = 1 // SET EX fails if ttl is <= 0
+	}
+	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", secs); err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
 		if testOnStore != nil {
 			testOnStore(err)
@@ -182,10 +188,9 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 // still running. In any case, it always returns the error wrapped with an
 // eris error (stack trace and extra information).
 //
-// If the provided ctx contains additional metadata (user, host, etc.), this is
-// added to the error's.  If the ctx is cancelled before the error is stored,
-// the call returns without storing the error, otherwise it waits for a
-// predefined period of time to try to store the error.
+// If the ctx is cancelled before the error is stored, the call returns without
+// storing the error, otherwise it waits for a predefined period of time to try
+// to store the error.
 func (h *Handler) New(ctx context.Context, err error) error {
 	// TODO: wrap in eris error with other metadata
 	err = eris.Wrapf(err, "timestamp: %v", time.Now().Format(time.RFC3339))
