@@ -35,16 +35,16 @@ The following table depicts various permissions levels for each role.
 | Create labels                                        |          | ✅         | ✅    |
 | Edit labels                                          |          | ✅         | ✅    |
 | Delete labels                                        |          | ✅         | ✅    |
-| Create new global policies                           |          | ✅         | ✅    |
-| Delete global policies                               |          | ✅         | ✅    |
+| Add policies for all hosts                           |          | ✅         | ✅    |
+| Remove policies for all hosts                        |          | ✅         | ✅    |
 | Create users                                         |          |            | ✅    |
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
 | Edit organization settings                           |          |            | ✅    |
 | Create enroll secrets                                |          |            | ✅    |
 | Edit enroll secrets                                  |          |            | ✅    |
-| Edit global level agent options                      |          |            | ✅    |
-| Edit team level agent options\*                      |          |            | ✅    |
+| Edit agent options                                   |          |            | ✅    |
+| Edit agent options for hosts assigned to teams\*     |          |            | ✅    |
 | Create teams\*                                       |          |            | ✅    |
 | Edit teams\*                                         |          |            | ✅    |
 | Add members to teams\*                               |          |            | ✅    |
@@ -59,7 +59,9 @@ The following table depicts various permissions levels for each role.
 ℹ️  In Fleet 4.0, the Teams feature was introduced.
 ```
 
-Users either have global access to Fleet or team access to Fleet. Check out [the user permissions table](#user-permissions) above for global user permissions.
+Users either have global access or team access in Fleet. Users with global access can observe and act on all hosts in Fleet. Check out [the user permissions table](#user-permissions) above for global user permissions.
+
+Users with team access can only observe and act on hosts that are assigned to their team.
 
 Users can be a member of multiple teams in Fleet.
 
