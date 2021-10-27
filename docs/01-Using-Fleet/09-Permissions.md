@@ -70,23 +70,20 @@ The following table depicts various permissions levels in a team.
 | Action                                                       | Observer | Maintainer | Admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
 | Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
-| Browse team policies                                         | ✅       | ✅         | ✅       |
+| Browse policies for hosts assigned to team                   | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using policies                 | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Run saved queries as live queries on hosts assigned to team  | ✅       | ✅         | ✅       |
 | Run custom queries as live queries on hosts assigned to team |          | ✅         | ✅       |
-| Enroll hosts to member team                                  |          | ✅         | ✅       |
-| Delete hosts belonging to member team                        |          | ✅         | ✅       |
-| Create saved queries                                         |          | ✅         | ✅       |
+| Enroll hosts to team                                         |          | ✅         | ✅       |
+| Delete hosts assigned to team                                |          | ✅         | ✅       |
+| Create queries                                               |          | ✅         | ✅       |
 | Edit queries they authored                                   |          | ✅         | ✅       |
 | Delete queries they authored                                 |          | ✅         | ✅       |
-| Add queries to team schedule                                 |          | ✅         | ✅       |
-| Remove queries from team schedule                            |          | ✅         | ✅       |
-| Browse queries from "All teams" schedule                     |          | ✅         | ✅       |
-| Add new team policies                                        |          | ✅         | ✅       |
-| Remove team policies                                         |          | ✅         | ✅       |
-| Browse "All teams" policies                                  |          | ✅         | ✅       |
+| Schedule queries for hosts assigned to team                  |          | ✅         | ✅       |
+| Add policies for hosts assigned to team                      |          | ✅         | ✅       |
+| Remove policies for hosts assigned to team                   |          | ✅         | ✅       |
 | Edit users assigned to team                                  |          |            | ✅       |
 | Remove users assigned to team                                |          |            | ✅       |
 | Edit agent options for hosts assigned to team                |          |            | ✅       |
