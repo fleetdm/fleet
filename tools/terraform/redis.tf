@@ -31,7 +31,7 @@ resource "aws_elasticache_replication_group" "default" {
 
   cluster_mode {
     replicas_per_node_group = 0
-    num_node_groups         = 8
+    num_node_groups         = 3
   }
 }
 
