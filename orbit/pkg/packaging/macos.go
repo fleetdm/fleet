@@ -22,13 +22,11 @@ import (
 // Linux.
 func BuildPkg(opt Options) error {
 	// Initialize directories
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return err
 	}
-	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
@@ -111,7 +109,7 @@ func BuildPkg(opt Options) error {
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
-	if err := os.Rename(generatedPath, filename); err != nil {
+	if err := copyFile(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return errors.Wrap(err, "rename pkg")
 	}
 	log.Info().Str("path", filename).Msg("wrote pkg package")
@@ -231,10 +229,16 @@ func xarBom(opt Options, rootPath string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
-	case "linux":
-		cmdMkbom = exec.Command("mkbom", "-u", "0", "-g", "80", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
+		cmdMkbom.Dir = rootPath
+	default:
+		cmdMkbom = exec.Command(
+			"docker", "run", "--rm", "-v", rootPath+":/root", "fleetdm/bomutils",
+			"mkbom", "-u", "0", "-g", "80",
+			// Use / instead of filepath.Join because these will always be paths within the Docker
+			// container (so Linux file paths)
+			"/root/root", "/root/flat/base.pkg/Bom",
+		)
 	}
-	cmdMkbom.Dir = rootPath
 	cmdMkbom.Stdout = os.Stdout
 	cmdMkbom.Stderr = os.Stderr
 	if err := cmdMkbom.Run(); err != nil {
@@ -259,8 +263,18 @@ func xarBom(opt Options, rootPath string) error {
 	}
 
 	// Make xar
-	cmdXar := exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
-	cmdXar.Dir = filepath.Join(rootPath, "flat")
+	var cmdXar *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmdXar = exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
+		cmdXar.Dir = filepath.Join(rootPath, "flat")
+	default:
+		cmdXar = exec.Command(
+			"docker", "run", "--rm", "-v", rootPath+":/root", "-w", "/root/flat", "fleetdm/bomutils",
+			"xar",
+		)
+		cmdXar.Args = append(cmdXar.Args, append([]string{"--compression", "none", "-cf", "/root/orbit.pkg"}, files...)...)
+	}
 	cmdXar.Stdout = os.Stdout
 	cmdXar.Stderr = os.Stderr
 

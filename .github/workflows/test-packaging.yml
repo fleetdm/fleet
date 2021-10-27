@@ -1,0 +1,62 @@
+name: Test packaging
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+  pull_request:
+    paths:
+      - '**.go'
+
+jobs:
+  test-packaging:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['^1.17.0']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Docker
+      if: matrix.os == 'macos-latest'
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
+    - name: Pull fleetdm/wix
+      # Run in background while other steps complete to speed up the workflow
+      run: docker pull fleetdm/wix:latest &
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    # It seems faster not to cache Go dependencies
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build fleetctl
+      run: make fleetctl
+
+    - name: Build DEB
+      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build RPM
+      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build MSI
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build PKG
+      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
