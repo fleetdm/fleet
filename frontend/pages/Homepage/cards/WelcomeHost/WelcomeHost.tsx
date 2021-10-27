@@ -26,7 +26,7 @@ interface IHostResponse {
 }
 
 const baseClass = "welcome-host";
-const HOST_ID = 8;
+const HOST_ID = 1;
 
 const WelcomeHost = (): JSX.Element => {
   const dispatch = useDispatch();
