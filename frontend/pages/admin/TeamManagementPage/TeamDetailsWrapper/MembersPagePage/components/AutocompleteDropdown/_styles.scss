@@ -43,6 +43,19 @@
           }
         }
       }
+      .Select-clear-zone {
+        transition: color 150ms ease-in-out;
+        content: url(../assets/images/icon-close-fleet-black-16x16@2x.png);
+        top: 1px;
+        left: -8px;
+
+        &:hover {
+          transition: color 150ms ease-in-out;
+          content: url(../assets/images/icon-close-vibrant-blue-16x16@2x.png);
+          top: 1px;
+          left: -8px;
+        }
+      }
     }
   }
 }
