@@ -103,7 +103,7 @@ export class ConfigurePackQueryForm extends Component {
     const loggingType = fields.logging_type.value || "snapshot";
 
     return (
-      <form className={baseClass} onSubmit={handleSubmit}>
+      <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
         <h2 className={`${baseClass}__title`}>Configuration</h2>
         <div className={`${baseClass}__fields`}>
           <Dropdown

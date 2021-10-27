@@ -67,7 +67,7 @@ const NewQueryModal = ({
 
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`}>
+      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}

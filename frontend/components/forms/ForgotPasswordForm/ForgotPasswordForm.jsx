@@ -24,7 +24,7 @@ class ForgotPasswordForm extends Component {
     const { baseError, fields, handleSubmit } = this.props;
 
     return (
-      <form onSubmit={handleSubmit} className={baseClass}>
+      <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
         <InputFieldWithIcon {...fields.email} autofocus placeholder="Email" />
         <div className={`${baseClass}__button-wrap`}>

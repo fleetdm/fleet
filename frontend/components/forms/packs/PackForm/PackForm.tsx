@@ -79,7 +79,7 @@ const EditPackForm = ({
   const packFormClass = classnames(baseClass, className);
 
   return (
-    <form className={packFormClass} onSubmit={onFormSubmit}>
+    <form className={packFormClass} onSubmit={onFormSubmit} autoComplete="off">
       <h1>New pack</h1>
       {baseError && <div className="form__base-error">{baseError}</div>}
       <InputField
