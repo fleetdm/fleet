@@ -13,7 +13,7 @@
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
 - [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
-- [Is there a MySQL user for replication?](#is-there-a-mysql-user-for-replication)
+- [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 
 ## How do I get support for working with Fleet?
@@ -124,9 +124,9 @@ Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Auro
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
 
-## Is there a MySQL user for replication?
+## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. We support read replicas
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. We support read replicas, you can read more about MySQL configuration [here](./02-Configuration.md#my-sql).
 
 ## What is duplicate enrollment and how do I fix it?
 
