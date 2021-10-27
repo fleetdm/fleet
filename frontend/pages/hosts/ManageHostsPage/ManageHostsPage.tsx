@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -900,41 +900,6 @@ const ManageHostsPage = ({
       }
     />
   );
-  //   if (isPremiumTier && isLoadingTeams) {
-  //     return null;
-  //   }
-
-  //   if (!isPremiumTier) {
-  //     return <h1>Hosts</h1>;
-  //   }
-
-  //   const teamOptions = generateTeamFilterDropdownOptions(
-  //     teams || [],
-  //     currentUser,
-  //     isOnGlobalTeam as boolean
-  //   );
-  //   const selectedTeamId = getValidatedTeamId(
-  //     teams || [],
-  //     (policyId && policy?.team_id) || (currentTeam?.id as number),
-  //     currentUser,
-  //     isOnGlobalTeam as boolean
-  //   );
-
-  //   return (
-  //     <div>
-  //       <Dropdown
-  //         value={selectedTeamId}
-  //         placeholder={"All teams"}
-  //         className={`${baseClass}__team-dropdown`}
-  //         options={teamOptions}
-  //         searchable={false}
-  //         onChange={(newSelectedValue: number) =>
-  //           handleChangeSelectedTeamFilter(newSelectedValue)
-  //         }
-  //       />
-  //     </div>
-  //   );
-  // };
 
   const renderPoliciesFilterBlock = () => {
     const buttonText = (
@@ -1329,8 +1294,6 @@ const ManageHostsPage = ({
       />
     );
   };
-
-  const selectedTeam = currentTeam?.id || 0;
 
   return (
     <div className="has-sidebar">
