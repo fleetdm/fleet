@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         go-version: ['^1.17.0']
     runs-on: ${{ matrix.os }}
 
@@ -39,7 +39,13 @@ jobs:
 
     - name: Install Docker
       if: matrix.os == 'macos-latest'
-      run: brew install --cask docker && brew install --force docker && open /Applications/Docker.app
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
 
     - name: Build MSI
       run: go run ./cmd/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
