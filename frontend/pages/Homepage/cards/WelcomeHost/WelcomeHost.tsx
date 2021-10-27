@@ -33,6 +33,7 @@ const WelcomeHost = (): JSX.Element => {
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
   const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
+  const [isPoliciesEmpty, setIsPoliciesEmpty] = useState<boolean>(false);
   const [
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
@@ -50,6 +51,13 @@ const WelcomeHost = (): JSX.Element => {
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+
+        const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
+          (p) => p.response === "passing" || p.response === "failing"
+        );
+        console.log({ anyPassingOrFailingPolicy });
+        setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
+
         if (returnedHost.refetch_requested) {
           // Code duplicated from HostDetailsPage. See comments there.
           if (!refetchStartTime) {
@@ -90,7 +98,7 @@ const WelcomeHost = (): JSX.Element => {
         }
       },
       onError: (error) => {
-        console.log(error);
+        console.error(error);
         dispatch(
           renderFlash("error", `Unable to load host. Please try again.`)
         );
@@ -108,7 +116,7 @@ const WelcomeHost = (): JSX.Element => {
           setTimeout(() => fullyReloadHost(), 1000);
         });
       } catch (error) {
-        console.log(error);
+        console.error(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
         setShowRefetchLoadingSpinner(false);
       }
@@ -164,7 +172,7 @@ const WelcomeHost = (): JSX.Element => {
     );
   }
 
-  if (host && !host.policies) {
+  if (isPoliciesEmpty) {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
@@ -216,23 +224,29 @@ const WelcomeHost = (): JSX.Element => {
           </p>
         </div>
         <div className={`${baseClass}__policies`}>
-          {host.policies?.slice(0, 10).map((p) => (
-            <div className="policy-block">
-              <div className="info">
-                <img
-                  alt={p.response}
-                  src={p.response === "passing" ? IconPassed : IconError}
-                />
-                {p.query_name}
-              </div>
-              <Button
-                variant="text-icon"
-                onClick={() => handlePolicyModal(p.id)}
-              >
-                <img alt="" src={IconChevron} />
-              </Button>
-            </div>
-          ))}
+          {host.policies?.slice(0, 10).map((p) => {
+            if (p.response) {
+              return (
+                <div className="policy-block">
+                  <div className="info">
+                    <img
+                      alt={p.response}
+                      src={p.response === "passing" ? IconPassed : IconError}
+                    />
+                    {p.query_name}
+                  </div>
+                  <Button
+                    variant="text-icon"
+                    onClick={() => handlePolicyModal(p.id)}
+                  >
+                    <img alt="" src={IconChevron} />
+                  </Button>
+                </div>
+              );
+            }
+
+            return null;
+          })}
           {host.policies?.length > 10 && (
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
               Go to Host details to see all checks
