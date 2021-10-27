@@ -79,7 +79,7 @@
 
       &::after {
         transition: color 150ms ease-in-out;
-        content: url(../assets/images/icon-close-dark-blue-grey-16x16@2x.png);
+        content: url(../assets/images/icon-close-fleet-black-16x16@2x.png);
         transform: scale(0.5);
         position: absolute;
         top: -5px;
@@ -92,8 +92,8 @@
     }
 
     .Select-value-label {
-      font-size: $x-small;
-      color: $core-dark-blue-grey;
+      font-size: $xx-small;
+      color: $core-fleet-black;
       line-height: 28px;
     }
   }
@@ -167,8 +167,8 @@
     &.is-pseudo-focused > .Select-control {
       .Select-value {
         .Select-value-label {
-          color: $core-dark-blue-grey;
-          font-size: $x-small;
+          color: $core-fleet-black;
+          font-size: $xx-small;
         }
       }
     }
@@ -223,12 +223,17 @@
     color: $ui-gray;
   }
 
-  .Select-placeholder,
-  .Select-input {
+  .Select-placeholder {
     color: $core-fleet-blue;
     font-size: $small;
     line-height: 40px;
-    padding: 0 12px;
+    padding: 0 $pad-medium;
+    box-sizing: border-box;
+  }
+  .Select-input {
+    color: $core-fleet-blue;
+    font-size: $small;
+    padding-left: 2px;
     box-sizing: border-box;
   }
 
@@ -237,12 +242,15 @@
       display: flex;
       align-items: center;
       height: auto;
-      min-height: 40px;
     }
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
       padding: $pad-xsmall;
+
+      .Select-value {
+        margin-top: 2px;
+      }
     }
 
     .Select-arrow-zone {
