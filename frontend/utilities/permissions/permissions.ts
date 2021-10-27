@@ -25,12 +25,12 @@ export const isOnGlobalTeam = (user: IUser): boolean => {
   return user.global_role !== null;
 };
 
+// This checks against a specific team
 const isTeamObserver = (user: IUser, teamId: number): boolean => {
   const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "observer";
 };
 
-// This checks against a specific team
 const isTeamMaintainer = (
   user: IUser | null,
   teamId: number | null
