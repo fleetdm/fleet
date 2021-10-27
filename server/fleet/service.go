@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/kolide/kit/version"
@@ -220,6 +221,10 @@ type Service interface {
 	// Note that the type signature is somewhat inconsistent due to this being a streaming API and not the typical
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
+
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService

@@ -1,0 +1,142 @@
+.welcome-host {
+  p {
+    font-size: $x-small;
+  }
+
+  .button-slack {
+    width: 173px;
+    margin-top: 4px;
+  }
+
+  .icon-disabled {
+    width: 16px;
+    margin-right: 8px;
+    position: relative;
+    top: 3px;
+  }
+
+  p.error-message {
+    font-weight: $bold;
+    margin: 1.5rem 0;
+  }
+
+  .external-link {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none !important;
+
+    img {
+      transform: scale(0.5);
+    }
+    &:last-of-type {
+      margin-top: $pad-large;
+    }
+  }
+  &__intro {
+    margin-top: $pad-large;
+    display: flex;
+    align-items: center;
+
+    & > img {
+      width: 126px;
+    }
+    .info {
+      margin-left: $pad-medium;
+      flex: 1;
+
+      p {
+        margin: 0;
+        margin-top: $pad-small;
+      }
+    }
+  }
+  &__policies {
+    margin-top: $pad-large;
+    margin-bottom: $pad-large;
+
+    .policy-block {
+      padding: $pad-small 12px;
+      border: 1px solid $ui-fleet-black-25;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+
+      .info {
+        font-size: $small;
+        display: flex;
+        align-items: center;
+        line-height: 1;
+
+        img {
+          margin-right: $pad-small;
+          transform: scale(0.5);
+          position: relative;
+          top: -1px;
+        }
+      }
+      button {
+        height: auto;
+
+        img {
+          transform: scale(0.58) rotate(-90deg);
+          position: relative;
+          top: 1px;
+        }
+      }
+    }
+  }
+  &__refetch {
+    display: flex;
+    align-items: center;
+
+    button {
+      margin-right: $pad-small;
+
+      &.refetch-spinner {
+        color: $core-white;
+        font-size: $x-small;
+        height: 38px;
+
+        &::before {
+          display: inline-block;
+          position: relative;
+          padding: 5px 0 0 0; // centers spin
+          display: inline-block;
+          content: url(../assets/images/icon-refetch-white-12x12@2x.png);
+          transform: scale(0.5);
+        }
+
+        &.spin::before {
+          animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+          0% {
+            transform: scale(0.5) rotate(0deg);
+            transform-origin: center center;
+          }
+          100% {
+            transform: scale(0.5) rotate(360deg);
+            transform-origin: center center;
+          }
+        }
+      }
+    }
+    span {
+      padding-left: 4px;
+      font-size: $x-small;
+    }
+  }
+  &__policy-modal {
+    .done {
+      margin-top: $pad-large;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+}

@@ -3148,6 +3148,81 @@ o
 ]
 ```
 
+### Run live queries and retrieve 90 seconds of results using only REST
+
+The same endpoint used to run queries and gather the results over websockets can also be used to collect the results 
+over a fixed period of 90 seconds and get the results in the REST response.
+
+WARNING: this endpoint collects responses in memory and the elapsed time is capped at 90 seconds, regardless of whether
+all results possible have been gathered. This can cause an autoscaling event, depending on the configuration, or the 
+fleet instance crashing.
+
+`GET /api/v1/fleet/queries/run`
+
+#### Parameters
+
+
+| Name      | Type   | In   | Description                                   |
+| --------- | ------ | ---- | --------------------------------------------- |
+| query_ids | array  | body | **Required**. The IDs of the queries to run as live queries.               |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to run the live queries against. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/run`
+
+##### Request body
+
+```json
+{
+  "query_ids": [ 1, 2 ],
+  "host_ids": [ 1, 4, 34, 27 ]
+}
+```
+
+##### Default response
+
+```json
+{
+  "summary": {
+    "targeted_host_count": 4,
+    "responded_host_count": 2
+  },
+  "live_query_results": [
+    {
+      "query_id": 2,
+      "results": [
+        {
+          "host_id": 1,
+          "rows": [
+            {
+              "build_distro": "10.12",
+              "build_platform": "darwin",
+              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+              "config_valid": "1",
+              "extensions": "active",
+              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+              "pid": "23413",
+              "platform_mask": "21",
+              "start_time": "1635194306",
+              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+              "version": "4.9.0",
+              "watcher": "23412"
+            }
+          ],
+          "error": null
+        },
+        {
+          "host_id": 2,
+          "rows": [],
+          "error": "no such table: os_version"
+        }
+      ]
+    }
+  ]
+}
+```
+
 ---
 
 ## Schedule
