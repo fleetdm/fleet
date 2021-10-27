@@ -46,9 +46,6 @@ jobs:
     - name: Install Go Dependencies
       run: make deps-go
 
-    - name: Generate static files
-      run: make generate-go
-
     - name: Build fleetctl
       run: make fleetctl
 
