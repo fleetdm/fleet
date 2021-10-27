@@ -255,7 +255,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     let teamId: number | null = parseInt(location?.query?.team_id, 10) || 0;
 
     // If the team id does not match one in the user teams list,
-    // we use a default value and change call change handler
+    // we use a default value and call the change handler
     // to update url params with the default value.
     // We return early to guard against potential invariant condition.
     if (userTeams && !userTeams.find((t) => t.id === teamId)) {

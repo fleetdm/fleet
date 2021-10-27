@@ -1,17 +1,18 @@
 /**
  * Component when there is an error retrieving schedule set up in fleet
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useContext } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 import paths from "router/paths";
 
-import Button from "components/buttons/Button";
+import { AppContext } from "context/app";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import {
   generateInheritedQueriesTableHeaders,
@@ -33,7 +34,6 @@ interface IScheduleListWrapperProps {
   toggleScheduleEditorModal?: () => void;
   teamId: number;
   inheritedQueries?: boolean;
-  isTeamMaintainer: boolean;
 }
 interface IRootState {
   entities: {
@@ -55,8 +55,8 @@ const ScheduleListWrapper = ({
   onEditScheduledQueryClick,
   teamId,
   inheritedQueries,
-  isTeamMaintainer,
 }: IScheduleListWrapperProps): JSX.Element => {
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
 
@@ -70,7 +70,7 @@ const ScheduleListWrapper = ({
           <div className={`${noScheduleClass}__inner-text`}>
             <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
-              {!isTeamMaintainer
+              {isGlobalAdmin || isGlobalMaintainer
                 ? "Schedule a query, or go to your osquery packs via the 'Advanced' button."
                 : "Schedule a query to run on hosts assigned to this team."}
             </p>
@@ -82,7 +82,7 @@ const ScheduleListWrapper = ({
               >
                 Schedule a query
               </Button>
-              {!isTeamMaintainer && (
+              {(isGlobalAdmin || isGlobalMaintainer) && (
                 <Button
                   variant="inverse"
                   onClick={handleAdvanced}

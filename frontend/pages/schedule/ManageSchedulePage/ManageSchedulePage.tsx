@@ -1,9 +1,10 @@
 /* Conditionally renders global schedule and team schedules */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { push } from "react-router-redux";
+import { AppContext } from "context/app";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
@@ -21,7 +22,6 @@ import queryActions from "redux/nodes/entities/queries/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import permissionUtils from "utilities/permissions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
@@ -43,8 +43,7 @@ const renderTable = (
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
   allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
-  teamId: number,
-  isTeamMaintainer: boolean
+  teamId: number
 ): JSX.Element => {
   if (Object.keys(allScheduledQueriesError).length !== 0) {
     return <TableDataError />;
@@ -57,14 +56,12 @@ const renderTable = (
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       teamId={teamId}
-      isTeamMaintainer={isTeamMaintainer}
     />
   );
 };
 
 const renderAllTeamsTable = (
   teamId: number,
-  isTeamMaintainer: boolean,
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
   allTeamsScheduledQueriesError: { name: string; reason: string }[]
 ): JSX.Element => {
@@ -78,7 +75,6 @@ const renderAllTeamsTable = (
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         teamId={teamId}
-        isTeamMaintainer={isTeamMaintainer}
       />
     </div>
   );
@@ -138,6 +134,16 @@ interface ITeamOptions {
 const ManageSchedulePage = ({
   params: { team_id },
 }: ITeamSchedulesPageProps): JSX.Element => {
+  const {
+    currentUser,
+    isAnyTeamAdmin,
+    isAnyTeamMaintainer,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isOnGlobalTeam,
+    isPremiumTier,
+  } = useContext(AppContext);
+
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -152,20 +158,6 @@ const ManageSchedulePage = ({
         : globalScheduledQueryActions.loadAll()
     );
   }, [dispatch, teamId]);
-
-  const isPremiumTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "premium";
-  });
-
-  const user = useSelector(
-    (state: IRootState): IUser => {
-      return state.auth.user;
-    }
-  );
-
-  const isTeamMaintainer = useSelector((state: IRootState): boolean => {
-    return permissionUtils.isAnyTeamMaintainer(state.auth.user);
-  });
 
   const allQueries = useSelector((state: IRootState) => state.entities.queries);
   const allQueriesList = Object.values(allQueries.data);
@@ -200,9 +192,13 @@ const ManageSchedulePage = ({
   const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
     const teamOptions: ITeamOptions[] = [];
 
-    if (isTeamMaintainer) {
-      user.teams.forEach((team) => {
-        if (team.role === "maintainer") {
+    if (!currentUser) {
+      return [];
+    }
+
+    if (isAnyTeamMaintainer || isAnyTeamAdmin) {
+      currentUser.teams.forEach((team) => {
+        if (team.role === "admin" || team.role === "maintainer") {
           teamOptions.push({
             disabled: false,
             label: team.name,
@@ -380,12 +376,11 @@ const ManageSchedulePage = ({
     }
   };
 
-  if (selectedTeam === "global" && isTeamMaintainer) {
-    const teamMaintainerTeams = generateTeamOptionsDropdownItems();
+  const teamOptions = generateTeamOptionsDropdownItems();
+
+  if (selectedTeam === "global" && !isOnGlobalTeam) {
     dispatch(
-      push(
-        `${paths.MANAGE_TEAM_SCHEDULE(Number(teamMaintainerTeams[0].value))}`
-      )
+      push(`${paths.MANAGE_TEAM_SCHEDULE(Number(teamOptions[0].value))}`)
     );
   }
 
@@ -412,7 +407,7 @@ const ManageSchedulePage = ({
                 <Dropdown
                   value={selectedTeam}
                   className={`${baseClass}__team-dropdown`}
-                  options={generateTeamOptionsDropdownItems()}
+                  options={teamOptions}
                   searchable={false}
                   onChange={(newSelectedValue: number) =>
                     onChangeSelectedTeam(newSelectedValue)
@@ -438,7 +433,7 @@ const ManageSchedulePage = ({
           {allScheduledQueriesList.length !== 0 &&
             allScheduledQueriesError.length !== 0 && (
               <div className={`${baseClass}__action-button-container`}>
-                {!isTeamMaintainer && (
+                {(isGlobalAdmin || isGlobalMaintainer) && (
                   <Button
                     variant="inverse"
                     onClick={handleAdvanced}
@@ -464,8 +459,7 @@ const ManageSchedulePage = ({
             allScheduledQueriesList,
             allScheduledQueriesError,
             toggleScheduleEditorModal,
-            teamId,
-            isTeamMaintainer
+            teamId
           )}
         </div>
         {/* must use ternary for NaN */}
@@ -498,7 +492,6 @@ const ManageSchedulePage = ({
         {showInheritedQueries &&
           renderAllTeamsTable(
             teamId,
-            isTeamMaintainer,
             allTeamsScheduledQueriesList,
             allTeamsScheduledQueriesError
           )}
