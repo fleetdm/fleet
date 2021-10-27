@@ -108,7 +108,8 @@ const HostDetailsPage = ({
 
   const canDeleteHost = (user: IUser, host: IHost) => {
     if (
-      (isPremiumTier && (isGlobalAdmin || isGlobalMaintainer)) ||
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
       permissionUtils.isTeamAdmin(user, host.team_id) ||
       permissionUtils.isTeamMaintainer(user, host.team_id)
     ) {
