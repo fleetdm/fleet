@@ -19,10 +19,6 @@ $max-width: 2560px;
     @media (max-width: 1185px) {
       @content;
     }
-  } @else if ($size == largedesk) {
-    @media (min-width: $desktop-width) {
-      @content;
-    }
   } @else {
     @content;
   }
