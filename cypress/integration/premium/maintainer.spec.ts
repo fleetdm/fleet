@@ -27,7 +27,7 @@ describe(
       // Host manage page: Teams column, select a team
       cy.visit("/hosts/manage");
 
-      cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByText(/show enroll secret/i).should("exist");
 
@@ -40,9 +40,9 @@ describe(
         // Test host text varies
         cy.findByRole("button").click();
       });
-      cy.get(".title").within(() => {
-        cy.findByText("Team").should("exist");
-      });
+
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findByText("Team").should("exist");
       cy.contains("button", /transfer/i).click();
       cy.get(".Select-control").click();
       cy.findByText(/create a team/i).should("not.exist");

@@ -37,7 +37,6 @@ The query may take several seconds to complete, because Fleet has to wait for th
 
 When the query has finished, you should see several columns in the "Results" table:
 
-
 - The "name" column answers: which operating system is installed on my device? 
 
 - The "version" column answers: which version of the installed operating system is my device running?"

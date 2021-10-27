@@ -1,39 +1,18 @@
 
-## Fleet EE
-
-#### Communicating design changes to Engineering
-For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
-1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
-
-<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
-
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
-
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
-
-<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
-
-<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
-
-#### Communicating unplanned design changes
-
-For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g, padding/spacing inconsistency etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
-
 ## Fleet docs
 
-#### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/1-Using-Fleet/1-Fleet-UI.md`, you can link to `docs/1-Using-Fleet/9-Permissions.md` by writing `[permissions](./9-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+### Adding a link to the Fleet docs
+You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
 
-#### Linking to a location on GitHub
+### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
 
 To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
-#### How to fix a broken link
+### How to fix a broken link
 For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
 
 An example of a link that lives outside of `/docs` is:
@@ -46,7 +25,7 @@ If the link lives outside `/docs`, head to the file's location on GitHub (in thi
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
 
-#### Adding an image to the Fleet docs
+### Adding an image to the Fleet docs
 Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
 
 When adding images to the Fleet documentation, follow these guidelines:
@@ -152,7 +131,7 @@ You should see your local machine returned. If your host isn't showing up, you m
 
 Apply the standard query library by running the following command:
 
-`fleetctl apply -f docs/1-Using-Fleet/standard-query-library/standard-query-library.yml`
+`fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml`
 
 Make sure all queries were successfully added by running the following command:
 
@@ -166,9 +145,9 @@ Run the "Get the version of the resident operating system" query against your lo
 
 Apply a pack by running the following commands:
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
 
 Make sure the pack was successfully added by running the following command:
 
@@ -178,7 +157,7 @@ Make sure the pack was successfully added by running the following command:
 
 Apply organization settings by running the following command:
 
-`fleetctl apply -f docs/1-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
+`fleetctl apply -f docs/01-Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
 
 #### Manage users flow
 
@@ -189,7 +168,7 @@ Logout of your current user and log in with the newly created user.
 
 ## Release process
 
-This living document outlines the release process at Fleet.
+This section outlines the release process at Fleet.
 
 The current release cadence is once every 3 weeks and concentrated around Wednesdays. 
 
@@ -221,9 +200,21 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 #### Manual QA
 
-After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform a manual quality assurance pass. 
+After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title= and assigned to the person responsible. 
 
-Documentation on conducting the manual QA pass can be found [here](#manual-qa). 
+Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
+
+#### Release freeze period
+
+In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged. 
+
+Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+1. Regressions
+2. Security concerns
+3. Issues with features targeted for current release
+
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between Product and Engineering teams. 
+
 
 ### Release day
 
@@ -231,7 +222,8 @@ Documentation on completing the release process can be found [here](../docs/03-C
 
 
 ## Support process
-This living document outlines the customer and community support process at Fleet.
+
+This section outlines the customer and community support process at Fleet.
 
 The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
 
@@ -246,6 +238,18 @@ The daily standup meeting at Fleet provides time to discuss highlights and answe
 3. What should we remember next time?
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
+
+### Version support
+
+In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+ 
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
 
 ### Goals
 
@@ -325,6 +329,35 @@ There are several locations in Fleet's public and internal documentation that ca
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
+
+## UI Design
+
+### Communicating design changes to Engineering
+For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
+1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
+2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
+
+<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
+
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
+
+3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
+
+<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
+
+<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
+
+### Communicating unplanned design changes
+
+For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g, padding/spacing inconsistency etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
+
+### Design conventions
+
+We have certain design conventions that we include in Fleet. We will document more of these over time.
+
+**Table empty states**
+
+Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 
 

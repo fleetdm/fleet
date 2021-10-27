@@ -4,8 +4,9 @@ import { push } from "react-router-redux";
 import { useDispatch, useSelector } from "react-redux";
 import { IConfig } from "interfaces/config";
 import permissionUtils from "utilities/permissions";
-
 import PATHS from "router/paths";
+
+import TabsWrapper from "components/TabsWrapper";
 
 interface ISettingSubNavItem {
   name: string;
@@ -44,12 +45,10 @@ const getTabIndex = (path: string): number => {
 
 const baseClass = "settings-wrapper";
 
-const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
-  const {
-    children,
-    location: { pathname },
-  } = props;
-
+const SettingsWrapper = ({
+  children,
+  location: { pathname },
+}: ISettingsWrapperProp): JSX.Element => {
   // Add Teams tab for premium tier only
   const config = useSelector((state: IRootState) => state.app.config);
 
@@ -68,8 +67,8 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__nav-header`}>
+    <div className={`${baseClass} body-wrap`}>
+      <TabsWrapper>
         <h1>Settings</h1>
         <Tabs
           selectedIndex={getTabIndex(pathname)}
@@ -87,7 +86,7 @@ const SettingsWrapper = (props: ISettingsWrapperProp): JSX.Element => {
             })}
           </TabList>
         </Tabs>
-      </div>
+      </TabsWrapper>
       {children}
     </div>
   );

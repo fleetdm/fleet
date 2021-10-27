@@ -386,7 +386,12 @@ spec:
   name: Get user files matching a specific hash
   platforms: macOS, Linux
   description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+<<<<<<< HEAD
   query: SELECT path,sha256 FROM hash WHERE path in (SELECT path FROM file WHERE size < 50000000 AND path LIKE ""/Users/%/Documents/%%"") AND sha256 = ""16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75"";
+=======
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
+  purpose: Informational
+>>>>>>> 5832316335bb7654c3a7095ff56709e07ee4906a
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -405,6 +410,10 @@ spec:
   platforms: Linux, macOS, Windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
+<<<<<<< HEAD
+=======
+  purpose: Informational
+>>>>>>> 5832316335bb7654c3a7095ff56709e07ee4906a
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -422,7 +431,12 @@ spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
+<<<<<<< HEAD
   query: select case cnt when 0 then "NONE_INSTALLED" else "INSTALLED" end as "Malicious Python Packages",package_name,package_version from (select count(name) as  cnt,nameas package_name,version as package_version,path as package_pathfrom python_packages where package_name in ('acqusition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib'));
+=======
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  purpose: Informational
+>>>>>>> 5832316335bb7654c3a7095ff56709e07ee4906a
   contributors: alphabrevity
 ---
 apiVersion: v1
@@ -430,13 +444,20 @@ kind: query
 spec:
   name: Check for artifacts of the Floxif trojan
   platforms: Windows
+<<<<<<< HEAD
   description: See https://github.com/osquery/osquery/blob/b8085572ed1a58ff635683e5f2225cd49cd27bc1/packs/windows-attacks.conf#L4-L10
   query: select * from registry where path like 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';,
+=======
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  purpose: Informational
+>>>>>>> 5832316335bb7654c3a7095ff56709e07ee4906a
   contributors: micheal-o
 ---
 apiVersion: v1
 kind: query
 spec:
+<<<<<<< HEAD
   name: Is Gatekeeper enabled on macOS devices?
   platforms: macOS
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
@@ -478,3 +499,11 @@ kind: policy
 spec:
   - query: Is Filevault enabled on macOS devices?
     resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
+=======
+  name: Get shimcache table
+  platforms: Windows
+  description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
+  query: select * from shimcache
+  purpose: Informational
+  contributors: puffyCid
+>>>>>>> 5832316335bb7654c3a7095ff56709e07ee4906a

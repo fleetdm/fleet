@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (ds *Datastore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
-	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id) VALUES (?)`, queryID)
+func (ds *Datastore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
+	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id, resolution) VALUES (?, ?)`, queryID, resolution)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new policy")
 	}
@@ -184,8 +185,8 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	return results, nil
 }
 
-func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
-	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id, team_id) VALUES (?, ?)`, queryID, teamID)
+func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
+	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id, team_id, resolution) VALUES (?, ?, ?)`, queryID, teamID, resolution)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new team policy")
 	}
@@ -207,4 +208,49 @@ func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []
 
 func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	return policyDB(ctx, ds.reader, policyID, &teamID)
+}
+
+func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, spec := range specs {
+			if spec.QueryName == "" {
+				return errors.New("query name must not be empty")
+			}
+
+			// We update by hand because team_id can be null and that means compound index wont work
+
+			teamCheck := `team_id is NULL`
+			args := []interface{}{spec.QueryName}
+			if spec.Team != "" {
+				teamCheck = `team_id=(SELECT id FROM teams WHERE name=?)`
+				args = append(args, spec.Team)
+			}
+			row := tx.QueryRowxContext(ctx,
+				fmt.Sprintf(`SELECT 1 FROM policies WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
+				args...,
+			)
+			var exists int
+			err := row.Scan(&exists)
+			if err != nil && err != sql.ErrNoRows {
+				return errors.Wrap(err, "checking policy existence")
+			}
+			if exists > 0 {
+				_, err = tx.ExecContext(ctx,
+					fmt.Sprintf(`UPDATE policies SET resolution=? WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
+					append([]interface{}{spec.Resolution}, args...)...,
+				)
+				if err != nil {
+					return errors.Wrap(err, "exec ApplyPolicySpecs update")
+				}
+			} else {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO policies (query_id, team_id, resolution) VALUES ((SELECT id FROM queries WHERE name=?), (SELECT id FROM teams WHERE name=?),?)`,
+					spec.QueryName, spec.Team, spec.Resolution)
+				if err != nil {
+					return errors.Wrap(err, "exec ApplyPolicySpecs insert")
+				}
+			}
+		}
+		return nil
+	})
 }

@@ -15,6 +15,7 @@
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
+- [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -71,11 +72,11 @@ If a user has SSO enabled, the Login page in the Fleet UI displays the “Email�
 
 ## Where are my query results?
 
-### Live Queries
+### Live queries
 
 Live query results (executed in the web UI or `fleetctl query`) are pushed directly to the UI where the query is running. The results never go to a file unless you as the user manually save them.
 
-### Scheduled Queries
+### Scheduled queries
 
 Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/02-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
@@ -103,6 +104,10 @@ Don't worry, this behavior is expected; it's part of how osquery works.
 
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
+
+## What happens if I have a query on a team policy and I also have it scheduled to run separately?
+
+Both queries will run as scheduled on applicable hosts. If there are any hosts that both the scheduled run and the policy apply to, they will be queried twice.
 
 ## Why aren’t my live queries being logged?
 
@@ -134,10 +139,18 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team Enroll Secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## How do I resolve an "unknown column" error when upgrading Fleet?
 
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
 Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
+
+## Why my host is not updating a policy's response.
+
+The following are reasons why a host may not be updating a policy's response:
+
+* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
+
+* The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."

@@ -1,5 +1,5 @@
 describe(
-  "Basic tier - Team observer/maintainer user",
+  "Premium tier - Team observer/maintainer user",
   {
     defaultCommandTimeout: 20000,
   },
@@ -9,7 +9,8 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.addDockerHost("apples");
+      cy.addDockerHost("oranges");
       cy.logout();
     });
     afterEach(() => {
@@ -20,7 +21,7 @@ describe(
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
-      // Ensure page is loaded
+      // Ensure page is loaded and teams are visible
       cy.contains("Hosts");
 
       // On the Hosts page, they should…
@@ -36,8 +37,10 @@ describe(
       cy.findByText(/settings/i).should("not.exist");
       cy.findByText(/schedule/i).should("exist");
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/you do not have permissions/i).should("exist");
 
       // NOT see and select "add label"
@@ -147,7 +150,6 @@ describe(
         cy.findByText(/apples/i).should("not.exist");
         cy.findByText(/oranges/i).should("exist");
       });
-
       cy.findByRole("button", { name: /done/i }).click();
 
       // On the Host details page, they should…
@@ -197,6 +199,11 @@ describe(
       cy.findByText(/advanced/i).should("not.exist");
       cy.findByRole("button", { name: /schedule a query/i }).click();
       // TODO: Write e2e test for team maintainer to schedule a query
+
+      cy.visit("/hosts/manage");
+      cy.contains(".table-container .data-table__table th", "Team").should(
+        "be.visible"
+      );
 
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section

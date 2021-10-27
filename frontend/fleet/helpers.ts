@@ -1,18 +1,20 @@
-import { flatMap, omit, pick, size } from "lodash";
+import { flatMap, omit, pick, size, memoize } from "lodash";
 import md5 from "js-md5";
 import moment from "moment";
 import yaml from "js-yaml";
-import stringUtils from "utilities/strings";
+
 import { ILabel } from "interfaces/label";
-import {
-  IPackQueryFormData,
-  IScheduledQuery,
-} from "interfaces/scheduled_query";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import { IPackQueryFormData } from "interfaces/scheduled_query";
+
+import stringUtils from "utilities/strings";
+import sortUtils from "utilities/sort";
 import {
   DEFAULT_GRAVATAR_LINK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
+import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -588,6 +590,35 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return moment(moment()).isAfter(expiration);
 };
 
+// IQueryStats became any when adding in IGlobalScheduledQuery and ITeamScheduledQuery
+export const performanceIndicator = (
+  scheduledQueryStats: IScheduledQueryStats
+): string => {
+  if (
+    !scheduledQueryStats.total_executions ||
+    scheduledQueryStats.total_executions === 0 ||
+    scheduledQueryStats.total_executions === null
+  ) {
+    return "Undetermined";
+  }
+
+  if (
+    typeof scheduledQueryStats.user_time_p50 === "number" &&
+    typeof scheduledQueryStats.system_time_p50 === "number"
+  ) {
+    const indicator =
+      scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
+
+    if (indicator < 2000) {
+      return "Minimal";
+    }
+    if (indicator < 4000) {
+      return "Considerable";
+    }
+  }
+  return "Excessive";
+};
+
 export const secondsToHms = (d: number): string => {
   const h = Math.floor(d / 3600);
   const m = Math.floor((d % 3600) / 60);
@@ -643,6 +674,68 @@ export const syntaxHighlight = (json: JSON): string => {
   /* eslint-enable no-useless-escape */
 };
 
+const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+  teams
+    .map((team) => {
+      return {
+        disabled: false,
+        label: team.name,
+        value: team.id,
+      };
+    })
+    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
+);
+
+export const generateTeamFilterDropdownOptions = (
+  teams: ITeam[],
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean,
+  hideAllTeamsOption: boolean
+) => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const allTeamOption = [
+    {
+      disabled: false,
+      label: "All teams",
+      value: 0,
+    },
+  ];
+
+  const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
+
+  return !hideAllTeamsOption
+    ? allTeamOption.concat(sortedCurrentUserTeamOptions)
+    : sortedCurrentUserTeamOptions;
+};
+
+export const getValidatedTeamId = (
+  teams: ITeam[],
+  teamId: number,
+  currentUser: IUser | null,
+  isOnGlobalTeam: boolean
+): number => {
+  let currentUserTeams: ITeam[] = [];
+  if (isOnGlobalTeam) {
+    currentUserTeams = teams;
+  } else if (currentUser && currentUser.teams) {
+    currentUserTeams = currentUser.teams;
+  }
+
+  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
+  const validatedTeamId =
+    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
+      ? teamId
+      : 0;
+
+  return validatedTeamId;
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -672,4 +765,6 @@ export default {
   setupData,
   frontendFormattedConfig,
   syntaxHighlight,
+  generateTeamFilterDropdownOptions,
+  getValidatedTeamId,
 };

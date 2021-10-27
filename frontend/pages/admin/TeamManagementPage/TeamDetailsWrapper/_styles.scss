@@ -22,14 +22,6 @@
     margin-right: $pad-small;
   }
 
-  &__nav-header {
-    padding-top: 15px;
-    position: sticky;
-    top: 0;
-    background-color: $core-white;
-    z-index: 2;
-  }
-
   &__team-header {
     margin-top: $pad-large;
     display: flex;
@@ -56,53 +48,6 @@
 
     button {
       margin-left: $pad-small;
-    }
-  }
-
-  .react-tabs {
-    .react-tabs__tab-list {
-      border-bottom: 1px solid $ui-gray;
-    }
-
-    &__tab {
-      font-size: $x-small;
-      border: none;
-      padding: 0 0 $pad-medium 0;
-      margin-left: $pad-xxlarge;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-
-      &:focus {
-        box-shadow: none;
-        outline: auto;
-      }
-
-      // Bolding text when the tab is active causes a layout shift
-      // so we add a hidden pseudo element with the same text string
-      &:before {
-        content: attr(data-text);
-        height: 0;
-        visibility: hidden;
-        overflow: hidden;
-        user-select: none;
-        pointer-events: none;
-        font-weight: $bold;
-      }
-
-      &:after {
-        background-color: transparent;
-      }
-
-      &:first-child {
-        margin-left: 0;
-      }
-    }
-
-    &__tab--selected,
-    &__tab--selected:focus {
-      font-weight: $bold;
-      border-bottom: 1px solid $core-vibrant-blue;
     }
   }
 }

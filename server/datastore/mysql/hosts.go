@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -155,7 +156,8 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
+		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
+		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return errors.Wrap(err, "failed to save host software")
 			}
@@ -307,8 +309,18 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT h.*, t.name AS team_name, (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-		FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		SELECT 
+		       h.*, 
+		       t.name AS team_name, 
+		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
+		       coalesce(failing_policies.count, 0) as failing_policies_count,
+		       coalesce(failing_policies.count, 0) as total_issues_count
+		FROM hosts h
+			LEFT JOIN teams t ON (h.team_id = t.id)
+			LEFT JOIN (
+		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    	GROUP BY host_id
+			) as failing_policies ON (h.id=failing_policies.host_id)
 		WHERE h.id = ?
 		LIMIT 1
 	`
@@ -339,7 +351,9 @@ func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
-		t.name AS team_name
+		t.name AS team_name,
+		coalesce(failing_policies.count, 0) as failing_policies_count,
+		coalesce(failing_policies.count, 0) as total_issues_count
 		`
 
 	var params []interface{}
@@ -364,16 +378,38 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 		    `
 	}
 
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	hosts := []*fleet.Host{}
+	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
+		return nil, errors.Wrap(err, "list hosts")
+	}
+
+	return hosts, nil
+}
+
+func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id=pm.host_id)"
 	if opt.PolicyIDFilter == nil {
 		policyMembershipJoin = ""
 	} else if opt.PolicyResponseFilter == nil {
 		policyMembershipJoin = "LEFT " + policyMembershipJoin
 	}
+
+	softwareFilter := "TRUE"
+	if opt.SoftwareIDFilter != nil {
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id=h.id AND hs.software_id=?)"
+		params = append(params, opt.SoftwareIDFilter)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+		LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)
 		%s
-		WHERE TRUE AND %s
-    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"),
+		WHERE TRUE AND %s AND %s
+    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -382,13 +418,7 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 
 	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-
-	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
-	}
-
-	return hosts, nil
+	return sql, params
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -426,6 +456,24 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		params = append(params, time.Now())
 	}
 	return sql, params
+}
+
+func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	sql := `SELECT count(*) `
+
+	// ignore pagination in count
+	opt.Page = 0
+	opt.PerPage = 0
+
+	var params []interface{}
+	sql, params = d.applyHostFilters(opt, sql, filter, params)
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
+		return 0, errors.Wrap(err, "count hosts")
+	}
+
+	return count, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
@@ -506,7 +554,6 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 				) VALUES (?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
-
 			if err != nil {
 				return errors.Wrap(err, "insert host")
 			}
@@ -530,7 +577,6 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 				WHERE osquery_host_id = ?
 			`
 			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID)
-
 			if err != nil {
 				return errors.Wrap(err, "update host")
 			}
@@ -551,7 +597,6 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -619,104 +664,53 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	return nil
 }
 
-func (d *Datastore) searchHostsWithOmits(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
-	hostQuery := transformQuery(query)
-	ipQuery := `"` + query + `"`
+// SearchHosts performs a search on the hosts table using the following criteria:
+//	- Use the provided team filter.
+//	- Full-text search with the "query" argument (if query == "", then no fulltext matching is executed).
+// 	Full-text search is used even if "query" is a short or stopword.
+//	(what defines a short word is the "ft_min_word_len" VARIABLE, set to 4 by default in Fleet deployments).
+//	- An optional list of IDs to omit from the search.
+func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+	var sqlb strings.Builder
+	sqlb.WriteString("SELECT * FROM hosts WHERE")
 
-	sql := fmt.Sprintf(`
-			SELECT DISTINCT *
-			FROM hosts
-			WHERE
-			(
+	var args []interface{}
+	if len(query) > 0 {
+		sqlb.WriteString(` (
 				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
 				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			)
-			AND id NOT IN (?) AND %s
-			LIMIT 10
-		`, d.whereFilterHostsByTeams(filter, "hosts"),
-	)
-
-	sql, args, err := sqlx.In(sql, hostQuery, ipQuery, omit)
-	if err != nil {
-		return nil, errors.Wrap(err, "searching hosts")
+			) AND`)
+		// Transform query argument and append the truncation operator "*" for MATCH.
+		// From Oracle docs: "If a word is specified with the truncation operator, it is not
+		// stripped from a boolean query, even if it is too short or a stopword."
+		hostQuery := transformQueryWithSuffix(query, "*")
+		// Needs quotes to avoid each "." marking a word boundary.
+		// TODO(lucas): Currently matching the primary_mac doesn't work, see #1959.
+		ipQuery := `"` + query + `"`
+		args = append(args, hostQuery, ipQuery)
 	}
-	sql = d.reader.Rebind(sql)
-
-	hosts := []*fleet.Host{}
-
-	err = sqlx.SelectContext(ctx, d.reader, &hosts, sql, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "searching hosts rebound")
-	}
-
-	return hosts, nil
-}
-
-func (d *Datastore) searchHostsDefault(ctx context.Context, filter fleet.TeamFilter, omit ...uint) ([]*fleet.Host, error) {
-	sql := fmt.Sprintf(`
-			SELECT * FROM hosts
-			WHERE id NOT in (?) AND %s
-			ORDER BY seen_time DESC
-			LIMIT 5
-		`, d.whereFilterHostsByTeams(filter, "hosts"),
-	)
-
 	var in interface{}
-	{
-		// use -1 if there are no values to omit.
-		// Avoids empty args error for `sqlx.In`
-		in = omit
-		if len(omit) == 0 {
-			in = -1
-		}
+	// use -1 if there are no values to omit.
+	// Avoids empty args error for `sqlx.In`
+	in = omit
+	if len(omit) == 0 {
+		in = -1
 	}
+	args = append(args, in)
+	sqlb.WriteString(" id NOT IN (?) AND ")
+	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "hosts"))
+	sqlb.WriteString(` ORDER BY seen_time DESC LIMIT 10`)
 
-	var hosts []*fleet.Host
-	sql, args, err := sqlx.In(sql, in)
+	sql, args, err := sqlx.In(sqlb.String(), args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "searching default hosts")
 	}
 	sql = d.reader.Rebind(sql)
-	err = sqlx.SelectContext(ctx, d.reader, &hosts, sql, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "searching default hosts rebound")
-	}
-	return hosts, nil
-}
-
-// SearchHosts find hosts by query containing an IP address, a host name or UUID.
-// Optionally pass a list of IDs to omit from the search
-func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
-	hostQuery := transformQuery(query)
-	if !queryMinLength(hostQuery) {
-		return d.searchHostsDefault(ctx, filter, omit...)
-	}
-	if len(omit) > 0 {
-		return d.searchHostsWithOmits(ctx, filter, query, omit...)
-	}
-
-	// Needs quotes to avoid each . marking a word boundary
-	ipQuery := `"` + query + `"`
-
-	sql := fmt.Sprintf(`
-			SELECT DISTINCT *
-			FROM hosts
-			WHERE
-			(
-				MATCH (hostname, uuid) AGAINST (? IN BOOLEAN MODE)
-				OR MATCH (primary_ip, primary_mac) AGAINST (? IN BOOLEAN MODE)
-			) AND %s
-			LIMIT 10
-		`, d.whereFilterHostsByTeams(filter, "hosts"),
-	)
-
 	hosts := []*fleet.Host{}
-	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, hostQuery, ipQuery); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "searching hosts")
 	}
-
 	return hosts, nil
-
 }
 
 func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
@@ -741,7 +735,6 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 	}
 
 	return hostIDs, nil
-
 }
 
 func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -873,6 +866,50 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	_, err := d.deleteEntities(ctx, hostsTable, ids)
 	if err != nil {
 		return errors.Wrap(err, "deleting hosts")
+	}
+	return nil
+}
+
+func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
+	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
+	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
+	query := `SELECT 
+		p.id, 
+		p.query_id, 
+		q.name AS query_name, 
+		CASE
+			WHEN pm.passes = 1 THEN 'pass' 
+			WHEN pm.passes = 0 THEN 'fail' 
+			ELSE '' 
+		END AS response,
+		q.description,
+		coalesce(p.resolution, '') as resolution
+	FROM (
+	    SELECT * FROM policy_membership_history WHERE id IN (
+	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
+	    )
+	) as pm 
+	JOIN policies p ON (p.id=pm.policy_id) 
+	JOIN queries q ON (p.query_id=q.id)`
+
+	var policies []*fleet.HostPolicy
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
+		return nil, errors.Wrap(err, "get host policies")
+	}
+	return policies, nil
+}
+
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
+	ac, err := appConfigDB(ctx, d.reader)
+	if err != nil {
+		return errors.Wrap(err, "getting app config")
+	}
+	if !ac.HostExpirySettings.HostExpiryEnabled {
+		return nil
+	}
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
+	if err != nil {
+		return errors.Wrap(err, "deleting expired hosts")
 	}
 	return nil
 }

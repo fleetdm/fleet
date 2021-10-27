@@ -12,5 +12,8 @@ Includes deployment walkthroughs for Fleet on CentOS, Ubuntu, and Kubernetes.
 ### [Self-managed agent updates](./04-fleetctl-agent-updates.md)
 Information about running an update server with fleetctl.
 
+### [Load Testing](./05-Load-testing.md)
+Information about running an update server with fleetctl.
+
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.

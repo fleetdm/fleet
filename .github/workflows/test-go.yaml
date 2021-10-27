@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - patch-*
   pull_request:
     paths:
       - '**.go'
@@ -28,7 +29,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-setup &
+      run: docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup &
 
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies

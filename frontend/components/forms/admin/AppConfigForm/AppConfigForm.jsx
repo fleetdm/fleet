@@ -126,16 +126,6 @@ class AppConfigForm extends Component {
     };
   }
 
-  onToggleAdvancedOptions = (evt) => {
-    evt.preventDefault();
-
-    const { showAdvancedOptions } = this.state;
-
-    this.setState({ showAdvancedOptions: !showAdvancedOptions });
-
-    return false;
-  };
-
   toggleHostStatusWebhookPreviewModal = () => {
     const { showHostStatusWebhookPreviewModal } = this.state;
     this.setState({
@@ -154,41 +144,73 @@ class AppConfigForm extends Component {
     const { fields } = this.props;
 
     return (
-      <div>
+      <div className={`${baseClass}__advanced-options`}>
         <p className={`${baseClass}__section-description`}>
           Most users do not need to modify these options.
         </p>
         <div className={`${baseClass}__inputs`}>
-          <div className={`${baseClass}__smtp-section`}>
-            <InputField {...fields.domain} label="Domain" />
-            <Checkbox {...fields.verify_ssl_certs}>Verify SSL certs</Checkbox>
-            <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
-            <Checkbox {...fields.host_expiry_enabled}>Host expiry</Checkbox>
-            <InputField
-              {...fields.host_expiry_window}
-              disabled={!fields.host_expiry_enabled.value}
-              label="Host Expiry Window"
-            />
-            <Checkbox {...fields.live_query_disabled}>
-              Disable live queries
-            </Checkbox>
+          <div className={`${baseClass}__form-fields`}>
+            <div className="tooltip-wrap tooltip-wrap--input">
+              <InputField {...fields.domain} label="Domain" />
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.verify_ssl_certs}>Verify SSL certs</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.enable_start_tls}>Enable STARTTLS</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.host_expiry_enabled}>Host expiry</Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              />
+            </div>
+            <div className="tooltip-wrap tooltip-wrap--input">
+              <InputField
+                {...fields.host_expiry_window}
+                disabled={!fields.host_expiry_enabled.value}
+                label="Host Expiry Window"
+              />
+              <IconToolTip
+                isHtml
+                text={
+                  "<p>If a host has not communicated with Fleet <br />in the specified number of days, it will be removed.</p>"
+                }
+              />
+            </div>
+            <div className="tooltip-wrap">
+              <Checkbox {...fields.live_query_disabled}>
+                Disable live queries
+              </Checkbox>
+              <IconToolTip
+                isHtml
+                text={
+                  '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                }
+              />
+            </div>
           </div>
-        </div>
-
-        <div className={`${baseClass}__details`}>
-          <IconToolTip
-            isHtml
-            text={
-              '\
-              <p><strong>Domain</strong> - If you need to specify a HELO domain, you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>\
-              <p><strong>Verify SSL Certs</strong> - Turn this off (not recommended) if you use a self-signed certificate <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
-              <p><strong>Enable STARTTLS</strong> - Detects if STARTTLS is enabled in your SMTP server and starts to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>\
-              <p><strong>Host Expiry</strong> - When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
-              <p><strong>Host Expiry Window</strong> - If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>\
-              <p><strong>Disable Live Queries</strong> - When enabled, disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>\
-            '
-            }
-          />
         </div>
       </div>
     );
@@ -203,15 +225,15 @@ class AppConfigForm extends Component {
 
     return (
       <div className={`${baseClass}__smtp-section`}>
-        <InputField {...fields.user_name} label="SMTP Username" />
+        <InputField {...fields.user_name} label="SMTP username" />
         <InputField
           {...fields.password}
-          label="SMTP Password"
+          label="SMTP password"
           type="password"
         />
         <Dropdown
           {...fields.authentication_method}
-          label="Auth Method"
+          label="Auth method"
           options={authMethodOptions}
           placeholder=""
         />
@@ -302,10 +324,10 @@ class AppConfigForm extends Component {
 
     return (
       <>
-        <form className={baseClass} onSubmit={handleSubmit}>
+        <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="organization-info">Organization Info</a>
+              <a id="organization-info">Organization info</a>
             </h2>
             <div className={`${baseClass}__inputs`}>
               <InputField {...fields.org_name} label="Organization name" />
@@ -327,7 +349,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__inputs`}>
               <InputField
                 {...fields.server_url}
-                label="Fleet App URL"
+                label="Fleet app URL"
                 hint={
                   <span>
                     Include base path only (eg. no <code>/v1</code>)
@@ -344,15 +366,15 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="saml">SAML Single Sign On Options</a>
+              <a id="saml">SAML single sign on options</a>
             </h2>
 
             <div className={`${baseClass}__inputs`}>
-              <Checkbox {...fields.enable_sso}>Enable Single Sign On</Checkbox>
+              <Checkbox {...fields.enable_sso}>Enable single sign on</Checkbox>
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_name} label="Identity Provider Name" />
+              <InputField {...fields.idp_name} label="Identity provider name" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip
@@ -392,7 +414,7 @@ class AppConfigForm extends Component {
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_image_url} label="IDP Image URL" />
+              <InputField {...fields.idp_image_url} label="IDP image URL" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip
@@ -445,7 +467,7 @@ class AppConfigForm extends Component {
           <div className={`${baseClass}__section`}>
             <h2>
               <a id="smtp">
-                SMTP Options{" "}
+                SMTP options{" "}
                 <small
                   className={`smtp-options smtp-options--${
                     smtpConfigured ? "configured" : "notconfigured"
@@ -461,14 +483,14 @@ class AppConfigForm extends Component {
             </div>
 
             <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.sender_address} label="Sender Address" />
+              <InputField {...fields.sender_address} label="Sender address" />
             </div>
             <div className={`${baseClass}__details`}>
               <IconToolTip text={"The sender address for emails from Fleet."} />
             </div>
 
             <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
-              <InputField {...fields.server} label="SMTP Server" />
+              <InputField {...fields.server} label="SMTP server" />
               <InputField {...fields.port} label="&nbsp;" type="number" />
               <Checkbox {...fields.enable_ssl_tls}>
                 Use SSL/TLS to connect (recommended)
@@ -485,7 +507,7 @@ class AppConfigForm extends Component {
             <div className={`${baseClass}__inputs`}>
               <Dropdown
                 {...fields.authentication_type}
-                label="Authentication Type"
+                label="Authentication type"
                 options={authTypeOptions}
               />
               {renderSmtpSection()}
@@ -506,7 +528,7 @@ class AppConfigForm extends Component {
 
           <div className={`${baseClass}__section`}>
             <h2>
-              <a id="osquery-enrollment-secrets">Osquery Enrollment Secrets</a>
+              <a id="osquery-enrollment-secrets">Osquery enrollment secrets</a>
             </h2>
             <div className={`${baseClass}__inputs`}>
               <p className={`${baseClass}__enroll-secret-label`}>
@@ -681,7 +703,9 @@ class AppConfigForm extends Component {
           </div>
 
           <div className={`${baseClass}__section`}>
-            <h2>Advanced options</h2>
+            <h2>
+              <a id="advanced-options">Advanced options</a>
+            </h2>
             {renderAdvancedOptions()}
           </div>
           <Button type="submit" variant="brand">

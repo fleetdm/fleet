@@ -18,11 +18,6 @@
       text-align: left;
       padding: $pad-medium $pad-large;
 
-      &:nth-child(1) {
-        border-top-left-radius: 6px;
-        width: 20px;
-      }
-
       &:nth-child(2) {
         width: calc(49% - 20px);
       }
@@ -38,7 +33,6 @@
 
       &:last-child {
         width: 150px;
-        border-top-right-radius: 6px;
         border-left: 0;
       }
     }

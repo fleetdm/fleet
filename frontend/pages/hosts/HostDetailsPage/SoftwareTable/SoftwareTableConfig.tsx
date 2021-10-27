@@ -1,16 +1,16 @@
 import React from "react";
-// import { Link } from "react-router"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 // import distanceInWordsToNow from "date-fns/distance_in_words_to_now"; // TODO: Enable after backend has been updated to provide last_opened_at
 
-// import PATHS from "router/paths"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-// import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png"; // TODO: Enable after manage hosts page has been updated to filter hosts by software id
+import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -37,10 +37,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface ISoftwareTableData extends ISoftware {
-  type: string;
-}
-
 const TYPE_CONVERSION: Record<string, string> = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
@@ -61,9 +57,14 @@ const TYPE_CONVERSION: Record<string, string> = {
   pkg_packages: "Package (pkg)",
 };
 
+const formatSoftwareType = (source: string) => {
+  const DICT = TYPE_CONVERSION;
+  return DICT[source] || "Unknown";
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (): IDataColumn[] => {
+const generateSoftwareTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Vulnerabilities",
@@ -156,8 +157,10 @@ const generateTableHeaders = (): IDataColumn[] => {
         />
       ),
       disableSortBy: false,
-      accessor: "type",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "source",
+      Cell: (cellProps) => (
+        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+      ),
     },
     {
       title: "Installed version",
@@ -194,41 +197,26 @@ const generateTableHeaders = (): IDataColumn[] => {
     //   },
     //   sortType: "dateStrings",
     // },
-    // TODO: Enable after manage hosts page has been updated to filter hosts by software id
-    // {
-    //   title: "",
-    //   Header: "",
-    //   disableSortBy: true,
-    //   accessor: "linkToFilteredHosts",
-    //   Cell: (cellProps) => {
-    //     return (
-    //       <Link to={cellProps.cell.value} className={`software-link`}>
-    //         <img alt="link to hosts filtered by software ID" src={Chevron} />
-    //       </Link>
-    //     );
-    //   },
-    //   disableHidden: true,
-    // },
+    {
+      title: "",
+      Header: "",
+      disableSortBy: true,
+      accessor: "linkToFilteredHosts",
+      Cell: (cellProps) => {
+        return (
+          <Link
+            to={`${
+              PATHS.MANAGE_HOSTS
+            }?software_id=${cellProps.row.original.id.toString()}`}
+            className={`software-link`}
+          >
+            <img alt="link to hosts filtered by software ID" src={Chevron} />
+          </Link>
+        );
+      },
+      disableHidden: true,
+    },
   ];
 };
 
-const enhanceSoftwareData = (software: ISoftware[]): ISoftwareTableData[] => {
-  return Object.values(software).map((softwareItem) => {
-    return {
-      ...softwareItem,
-      // linkToFilteredHosts: `${PATHS.MANAGE_HOSTS}?software_id=${softwareItem.id}`,
-      type: TYPE_CONVERSION[softwareItem.source] || "Unknown",
-    };
-  });
-};
-
-const generateDataSet = (software: ISoftware[]): ISoftwareTableData[] => {
-  // Cannot pass undefined to enhanceSoftwareData
-  if (!software) {
-    return software;
-  }
-
-  return [...enhanceSoftwareData(software)];
-};
-
-export { generateTableHeaders, generateDataSet };
+export default generateSoftwareTableHeaders;

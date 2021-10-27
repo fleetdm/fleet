@@ -8,8 +8,8 @@ import InputField from "components/forms/fields/InputField"; // @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
-import scrollToTop from "utilities/scroll_to_top";
 import { useDeepEffect } from "utilities/hooks";
+import ReactTooltip from "react-tooltip";
 
 // @ts-ignore
 import DataTable from "./DataTable/DataTable";
@@ -59,7 +59,9 @@ interface ITableContainerProps {
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
-  getCustomCount?: (data: any) => number;
+  filteredCount?: number;
+  searchToolTipText?: string;
+  clientSidePagination?: boolean;
 }
 
 const baseClass = "table-container";
@@ -103,15 +105,17 @@ const TableContainer = ({
   secondarySelectActions,
   customControl,
   onSelectSingleRow,
-  getCustomCount,
+  filteredCount,
+  searchToolTipText,
+  clientSidePagination,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -139,7 +143,6 @@ const TableContainer = ({
   const onPaginationChange = (newPage: number) => {
     setPageIndex(newPage);
     hasPageIndexChangedRef.current = true;
-    scrollToTop();
   };
 
   // We use useRef to keep track of the previous searchQuery value. This allows us
@@ -193,10 +196,10 @@ const TableContainer = ({
     pageSize,
     pageIndex,
     additionalQueries,
-    onQueryChange,
-    debounceOnQueryChange,
     prevSearchQuery,
   ]);
+
+  const displayCount = filteredCount || data.length;
 
   return (
     <div className={wrapperClasses}>
@@ -216,13 +219,13 @@ const TableContainer = ({
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
-              pageIndex,
-              pageSize,
-              getCustomCount ? getCustomCount(data) : data.length
+              displayCount
             )}
             {resultsHtml}
           </p>
-        ) : null}
+        ) : (
+          <p />
+        )}
         <div className={`${baseClass}__table-controls`}>
           {!hideActionButton && actionButtonText && (
             <Button
@@ -245,15 +248,34 @@ const TableContainer = ({
           {customControl && customControl()}
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
-            <div className={`${baseClass}__search-input`}>
-              <InputField
-                placeholder={inputPlaceHolder}
-                name="searchQuery"
-                onChange={onSearchQueryChange}
-                value={searchQuery}
-                inputWrapperClass={`${baseClass}__input-wrapper`}
-              />
-            </div>
+            <>
+              <div
+                className={`${baseClass}__search-input`}
+                data-tip
+                data-for="search-tooltip"
+                data-tip-disable={!searchToolTipText}
+              >
+                <InputField
+                  placeholder={inputPlaceHolder}
+                  name="searchQuery"
+                  onChange={onSearchQueryChange}
+                  value={searchQuery}
+                  inputWrapperClass={`${baseClass}__input-wrapper`}
+                />
+              </div>
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="search-tooltip"
+                data-html
+              >
+                <span className={`tooltip ${baseClass}__tooltip-text`}>
+                  {searchToolTipText}
+                </span>
+              </ReactTooltip>
+            </>
           )}
         </div>
       </div>
@@ -290,7 +312,7 @@ const TableContainer = ({
               isAllPagesSelected={isAllPagesSelected}
               toggleAllPagesSelected={toggleAllPagesSelected}
               resultsTitle={resultsTitle}
-              defaultPageSize={DEFAULT_PAGE_SIZE}
+              defaultPageSize={pageSize}
               primarySelectActionButtonVariant={
                 primarySelectActionButtonVariant
               }
@@ -299,8 +321,9 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
+              clientSidePagination={clientSidePagination}
             />
-            {!disablePagination && (
+            {!disablePagination && !clientSidePagination && (
               <Pagination
                 resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}

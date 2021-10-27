@@ -1,7 +1,10 @@
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
+
+// @ts-ignore
+import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -14,6 +17,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/loaders/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewQueryModal from "../NewQueryModal";
+import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
+import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "query-form";
@@ -54,11 +59,12 @@ const QueryForm = ({
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryFormProps) => {
+}: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
+  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -77,17 +83,23 @@ const QueryForm = ({
     currentUser,
     isOnlyObserver,
     isGlobalObserver,
-    isAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
 
+  useEffect(() => {
+    setCompatiblePlatforms(
+      listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
+    );
+  }, [lastEditedQueryBody]);
+
   const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainer &&
+    ? isAnyTeamMaintainerOrTeamAdmin &&
       storedQuery &&
       currentUser &&
       storedQuery.author_id === currentUser.id
-    : isAnyTeamMaintainer;
+    : isAnyTeamMaintainerOrTeamAdmin;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -163,6 +175,40 @@ const QueryForm = ({
     );
   };
 
+  const renderPlatformCompatibility = () => {
+    const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
+      switch (string) {
+        case "darwin":
+          return "macOS";
+        case "windows":
+          return "Windows";
+        case "linux":
+          return "Linux";
+        default:
+          return string;
+      }
+    });
+    const displayOrder = ["macOS", "Windows", "Linux"];
+
+    return (
+      <span className={`${baseClass}__platform-compatibility`}>
+        <b>Compatible with:</b>
+        {displayOrder.map((platform) => {
+          const isCompatible = displayFormattedPlatforms.includes(platform);
+          return (
+            <span key={`platform-compatibility__${platform}`}>
+              {platform}{" "}
+              <img
+                alt={isCompatible ? "compatible" : "incompatible"}
+                src={isCompatible ? CompatibleIcon : IncompatibleIcon}
+              />
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <h1 className={`${baseClass}__query-name no-hover`}>
@@ -206,7 +252,7 @@ const QueryForm = ({
 
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
-      <form className={`${baseClass}__wrapper`}>
+      <form className={`${baseClass}__wrapper`} autoComplete="off">
         {isEditMode ? (
           <InputField
             id="query-name"
@@ -240,9 +286,12 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(value: string) => setLastEditedQueryBody(value)}
+          onChange={(sqlString: string) => {
+            setLastEditedQueryBody(sqlString);
+          }}
           handleSubmit={promptSaveQuery}
         />
+        {renderPlatformCompatibility()}
         {isEditMode && (
           <>
             <Checkbox
@@ -264,7 +313,7 @@ const QueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainer) && (
+          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
             <>
               {isEditMode && (
                 <Button
@@ -281,7 +330,10 @@ const QueryForm = ({
                   data-tip
                   data-for="save-query-button"
                   data-tip-disable={
-                    !(isAnyTeamMaintainer && !hasTeamMaintainerPermissions)
+                    !(
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !hasTeamMaintainerPermissions
+                    )
                   }
                 >
                   <Button
@@ -289,7 +341,8 @@ const QueryForm = ({
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
-                      isAnyTeamMaintainer && !hasTeamMaintainerPermissions
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !hasTeamMaintainerPermissions
                     }
                   >
                     Save

@@ -40,7 +40,7 @@ class OrgDetails extends Component {
     const tabIndex = currentPage ? 1 : -1;
 
     return (
-      <form onSubmit={handleSubmit} className={className}>
+      <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <div className="registration-fields">
           <InputFieldWithIcon
             {...fields.org_name}

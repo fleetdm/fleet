@@ -92,7 +92,7 @@ class AddHostModal extends Component {
       .catch(() => {
         this.setState({
           fetchCertificateError:
-            "Failed to load certificate. Is Fleet App URL configured properly?",
+            "Failed to load certificate. Is Fleet app URL configured properly?",
         });
       });
   }
@@ -153,7 +153,7 @@ class AddHostModal extends Component {
     );
   };
 
-  createTeamDropdownOptions = (currentUserTeams) => {
+  createTeamDropdownOptions = (currentUserTeams = []) => {
     const teamOptions = currentUserTeams.map((team) => {
       return {
         value: team.id,
@@ -214,17 +214,14 @@ class AddHostModal extends Component {
     const flagfileContent = `# Server
 --tls_hostname=${tlsHostname}
 --tls_server_certs=fleet.pem
-
 # Enrollment
 --host_identifier=instance
 --enroll_secret_path=secret.txt
 --enroll_tls_endpoint=/api/v1/osquery/enroll
-
 # Configuration
 --config_plugin=tls
 --config_tls_endpoint=/api/v1/osquery/config
 --config_refresh=10
-
 # Live query
 --disable_distributed=false
 --distributed_plugin=tls
@@ -232,12 +229,10 @@ class AddHostModal extends Component {
 --distributed_tls_max_attempts=3
 --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read
 --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write
-
 # Logging
 --logger_plugin=tls
 --logger_tls_endpoint=/api/v1/osquery/log
 --logger_tls_period=10
-
 # File carving
 --disable_carver=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
@@ -280,7 +275,7 @@ class AddHostModal extends Component {
                 server.
               </p>
               <div className={`${baseClass}__secret-wrapper`}>
-                {isPremiumTier ? (
+                {isPremiumTier && currentUserTeams ? (
                   <Dropdown
                     wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
                     label={"Select a team for this new host:"}

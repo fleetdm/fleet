@@ -110,7 +110,7 @@ func (r *redisLiveQuery) MigrateKeys() error {
 		}
 	}
 
-	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, oldKeys...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, oldKeys...)
 	for _, keys := range keysBySlot {
 		if err := migrateBatchKeys(r.pool, keys); err != nil {
 			return err
@@ -194,7 +194,7 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 }
 
 func (r *redisLiveQuery) StopQuery(name string) error {
-	conn := r.pool.ConfigureDoer(r.pool.Get())
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	targetKey, sqlKey := generateKeys(name)
@@ -212,7 +212,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 		return nil, errors.Wrap(err, "scan active queries")
 	}
 
-	keysBySlot := redis.SplitRedisKeysBySlot(r.pool, queryKeys...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, queryKeys...)
 	queries := make(map[string]string)
 	for _, qkeys := range keysBySlot {
 		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
@@ -223,7 +223,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 }
 
 func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
-	conn := r.pool.Get()
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	// Pipeline redis calls to check for this host in the bitfield of the
@@ -279,7 +279,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 }
 
 func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
-	conn := r.pool.ConfigureDoer(r.pool.Get())
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	targetKey, _ := generateKeys(name)
@@ -318,7 +318,7 @@ func mapBitfield(hostIDs []uint) []byte {
 func scanKeys(pool fleet.RedisPool, pattern string) ([]string, error) {
 	var keys []string
 
-	err := redis.EachRedisNode(pool, func(conn redigo.Conn) error {
+	err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 		cursor := 0
 		for {
 			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern))

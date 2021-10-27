@@ -67,7 +67,7 @@ var detailQueries = map[string]DetailQuery{
 				}
 
 				if strings.Contains(row["address"], ":") {
-					//IPv6
+					// IPv6
 					if firstIPv6 == nil {
 						firstIPv6 = row
 					}
@@ -570,7 +570,12 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 			)
 			continue
 		}
-		s := fleet.Software{Name: name, Version: version, Source: source, BundleIdentifier: bundleIdentifier}
+		s := fleet.Software{
+			Name:             name,
+			Version:          version,
+			Source:           source,
+			BundleIdentifier: bundleIdentifier,
+		}
 		software.Software = append(software.Software, s)
 	}
 

@@ -16,6 +16,7 @@ import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/loaders/Spinner";
+import TabsWrapper from "components/TabsWrapper";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IQueryResultsProps {
@@ -306,7 +307,7 @@ const QueryResults = ({
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
-      <div className={`${baseClass}__nav-header`}>
+      <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
@@ -320,7 +321,7 @@ const QueryResults = ({
           <TabPanel>{renderTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
-      </div>
+      </TabsWrapper>
     </div>
   );
 };

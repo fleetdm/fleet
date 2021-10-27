@@ -138,89 +138,22 @@
         max-height: none;
       }
     }
-  }
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
 
-  &__team-dropdown {
-    border: 0 !important;
-    position: relative;
-
-    :hover {
-      cursor: pointer !important;
-    }
-
-    &.is-focused {
-      .Select-control {
-        border: 0 !important;
-        height: 32px;
+      &::before {
+        display: inline-block;
+        position: absolute;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-filter-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 26px;
+        left: 2px;
       }
     }
-
-    .Select-menu-outer {
-      position: absolute;
-      width: 330px;
-      min-width: 125px;
-      left: -12px;
-      border-radius: 6px;
-    }
-
-    .Select-control {
-      background-color: #fff;
-      border: 0 !important;
-      border-radius: none;
-      position: none;
-      width: max-content; // move select arrow
-      height: 20px;
-
-      &:hover {
-        box-shadow: none;
-      }
-
-      &:hover .Select-value-label {
-        color: $core-vibrant-blue !important;
-      }
-
-      .Select-arrow-zone {
-        padding-left: $pad-small;
-
-        .Select-arrow {
-          top: 1px !important;
-          margin-top: 0 !important;
-        }
-      }
-
-      .Select-multi-value-wrapper {
-        width: max-content; // move select arrow
-        height: 20px;
-        margin-bottom: $pad-xsmall;
-
-        .Select-input {
-          display: none !important;
-        }
-
-        .Select-value {
-          position: relative; // move select arrow
-          display: inline-block; // move select arrow
-          line-height: 28px;
-          padding: 0;
-          border: 0 !important;
-          background-color: #fff !important;
-          right: 0;
-          left: 0;
-          bottom: 0;
-          top: 0;
-
-          &.is-focused {
-            border: 0 !important;
-          }
-          :hover {
-            border: 0 !important;
-          }
-
-          .Select-value-label {
-            font-size: $large !important;
-          }
-        }
-      }
+    .Select-value-label {
+      padding-left: $pad-large;
     }
   }
 
@@ -233,14 +166,64 @@
     align-items: center;
 
     p {
-      font-size: $x-small;
+      font-size: $xx-small;
       font-weight: $bold;
       padding-left: $pad-medium;
     }
   }
 
+  &__policies-filter-name-card,
+  &__software-filter-name-card {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: 4px;
+    box-shadow: none;
+    margin-left: $pad-medium;
+    color: $core-fleet-black;
+    font-size: $xx-small;
+    font-weight: $bold;
+    cursor: default;
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+    }
+
+    button {
+      height: auto;
+      padding: 0px;
+      border: none;
+      margin-left: $pad-small;
+
+      img {
+        padding: 0px;
+        margin: 0px;
+      }
+    }
+  }
+
+  &__software-filter-name-card {
+    margin-left: 0px;
+  }
+
   &__enroll-hosts {
     padding: $pad-small;
     margin-right: $pad-small;
+  }
+
+  .issues__header,
+  .host-issue {
+    img {
+      width: 16px;
+      height: 16px;
+      vertical-align: sub;
+    }
+  }
+
+  .total-issues-count {
+    margin-left: $pad-small;
   }
 }

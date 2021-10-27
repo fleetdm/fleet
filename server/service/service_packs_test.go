@@ -33,25 +33,6 @@ func TestServiceListPacks(t *testing.T) {
 	assert.Len(t, queries, 1)
 }
 
-func TestGetPack(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-
-	pack := &fleet.Pack{
-		Name: "foo",
-	}
-	_, err := ds.NewPack(context.Background(), pack)
-	assert.Nil(t, err)
-	assert.NotZero(t, pack.ID)
-
-	packVerify, err := svc.GetPack(test.UserContext(test.UserAdmin), pack.ID)
-	assert.Nil(t, err)
-
-	assert.Equal(t, pack.ID, packVerify.ID)
-}
-
 func TestNewSavesTargets(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)

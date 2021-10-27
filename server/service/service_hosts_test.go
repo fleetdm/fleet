@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -15,34 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestListHosts(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-
-	hosts, err := svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
-
-	storedTime := time.Now().UTC()
-
-	_, err = ds.NewHost(context.Background(), &fleet.Host{
-		Hostname:        "foo",
-		SeenTime:        storedTime,
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-	})
-	require.NoError(t, err)
-
-	hosts, err = svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
-	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	format := "%Y-%m-%d %HH:%MM:%SS %Z"
-	assert.Equal(t, storedTime.Format(format), hosts[0].SeenTime.Format(format))
-}
 
 func TestDeleteHost(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
@@ -90,6 +61,9 @@ func TestHostDetails(t *testing.T) {
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
 	}
 
 	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
@@ -252,6 +226,12 @@ func TestHostAuth(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
 
 	var testCases = []struct {
 		name                  string
@@ -338,6 +318,12 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.DeleteHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{1}, fleet.HostListOptions{}, nil)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})

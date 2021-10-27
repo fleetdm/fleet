@@ -229,10 +229,12 @@ module.exports = {
                 // Check if this is an external link (like https://google.com) but that is ALSO not a link
                 // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
                 // If external, add target="_blank" so the link will open in a new tab.
-                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+                // Note: links to blog.fleetdm.com will be treated as an external link.
+                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
                 // Check if this link is to fleetdm.com or www.fleetdm.com.
                 let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
                 if (isExternal) {
+
                   return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
                 } else {
                   // Otherwise, change the link to be web root relative.
@@ -304,7 +306,7 @@ module.exports = {
               }
 
               // Determine the path of the file in the fleet repo so we can link to
-              // the file on github from fleetdm.com (e.g. 1-Using-Fleet/2-fleetctl-CLI.md)
+              // the file on github from fleetdm.com (e.g. 01-Using-Fleet/02-fleetctl-CLI.md)
               let sectionRelativeRepoPath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
 
               // Append to what will become configuration for the Sails app.

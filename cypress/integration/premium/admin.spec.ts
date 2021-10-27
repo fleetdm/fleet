@@ -50,8 +50,6 @@ describe(
           cy.findByText(/oranges/i).should("exist");
         });
 
-        cy.contains("button", /done/i).click();
-
         // On the Host details page, they should…
         // See the “Team” information below the hostname
         // Be able to transfer Teams

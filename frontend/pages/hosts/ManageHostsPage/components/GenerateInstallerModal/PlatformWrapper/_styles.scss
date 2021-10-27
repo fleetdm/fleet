@@ -1,0 +1,106 @@
+@import "../../../../../../../node_modules/react-tabs/style/react-tabs.scss";
+
+.platform-wrapper {
+  padding: 0; // different to pad sticky subnav properly
+
+  h1 {
+    margin-bottom: $pad-small;
+  }
+
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      transform: scale(0.5);
+      vertical-align: bottom;
+    }
+  }
+
+  p {
+    margin-top: 0;
+  }
+
+  .body-wrap {
+    padding: 0;
+  }
+
+  &__info {
+    margin-top: $pad-small;
+  }
+
+  &__cta {
+    font-weight: $bold;
+  }
+
+  .form-field {
+    margin-bottom: $pad-small;
+
+    &__label {
+      position: relative;
+      font-size: $x-small;
+      font-weight: $bold;
+      margin-top: $pad-medium;
+    }
+  }
+
+  .input-field {
+    &--disabled {
+      letter-spacing: 0;
+    }
+
+    &__textarea {
+      font-family: "SourceCodePro", $monospace;
+      font-weight: 600;
+      font-size: 13px;
+      color: $core-fleet-blue;
+      min-height: 70px;
+      line-height: 20px;
+      margin-bottom: 0;
+      padding: $pad-medium $pad-large $pad-medium $pad-medium;
+    }
+  }
+
+  &__installer-input-deb,
+  &__installer-input-rpm {
+    .input-field__textarea {
+      min-height: 95px;
+    }
+  }
+
+  &__installer-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 0;
+    top: 40px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-xxlarge 0 0;
+  }
+}

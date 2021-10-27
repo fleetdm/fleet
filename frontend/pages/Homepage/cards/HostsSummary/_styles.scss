@@ -1,0 +1,34 @@
+.hosts-summary {
+  margin-top: $pad-large;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  font-size: $x-small;
+
+  &__tile {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &:first-of-type {
+      justify-content: flex-end;
+    }
+    &:last-of-type {
+      justify-content: flex-start;
+    }
+  }
+
+  &__tile-icon {
+    margin-right: px-to-rem(12);
+
+    img {
+      width: 48px;
+      vertical-align: middle;
+    }
+  }
+
+  &__tile-count {
+    font-size: $large;
+  }
+}

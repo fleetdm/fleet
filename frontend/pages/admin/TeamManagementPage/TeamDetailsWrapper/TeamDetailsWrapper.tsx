@@ -1,17 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router";
+import { InjectedRouter, Link, RouteProps } from "react-router";
 import { push } from "react-router-redux";
 import { Tab, TabList, Tabs } from "react-tabs";
+import { find, memoize, toNumber } from "lodash";
+import classnames from "classnames";
 
 import PATHS from "router/paths";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
+import TabsWrapper from "components/TabsWrapper";
+import TeamsDropdown from "components/TeamsDropdown";
+import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
@@ -40,6 +47,9 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
 ];
 
 interface IRootState {
+  auth: {
+    user: IUser;
+  };
   entities: {
     teams: {
       loading: boolean;
@@ -56,7 +66,17 @@ interface ITeamDetailsPageProps {
   location: {
     pathname: string;
   };
+  route: RouteProps;
+  router: InjectedRouter;
 }
+
+const getTeams = (data: { [id: string]: ITeam }) => {
+  return Object.keys(data).map((teamId) => {
+    return data[teamId];
+  });
+};
+
+const memoizedGetTeams = memoize(getTeams);
 
 const generateUpdateData = (
   currentTeamData: ITeam,
@@ -76,19 +96,28 @@ const getTabIndex = (path: string, teamId: number): number => {
   });
 };
 
-const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
-  const {
-    children,
-    location: { pathname },
-    params: { team_id },
-  } = props;
+const TeamDetailsWrapper = ({
+  route,
+  router,
+  children,
+  location: { pathname },
+  params: routeParams,
+}: ITeamDetailsPageProps): JSX.Element => {
+  const { isGlobalAdmin, setCurrentTeam } = useContext(AppContext);
 
   const isLoadingTeams = useSelector(
     (state: IRootState) => state.entities.teams.loading
   );
   const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[team_id];
+    return state.entities.teams.data[routeParams.team_id];
   });
+  const teams = useSelector((state: IRootState) => {
+    return memoizedGetTeams(state.entities.teams.data);
+  });
+  const userTeams = useSelector((state: IRootState) => {
+    return state.auth.user.teams;
+  });
+  const routeTemplate = route && route.path ? route.path : "";
 
   const [showAddHostsRedirectModal, setShowAddHostsRedirectModal] = useState(
     false
@@ -99,13 +128,15 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const navigateToNav = (i: number): void => {
-    const navPath = teamDetailsSubNav[i].getPathname(team_id);
+    const navPath = teamDetailsSubNav[i].getPathname(routeParams.team_id);
     dispatch(push(navPath));
   };
 
   useEffect(() => {
     dispatch(teamActions.loadAll({ perPage: 500 }));
   }, [dispatch]);
+
+  const [teamMenuIsOpen, setTeamMenuIsOpen] = useState<boolean>(false);
 
   const toggleAddHostsRedirectModal = useCallback(() => {
     setShowAddHostsRedirectModal(!showAddHostsRedirectModal);
@@ -154,6 +185,38 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
     [dispatch, toggleEditTeamModal, team]
   );
 
+  const handleTeamSelect = (teamId: number) => {
+    const selectedTeam = find(teams, ["id", teamId]);
+    const { ADMIN_TEAMS } = PATHS;
+
+    const newRouteParams = {
+      ...routeParams,
+      team_id: selectedTeam ? selectedTeam.id : teamId,
+    };
+
+    const nextLocation = getNextLocationPath({
+      pathPrefix: ADMIN_TEAMS,
+      routeTemplate,
+      routeParams: newRouteParams,
+    });
+
+    router.replace(`${nextLocation}/members`);
+
+    setCurrentTeam(selectedTeam);
+  };
+
+  const handleTeamMenuOpen = () => {
+    setTeamMenuIsOpen(true);
+  };
+
+  const handleTeamMenuClose = () => {
+    setTeamMenuIsOpen(false);
+  };
+
+  const teamDetailsClasses = classnames(baseClass, {
+    "team-select-open": teamMenuIsOpen,
+  });
+
   if (isLoadingTeams || team === undefined) {
     return (
       <div className={`${baseClass}__loading-spinner`}>
@@ -163,17 +226,39 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
   }
   const hostsCount = team.host_count;
   const hostsTotalDisplay = hostsCount === 1 ? "1 host" : `${hostsCount} hosts`;
+  const userAdminTeams = userTeams.filter(
+    (thisTeam) => thisTeam.role === "admin"
+  );
+  const adminTeams = isGlobalAdmin ? teams : userAdminTeams;
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__nav-header`}>
-        <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__back-link`}>
-          <img src={BackChevron} alt="back chevron" id="back-chevron" />
-          <span>Back to teams</span>
-        </Link>
+    <div className={teamDetailsClasses}>
+      <TabsWrapper>
+        <>
+          {isGlobalAdmin && (
+            <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__back-link`}>
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to teams</span>
+            </Link>
+          )}
+        </>
         <div className={`${baseClass}__team-header`}>
           <div className={`${baseClass}__team-details`}>
-            <h1>{team.name}</h1>
+            {adminTeams.length === 1 ? (
+              <h1>{team.name}</h1>
+            ) : (
+              <TeamsDropdown
+                currentTeamId={toNumber(routeParams.team_id)}
+                isLoading={isLoadingTeams}
+                teams={adminTeams || []}
+                hideAllTeamsOption
+                onChange={(newSelectedValue: number) =>
+                  handleTeamSelect(newSelectedValue)
+                }
+                onOpen={handleTeamMenuOpen}
+                onClose={handleTeamMenuClose}
+              />
+            )}
             <span className={`${baseClass}__host-count`}>
               {hostsTotalDisplay}
             </span>
@@ -186,16 +271,18 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
                 Edit team
               </>
             </Button>
-            <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
-              <>
-                <img src={TrashIcon} alt="Delete team icon" />
-                Delete team
-              </>
-            </Button>
+            {isGlobalAdmin && (
+              <Button onClick={toggleDeleteTeamModal} variant={"text-icon"}>
+                <>
+                  <img src={TrashIcon} alt="Delete team icon" />
+                  Delete team
+                </>
+              </Button>
+            )}
           </div>
         </div>
         <Tabs
-          selectedIndex={getTabIndex(pathname, team_id)}
+          selectedIndex={getTabIndex(pathname, routeParams.team_id)}
           onSelect={(i) => navigateToNav(i)}
         >
           <TabList>
@@ -210,7 +297,7 @@ const TeamDetailsWrapper = (props: ITeamDetailsPageProps): JSX.Element => {
             })}
           </TabList>
         </Tabs>
-      </div>
+      </TabsWrapper>
       {showAddHostsRedirectModal ? (
         <AddHostsRedirectModal
           onCancel={toggleAddHostsRedirectModal}

@@ -116,7 +116,7 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 // as returned by the TARGETS API; based on display_text
 export const PLATFORM_LABEL_DISPLAY_NAMES: Record<string, string> = {
-  "All Hosts": "All Hosts",
+  "All Hosts": "All hosts",
   "All Linux": "Linux",
   "CentOS Linux": "CentOS Linux",
   macOS: "macOS",
@@ -150,3 +150,10 @@ export const PLATFORM_DROPDOWN_OPTIONS = [
   { label: "Linux", value: "linux" },
   { label: "macOS", value: "darwin" },
 ];
+
+export const DEFAULT_CREATE_USER_ERRORS = {
+  email: "",
+  name: "",
+  password: "",
+  sso_enabled: null,
+};

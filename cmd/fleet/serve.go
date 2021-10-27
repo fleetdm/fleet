@@ -46,7 +46,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/throttled/throttled/v2/store/redigostore"
 	"google.golang.org/grpc"
 )
 
@@ -202,7 +201,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			redisPool, err := redis.NewRedisPool(redis.PoolConfig{
+			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
@@ -211,10 +210,22 @@ the way that the Fleet server works.
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
 				ClusterFollowRedirections: config.Redis.ClusterFollowRedirections,
+				ClusterReadFromReplica:    config.Redis.ClusterReadFromReplica,
+				TLSCert:                   config.Redis.TLSCert,
+				TLSKey:                    config.Redis.TLSKey,
+				TLSCA:                     config.Redis.TLSCA,
+				TLSServerName:             config.Redis.TLSServerName,
+				TLSHandshakeTimeout:       config.Redis.TLSHandshakeTimeout,
+				MaxIdleConns:              config.Redis.MaxIdleConns,
+				MaxOpenConns:              config.Redis.MaxOpenConns,
+				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
+				IdleTimeout:               config.Redis.IdleTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
+			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
+
 			ds = cached_mysql.New(ds, redisPool)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
@@ -277,9 +288,9 @@ the way that the Fleet server works.
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
-			limiterStore, err := redigostore.New(redisPool, "ratelimit::", 0)
-			if err != nil {
-				initFatal(err, "initialize rate limit store")
+			limiterStore := &redis.ThrottledStore{
+				Pool:      redisPool,
+				KeyPrefix: "ratelimit::",
 			}
 
 			var apiHandler, frontendHandler http.Handler
@@ -462,12 +473,13 @@ func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfi
 }
 
 func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
+			ticker.Reset(1 * time.Hour)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
@@ -495,6 +507,18 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		err = ds.CleanupOrphanLabelMembership(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
+		}
+		err = ds.UpdateQueryAggregatedStats(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating query stats", "details", err)
+		}
+		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
+		}
+		err = ds.CleanupExpiredHosts(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
 		}
 
 		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")

@@ -75,6 +75,8 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
+type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
+
 type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
 
 type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
@@ -163,6 +165,12 @@ type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int,
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
+type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error)
+
+type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
+
+type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -225,6 +233,8 @@ type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
 
 type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
 
+type CleanupExpiredHostsFunc func(ctx context.Context) error
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -253,6 +263,8 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) error
 
+type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -261,7 +273,7 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(ctx context.Context, queryID uint) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
@@ -273,15 +285,17 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
+type ApplyPolicySpecsFunc func(ctx context.Context, specs []*fleet.PolicySpec) error
+
 type MigrateTablesFunc func(ctx context.Context) error
 
 type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
 
-type ListSoftwareFunc func(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error)
+type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
 
-type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error)
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
@@ -292,6 +306,10 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
+
+type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -389,6 +407,9 @@ type DataStore struct {
 
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
+
+	DistributedQueryCampaignsForQueryFunc        DistributedQueryCampaignsForQueryFunc
+	DistributedQueryCampaignsForQueryFuncInvoked bool
 
 	ApplyPackSpecsFunc        ApplyPackSpecsFunc
 	ApplyPackSpecsFuncInvoked bool
@@ -522,6 +543,15 @@ type DataStore struct {
 	DeleteHostsFunc        DeleteHostsFunc
 	DeleteHostsFuncInvoked bool
 
+	CountHostsFunc        CountHostsFunc
+	CountHostsFuncInvoked bool
+
+	CountHostsInLabelFunc        CountHostsInLabelFunc
+	CountHostsInLabelFuncInvoked bool
+
+	ListPoliciesForHostFunc        ListPoliciesForHostFunc
+	ListPoliciesForHostFuncInvoked bool
+
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
@@ -615,6 +645,9 @@ type DataStore struct {
 	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
 	CleanupOrphanLabelMembershipFuncInvoked bool
 
+	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
+	CleanupExpiredHostsFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -657,6 +690,9 @@ type DataStore struct {
 	InsertCVEForCPEFunc        InsertCVEForCPEFunc
 	InsertCVEForCPEFuncInvoked bool
 
+	SoftwareByIDFunc        SoftwareByIDFunc
+	SoftwareByIDFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
@@ -687,6 +723,9 @@ type DataStore struct {
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
 
+	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
+	ApplyPolicySpecsFuncInvoked bool
+
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
 
@@ -716,6 +755,12 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
+
+	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
+	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
+
+	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
+	UpdateQueryAggregatedStatsFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -876,6 +921,11 @@ func (s *DataStore) NewDistributedQueryCampaignTarget(ctx context.Context, targe
 func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
+}
+
+func (s *DataStore) DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error) {
+	s.DistributedQueryCampaignsForQueryFuncInvoked = true
+	return s.DistributedQueryCampaignsForQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
@@ -1098,6 +1148,21 @@ func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return s.DeleteHostsFunc(ctx, ids)
 }
 
+func (s *DataStore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsFuncInvoked = true
+	return s.CountHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	s.CountHostsInLabelFuncInvoked = true
+	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
+}
+
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+	s.ListPoliciesForHostFuncInvoked = true
+	return s.ListPoliciesForHostFunc(ctx, hid)
+}
+
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.CountHostsInTargetsFuncInvoked = true
 	return s.CountHostsInTargetsFunc(ctx, filter, targets, now)
@@ -1253,6 +1318,11 @@ func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
 	return s.CleanupOrphanLabelMembershipFunc(ctx)
 }
 
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {
+	s.CleanupExpiredHostsFuncInvoked = true
+	return s.CleanupExpiredHostsFunc(ctx)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
 	return s.NewTeamFunc(ctx, team)
@@ -1323,6 +1393,11 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
+func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	s.SoftwareByIDFuncInvoked = true
+	return s.SoftwareByIDFunc(ctx, id)
+}
+
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	s.NewActivityFuncInvoked = true
 	return s.NewActivityFunc(ctx, user, activityType, details)
@@ -1343,9 +1418,9 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(ctx, queryID)
+	return s.NewGlobalPolicyFunc(ctx, queryID, resolution)
 }
 
 func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -1373,6 +1448,11 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
+func (s *DataStore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
+	s.ApplyPolicySpecsFuncInvoked = true
+	return s.ApplyPolicySpecsFunc(ctx, specs)
+}
+
 func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
 	return s.MigrateTablesFunc(ctx)
@@ -1388,14 +1468,14 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 	return s.MigrationStatusFunc(ctx)
 }
 
-func (s *DataStore) ListSoftware(ctx context.Context, teamId *uint, opt fleet.ListOptions) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
-	return s.ListSoftwareFunc(ctx, teamId, opt)
+	return s.ListSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*fleet.Policy, error) {
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
-	return s.NewTeamPolicyFunc(ctx, teamID, queryID)
+	return s.NewTeamPolicyFunc(ctx, teamID, queryID, resolution)
 }
 
 func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
@@ -1421,4 +1501,14 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
+	s.UpdateQueryAggregatedStatsFuncInvoked = true
+	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }

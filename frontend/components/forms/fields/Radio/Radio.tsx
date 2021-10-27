@@ -14,17 +14,16 @@ interface IRadioProps {
   disabled?: boolean;
 }
 
-const Radio = (props: IRadioProps): JSX.Element => {
-  const {
-    className,
-    id,
-    name,
-    value,
-    checked,
-    disabled,
-    label,
-    onChange,
-  } = props;
+const Radio = ({
+  className,
+  id,
+  name,
+  value,
+  checked,
+  disabled,
+  label,
+  onChange,
+}: IRadioProps): JSX.Element => {
   const wrapperClasses = classnames(baseClass, className);
 
   const radioControlClass = classnames({

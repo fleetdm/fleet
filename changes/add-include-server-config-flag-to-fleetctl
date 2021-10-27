@@ -1,0 +1,1 @@
+* Add the `--include-server-config` flag to `fleetctl get config`.

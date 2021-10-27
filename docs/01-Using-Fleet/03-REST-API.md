@@ -280,11 +280,11 @@ Resets a user's password. Which user is determined by the password reset token u
 
 Retrieves the user data for the authenticated user.
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 #### Example
 
-`POST /api/v1/fleet/me`
+`GET /api/v1/fleet/me`
 
 ##### Default response
 
@@ -481,6 +481,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -543,8 +544,58 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "team_id": null,
       "team_name": null,
       "pack_stats": null,
-    },
+      "issues": {
+        "failing_policies_count": 2,
+        "total_issues_count": 2
+      }
+    }
   ]
+}
+```
+
+### Count hosts
+
+`GET /api/v1/fleet/hosts/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
+| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+
+If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
+
+##### Request query parameters
+
+```json
+{
+  "page": 0,
+  "per_page": 100,
+  "order_key": "hostname",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 123
 }
 ```
 
@@ -678,7 +729,7 @@ The endpoint returns the host's installed `software` if the software inventory f
         "username": "bin",
         "type": "",
         "groupname": "bin"
-      },
+      }
     ],
     "labels": [
       {
@@ -717,7 +768,37 @@ The endpoint returns the host's installed `software` if the software inventory f
     ],
     "packs": [],
     "status": "online",
-    "display_text": "23cfc9caacf0"
+    "display_text": "23cfc9caacf0",
+    "policies": [
+      {
+        "id": 1,
+        "query_id": 2,
+        "query_name": "SomeQuery",
+        "query_description": "this is a query",
+        "resolution": "fix with these steps...",
+        "response": "pass"
+      },
+      {
+        "id": 2,
+        "query_id": 4,
+        "query_name": "SomeQuery2",
+        "query_description": "this is another query",
+        "resolution": "fix with these other steps...",
+        "response": "fail"
+      },
+      {
+        "id": 3,
+        "query_id": 255,
+        "query_name": "SomeQuery3",
+        "query_description": "",
+        "resolution": "",
+        "response": ""
+      }
+    ],
+    "issues": {
+      "failing_policies_count": 2,
+      "total_issues_count": 2
+    }
   }
 }
 ```
@@ -812,7 +893,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-Flags the host details to be refetched the next time the host checks in for live queries. Note that we cannot be certain when the host will actually check in and update these details. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
+Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
 `POST /api/v1/fleet/hosts/{id}/refetch`
 
@@ -1678,6 +1759,7 @@ The same error will be returned whenever one of the required parameters fails th
 ### Create a user account without an invitation
 
 Creates a user account without requiring an invitation, the user is enabled immediately.
+By default, the user will be forced to reset its password upon first login.
 
 `POST /api/v1/fleet/users/admin`
 
@@ -1691,6 +1773,7 @@ Creates a user account without requiring an invitation, the user is enabled imme
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | global_role | string  | body | The role assigned to the user. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `global_role` is specified, `teams` cannot be specified.                                                                                                                                                                         |
+| admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
 | teams       | array   | body | _Available in Fleet Premium_ The teams and respective roles assigned to the user. Should contain an array of objects in which each object includes the team's `id` and the user's `role` on each team. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `teams` is specified, `global_role` cannot be specified. |
 
 #### Example
@@ -2229,7 +2312,14 @@ Returns a list of all queries in the Fleet instance.
         "platform": "",
         "disabled": true
       }
-    ]
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
   },
   {
     "created_at": "2021-01-19T17:08:24Z",
@@ -2783,16 +2873,16 @@ Note that live queries are automatically cancelled if this method is not called 
 
 `/api/v1/fleet/results/websockets`
 
-#### Parameters
+### Parameters
 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
 | campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
-#### Example
+### Example
 
-##### Example script to handle request and response
+#### Example script to handle request and response
 
 ```
 const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
@@ -2811,19 +2901,19 @@ socket.onmessage = ({ data }) => {
 }
 ```
 
-##### Detailed request and response walkthrough with example data
+### Detailed request and response walkthrough with example data
 
-##### webSocket.onopen()
+#### webSocket.onopen()
 
-###### Response data
+##### Response data
 
 ```json
 o
 ```
 
-##### webSocket.send()
+#### webSocket.send()
 
-###### Request data
+##### Request data
 
 ```json
 [
@@ -2843,9 +2933,9 @@ o
 ]
 ```
 
-##### webSocket.onmessage()
+#### webSocket.onmessage()
 
-###### Response data
+##### Response data
 
 ```json
 // Sends the total number of hosts targeted and segments them by status
@@ -2924,16 +3014,16 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 
 `/api/v1/fleet/results/`
 
-#### Parameters
+### Parameters
 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
 | campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
 
-#### Example
+### Example
 
-##### Example script to handle request and response
+#### Example script to handle request and response
 
 ```
 const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
@@ -2955,17 +3045,17 @@ socket.onmessage = ({ data }) => {
 
 ##### Detailed request and response walkthrough
 
-##### socket.onopen()
+#### socket.onopen()
 
-###### Response data
+##### Response data
 
 ```json
 o
 ```
 
-##### socket.send()
+#### socket.send()
 
-###### Request data
+##### Request data
 
 ```json
 [
@@ -2985,9 +3075,9 @@ o
 ]
 ```
 
-##### socket.onmessage()
+#### socket.onmessage()
 
-###### Response data
+##### Response data
 
 ```json
 // Sends the total number of hosts targeted and segments them by status
@@ -3058,6 +3148,81 @@ o
 ]
 ```
 
+### Run live queries and retrieve 90 seconds of results using only REST
+
+The same endpoint used to run queries and gather the results over websockets can also be used to collect the results 
+over a fixed period of 90 seconds and get the results in the REST response.
+
+WARNING: this endpoint collects responses in memory and the elapsed time is capped at 90 seconds, regardless of whether
+all results possible have been gathered. This can cause an autoscaling event, depending on the configuration, or the 
+fleet instance crashing.
+
+`GET /api/v1/fleet/queries/run`
+
+#### Parameters
+
+
+| Name      | Type   | In   | Description                                   |
+| --------- | ------ | ---- | --------------------------------------------- |
+| query_ids | array  | body | **Required**. The IDs of the queries to run as live queries.               |
+| host_ids  | array  | body | **Required**. The IDs of the hosts to run the live queries against. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/run`
+
+##### Request body
+
+```json
+{
+  "query_ids": [ 1, 2 ],
+  "host_ids": [ 1, 4, 34, 27 ]
+}
+```
+
+##### Default response
+
+```json
+{
+  "summary": {
+    "targeted_host_count": 4,
+    "responded_host_count": 2
+  },
+  "live_query_results": [
+    {
+      "query_id": 2,
+      "results": [
+        {
+          "host_id": 1,
+          "rows": [
+            {
+              "build_distro": "10.12",
+              "build_platform": "darwin",
+              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+              "config_valid": "1",
+              "extensions": "active",
+              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+              "pid": "23413",
+              "platform_mask": "21",
+              "start_time": "1635194306",
+              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+              "version": "4.9.0",
+              "watcher": "23412"
+            }
+          ],
+          "error": null
+        },
+        {
+          "host_id": 2,
+          "rows": [],
+          "error": "no such table: os_version"
+        }
+      ]
+    }
+  ]
+}
+```
+
 ---
 
 ## Schedule
@@ -3107,7 +3272,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3124,7 +3296,14 @@ None.
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -3156,7 +3335,7 @@ None.
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -3311,7 +3490,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "version": "",
       "removed": null,
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     },
     {
       "created_at": "0001-01-01T00:00:00Z",
@@ -3328,7 +3514,14 @@ This allows you to easily configure scheduled queries that will impact a whole t
       "platform": "",
       "version": "",
       "shard": null,
-      "denylist": null
+      "denylist": null,
+      "stats": {
+        "system_time_p50": 1.32,
+        "system_time_p95": 4.02,
+        "user_time_p50": 3.55,
+        "user_time_p95": 3.00,
+        "total_executions": 3920
+      }
     }
   ]
 }
@@ -4286,6 +4479,7 @@ Returns the spec for the specified pack by pack name.
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
+- [Apply policy specs](#apply-policy-specs)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -4316,15 +4510,16 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 1,
       "query_id": 2,
       "query_name": "Gatekeeper enabled",
+      "resolution": "Resolution steps",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
       "query_id": 3,
       "query_name": "Primary disk encrypted",
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -4338,7 +4533,7 @@ Hosts that do not return results for a policy's query are "Failing."
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The policy's ID.                                                                                  |
+| id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -4354,8 +4549,9 @@ Hosts that do not return results for a policy's query are "Failing."
     "id": 1,
     "query_id": 2,
     "query_name": "Gatekeeper enabled",
+    "resolution": "Resolution steps",
     "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "failing_host_count": 300
   }
 }
 ```
@@ -4366,9 +4562,10 @@ Hosts that do not return results for a policy's query are "Failing."
 
 #### Parameters
 
-| Name     | Type    | In   | Description                    |
-| -------- | ------- | ---- | ------------------------------ |
-| query_id | integer | body | **Required.** The query's ID.  |
+| Name       | Type    | In   | Description                           |
+| ---------- | ------- | ---- | ------------------------------------- |
+| query_id   | integer | body | **Required.** The query's ID.         |
+| resolution | string  | body | The resolution steps for the policy.  |
 
 #### Example
 
@@ -4392,9 +4589,10 @@ Hosts that do not return results for a policy's query are "Failing."
       "id": 2,
       "query_id": 2,
       "query_name": "Primary disk encrypted",
+      "resolution": "Some resolution steps",
       "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+      "failing_host_count": 0
+    }
 }
 ```
 
@@ -4429,6 +4627,47 @@ Hosts that do not return results for a policy's query are "Failing."
   "deleted": 1
 }
 ```
+
+### Apply policy specs
+
+Applies the supplied policy specs to Fleet. Each policy requires a `query` property, and optionally a `resolution` detail 
+to explain how to resolve the failure of the policy, and a `team` if the policy is at the specified team level.
+
+`POST /api/v1/fleet/spec/policies`
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                                                                   |
+| ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| specs | list | body | A list of the policy to apply. Each policy requires a `query` and optionally `team` and `resolution`.         |
+
+#### Example
+
+`POST /api/v1/fleet/spec/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "query": "query name"
+    },
+    {
+      "query": "some other query name",
+      "team": "team1"
+    },
+    {
+      "query": "query3",
+      "resolution": "Add something to your config"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -5108,6 +5347,14 @@ None.
     "osquery_detail": 3600000000000,
     "osquery_policy": 3600000000000
   },
+  "vulnerabilities": {
+    "cpe_database_url": "",
+    "current_instance_checks": "auto",
+    "cve_feed_prefix_url": "",
+    "databases_path": "",
+    "disable_data_sync": false,
+    "periodicity": 3600000000000
+  }
 }
 ```
 
@@ -5773,7 +6020,7 @@ _Available in Fleet Premium_
 {
   "teams": [
     {
-      "id": 1.
+      "id": 1,
       "created_at": "2021-07-28T15:58:21Z",
       "name": "workstations",
       "description": "",
@@ -5835,15 +6082,16 @@ _Available in Fleet Premium_
           },
           "overrides": {}
         },
-      "user_count": 0,
-      "host_count": 0,
-      "secrets": [
-        {
-          "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
-          "created_at": "2021-08-05T21:41:42Z",
-          "team_id": 15
-        }
-      ]
+        "user_count": 0,
+        "host_count": 0,
+        "secrets": [
+          {
+            "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
+            "created_at": "2021-08-05T21:41:42Z",
+            "team_id": 15
+          }
+        ]
+      }
     }
   ]
 }
@@ -6303,6 +6551,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
 

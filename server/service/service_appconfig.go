@@ -187,6 +187,17 @@ func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateInte
 	}, nil
 }
 
+func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
+	return &fleet.VulnerabilitiesConfig{
+		DatabasesPath:         svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:           svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:        svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:      svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks: svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:       svc.config.Vulnerabilities.DisableDataSync,
+	}, nil
+}
+
 func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err

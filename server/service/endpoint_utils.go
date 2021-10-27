@@ -109,25 +109,30 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					return nil, err
 				}
 
-				if urlTagValue == "list_options" {
+				switch urlTagValue {
+				case "list_options":
 					opts, err := listOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
-					continue
-				}
-
-				id, err := idFromRequest(r, urlTagValue)
-				if err != nil {
-					if err == errBadRoute && optional {
-						continue
+				case "host_options":
+					opts, err := hostListOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
 					}
+					field.Set(reflect.ValueOf(opts))
+				default:
+					id, err := idFromRequest(r, urlTagValue)
+					if err != nil {
+						if err == errBadRoute && optional {
+							continue
+						}
 
-					return nil, err
+						return nil, err
+					}
+					field.SetUint(uint64(id))
 				}
-				field.SetUint(uint64(id))
-				continue
 			}
 
 			_, jsonExpected := f.Tag.Lookup("json")
@@ -143,14 +148,14 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					return nil, err
 				}
 				queryVal := r.URL.Query().Get(queryTagValue)
-				if field.Kind() == reflect.Ptr {
-					// if optional and it's a ptr, leave as nil
-					if queryVal == "" {
-						if optional {
-							continue
-						}
-						return nil, errors.Errorf("Param %s is required", f.Name)
+				// if optional and it's a ptr, leave as nil
+				if queryVal == "" {
+					if optional {
+						continue
 					}
+					return nil, errors.Errorf("Param %s is required", f.Name)
+				}
+				if field.Kind() == reflect.Ptr {
 					// create the new instance of whatever it is
 					field.Set(reflect.New(field.Type().Elem()))
 					field = field.Elem()
@@ -161,9 +166,11 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Uint:
 					queryValUint, err := strconv.Atoi(queryVal)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "parsing uint from query")
 					}
 					field.SetUint(uint64(queryValUint))
+				case reflect.Bool:
+					field.SetBool(queryVal == "1" || queryVal == "true")
 				default:
 					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
 				}

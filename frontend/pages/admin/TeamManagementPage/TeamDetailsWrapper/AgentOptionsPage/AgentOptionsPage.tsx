@@ -32,10 +32,9 @@ interface IRootState {
   };
 }
 
-const AgentOptionsPage = (props: IAgentOptionsPageProps): JSX.Element => {
-  const {
-    params: { team_id },
-  } = props;
+const AgentOptionsPage = ({
+  params: { team_id },
+}: IAgentOptionsPageProps): JSX.Element => {
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
   const team = useSelector((state: IRootState) => {

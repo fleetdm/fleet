@@ -2,12 +2,13 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { secondsToDhms } from "fleet/helpers";
+import { performanceIndicator, secondsToDhms } from "fleet/helpers";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
@@ -98,6 +99,13 @@ const generateTableHeaders = (
       ),
     },
     {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+    },
+    {
       title: "Actions",
       Header: "",
       disableSortBy: true,
@@ -135,6 +143,13 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
         <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
+    {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+    },
   ];
 };
 
@@ -160,6 +175,11 @@ const enhanceAllScheduledQueryData = (
 ): IAllScheduledQueryTableData[] => {
   return all_scheduled_queries.map(
     (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
+      const scheduledQueryPerformance = {
+        user_time_p50: all_scheduled_query.stats?.user_time_p50,
+        system_time_p50: all_scheduled_query.stats?.system_time_p50,
+        total_executions: all_scheduled_query.stats?.total_executions,
+      };
       return {
         name: all_scheduled_query.name,
         query_name: all_scheduled_query.query_name,
@@ -173,6 +193,10 @@ const enhanceAllScheduledQueryData = (
         version: all_scheduled_query.version,
         shard: all_scheduled_query.shard,
         type: teamId ? "team_scheduled_query" : "global_scheduled_query",
+        performance: [
+          performanceIndicator(scheduledQueryPerformance),
+          all_scheduled_query.id,
+        ],
       };
     }
   );

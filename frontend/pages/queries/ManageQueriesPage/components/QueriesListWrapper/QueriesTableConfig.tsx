@@ -3,21 +3,22 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import format from "date-fns/format";
 
-import moment from "moment";
+import permissionsUtils from "utilities/permissions";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import PillCell from "components/TableContainer/DataTable/PillCell";
 
 import PATHS from "router/paths";
 
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
-
-import permissionsUtils from "utilities/permissions";
 
 interface IQueryRow {
   id: string;
@@ -62,7 +63,9 @@ interface IDataColumn {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
-  const isAnyTeamMaintainer = permissionsUtils.isAnyTeamMaintainer(currentUser);
+  const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
+    currentUser
+  );
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -81,6 +84,24 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         />
       ),
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Platform",
+      Header: "Platform",
+      disableSortBy: true,
+      accessor: "platforms",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        return <PlatformCell value={cellProps.cell.value} />;
+      },
+    },
+    {
+      title: "Performance impact",
+      Header: "Performance impact",
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps) => (
+        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+      ),
     },
     {
       title: "Author",
@@ -106,7 +127,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/DD/YY")} />
       ),
     },
   ];
@@ -126,14 +147,14 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           value: checked,
           indeterminate,
           onChange: () => {
-            if (!isAnyTeamMaintainer) {
+            if (!isAnyTeamMaintainerOrTeamAdmin) {
               toggleAllRowsSelected();
             } else {
               // Team maintainers may only delete the queries that they have authored
               // so we need to do some filtering and then modify the toggle select all
               // behavior for the header checkbox
               const userAuthoredQueries = rows.filter(
-                (r: any) => r.original.author_id === currentUser.id
+                (r: IQueryRow) => r.original.author_id === currentUser.id
               );
               if (
                 selectedFlatRows.length &&
@@ -141,12 +162,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               ) {
                 // If some but not all of the user authored queries are already selected,
                 // we toggle all of the user's unselected queries to true
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id, true)
                 );
               } else {
                 // Otherwise, we toggle all of the user's queries to the opposite of their current state
-                userAuthoredQueries.forEach((r: any) =>
+                userAuthoredQueries.forEach((r: IQueryRow) =>
                   toggleRowSelected(r.id)
                 );
               }
@@ -162,7 +183,8 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           value: checked,
           onChange: () => row.toggleRowSelected(),
           disabled:
-            isAnyTeamMaintainer && row.original.author_id !== currentUser.id,
+            isAnyTeamMaintainerOrTeamAdmin &&
+            row.original.author_id !== currentUser.id,
         };
         // If the user is a team maintainer, we only enable checkboxes for queries
         // that they authored and we include a tooltip to explain disabled checkboxes
@@ -172,7 +194,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               data-tip
               data-for={`${"select-checkbox"}__${row.original.id}`}
               data-tip-disable={
-                !isAnyTeamMaintainer ||
+                !isAnyTeamMaintainerOrTeamAdmin ||
                 row.original.author_id === currentUser.id
               }
             >
@@ -196,7 +218,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
       disableHidden: true,
     });
-    tableHeaders.splice(3, 0, {
+    tableHeaders.splice(2, 0, {
       title: "Observer can run",
       Header: (cellProps) => (
         <HeaderCell

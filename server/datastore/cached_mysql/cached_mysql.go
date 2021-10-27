@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
@@ -28,7 +29,7 @@ func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
 }
 
 func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
-	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
+	conn := redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get())
 	defer conn.Close()
 
 	b, err := json.Marshal(v)
@@ -44,7 +45,8 @@ func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
 }
 
 func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := ds.redisPool.ConfigureDoer(ds.redisPool.Get())
+	conn := redis.ReadOnlyConn(ds.redisPool,
+		redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get()))
 	defer conn.Close()
 
 	data, err := redigo.Bytes(conn.Do("GET", key))

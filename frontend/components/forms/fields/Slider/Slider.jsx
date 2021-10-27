@@ -7,7 +7,7 @@ import FormField from "components/forms/FormField";
 
 const Slider = (props) => {
   const { onChange, value, inactiveText = "Off", activeText = "On" } = props;
-  const baseClass = "kolide-slider";
+  const baseClass = "fleet-slider";
 
   const sliderBtnClass = classnames(baseClass, {
     [`${baseClass}--active`]: value,

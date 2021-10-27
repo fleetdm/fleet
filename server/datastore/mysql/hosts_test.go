@@ -24,22 +24,26 @@ import (
 var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
 }{
-	0: {uuid: "6D14C88F-8ECF-48D5-9197-777647BF6B26",
+	0: {
+		uuid:     "6D14C88F-8ECF-48D5-9197-777647BF6B26",
 		hostname: "web.fleet.co",
 		platform: "linux",
 		nodeKey:  "key0",
 	},
-	1: {uuid: "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
+	1: {
+		uuid:     "B998C0EB-38CE-43B1-A743-FBD7A5C9513B",
 		hostname: "mail.fleet.co",
 		platform: "linux",
 		nodeKey:  "key1",
 	},
-	2: {uuid: "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
+	2: {
+		uuid:     "008F0688-5311-4C59-86EE-00C2D6FC3EC2",
 		hostname: "home.fleet.co",
 		platform: "darwin",
 		nodeKey:  "key2",
 	},
-	3: {uuid: "uuid123",
+	3: {
+		uuid:     "uuid123",
 		hostname: "fakehostname",
 		platform: "darwin",
 		nodeKey:  "key3",
@@ -82,6 +86,9 @@ func TestHosts(t *testing.T) {
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
 		{"AuthenticateHostLoadsDisk", testAuthenticateHostLoadsDisk},
+		{"HostsListBySoftware", testHostsListBySoftware},
+		{"HostsListFailingPolicies", testHostsListFailingPolicies},
+		{"HostsExpiration", testHostsExpiration},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -537,6 +544,15 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, err)
 }
 
+func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, opt fleet.HostListOptions, expectedCount int) []*fleet.Host {
+	hosts, err := ds.ListHosts(context.Background(), filter, opt)
+	require.NoError(t, err)
+	count, err := ds.CountHosts(context.Background(), filter, opt)
+	require.NoError(t, err)
+	require.Equal(t, expectedCount, count)
+	return hosts
+}
+
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -557,21 +573,19 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h.Additional = &additional
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h))
 
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	require.Nil(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1)
 	assert.Nil(t, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "field2"}})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "field2"}}, 1)
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"*"}})
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"*"}}, 1)
 	require.Nil(t, err)
 	assert.Equal(t, &additional, hosts[0].Additional)
 
 	additional = json.RawMessage(`{"field1": "v1", "missing": null}`)
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "missing"}})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{AdditionalFilters: []string{"field1", "missing"}}, 1)
 	assert.Equal(t, &additional, hosts[0].Additional)
 }
 
@@ -595,20 +609,16 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "online"})
-	require.Nil(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "online"}, 1)
 	assert.Equal(t, 1, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "offline"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "offline"}, 9)
 	assert.Equal(t, 9, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "mia"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{StatusFilter: "new"})
-	require.Nil(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
 	assert.Equal(t, 10, len(hosts))
 }
 
@@ -643,60 +653,46 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host.ID}))
 	}
 
-	gotHosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	require.Nil(t, err)
+	gotHosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: &team1.ID})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team1.ID}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: &team2.ID})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 	assert.Equal(t, 0, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{TeamFilter: nil})
-	require.NoError(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: nil}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "00"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "000"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "000"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168."}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168."}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168.1.1"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "192.168.1.1"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_006"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "uuid_006"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
 
-	gotHosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}})
-	require.Nil(t, err)
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
 }
 
@@ -856,6 +852,26 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "99.100.101", h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "f")
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "f", h3.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "fx")
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "x")
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
+
+	hits, err = ds.SearchHosts(context.Background(), filter, "x", h3.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(hits))
 }
 
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {
@@ -1492,42 +1508,149 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), q.ID)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
 	require.NoError(t, err)
 
 	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
-	require.NoError(t, err)
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID}, 10)
 	require.Len(t, hosts, 10)
 
 	h1 := hosts[0]
 	h2 := hosts[1]
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 0)
 	require.Len(t, hosts, 0)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)}, 0)
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, h1.ID, hosts[0].ID)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(false)}, 1)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, h2.ID, hosts[0].ID)
 
-	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{PolicyIDFilter: &p.ID})
-	require.NoError(t, err)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID}, 8)
 	require.Len(t, hosts, 8)
+}
+
+func testHostsListBySoftware(t *testing.T, ds *Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+
+	soft := fleet.HostSoftware{
+		Modified: true,
+		Software: []fleet.Software{
+			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
+		},
+	}
+	host1 := hosts[0]
+	host2 := hosts[1]
+	host1.HostSoftware = soft
+	host2.HostSoftware = soft
+
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
+	require.Len(t, hosts, 2)
+}
+
+func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(context.Background(), q2.ID, "")
+	require.NoError(t, err)
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
+	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
+}
+
+func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	foundH2 := false
+	var foundHost *fleet.Host
+	for _, host := range hosts {
+		if host.ID == hid {
+			foundH2 = true
+			foundHost = host
+			break
+		}
+	}
+	require.True(t, foundH2)
+	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+
+	hostById, err := ds.Host(context.Background(), hid)
+	require.NoError(t, err)
+	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
 }
 
 func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
@@ -1873,4 +1996,64 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 	case <-ticker.C:
 		require.Fail(t, "timed out")
 	}
+}
+
+func testHostsExpiration(t *testing.T, ds *Datastore) {
+	hostExpiryWindow := 70
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		seenTime := time.Now()
+		if i >= 5 {
+			seenTime = seenTime.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+		}
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        seenTime,
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	// host expiration is still disabled
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+
+	// And it doesn't remove more than it should
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
 }

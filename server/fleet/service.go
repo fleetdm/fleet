@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/kolide/kit/version"
@@ -14,8 +15,15 @@ type OsqueryService interface {
 	) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
-	// GetDistributedQueries retrieves the distributed queries to run for the host in the provided context. These may be
-	// detail queries, label queries, or user-initiated distributed queries. A map from query name to query is returned.
+	// GetDistributedQueries retrieves the distributed queries to run for the host in
+	// the provided context. These may be (depending on update intervals):
+	//	- detail queries (including additional queries, if any),
+	//	- label queries,
+	//	- user-initiated distributed queries (aka live queries),
+	//	- policy queries.
+	//
+	// A map from query name to query is returned.
+	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
@@ -214,6 +222,10 @@ type Service interface {
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
 
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
 
@@ -241,6 +253,7 @@ type Service interface {
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
+	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -273,6 +286,10 @@ type Service interface {
 
 	// UpdateIntervalConfig returns the duration for different update intervals configured in osquery
 	UpdateIntervalConfig(ctx context.Context) (*UpdateIntervalConfig, error)
+
+	// VulnerabilitiesConfig returns the vulnerabilities checks configuration for
+	// the fleet instance.
+	VulnerabilitiesConfig(ctx context.Context) (*VulnerabilitiesConfig, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteService contains methods for a service which deals with user invites.
@@ -394,20 +411,22 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
-	NewGlobalPolicy(ctx context.Context, queryID uint) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software
 
-	ListSoftware(ctx context.Context, teamID *uint, opt ListOptions) ([]Software, error)
+	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	SoftwareByID(ctx context.Context, id uint) (*Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
