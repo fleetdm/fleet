@@ -520,6 +520,10 @@ func previewResetCommand() *cli.Command {
 				return errors.Errorf("Failed to run docker-compose rm -sf for simulated hosts.")
 			}
 
+			if err := stopOrbit(previewDir); err != nil {
+				return errors.Wrap(err, "Failed to stop orbit")
+			}
+
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
 
 			return nil
