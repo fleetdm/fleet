@@ -103,7 +103,7 @@ func sha256b64(s string) string {
 	return base64.URLEncoding.EncodeToString(src[:])
 }
 
-func hashErrorLocation(err error) string {
+func hashError(err error) string {
 	unpackedErr := eris.Unpack(err)
 
 	if unpackedErr.ErrExternal == nil && len(unpackedErr.ErrRoot.Stack) == 0 {
@@ -128,7 +128,7 @@ func hashErr(externalErr error) (errHash string, errAsJson string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	return hashErrorLocation(externalErr), string(bytes), nil
+	return hashError(externalErr), string(bytes), nil
 }
 
 func (h *Handler) handleErrors(ctx context.Context) {

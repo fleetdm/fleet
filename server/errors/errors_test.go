@@ -44,17 +44,17 @@ func TestHashErr(t *testing.T) {
 	t.Run("same error, same hash", func(t *testing.T) {
 		err1 := alwaysErrors()
 		err2 := alwaysCallsAlwaysErrors()
-		assert.Equal(t, hashErrorLocation(err1), hashErrorLocation(err2))
+		assert.Equal(t, hashError(err1), hashError(err2))
 
 		eris1 := alwaysErisErrors()
 		eris2 := alwaysCallsAlwaysErisErrors()
-		assert.Equal(t, hashErrorLocation(eris1), hashErrorLocation(eris2))
+		assert.Equal(t, hashError(eris1), hashError(eris2))
 		assert.NotEqual(t, err1, eris1)
 		assert.NotEmpty(t, err1)
 		assert.NotEmpty(t, eris2)
 
 		werr1, werr2 := alwaysWrappedErr(), alwaysWrappedErr()
-		assert.Equal(t, hashErrorLocation(werr1), hashErrorLocation(werr2))
+		assert.Equal(t, hashError(werr1), hashError(werr2))
 		assert.NotEqual(t, werr1, werr2)
 	})
 
