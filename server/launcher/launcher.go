@@ -1,3 +1,10 @@
+// Package launcher provides a transport for Kolide Launcher (https://github.com/kolide/launcher)
+// clients to connect to Fleet. These clients use a gRPC transport to hit the equivalent API
+// endpoints.
+//
+// Fleet intends to maintain support for Launcher as long as the Launcher API remains as closely
+// mapped to the osquery API as it is currently, and Fleet users continue to use Launcher. In the
+// future as more Fleet users migrate to Orbit, this may be deprecated.
 package launcher
 
 import (
