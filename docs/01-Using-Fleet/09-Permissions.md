@@ -70,7 +70,7 @@ The following table depicts various permissions levels in a team.
 | Action                                                       | Observer | Maintainer | Admin   |
 | ------------------------------------------------------------ | -------- | ---------- | ------- |
 | Browse hosts assigned to team                                | ✅       | ✅         | ✅       |
-| Browse policies for hosts assigned to team                   | ✅       | ✅         | ✅       |
+| Browse team policies                                         | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using policies                 | ✅       | ✅         | ✅       |
 | Filter hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
 | Target hosts assigned to team using labels                   | ✅       | ✅         | ✅       |
@@ -81,15 +81,12 @@ The following table depicts various permissions levels in a team.
 | Create saved queries                                         |          | ✅         | ✅       |
 | Edit queries they authored                                   |          | ✅         | ✅       |
 | Delete queries they authored                                 |          | ✅         | ✅       |
-| Create new team schedules                                    |          | ✅         | ✅       |
-| Delete team schedules                                        |          | ✅         | ✅       |
-| Browse global schedules                                      |          | ✅         | ✅       |
-| Create new team policies                                     |          | ✅         | ✅       |
-| Delete team policies                                         |          | ✅         | ✅       |
-| Browse global policies                                       |          | ✅         | ✅       |
-| Create enroll secrets that belong to team                    |          |            | ✅       |
-| Edit enroll secrets that belong to team                      |          |            | ✅       |
-| Delete enroll secrets that belong to team                    |          |            | ✅       |
+| Add queries to team schedule                                 |          | ✅         | ✅       |
+| Remove queries from team schedule                            |          | ✅         | ✅       |
+| Browse queries from "All teams" schedule                     |          | ✅         | ✅       |
+| Add new team policies                                        |          | ✅         | ✅       |
+| Remove team policies                                         |          | ✅         | ✅       |
+| Browse "All teams" policies                                  |          | ✅         | ✅       |
 | Edit users assigned to team                                  |          |            | ✅       |
 | Remove users assigned to team                                |          |            | ✅       |
-| Edit team level agent options                                |          |            | ✅       |
+| Edit agent options for hosts assigned to team                |          |            | ✅       |
