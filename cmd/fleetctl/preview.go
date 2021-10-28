@@ -580,7 +580,7 @@ func readPidFromFile(destDir string) (int, error) {
 	pidFilePath := path.Join(destDir, "orbit.pid")
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %s", pidFilePath, err)
+		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
 	return strconv.Atoi(string(data))
 }
@@ -648,12 +648,17 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 
 func stopOrbit(destDir string) error {
 	pid, err := readPidFromFile(destDir)
-	if err != nil {
-		return errors.Wrap(err, "reading pid")
+	switch {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil // we assume it's not running
+	default:
+		return errors.Wrapf(err, "reading pid from: %s", destDir)
 	}
 	err = killPID(pid)
 	if err != nil {
-		return errors.Wrapf(err, "killing orbit %d", pid)
+		return errors.Wrapf(err, "killing orbit pid=%d (%s)", pid, destDir)
 	}
 	return nil
 }
