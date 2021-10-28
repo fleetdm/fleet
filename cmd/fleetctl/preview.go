@@ -178,10 +178,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error writing fleetctl configuration")
 			}
 
-			fmt.Println("Fleet UI is now available at http://localhost:1337.")
-			fmt.Println("Email:", email)
-			fmt.Println("Password:", password)
-
 			// Create client and get enroll secret
 			client, err := unauthenticatedClientFromCLI(c)
 			if err != nil {
@@ -244,6 +240,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
 			}
 
+			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
+			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
+			fmt.Println("Email:", email)
+			fmt.Println("Password:", password)
+
 			fmt.Println("Downloading Orbit and osqueryd...")
 
 			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
@@ -256,7 +257,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "wait for current host")
 			}
 
-			fmt.Println("Starting simulated hosts...")
+			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+				fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+			}
+
+			fmt.Println("Starting simulated Linux hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
@@ -688,5 +693,22 @@ func loadPolicies(client *service.Client) error {
 		}
 	}
 
+	return nil
+}
+
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default: // xdg-open is available on most Linux-y systems
+		cmd = exec.Command("xdg-open", url)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "failed to open in browser")
+	}
 	return nil
 }
