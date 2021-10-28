@@ -67,9 +67,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
-  const { isTeamMaintainer } = permissionsUtils;
+  const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer(user, teamId);
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamAdmin(user, teamId);
 
   const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
     enabled: !!isPremiumTier,
