@@ -51,6 +51,7 @@ const initialState = {
   isAnyTeamMaintainerOrTeamAdmin: undefined,
   isTeamObserver: undefined,
   isTeamMaintainer: undefined,
+  isTeamMaintainerOrTeamAdmin: undefined,
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
@@ -93,6 +94,10 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
     isTeamObserver: permissions.isTeamObserver(user, teamId),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isTeamAdmin: permissions.isTeamAdmin(user, teamId),
+    isTeamMaintainerOrTeamAdmin: permissions.isTeamMaintainerOrTeamAdmin(
+      user,
+      teamId
+    ),
     isOnlyObserver: permissions.isOnlyObserver(user),
   };
 };
@@ -153,6 +158,7 @@ const AppProvider = ({ children }: Props) => {
     isTeamObserver: state.isTeamObserver,
     isTeamMaintainer: state.isTeamMaintainer,
     isTeamAdmin: state.isTeamAdmin,
+    isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
     setCurrentUser: (currentUser: IUser) => {

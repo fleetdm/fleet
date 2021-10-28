@@ -44,6 +44,14 @@ const isTeamAdmin = (user: IUser | null, teamId: number | null): boolean => {
   return userTeamRole === "admin";
 };
 
+const isTeamMaintainerOrTeamAdmin = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "admin" || userTeamRole === "maintainer";
+};
+
 // This checks against all teams
 const isAnyTeamMaintainer = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
@@ -95,6 +103,7 @@ export default {
   isOnGlobalTeam,
   isTeamObserver,
   isTeamMaintainer,
+  isTeamMaintainerOrTeamAdmin,
   isAnyTeamMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
