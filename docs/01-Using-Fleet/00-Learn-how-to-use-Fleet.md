@@ -27,7 +27,7 @@ So, let's start by asking the following question about your device:
 
 * What is the operating system installed on my device and what is its version?
 
-This questions can easily be answered, by running this simple query: "Get the version of the resident operating system." 
+This question can easily be answered, by running this simple query: "Get the version of the resident operating system." 
 
 On the **Queries** page, enter the query name, "Get the version of the resident operating system," in the search box, and select it to enter the **query console**. Then from the **query console**, hit "Run query", and from the "Select targets" page, select "All hosts," to run this query against all hosts enrolled in your Fleet. Then hit the "Run" button to execute the query.
 
