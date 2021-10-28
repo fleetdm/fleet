@@ -87,6 +87,15 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "create stdout status logger")
 		}
+	case "kafkarest":
+		status, err = NewKafkaRESTWriter(&KafkaRESTParams{
+			KafkaProxyHost: config.KafkaREST.ProxyHost,
+			KafkaTopic:     config.KafkaREST.StatusTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "create kafka rest status logger")
+		}
 	default:
 		return nil, errors.Errorf(
 			"unknown status log plugin: %s", config.Osquery.StatusLogPlugin,
@@ -160,6 +169,15 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 		result, err = NewStdoutLogWriter()
 		if err != nil {
 			return nil, errors.Wrap(err, "create stdout result logger")
+		}
+	case "kafkarest":
+		result, err = NewKafkaRESTWriter(&KafkaRESTParams{
+			KafkaProxyHost: config.KafkaREST.ProxyHost,
+			KafkaTopic:     config.KafkaREST.ResultTopic,
+			KafkaTimeout:   config.KafkaREST.Timeout,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "create kafka rest result logger")
 		}
 	default:
 		return nil, errors.Errorf(

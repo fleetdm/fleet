@@ -875,7 +875,7 @@ Valid time units are `s`, `m`, `h`.
 
 Which log output plugin should be used for osquery status logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -890,7 +890,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 
 Which log output plugin should be used for osquery result logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1423,6 +1423,68 @@ This feature is useful when combined with [subscription filters](https://cloud.g
   ```
   pubsub:
     status_topic: osquery_status
+  ```
+
+#### Kafka Rest Proxy Logging
+
+##### kafkarest_proxyhost
+
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+
+The URL of the host which to check for the topic existence and post messages to the specified topic.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_PROXYHOST`
+- Config file format:
+
+  ```
+  kafkarest:
+    proxyhost: "https://localhost:8443"
+  ```
+
+##### kafkarest_status_topic
+
+This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_STATUS_TOPIC`
+- Config file format:
+
+  ```
+  kafkarest:
+    status_topic: osquery_status
+  ```
+
+##### kafkarest_result_topic
+
+This flag only has effect if `osquery_result_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_RESULT_TOPIC`
+- Config file format:
+
+  ```
+  kafkarest:
+    status_topic: osquery_result
+  ```
+
+##### kafkarest_timeout
+
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+
+The timeout value for the http post attempt.  Value is in units of seconds.
+
+- Default value: 5
+- Environment variable: `FLEET_KAFKAREST_TIMEOUT`
+- Config file format:
+
+  ```
+  kafkarest:
+    timeout: 5
   ```
 
 #### S3 file carving backend

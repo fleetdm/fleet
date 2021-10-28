@@ -33,7 +33,7 @@ type MysqlConfig struct {
 	TLSKey          string `yaml:"tls_key"`
 	TLSCA           string `yaml:"tls_ca"`
 	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` //tls=customValue in DSN
+	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
@@ -183,6 +183,14 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
 
+// KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
+type KafkaRESTConfig struct {
+	StatusTopic string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic string `json:"result_topic" yaml:"result_topic"`
+	ProxyHost   string `json:"proxyhost" yaml:"proxyhost"`
+	Timeout     int    `json:"timeout" yaml:"timeout"`
+}
+
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
 	Key string `yaml:"key"`
@@ -218,6 +226,7 @@ type FleetConfig struct {
 	S3               S3Config
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
 }
@@ -454,6 +463,12 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
 
+	// KafkaREST
+	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
+	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
+	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
+	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
+
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 
@@ -608,6 +623,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+		},
+		KafkaREST: KafkaRESTConfig{
+			StatusTopic: man.getConfigString("kafkarest.status_topic"),
+			ResultTopic: man.getConfigString("kafkarest.result_topic"),
+			ProxyHost:   man.getConfigString("kafkarest.proxyhost"),
+			Timeout:     man.getConfigInt("kafkarest.timeout"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
@@ -807,7 +828,6 @@ func (man Manager) loadConfigFile() {
 
 	man.viper.SetConfigFile(configFile)
 	err := man.viper.ReadInConfig()
-
 	if err != nil {
 		fmt.Println("Error loading config file:", err)
 		os.Exit(1)
@@ -819,7 +839,7 @@ func (man Manager) loadConfigFile() {
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
 func TestConfig() FleetConfig {
-	var testLogFile = "/dev/null"
+	testLogFile := "/dev/null"
 	if runtime.GOOS == "windows" {
 		testLogFile = "NUL"
 	}
