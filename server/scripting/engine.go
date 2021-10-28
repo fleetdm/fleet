@@ -1,59 +1,105 @@
 package scripting
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 
-	"github.com/Shopify/go-lua"
+	"github.com/d5/tengo/v2"
+	"github.com/d5/tengo/v2/stdlib"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 )
 
-type ScriptEngine struct {
-	l *lua.State
-}
+func Execute(ctx context.Context, script string, reader mysql.DBReader) (string, error) {
+	scr := tengo.NewScript([]byte(script))
 
-func fleetFunction(reader mysql.DBReader) lua.Function {
-	return func(l *lua.State) int {
-		lua.NewLibrary(l, []lua.RegistryFunction{
-			{"db", func(l *lua.State) int {
-				query := lua.CheckString(l, 1)
-				i := 2
-				var args []interface{}
-				for !l.IsNone(i) {
-					args = append(args, l.ToValue(i))
-					i++
+	stdio := new(bytes.Buffer)
+
+	moduleMap := tengo.NewModuleMap()
+	moduleMap.AddMap(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
+	moduleMap.AddBuiltinModule("db", map[string]tengo.Object{
+		"select": &tengo.UserFunction{
+			Name: "select",
+			Value: func(args ...tengo.Object) (ret tengo.Object, err error) {
+				if len(args) < 1 {
+					return nil, tengo.ErrWrongNumArguments
 				}
 
-				rows, err := reader.QueryContext(context.Background(), query, args...)
+				// TODO: make this a safer conversion
+				query := args[0].(*tengo.String).Value
+				var queryArgs []interface{}
+				for _, arg := range args[1:] {
+					queryArgs = append(queryArgs, tengo.ToInterface(arg))
+				}
+
+				rows, err := reader.QueryContext(ctx, query, queryArgs...)
 				if err != nil {
-					lua.Errorf(l, err.Error())
+					return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
 				}
 				defer rows.Close()
 
-				var res []map[string]interface{}
-				for rows.Next() {
-					row := make(map[string]interface{})
-					err := rows.Scan(row)
-					if err != nil {
-						lua.Errorf(l, err.Error())
-					}
-					res = append(res, row)
+				cols, err := rows.Columns()
+				if err != nil {
+					return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
 				}
-				l.PushUserData()
-				return 1
-			}},
-		})
-		return 1
+				var res []interface{}
+				for rows.Next() {
+					columns := make([]string, len(cols))
+					columnPointers := make([]interface{}, len(cols))
+					for i := range columns {
+						columnPointers[i] = &columns[i]
+					}
+
+					err = rows.Scan(columnPointers...)
+					if err != nil {
+						return &tengo.Error{Value: &tengo.String{Value: err.Error()}}, nil
+					}
+					mapRow := make(map[string]interface{})
+					for i, col := range cols {
+						val := columnPointers[i].(*string)
+						mapRow[col] = *val
+					}
+					res = append(res, mapRow)
+				}
+				o, err := tengo.FromInterface(res)
+				if err != nil {
+					return &tengo.Error{
+						Value: &tengo.String{Value: err.Error()}}, nil
+				}
+				return o, nil
+			},
+		},
+	})
+	scr.SetImports(moduleMap)
+
+	err := scr.Add("printf", &tengo.UserFunction{Value: func(args ...tengo.Object) (ret tengo.Object, err error) {
+		// TODO: make this a safer conversion
+		formatString := args[0].(*tengo.String).Value
+		var interfaceArgs []interface{}
+		for _, arg := range args[1:] {
+			interfaceArgs = append(interfaceArgs, tengo.ToInterface(arg))
+		}
+		res := fmt.Sprintf(formatString, interfaceArgs...)
+		stdio.WriteString(res)
+		return nil, nil
+	}})
+	if err != nil {
+		return "", err
 	}
-}
+	err = scr.Add("println", &tengo.UserFunction{Value: func(args ...tengo.Object) (ret tengo.Object, err error) {
+		// TODO: make this a safer conversion
+		var interfaceArgs []interface{}
+		for _, arg := range args {
+			interfaceArgs = append(interfaceArgs, tengo.ToInterface(arg))
+		}
+		res := fmt.Sprintln(interfaceArgs...)
+		stdio.WriteString(res)
+		return nil, nil
+	}})
+	if err != nil {
+		return "", err
+	}
 
-func NewEngine(reader mysql.DBReader) *ScriptEngine {
-	l := lua.NewState()
-	// TODO: OpenLibraries registers everything, too much, just add the few that we need
-	lua.OpenLibraries(l)
-	lua.Require(l, "fleet", fleetFunction(reader), true)
-	return &ScriptEngine{l}
-}
-
-func (e *ScriptEngine) Execute(script string) error {
-	return lua.DoString(e.l, script)
+	_, err = scr.RunContext(ctx)
+	return stdio.String(), err
 }
