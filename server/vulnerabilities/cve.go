@@ -74,17 +74,6 @@ func TranslateCPEToCVE(
 		return err
 	}
 
-	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, file)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, files ...string) error {
 	cpeList, err := ds.AllCPEs(ctx)
 	if err != nil {
 		return err
@@ -102,6 +91,18 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, fi
 	if len(cpes) == 0 {
 		return nil
 	}
+
+	for _, file := range files {
+		err := checkCVEs(ctx, ds, logger, cpes, file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cpes []*wfn.Attributes, files ...string) error {
 	dict, err := cvefeed.LoadJSONDictionary(files...)
 	if err != nil {
 		return err

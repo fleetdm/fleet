@@ -41,9 +41,9 @@ func bToMb(b uint64) uint64 {
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	//if os.Getenv("NETWORK_TEST") == "" {
-	//	t.Skip("set environment variable NETWORK_TEST=1 to run")
-	//}
+	if os.Getenv("NETWORK_TEST") == "" {
+		t.Skip("set environment variable NETWORK_TEST=1 to run")
+	}
 
 	tempDir := t.TempDir()
 
