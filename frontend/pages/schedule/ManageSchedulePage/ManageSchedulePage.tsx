@@ -162,7 +162,7 @@ const ManageSchedulePage = ({
     }
   };
 
-  if (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin && !teamId) {
+  const loadFirstMaintainerOrAdminTeam = () => {
     if (currentUser) {
       const adminOrMaintainerTeam = currentUser.teams.find((team) => {
         return team.role === "admin" || team.role === "maintainer"
@@ -172,6 +172,24 @@ const ManageSchedulePage = ({
       if (adminOrMaintainerTeam) {
         teamId = adminOrMaintainerTeam.id;
         onChangeSelectedTeam(teamId);
+      }
+    }
+  };
+
+  if (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin && !teamId) {
+    loadFirstMaintainerOrAdminTeam();
+  }
+
+  if (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin && teamId) {
+    if (currentUser) {
+      const canLoadTeam = currentUser.teams.find((team) => {
+        return (
+          (team.role === "admin" || team.role === "maintainer") &&
+          team.id === teamId
+        );
+      });
+      if (!canLoadTeam) {
+        loadFirstMaintainerOrAdminTeam();
       }
     }
   }
