@@ -27,6 +27,8 @@ interface IHostResponse {
 
 const baseClass = "welcome-host";
 const HOST_ID = 1;
+const policyPass = "pass";
+const policyFail = "fail";
 
 const WelcomeHost = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -53,7 +55,7 @@ const WelcomeHost = (): JSX.Element => {
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
 
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
-          (p) => p.response === "passing" || p.response === "failing"
+          (p) => p.response === policyPass || p.response === policyFail
         );
         setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
 
@@ -230,7 +232,7 @@ const WelcomeHost = (): JSX.Element => {
                   <div className="info">
                     <img
                       alt={p.response}
-                      src={p.response === "passing" ? IconPassed : IconError}
+                      src={p.response === policyPass ? IconPassed : IconError}
                     />
                     {p.query_name}
                   </div>
