@@ -186,7 +186,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
 
-	tpParams := teamPolicyRequest{QueryID: qr.ID}
+	tpParams := teamPolicyRequest{QueryID: qr.ID, Resolution: "some team resolution"}
 	r := teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
 
@@ -195,6 +195,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	require.Len(t, ts.Policies, 1)
 	assert.Equal(t, "TestQuery2", ts.Policies[0].QueryName)
 	assert.Equal(t, qr.ID, ts.Policies[0].QueryID)
+	require.NotNil(t, ts.Policies[0].Resolution)
+	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
 
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}

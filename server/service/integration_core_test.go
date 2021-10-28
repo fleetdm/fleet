@@ -364,11 +364,13 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	})
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{QueryID: qr.ID}
+	gpParams := globalPolicyRequest{QueryID: qr.ID, Resolution: "some global resolution"}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, qr.ID, gpResp.Policy.QueryID)
+	require.NotNil(t, gpResp.Policy.Resolution)
+	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
