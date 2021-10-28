@@ -26,7 +26,7 @@ func (r teamPolicyResponse) error() error { return r.Err }
 
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*teamPolicyRequest)
-	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, req.QueryID, "")
+	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, req.QueryID, req.Resolution)
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
 	}
