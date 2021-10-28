@@ -1274,7 +1274,7 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 
 ##### kafkarest_proxyhost
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_status_result_plugin` is set to `kafkarest`.
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
 
 The URL of the host which to check for the topic existence and post messages to the specified topic.
 
@@ -1319,7 +1319,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
 
 ##### kafkarest_timeout
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_status_result_plugin` is set to `kafkarest`.
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
 
 The timeout value for the http post attempt.  Value is in units of seconds.
 

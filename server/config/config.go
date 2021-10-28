@@ -29,7 +29,7 @@ type MysqlConfig struct {
 	TLSKey          string `yaml:"tls_key"`
 	TLSCA           string `yaml:"tls_ca"`
 	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` //tls=customValue in DSN
+	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
@@ -163,6 +163,7 @@ type FilesystemConfig struct {
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
 
+// KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic string `json:"result_topic" yaml:"result_topic"`
@@ -740,7 +741,6 @@ func (man Manager) loadConfigFile() {
 
 	man.viper.SetConfigFile(configFile)
 	err := man.viper.ReadInConfig()
-
 	if err != nil {
 		fmt.Println("Error loading config file:", err)
 		os.Exit(1)
@@ -752,7 +752,7 @@ func (man Manager) loadConfigFile() {
 // TestConfig returns a barebones configuration suitable for use in tests.
 // Individual tests may want to override some of the values provided.
 func TestConfig() FleetConfig {
-	var testLogFile = "/dev/null"
+	testLogFile := "/dev/null"
 	if runtime.GOOS == "windows" {
 		testLogFile = "NUL"
 	}

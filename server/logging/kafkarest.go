@@ -5,18 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
-	CONTENT_TYPE_MIME = "application/vnd.kafka.json.v1+json"
-	CONTENT_TYPE      = "Content-Type"
-	TIMESTAMP         = "TimeStamp"
-	URL_PUBLISH_TOPIC = "%s/topics/%s"
-	URL_CHECK_TOPIC   = "%s/topics/?topic=%s"
+	krContentTypeValue  = "application/vnd.kafka.json.v1+json"
+	krContentTypeHeader = "Content-Type"
+	krTimestampHeader   = "TimeStamp"
+	krPublishTopicURL   = "%s/topics/%s"
+	krCheckTopicURL     = "%s/topics/?topic=%s"
 )
 
 type KafkaRESTParams struct {
@@ -41,8 +42,8 @@ type kafkaValue struct {
 
 func NewKafkaRESTWriter(p *KafkaRESTParams) (*kafkaRESTProducer, error) {
 	producer := &kafkaRESTProducer{
-		URL:      fmt.Sprintf(URL_PUBLISH_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
-		CheckURL: fmt.Sprintf(URL_CHECK_TOPIC, p.KafkaProxyHost, p.KafkaTopic),
+		URL:      fmt.Sprintf(krPublishTopicURL, p.KafkaProxyHost, p.KafkaTopic),
+		CheckURL: fmt.Sprintf(krCheckTopicURL, p.KafkaProxyHost, p.KafkaTopic),
 		client: &http.Client{
 			Timeout: time.Duration(p.KafkaTimeout) * time.Second,
 		},
@@ -71,18 +72,18 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 	if err != nil {
 		return errors.Wrap(err, "kafka rest post")
 	}
-
 	defer resp.Body.Close()
+
 	return checkResponse(resp)
 }
 
 func checkResponse(resp *http.Response) (err error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		err = errors.Errorf("Error: %d. %s", resp.StatusCode, string(body))
+		return errors.Errorf("Error: %d. %s", resp.StatusCode, string(body))
 	}
 
-	return
+	return nil
 }
 
 func (l *kafkaRESTProducer) checkTopic() (err error) {
@@ -90,8 +91,8 @@ func (l *kafkaRESTProducer) checkTopic() (err error) {
 	if err != nil {
 		return errors.Wrap(err, "kafka rest topic check")
 	}
-
 	defer resp.Body.Close()
+
 	return checkResponse(resp)
 }
 
@@ -102,8 +103,8 @@ func (l *kafkaRESTProducer) post(url string, buf *bytes.Buffer) (*http.Response,
 	}
 
 	now := float64(time.Now().UnixNano()) / float64(time.Second)
-	req.Header.Set(CONTENT_TYPE, CONTENT_TYPE_MIME)
-	req.Header.Set(TIMESTAMP, fmt.Sprintf("%f", now))
+	req.Header.Set(krContentTypeHeader, krContentTypeValue)
+	req.Header.Set(krTimestampHeader, fmt.Sprintf("%f", now))
 
 	return l.client.Do(req)
 }
