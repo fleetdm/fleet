@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -25,10 +26,24 @@ var cvetests = []struct {
 	{"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*", "CVE-2012-6369"},
 }
 
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	//if os.Getenv("NETWORK_TEST") == "" {
+	//	t.Skip("set environment variable NETWORK_TEST=1 to run")
+	//}
 
 	tempDir := t.TempDir()
 
@@ -54,6 +69,8 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 			err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), config.FleetConfig{})
 			require.NoError(t, err)
+
+			PrintMemUsage()
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
 			require.Equal(t, []string{tt.cpe}, cveToCPEs[tt.cve])
