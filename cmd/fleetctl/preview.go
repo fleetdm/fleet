@@ -576,17 +576,17 @@ func storePidFile(destDir string, pid int) error {
 	return nil
 }
 
-func readPidFromFile(destDir string) (int, error) {
-	pidFilePath := path.Join(destDir, "orbit.pid")
+func readPidFromFile(destDir string, what string) (int, error) {
+	pidFilePath := path.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %s", pidFilePath, err)
+		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
 	return strconv.Atoi(string(data))
 }
 
 func isOrbitAlreadyRunning(destDir string) bool {
-	pid, err := readPidFromFile(destDir)
+	pid, err := readPidFromFile(destDir, "orbit.pid")
 	if err != nil {
 		// if any error occurs reading the pid file, we assume orbit is not running
 		return false
@@ -610,6 +610,15 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		fmt.Println("Orbit is already running.")
 		return nil
 	}
+
+	fmt.Println("Trying to clear orbit and osquery directories...")
+	if err := os.RemoveAll(path.Join(destDir, "osquery.db")); err != nil {
+		fmt.Println("Warning: clearing osquery db dir:", err)
+	}
+	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
+		fmt.Println("Warning: clearing orbit db dir:", err)
+	}
+
 	updateOpt := update.DefaultOptions
 	switch runtime.GOOS {
 	case "linux":
@@ -633,6 +642,7 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		"--root-dir", destDir,
 		"--fleet-url", address,
 		"--insecure",
+		"--debug",
 		"--enroll-secret", enrollSecret,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
@@ -647,13 +657,33 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 }
 
 func stopOrbit(destDir string) error {
-	pid, err := readPidFromFile(destDir)
+	err := killFromPIDFile(destDir, "osquery.pid")
+	if err != nil {
+		return err
+	}
+	err = killFromPIDFile(destDir, "orbit.pid")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func killFromPIDFile(destDir string, w string) error {
+	pid, err := readPidFromFile(destDir, w)
 	if err != nil {
 		return errors.Wrap(err, "reading pid")
 	}
+	switch {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil // we assume it's not running
+	default:
+		return errors.Wrapf(err, "reading pid from: %s", destDir)
+	}
 	err = killPID(pid)
 	if err != nil {
-		return errors.Wrapf(err, "killing orbit %d", pid)
+		return errors.Wrapf(err, "killing %d", pid)
 	}
 	return nil
 }
