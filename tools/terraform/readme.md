@@ -22,16 +22,24 @@ data "aws_secretsmanager_secret" "license" {
 ```
 and the license key in secret in the task definition:
 ```terraform
-  {
+{
     name      = "FLEET_LICENSE_KEY"
     valueFrom = data.aws_secretsmanager_secret.license.arn
-  }
+}
 ```
 
-To deploy the infrastructure:
-1. `terraform init && terraform workspace new prod`
+**To deploy the infrastructure**:
+1. `terraform init && terraform workspace new prod` (workspace is optional terraform defaults to the `default` workspace)
 2. `terraform plan`
 3. `terraform apply`
+
+**To deploy cloudwatch alarms** (requires infrastruture to be deployed)
+1. `cd monitoring`
+2. `terraform init && terraform workspace new prod` (workspace is optional terraform defaults to the `default` workspace)
+3. `terraform plan`
+4. `terraform apply`
+
+Check out [AWS Chatbot](https://docs.aws.amazon.com/chatbot/latest/adminguide/setting-up.html) for a quick and easy way to hook up Cloudwatch Alarms into a Slack channel. 
 
 ### Configuration
 
