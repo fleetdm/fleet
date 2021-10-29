@@ -580,7 +580,7 @@ func readPidFromFile(destDir string, what string) (int, error) {
 	pidFilePath := path.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %s", pidFilePath, err)
+		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
 	return strconv.Atoi(string(data))
 }
@@ -672,6 +672,14 @@ func killFromPIDFile(destDir string, w string) error {
 	pid, err := readPidFromFile(destDir, w)
 	if err != nil {
 		return errors.Wrap(err, "reading pid")
+	}
+	switch {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil // we assume it's not running
+	default:
+		return errors.Wrapf(err, "reading pid from: %s", destDir)
 	}
 	err = killPID(pid)
 	if err != nil {
