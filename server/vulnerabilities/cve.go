@@ -107,7 +107,7 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 	if err != nil {
 		return err
 	}
-	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(0)
+	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	//cache.Idx = cvefeed.NewIndex(dict)
 
