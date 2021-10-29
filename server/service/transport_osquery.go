@@ -95,7 +95,7 @@ func decodeSubmitDistributedQueryResultsRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	req := submitDistributedQueryResultsRequest{
+	req := SubmitDistributedQueryResultsRequest{
 		NodeKey:  shim.NodeKey,
 		Results:  results,
 		Statuses: statuses,
