@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/kolide/osquery-go"
-	"github.com/kolide/osquery-go/plugin/table"
-	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/rs/zerolog/log"
 )
 
@@ -63,11 +61,4 @@ func (r *Runner) Interrupt(err error) {
 	r.cancel()
 
 	r.srv.Shutdown(context.Background())
-}
-
-// TODO: move darwin specific tables to _darwin.go
-func platformTables() []osquery.OsqueryPlugin {
-	var plugins []osquery.OsqueryPlugin
-	plugins = append(plugins, table.NewPlugin("mdm", mdm.MDMInfoColumns(), mdm.MDMInfoGenerate))
-	return plugins
 }
