@@ -15,11 +15,13 @@ type Runner struct {
 	cancel func()
 }
 
+// NewRunner creates an extension runner.
 func NewRunner(socket string) (*Runner, error) {
 	r := &Runner{socket: socket}
 	return r, nil
 }
 
+// Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
@@ -56,6 +58,7 @@ func (r *Runner) Execute() error {
 
 }
 
+// Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Msg("interrupt osquery")
 	r.cancel()
