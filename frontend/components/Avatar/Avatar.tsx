@@ -5,7 +5,7 @@ interface IAvatarUserInterface {
   gravatarURL: string;
 }
 
-interface IAvatarInterface {
+export interface IAvatarInterface {
   className?: string;
   size?: string;
   user: IAvatarUserInterface;
