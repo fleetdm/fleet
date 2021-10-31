@@ -13,7 +13,7 @@ import Spinner from "components/loaders/Spinner";
 import "./mode";
 import "./theme";
 
-interface IFleetAceProps {
+export interface IFleetAceProps {
   error?: string;
   fontSize?: number;
   label?: string;
