@@ -17,15 +17,13 @@ export type ButtonVariant =
   | "inverse"
   | "inverse-alert"
   | "block"
-  | "disabled"
   | "unstyled"
   | "unstyled-modal-query"
   | "contextual-nav-item"
   | "small-text-icon";
 
-interface IButtonProps {
+export interface IButtonProps {
   autofocus?: boolean;
-  block?: boolean;
   children: React.ReactChild;
   className?: string;
   disabled?: boolean;
@@ -48,7 +46,6 @@ interface Inputs {
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
-    block: false,
     size: "",
     type: "button",
     variant: "default",
@@ -90,7 +87,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
   render(): JSX.Element {
     const { handleClick, setRef } = this;
     const {
-      block,
       children,
       className,
       disabled,
@@ -105,7 +101,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       `${baseClass}--${variant}`,
       className,
       {
-        [`${baseClass}--block`]: block,
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--${size}`]: size !== undefined,
       }
