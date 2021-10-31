@@ -15,7 +15,7 @@ import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import YamlAce from "components/YamlAce";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const authMethodOptions = [

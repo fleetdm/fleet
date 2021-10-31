@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Spinner from "components/loaders/Spinner";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";

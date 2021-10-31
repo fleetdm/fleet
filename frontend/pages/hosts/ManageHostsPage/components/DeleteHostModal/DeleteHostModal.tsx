@@ -1,6 +1,6 @@
 import React from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "delete-host-modal";

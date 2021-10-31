@@ -12,7 +12,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 import IconDisabled from "../../../../../assets/images/icon-action-disable-red-16x16@2x.png";

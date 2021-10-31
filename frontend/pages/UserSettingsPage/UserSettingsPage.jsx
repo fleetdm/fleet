@@ -17,7 +17,7 @@ import permissionUtils from "utilities/permissions";
 import FleetIcon from "components/icons/FleetIcon";
 import InputField from "components/forms/fields/InputField";
 import { logoutUser, updateUser } from "redux/nodes/auth/actions";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import configInterface from "interfaces/config";
 import versionInterface from "interfaces/version";
 import { renderFlash } from "redux/nodes/notifications/actions";
