@@ -7,14 +7,15 @@ import { INotifications } from "interfaces/notification";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 
-import CloseIcon from "../../../../assets/images/icon-close-white-16x16@2x.png";
-import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
+import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
+import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 const baseClass = "flash-message";
 
-interface IFlashMessage {
+export interface IFlashMessage {
   fullWidth: boolean;
   notification: INotifications;
+  isPersistent?: boolean;
   onRemoveFlash: () => void;
   onUndoActionClick: (
     value: () => void
@@ -24,6 +25,7 @@ interface IFlashMessage {
 const FlashMessage = ({
   fullWidth,
   notification,
+  isPersistent,
   onRemoveFlash,
   onUndoActionClick,
 }: IFlashMessage) => {
@@ -41,7 +43,7 @@ const FlashMessage = ({
     // using this same component instance will be visible).
     setHide(false);
 
-    if (alertType === "success" && isVisible) {
+    if (!isPersistent && alertType === "success" && isVisible) {
       // After 4 seconds, set hide to true.
       const timer = setTimeout(() => {
         setHide(true);
@@ -56,7 +58,7 @@ const FlashMessage = ({
   }, [notification, alertType, isVisible, setHide]);
 
   if (hide || !isVisible) {
-    return false;
+    return null;
   }
 
   const alertIcon =

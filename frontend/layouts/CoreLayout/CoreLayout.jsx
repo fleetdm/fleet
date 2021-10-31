@@ -9,8 +9,7 @@ import { isEqual } from "lodash";
 
 import permissionUtils from "utilities/permissions";
 import configInterface from "interfaces/config";
-import FlashMessage from "components/flash_messages/FlashMessage";
-import PersistentFlash from "components/flash_messages/PersistentFlash";
+import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/side_panels/SiteTopNav";
 import userInterface from "interfaces/user";
 import notificationInterface from "interfaces/notification";
@@ -40,10 +39,6 @@ export class CoreLayout extends Component {
     user: userInterface,
     fullWidthFlash: PropTypes.bool,
     notifications: notificationInterface,
-    persistentFlash: PropTypes.shape({
-      showFlash: PropTypes.bool.isRequired,
-      message: PropTypes.string.isRequired,
-    }).isRequired,
     isPremiumTier: PropTypes.bool,
   };
 
@@ -141,7 +136,6 @@ export class CoreLayout extends Component {
       notifications,
       children,
       config,
-      persistentFlash,
       user,
       isPremiumTier,
     } = this.props;
@@ -175,9 +169,6 @@ export class CoreLayout extends Component {
           />
         </nav>
         <div className="core-wrapper">
-          {persistentFlash.showFlash && (
-            <PersistentFlash message={persistentFlash.message} />
-          )}
           {isPremiumTier && showExpirationFlashMessage && (
             <FlashMessage
               fullWidth={fullWidthFlash}
@@ -203,7 +194,6 @@ const mapStateToProps = (state) => {
     app: { config },
     auth: { user },
     notifications,
-    persistentFlash,
   } = state;
 
   const isPremiumTier = permissionUtils.isPremiumTier(state.app.config);
@@ -214,7 +204,6 @@ const mapStateToProps = (state) => {
     config,
     fullWidthFlash,
     notifications,
-    persistentFlash,
     user,
     isPremiumTier,
   };
