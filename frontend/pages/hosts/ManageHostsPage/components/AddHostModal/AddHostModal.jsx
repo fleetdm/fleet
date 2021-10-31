@@ -8,7 +8,7 @@ import configInterface from "interfaces/config";
 import teamInterface from "interfaces/team";
 import userInterface from "interfaces/user";
 import permissionUtils from "utilities/permissions";
-import EnrollSecretTable from "components/config/EnrollSecretTable";
+import EnrollSecretTable from "components/EnrollSecretTable";
 import FleetIcon from "components/icons/FleetIcon";
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";

@@ -8,7 +8,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import enrollSecretInterface from "interfaces/enroll_secret";
-import EnrollSecretTable from "components/config/EnrollSecretTable";
+import EnrollSecretTable from "components/EnrollSecretTable";
 import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validate from "components/forms/admin/AppConfigForm/validate";
