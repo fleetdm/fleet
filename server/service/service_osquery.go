@@ -156,8 +156,15 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		save = true
 	}
 	if save {
-		if err := svc.ds.SaveHost(ctx, host); err != nil {
-			return "", osqueryError{message: "saving host details: " + err.Error(), nodeInvalid: true}
+		atomic.AddInt64(&counter, 1)
+		defer func() {
+			atomic.AddInt64(&counter, -1)
+		}()
+		level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
+
+		err = svc.ds.SaveHost(context.Background(), host)
+		if err != nil {
+			level.Debug(svc.logger).Log("background-err", err)
 		}
 	}
 
@@ -339,10 +346,18 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	if saveHost {
-		err := svc.ds.SaveHost(ctx, &host)
-		if err != nil {
-			return nil, err
-		}
+		go func() {
+			atomic.AddInt64(&counter, 1)
+			defer func() {
+				atomic.AddInt64(&counter, -1)
+			}()
+			level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
+
+			err = svc.ds.SaveHost(context.Background(), &host)
+			if err != nil {
+				level.Debug(svc.logger).Log("background-err", err)
+			}
+		}()
 	}
 
 	return config, nil
