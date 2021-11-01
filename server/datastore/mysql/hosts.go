@@ -63,11 +63,10 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 }
 
 func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
-	errCh := make(chan error)
-	defer close(errCh)
+	errCh := make(chan error, 1)
 	select {
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	case d.writeCh <- itemToWrite{
 		ctx:   ctx,
 		errCh: errCh,
@@ -75,7 +74,7 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 	}:
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case err := <-errCh:
 			return err
 		}
@@ -662,11 +661,10 @@ type hostsSeenItem struct {
 }
 
 func (d *Datastore) SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
-	errCh := make(chan error)
-	defer close(errCh)
+	errCh := make(chan error, 1)
 	select {
 	case <-ctx.Done():
-		return nil
+		return ctx.Err()
 	case d.writeCh <- itemToWrite{
 		ctx:   ctx,
 		errCh: errCh,
@@ -677,7 +675,7 @@ func (d *Datastore) SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t t
 	}:
 		select {
 		case <-ctx.Done():
-			return nil
+			return ctx.Err()
 		case err := <-errCh:
 			return err
 		}
