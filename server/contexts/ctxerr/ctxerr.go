@@ -13,10 +13,10 @@ package ctxerr
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/errorstore"
+	"github.com/pkg/errors"
 	"github.com/rotisserie/eris"
 )
 
@@ -43,13 +43,19 @@ func New(ctx context.Context, errMsg string) error {
 // Wrap annotates err with the provided message.
 func Wrap(ctx context.Context, err error, msg string) error {
 	err = ensureCommonMetadata(ctx, err)
-	return eris.Wrap(err, msg)
+	// do not wrap with eris.Wrap, as we want only the root error closest to the
+	// actual error condition to capture the stack trace, others just wrap using
+	// pkg/errors.
+	return errors.Wrap(err, msg)
 }
 
 // Wrapf annotates err with the provided formatted message.
 func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) error {
 	err = ensureCommonMetadata(ctx, err)
-	return eris.Wrapf(err, fmsg, args...)
+	// do not wrap with eris.Wrap, as we want only the root error closest to the
+	// actual error condition to capture the stack trace, others just wrap using
+	// pkg/errors.
+	return errors.Wrapf(err, fmsg, args...)
 }
 
 // Handle handles err by passing it to the registered error handler,
@@ -64,7 +70,7 @@ func Handle(ctx context.Context, err error) error {
 func ensureCommonMetadata(ctx context.Context, err error) error {
 	var sf interface{ StackFrames() []uintptr }
 	if err != nil && !errors.As(err, &sf) {
-		// no eris error nowhere in the chain, add the common metadata
+		// no eris error nowhere in the chain, add the common metadata with the stack trace
 		// TODO: more metadata from ctx: user, host, etc.
 		err = eris.Wrapf(err, "timestamp: %s", time.Now().Format(time.RFC3339))
 	}
