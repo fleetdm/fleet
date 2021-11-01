@@ -32,11 +32,11 @@ func alwaysErisErrors() error { return eris.New("always eris errors") }
 func alwaysCallsAlwaysErisErrors() error { return alwaysErisErrors() }
 
 func alwaysNewError(eh *Handler) error {
-	return eh.New(context.Background(), eris.New("always new errors"))
+	return eh.Store(context.Background(), eris.New("always new errors"))
 }
 
 func alwaysNewErrorTwo(eh *Handler) error {
-	return eh.New(context.Background(), eris.New("always new errors two"))
+	return eh.Store(context.Background(), eris.New("always new errors two"))
 }
 
 func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
@@ -158,7 +158,7 @@ func TestErrorHandler(t *testing.T) {
 
 		doneCh := make(chan struct{})
 		go func() {
-			eh.New(context.Background(), pkgErrors.New("test"))
+			eh.Store(context.Background(), pkgErrors.New("test"))
 			close(doneCh)
 		}()
 

@@ -161,9 +161,11 @@ func hashError(err error) string {
 
 	if len(unpackedErr.ErrRoot.Stack) > 0 {
 		lastFrame := unpackedErr.ErrRoot.Stack[0]
+		fmt.Println(">>>>> last frame", lastFrame.File, lastFrame.Line)
 		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
 	} else if len(unpackedErr.ErrChain) > 0 {
 		lastFrame := unpackedErr.ErrChain[0].Frame
+		fmt.Println(">>>>> last frame", lastFrame.File, lastFrame.Line)
 		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
 	}
 	return sha256b64(sb.String())
@@ -229,14 +231,13 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	}
 }
 
-// New handles the provided error by storing it into Redis if the handler is
-// still running. In any case, it always returns the error wrapped with an
-// eris error (stack trace and extra information).
+// Store handles the provided error by storing it into Redis if the handler is
+// still running. In any case, it always returns the error as provided.
 //
 // If the ctx is cancelled before the error is stored, the call returns without
 // storing the error, otherwise it waits for a predefined period of time to try
 // to store the error.
-func (h *Handler) New(ctx context.Context, err error) error {
+func (h *Handler) Store(ctx context.Context, err error) error {
 	if atomic.LoadInt32(&h.running) == 0 {
 		return err
 	}

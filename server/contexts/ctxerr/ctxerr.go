@@ -61,7 +61,7 @@ func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) err
 // deduplicating it and storing it for a configured duration.
 func Handle(ctx context.Context, err error) error {
 	if eh := fromContext(ctx); eh != nil {
-		return eh.New(ctx, err)
+		return eh.Store(ctx, err)
 	}
 	return err
 }
