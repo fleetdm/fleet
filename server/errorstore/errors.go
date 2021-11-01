@@ -64,7 +64,7 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 // JSON-encoded strings. It is a destructive read - the errors are removed from
 // Redis on return.
 func (h *Handler) Flush() ([]string, error) {
-	errorKeys, err := redis.ScanKeys(h.pool, "error:*")
+	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
 	if err != nil {
 		return nil, err
 	}

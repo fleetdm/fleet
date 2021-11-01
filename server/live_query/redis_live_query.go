@@ -95,7 +95,7 @@ func extractTargetKeyName(key string) string {
 // should be called at startup and never after that, so for this reason it is
 // not added to the fleet.LiveQueryStore interface.
 func (r *redisLiveQuery) MigrateKeys() error {
-	qkeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*")
+	qkeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	queryKeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*")
+	queryKeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
 	if err != nil {
 		return nil, errors.Wrap(err, "scan active queries")
 	}

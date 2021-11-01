@@ -31,13 +31,11 @@ func TestSessionStore(t *testing.T) {
 
 	t.Run("standalone", func(t *testing.T) {
 		p := redistest.SetupRedis(t, false, false, false)
-		require.NotNil(t, p)
 		runTest(t, p)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
 		p := redistest.SetupRedis(t, true, false, false)
-		require.NotNil(t, p)
 		runTest(t, p)
 	})
 }
