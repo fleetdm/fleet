@@ -135,6 +135,8 @@ type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error
 
 type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
+type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
+
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
@@ -148,6 +150,8 @@ type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host
 type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
+
+type SerialMarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
@@ -498,6 +502,9 @@ type DataStore struct {
 	SaveHostFunc        SaveHostFunc
 	SaveHostFuncInvoked bool
 
+	SerialSaveHostFunc        SerialSaveHostFunc
+	SerialSaveHostFuncInvoked bool
+
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
 
@@ -518,6 +525,9 @@ type DataStore struct {
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
+
+	SerialMarkHostsSeenFunc        SerialMarkHostsSeenFunc
+	SerialMarkHostsSeenFuncInvoked bool
 
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
@@ -1073,6 +1083,11 @@ func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	return s.SaveHostFunc(ctx, host)
 }
 
+func (s *DataStore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
+	s.SerialSaveHostFuncInvoked = true
+	return s.SerialSaveHostFunc(ctx, host)
+}
+
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	s.DeleteHostFuncInvoked = true
 	return s.DeleteHostFunc(ctx, hid)
@@ -1106,6 +1121,11 @@ func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.T
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
+}
+
+func (s *DataStore) SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
+	s.SerialMarkHostsSeenFuncInvoked = true
+	return s.SerialMarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
 func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {

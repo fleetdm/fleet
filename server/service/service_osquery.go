@@ -156,19 +156,30 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		save = true
 	}
 	if save {
-		atomic.AddInt64(&counter, 1)
-		defer func() {
-			atomic.AddInt64(&counter, -1)
-		}()
-		level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
-
-		err = svc.ds.SaveHost(context.Background(), host)
-		if err != nil {
-			level.Debug(svc.logger).Log("background-err", err)
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialSaveHost(host)
+		} else {
+			err = svc.ds.SaveHost(ctx, host)
+			if err != nil {
+				return "", errors.Wrap(err, "save host in enroll agent")
+			}
 		}
 	}
 
-	return host.NodeKey, nil
+	return nodeKey, nil
+}
+
+func (svc Service) serialSaveHost(host *fleet.Host) {
+	newVal := atomic.AddInt64(&counter, 1)
+	defer func() {
+		atomic.AddInt64(&counter, -1)
+	}()
+	level.Debug(svc.logger).Log("background", newVal)
+
+	err := svc.ds.SerialSaveHost(context.Background(), host)
+	if err != nil {
+		level.Debug(svc.logger).Log("background-err", err)
+	}
 }
 
 func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -346,18 +357,18 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	if saveHost {
-		go func() {
-			atomic.AddInt64(&counter, 1)
-			defer func() {
-				atomic.AddInt64(&counter, -1)
-			}()
-			level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
-
-			err = svc.ds.SaveHost(context.Background(), &host)
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "get app config on get client config")
+		}
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialSaveHost(&host)
+		} else {
+			err = svc.ds.SaveHost(ctx, &host)
 			if err != nil {
-				level.Debug(svc.logger).Log("background-err", err)
+				return nil, errors.Wrap(err, "save host in get client config")
 			}
-		}()
+		}
 	}
 
 	return config, nil
@@ -771,18 +782,19 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.Modified {
-		go func() {
-			atomic.AddInt64(&counter, 1)
-			defer func() {
-				atomic.AddInt64(&counter, -1)
-			}()
-			level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
-
-			err = svc.ds.SaveHost(context.Background(), &host)
-			if err != nil {
-				level.Debug(svc.logger).Log("background-err", err)
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		} else {
+			if appConfig.ServerSettings.DeferredSaveHost {
+				go svc.serialSaveHost(&host)
+			} else {
+				err = svc.ds.SaveHost(ctx, &host)
+				if err != nil {
+					logging.WithErr(ctx, err)
+				}
 			}
-		}()
+		}
 	}
 
 	return nil

@@ -113,6 +113,13 @@ func (svc *Service) FlushSeenHosts(ctx context.Context) error {
 	// No authorization check because this is used only internally.
 
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return errors.Wrap(err, "get app config on flush seen hosts")
+	}
+	if ac.ServerSettings.DeferredSaveHost {
+		return svc.ds.SerialMarkHostsSeen(ctx, hostIDs, svc.clock.Now())
+	}
 	return svc.ds.MarkHostsSeen(ctx, hostIDs, svc.clock.Now())
 }
 
