@@ -39,17 +39,25 @@ const EditTeamModal = ({
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputFieldWithIcon
           autofocus
-          // error={errors.name}
           name="name"
           onChange={onInputChange}
           placeholder="Team name"
           value={name}
         />
         <div className={`${baseClass}__btn-wrap`}>
-          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
+          <Button
+            className={`${baseClass}__btn`}
+            type="submit"
+            variant="brand"
+            disabled={name === ""}
+          >
             Save
           </Button>
           <Button

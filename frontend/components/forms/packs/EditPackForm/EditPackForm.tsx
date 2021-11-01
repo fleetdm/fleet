@@ -117,7 +117,11 @@ const EditPackForm = ({
   };
 
   return (
-    <form className={`${baseClass} ${className}`} onSubmit={onFormSubmit}>
+    <form
+      className={`${baseClass} ${className}`}
+      onSubmit={onFormSubmit}
+      autoComplete="off"
+    >
       <h1>Edit pack</h1>
       <InputField
         onChange={onChangePackName}

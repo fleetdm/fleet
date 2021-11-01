@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -65,6 +66,11 @@ func TransformHeat(path string) error {
 		return errors.Wrap(err, "marshal xml")
 	}
 
+	// Remove first as we encounter permission errors on some Linux configurations.
+	if err := os.Remove(path); err != nil {
+		return errors.Wrap(err, "remove old file")
+	}
+
 	if err := ioutil.WriteFile(path, contents, 0o600); err != nil {
 		return errors.Wrap(err, "write file")
 	}
@@ -102,7 +108,6 @@ func transform(cur *node, stack *[]*node) error {
 			// SYSTEM: read/write/execute
 			// Administrators: read/write/execute
 			sddl = "O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA)"
-
 		}
 		cur.Children = append(cur.Children, xmlNode(
 			"PermissionEx",

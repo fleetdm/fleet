@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -29,7 +30,7 @@ func FromContext(ctx context.Context) (*LoggingContext, bool) {
 // WithStartTime returns a context with logging.StartTime marked as the current time
 func WithStartTime(ctx context.Context) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.StartTime = time.Now()
+		logCtx.SetStartTime()
 	}
 	return ctx
 }
@@ -37,7 +38,7 @@ func WithStartTime(ctx context.Context) context.Context {
 // WithErr returns a context with logging.Err set as the error provided
 func WithErr(ctx context.Context, err ...error) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Errs = append(logCtx.Errs, err...)
+		logCtx.SetErrs(err...)
 	}
 	return ctx
 }
@@ -45,7 +46,7 @@ func WithErr(ctx context.Context, err ...error) context.Context {
 // WithNoUser returns a context with logging.SkipUser set to true so user won't be logged
 func WithNoUser(ctx context.Context) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.SkipUser = true
+		logCtx.SetSkipUser()
 	}
 	return ctx
 }
@@ -53,20 +54,22 @@ func WithNoUser(ctx context.Context) context.Context {
 // WithExtras returns a context with logging.Extras set as the values provided
 func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.Extras = append(logCtx.Extras, extras...)
+		logCtx.SetExtras(extras...)
 	}
 	return ctx
 }
 
 func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.ForceLevel = level
+		logCtx.SetForceLevel(level)
 	}
 	return ctx
 }
 
 // LoggingContext contains the context information for logging the current request
 type LoggingContext struct {
+	l sync.Mutex
+
 	StartTime  time.Time
 	Errs       []error
 	Extras     []interface{}
@@ -74,8 +77,37 @@ type LoggingContext struct {
 	ForceLevel func(kitlog.Logger) kitlog.Logger
 }
 
+func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.ForceLevel = level
+}
+func (l *LoggingContext) SetExtras(extras ...interface{}) {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.Extras = append(l.Extras, extras...)
+}
+func (l *LoggingContext) SetSkipUser() {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.SkipUser = true
+}
+func (l *LoggingContext) SetStartTime() {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.StartTime = time.Now()
+}
+func (l *LoggingContext) SetErrs(err ...error) {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.Errs = append(l.Errs, err...)
+}
+
 // Log logs the data within the context
 func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
+	l.l.Lock()
+	defer l.l.Unlock()
+
 	if l.ForceLevel != nil {
 		logger = l.ForceLevel(logger)
 	} else if l.Errs != nil || len(l.Extras) > 0 {

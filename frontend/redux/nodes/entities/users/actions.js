@@ -116,14 +116,17 @@ export const createUserWithoutInvitation = (formData) => {
   };
 };
 
-export const deleteSessions = (user) => {
+export const deleteSessions = (user, isResettingCurrentUser = false) => {
   const { successAction, destroyFailure, destroySuccess } = actions;
 
   return (dispatch) => {
     return Fleet.users
       .deleteSessions(user)
       .then((userResponse) => {
-        dispatch(logoutSuccess);
+        if (isResettingCurrentUser) {
+          dispatch(logoutSuccess);
+        }
+
         return dispatch(successAction(userResponse, destroySuccess));
       })
       .catch((response) => {

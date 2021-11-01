@@ -17,9 +17,10 @@ import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
+import AuthAnyAdminRoutes from "components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
-import AuthAnyMaintainerGlobalAdminRoutes from "components/AuthAnyMaintainerGlobalAdminRoutes";
+import AuthAnyMaintainerAnyAdminRoutes from "components/AuthAnyMaintainerAnyAdminRoutes";
 import PremiumTierRoutes from "components/PremiumTierRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
@@ -43,9 +44,8 @@ import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
 import SchedulePageWrapper from "components/schedule/SchedulePageWrapper";
 import ApiOnlyUser from "pages/ApiOnlyUser";
-import Fleet403 from "pages/Fleet403";
-import Fleet404 from "pages/Fleet404";
-import Fleet500 from "pages/Fleet500";
+import Fleet403 from "pages/errors/Fleet403";
+import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage";
@@ -88,12 +88,14 @@ const routes = (
           <Route component={CoreLayout}>
             <IndexRedirect to={"dashboard"} />
             <Route path="dashboard" component={Homepage} />
-            <Route path="settings" component={AuthenticatedAdminRoutes}>
+            <Route path="settings" component={AuthAnyAdminRoutes}>
               <Route component={SettingsWrapper}>
-                <Route path="organization" component={AdminAppSettingsPage} />
-                <Route path="users" component={AdminUserManagementPage} />
-                <Route component={PremiumTierRoutes}>
-                  <Route path="teams" component={AdminTeamManagementPage} />
+                <Route component={AuthenticatedAdminRoutes}>
+                  <Route path="organization" component={AdminAppSettingsPage} />
+                  <Route path="users" component={AdminUserManagementPage} />
+                  <Route component={PremiumTierRoutes}>
+                    <Route path="teams" component={AdminTeamManagementPage} />
+                  </Route>
                 </Route>
               </Route>
               <Route path="teams/:team_id" component={TeamDetailsWrapper}>
@@ -128,7 +130,7 @@ const routes = (
                 </Route>
               </Route>
             </Route>
-            <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
+            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="schedule" component={SchedulePageWrapper}>
                 <Route path="manage" component={ManageSchedulePage} />
                 <Route
@@ -139,7 +141,7 @@ const routes = (
             </Route>
             <Route path="queries" component={QueryPageWrapper}>
               <Route path="manage" component={ManageQueriesPage} />
-              <Route component={AuthAnyMaintainerGlobalAdminRoutes}>
+              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
                 <Route path="new" component={QueryPage} />
               </Route>
               <Route path=":id" component={QueryPage} />
@@ -152,7 +154,6 @@ const routes = (
         </Route>
       </Route>
       <Route path="/apionlyuser" component={ApiOnlyUser} />
-      <Route path="/500" component={Fleet500} />
       <Route path="/404" component={Fleet404} />
       <Route path="/403" component={Fleet403} />
       <Route path="*" component={Fleet404} />

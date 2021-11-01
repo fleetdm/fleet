@@ -1,0 +1,3 @@
+* Fix .msi generation in `fleetctl package` on Windows.
+
+* Allow .pkg generation in `fleetctl package` on Linux without installing dependencies (beyond Docker).

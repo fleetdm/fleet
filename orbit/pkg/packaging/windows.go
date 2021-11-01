@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
@@ -17,14 +19,11 @@ import (
 
 // BuildMSI builds a Windows .msi.
 func BuildMSI(opt Options) error {
-	// Initialize directories
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return errors.Wrap(err, "failed to create temp dir")
+		return err
 	}
-	os.Chmod(tmpDir, 0755)
 	defer os.RemoveAll(tmpDir)
-	log.Debug().Str("path", tmpDir).Msg("created temp dir")
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
@@ -67,9 +66,14 @@ func BuildMSI(opt Options) error {
 		return errors.Wrap(err, "write wix file")
 	}
 
-	// Make sure permissions are permissive so that the `wine` user in the Wix Docker container can access files.
-	if err := chmodRecursive(tmpDir, os.ModePerm); err != nil {
-		return err
+	if runtime.GOOS == "windows" {
+		// Explicitly grant read access, otherwise within the Docker container there are permissions
+		// errors.
+		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
+		if err != nil {
+			fmt.Println(string(out))
+			return errors.Wrap(err, "icacls")
+		}
 	}
 
 	if err := wix.Heat(tmpDir); err != nil {
@@ -89,7 +93,7 @@ func BuildMSI(opt Options) error {
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
-	if err := os.Rename(filepath.Join(tmpDir, "orbit.msi"), filename); err != nil {
+	if err := copyFile(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
 		return errors.Wrap(err, "rename msi")
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")

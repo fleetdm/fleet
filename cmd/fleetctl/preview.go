@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -177,10 +178,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error writing fleetctl configuration")
 			}
 
-			fmt.Println("Fleet UI is now available at http://localhost:1337.")
-			fmt.Println("Email:", email)
-			fmt.Println("Password:", password)
-
 			// Create client and get enroll secret
 			client, err := unauthenticatedClientFromCLI(c)
 			if err != nil {
@@ -243,13 +240,28 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
 			}
 
+			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
+			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
+			fmt.Println("Email:", email)
+			fmt.Println("Password:", password)
+
 			fmt.Println("Downloading Orbit and osqueryd...")
 
 			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
 				return errors.Wrap(err, "downloading orbit and osqueryd")
 			}
 
-			fmt.Println("Starting simulated hosts...")
+			// Give it a bit of time so the current device is the one with id 1
+			fmt.Println("Waiting for current host to enroll...")
+			if err := waitFirstHost(client); err != nil {
+				return errors.Wrap(err, "wait for current host")
+			}
+
+			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+				fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+			}
+
+			fmt.Println("Starting simulated Linux hosts...")
 			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
@@ -408,6 +420,30 @@ func waitStartup() error {
 	return nil
 }
 
+func waitFirstHost(client *service.Client) error {
+	retryStrategy := backoff.NewExponentialBackOff()
+	retryStrategy.MaxInterval = 1 * time.Second
+
+	if err := backoff.Retry(
+		func() error {
+			hosts, err := client.GetHosts("")
+			if err != nil {
+				return err
+			}
+			if len(hosts) == 0 {
+				return errors.New("no hosts yet")
+			}
+
+			return nil
+		},
+		retryStrategy,
+	); err != nil {
+		return errors.Wrap(err, "checking host count")
+	}
+
+	return nil
+}
+
 func checkDocker() error {
 	// Check installed
 	if _, err := exec.LookPath("docker"); err != nil {
@@ -520,6 +556,10 @@ func previewResetCommand() *cli.Command {
 				return errors.Errorf("Failed to run docker-compose rm -sf for simulated hosts.")
 			}
 
+			if err := stopOrbit(previewDir); err != nil {
+				return errors.Wrap(err, "Failed to stop orbit")
+			}
+
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
 
 			return nil
@@ -536,16 +576,49 @@ func storePidFile(destDir string, pid int) error {
 	return nil
 }
 
-func readPidFromFile(destDir string) (int, error) {
-	pidFilePath := path.Join(destDir, "orbit.pid")
+func readPidFromFile(destDir string, what string) (int, error) {
+	pidFilePath := path.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %s", pidFilePath, err)
+		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
 	return strconv.Atoi(string(data))
 }
 
+func isOrbitAlreadyRunning(destDir string) bool {
+	pid, err := readPidFromFile(destDir, "orbit.pid")
+	if err != nil {
+		// if any error occurs reading the pid file, we assume orbit is not running
+		return false
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		// if there are any errors looking for process, we assume orbit is not running
+		return false
+	}
+	// otherwise, we found the process, so it's running
+	err = process.Signal(syscall.Signal(0))
+	if err != nil {
+		// Unix will always return a process for the pid, so we try sending a signal to see if it's running
+		return false
+	}
+	return true
+}
+
 func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+	if isOrbitAlreadyRunning(destDir) {
+		fmt.Println("Orbit is already running.")
+		return nil
+	}
+
+	fmt.Println("Trying to clear orbit and osquery directories...")
+	if err := os.RemoveAll(path.Join(destDir, "osquery.db")); err != nil {
+		fmt.Println("Warning: clearing osquery db dir:", err)
+	}
+	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
+		fmt.Println("Warning: clearing orbit db dir:", err)
+	}
+
 	updateOpt := update.DefaultOptions
 	switch runtime.GOOS {
 	case "linux":
@@ -569,6 +642,7 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		"--root-dir", destDir,
 		"--fleet-url", address,
 		"--insecure",
+		"--debug",
 		"--enroll-secret", enrollSecret,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
@@ -583,13 +657,33 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 }
 
 func stopOrbit(destDir string) error {
-	pid, err := readPidFromFile(destDir)
+	err := killFromPIDFile(destDir, "osquery.pid")
+	if err != nil {
+		return err
+	}
+	err = killFromPIDFile(destDir, "orbit.pid")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func killFromPIDFile(destDir string, w string) error {
+	pid, err := readPidFromFile(destDir, w)
 	if err != nil {
 		return errors.Wrap(err, "reading pid")
 	}
+	switch {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil // we assume it's not running
+	default:
+		return errors.Wrapf(err, "reading pid from: %s", destDir)
+	}
 	err = killPID(pid)
 	if err != nil {
-		return errors.Wrapf(err, "killing orbit %d", pid)
+		return errors.Wrapf(err, "killing %d", pid)
 	}
 	return nil
 }
@@ -629,5 +723,22 @@ func loadPolicies(client *service.Client) error {
 		}
 	}
 
+	return nil
+}
+
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default: // xdg-open is available on most Linux-y systems
+		cmd = exec.Command("xdg-open", url)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "failed to open in browser")
+	}
 	return nil
 }

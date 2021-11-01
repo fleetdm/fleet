@@ -1,6 +1,8 @@
 package main
 
 import (
+	"runtime"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -106,6 +108,10 @@ func packageCommand() *cli.Command {
 
 			if opt.Insecure && opt.FleetCertificate != "" {
 				return errors.New("--insecure and --fleet-certificate may not be provided together")
+			}
+
+			if runtime.GOOS == "windows" && c.String("type") != "msi" {
+				return errors.New("Windows can only build MSI packages.")
 			}
 
 			switch c.String("type") {

@@ -104,7 +104,7 @@ fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	CGO_ENABLED=0 go build -tags full,fts5 -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 go build -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 lint-js:
 	yarn lint
@@ -142,7 +142,7 @@ generate-go: .prefix
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
 
-# we first generate the webpack bundle so that bindata knows to watch the
+# we first generate the webpack bundle so that bindata knows to atch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
@@ -194,9 +194,9 @@ xp-fleet: .pre-binary-bundle .pre-fleet generate
 	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate-go
-	CGO_ENABLED=0 GOOS=linux go build -tags full,fts5 -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=darwin go build -tags full,fts5 -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=windows go build -tags full,fts5 -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=darwin go build -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=windows go build -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r fleet.zip darwin/ linux/ windows/

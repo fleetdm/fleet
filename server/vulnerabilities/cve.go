@@ -62,6 +62,18 @@ func TranslateCPEToCVE(
 		return err
 	}
 
+	var files []string
+	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
+		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	cpeList, err := ds.AllCPEs(ctx)
 	if err != nil {
 		return err
@@ -80,24 +92,24 @@ func TranslateCPEToCVE(
 		return nil
 	}
 
-	var files []string
-	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
-			return nil
+	for _, file := range files {
+		err := checkCVEs(ctx, ds, logger, cpes, file)
+		if err != nil {
+			return err
 		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
+	return nil
+}
+
+func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cpes []*wfn.Attributes, files ...string) error {
 	dict, err := cvefeed.LoadJSONDictionary(files...)
 	if err != nil {
 		return err
 	}
-	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(0)
-	cache.Idx = cvefeed.NewIndex(dict)
+	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
+	// This index consumes too much RAM
+	//cache.Idx = cvefeed.NewIndex(dict)
 
 	cpeCh := make(chan *wfn.Attributes)
 

@@ -1,8 +1,5 @@
 FROM debian:bullseye-slim
 
-ARG wine_uid
-ARG wine_gid
-
 RUN true \
     && dpkg --add-architecture i386 \
     && apt update \
@@ -13,34 +10,9 @@ RUN true \
     wget \
     unzip \
     osslsigncode \
-    # Create a separate user for Wine
-    && if [ -n "${wine_gid}" ] ; \
-    then addgroup --system wine -g ${wine_gid} ; \
-    else addgroup --system wine ; fi \
-    && if [ -n "${wine_uid}" ] ; \
-    then \
-    adduser \
-    --home /home/wine \
-    --disabled-password \
-    --shell /bin/bash \
-    --gecos "non-root user for Wine" \
-    --ingroup wine \
-    --u ${wine_uid} \
-    wine ; \
-    else \
-    adduser \
-    --home /home/wine \
-    --disabled-password \
-    --shell /bin/bash \
-    --gecos "non-root user for Wine" \
-    --ingroup wine \
-    wine ;\
-    fi \
     && mkdir /wix \
-    && chown wine:wine /wix \
     && rm -rf /var/lib/apt/lists/* 
 
-USER wine
 WORKDIR /home/wine
 ENV HOME=/home/wine WINEPREFIX=/home/wine/.wine WINEARCH=win32 PATH="/home/wine/bin:$PATH" WINEDEBUG=-all
 
