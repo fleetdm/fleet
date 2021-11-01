@@ -1,4 +1,4 @@
-# Contributor API
+# API for contributors
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
