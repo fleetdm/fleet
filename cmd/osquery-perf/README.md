@@ -11,26 +11,12 @@ The only requirement for running this tool is a working installation of
 
 ## Usage
 
-Typically `go run` is used:
+Typically `go run` is used.
+
+You can use `--help` to view the available configuration:
 
 ```
 go run agent.go --help
-Usage of agent.go:
-  -config_interval duration
-    	Interval for config requests (default 1m0s)
-  -enroll_secret string
-    	Enroll secret to authenticate enrollment
-  -host_count int
-    	Number of hosts to start (default 10) (default 10)
-  -query_interval duration
-    	Interval for live query requests (default 10s)
-  -seed int
-    	Seed for random generator (default current time) (default 1586310930917739000)
-  -server_url string
-    	URL (with protocol and port of osquery server) (default "https://localhost:8080")
-  -start_period duration
-    	Duration to spread start of hosts over (default 10s)
-exit status 2
 ```
 
 The tool should be invoked with the appropriate enroll secret. A typical

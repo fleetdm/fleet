@@ -181,7 +181,11 @@ func queryCommand() *cli.Command {
 					}
 
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
+
+					s.Lock()
 					s.Suffix = msg
+					s.Unlock()
+
 					if total == responded && status != nil {
 						s.Stop()
 						if !flQuiet {
