@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -38,6 +39,8 @@ func (e osqueryError) Error() string {
 func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
+
+var counter = int64(0)
 
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
@@ -753,10 +756,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.Modified {
-		err = svc.ds.SaveHost(ctx, &host)
-		if err != nil {
-			logging.WithErr(ctx, err)
-		}
+		go func() {
+			atomic.AddInt64(&counter, 1)
+			defer func() {
+				atomic.AddInt64(&counter, -1)
+			}()
+			level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
+
+			err = svc.ds.SaveHost(context.Background(), &host)
+			if err != nil {
+				level.Debug(svc.logger).Log("background-err", err)
+			}
+		}()
 	}
 
 	return nil
