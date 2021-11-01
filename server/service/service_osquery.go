@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -756,18 +755,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.Modified {
-		go func() {
-			atomic.AddInt64(&counter, 1)
-			defer func() {
-				atomic.AddInt64(&counter, -1)
-			}()
-			level.Debug(svc.logger).Log("background", atomic.LoadInt64(&counter))
-
-			err = svc.ds.SaveHost(context.Background(), &host)
-			if err != nil {
-				level.Debug(svc.logger).Log("background-err", err)
-			}
-		}()
+		err = svc.ds.SaveHost(context.Background(), &host)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
