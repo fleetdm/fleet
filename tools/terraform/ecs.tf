@@ -187,7 +187,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
-            value = "${aws_elasticache_replication_group.default.configuration_endpoint_address}:6379"
+            value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
           {
             name = "FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS"
@@ -303,7 +303,7 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
-            value = "${aws_elasticache_replication_group.default.configuration_endpoint_address}:6379"
+            value = "${aws_elasticache_replication_group.default.primary_endpoint_address}:6379"
           },
         ]
       }
