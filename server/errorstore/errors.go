@@ -118,12 +118,14 @@ func hashError(err error) string {
 	// implements the error interface and the message contains a file name that
 	// caused the error and that is stored in a struct field).
 	//
-	// b) in addition that a), we also want to hash the location closest to where
-	// the error occurred, so that the same error type and message (say,
-	// sql.ErrNoRows or io.UnexpectedEOF) caused at two different places in the
-	// code are not considered the same error. To get that location, the error
-	// must be wrapped at some point by eris.Wrap (or must be a user-created
-	// error via eris.New).
+	// b) in addition that a), we also want to hash all locations in the stack
+	// trace, so that the same error type and message (say, sql.ErrNoRows or
+	// io.UnexpectedEOF) caused at two different places in the code are not
+	// considered the same error. To get that location, the error must be wrapped
+	// at some point by eris.Wrap (or must be a user-created error via eris.New).
+	// We cannot hash only the leaf frame in the stack trace as that would all be
+	// ctxerr.New or ctxerr.Wrap (i.e. whatever common helper function used to
+	// create the eris error).
 	//
 	// c) if we call eris.Unpack on an error that is not *directly* an "eris"
 	// error (i.e. an error value returned from eris.Wrap or eris.New), then
