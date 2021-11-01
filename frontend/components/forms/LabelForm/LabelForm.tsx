@@ -133,7 +133,11 @@ const LabelForm = ({
   }
 
   return (
-    <form className={`${baseClass}__wrapper`} onSubmit={submitForm}>
+    <form
+      className={`${baseClass}__wrapper`}
+      onSubmit={submitForm}
+      autoComplete="off"
+    >
       <h1>{headerText}</h1>
       {!isManual && (
         <FleetAce

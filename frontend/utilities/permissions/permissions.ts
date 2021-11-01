@@ -25,12 +25,12 @@ export const isOnGlobalTeam = (user: IUser): boolean => {
   return user.global_role !== null;
 };
 
+// This checks against a specific team
 const isTeamObserver = (user: IUser, teamId: number): boolean => {
   const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "observer";
 };
 
-// This checks against a specific team
 const isTeamMaintainer = (
   user: IUser | null,
   teamId: number | null
@@ -42,6 +42,14 @@ const isTeamMaintainer = (
 const isTeamAdmin = (user: IUser | null, teamId: number | null): boolean => {
   const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "admin";
+};
+
+const isTeamMaintainerOrTeamAdmin = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "admin" || userTeamRole === "maintainer";
 };
 
 // This checks against all teams
@@ -95,6 +103,7 @@ export default {
   isOnGlobalTeam,
   isTeamObserver,
   isTeamMaintainer,
+  isTeamMaintainerOrTeamAdmin,
   isAnyTeamMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,

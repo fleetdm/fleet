@@ -139,20 +139,24 @@ const ActivityFeed = (): JSX.Element => {
   const renderError = () => {
     return (
       <div className={`${baseClass}__error`}>
-        <img className="error-icon" alt="error icon" src={ErrorIcon} />
-        <b>Something&rsquo;s gone wrong.</b>
-        <p>Refresh the page or log in again.</p>
-        <p>
-          If this keeps happening, please{" "}
-          <a
-            href="https://github.com/fleetdm/fleet/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            file an issue
-            <img src={OpenNewTabIcon} alt="open new tab" />
-          </a>
-        </p>
+        <div className={`${baseClass}__inner`}>
+          <span className="info__header">
+            <img src={ErrorIcon} alt="error icon" id="error-icon" />
+            Something&apos;s gone wrong.
+          </span>
+          <span className="info__data">Refresh the page or log in again.</span>
+          <span className="info__data">
+            If this keeps happening, please&nbsp;
+            <a
+              href="https://github.com/fleetdm/fleet/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              file an issue
+              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
+            </a>
+          </span>
+        </div>
       </div>
     );
   };

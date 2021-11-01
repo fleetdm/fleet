@@ -14,19 +14,21 @@ fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-libr
 Want to add your own query?
 
 1. Please copy the following yaml section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
-```yaml
----
-apiVersion: v1
-kind: query
-spec:
-  name: What is your query called? Please use a human readable query name.
-  platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-  description: Describe your query. What does information does your query reveal?
-  query: Insert query here
-  purpose: What is the goal of running your query? Ex. Detection
-  remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
-  contributors: zwass,mike-j-thomas
-```
+
+  ```yaml
+  ---
+  apiVersion: v1
+  kind: query
+  spec:
+    name: What is your query called? Please use a human readable query name.
+    platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
+    description: Describe your query. What does information does your query reveal?
+    query: Insert query here
+    purpose: What is the goal of running your query? Ex. Detection
+    remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
+    contributors: zwass,mike-j-thomas
+  ```
+
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 
 For instructions on submitting pull requests to Fleet check out [the Committing Changes section](../../03-Contributing/04-Committing-Changes.md#committing-changes) in the Contributors documentation.

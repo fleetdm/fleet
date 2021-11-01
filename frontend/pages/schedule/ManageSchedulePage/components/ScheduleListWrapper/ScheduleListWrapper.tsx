@@ -33,7 +33,8 @@ interface IScheduleListWrapperProps {
   toggleScheduleEditorModal?: () => void;
   teamId: number;
   inheritedQueries?: boolean;
-  isTeamMaintainer: boolean;
+  isTeamMaintainerOrTeamAdmin: boolean;
+  isOnGlobalTeam: boolean;
 }
 interface IRootState {
   entities: {
@@ -55,7 +56,8 @@ const ScheduleListWrapper = ({
   onEditScheduledQueryClick,
   teamId,
   inheritedQueries,
-  isTeamMaintainer,
+  isTeamMaintainerOrTeamAdmin,
+  isOnGlobalTeam,
 }: IScheduleListWrapperProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS } = paths;
@@ -70,28 +72,34 @@ const ScheduleListWrapper = ({
           <div className={`${noScheduleClass}__inner-text`}>
             <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
-              {!isTeamMaintainer
-                ? "Schedule a query, or go to your osquery packs via the 'Advanced' button."
-                : "Schedule a query to run on hosts assigned to this team."}
+              {isOnGlobalTeam &&
+                "Schedule a query, or go to your osquery packs via the 'Advanced' button."}
+              {isTeamMaintainerOrTeamAdmin &&
+                "Schedule a query to run on hosts assigned to this team."}
+              {!isOnGlobalTeam &&
+                !isTeamMaintainerOrTeamAdmin &&
+                "There are no scheduled queries assigned to this team."}
             </p>
-            <div className={`${noScheduleClass}__-cta-buttons`}>
-              <Button
-                variant="brand"
-                className={`${noScheduleClass}__schedule-button`}
-                onClick={toggleScheduleEditorModal}
-              >
-                Schedule a query
-              </Button>
-              {!isTeamMaintainer && (
+            {(isOnGlobalTeam || isTeamMaintainerOrTeamAdmin) && (
+              <div className={`${noScheduleClass}__-cta-buttons`}>
                 <Button
-                  variant="inverse"
-                  onClick={handleAdvanced}
-                  className={`${baseClass}__advanced-button`}
+                  variant="brand"
+                  className={`${noScheduleClass}__schedule-button`}
+                  onClick={toggleScheduleEditorModal}
                 >
-                  Advanced
+                  Schedule a query
                 </Button>
-              )}
-            </div>
+                {isOnGlobalTeam && (
+                  <Button
+                    variant="inverse"
+                    onClick={handleAdvanced}
+                    className={`${baseClass}__advanced-button`}
+                  >
+                    Advanced
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
