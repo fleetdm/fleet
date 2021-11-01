@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -127,73 +128,75 @@ func rawCertToPemFile(t *testing.T, raw []byte) string {
 	return certPath
 }
 
-func TestDebugConnectionChecks(t *testing.T) {
+func TestDebugCheckAPIEndpoint(t *testing.T) {
+	const timeout = 100 * time.Millisecond
+	cases := [...]struct {
+		code        int // == 0 panics, negative value waits for timeout, sets status code to absolute value
+		body        string
+		errContains string // empty if checkAPIEndpoint should not return an error
+	}{
+		{401, `{"error": "fail", "node_invalid": true}`, ""},
+		{-401, `{"error": "fail", "node_invalid": true}`, "deadline exceeded"},
+		{200, `{"error": "", "node_invalid": false}`, "unexpected 200 response"},
+		{0, `panic`, "EOF"},
+	}
+
+	var callCount int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res := cases[atomic.LoadInt32(&callCount)]
+
+		switch {
+		case res.code == 0:
+			panic(res.body)
+		case res.code < 0:
+			time.Sleep(timeout + time.Millisecond)
+			res.code = -res.code
+		}
+		w.WriteHeader(res.code)
+		fmt.Fprint(w, res.body)
+	}))
+	t.Cleanup(func() {
+		srv.Close()
+	})
+
+	os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+	cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
+	require.NoError(t, err)
+	for i, c := range cases {
+		atomic.StoreInt32(&callCount, int32(i))
+		t.Run(fmt.Sprint(c.code), func(t *testing.T) {
+			err := checkAPIEndpoint(context.Background(), timeout, base, cli)
+			if c.errContains == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.errContains)
+			}
+		})
+	}
+}
+
+func TestDebugResolveHostname(t *testing.T) {
 	const timeout = 100 * time.Millisecond
 
-	t.Run("resolveHostname", func(t *testing.T) {
-		// resolves host name
-		err := resolveHostname(context.Background(), timeout, "localhost")
-		require.NoError(t, err)
+	// resolves host name
+	err := resolveHostname(context.Background(), timeout, "localhost")
+	require.NoError(t, err)
 
-		// resolves ip4 address
-		err = resolveHostname(context.Background(), timeout, "127.0.0.1")
-		require.NoError(t, err)
+	// resolves ip4 address
+	err = resolveHostname(context.Background(), timeout, "127.0.0.1")
+	require.NoError(t, err)
 
-		// resolves ip6 address
-		err = resolveHostname(context.Background(), timeout, "::1")
-		require.NoError(t, err)
+	// resolves ip6 address
+	err = resolveHostname(context.Background(), timeout, "::1")
+	require.NoError(t, err)
 
-		// fails on invalid host
-		randBytes := make([]byte, 8)
-		_, err = rand.Read(randBytes)
-		require.NoError(t, err)
-		noSuchHost := "no_such_host" + hex.EncodeToString(randBytes)
+	// fails on invalid host
+	randBytes := make([]byte, 8)
+	_, err = rand.Read(randBytes)
+	require.NoError(t, err)
+	noSuchHost := "no_such_host" + hex.EncodeToString(randBytes)
 
-		err = resolveHostname(context.Background(), timeout, noSuchHost)
-		require.Error(t, err)
-	})
-
-	t.Run("checkAPIEndpoint", func(t *testing.T) {
-		cases := [...]struct {
-			code        int // == 0 panics, negative value waits for timeout, sets status code to absolute value
-			body        string
-			errContains string // empty if checkAPIEndpoint should not return an error
-		}{
-			{401, `{"error": "fail", "node_invalid": true}`, ""},
-			{-401, `{"error": "fail", "node_invalid": true}`, "deadline exceeded"},
-			{200, `{"error": "", "node_invalid": false}`, "unexpected 200 response"},
-			{0, `panic`, "EOF"},
-		}
-		var callCount int
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			res := cases[callCount]
-
-			switch {
-			case res.code == 0:
-				panic(res.body)
-			case res.code < 0:
-				time.Sleep(timeout + time.Millisecond)
-				res.code = -res.code
-			}
-			w.WriteHeader(res.code)
-			fmt.Fprint(w, res.body)
-		}))
-		defer srv.Close()
-
-		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
-		cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
-		require.NoError(t, err)
-		for i, c := range cases {
-			callCount = i
-			t.Run(fmt.Sprint(c.code), func(t *testing.T) {
-				err := checkAPIEndpoint(context.Background(), timeout, base, cli)
-				if c.errContains == "" {
-					require.NoError(t, err)
-				} else {
-					require.Error(t, err)
-					require.Contains(t, err.Error(), c.errContains)
-				}
-			})
-		}
-	})
+	err = resolveHostname(context.Background(), timeout, noSuchHost)
+	require.Error(t, err)
 }
