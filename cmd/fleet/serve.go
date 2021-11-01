@@ -14,18 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
-
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-
 	"github.com/WatchBeam/clock"
+	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
@@ -33,10 +28,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -219,6 +218,7 @@ the way that the Fleet server works.
 				MaxOpenConns:              config.Redis.MaxOpenConns,
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
+				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -241,7 +241,19 @@ the way that the Fleet server works.
 				initFatal(err, "initializing osquery logging")
 			}
 
-			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			task := &async.Task{
+				Datastore:          ds,
+				Pool:               redisPool,
+				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
+				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
+				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
+				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
+				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
+				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
+				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
+				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
+			}
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -253,7 +265,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"), config)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config)
 
 			// Flush seen hosts every second
 			go func() {
@@ -478,13 +490,17 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
+
+	// StartCollectors starts a goroutine per collector, using ctx to cancel.
+	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
+		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
 	go cronVulnerabilities(

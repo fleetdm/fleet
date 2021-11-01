@@ -12,6 +12,7 @@ import (
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/WatchBeam/clock"
@@ -50,7 +51,11 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 			license = opts[0].License
 		}
 	}
-	svc, err := NewService(ds, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, *license)
+	task := &async.Task{
+		Datastore:    ds,
+		AsyncEnabled: false,
+	}
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, *license)
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +82,11 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		panic(err)
 	}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
-	svc, err := NewService(ds, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
+	task := &async.Task{
+		Datastore:    ds,
+		AsyncEnabled: false,
+	}
+	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
 	if err != nil {
 		panic(err)
 	}
