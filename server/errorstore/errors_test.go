@@ -29,8 +29,6 @@ func alwaysCallsAlwaysErrors() error { return alwaysErrors() }
 
 func alwaysErisErrors() error { return eris.New("always eris errors") }
 
-func alwaysCallsAlwaysErisErrors() error { return alwaysErisErrors() }
-
 func alwaysNewError(eh *Handler) error {
 	return eh.Store(context.Background(), eris.New("always new errors"))
 }
