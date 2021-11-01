@@ -1,4 +1,4 @@
-import React, { useState, useRef, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
@@ -49,7 +49,7 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
-// https://usehooks.com/useDebounce/
+// This custom hook is adapted from https://github.com/uidotdev/usehooks/blob/master/src/pages/useDebounce.md
 const useDebounce = (value: number | string, delay: number) => {
   // State and setters for debounced value
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -111,7 +111,7 @@ const QueryForm = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
-  const debouncedQueryString = useDebounce(lastEditedQueryBody, 500);
+  const debouncedQueryString = useDebounce(lastEditedQueryBody, 250);
 
   useEffect(
     () =>
@@ -121,12 +121,6 @@ const QueryForm = ({
 
     [debouncedQueryString]
   );
-
-  // useEffect(() => {
-  //   setCompatiblePlatforms(
-  //     listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
-  //   );
-  // }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
