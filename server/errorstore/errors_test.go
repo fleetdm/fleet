@@ -42,21 +42,24 @@ func alwaysNewErrorTwo(eh *Handler) error {
 func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
 
 func TestHashErr(t *testing.T) {
-	t.Run("same error, same hash", func(t *testing.T) {
+	t.Run("without stack trace, same error is same hash", func(t *testing.T) {
 		err1 := alwaysErrors()
 		err2 := alwaysCallsAlwaysErrors()
 		assert.Equal(t, hashError(err1), hashError(err2))
+	})
 
+	t.Run("different location, same error is different hash", func(t *testing.T) {
+		err1 := alwaysErisErrors()
+		err2 := alwaysErisErrors()
+		assert.NotEqual(t, hashError(err1), hashError(err2))
+	})
+
+	t.Run("same error, wrapped, same hash", func(t *testing.T) {
 		eris1 := alwaysErisErrors()
-		eris2 := alwaysCallsAlwaysErisErrors()
-		assert.Equal(t, hashError(eris1), hashError(eris2))
-		assert.NotEqual(t, err1, eris1)
-		assert.NotEmpty(t, err1)
-		assert.NotEmpty(t, eris2)
 
-		werr1, werr2 := alwaysWrappedErr(), alwaysWrappedErr()
-		assert.Equal(t, hashError(werr1), hashError(werr2))
-		assert.NotEqual(t, werr1, werr2)
+		w1, w2 := fmt.Errorf("wrap: %w", eris1), pkgErrors.Wrap(eris1, "wrap")
+		h1, h2 := hashError(w1), hashError(w2)
+		assert.Equal(t, h1, h2)
 	})
 
 	t.Run("generates json", func(t *testing.T) {
@@ -106,13 +109,6 @@ func TestHashErrEris(t *testing.T) {
 		h1, h2 := hashError(werr1), hashError(werr2)
 		assert.Equal(t, wantHash, h1)
 		assert.Equal(t, wantHash, h2)
-
-		// hashing with eris is safe, it keeps the root location intact
-		werr3 := eris.Wrap(err, "eris wrap")
-		werr4 := eris.Wrap(werr3, "eris wrap again")
-		h3, h4 := hashError(werr3), hashError(werr4)
-		assert.Equal(t, wantHash, h3)
-		assert.Equal(t, wantHash, h4)
 	})
 
 	t.Run("HashNew", func(t *testing.T) {
@@ -198,7 +194,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 
 	chGo, chDone := make(chan struct{}), make(chan struct{})
 
-	var storeCalls int32 = 2
+	var storeCalls int32 = 3
 	testOnStart = func() {
 		close(chGo)
 	}
@@ -212,8 +208,9 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 
 	<-chGo
 
-	alwaysNewError(eh)
-	alwaysNewError(eh) // and it doesnt repeat them
+	for i := 0; i < 3; i++ {
+		alwaysNewError(eh)
+	}
 
 	<-chDone
 
@@ -245,7 +242,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	var storeCalls int32 = 3
+	var storeCalls int32 = 5
 
 	chGo, chDone := make(chan struct{}), make(chan struct{})
 	testOnStart = func() {
@@ -262,22 +259,28 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	<-chGo
 
+	// those two errors are different because from a different strack trace
+	// (different line)
 	alwaysNewError(eh)
-	alwaysNewError(eh) // and it doesnt repeat them
+	alwaysNewError(eh)
+
+	// while those two are the same, only one gets store
+	for i := 0; i < 2; i++ {
+		alwaysNewError(eh)
+	}
+
 	alwaysNewErrorTwo(eh)
 
 	<-chDone
 
 	errors, err := eh.Flush()
 	require.NoError(t, err)
-	require.Len(t, errors, 2)
+	require.Len(t, errors, 4)
 
-	// order is not guaranteed by scan keys, so reorder to catch error two first
-	if strings.Contains(errors[1], "new errors two") {
-		errors[0], errors[1] = errors[1], errors[0]
-	}
-
-	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+	// order is not guaranteed by scan keys
+	for _, jsonErr := range errors {
+		if strings.Contains(jsonErr, "new errors two") {
+			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "always new errors two",
     "stack": \[
@@ -285,9 +288,10 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
       "errorstore\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
     \]
-  \}`, wd)), errors[0])
+  \}`, wd)), jsonErr)
 
-	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
+		} else {
+			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
     "message": "always new errors",
     "stack": \[
@@ -295,7 +299,10 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
       "errorstore\.alwaysNewError:%[1]s/errors_test\.go:\d+"
     \]
-  \}`, wd)), errors[1])
+  \}`, wd)), jsonErr)
+		}
+	}
+
 }
 
 func TestHttpHandler(t *testing.T) {

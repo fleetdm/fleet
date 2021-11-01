@@ -35,10 +35,6 @@ func fromContext(ctx context.Context) *errorstore.Handler {
 	return v
 }
 
-// TODO: double-check the eris stack trace, the location used for hashing
-// will end up always being this call, from what I can tell (eris does not
-// support passing the number of caller frames to skip).
-
 // New creates a new error with the provided error message.
 func New(ctx context.Context, errMsg string) error {
 	return ensureCommonMetadata(ctx, errors.New(errMsg))

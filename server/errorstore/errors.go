@@ -160,12 +160,11 @@ func hashError(err error) string {
 	}
 
 	if len(unpackedErr.ErrRoot.Stack) > 0 {
-		lastFrame := unpackedErr.ErrRoot.Stack[0]
-		fmt.Println(">>>>> last frame", lastFrame.File, lastFrame.Line)
-		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
+		for _, frame := range unpackedErr.ErrRoot.Stack {
+			fmt.Fprintf(&sb, "%s:%d\n", frame.File, frame.Line)
+		}
 	} else if len(unpackedErr.ErrChain) > 0 {
 		lastFrame := unpackedErr.ErrChain[0].Frame
-		fmt.Println(">>>>> last frame", lastFrame.File, lastFrame.Line)
 		fmt.Fprintf(&sb, "%s:%d", lastFrame.File, lastFrame.Line)
 	}
 	return sha256b64(sb.String())
