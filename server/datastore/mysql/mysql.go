@@ -56,6 +56,8 @@ type Datastore struct {
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
+
+	writeCh chan itemToWrite
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -214,9 +216,29 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		clock:             c,
 		config:            config,
 		readReplicaConfig: options.replicaConfig,
+		writeCh:           make(chan itemToWrite),
 	}
 
+	go ds.writeChanLoop()
+
 	return ds, nil
+}
+
+type itemToWrite struct {
+	ctx   context.Context
+	errCh chan error
+	item  interface{}
+}
+
+func (d *Datastore) writeChanLoop() {
+	for item := range d.writeCh {
+		switch actualItem := item.item.(type) {
+		case *fleet.Host:
+			item.errCh <- d.saveHostActual(item.ctx, actualItem)
+		case *hostsSeenItem:
+			item.errCh <- d.markHostsSeenActual(item.ctx, actualItem.hostIDs, actualItem.t)
+		}
+	}
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {

@@ -63,6 +63,25 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
+	errCh := make(chan error)
+	select {
+	case <-ctx.Done():
+		return nil
+	case d.writeCh <- itemToWrite{
+		ctx:   ctx,
+		errCh: errCh,
+		item:  host,
+	}:
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errCh:
+			return err
+		}
+	}
+}
+
+func (d *Datastore) saveHostActual(ctx context.Context, host *fleet.Host) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
 		UPDATE hosts SET
@@ -636,7 +655,34 @@ func (d *Datastore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.T
 	return nil
 }
 
+type hostsSeenItem struct {
+	hostIDs []uint
+	t       time.Time
+}
+
 func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
+	errCh := make(chan error)
+	select {
+	case <-ctx.Done():
+		return nil
+	case d.writeCh <- itemToWrite{
+		ctx:   ctx,
+		errCh: errCh,
+		item: &hostsSeenItem{
+			hostIDs: hostIDs,
+			t:       t,
+		},
+	}:
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errCh:
+			return err
+		}
+	}
+}
+
+func (d *Datastore) markHostsSeenActual(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
