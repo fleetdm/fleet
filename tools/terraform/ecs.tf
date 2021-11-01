@@ -238,6 +238,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "100"
           },
           {
+            name  = "FLEET_REDIS_MAX_OPEN_CONNS"
+            value = "100"
+          },
+          {
             name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
             value = "10000"
           }
