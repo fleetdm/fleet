@@ -1,5 +1,0 @@
-* Add functionality to parse sql for platform compatiblity based on osquery tables
-* Surface query-platform compatibility in create/edit query form
-* Surface query-platform compatibility as new column in manage queries table
-* Add filter-by-platform feature to manage queries table
-* Refactor manage queries page to useQuery and useContext patterns

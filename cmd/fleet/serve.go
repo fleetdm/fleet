@@ -4,19 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
-	"net/url"
-
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/errorstore"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
-
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -24,23 +15,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-
 	"github.com/WatchBeam/clock"
+	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -385,12 +382,35 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
+			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
+			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
+				duration, err := time.ParseDuration(v)
+				if err != nil {
+					level.Error(logger).Log("live_query_rest_period_err", err)
+				} else {
+					liveQueryRestPeriod = duration
+				}
+			}
+
+			defaultWritetimeout := 40 * time.Second
+			writeTimeout := defaultWritetimeout
+			// The "GET /api/v1/fleet/queries/run" API requires
+			// WriteTimeout to be higher than the live query rest period
+			// (otherwise the response is not sent back to the client).
+			//
+			// We add 10s to the live query rest period to allow the writing
+			// of the response.
+			liveQueryRestPeriod += 10 * time.Second
+			if liveQueryRestPeriod > writeTimeout {
+				writeTimeout = liveQueryRestPeriod
+			}
+
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           launcher.Handler(rootMux),
 				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      40 * time.Second,
+				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
@@ -416,7 +436,7 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig //block on signal
+				<-sig // block on signal
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
