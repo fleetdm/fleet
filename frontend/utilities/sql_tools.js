@@ -31,7 +31,10 @@ const _visit = (abstractSyntaxTree, callback) => {
 };
 
 export const listCompatiblePlatforms = (tablesList) => {
-  if (tablesList[0] === "Invalid query") {
+  if (
+    tablesList[0] === "Invalid query" ||
+    tablesList[0] === "No tables in query AST"
+  ) {
     return tablesList;
   }
   const compatiblePlatforms = intersection(
@@ -60,9 +63,9 @@ export const parseSqlTables = (sqlString) => {
     const sqlTree = sqliteParser(sqlString);
     _visit(sqlTree, _callback);
 
-    return tablesList;
+    return tablesList.length ? tablesList : ["No tables in query AST"];
   } catch (err) {
-    console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
+    // console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
 
     return ["Invalid query"];
   }
