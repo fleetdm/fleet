@@ -13,11 +13,10 @@ package ctxerr
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	goerrors "errors"
-
-	"github.com/fleetdm/fleet/v4/server/errors"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/rotisserie/eris"
 )
 
@@ -27,12 +26,12 @@ const errHandlerKey key = 0
 
 // NewContext returns a context derived from ctx that contains the provided
 // error handler.
-func NewContext(ctx context.Context, eh *errors.Handler) context.Context {
+func NewContext(ctx context.Context, eh *errorstore.Handler) context.Context {
 	return context.WithValue(ctx, errHandlerKey, eh)
 }
 
-func fromContext(ctx context.Context) *errors.Handler {
-	v, _ := ctx.Value(errHandlerKey).(*errors.Handler)
+func fromContext(ctx context.Context) *errorstore.Handler {
+	v, _ := ctx.Value(errHandlerKey).(*errorstore.Handler)
 	return v
 }
 
@@ -42,7 +41,7 @@ func fromContext(ctx context.Context) *errors.Handler {
 
 // New creates a new error with the provided error message.
 func New(ctx context.Context, errMsg string) error {
-	return ensureCommonMetadata(ctx, goerrors.New(errMsg))
+	return ensureCommonMetadata(ctx, errors.New(errMsg))
 }
 
 // Wrap annotates err with the provided message.
@@ -68,7 +67,7 @@ func Handle(ctx context.Context, err error) error {
 
 func ensureCommonMetadata(ctx context.Context, err error) error {
 	var sf interface{ StackFrames() []uintptr }
-	if err != nil && !goerrors.As(err, &sf) {
+	if err != nil && !errors.As(err, &sf) {
 		// no eris error nowhere in the chain, add the common metadata
 		// TODO: more metadata from ctx: user, host, etc.
 		err = eris.Wrapf(err, "timestamp: %s", time.Now().Format(time.RFC3339))

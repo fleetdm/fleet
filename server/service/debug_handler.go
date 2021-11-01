@@ -7,7 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
-	"github.com/fleetdm/fleet/v4/server/errors"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -43,13 +43,13 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh errors.ErrorFlusher) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh errorstore.ErrorFlusher) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	r.HandleFunc("/debug/errors", errors.NewHttpHandler(eh))
+	r.HandleFunc("/debug/errors", errorstore.NewHttpHandler(eh))
 	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		pprof.Index(rw, req)
 	})

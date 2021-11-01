@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
-	fleetErrors "github.com/fleetdm/fleet/v4/server/errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
@@ -340,7 +340,7 @@ the way that the Fleet server works.
 			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			eh := fleetErrors.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))

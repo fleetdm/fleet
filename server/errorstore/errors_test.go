@@ -1,4 +1,4 @@
-package errors
+package errorstore
 
 import (
 	"context"
@@ -90,7 +90,7 @@ func TestHashErrEris(t *testing.T) {
   "root": \{
     "message": "some err",
     "stack": \[
-      "errors.TestHashErrEris\.func\d+:%s/errors_test\.go:\d+"
+      "errorstore.TestHashErrEris\.func\d+:%s/errors_test\.go:\d+"
     \]
   \}
 \}`, regexp.QuoteMeta(wd))), jsonBytes)
@@ -225,9 +225,9 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
   "root": \{
     "message": "always new errors",
     "stack": \[
-      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errors\.testErrorHandlerCollectsErrors:%[1]s/errors_test\.go:\d+",
-      "errors\.alwaysNewError:%s/errors_test\.go:\d+"
+      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errorstore\.testErrorHandlerCollectsErrors:%[1]s/errors_test\.go:\d+",
+      "errorstore\.alwaysNewError:%s/errors_test\.go:\d+"
     \]
   \}`, wd, wd)), errors[0])
 
@@ -281,9 +281,9 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
   "root": \{
     "message": "always new errors two",
     "stack": \[
-      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errors\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errors\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
+      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
+      "errorstore\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
     \]
   \}`, wd)), errors[0])
 
@@ -291,9 +291,9 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
   "root": \{
     "message": "always new errors",
     "stack": \[
-      "errors\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errors\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errors\.alwaysNewError:%[1]s/errors_test\.go:\d+"
+      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
+      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
+      "errorstore\.alwaysNewError:%[1]s/errors_test\.go:\d+"
     \]
   \}`, wd)), errors[1])
 }
