@@ -16,7 +16,7 @@ import Modal from "components/modals/Modal";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 import IconDisabled from "../../../../../assets/images/icon-action-disable-red-16x16@2x.png";
-import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
+import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x17.png";
 import IconError from "../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 import IconChevron from "../../../../../assets/images/icon-chevron-purple-9x6@2x.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
