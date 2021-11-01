@@ -4,22 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/url"
-
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
-
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 
@@ -377,11 +376,34 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
+			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
+			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
+				duration, err := time.ParseDuration(v)
+				if err != nil {
+					level.Error(logger).Log("live_query_rest_period_err", err)
+				} else {
+					liveQueryRestPeriod = duration
+				}
+			}
+
+			defaultWritetimeout := 40 * time.Second
+			writeTimeout := defaultWritetimeout
+			// The "GET /api/v1/fleet/queries/run" API requires
+			// WriteTimeout to be higher than the live query rest period
+			// (otherwise the response is not sent back to the client).
+			//
+			// We add 10s to the live query rest period to allow the writing
+			// of the response.
+			liveQueryRestPeriod += 10 * time.Second
+			if liveQueryRestPeriod > writeTimeout {
+				writeTimeout = liveQueryRestPeriod
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           launcher.Handler(rootMux),
 				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      40 * time.Second,
+				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
@@ -404,7 +426,7 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig //block on signal
+				<-sig // block on signal
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
