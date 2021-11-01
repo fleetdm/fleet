@@ -15,6 +15,7 @@ type InitialStateType = {
   currentUser: IUser | null;
   currentTeam: ITeam | undefined;
   enrollSecret: IEnrollSecret[] | null;
+  isPreviewMode: boolean | undefined;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -22,7 +23,11 @@ type InitialStateType = {
   isGlobalObserver: boolean | undefined;
   isOnGlobalTeam: boolean | undefined;
   isAnyTeamMaintainer: boolean | undefined;
+  isAnyTeamMaintainerOrTeamAdmin: boolean | undefined;
+  isTeamObserver: boolean | undefined;
   isTeamMaintainer: boolean | undefined;
+  isAnyTeamAdmin: boolean | undefined;
+  isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeam | undefined) => void;
@@ -35,6 +40,7 @@ const initialState = {
   currentUser: null,
   currentTeam: undefined,
   enrollSecret: null,
+  isPreviewMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -42,7 +48,12 @@ const initialState = {
   isGlobalObserver: undefined,
   isOnGlobalTeam: undefined,
   isAnyTeamMaintainer: undefined,
+  isAnyTeamMaintainerOrTeamAdmin: undefined,
+  isTeamObserver: undefined,
   isTeamMaintainer: undefined,
+  isTeamMaintainerOrTeamAdmin: undefined,
+  isAnyTeamAdmin: undefined,
+  isTeamAdmin: undefined,
   isOnlyObserver: undefined,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -55,6 +66,10 @@ const actions = {
   SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
   SET_CONFIG: "SET_CONFIG",
   SET_ENROLL_SECRET: "SET_ENROLL_SECRET",
+};
+
+const detectPreview = () => {
+  return window.location.origin === "http://localhost:1337";
 };
 
 // helper function - this is run every
@@ -72,7 +87,17 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
     isGlobalObserver: permissions.isGlobalObserver(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
+    isAnyTeamMaintainerOrTeamAdmin: permissions.isAnyTeamMaintainerOrTeamAdmin(
+      user
+    ),
+    isAnyTeamAdmin: permissions.isAnyTeamAdmin(user),
+    isTeamObserver: permissions.isTeamObserver(user, teamId),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
+    isTeamAdmin: permissions.isTeamAdmin(user, teamId),
+    isTeamMaintainerOrTeamAdmin: permissions.isTeamMaintainerOrTeamAdmin(
+      user,
+      teamId
+    ),
     isOnlyObserver: permissions.isOnlyObserver(user),
   };
 };
@@ -121,6 +146,7 @@ const AppProvider = ({ children }: Props) => {
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
+    isPreviewMode: detectPreview(),
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,
@@ -128,7 +154,12 @@ const AppProvider = ({ children }: Props) => {
     isGlobalObserver: state.isGlobalObserver,
     isOnGlobalTeam: state.isOnGlobalTeam,
     isAnyTeamMaintainer: state.isAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin: state.isAnyTeamMaintainerOrTeamAdmin,
+    isTeamObserver: state.isTeamObserver,
     isTeamMaintainer: state.isTeamMaintainer,
+    isTeamAdmin: state.isTeamAdmin,
+    isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
+    isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
     setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: actions.SET_CURRENT_USER, currentUser });

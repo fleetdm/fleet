@@ -63,7 +63,9 @@ interface IDataColumn {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
-  const isAnyTeamMaintainer = permissionsUtils.isAnyTeamMaintainer(currentUser);
+  const isAnyTeamMaintainerOrTeamAdmin = permissionsUtils.isAnyTeamMaintainerOrTeamAdmin(
+    currentUser
+  );
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -145,7 +147,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           value: checked,
           indeterminate,
           onChange: () => {
-            if (!isAnyTeamMaintainer) {
+            if (!isAnyTeamMaintainerOrTeamAdmin) {
               toggleAllRowsSelected();
             } else {
               // Team maintainers may only delete the queries that they have authored
@@ -181,7 +183,8 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
           value: checked,
           onChange: () => row.toggleRowSelected(),
           disabled:
-            isAnyTeamMaintainer && row.original.author_id !== currentUser.id,
+            isAnyTeamMaintainerOrTeamAdmin &&
+            row.original.author_id !== currentUser.id,
         };
         // If the user is a team maintainer, we only enable checkboxes for queries
         // that they authored and we include a tooltip to explain disabled checkboxes
@@ -191,7 +194,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               data-tip
               data-for={`${"select-checkbox"}__${row.original.id}`}
               data-tip-disable={
-                !isAnyTeamMaintainer ||
+                !isAnyTeamMaintainerOrTeamAdmin ||
                 row.original.author_id === currentUser.id
               }
             >

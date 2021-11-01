@@ -75,6 +75,8 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
+type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
+
 type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
 
 type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
@@ -415,6 +417,9 @@ type DataStore struct {
 
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
+
+	DistributedQueryCampaignsForQueryFunc        DistributedQueryCampaignsForQueryFunc
+	DistributedQueryCampaignsForQueryFuncInvoked bool
 
 	ApplyPackSpecsFunc        ApplyPackSpecsFunc
 	ApplyPackSpecsFuncInvoked bool
@@ -941,6 +946,11 @@ func (s *DataStore) NewDistributedQueryCampaignTarget(ctx context.Context, targe
 func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
+}
+
+func (s *DataStore) DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error) {
+	s.DistributedQueryCampaignsForQueryFuncInvoked = true
+	return s.DistributedQueryCampaignsForQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {

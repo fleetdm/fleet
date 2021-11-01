@@ -1,24 +1,31 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 // @ts-ignore
 import memoize from "memoize-one";
-
+import PATHS from "router/paths";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
+import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
+// @ts-ignore
+import inviteActions from "redux/nodes/entities/invites/actions";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
-import PATHS from "router/paths";
+import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
+import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
-import { IFormData } from "../../../UserManagementPage/components/UserForm/UserForm";
+import {
+  IFormData,
+  NewUserType,
+} from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
 import AddMemberModal from "./components/AddMemberModal";
 import RemoveMemberModal from "./components/RemoveMemberModal";
@@ -78,12 +85,15 @@ const MembersPage = ({
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
+  const { isGlobalAdmin, currentUser } = useContext(AppContext);
+
   const isPremiumTier = useSelector((state: IRootState) => {
     return state.app.config.tier === "premium";
   });
   const loadingTableData = useSelector(
     (state: IRootState) => state.entities.users.loading
   );
+
   const users = useSelector((state: IRootState) =>
     generateDataSet(teamId, state.entities.users.data)
   );
@@ -110,11 +120,19 @@ const MembersPage = ({
     return state.app.config.enable_sso;
   });
 
+  const config = useSelector((state: IRootState) => {
+    return state.app.config;
+  });
+
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
+  const [createUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
+  const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -135,6 +153,18 @@ const MembersPage = ({
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
+
+  const toggleCreateMemberModal = useCallback(() => {
+    setShowCreateUserModal(!showCreateUserModal);
+    setShowAddMemberModal(false);
+    currentUser ? setUserEditing(currentUser) : setUserEditing(undefined);
+  }, [
+    showCreateUserModal,
+    currentUser,
+    setShowCreateUserModal,
+    setUserEditing,
+    setShowAddMemberModal,
+  ]);
 
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
@@ -194,12 +224,96 @@ const MembersPage = ({
     [dispatch, teamId]
   );
 
+  const onCreateMemberSubmit = (formData: IFormData) => {
+    setIsFormSubmitting(true);
+
+    if (formData.newUserType === NewUserType.AdminInvited) {
+      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
+      const requestData = {
+        ...formData,
+        invited_by: formData.currentUserId,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      delete requestData.password; // this field is not needed for the request
+      dispatch(inviteActions.create(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+            )
+          );
+          fetchUsers(tableQueryData);
+          toggleCreateMemberModal();
+        })
+        .catch((userErrors: any) => {
+          if (userErrors.base.includes("Duplicate")) {
+            dispatch(
+              renderFlash(
+                "error",
+                "A user with this email address already exists."
+              )
+            );
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          setIsFormSubmitting(false);
+        });
+    } else {
+      // Do some data formatting deleteing uncessary fields
+      const requestData = {
+        ...formData,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      dispatch(userActions.createUserWithoutInvitation(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully created ${requestData.name}.`)
+          );
+          fetchUsers(tableQueryData);
+          toggleCreateMemberModal();
+        })
+        .catch((userErrors: any) => {
+          if (userErrors.base.includes("Duplicate")) {
+            dispatch(
+              renderFlash(
+                "error",
+                "A user with this email address already exists."
+              )
+            );
+          } else if (userErrors.base.includes("already invited")) {
+            dispatch(
+              renderFlash(
+                "error",
+                "A user with this email address has already been invited."
+              )
+            );
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          setIsFormSubmitting(false);
+        });
+    }
+  };
+
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
       const updatedAttrs = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
       );
+
+      setIsFormSubmitting(true);
 
       const userName = userEditing?.name;
       dispatch(userActions.update(userEditing, updatedAttrs))
@@ -214,11 +328,18 @@ const MembersPage = ({
               `Could not edit ${userName}. Please try again.`
             )
           );
+        })
+        .finally(() => {
+          setIsFormSubmitting(false);
         });
       toggleEditMemberModal();
     },
     [dispatch, toggleEditMemberModal, userEditing, fetchUsers]
   );
+
+  useEffect(() => {
+    fetchUsers(tableQueryData);
+  }, [team_id]);
 
   // NOTE: this will fire on initial render, so we use this to get the list of
   // users for this team, as well as use it as a handler when the table query
@@ -277,7 +398,7 @@ const MembersPage = ({
         </div>
       </div>
     );
-  }, [searchString]);
+  }, [searchString, toggleAddUserModal]);
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
@@ -285,7 +406,11 @@ const MembersPage = ({
     <div className={baseClass}>
       <p className={`${baseClass}__page-description`}>
         Users can either be a member of team(s) or a global user.{" "}
-        <Link to={PATHS.ADMIN_USERS}>Manage users with global access here</Link>
+        {isGlobalAdmin && (
+          <Link to={PATHS.ADMIN_USERS}>
+            Manage users with global access here
+          </Link>
+        )}
       </p>
       {Object.keys(usersError).length > 0 ? (
         <TableDataError />
@@ -315,21 +440,43 @@ const MembersPage = ({
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
+          onCreateNewMember={toggleCreateMemberModal}
         />
       ) : null}
       {showEditUserModal ? (
         <EditUserModal
+          serverErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
           onSubmit={onEditMemberSubmit}
           defaultName={userEditing?.name}
           defaultEmail={userEditing?.email}
           defaultGlobalRole={userEditing?.global_role}
+          defaultTeamRole={userEditing?.role}
           defaultTeams={userEditing?.teams}
           availableTeams={teams}
           isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
+          isModifiedByGlobalAdmin={isGlobalAdmin}
+          currentTeam={team}
+        />
+      ) : null}
+      {showCreateUserModal ? (
+        <CreateUserModal
+          serverErrors={createUserErrors}
+          onCancel={toggleCreateMemberModal}
+          onSubmit={onCreateMemberSubmit}
+          defaultGlobalRole={userEditing?.global_role}
+          defaultTeamRole={userEditing?.role}
+          defaultTeams={userEditing?.teams}
+          availableTeams={teams}
+          isPremiumTier={isPremiumTier}
+          smtpConfigured={smtpConfigured}
+          canUseSso={canUseSso}
+          currentTeam={team}
+          isModifiedByGlobalAdmin={isGlobalAdmin}
+          isFormSubmitting={isFormSubmitting}
         />
       ) : null}
       {showRemoveMemberModal ? (

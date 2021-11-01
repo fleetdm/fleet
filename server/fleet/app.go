@@ -383,3 +383,10 @@ type LambdaConfig struct {
 	StatusFunction string `json:"status_function"`
 	ResultFunction string `json:"result_function"`
 }
+
+// KafkaRESTConfig shadows config.KafkaRESTConfig
+type KafkaRESTConfig struct {
+	StatusTopic string `json:"status_topic"`
+	ResultTopic string `json:"result_topic"`
+	ProxyHost   string `json:"proxyhost"`
+}

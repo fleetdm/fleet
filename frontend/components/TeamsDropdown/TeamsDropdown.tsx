@@ -14,7 +14,10 @@ interface ITeamsDropdownProps {
   isLoading: boolean;
   teams: ITeam[];
   currentTeamId: number;
+  hideAllTeamsOption?: boolean;
   onChange: (newSelectedValue: number) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
 }
 
 const baseClass = "component__team-dropdown";
@@ -23,7 +26,10 @@ const TeamsDropdown = ({
   isLoading,
   teams,
   currentTeamId,
+  hideAllTeamsOption = false,
   onChange,
+  onOpen,
+  onClose,
 }: ITeamsDropdownProps) => {
   const { currentUser, isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
 
@@ -36,7 +42,8 @@ const TeamsDropdown = ({
   const teamOptions = generateTeamFilterDropdownOptions(
     teams,
     currentUser,
-    isOnGlobalTeam as boolean
+    isOnGlobalTeam as boolean,
+    hideAllTeamsOption
   );
   const selectedTeamId = getValidatedTeamId(
     teams,
@@ -54,6 +61,8 @@ const TeamsDropdown = ({
         options={teamOptions}
         searchable={false}
         onChange={onChange}
+        onOpen={onOpen}
+        onClose={onClose}
       />
     </div>
   );

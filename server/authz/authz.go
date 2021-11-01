@@ -67,7 +67,7 @@ func (a *Authorizer) SkipAuthorization(ctx context.Context) {
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 }
 
@@ -81,7 +81,7 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
-		authctx.Checked = true
+		authctx.SetChecked()
 	}
 
 	subject := UserFromContext(ctx)

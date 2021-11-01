@@ -1,3 +1,43 @@
+## Fleet 4.5.0 (Nov 1, 2021)
+
+* Fleet Premium: Add a Team admin user role. This allows users to delegate the responsibility of managing team members in Fleet. Documentation for the permissions associated with the Team admin and other user roles can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
+
+* Add Apache Kafka logging plugin. Documentation for configuring Kafka as a logging plugin can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#kafka-rest-proxy-logging). Thank you to Joseph Macaulay for adding this capability.
+
+* Add support for [MinIO](https://min.io/) as a file carving backend. Documentation for configuring MinIO as a file carving backend can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#minio). Thank you to Chandra Majumdar and Ben Edwards for adding this capability.
+
+* Add the ability to run a live query and receive results using only the Fleet REST API with a `GET /api/v1/fleet/queries/run` API route. Documentation for this new API route can be found [here on fleetdm.com/docs]().
+
+* Add ability to see whether a specific host is "Passing" or "Failing" a policy on the **Host details** page. This information is also exposed in the `GET api/v1/fleet/hosts/{id}` API route. In Fleet, a policy is a "yes" or "no" question you can ask of all your hosts.
+
+* Add the ability to quickly see the total number of "Failing" policies for a particular host on the **Hosts** page with a new "Issues" column. Total "Issues" are also revealed on a specific host's **Host details** page.
+
+* Add the ability to see which platforms (macOS, Windows, Linux) a specific query is compatible with. The compatibility detected by Fleet is estimated based on the osquery tables used in the query.
+
+* Add the ability to see whether your queries have a "Minimal," "Considerable," or "Excessive" performance impact on your hosts. Query performance information is only collected when a query runs as a scheduled query.
+
+  * Running a "Minimal" query, very frequently, has little to no impact on your host's performance.
+
+  * Running a "Considerable" query, frequently, can have a noticeable impact on your host's performance.
+
+  * Running an "Excessive" query, even infrequently, can have a significant impact on your host’s performance.
+
+* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#feature-flags).
+
+* Add the ability to see all vulnerable software detected across all your hosts with the `GET /api/v1/fleet/software` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Add the ability to see the exact number of hosts that selected filters on the **Hosts** page. This ability is also available when using the `GET api/v1/fleet/hosts/count` API route.
+
+* Add ability to automatically "Refetch" host vitals for a particular host without manually reloading the page.
+
+* Add ability to connect to Redis with TLS. Documentation for configuring Fleet to use a TLS connection to the Redis server can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-use-tls).
+
+* Add `cluster_read_from_replica` Redis to specify whether or not to prefer readying from a replica when possible. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-cluster-read-from-replica).
+
+* Fix a bug in which turning on the host expiry setting did not remove expired hosts from Fleet.
+
+* Fix a bug in which the Software inventory for some host's was missing `bundle_identifier` information.
+
 ## Fleet 4.4.3 (Oct 21, 2021)
 
 * Cache AppConfig in redis to speed up requests and reduce MySQL load.

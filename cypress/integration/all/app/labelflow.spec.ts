@@ -60,6 +60,7 @@ describe(
 
       cy.visit("/hosts/manage");
 
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/show all usernames/i).click();
 
       // delete custom label

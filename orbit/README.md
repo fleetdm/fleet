@@ -167,6 +167,19 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+### Uninstall
+#### Windows
+
+Use the "Add or remove programs" dialog to remove Orbit.
+
+#### Linux
+
+Run the [cleanup script](./tools/cleanup/cleanup_linux.sh).
+
+#### macOS
+
+Run the [cleanup script](./tools/cleanup/cleanup_macos.sh).
+
 ## FAQs
 
 ### How does Orbit compare with Kolide Launcher?

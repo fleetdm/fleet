@@ -86,6 +86,8 @@ type Datastore interface {
 	// easier to test. The return values indicate how many campaigns were expired and any error.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
+	DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*DistributedQueryCampaign, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// PackStore is the datastore interface for managing query packs.
 

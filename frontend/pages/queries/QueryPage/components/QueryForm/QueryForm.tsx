@@ -83,7 +83,7 @@ const QueryForm = ({
     currentUser,
     isOnlyObserver,
     isGlobalObserver,
-    isAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
   } = useContext(AppContext);
@@ -95,11 +95,11 @@ const QueryForm = ({
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainer &&
+    ? isAnyTeamMaintainerOrTeamAdmin &&
       storedQuery &&
       currentUser &&
       storedQuery.author_id === currentUser.id
-    : isAnyTeamMaintainer;
+    : isAnyTeamMaintainerOrTeamAdmin;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -252,7 +252,7 @@ const QueryForm = ({
 
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
-      <form className={`${baseClass}__wrapper`}>
+      <form className={`${baseClass}__wrapper`} autoComplete="off">
         {isEditMode ? (
           <InputField
             id="query-name"
@@ -313,7 +313,7 @@ const QueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainer) && (
+          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
             <>
               {isEditMode && (
                 <Button
@@ -330,7 +330,10 @@ const QueryForm = ({
                   data-tip
                   data-for="save-query-button"
                   data-tip-disable={
-                    !(isAnyTeamMaintainer && !hasTeamMaintainerPermissions)
+                    !(
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !hasTeamMaintainerPermissions
+                    )
                   }
                 >
                   <Button
@@ -338,7 +341,8 @@ const QueryForm = ({
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
-                      isAnyTeamMaintainer && !hasTeamMaintainerPermissions
+                      isAnyTeamMaintainerOrTeamAdmin &&
+                      !hasTeamMaintainerPermissions
                     }
                   >
                     Save
