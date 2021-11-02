@@ -1,1 +1,0 @@
-* Populate empty `bundle_identifier`s on macOS software inventory from < 4.4.0 deployments.

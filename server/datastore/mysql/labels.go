@@ -237,7 +237,7 @@ func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 
 func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
 	sql := `
-		SELECT 
+		SELECT
 		       l.*,
 		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
 		FROM labels l
@@ -667,4 +667,72 @@ func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
 		return errors.Wrap(err, "cleaning orphan label_membership by label")
 	}
 	return nil
+}
+
+// AsyncBatchInsertLabelMembership inserts into the label_membership table the
+// batch of label_id + host_id tuples represented by the [2]uint array.
+func (d *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	sql := `INSERT INTO label_membership (label_id, host_id) VALUES `
+	sql += strings.Repeat(`(?, ?),`, len(batch))
+	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+
+	vals := make([]interface{}, 0, len(batch)*2)
+	for _, tup := range batch {
+		vals = append(vals, tup[0], tup[1])
+	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return errors.Wrap(err, "insert into label_membership")
+	})
+}
+
+// AsyncBatchDeleteLabelMembership deletes from the label_membership table the
+// batch of label_id + host_id tuples represented by the [2]uint array.
+func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	rest := strings.Repeat(`UNION ALL SELECT ?, ? `, len(batch)-1)
+	sql := fmt.Sprintf(`
+    DELETE
+      lm
+    FROM
+      label_membership lm
+    JOIN
+      (SELECT ? label_id, ? host_id %s) del_list
+    ON
+      lm.label_id = del_list.label_id AND
+      lm.host_id = del_list.host_id`, rest)
+
+	vals := make([]interface{}, 0, len(batch)*2)
+	for _, tup := range batch {
+		vals = append(vals, tup[0], tup[1])
+	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return errors.Wrap(err, "delete from label_membership")
+	})
+}
+
+// AsyncBatchUpdateLabelTimestamp updates the  table the hosts' label_updated_at timestamp
+// for the batch of host ids provided.
+func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	// NOTE: this is tested via the server/service/async package tests.
+	sql := `
+      UPDATE
+        hosts
+      SET
+        label_updated_at = ?
+      WHERE
+        id IN (?)`
+	query, args, err := sqlx.In(sql, ts, ids)
+	if err != nil {
+		return errors.Wrap(err, "building query to update hosts.label_updated_at")
+	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, args...)
+		return errors.Wrap(err, "update hosts.label_updated_at")
+	})
 }

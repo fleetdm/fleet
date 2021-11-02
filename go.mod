@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go v1.36.30
 	github.com/beevik/etree v1.1.0
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/briandowns/spinner v0.0.0-20170614154858-48dbb65d7bd5
+	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
@@ -59,6 +59,7 @@ require (
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/rotisserie/eris v0.5.1 // indirect
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -71,6 +72,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0

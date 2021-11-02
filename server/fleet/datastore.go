@@ -164,6 +164,11 @@ type Datastore interface {
 	// LabelIDsByName Retrieve the IDs associated with the given labels
 	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
 
+	// Methods used for async processing of host label query results.
+	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error
+	AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// HostStore
 

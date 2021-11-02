@@ -571,6 +571,21 @@ Maximum amount of time a Redis connection may stay idle. A value of 0 means no l
   	idle_timeout: 5m
   ```
 
+##### redis_conn_wait_timeout
+
+Maximum amount of time to wait for a Redis connection if the max_open_conns
+limit is reached. A value of 0 means no wait. This is ignored if Redis is not
+running in cluster mode.
+
+- Default value: 0
+- Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	conn_wait_timeout: 1s
+  ```
+
 #### Server
 
 ##### server_address
@@ -919,6 +934,136 @@ to the amount of time it takes for fleet to give the host the label queries.
   	max_jitter_percent: 10
   ```
 
+##### osquery_enable_async_host_processing
+
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts (100 000+), while requiring more resources from Redis server(s). Using Redis Cluster is recommended to enable this mode.
+
+- Default value: false
+- Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
+- Config file format:
+
+  ```
+  osquery:
+  	enable_async_host_processing: true
+  ```
+
+##### osquery_async_host_collect_interval
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+
+- Default value: 30s
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_interval: 1m
+  ```
+
+##### osquery_async_host_collect_max_jitter_percent
+
+Applies only when `osquery_enable_async_host_processing` is enabled. A number interpreted as a percentage of `osquery_async_host_collect_interval` to add to (or remove from) the interval so that not all hosts try to do the collection at the same time.
+
+- Default value: 10
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_MAX_JITTER_PERCENT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_max_jitter_percent: 5
+  ```
+
+##### osquery_async_host_collect_lock_timeout
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another fleet instance can proceed with the next collection.
+
+- Default value: 1m
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_lock_timeout: 5m
+  ```
+
+##### osquery_async_host_collect_log_stats_interval
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Interval at which the host collection statistics are logged, 0 to disable logging of statistics. Note that logging is done at the "debug" level.
+
+- Default value: 1m
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOG_STATS_INTERVAL`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_log_stats_interval: 5m
+  ```
+
+##### osquery_async_host_insert_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the INSERT batch when collecting host data into the database.
+
+- Default value: 2000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_INSERT_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_insert_batch: 1000
+  ```
+
+##### osquery_async_host_delete_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the DELETE batch when collecting host data into the database.
+
+- Default value: 2000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_DELETE_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_delete_batch: 1000
+  ```
+
+##### osquery_async_host_update_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the UPDATE batch when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_UPDATE_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_update_batch: 500
+  ```
+
+##### osquery_async_host_redis_pop_count
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Maximum number of items to pop from a redis key at a time when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_POP_COUNT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_redis_pop_count: 500
+  ```
+
+##### osquery_async_host_redis_scan_keys_count
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of keys to scan in a single SCAN request for keys to process when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_redis_scan_keys_count: 100
+  ```
+
 #### Logging (Fleet server logging)
 
 ##### logging_debug
@@ -958,6 +1103,20 @@ Whether or not to log the welcome banner.
   ```
   logging:
   	disable_banner: true
+  ```
+
+##### logging_error_retention_period
+
+The amount of time to keep an error. Unique instances of errors are stored temporarily to help
+with troubleshooting, this setting controls that duration.
+
+- Default value: 24h
+- Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
+- Config file format:
+
+  ```
+  logging:
+  	error_retention_period: 1h
   ```
 
 #### Filesystem

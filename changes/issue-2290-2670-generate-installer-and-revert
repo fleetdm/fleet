@@ -1,2 +1,0 @@
-* New CTA for new users to generate installer to add hosts onto Fleet is wired up in frontend PR #2493
-* Issue #2670 revert so generate installer is unavailable to UI until product is Orbit ready

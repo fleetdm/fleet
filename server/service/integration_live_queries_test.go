@@ -95,7 +95,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 	cid := getCIDForQ(s, q1)
 
-	distributedReq := submitDistributedQueryResultsRequest{
+	distributedReq := SubmitDistributedQueryResultsRequest{
 		NodeKey: host.NodeKey,
 		Results: map[string][]map[string]string{
 			hostDistributedQueryPrefix + cid: {{"col1": "a", "col2": "b"}},
@@ -159,7 +159,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 	cid1 := getCIDForQ(s, q1)
 	cid2 := getCIDForQ(s, q2)
 
-	distributedReq := submitDistributedQueryResultsRequest{
+	distributedReq := SubmitDistributedQueryResultsRequest{
 		NodeKey: host.NodeKey,
 		Results: map[string][]map[string]string{
 			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
@@ -257,7 +257,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 	cid1 := getCIDForQ(s, q1)
 	cid2 := getCIDForQ(s, q2)
 	for i, h := range []*fleet.Host{h1, h2} {
-		distributedReq := submitDistributedQueryResultsRequest{
+		distributedReq := SubmitDistributedQueryResultsRequest{
 			NodeKey: h.NodeKey,
 			Results: map[string][]map[string]string{
 				hostDistributedQueryPrefix + cid1: {{"col1": fmt.Sprintf("a%d", i), "col2": fmt.Sprintf("b%d", i)}},
@@ -352,7 +352,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	// Give the above call a couple of seconds to create the campaign
 	time.Sleep(2 * time.Second)
 	cid1 := getCIDForQ(s, q1)
-	distributedReq := submitDistributedQueryResultsRequest{
+	distributedReq := SubmitDistributedQueryResultsRequest{
 		NodeKey: h1.NodeKey,
 		Results: map[string][]map[string]string{
 			hostDistributedQueryPrefix + cid1: {{"col1": "a", "col2": "b"}},
@@ -367,7 +367,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/v1/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
 
-	distributedReq = submitDistributedQueryResultsRequest{
+	distributedReq = SubmitDistributedQueryResultsRequest{
 		NodeKey: h2.NodeKey,
 		Results: map[string][]map[string]string{
 			hostDistributedQueryPrefix + cid1: {},

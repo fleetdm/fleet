@@ -65,6 +65,21 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 		pubSubName := pubSubForID(9999)
 		require.NoError(t, psc.Subscribe(pubSubName))
 
+		// wait for subscribed confirmation
+		start := time.Now()
+		var loopOk bool
+	loop:
+		for time.Since(start) < 2*time.Second {
+			msg := psc.Receive()
+			switch msg := msg.(type) {
+			case redigo.Subscription:
+				require.Equal(t, msg.Count, 1)
+				loopOk = true
+				break loop
+			}
+		}
+		require.True(t, loopOk, "timed out")
+
 		err = store.WriteResult(result)
 		require.NoError(t, err)
 	}

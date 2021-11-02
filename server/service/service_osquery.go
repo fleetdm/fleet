@@ -482,7 +482,8 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) 
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval) && !host.RefetchRequested {
+	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
+	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
@@ -744,9 +745,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		host.LabelUpdatedAt = svc.clock.Now()
-		err = svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now())
-		if err != nil {
+		if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now()); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -33,8 +33,8 @@ func (redisConn) Flush() error                                       { return er
 func (redisConn) Receive() (interface{}, error)                      { return nil, errFromConn }
 
 func TestConnectRetry(t *testing.T) {
-	mockDial := func(err error) func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
-		return func(net, addr string, opts ...redis.DialOption) (redis.Conn, error) {
+	mockDial := func(err error) func(net, addr string, opts ...redigo.DialOption) (redigo.Conn, error) {
+		return func(net, addr string, opts ...redigo.DialOption) (redigo.Conn, error) {
 			var ne *netError
 			if errors.As(err, &ne) {
 				ne.countCalls++
