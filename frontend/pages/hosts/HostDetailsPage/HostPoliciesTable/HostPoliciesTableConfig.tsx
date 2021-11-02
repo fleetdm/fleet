@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import StatusCell from "components/TableContainer/DataTable/StatusCell";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/host_policy";
 import { PolicyResponse } from "utilities/constants";
@@ -85,7 +85,7 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        return <TextCell value={getPolicyStatus(cellProps.row.original)} />;
+        return <StatusCell value={getPolicyStatus(cellProps.row.original)} />;
       },
     },
     {
