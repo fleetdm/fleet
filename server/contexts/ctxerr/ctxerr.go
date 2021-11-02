@@ -13,10 +13,11 @@ package ctxerr
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/errorstore"
-	"github.com/pkg/errors"
 	"github.com/rotisserie/eris"
 )
 
@@ -44,25 +45,25 @@ func New(ctx context.Context, errMsg string) error {
 func Wrap(ctx context.Context, err error, msg string) error {
 	err = ensureCommonMetadata(ctx, err)
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
-	// actual error condition to capture the stack trace, others just wrap using
-	// pkg/errors.
-	return errors.Wrap(err, msg)
+	// actual error condition to capture the stack trace, others just wrap to
+	// annotate the error.
+	return fmt.Errorf("%s: %w", msg, err)
 }
 
 // Wrapf annotates err with the provided formatted message.
 func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) error {
 	err = ensureCommonMetadata(ctx, err)
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
-	// actual error condition to capture the stack trace, others just wrap using
-	// pkg/errors.
-	return errors.Wrapf(err, fmsg, args...)
+	// actual error condition to capture the stack trace, others just wrap to
+	// annotate the error.
+	return fmt.Errorf("%s: %w", fmt.Sprintf(fmsg, args...), err)
 }
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration.
 func Handle(ctx context.Context, err error) error {
 	if eh := fromContext(ctx); eh != nil {
-		return eh.Store(ctx, err)
+		return eh.Store(err)
 	}
 	return err
 }

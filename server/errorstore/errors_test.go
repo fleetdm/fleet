@@ -30,11 +30,11 @@ func alwaysCallsAlwaysErrors() error { return alwaysErrors() }
 func alwaysErisErrors() error { return eris.New("always eris errors") }
 
 func alwaysNewError(eh *Handler) error {
-	return eh.Store(context.Background(), eris.New("always new errors"))
+	return eh.Store(eris.New("always new errors"))
 }
 
 func alwaysNewErrorTwo(eh *Handler) error {
-	return eh.Store(context.Background(), eris.New("always new errors two"))
+	return eh.Store(eris.New("always new errors two"))
 }
 
 func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
@@ -148,11 +148,11 @@ func TestErrorHandler(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately
 
-		eh := NewHandler(ctx, nil, kitlog.NewNopLogger(), time.Minute)
+		eh := newTestHandler(ctx, nil, kitlog.NewNopLogger(), time.Minute, nil, nil)
 
 		doneCh := make(chan struct{})
 		go func() {
-			eh.Store(context.Background(), pkgErrors.New("test"))
+			eh.Store(pkgErrors.New("test"))
 			close(doneCh)
 		}()
 
@@ -183,26 +183,22 @@ func TestErrorHandler(t *testing.T) {
 }
 
 func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string) {
-	t.Cleanup(func() {
-		testOnStart, testOnStore = nil, nil
-	})
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
 	chGo, chDone := make(chan struct{}), make(chan struct{})
 
 	var storeCalls int32 = 3
-	testOnStart = func() {
+	testOnStart := func() {
 		close(chGo)
 	}
-	testOnStore = func(err error) {
+	testOnStore := func(err error) {
 		require.NoError(t, err)
 		if atomic.AddInt32(&storeCalls, -1) == 0 {
 			close(chDone)
 		}
 	}
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
 
 	<-chGo
 
@@ -233,27 +229,24 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 }
 
 func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string) {
-	t.Cleanup(func() {
-		testOnStart, testOnStore = nil, nil
-	})
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
 	var storeCalls int32 = 5
 
 	chGo, chDone := make(chan struct{}), make(chan struct{})
-	testOnStart = func() {
+
+	testOnStart := func() {
 		close(chGo)
 	}
-	testOnStore = func(err error) {
+	testOnStore := func(err error) {
 		require.NoError(t, err)
 		if atomic.AddInt32(&storeCalls, -1) == 0 {
 			close(chDone)
 		}
 	}
 
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
 
 	<-chGo
 
@@ -304,10 +297,6 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 }
 
 func TestHttpHandler(t *testing.T) {
-	t.Cleanup(func() {
-		testOnStart, testOnStore = nil, nil
-	})
-
 	pool := redistest.SetupRedis(t, false, false, false)
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -315,17 +304,17 @@ func TestHttpHandler(t *testing.T) {
 	var storeCalls int32 = 2
 
 	chGo, chDone := make(chan struct{}), make(chan struct{})
-	testOnStart = func() {
+	testOnStart := func() {
 		close(chGo)
 	}
-	testOnStore = func(err error) {
+	testOnStore := func(err error) {
 		require.NoError(t, err)
 		if atomic.AddInt32(&storeCalls, -1) == 0 {
 			close(chDone)
 		}
 	}
 
-	eh := NewHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute)
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
 
 	<-chGo
 	// store two errors

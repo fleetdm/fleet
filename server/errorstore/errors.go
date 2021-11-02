@@ -1,3 +1,9 @@
+// Package errorstore implements a Handler type that can be used to store
+// deduplicated instances of errors in an ephemeral storage, and provides a
+// Flush method to retrieve the list of errors while clearing it at the same
+// time. It provides a foundation to facilitate troubleshooting and building
+// tooling for support while trying to keep the impact of storage to a minimum
+// (ephemeral data, deduplication, flush on read).
 package errorstore
 
 import (
@@ -28,12 +34,7 @@ type ErrorFlusher interface {
 	Flush() ([]string, error)
 }
 
-var (
-	testOnStore func(error) // if set, called each time an error is stored, for tests
-	testOnStart func()      // if set, called once the handler is running, for tests
-)
-
-// Handler defines an error handler. Call Handler.New to handle an error, and
+// Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Flush to retrieve all stored errors and clear them from the store.
 // It is safe to call those methods concurrently.
 type Handler struct {
@@ -42,22 +43,44 @@ type Handler struct {
 	ttl     time.Duration
 	running int32 // accessed atomically
 	errCh   chan error
+
+	// for tests
+	syncStore   bool        // if true, store error synchronously
+	testOnStore func(error) // if set, called each time an error is stored
+	testOnStart func()      // if set, called once the handler is running
 }
 
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
 func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration) *Handler {
-	ch := make(chan error, 1)
-
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
 		ttl:    ttl,
-		errCh:  ch,
 	}
-	go eh.handleErrors(ctx)
+	runHandler(ctx, eh)
 	return eh
+}
+
+func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration, onStart func(), onStore func(error)) *Handler {
+	eh := &Handler{
+		pool:   pool,
+		logger: logger,
+		ttl:    ttl,
+
+		syncStore:   true,
+		testOnStart: onStart,
+		testOnStore: onStore,
+	}
+	runHandler(ctx, eh)
+	return eh
+}
+
+func runHandler(ctx context.Context, eh *Handler) {
+	ch := make(chan error, 1)
+	eh.errCh = ch
+	go eh.handleErrors(ctx)
 }
 
 // Flush retrieves all stored errors from Redis and returns them as a slice of
@@ -187,8 +210,8 @@ func (h *Handler) handleErrors(ctx context.Context) {
 		atomic.StoreInt32(&h.running, 0)
 	}()
 
-	if testOnStart != nil {
-		testOnStart()
+	if h.testOnStart != nil {
+		h.testOnStart()
 	}
 
 	for {
@@ -205,8 +228,8 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
-		if testOnStore != nil {
-			testOnStore(err)
+		if h.testOnStore != nil {
+			h.testOnStore(err)
 		}
 		return
 	}
@@ -221,36 +244,41 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	}
 	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", secs); err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
-		if testOnStore != nil {
-			testOnStore(err)
+		if h.testOnStore != nil {
+			h.testOnStore(err)
 		}
 		return
 	}
 
-	if testOnStore != nil {
-		testOnStore(nil)
+	if h.testOnStore != nil {
+		h.testOnStore(nil)
 	}
 }
 
 // Store handles the provided error by storing it into Redis if the handler is
 // still running. In any case, it always returns the error as provided.
 //
-// If the ctx is cancelled before the error is stored, the call returns without
-// storing the error, otherwise it waits for a predefined period of time to try
-// to store the error.
-func (h *Handler) Store(ctx context.Context, err error) error {
-	if atomic.LoadInt32(&h.running) == 0 {
-		return err
+// It waits for a predefined period of time to try to store the error but does
+// so in a goroutine so the call returns immediately.
+func (h *Handler) Store(err error) error {
+	exec := func() {
+		if atomic.LoadInt32(&h.running) == 0 {
+			return
+		}
+
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+		select {
+		case h.errCh <- err:
+		case <-timer.C:
+		}
 	}
 
-	timer := time.NewTimer(2 * time.Second)
-	defer timer.Stop()
-	select {
-	case h.errCh <- err:
-	case <-timer.C:
-	case <-ctx.Done():
+	if h.syncStore {
+		exec()
+	} else {
+		go exec()
 	}
-
 	return err
 }
 
@@ -260,7 +288,7 @@ func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		errors, err := eh.Flush()
 		if err != nil {
-			w.WriteHeader(http.StatusBadGateway)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -274,7 +302,7 @@ func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
 
 		bytes, err := json.Marshal(raw)
 		if err != nil {
-			w.WriteHeader(http.StatusBadGateway)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Write(bytes)
