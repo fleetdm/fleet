@@ -44,6 +44,9 @@ func New(ctx context.Context, errMsg string) error {
 // Wrap annotates err with the provided message.
 func Wrap(ctx context.Context, err error, msg string) error {
 	err = ensureCommonMetadata(ctx, err)
+	if msg == "" || err == nil {
+		return err
+	}
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
 	// actual error condition to capture the stack trace, others just wrap to
 	// annotate the error.
@@ -53,6 +56,9 @@ func Wrap(ctx context.Context, err error, msg string) error {
 // Wrapf annotates err with the provided formatted message.
 func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) error {
 	err = ensureCommonMetadata(ctx, err)
+	if fmsg == "" || err == nil {
+		return err
+	}
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
 	// actual error condition to capture the stack trace, others just wrap to
 	// annotate the error.
