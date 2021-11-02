@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -81,10 +82,6 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // passed into this function)
 func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}) {
 	defer close(outChan)
-	// conn.Close() needs to be here in this function because Receive and Close should not be called
-	// concurrently. Otherwise we end up with a hang when Close is called.
-	// See https://github.com/gomodule/redigo/issues/187.
-	defer conn.Close()
 
 	for {
 		// Add a timeout to try to cleanup in the case the server has somehow gone completely unresponsive.
@@ -123,14 +120,19 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 		return nil, errors.Wrapf(err, "subscribe to channel %s", pubSubName)
 	}
 
-	// Run a separate goroutine feeding redis messages into
-	// msgChannel
-	go receiveMessages(ctx, psc, msgChannel)
+	var wg sync.WaitGroup
 
+	// Run a separate goroutine feeding redis messages into msgChannel.
+	wg.Add(+1)
 	go func() {
-		// Unsubscribe here, but do not Close. This allows receiveMessages to finish with the final
-		// receive and non-concurrently call the Close.
-		defer psc.Unsubscribe(pubSubName)
+		defer wg.Done()
+
+		receiveMessages(ctx, psc, msgChannel)
+	}()
+
+	wg.Add(+1)
+	go func() {
+		defer wg.Done()
 		defer close(outChannel)
 
 		for {
@@ -165,6 +167,13 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			}
 		}
 	}()
+
+	go func() {
+		wg.Wait()
+		psc.Unsubscribe(pubSubName)
+		conn.Close()
+	}()
+
 	return outChannel, nil
 }
 

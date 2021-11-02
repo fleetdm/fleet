@@ -85,7 +85,7 @@ func TestDecodeSubmitDistributedQueryResultsRequest(t *testing.T) {
 		r, err := decodeSubmitDistributedQueryResultsRequest(context.Background(), request)
 		require.Nil(t, err)
 
-		params := r.(submitDistributedQueryResultsRequest)
+		params := r.(SubmitDistributedQueryResultsRequest)
 		assert.Equal(t, "key", params.NodeKey)
 		assert.Equal(t, fleet.OsqueryDistributedQueryResults{
 			"id1": {

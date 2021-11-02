@@ -60,6 +60,7 @@ type PoolConfig struct {
 	MaxOpenConns              int
 	ConnMaxLifetime           time.Duration
 	IdleTimeout               time.Duration
+	ConnWaitTimeout           time.Duration
 	TLSSkipVerify             bool
 
 	// allows for testing dial retries and other dial-related scenarios
@@ -78,6 +79,9 @@ func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 			// not a Redis Cluster setup, use a standalone Redis pool
 			pool, _ := cluster.CreatePool(config.Server, cluster.DialOptions...)
 			cluster.Close()
+			// never wait for a connection in a non-cluster pool as it can block
+			// indefinitely.
+			pool.Wait = false
 			return &standalonePool{pool, config.Server}, nil
 		}
 		return nil, errors.Wrap(err, "refresh cluster")
@@ -273,6 +277,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 
 	return &redisc.Cluster{
 		StartupNodes: []string{conf.Server},
+		PoolWaitTime: conf.ConnWaitTimeout,
 		DialOptions:  opts,
 		CreatePool: func(server string, opts ...redis.DialOption) (*redis.Pool, error) {
 			return &redis.Pool{
@@ -280,6 +285,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 				MaxActive:       conf.MaxOpenConns,
 				IdleTimeout:     conf.IdleTimeout,
 				MaxConnLifetime: conf.ConnMaxLifetime,
+				Wait:            conf.ConnWaitTimeout > 0,
 
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn
@@ -335,4 +341,31 @@ func isClusterDisabled(err error) bool {
 // https://cloud.google.com/memorystore/docs/redis/product-constraints#blocked_redis_commands
 func isClusterCommandUnknown(err error) bool {
 	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`")
+}
+
+func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error) {
+	var keys []string
+
+	err := EachNode(pool, false, func(conn redis.Conn) error {
+		cursor := 0
+		for {
+			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern, "COUNT", count))
+			if err != nil {
+				return errors.Wrap(err, "scan keys")
+			}
+			var curKeys []string
+			_, err = redis.Scan(res, &cursor, &curKeys)
+			if err != nil {
+				return errors.Wrap(err, "convert scan results")
+			}
+			keys = append(keys, curKeys...)
+			if cursor == 0 {
+				return nil
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
