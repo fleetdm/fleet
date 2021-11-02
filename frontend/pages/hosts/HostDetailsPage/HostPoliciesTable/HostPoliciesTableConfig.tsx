@@ -42,9 +42,9 @@ interface IDataColumn {
 
 const getPolicyStatus = (policy: IHostPolicy): string => {
   if (policy.response === "pass") {
-    return "Passing";
+    return "Yes";
   } else if (policy.response === "fail") {
-    return "Failing";
+    return "No";
   }
   return "---";
 };
