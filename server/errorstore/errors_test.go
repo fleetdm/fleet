@@ -322,10 +322,9 @@ func TestHttpHandler(t *testing.T) {
 	alwaysNewErrorTwo(eh)
 	<-chDone
 
-	handler := NewHttpHandler(eh)
 	req := httptest.NewRequest("GET", "/", nil)
 	res := httptest.NewRecorder()
-	handler.ServeHTTP(res, req)
+	eh.ServeHTTP(res, req)
 
 	require.Equal(t, res.Code, 200)
 	var errs []struct {

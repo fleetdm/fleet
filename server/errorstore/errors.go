@@ -26,14 +26,6 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// ErrorFlusher defines the method to implement to flush all stored errors and
-// return them as a slice of JSON-encoded strings. Once flushed, existing
-// errors are removed from the store. The *Handler type implements this
-// interface.
-type ErrorFlusher interface {
-	Flush() ([]string, error)
-}
-
 // Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Flush to retrieve all stored errors and clear them from the store.
 // It is safe to call those methods concurrently.
@@ -282,29 +274,27 @@ func (h *Handler) Store(err error) error {
 	return err
 }
 
-// NewHttpHandler creates an http.HandlerFunc that flushes the errors stored
-// by the provided ErrorFlusher and returns them in the response as JSON.
-func NewHttpHandler(eh ErrorFlusher) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		errors, err := eh.Flush()
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		// each string returned by eh.Flush is already JSON-encoded, so to prevent
-		// double-marshaling while still marshaling the list of errors as a JSON
-		// array, treat them as raw json messages.
-		raw := make([]json.RawMessage, len(errors))
-		for i, s := range errors {
-			raw[i] = json.RawMessage(s)
-		}
-
-		bytes, err := json.Marshal(raw)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Write(bytes)
+// ServeHTTP implements an http.Handler that flushes the errors stored
+// by the Handler and returns them in the response as JSON.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	errors, err := h.Flush()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+
+	// each string returned by eh.Flush is already JSON-encoded, so to prevent
+	// double-marshaling while still marshaling the list of errors as a JSON
+	// array, treat them as raw json messages.
+	raw := make([]json.RawMessage, len(errors))
+	for i, s := range errors {
+		raw[i] = json.RawMessage(s)
+	}
+
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Write(bytes)
 }
