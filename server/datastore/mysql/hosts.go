@@ -379,6 +379,7 @@ func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
+		hst.seen_time,
 		t.name AS team_name,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
 		coalesce(failing_policies.count, 0) as total_issues_count

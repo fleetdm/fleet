@@ -403,7 +403,7 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	query := `
-			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+			SELECT h.*, hst.seen_time, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h ON (lm.host_id = h.id)
 			LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
