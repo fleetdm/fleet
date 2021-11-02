@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
-	"github.com/pkg/errors"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -65,7 +65,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
-	err = errors.Cause(err)
+	err = ctxerr.Cause(err)
 
 	switch e := err.(type) {
 	case validationErrorInterface:
@@ -146,7 +146,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(je)
 	default:
-		if fleet.IsForeignKey(errors.Cause(err)) {
+		if fleet.IsForeignKey(ctxerr.Cause(err)) {
 			ve := jsonError{
 				Message: "Validation Failed",
 				Errors:  baseError(err.Error()),

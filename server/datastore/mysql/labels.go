@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
@@ -35,21 +35,21 @@ func (d *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
 		if !ok {
-			return errors.New("tx in ApplyLabelSpecs is not a sqlx.PreparerContext")
+			return ctxerr.New(ctx, "tx in ApplyLabelSpecs is not a sqlx.PreparerContext")
 		}
 		stmt, err := prepTx.PrepareContext(ctx, sql)
 		if err != nil {
-			return errors.Wrap(err, "prepare ApplyLabelSpecs insert")
+			return ctxerr.Wrap(ctx, err, "prepare ApplyLabelSpecs insert")
 		}
 		defer stmt.Close()
 
 		for _, s := range specs {
 			if s.Name == "" {
-				return errors.New("label name must not be empty")
+				return ctxerr.New(ctx, "label name must not be empty")
 			}
 			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
 			if err != nil {
-				return errors.Wrap(err, "exec ApplyLabelSpecs insert")
+				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
 
 			if s.LabelType == fleet.LabelTypeBuiltIn ||
@@ -63,7 +63,7 @@ func (d *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 SELECT id from labels WHERE name = ?
 `
 			if err := sqlx.GetContext(ctx, tx, &labelID, sql, s.Name); err != nil {
-				return errors.Wrap(err, "get label ID")
+				return ctxerr.Wrap(ctx, err, "get label ID")
 			}
 
 			sql = `
@@ -71,7 +71,7 @@ DELETE FROM label_membership WHERE label_id = ?
 `
 			_, err = tx.ExecContext(ctx, sql, labelID)
 			if err != nil {
-				return errors.Wrap(err, "clear membership for ID")
+				return ctxerr.Wrap(ctx, err, "clear membership for ID")
 			}
 
 			if len(s.Hosts) == 0 {
@@ -87,11 +87,11 @@ INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts
 `
 				sql, args, err := sqlx.In(sql, labelID, hostnames)
 				if err != nil {
-					return errors.Wrap(err, "build membership IN statement")
+					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
 				_, err = tx.ExecContext(ctx, sql, args...)
 				if err != nil {
-					return errors.Wrap(err, "execute membership INSERT")
+					return ctxerr.Wrap(ctx, err, "execute membership INSERT")
 				}
 			}
 		}
@@ -99,7 +99,7 @@ INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts
 		return nil
 	})
 
-	return errors.Wrap(err, "ApplyLabelSpecs transaction")
+	return ctxerr.Wrap(ctx, err, "ApplyLabelSpecs transaction")
 }
 
 func batchHostnames(hostnames []string) [][]string {
@@ -122,7 +122,7 @@ func (d *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, erro
 	// Get basic specs
 	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
 	if err := sqlx.SelectContext(ctx, d.reader, &specs, query); err != nil {
-		return nil, errors.Wrap(err, "get labels")
+		return nil, ctxerr.Wrap(ctx, err, "get labels")
 	}
 
 	for _, spec := range specs {
@@ -145,13 +145,13 @@ FROM labels
 WHERE name = ?
 `
 	if err := sqlx.SelectContext(ctx, d.reader, &specs, query, name); err != nil {
-		return nil, errors.Wrap(err, "get label")
+		return nil, ctxerr.Wrap(ctx, err, "get label")
 	}
 	if len(specs) == 0 {
-		return nil, notFound("Label").WithName(name)
+		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name), "")
 	}
 	if len(specs) > 1 {
-		return nil, errors.Errorf("expected 1 label row, got %d", len(specs))
+		return nil, ctxerr.Errorf(ctx, "expected 1 label row, got %d", len(specs))
 	}
 
 	spec := specs[0]
@@ -179,7 +179,7 @@ func (d *Datastore) getLabelHostnames(ctx context.Context, label *fleet.LabelSpe
 	`
 	err := sqlx.SelectContext(ctx, d.reader, &label.Hosts, sql, label.Name)
 	if err != nil {
-		return errors.Wrap(err, "get hostnames for label")
+		return ctxerr.Wrap(ctx, err, "get hostnames for label")
 	}
 	return nil
 }
@@ -207,7 +207,7 @@ func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 		label.LabelMembershipType,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting label")
+		return nil, ctxerr.Wrap(ctx, err, "inserting label")
 	}
 
 	id, _ := result.LastInsertId()
@@ -220,7 +220,7 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
 	_, err := d.writer.ExecContext(ctx, query, label.Name, label.Description, label.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "saving label")
+		return nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
 	return labelDB(ctx, label.ID, d.writer)
 }
@@ -246,7 +246,7 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 	label := &fleet.Label{}
 
 	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
-		return nil, errors.Wrap(err, "selecting label")
+		return nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
 
 	return label, nil
@@ -269,7 +269,7 @@ func (d *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt
 		if err == sql.ErrNoRows {
 			return labels, nil
 		}
-		return nil, errors.Wrap(err, "selecting labels")
+		return nil, ctxerr.Wrap(ctx, err, "selecting labels")
 	}
 
 	return labels, nil
@@ -293,7 +293,7 @@ func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	rows, err = d.reader.QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic)
 
 	if err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "selecting label queries for host")
+		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
 
 	defer rows.Close()
@@ -303,13 +303,13 @@ func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 		var id, query string
 
 		if err = rows.Scan(&id, &query); err != nil {
-			return nil, errors.Wrap(err, "scanning label queries for host")
+			return nil, ctxerr.Wrap(ctx, err, "scanning label queries for host")
 		}
 
 		results[id] = query
 	}
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "iterating over returned rows")
+		return nil, ctxerr.Wrap(ctx, err, "iterating over returned rows")
 	}
 
 	return results, nil
@@ -349,7 +349,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 
 			_, err := tx.ExecContext(ctx, sql, vals...)
 			if err != nil {
-				return errors.Wrapf(err, "insert label query executions (%v)", vals)
+				return ctxerr.Wrapf(ctx, err, "insert label query executions (%v)", vals)
 			}
 		}
 
@@ -358,18 +358,18 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
 			query, args, err := sqlx.In(sql, host.ID, removes)
 			if err != nil {
-				return errors.Wrap(err, "IN for DELETE FROM label_membership")
+				return ctxerr.Wrap(ctx, err, "IN for DELETE FROM label_membership")
 			}
 			query = tx.Rebind(query)
 			_, err = tx.ExecContext(ctx, query, args...)
 			if err != nil {
-				return errors.Wrap(err, "delete label query executions")
+				return ctxerr.Wrap(ctx, err, "delete label query executions")
 			}
 		}
 
 		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
 		if err != nil {
-			return errors.Wrap(err, "updating hosts label updated at")
+			return ctxerr.Wrap(ctx, err, "updating hosts label updated at")
 		}
 
 		return nil
@@ -392,7 +392,7 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 	labels := []*fleet.Label{}
 	err := sqlx.SelectContext(ctx, d.reader, &labels, sqlStatement, hid)
 	if err != nil {
-		return nil, errors.Wrap(err, "selecting host labels")
+		return nil, ctxerr.Wrap(ctx, err, "selecting host labels")
 	}
 
 	return labels, nil
@@ -415,7 +415,7 @@ func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilte
 	hosts := []*fleet.Host{}
 	err := sqlx.SelectContext(ctx, d.reader, &hosts, query, params...)
 	if err != nil {
-		return nil, errors.Wrap(err, "selecting label query executions")
+		return nil, ctxerr.Wrap(ctx, err, "selecting label query executions")
 	}
 	return hosts, nil
 }
@@ -439,7 +439,7 @@ func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 
 	var count int
 	if err := sqlx.GetContext(ctx, d.reader, &count, query, params...); err != nil {
-		return 0, errors.Wrap(err, "count hosts")
+		return 0, ctxerr.Wrap(ctx, err, "count hosts")
 	}
 
 	return count, nil
@@ -461,14 +461,14 @@ func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.Te
 
 	query, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query listing unique hosts in labels")
+		return nil, ctxerr.Wrap(ctx, err, "building query listing unique hosts in labels")
 	}
 
 	query = d.reader.Rebind(query)
 	hosts := []*fleet.Host{}
 	err = sqlx.SelectContext(ctx, d.reader, &hosts, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "listing unique hosts in labels")
+		return nil, ctxerr.Wrap(ctx, err, "listing unique hosts in labels")
 	}
 
 	return hosts, nil
@@ -495,7 +495,7 @@ func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.Team
 
 	sql, args, err := sqlx.In(sqlStatement, transformedQuery, omit)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query for labels with omits")
+		return nil, ctxerr.Wrap(ctx, err, "building query for labels with omits")
 	}
 
 	sql = d.reader.Rebind(sql)
@@ -503,12 +503,12 @@ func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.Team
 	matches := []*fleet.Label{}
 	err = sqlx.SelectContext(ctx, d.reader, &matches, sql, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "selecting labels with omits")
+		return nil, ctxerr.Wrap(ctx, err, "selecting labels with omits")
 	}
 
 	matches, err = d.addAllHostsLabelToList(ctx, filter, matches, omit...)
 	if err != nil {
-		return nil, errors.Wrap(err, "adding all hosts label to matches")
+		return nil, ctxerr.Wrap(ctx, err, "adding all hosts label to matches")
 	}
 
 	return matches, nil
@@ -534,7 +534,7 @@ func (d *Datastore) addAllHostsLabelToList(ctx context.Context, filter fleet.Tea
 
 	var allHosts fleet.Label
 	if err := sqlx.GetContext(ctx, d.reader, &allHosts, sql, fleet.LabelTypeBuiltIn); err != nil {
-		return nil, errors.Wrap(err, "get all hosts label")
+		return nil, ctxerr.Wrap(ctx, err, "get all hosts label")
 	}
 
 	for _, omission := range omit {
@@ -579,16 +579,16 @@ func (d *Datastore) searchLabelsDefault(ctx context.Context, filter fleet.TeamFi
 	var labels []*fleet.Label
 	sql, args, err := sqlx.In(sql, in)
 	if err != nil {
-		return nil, errors.Wrap(err, "searching default labels")
+		return nil, ctxerr.Wrap(ctx, err, "searching default labels")
 	}
 	sql = d.reader.Rebind(sql)
 	if err := sqlx.SelectContext(ctx, d.reader, &labels, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "searching default labels rebound")
+		return nil, ctxerr.Wrap(ctx, err, "searching default labels rebound")
 	}
 
 	labels, err = d.addAllHostsLabelToList(ctx, filter, labels, omit...)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting all host label")
+		return nil, ctxerr.Wrap(ctx, err, "getting all host label")
 	}
 
 	return labels, nil
@@ -624,12 +624,12 @@ func (d *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 
 	matches := []*fleet.Label{}
 	if err := sqlx.SelectContext(ctx, d.reader, &matches, sql, transformedQuery); err != nil {
-		return nil, errors.Wrap(err, "selecting labels for search")
+		return nil, ctxerr.Wrap(ctx, err, "selecting labels for search")
 	}
 
 	matches, err := d.addAllHostsLabelToList(ctx, filter, matches, omit...)
 	if err != nil {
-		return nil, errors.Wrap(err, "adding all hosts label to matches")
+		return nil, ctxerr.Wrap(ctx, err, "adding all hosts label to matches")
 	}
 
 	return matches, nil
@@ -647,12 +647,12 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 
 	sql, args, err := sqlx.In(sqlStatement, labels)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label IDs")
 	}
 
 	var labelIDs []uint
 	if err := sqlx.SelectContext(ctx, d.reader, &labelIDs, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get label IDs")
 	}
 
 	return labelIDs, nil
@@ -661,7 +661,7 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
 	_, err := d.writer.ExecContext(ctx, `DELETE FROM label_membership where not exists (select 1 from labels where id=label_id) or not exists (select 1 from hosts where id=host_id)`)
 	if err != nil {
-		return errors.Wrap(err, "cleaning orphan label_membership by label")
+		return ctxerr.Wrap(ctx, err, "cleaning orphan label_membership by label")
 	}
 	return nil
 }
@@ -682,7 +682,7 @@ func (d *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [
 	}
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, sql, vals...)
-		return errors.Wrap(err, "insert into label_membership")
+		return ctxerr.Wrap(ctx, err, "insert into label_membership")
 	})
 }
 
@@ -709,7 +709,7 @@ func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [
 	}
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, sql, vals...)
-		return errors.Wrap(err, "delete from label_membership")
+		return ctxerr.Wrap(ctx, err, "delete from label_membership")
 	})
 }
 
@@ -726,10 +726,10 @@ func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []ui
         id IN (?)`
 	query, args, err := sqlx.In(sql, ts, ids)
 	if err != nil {
-		return errors.Wrap(err, "building query to update hosts.label_updated_at")
+		return ctxerr.Wrap(ctx, err, "building query to update hosts.label_updated_at")
 	}
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, query, args...)
-		return errors.Wrap(err, "update hosts.label_updated_at")
+		return ctxerr.Wrap(ctx, err, "update hosts.label_updated_at")
 	})
 }

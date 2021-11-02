@@ -158,7 +158,7 @@ func testInvitesByToken(t *testing.T, ds *Datastore) {
 			invite, err := ds.InviteByToken(context.Background(), tt.token)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
-				assert.Equal(t, tt.wantErr.Error(), err.Error())
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				return
 			}
 			require.Nil(t, err)
@@ -188,7 +188,7 @@ func testInvitesByEmail(t *testing.T, ds *Datastore) {
 			invite, err := ds.InviteByEmail(context.Background(), tt.email)
 			if tt.wantErr != nil {
 				require.NotNil(t, err)
-				assert.Equal(t, tt.wantErr.Error(), err.Error())
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				return
 			}
 			require.Nil(t, err)

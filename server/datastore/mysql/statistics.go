@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kit/version"
@@ -19,7 +20,7 @@ type statistics struct {
 func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
 	amountEnrolledHosts, err := amountEnrolledHostsDB(d.writer)
 	if err != nil {
-		return fleet.StatisticsPayload{}, false, err
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount enrolled hosts")
 	}
 
 	dest := statistics{}

@@ -16,6 +16,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -80,7 +81,7 @@ var (
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
 func retryableError(err error) bool {
-	base := errors.Cause(err)
+	base := ctxerr.Cause(err)
 	if b, ok := base.(*mysql.MySQLError); ok {
 		switch b.Number {
 		// Consider lock related errors to be retryable
@@ -97,7 +98,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
 		tx, err := d.writer.BeginTxx(ctx, nil)
 		if err != nil {
-			return errors.Wrap(err, "create transaction")
+			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
 
 		defer func() {
@@ -113,7 +114,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
 				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error()))
+				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
 			}
 
 			if retryableError(err) {
@@ -125,13 +126,13 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		}
 
 		if err := tx.Commit(); err != nil {
-			err = errors.Wrap(err, "commit transaction")
+			err = ctxerr.Wrap(ctx, err, "commit transaction")
 
 			if retryableError(err) {
 				return err
 			}
 
-			return backoff.Permanent(errors.Wrap(err, "commit transaction"))
+			return backoff.Permanent(err)
 		}
 
 		return nil
@@ -146,7 +147,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	tx, err := d.writer.BeginTxx(ctx, nil)
 	if err != nil {
-		return errors.Wrap(err, "create transaction")
+		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
 
 	defer func() {
@@ -161,13 +162,13 @@ func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	if err := fn(tx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error())
+			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
 		}
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "commit transaction")
+		return ctxerr.Wrap(ctx, err, "commit transaction")
 	}
 
 	return nil

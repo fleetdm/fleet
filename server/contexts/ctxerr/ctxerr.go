@@ -25,6 +25,31 @@ type key int
 
 const errHandlerKey key = 0
 
+// Cause returns the root error in err's chain.
+func Cause(err error) error {
+	// Until we use only ctxerr.Wrap, we have a mix of pkg/errors, fmt.Errorf
+	// and eris.Wrap (via ctxerr.Wrap). pkg/errors.Cause looks for a Cause()
+	// method, while eris.Cause looks for the stdlib-compliant Unwrap(). So
+	// implement a custom Cause that checks for both until a root is found.
+
+	var cerr interface {
+		Cause() error
+	}
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			if errors.As(err, &cerr) {
+				uerr = cerr.Cause()
+			} else {
+				break
+			}
+		}
+		err = uerr
+	}
+
+	return err
+}
+
 // NewContext returns a context derived from ctx that contains the provided
 // error handler.
 func NewContext(ctx context.Context, eh *errorstore.Handler) context.Context {
@@ -39,6 +64,11 @@ func fromContext(ctx context.Context) *errorstore.Handler {
 // New creates a new error with the provided error message.
 func New(ctx context.Context, errMsg string) error {
 	return ensureCommonMetadata(ctx, errors.New(errMsg))
+}
+
+// Errorf creates a new error with the formatted message.
+func Errorf(ctx context.Context, fmsg string, args ...interface{}) error {
+	return ensureCommonMetadata(ctx, fmt.Errorf(fmsg, args...))
 }
 
 // Wrap annotates err with the provided message.
