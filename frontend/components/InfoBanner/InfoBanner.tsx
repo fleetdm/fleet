@@ -3,7 +3,7 @@ import classNames from "classnames";
 
 const baseClass = "info-banner";
 
-interface IInfoBannerProps {
+export interface IInfoBannerProps {
   children: React.ReactNode;
   className?: string;
 }
