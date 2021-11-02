@@ -61,12 +61,15 @@ func TestHashErr(t *testing.T) {
 	})
 
 	t.Run("generates json", func(t *testing.T) {
+		var m map[string]interface{}
+
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.Equal(t, "mWoqz7iS1IPOZXGhpzHLl_DVQOyemWxCmvkpLz8uEZk=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some err`))
+		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 
 		generatedErr2 := pkgErrors.New("some other err")
 		res, jsonBytes, err = hashAndMarshalError(generatedErr2)
@@ -74,6 +77,7 @@ func TestHashErr(t *testing.T) {
 		assert.Equal(t, "8AXruOzQmQLF4H3SrzLxXSwFQgZ8DcbkoF1owo0RhTs=", res)
 		assert.True(t, strings.HasPrefix(jsonBytes, `{
   "external": "some other err`))
+		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 	})
 }
 
@@ -156,7 +160,7 @@ func TestErrorHandler(t *testing.T) {
 			close(doneCh)
 		}()
 
-		// should not even block in the call to New as there is no handler running
+		// should not even block in the call to Store as there is no handler running
 		ticker := time.NewTicker(1 * time.Second)
 		select {
 		case <-doneCh:
