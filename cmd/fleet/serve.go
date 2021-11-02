@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,10 +21,12 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
@@ -345,6 +348,11 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
+			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
 			rootMux.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
@@ -352,7 +360,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -411,6 +419,7 @@ the way that the Fleet server works.
 				writeTimeout = liveQueryRestPeriod
 			}
 
+			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           launcher.Handler(rootMux),
@@ -419,6 +428,9 @@ the way that the Fleet server works.
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
+				BaseContext: func(l net.Listener) context.Context {
+					return httpSrvCtx
+				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
@@ -443,6 +455,7 @@ the way that the Fleet server works.
 				defer cancel()
 				errs <- func() error {
 					cancelBackground()
+					cancelFunc()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()
