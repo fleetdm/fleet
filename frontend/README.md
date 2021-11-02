@@ -33,6 +33,20 @@ To run this server, do the following:
 
 The URL `localhost:6006` should automatically show in your browser. If not, visit it manually.
 
+As mentioned, there are two key times Storybook should be used:
+
+1. When building new features
+
+As we create new features, we re-use Fleet components often. Running Storybook before implementing 
+new UI elements can clarify if new components need to be created or already exist. This helps us 
+avoid duplicating code.
+
+2. Testing components
+
+After creating a component, create a new file, `component.stories.tsx`, within its directory. Then, 
+fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize 
+the component within Storybook to determine if it looks and behaves as expected.
+
 ## Directory Structure
 
 Component directories in the Fleet front-end application encapsulate the entire
