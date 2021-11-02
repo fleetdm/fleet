@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 const baseClass = "modal";
 
-interface IModalProps {
+export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   title: string | JSX.Element;
