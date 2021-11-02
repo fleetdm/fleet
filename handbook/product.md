@@ -359,6 +359,31 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
+## Directly responsible individual
+
+At Fleet, we belive in the concept of directly responsible individuals (**DRIs**), a person who is singularly responsible for a given aspect of the product. By having someone that
+
+Below is a table of DRIs for aspects of the Fleet product.
+
+|    Aspect              | DRI      |
+| ---------------------- | -------- |
+| Wireframes (figma)	 | Noah |
+| How the product works| Noah |
+| fleetctl CLI interface (and other tools)|   Tomas  |
+| REST API interface, REST API docs|  Luke  |
+| Terraform, Postman| Ben Edwards  |
+| Customer deployments like expedia.fleetdm.com| Ben Edwards |
+| dogfood.fleetdm.com| Ben Edwards  |
+| Quality of core product UI |  Luke |
+| Quality of tickets after Noah's done with em| Luke |
+| Quality of core product API| Tomas |
+| Customer deployments like expedia.fleetdm.com| Tomas |
+| Quality of fleetctl (and other tools)| Tomas  |
+| Final cut of what goes into each release| Zach |
+| When we cut a release, version numbers, and whether to release| Zach |
+| Release notes| Noah |
+| Publishing release blog post, and promoting releases| Mike Thomas |
+
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
