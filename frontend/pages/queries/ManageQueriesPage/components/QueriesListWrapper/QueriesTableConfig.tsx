@@ -127,7 +127,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={format(new Date(cellProps.cell.value), "MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/YY")} />
       ),
     },
   ];
