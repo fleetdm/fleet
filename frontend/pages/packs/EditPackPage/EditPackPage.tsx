@@ -104,13 +104,13 @@ const EditPacksPage = ({
     }
   );
 
-  const { data: storedPack, refetch: refetchStoredPack } = useQuery<
-    IStoredPackResponse,
-    Error,
-    IPack
-  >(["stored pack"], () => packsAPI.load(packId), {
-    select: (data: IStoredPackResponse) => data.pack,
-  });
+  const { data: storedPack } = useQuery<IStoredPackResponse, Error, IPack>(
+    ["stored pack"],
+    () => packsAPI.load(packId),
+    {
+      select: (data: IStoredPackResponse) => data.pack,
+    }
+  );
 
   const {
     data: storedPackQueries,
