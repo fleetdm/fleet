@@ -28,13 +28,13 @@ module.exports = {
     });
 
     config.plugins.push(new MiniCssExtractPlugin({ filename: '[name].css' }))
-    config.resolve.modules.push(path.resolve(__dirname, '../'));
+    config.resolve.modules.push(path.resolve(__dirname, '../frontend'));
 
     return config;
   },
   "stories": [
-    "../components/**/*.stories.mdx",
-    "../components/**/*.stories.@(js|jsx|ts|tsx)"
+    "../frontend/components/**/*.stories.mdx",
+    "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)"
   ],
   "addons": [
     "@storybook/addon-links",

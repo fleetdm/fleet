@@ -7,8 +7,8 @@ import enrollSecretInterface from "interfaces/enroll_secret";
 import InputField from "components/forms/fields/InputField";
 import FleetIcon from "components/icons/FleetIcon";
 import { stringToClipboard } from "utilities/copy_text";
-import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
+import EyeIcon from "../../../assets/images/icon-eye-16x16@2x.png";
+import DownloadIcon from "../../../assets/images/icon-download-12x12@2x.png";
 
 const baseClass = "enroll-secrets";
 
