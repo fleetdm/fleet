@@ -667,11 +667,6 @@ func (d *Datastore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.T
 	return nil
 }
 
-type hostsSeenItem struct {
-	hostIDs []uint
-	t       time.Time
-}
-
 func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil

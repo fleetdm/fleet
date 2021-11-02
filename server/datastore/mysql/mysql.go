@@ -235,8 +235,6 @@ func (d *Datastore) writeChanLoop() {
 		switch actualItem := item.item.(type) {
 		case *fleet.Host:
 			item.errCh <- d.SaveHost(item.ctx, actualItem)
-		case *hostsSeenItem:
-			item.errCh <- d.MarkHostsSeen(item.ctx, actualItem.hostIDs, actualItem.t)
 		}
 	}
 }
