@@ -196,9 +196,7 @@ const ManageSchedulePage = ({
 
   useEffect(() => {
     dispatch(queryActions.loadAll());
-    {
-      isPremiumTier && dispatch(teamActions.loadAll());
-    }
+    dispatch(teamActions.loadAll());
     dispatch(
       teamId
         ? teamScheduledQueryActions.loadAll(teamId)
