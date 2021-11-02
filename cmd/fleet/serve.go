@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"net/url"
 
 	"github.com/e-dard/netbug"
@@ -258,15 +259,13 @@ the way that the Fleet server works.
 
 			// Flush seen hosts every second
 			go func() {
-				ticker := time.NewTicker(1 * time.Second)
-				for {
+				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
 					if err := svc.FlushSeenHosts(context.Background()); err != nil {
 						level.Info(logger).Log(
 							"err", err,
 							"msg", "failed to update host seen times",
 						)
 					}
-					<-ticker.C
 				}
 			}()
 
