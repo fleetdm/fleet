@@ -8,7 +8,7 @@ import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { noop } from "lodash";
 
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 
 import "./mode";
 import "./theme";

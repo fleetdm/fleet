@@ -10,7 +10,7 @@ import { IHostPolicy } from "interfaces/host_policy";
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";

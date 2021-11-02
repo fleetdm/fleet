@@ -18,7 +18,7 @@ import sqlTools from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";

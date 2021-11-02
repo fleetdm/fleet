@@ -17,7 +17,7 @@ import sort from "utilities/sort";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 

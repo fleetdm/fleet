@@ -1,6 +1,6 @@
 import React from "react";
 
-interface ISpinnerProps {
+export interface ISpinnerProps {
   isInButton?: boolean;
 }
 

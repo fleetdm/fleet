@@ -23,7 +23,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
