@@ -1,5 +1,6 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 import Checkbox from ".";
 
@@ -9,7 +10,7 @@ import "../../../../index.scss";
 
 export default {
   component: Checkbox,
-  title: 'Components/FormFields/Checkbox',
+  title: "Components/FormFields/Checkbox",
   args: {
     value: false,
     disabled: false,
@@ -17,8 +18,8 @@ export default {
     className: "",
     name: "",
     wrapperClassName: "",
-    onChange: () => {},
-  }
+    onChange: noop,
+  },
 } as Meta;
 
 const Template: Story<ICheckboxProps> = (props) => <Checkbox {...props} />;

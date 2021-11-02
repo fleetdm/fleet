@@ -10,19 +10,19 @@ import "../../../../index.scss";
 interface ISliderProps {
   value: boolean;
   inactiveText: string;
-  activeText: string ;
+  activeText: string;
   onChange: () => void;
 }
 
 export default {
   component: Slider,
-  title: 'Components/FormFields/Slider',
+  title: "Components/FormFields/Slider",
   args: {
     value: false,
     inactiveText: "Off",
-    activeText: "On" ,
+    activeText: "On",
     onChange: noop,
-  }
+  },
 } as Meta;
 
 const Template: Story<ISliderProps> = (props) => <Slider {...props} />;

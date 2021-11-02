@@ -2,27 +2,26 @@ import React from "react";
 import { Meta, Story } from "@storybook/react";
 import { noop } from "lodash";
 
-// @ts-ignore
+import { ITarget } from "interfaces/target"; // @ts-ignore
 import SelectedTargetsDropdown from ".";
-import { ITarget } from "interfaces/target";
 
 import "../../../../index.scss";
 
 interface ISelectedTargetsDropdownProps {
-  disabled?: boolean,
-  error?: string,
-  label?: string,
-  selectedTargets?: ITarget[],
-  targetsCount?: number,
-  queryId?: number,
-  isPremiumTier?: boolean,
-  onSelect: () => void,
-  onFetchTargets?: () => void,
+  disabled?: boolean;
+  error?: string;
+  label?: string;
+  selectedTargets?: ITarget[];
+  targetsCount?: number;
+  queryId?: number;
+  isPremiumTier?: boolean;
+  onSelect: () => void;
+  onFetchTargets?: () => void;
 }
 
 export default {
   component: SelectedTargetsDropdown,
-  title: 'Components/SelectTargetsDropdown',
+  title: "Components/SelectTargetsDropdown",
   args: {
     disabled: false,
     label: "Select Targets",
@@ -31,9 +30,11 @@ export default {
     queryId: 1,
     onFetchTargets: noop,
     onSelect: noop,
-  }
+  },
 } as Meta;
 
-const Template: Story<ISelectedTargetsDropdownProps> = (props) => <SelectedTargetsDropdown {...props} />;
+const Template: Story<ISelectedTargetsDropdownProps> = (props) => (
+  <SelectedTargetsDropdown {...props} />
+);
 
 export const Default = Template.bind({});

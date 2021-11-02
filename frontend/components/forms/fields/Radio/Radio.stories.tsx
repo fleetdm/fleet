@@ -1,5 +1,6 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 // @ts-ignore
 import Radio from ".";
@@ -9,7 +10,7 @@ import "../../../../index.scss";
 
 export default {
   component: Radio,
-  title: 'Components/FormFields/Radio',
+  title: "Components/FormFields/Radio",
   args: {
     checked: true,
     disabled: false,
@@ -18,8 +19,8 @@ export default {
     id: "",
     name: "",
     className: "",
-    onChange: () => {},
-  }
+    onChange: noop,
+  },
 } as Meta;
 
 const Template: Story<IRadioProps> = (props) => <Radio {...props} />;

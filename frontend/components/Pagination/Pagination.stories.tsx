@@ -16,13 +16,13 @@ interface IPaginationProps {
 
 export default {
   component: Pagination,
-  title: 'Components/Pagination',
+  title: "Components/Pagination",
   args: {
     currentPage: 1,
     resultsPerPage: 10,
     resultsOnCurrentPage: 10,
     onPaginationChange: noop,
-  }
+  },
 } as Meta;
 
 const Template: Story<IPaginationProps> = (props) => <Pagination {...props} />;

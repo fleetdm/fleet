@@ -9,9 +9,13 @@ import "../../index.scss";
 
 export default {
   component: InfoBanner,
-  title: 'Components/InfoBanner',
+  title: "Components/InfoBanner",
 } as Meta;
 
-const Template: Story<IInfoBannerProps> = (props) => <InfoBanner {...props}><div>This is an Info Banner.</div></InfoBanner>;
+const Template: Story<IInfoBannerProps> = (props) => (
+  <InfoBanner {...props}>
+    <div>This is an Info Banner.</div>
+  </InfoBanner>
+);
 
 export const Default = Template.bind({});

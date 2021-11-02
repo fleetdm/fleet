@@ -2,9 +2,7 @@ import React from "react";
 import { shallow, mount } from "enzyme";
 
 import * as copy from "utilities/copy_text";
-import EnrollSecretTable, {
-  EnrollSecretRow,
-} from "components/config/EnrollSecretTable/EnrollSecretTable";
+import EnrollSecretTable, { EnrollSecretRow } from "./EnrollSecretTable";
 
 describe("EnrollSecretTable", () => {
   const defaultProps = {

@@ -9,10 +9,10 @@ import "../../index.scss";
 
 export default {
   component: Spinner,
-  title: 'Components/Spinner',
+  title: "Components/Spinner",
   args: {
     isInButton: false,
-  }
+  },
 } as Meta;
 
 const Template: Story<ISpinnerProps> = (props) => <Spinner {...props} />;

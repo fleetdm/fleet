@@ -1,5 +1,6 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 // @ts-ignore
 import InputField from ".";
@@ -12,7 +13,7 @@ interface IInputFieldProps {
   error?: string;
   inputClassName?: string;
   inputWrapperClass?: string;
-  inputOptions?: object; // other html input props
+  inputOptions?: Record<string, unknown>; // other html input props
   name?: string;
   placeholder: string;
   type?: string;
@@ -23,7 +24,7 @@ interface IInputFieldProps {
 
 export default {
   component: InputField,
-  title: 'Components/FormFields/Input',
+  title: "Components/FormFields/Input",
   args: {
     autofocus: false,
     disabled: false,
@@ -35,9 +36,9 @@ export default {
     placeholder: "Type here...",
     type: "",
     value: "",
-    onFocus: () => {},
-    onChange: () => {},
-  }
+    onFocus: noop,
+    onChange: noop,
+  },
 } as Meta;
 
 const Template: Story<IInputFieldProps> = (props) => <InputField {...props} />;

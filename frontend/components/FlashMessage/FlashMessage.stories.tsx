@@ -1,5 +1,6 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 import FlashMessage from ".";
 
@@ -9,7 +10,7 @@ import "../../index.scss";
 
 export default {
   component: FlashMessage,
-  title: 'Components/FlashMessage',
+  title: "Components/FlashMessage",
   argTypes: {
     fullWidth: {
       control: "boolean",
@@ -25,9 +26,9 @@ export default {
       message: "I am a message. Hear me roar!",
       alertType: "success",
       isVisible: true,
-      undoAction: () => {},
-    }
-  }
+      undoAction: noop,
+    },
+  },
 } as Meta;
 
 const Template: Story<IFlashMessage> = (props) => <FlashMessage {...props} />;

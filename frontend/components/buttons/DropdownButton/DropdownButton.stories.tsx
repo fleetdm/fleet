@@ -1,8 +1,9 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
-import Avatar from "components/Avatar"; //@ts-ignore
+import Avatar from "components/Avatar"; // @ts-ignore
 import DropdownButton from ".";
 
 import "../../../index.scss";
@@ -10,14 +11,14 @@ import "../../../index.scss";
 interface IOptions {
   disabled: boolean;
   label: string;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void,
+  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 interface IDropdownButtonProps {
   children: React.ReactChild;
   className?: string;
   disabled?: boolean;
-  options: IOptions[],
+  options: IOptions[];
   size?: string;
   tabIndex?: number;
   type?: string;
@@ -27,7 +28,7 @@ interface IDropdownButtonProps {
 const options = [
   {
     label: "My account",
-    onClick: () => {},
+    onClick: noop,
   },
   {
     label: "Documentation",
@@ -39,30 +40,51 @@ const options = [
   },
   {
     label: "Sign out",
-    onClick: () => {},
+    onClick: noop,
   },
 ];
 
 export default {
   component: DropdownButton,
-  title: 'Components/DropdownButton',
+  title: "Components/DropdownButton",
   argTypes: {
     variant: {
-      options: ["brand", "success", "alert", "blue-green", "grey", "warning", "link", "label", "text-link", "text-icon", "inverse", "inverse-alert", "block", "unstyled", "unstyled-modal-query", "contextual-nav-item", "small-text-icon"],
+      options: [
+        "brand",
+        "success",
+        "alert",
+        "blue-green",
+        "grey",
+        "warning",
+        "link",
+        "label",
+        "text-link",
+        "text-icon",
+        "inverse",
+        "inverse-alert",
+        "block",
+        "unstyled",
+        "unstyled-modal-query",
+        "contextual-nav-item",
+        "small-text-icon",
+      ],
       control: "select",
     },
     type: {
       options: ["button", "submit", "reset"],
       control: "select",
-    }
+    },
   },
   parameters: {
     backgrounds: {
       default: "header",
       values: [
-        { name: "header", value: "linear-gradient(270deg, #201e43 0%, #353d62 100%)" }
-      ]
-    }
+        {
+          name: "header",
+          value: "linear-gradient(270deg, #201e43 0%, #353d62 100%)",
+        },
+      ],
+    },
   },
   args: {
     variant: "unstyled",
@@ -70,15 +92,12 @@ export default {
     size: "",
     tabIndex: 0,
     options,
-  }
+  },
 } as Meta;
 
 const Template: Story<IDropdownButtonProps> = (props) => (
   <DropdownButton {...props}>
-    <Avatar
-      user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }}
-      size="small"
-    />
+    <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />
   </DropdownButton>
 );
 

@@ -1,9 +1,9 @@
 import React from "react";
 import { Meta, Story } from "@storybook/react";
+import { noop } from "lodash";
 
-// @ts-ignore
+import { IDropdownOption } from "interfaces/dropdownOption"; // @ts-ignore
 import Dropdown from ".";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import "../../../../index.scss";
 
@@ -34,7 +34,7 @@ const authMethodOptions = [
 
 export default {
   component: Dropdown,
-  title: 'Components/FormFields/Dropdown',
+  title: "Components/FormFields/Dropdown",
   args: {
     className: "",
     clearable: false,
@@ -49,10 +49,10 @@ export default {
     placeholder: "Choose one...",
     value: "",
     wrapperClassName: "",
-    onChange: () => {},
-    onOpen: () => {},
-    onClose: () => {},
-  }
+    onChange: noop,
+    onOpen: noop,
+    onClose: noop,
+  },
 } as Meta;
 
 const Template: Story<IDropdownProps> = (props) => <Dropdown {...props} />;

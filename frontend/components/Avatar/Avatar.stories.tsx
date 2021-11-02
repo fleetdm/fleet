@@ -10,8 +10,12 @@ import "../../index.scss";
 
 export default {
   component: Avatar,
-  title: 'Components/Avatar',
+  title: "Components/Avatar",
 } as Meta;
 
-export const Default = () => <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} />;
-export const Small = () => <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />;
+export const Default = () => (
+  <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} />
+);
+export const Small = () => (
+  <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />
+);
