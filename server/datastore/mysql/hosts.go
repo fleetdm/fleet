@@ -671,28 +671,6 @@ type hostsSeenItem struct {
 	t       time.Time
 }
 
-func (d *Datastore) SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
-	errCh := make(chan error, 1)
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case d.writeCh <- itemToWrite{
-		ctx:   ctx,
-		errCh: errCh,
-		item: &hostsSeenItem{
-			hostIDs: hostIDs,
-			t:       t,
-		},
-	}:
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-errCh:
-			return err
-		}
-	}
-}
-
 func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	if len(hostIDs) == 0 {
 		return nil

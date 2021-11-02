@@ -184,7 +184,6 @@ type Datastore interface {
 	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
 	MarkHostSeen(ctx context.Context, host *Host, t time.Time) error
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
-	SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.

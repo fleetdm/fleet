@@ -68,7 +68,6 @@ type entity struct {
 
 var (
 	hostsTable            = entity{"hosts"}
-	hostSeenTimesTable    = entity{"host_seen_times"}
 	invitesTable          = entity{"invites"}
 	labelsTable           = entity{"labels"}
 	packsTable            = entity{"packs"}

@@ -151,8 +151,6 @@ type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) e
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
-type SerialMarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
-
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
@@ -525,9 +523,6 @@ type DataStore struct {
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
-
-	SerialMarkHostsSeenFunc        SerialMarkHostsSeenFunc
-	SerialMarkHostsSeenFuncInvoked bool
 
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
@@ -1121,11 +1116,6 @@ func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.T
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
-}
-
-func (s *DataStore) SerialMarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
-	s.SerialMarkHostsSeenFuncInvoked = true
-	return s.SerialMarkHostsSeenFunc(ctx, hostIDs, t)
 }
 
 func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
