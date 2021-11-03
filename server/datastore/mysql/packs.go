@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) (err error) {
 	err = d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, spec := range specs {
 			if err := applyPackSpecDB(ctx, tx, spec); err != nil {
-				return errors.Wrapf(err, "applying pack '%s'", spec.Name)
+				return ctxerr.Wrapf(ctx, err, "applying pack '%s'", spec.Name)
 			}
 		}
 
@@ -27,7 +27,7 @@ func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 
 func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSpec) error {
 	if spec.Name == "" {
-		return errors.New("pack name must not be empty")
+		return ctxerr.New(ctx, "pack name must not be empty")
 	}
 	// Insert/update pack
 	query := `
@@ -40,7 +40,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			disabled = VALUES(disabled)
 	`
 	if _, err := tx.ExecContext(ctx, query, spec.Name, spec.Description, spec.Platform, spec.Disabled); err != nil {
-		return errors.Wrap(err, "insert/update pack")
+		return ctxerr.Wrap(ctx, err, "insert/update pack")
 	}
 
 	// Get Pack ID
@@ -49,13 +49,13 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 	var packID uint
 	query = "SELECT id FROM packs WHERE name = ?"
 	if err := sqlx.GetContext(ctx, tx, &packID, query, spec.Name); err != nil {
-		return errors.Wrap(err, "getting pack ID")
+		return ctxerr.Wrap(ctx, err, "getting pack ID")
 	}
 
 	// Delete existing scheduled queries for pack
 	query = "DELETE FROM scheduled_queries WHERE pack_id = ?"
 	if _, err := tx.ExecContext(ctx, query, packID); err != nil {
-		return errors.Wrap(err, "delete existing scheduled queries")
+		return ctxerr.Wrap(ctx, err, "delete existing scheduled queries")
 	}
 
 	// Insert new scheduled queries for pack
@@ -80,16 +80,16 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		)
 		switch {
 		case isChildForeignKeyError(err):
-			return errors.Errorf("cannot schedule unknown query '%s'", q.QueryName)
+			return ctxerr.Errorf(ctx, "cannot schedule unknown query '%s'", q.QueryName)
 		case err != nil:
-			return errors.Wrapf(err, "adding query %s referencing %s", q.Name, q.QueryName)
+			return ctxerr.Wrapf(ctx, err, "adding query %s referencing %s", q.Name, q.QueryName)
 		}
 	}
 
 	// Delete existing targets
 	query = "DELETE FROM pack_targets WHERE pack_id = ?"
 	if _, err := tx.ExecContext(ctx, query, packID); err != nil {
-		return errors.Wrap(err, "delete existing targets")
+		return ctxerr.Wrap(ctx, err, "delete existing targets")
 	}
 
 	// Insert targets
@@ -99,7 +99,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
 		`
 		if _, err := tx.ExecContext(ctx, query, packID, fleet.TargetLabel, l); err != nil {
-			return errors.Wrap(err, "adding label to pack")
+			return ctxerr.Wrap(ctx, err, "adding label to pack")
 		}
 	}
 
@@ -111,7 +111,7 @@ func (d *Datastore) GetPackSpecs(ctx context.Context) (specs []*fleet.PackSpec, 
 		// Get basic specs
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE pack_type IS NULL OR pack_type = ''"
 		if err := sqlx.SelectContext(ctx, tx, &specs, query); err != nil {
-			return errors.Wrap(err, "get packs")
+			return ctxerr.Wrap(ctx, err, "get packs")
 		}
 
 		// Load targets
@@ -122,7 +122,7 @@ FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
 			if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
-				return errors.Wrap(err, "get pack targets")
+				return ctxerr.Wrap(ctx, err, "get pack targets")
 			}
 		}
 
@@ -136,7 +136,7 @@ FROM scheduled_queries
 WHERE pack_id = ?
 `
 			if err := sqlx.SelectContext(ctx, tx, &spec.Queries, query, spec.ID); err != nil {
-				return errors.Wrap(err, "get pack queries")
+				return ctxerr.Wrap(ctx, err, "get pack queries")
 			}
 		}
 
@@ -156,13 +156,13 @@ func (d *Datastore) GetPackSpec(ctx context.Context, name string) (spec *fleet.P
 		var specs []*fleet.PackSpec
 		query := "SELECT id, name, description, platform, disabled FROM packs WHERE name = ?"
 		if err := sqlx.SelectContext(ctx, tx, &specs, query, name); err != nil {
-			return errors.Wrap(err, "get packs")
+			return ctxerr.Wrap(ctx, err, "get packs")
 		}
 		if len(specs) == 0 {
-			return notFound("Pack").WithName(name)
+			return ctxerr.Wrap(ctx, notFound("Pack").WithName(name), "")
 		}
 		if len(specs) > 1 {
-			return errors.Errorf("expected 1 pack row, got %d", len(specs))
+			return ctxerr.Errorf(ctx, "expected 1 pack row, got %d", len(specs))
 		}
 
 		spec = specs[0]
@@ -174,7 +174,7 @@ FROM labels l JOIN pack_targets pt
 WHERE pack_id = ? AND pt.type = ? AND pt.target_id = l.id
 `
 		if err := sqlx.SelectContext(ctx, tx, &spec.Targets.Labels, query, spec.ID, fleet.TargetLabel); err != nil {
-			return errors.Wrap(err, "get pack targets")
+			return ctxerr.Wrap(ctx, err, "get pack targets")
 		}
 
 		// Load queries
@@ -186,7 +186,7 @@ FROM scheduled_queries
 WHERE pack_id = ?
 `
 		if err := sqlx.SelectContext(ctx, tx, &spec.Queries, query, spec.ID); err != nil {
-			return errors.Wrap(err, "get pack queries")
+			return ctxerr.Wrap(ctx, err, "get pack queries")
 		}
 
 		return nil
@@ -211,7 +211,7 @@ func (d *Datastore) PackByName(ctx context.Context, name string, opts ...fleet.O
 		if err == sql.ErrNoRows {
 			return nil, false, nil
 		}
-		return nil, false, errors.Wrap(err, "fetch pack by name")
+		return nil, false, ctxerr.Wrap(ctx, err, "fetch pack by name")
 	}
 
 	if err := loadPackTargetsDB(ctx, d.reader, &pack); err != nil {
@@ -231,7 +231,7 @@ func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet
 		`
 		result, err := tx.ExecContext(ctx, query, pack.Name, pack.Description, pack.Platform, pack.Disabled)
 		if err != nil {
-			return errors.Wrap(err, "insert pack")
+			return ctxerr.Wrap(ctx, err, "insert pack")
 		}
 
 		id, _ := result.LastInsertId()
@@ -251,7 +251,7 @@ func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet
 func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *fleet.Pack) error {
 	sql := `DELETE FROM pack_targets WHERE pack_id = ?`
 	if _, err := tx.ExecContext(ctx, sql, pack.ID); err != nil {
-		return errors.Wrap(err, "delete pack targets")
+		return ctxerr.Wrap(ctx, err, "delete pack targets")
 	}
 
 	// Insert hosts
@@ -269,7 +269,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 			VALUES %s
 		`, values)
 		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
-			return errors.Wrap(err, "insert host targets")
+			return ctxerr.Wrap(ctx, err, "insert host targets")
 		}
 	}
 
@@ -288,7 +288,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 			VALUES %s
 		`, values)
 		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
-			return errors.Wrap(err, "insert label targets")
+			return ctxerr.Wrap(ctx, err, "insert label targets")
 		}
 	}
 
@@ -307,7 +307,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 			VALUES %s
 		`, values)
 		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
-			return errors.Wrap(err, "insert team targets")
+			return ctxerr.Wrap(ctx, err, "insert team targets")
 		}
 	}
 
@@ -318,7 +318,7 @@ func loadPackTargetsDB(ctx context.Context, q sqlx.QueryerContext, pack *fleet.P
 	var targets []fleet.PackTarget
 	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
 	if err := sqlx.SelectContext(ctx, q, &targets, sql, pack.ID); err != nil {
-		return errors.Wrap(err, "select pack targets")
+		return ctxerr.Wrap(ctx, err, "select pack targets")
 	}
 
 	pack.HostIDs, pack.LabelIDs, pack.TeamIDs = []uint{}, []uint{}, []uint{}
@@ -331,7 +331,7 @@ func loadPackTargetsDB(ctx context.Context, q sqlx.QueryerContext, pack *fleet.P
 		case fleet.TargetTeam:
 			pack.TeamIDs = append(pack.TeamIDs, target.TargetID)
 		default:
-			return errors.Errorf("unknown target type: %d", target.Type)
+			return ctxerr.Errorf(ctx, "unknown target type: %d", target.Type)
 		}
 	}
 
@@ -349,14 +349,14 @@ func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 
 		results, err := tx.ExecContext(ctx, query, pack.Name, pack.Platform, pack.Disabled, pack.Description, pack.ID)
 		if err != nil {
-			return errors.Wrap(err, "updating pack")
+			return ctxerr.Wrap(ctx, err, "updating pack")
 		}
 		rowsAffected, err := results.RowsAffected()
 		if err != nil {
-			return errors.Wrap(err, "rows affected updating packs")
+			return ctxerr.Wrap(ctx, err, "rows affected updating packs")
 		}
 		if rowsAffected == 0 {
-			return notFound("Pack").WithID(pack.ID)
+			return ctxerr.Wrap(ctx, notFound("Pack").WithID(pack.ID), "")
 		}
 
 		return replacePackTargetsDB(ctx, tx, pack)
@@ -378,9 +378,9 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	pack := &fleet.Pack{}
 	err := sqlx.GetContext(ctx, q, pack, query, pid)
 	if err == sql.ErrNoRows {
-		return nil, notFound("Pack").WithID(pid)
+		return nil, ctxerr.Wrap(ctx, notFound("Pack").WithID(pid), "")
 	} else if err != nil {
-		return nil, errors.Wrap(err, "get pack")
+		return nil, ctxerr.Wrap(ctx, err, "get pack")
 	}
 
 	if err := loadPackTargetsDB(ctx, q, pack); err != nil {
@@ -400,7 +400,7 @@ func (d *Datastore) EnsureGlobalPack(ctx context.Context) (*fleet.Pack, error) {
 			pack, err = insertNewGlobalPackDB(ctx, tx)
 			return err
 		} else if err != nil {
-			return errors.Wrap(err, "get pack")
+			return ctxerr.Wrap(ctx, err, "get pack")
 		}
 
 		return loadPackTargetsDB(ctx, tx, pack)
@@ -417,18 +417,18 @@ func insertNewGlobalPackDB(ctx context.Context, q sqlx.ExtContext) (*fleet.Pack,
 		`INSERT INTO packs (name, description, platform, pack_type) VALUES ('Global', 'Global pack', '','global')`,
 	)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "insert pack")
 	}
 	packId, err := res.LastInsertId()
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "last insert id")
 	}
 	packID = uint(packId)
 	if _, err := q.ExecContext(ctx,
 		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))`,
 		packID, fleet.TargetLabel, "All Hosts",
 	); err != nil {
-		return nil, errors.Wrap(err, "adding label to pack")
+		return nil, ctxerr.Wrap(ctx, err, "adding label to pack")
 	}
 
 	return packDB(ctx, q, packID)
@@ -439,7 +439,7 @@ func (d *Datastore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pac
 	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		t, err := teamDB(ctx, tx, teamID)
 		if err != nil || t == nil {
-			return errors.Wrap(err, "Error finding team")
+			return ctxerr.Wrap(ctx, err, "Error finding team")
 		}
 
 		teamType := fmt.Sprintf("team-%d", teamID)
@@ -449,7 +449,7 @@ func (d *Datastore) EnsureTeamPack(ctx context.Context, teamID uint) (*fleet.Pac
 			pack, err = insertNewTeamPackDB(ctx, tx, t)
 			return err
 		} else if err != nil {
-			return errors.Wrap(err, "get pack")
+			return ctxerr.Wrap(ctx, err, "get pack")
 		}
 
 		if err := loadPackTargetsDB(ctx, tx, pack); err != nil {
@@ -480,18 +480,18 @@ func insertNewTeamPackDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Tea
 		teamScheduleName(team), teamSchedulePackType(team),
 	)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "insert team pack")
 	}
 	packId, err := res.LastInsertId()
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "last insert id")
 	}
 	packID = uint(packId)
 	if _, err := q.ExecContext(ctx,
 		`INSERT INTO pack_targets (pack_id, type, target_id) VALUES (?, ?, ?)`,
 		packID, fleet.TargetTeam, team.ID,
 	); err != nil {
-		return nil, errors.Wrap(err, "adding team id target to pack")
+		return nil, ctxerr.Wrap(ctx, err, "adding team id target to pack")
 	}
 	return packDB(ctx, q, packID)
 }
@@ -505,7 +505,7 @@ func (d *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([
 	var packs []*fleet.Pack
 	err := sqlx.SelectContext(ctx, d.reader, &packs, appendListOptionsToSQL(query, opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "listing packs")
+		return nil, ctxerr.Wrap(ctx, err, "listing packs")
 	}
 
 	for _, pack := range packs {
@@ -546,7 +546,7 @@ func (d *Datastore) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pa
 
 	packs := []*fleet.Pack{}
 	if err := sqlx.SelectContext(ctx, d.reader, &packs, query, fleet.TargetLabel, hid, fleet.TargetHost, hid, fleet.TargetTeam, hid); err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "listing hosts in pack")
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts in pack")
 	}
 	return packs, nil
 }

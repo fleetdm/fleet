@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type CarveStore interface {
@@ -414,11 +416,11 @@ type NotFoundError interface {
 }
 
 func IsNotFound(err error) bool {
-	e, ok := err.(NotFoundError)
-	if !ok {
-		return false
+	var nfe NotFoundError
+	if errors.As(err, &nfe) {
+		return nfe.IsNotFound()
 	}
-	return e.IsNotFound()
+	return false
 }
 
 // AlreadyExistsError is returned when creating a datastore resource that already exists.
@@ -434,11 +436,11 @@ type ForeignKeyError interface {
 }
 
 func IsForeignKey(err error) bool {
-	e, ok := err.(ForeignKeyError)
-	if !ok {
-		return false
+	var fke ForeignKeyError
+	if errors.As(err, &fke) {
+		return fke.IsForeignKey()
 	}
-	return e.IsForeignKey()
+	return false
 }
 
 type OptionalArg func() interface{}

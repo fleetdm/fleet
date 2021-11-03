@@ -4,6 +4,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -24,7 +25,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -192,7 +192,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 	if options.replicaConfig != nil {
 		if err := checkConfig(options.replicaConfig); err != nil {
-			return nil, errors.Wrap(err, "replica")
+			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
@@ -270,7 +270,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 		conf.TLSConfig = "custom"
 		err := registerTLS(*conf)
 		if err != nil {
-			return errors.Wrap(err, "register TLS config for mysql")
+			return fmt.Errorf("register TLS config for mysql: %w", err)
 		}
 	}
 	return nil
@@ -291,22 +291,22 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 
 	lastTablesMigration, err := tables.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.Wrap(err, "missing tables migrations")
+		return 0, fmt.Errorf("missing tables migrations: %w", err)
 	}
 
 	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
-		return 0, errors.Wrap(err, "cannot get table migration status")
+		return 0, fmt.Errorf("cannot get table migration status: %w", err)
 	}
 
 	lastDataMigration, err := data.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.Wrap(err, "missing data migrations")
+		return 0, fmt.Errorf("missing data migrations: %w", err)
 	}
 
 	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
-		return 0, errors.Wrap(err, "cannot get data migration status")
+		return 0, fmt.Errorf("cannot get data migration status: %w", err)
 	}
 
 	switch {
@@ -507,7 +507,7 @@ func registerTLS(conf config.MysqlConfig) error {
 		return err
 	}
 	if err := mysql.RegisterTLSConfig(conf.TLSConfig, cfg); err != nil {
-		return errors.Wrap(err, "register mysql tls config")
+		return fmt.Errorf("register mysql tls config: %w", err)
 	}
 	return nil
 }
