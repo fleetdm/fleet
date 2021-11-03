@@ -1711,7 +1711,12 @@
   resolved "https://registry.yarnpkg.com/@types/prettier/-/prettier-2.1.5.tgz#b6ab3bba29e16b821d84e09ecfaded462b816b00"
   integrity sha512-UEyp8LwZ4Dg30kVU2Q3amHHyTn1jEdhCIE59ANed76GaT1Vp76DD3ZWSAxgCrw6wJ0TqeoBpqmfUHiUDPs//HQ==
 
-"@types/prop-types@*", "@types/prop-types@^15.7.3":
+"@types/prop-types@*":
+  version "15.7.4"
+  resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.7.4.tgz#fcf7205c25dff795ee79af1e30da2c9790808f11"
+  integrity sha512-rZ5drC/jWjrArrS8BR6SIr4cWpW09RNTYt9AMZo3Jwwif+iacXAqgVjm0B0Bv/S1jhDXKHqRVNCbACkJ89RAnQ==
+
+"@types/prop-types@^15.7.3":
   version "15.7.3"
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.7.3.tgz#2ab0d5da2e5815f94b0b9d4b95d1e5f243ab2ca7"
   integrity sha512-KfRL3PuHmqQLOG+2tGpRO26Ctg+Cq1E01D2DMriKEATHgWLfeNDmq9e29Q9WIky0dQ3NPkd1mzYH8Lm936Z9qw==
@@ -1759,10 +1764,10 @@
   dependencies:
     "@types/react" "*"
 
-"@types/react-table@^7.0.28":
-  version "7.0.28"
-  resolved "https://registry.yarnpkg.com/@types/react-table/-/react-table-7.0.28.tgz#763383c3e7a285892ee64f311ee97a9c254b2bb0"
-  integrity sha512-crPm70S2KYGj3HJ2zCoeT0t8tdIvKDKCClMd1up3Gi/EDiTZraj3JFUsEL3+oXGSyv+n0EGGAf9a+0XsmdGpXA==
+"@types/react-table@7.7.7":
+  version "7.7.7"
+  resolved "https://registry.yarnpkg.com/@types/react-table/-/react-table-7.7.7.tgz#503be1ce2e06857c11b281629f539358d32671f9"
+  integrity sha512-3l2TP4detx9n5Jt44XhdH7Ku6PYwz6kB83P8W+YcBMUkIHtiw2gsCCcq9c4wyCIcdSwcTlWZ9WqH4PF7Yfbprg==
   dependencies:
     "@types/react" "*"
 
@@ -1780,13 +1785,27 @@
   dependencies:
     react-tooltip "*"
 
-"@types/react@*", "@types/react@^17.0.2":
+"@types/react@*":
+  version "17.0.34"
+  resolved "https://registry.yarnpkg.com/@types/react/-/react-17.0.34.tgz#797b66d359b692e3f19991b6b07e4b0c706c0102"
+  integrity sha512-46FEGrMjc2+8XhHXILr+3+/sTe3OfzSPU9YGKILLrUYbQ1CLQC9Daqo1KzENGXAWwrFwiY0l4ZbF20gRvgpWTg==
+  dependencies:
+    "@types/prop-types" "*"
+    "@types/scheduler" "*"
+    csstype "^3.0.2"
+
+"@types/react@^17.0.2":
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/@types/react/-/react-17.0.2.tgz#3de24c4efef902dd9795a49c75f760cbe4f7a5a8"
   integrity sha512-Xt40xQsrkdvjn1EyWe1Bc0dJLcil/9x2vAuW7ya+PuQip4UYUaXyhzWmAbwRsdMgwOFHpfp7/FFZebDU6Y8VHA==
   dependencies:
     "@types/prop-types" "*"
     csstype "^3.0.2"
+
+"@types/scheduler@*":
+  version "0.16.2"
+  resolved "https://registry.yarnpkg.com/@types/scheduler/-/scheduler-0.16.2.tgz#1a62f89525723dde24ba1b01b092bf5df8ad4d39"
+  integrity sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==
 
 "@types/sinonjs__fake-timers@^6.0.1", "@types/sinonjs__fake-timers@^6.0.2":
   version "6.0.3"
@@ -4670,9 +4689,9 @@ cssstyle@^2.2.0, cssstyle@^2.3.0:
     cssom "~0.3.6"
 
 csstype@^3.0.2:
-  version "3.0.7"
-  resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.0.7.tgz#2a5fb75e1015e84dd15692f71e89a1450290950b"
-  integrity sha512-KxnUB0ZMlnUWCsx2Z8MUsr6qV6ja1w9ArPErJaJaF8a5SOWoHLIszeCTKGRGRgtLgYrs1E8CHkNSP1VZTTPc9g==
+  version "3.0.9"
+  resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.0.9.tgz#6410af31b26bd0520933d02cbc64fce9ce3fbf0b"
+  integrity sha512-rpw6JPxK6Rfg1zLOYCSwle2GFOOsnjmDYDaBwEcwoOg4qlsIVCN789VkBZDJAGi4T07gI4YSutR43t9Zz4Lzuw==
 
 currently-unhandled@^0.4.1:
   version "0.4.1"
@@ -11074,10 +11093,10 @@ react-select@^1:
     prop-types "^15.5.8"
     react-input-autosize "^2.1.2"
 
-react-table@^7.6.3:
-  version "7.6.3"
-  resolved "https://registry.yarnpkg.com/react-table/-/react-table-7.6.3.tgz#76434392b3f62344bdb704f5b227c2f29c1ffb14"
-  integrity sha512-hfPF13zDLxPMpLKzIKCE8RZud9T/XrRTsaCIf8zXpWZIZ2juCl7qrGpo3AQw9eAetXV5DP7s2GDm+hht7qq5Dw==
+react-table@7.7.0:
+  version "7.7.0"
+  resolved "https://registry.yarnpkg.com/react-table/-/react-table-7.7.0.tgz#e2ce14d7fe3a559f7444e9ecfe8231ea8373f912"
+  integrity sha512-jBlj70iBwOTvvImsU9t01LjFjy4sXEtclBovl3mTiqjz23Reu0DKnRza4zlLtOPACx6j2/7MrQIthIK1Wi+LIA==
 
 react-tabs@^3.2.0:
   version "3.2.0"
