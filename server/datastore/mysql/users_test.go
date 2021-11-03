@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -159,9 +160,9 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleMaintainer}},
 	})
-	require.IsType(t, &fleet.Error{}, err)
-	flErr := err.(*fleet.Error)
-	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
+	var ferr *fleet.Error
+	require.True(t, errors.As(err, &ferr))
+	assert.Equal(t, "Cannot specify both Global Role and Team Roles", ferr.Message)
 }
 
 func testUsersList(t *testing.T, ds *Datastore) {

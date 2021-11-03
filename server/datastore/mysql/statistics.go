@@ -29,11 +29,11 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
 			if err != nil {
-				return fleet.StatisticsPayload{}, false, err
+				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "generate random text")
 			}
 			_, err = d.writer.ExecContext(ctx, `INSERT INTO statistics(anonymous_identifier) VALUES (?)`, anonIdentifier)
 			if err != nil {
-				return fleet.StatisticsPayload{}, false, err
+				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "insert statistics")
 			}
 			return fleet.StatisticsPayload{
 				AnonymousIdentifier: anonIdentifier,
@@ -41,7 +41,7 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 				NumHostsEnrolled:    amountEnrolledHosts,
 			}, true, nil
 		}
-		return fleet.StatisticsPayload{}, false, err
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "get statistics")
 	}
 	lastUpdated := dest.UpdatedAt
 	if dest.CreatedAt.After(dest.UpdatedAt) {
@@ -59,5 +59,5 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 
 func (d *Datastore) RecordStatisticsSent(ctx context.Context) error {
 	_, err := d.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
-	return err
+	return ctxerr.Wrap(ctx, err, "update statistics")
 }
