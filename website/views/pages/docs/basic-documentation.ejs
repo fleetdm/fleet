@@ -209,11 +209,11 @@
             )
           ) %>
 
-          <div class="d-block pb-3" purpose="next-steps-buttons" v-if="thisPage.meta.nextStepsHref && thisPage.meta.nextStepsButtonText">
+          <div class="d-block pb-3" purpose="next-steps-buttons" v-if="thisPage.title === 'Learn how to use Fleet'">
             <h2>Next steps</h2>
             <div class="d-sm-flex">
-              <a :href="thisPage.meta.nextStepsHref" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3">
-                {{thisPage.meta.nextStepsButtonText}}
+              <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3">
+                Learn how to deploy Fleet
               </a>
               <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank" class="d-flex btn btn-md btn-outline-secondary btn-slack justify-content-center align-items-center mt-3 mt-sm-0">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
