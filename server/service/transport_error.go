@@ -62,6 +62,8 @@ type existsErrorInterface interface {
 
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
+	ctxerr.Handle(ctx, err)
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
