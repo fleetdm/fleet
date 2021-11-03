@@ -176,7 +176,9 @@ func (svc Service) serialSaveHost(host *fleet.Host) {
 	}()
 	level.Debug(svc.logger).Log("background", newVal)
 
-	err := svc.ds.SerialSaveHost(context.Background(), host)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+	err := svc.ds.SerialSaveHost(ctx, host)
 	if err != nil {
 		level.Debug(svc.logger).Log("background-err", err)
 	}
