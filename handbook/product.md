@@ -361,16 +361,21 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 ### Directly responsible individuals
 
-At Fleet, we belive in the concept of directly responsible individuals (**DRIs**), a person who is singularly responsible for a given aspect of the product. These people will make the final decisions about the part of the product that they're responsible for, and 
+At Fleet we utilize the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the product.
 
-Below is a table of DRIs for aspects of the Fleet product.
+These people will be responsible for ensuring that their team has the resources they need to acomplish their goal, and will make the final decisions about that aspect of the product. 
+
+DRIs help us collaberate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
+
+
+Below is a table of DRIs for aspects of Fleet
 
 |    Aspect              										| DRI     		|
 | ------------------------------------------------------------- | ------------- |
 | Wireframes (figma)	 										| Noah			|
 | How the product works 										| Noah 			|
 | fleetctl CLI interface (and other tools) 						| Tomas 		|
-| REST API interface, REST API docs 							| Luke  		|
+| REST API interface, REST API docs 							| Luke	 		|
 | Terraform, Postman 											| Ben Edwards 	|
 | Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
@@ -384,7 +389,7 @@ Below is a table of DRIs for aspects of the Fleet product.
 | Release notes 												| Noah  		|
 | Publishing release blog post, and promoting releases 			| Mike Thomas  	|
 
-
+>You can read more about in directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 <meta name="maintainedBy" value="mike-j-thomas">
 
