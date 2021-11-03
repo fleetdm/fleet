@@ -1,8 +1,14 @@
-import React, { useContext, useCallback, useEffect, useState } from "react";
+import React, {
+  useContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { push } from "react-router-redux";
-import { memoize, pick } from "lodash";
+import { pick } from "lodash";
 
 import { AppContext } from "context/app";
 import { performanceIndicator } from "fleet/helpers";
@@ -67,10 +73,9 @@ const PLATFORM_FILTER_OPTIONS = [
   },
 ];
 
-const memoizedSqlTables = memoize(sqlTools.parseSqlTables);
 const getPlatforms = (queryString: string): string[] =>
   sqlTools
-    .listCompatiblePlatforms(memoizedSqlTables(queryString))
+    .listCompatiblePlatforms(sqlTools.parseSqlTables(queryString))
     .filter((p: string) => PLATFORMS.includes(p));
 
 const enhanceQuery = (q: IQuery) => {
@@ -99,32 +104,39 @@ const ManageQueriesPage = (): JSX.Element => {
   );
 
   const {
-    data: fleetQueriesByPlatform,
+    data: fleetQueries,
     error: fleetQueriesError,
     isLoading: isLoadingFleetQueries,
     refetch: refetchFleetQueries,
-  } = useQuery<IFleetQueriesResponse, Error, IQueriesByPlatform>(
+  } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
     "fleet queries by platform",
     () => fleetQueriesAPI.loadAll(),
     {
       // refetchOnMount: false,
       // refetchOnReconnect: false,
       // refetchOnWindowFocus: false,
-      select: (data: IFleetQueriesResponse) =>
-        data.queries.reduce(
-          (dictionary: IQueriesByPlatform, q) => {
-            const queryEntry = enhanceQuery(q);
-            dictionary.all.push(queryEntry);
-            queryEntry.platforms.forEach((platform) =>
-              dictionary[platform]?.push(queryEntry)
-            );
-
-            return dictionary;
-          },
-          { all: [], darwin: [], linux: [], windows: [] }
-        ),
+      select: (data: IFleetQueriesResponse) => data.queries,
     }
   );
+
+  const fleetQueriesByPlatform = useMemo(() => {
+    const dictionary: IQueriesByPlatform = {
+      all: [],
+      darwin: [],
+      linux: [],
+      windows: [],
+    };
+    const result = fleetQueries?.reduce((dict: IQueriesByPlatform, q) => {
+      const queryEntry = enhanceQuery(q);
+      dict.all.push(queryEntry);
+      queryEntry.platforms.forEach((platform) =>
+        dict[platform]?.push(queryEntry)
+      );
+      return dict;
+    }, dictionary);
+
+    return result || dictionary;
+  }, [fleetQueries]);
 
   useEffect(() => {
     if (!isLoadingFleetQueries && fleetQueriesByPlatform) {
