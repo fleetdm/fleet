@@ -23,9 +23,11 @@ const TAGGED_TEMPLATES = {
     policyResponse: PolicyResponse,
     teamId: number | undefined | null
   ) => {
-    return `?policy_id=${policyId}&policy_response=${policyResponse}${
-      teamId ? `&team_id=${teamId}` : ""
-    }`;
+    // TODO: Revert this code once fixed on links 11/3/21
+    // return `?policy_id=${policyId}&policy_response=${policyResponse}${
+    //   teamId ? `&team_id=${teamId}` : ""
+    // }`;
+    return `${teamId ? `?team_id=${teamId}` : ""}`;
   },
 };
 interface IHeaderProps {

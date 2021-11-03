@@ -1,13 +1,23 @@
 import React from "react";
 import { noop } from "lodash";
+import paths from "router/paths";
 
 import Button from "components/buttons/Button";
 import { IPolicy } from "interfaces/policy";
+import { ITeam } from "interfaces/team";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
+// @ts-ignore
+import policySvg from "../../../../../../assets/images/no-policy.svg";
 
 const baseClass = "policies-list-wrapper";
 const noPoliciesClass = "no-policies";
+
+const TAGGED_TEMPLATES = {
+  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `&team_id=${teamId}` : ""}`;
+  },
+};
 
 interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
@@ -18,6 +28,7 @@ interface IPoliciesListWrapperProps {
   selectedTeamId?: number | null;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
+  selectedTeamData: ITeam | undefined;
 }
 
 const PoliciesListWrapper = ({
@@ -29,17 +40,53 @@ const PoliciesListWrapper = ({
   selectedTeamId,
   canAddOrRemovePolicy,
   tableType,
+  selectedTeamData,
 }: IPoliciesListWrapperProps): JSX.Element => {
+  const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
+
   const NoPolicies = () => {
     return (
-      <div className={`${noPoliciesClass}`}>
+      <div
+        className={`${noPoliciesClass} ${
+          selectedTeamData?.id && "no-team-policy"
+        }`}
+      >
         <div className={`${noPoliciesClass}__inner`}>
+          <img src={policySvg} alt="No Policies" />
           <div className={`${noPoliciesClass}__inner-text`}>
-            <h2>You don&apos;t have any policies.</h2>
             <p>
-              Policies allow you to monitor which devices meet a certain
-              standard.
+              <b>
+                {selectedTeamData ? (
+                  <>
+                    Ask yes or no questions about hosts assigned to{" "}
+                    <a
+                      href={
+                        MANAGE_HOSTS +
+                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamId)
+                      }
+                    >
+                      {selectedTeamData.name}
+                    </a>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Ask yes or no questions about{" "}
+                    <a href={MANAGE_HOSTS}>all your hosts</a>.
+                  </>
+                )}
+              </b>
             </p>
+            <div className={`${noPoliciesClass}__bullet-text`}>
+              <p>
+                - Verify whether or not your hosts have security features turned
+                on.
+                <br />- Track your efforts to keep installed software up to date
+                on your hosts.
+                <br />- Provide owners with a list of hosts that still need
+                changes.
+              </p>
+            </div>
             {canAddOrRemovePolicy && (
               <div className={`${noPoliciesClass}__-cta-buttons`}>
                 <Button

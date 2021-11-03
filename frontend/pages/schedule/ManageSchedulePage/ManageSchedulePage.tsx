@@ -46,7 +46,8 @@ const renderTable = (
   toggleScheduleEditorModal: () => void,
   teamId: number,
   isTeamMaintainerOrTeamAdmin: boolean,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  selectedTeamData: ITeam | undefined
 ): JSX.Element => {
   if (Object.keys(allScheduledQueriesError).length !== 0) {
     return <TableDataError />;
@@ -61,6 +62,7 @@ const renderTable = (
       teamId={teamId}
       isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
       isOnGlobalTeam={isOnGlobalTeam}
+      selectedTeamData={selectedTeamData}
     />
   );
 };
@@ -70,7 +72,8 @@ const renderAllTeamsTable = (
   allTeamsScheduledQueriesError: { name: string; reason: string }[],
   teamId: number,
   isTeamMaintainerOrTeamAdmin: boolean,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  selectedTeamData: ITeam | undefined
 ): JSX.Element => {
   if (Object.keys(allTeamsScheduledQueriesError).length > 0) {
     return <TableDataError />;
@@ -84,6 +87,7 @@ const renderAllTeamsTable = (
         teamId={teamId}
         isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
         isOnGlobalTeam={isOnGlobalTeam}
+        selectedTeamData={selectedTeamData}
       />
     </div>
   );
@@ -239,6 +243,10 @@ const ManageSchedulePage = ({
   const allTeamsList = Object.values(allTeams.data);
 
   const selectedTeam = isNaN(teamId) ? "global" : teamId;
+
+  const selectedTeamData = allTeamsList.find(
+    (team) => selectedTeam === team.id
+  );
 
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
     false
@@ -512,7 +520,8 @@ const ManageSchedulePage = ({
             toggleScheduleEditorModal,
             teamId,
             isTeamMaintainerOrTeamAdmin,
-            isOnGlobalTeam || false
+            isOnGlobalTeam || false,
+            selectedTeamData
           )}
         </div>
         {/* must use ternary for NaN */}
@@ -548,7 +557,8 @@ const ManageSchedulePage = ({
             allTeamsScheduledQueriesError,
             teamId,
             isTeamMaintainerOrTeamAdmin,
-            isOnGlobalTeam || false
+            isOnGlobalTeam || false,
+            selectedTeamData
           )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal

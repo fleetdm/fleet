@@ -332,6 +332,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const showInheritedPoliciesButton =
     !!selectedTeamId && !!globalPolicies?.length && !isGlobalPoliciesError;
 
+  const selectedTeamData = userTeams?.find(
+    (team) => selectedTeamId === team.id
+  );
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -409,6 +413,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                   currentUser,
                   selectedTeamId
                 )}
+                selectedTeamData={selectedTeamData}
               />
             ))}
           {!selectedTeamId &&
@@ -425,6 +430,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                   currentUser,
                   selectedTeamId
                 )}
+                selectedTeamData={selectedTeamData}
               />
             ))}
         </div>
@@ -467,6 +473,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 selectedTeamId
               )}
               tableType="inheritedPolicies"
+              selectedTeamData={selectedTeamData}
             />
           </div>
         )}
