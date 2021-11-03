@@ -100,6 +100,11 @@ func TestHosts(t *testing.T) {
 }
 
 func testHostsSave(t *testing.T, ds *Datastore) {
+	testSaveHost(t, ds, ds.SaveHost)
+	testSaveHost(t, ds, ds.SerialSaveHost)
+}
+
+func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context, *fleet.Host) error) {
 	policyUpdatedAt := time.Now().UTC().Truncate(time.Second)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -116,7 +121,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host)
 
 	host.Hostname = "bar.local"
-	err = ds.SaveHost(context.Background(), host)
+	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -129,7 +134,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
 
-	require.NoError(t, ds.SaveHost(context.Background(), host))
+	require.NoError(t, saveHostFunc(context.Background(), host))
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host))
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -138,7 +143,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host.Additional)
 	assert.Equal(t, additionalJSON, *host.Additional)
 
-	err = ds.SaveHost(context.Background(), host)
+	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
