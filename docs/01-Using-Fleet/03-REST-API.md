@@ -2089,6 +2089,7 @@ Returns the query specified by ID.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
+    "author_email": "john@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2139,6 +2140,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2169,6 +2171,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2227,6 +2230,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "",
+    "author_email": "",
     "observer_can_run": true,
     "packs": []
   }
@@ -2363,7 +2367,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Runs one or more live queries against the specified hosts and responds with the results 
+Runs one or more live queries against the specified hosts and responds with the results
 over a fixed period of 90 seconds.
 
 WARNING: this endpoint collects responses in memory and the elapsed time is capped at 90 seconds, regardless of whether all results have been gathered or not. This can cause an autoscaling event, depending on the configuration, or the Fleet server crashing.
