@@ -612,7 +612,7 @@ func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	if err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, nodeKey); err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return nil, ctxerr.Wrap(ctx, notFound("Host"), "")
+			return nil, ctxerr.Wrap(ctx, notFound("Host"))
 		default:
 			return nil, ctxerr.Wrap(ctx, err, "find host")
 		}

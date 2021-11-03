@@ -39,7 +39,7 @@ func (d *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 
 	err := sqlx.SelectContext(ctx, d.reader, &activities, query)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Activity"), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select activities")
 	}

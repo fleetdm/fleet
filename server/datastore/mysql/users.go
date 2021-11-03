@@ -76,7 +76,7 @@ func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal in
 	err := sqlx.GetContext(ctx, d.reader, user, sqlStatement, searchVal)
 	if err != nil && err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("User").
-			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal)), "")
+			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal)))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find user")
 	}
@@ -181,7 +181,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		return ctxerr.Wrap(ctx, err, "rows affected save user")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("User").WithID(user.ID), "")
+		return ctxerr.Wrap(ctx, notFound("User").WithID(user.ID))
 	}
 
 	// REVIEW: Check if teams have been set?

@@ -76,7 +76,7 @@ func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	err := sqlx.GetContext(ctx, d.reader, &query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name), "")
+			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
@@ -103,7 +103,7 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	result, err := d.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", 0), "")
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", 0))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
 	}
@@ -130,7 +130,7 @@ func (d *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		return ctxerr.Wrap(ctx, err, "rows affected updating query")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID), "")
+		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
 	}
 
 	return nil

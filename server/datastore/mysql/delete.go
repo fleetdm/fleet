@@ -18,7 +18,7 @@ func (d *Datastore) deleteEntity(ctx context.Context, dbTable entity, id uint) e
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
-		return ctxerr.Wrap(ctx, notFound(dbTable.name).WithID(id), "")
+		return ctxerr.Wrap(ctx, notFound(dbTable.name).WithID(id))
 	}
 	return nil
 }
@@ -30,13 +30,13 @@ func (d *Datastore) deleteEntityByName(ctx context.Context, dbTable entity, name
 	result, err := d.writer.ExecContext(ctx, deleteStmt, name)
 	if err != nil {
 		if isMySQLForeignKey(err) {
-			return ctxerr.Wrap(ctx, foreignKey(dbTable.name, name), "")
+			return ctxerr.Wrap(ctx, foreignKey(dbTable.name, name))
 		}
 		return ctxerr.Wrapf(ctx, err, "delete %s", dbTable)
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
-		return ctxerr.Wrap(ctx, notFound(dbTable.name).WithName(name), "")
+		return ctxerr.Wrap(ctx, notFound(dbTable.name).WithName(name))
 	}
 	return nil
 }

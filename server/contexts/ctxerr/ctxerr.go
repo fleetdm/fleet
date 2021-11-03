@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -72,15 +73,15 @@ func Errorf(ctx context.Context, fmsg string, args ...interface{}) error {
 }
 
 // Wrap annotates err with the provided message.
-func Wrap(ctx context.Context, err error, msg string) error {
+func Wrap(ctx context.Context, err error, msgs ...string) error {
 	err = ensureCommonMetadata(ctx, err)
-	if msg == "" || err == nil {
+	if len(msgs) == 0 || err == nil {
 		return err
 	}
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
 	// actual error condition to capture the stack trace, others just wrap to
 	// annotate the error.
-	return fmt.Errorf("%s: %w", msg, err)
+	return fmt.Errorf("%s: %w", strings.Join(msgs, " "), err)
 }
 
 // Wrapf annotates err with the provided formatted message.

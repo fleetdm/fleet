@@ -28,7 +28,7 @@ func (d *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invi
 		result, err := tx.ExecContext(ctx, sqlStmt, i.InvitedBy, i.Email,
 			i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
 		if err != nil && isDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("Invite", i.Email), "")
+			return ctxerr.Wrap(ctx, alreadyExists("Invite", i.Email))
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "create invite")
 		}
@@ -72,7 +72,7 @@ func (d *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*
 
 	err := sqlx.SelectContext(ctx, d.reader, &invites, query, params...)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Invite"), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Invite"))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select invite by ID")
 	}
@@ -89,7 +89,7 @@ func (d *Datastore) Invite(ctx context.Context, id uint) (*fleet.Invite, error) 
 	var invite fleet.Invite
 	err := sqlx.GetContext(ctx, d.reader, &invite, "SELECT * FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Invite").WithID(id), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Invite").WithID(id))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select invite by ID")
 	}
@@ -107,7 +107,7 @@ func (d *Datastore) InviteByEmail(ctx context.Context, email string) (*fleet.Inv
 	err := sqlx.GetContext(ctx, d.reader, &invite, "SELECT * FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").
-			WithMessage(fmt.Sprintf("with email %s", email)), "")
+			WithMessage(fmt.Sprintf("with email %s", email)))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx get invite by email")
 	}
@@ -125,7 +125,7 @@ func (d *Datastore) InviteByToken(ctx context.Context, token string) (*fleet.Inv
 	err := sqlx.GetContext(ctx, d.reader, &invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").
-			WithMessage(fmt.Sprintf("with token %s", token)), "")
+			WithMessage(fmt.Sprintf("with token %s", token)))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx get invite by token")
 	}

@@ -159,7 +159,7 @@ func (d *Datastore) GetPackSpec(ctx context.Context, name string) (spec *fleet.P
 			return ctxerr.Wrap(ctx, err, "get packs")
 		}
 		if len(specs) == 0 {
-			return ctxerr.Wrap(ctx, notFound("Pack").WithName(name), "")
+			return ctxerr.Wrap(ctx, notFound("Pack").WithName(name))
 		}
 		if len(specs) > 1 {
 			return ctxerr.Errorf(ctx, "expected 1 pack row, got %d", len(specs))
@@ -356,7 +356,7 @@ func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
 			return ctxerr.Wrap(ctx, err, "rows affected updating packs")
 		}
 		if rowsAffected == 0 {
-			return ctxerr.Wrap(ctx, notFound("Pack").WithID(pack.ID), "")
+			return ctxerr.Wrap(ctx, notFound("Pack").WithID(pack.ID))
 		}
 
 		return replacePackTargetsDB(ctx, tx, pack)
@@ -378,7 +378,7 @@ func packDB(ctx context.Context, q sqlx.QueryerContext, pid uint) (*fleet.Pack, 
 	pack := &fleet.Pack{}
 	err := sqlx.GetContext(ctx, q, pack, query, pid)
 	if err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Pack").WithID(pid), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Pack").WithID(pid))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get pack")
 	}

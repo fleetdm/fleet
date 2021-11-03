@@ -105,7 +105,7 @@ func (d *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Sess
 		return ctxerr.Wrap(ctx, err, "rows affected updating mark session accessed")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Session").WithID(session.ID), "")
+		return ctxerr.Wrap(ctx, notFound("Session").WithID(session.ID))
 	}
 	return nil
 }

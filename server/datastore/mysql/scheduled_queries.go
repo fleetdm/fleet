@@ -88,7 +88,7 @@ func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.Sc
 
 	err = sqlx.SelectContext(ctx, q, &metadata, query, sq.QueryID)
 	if err != nil && err == sql.ErrNoRows {
-		return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(sq.QueryID), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(sq.QueryID))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select query by ID")
 	}
@@ -122,7 +122,7 @@ func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *flee
 		return nil, ctxerr.Wrap(ctx, err, "rows affected saving a scheduled query")
 	}
 	if rows == 0 {
-		return nil, ctxerr.Wrap(ctx, notFound("ScheduledQueries").WithID(sq.ID), "")
+		return nil, ctxerr.Wrap(ctx, notFound("ScheduledQueries").WithID(sq.ID))
 	}
 	return sq, nil
 }

@@ -50,24 +50,24 @@ func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
 
-	return ctxerr.Wrap(ctx, d.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 			configBytes,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert app_config_json")
 		}
 
 		if !info.SSOSettings.EnableSSO {
 			_, err = tx.ExecContext(ctx, `UPDATE users SET sso_enabled=false`)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "update users sso")
 			}
 		}
 
 		return nil
-	}), "")
+	})
 }
 
 func (d *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

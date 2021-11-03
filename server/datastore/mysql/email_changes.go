@@ -38,7 +38,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 		err := sqlx.GetContext(ctx, tx, &changeRecord, "SELECT * FROM email_changes WHERE token = ? AND user_id = ?", token, id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, notFound("email change with token"), "")
+				return ctxerr.Wrap(ctx, notFound("email change with token"))
 			}
 			return ctxerr.Wrap(ctx, err, "email change")
 		}
@@ -58,7 +58,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 			return ctxerr.Wrap(ctx, err, "fetching affected rows updating user's email")
 		}
 		if rowsAffected == 0 {
-			return ctxerr.Wrap(ctx, notFound("User").WithID(changeRecord.UserID), "")
+			return ctxerr.Wrap(ctx, notFound("User").WithID(changeRecord.UserID))
 		}
 
 		_, err = tx.ExecContext(ctx, "DELETE FROM email_changes WHERE id = ?", changeRecord.ID)

@@ -148,7 +148,7 @@ WHERE name = ?
 		return nil, ctxerr.Wrap(ctx, err, "get label")
 	}
 	if len(specs) == 0 {
-		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name), "")
+		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
 	}
 	if len(specs) > 1 {
 		return nil, ctxerr.Errorf(ctx, "expected 1 label row, got %d", len(specs))
