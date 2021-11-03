@@ -48,7 +48,7 @@
 //       cy.findByText(/select query/i).should("not.exist");
 //       cy.get(".policies-list-wrapper").within(() => {
 //         cy.findByText(/1 query/i).should("exist");
-//         cy.findByText(/passing/i).should("exist");
+//         cy.findByText(/yes/i).should("exist");
 //         cy.findByText(
 //           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
 //         ).should("exist");
@@ -66,11 +66,11 @@
 //         cy.findByText(
 //           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
 //         ).should("exist");
-//         cy.findByText(/passing/i).should("not.exist");
+//         cy.findByText(/yes/i).should("not.exist");
 //         cy.findByText(/failing/i)
 //           .should("exist")
 //           .click();
-//         cy.findByText(/passing/i).should("exist");
+//         cy.findByText(/yes/i).should("exist");
 //         cy.get('img[alt="Remove policy filter"]').click();
 //         cy.findByText(
 //           /Detect Linux hosts with high severity vulnerable versions of OpenSSL/i
