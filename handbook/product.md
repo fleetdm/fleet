@@ -39,6 +39,38 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+## Directly responsible individuals
+
+At Fleet we utilize the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the product.
+
+These people will be responsible for ensuring that their team has the resources they need to acomplish their goal, and will make the final decisions about that aspect of the product. 
+
+DRIs help us collaberate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
+
+
+Below is a table of DRIs for aspects of Fleet
+
+|    Aspect              										| DRI     		|
+| ------------------------------------------------------------- | ------------- |
+| Wireframes (figma)	 										| Noah			|
+| How the product works 										| Noah 			|
+| fleetctl CLI interface (and other tools) 						| Tomas 		|
+| REST API interface, REST API docs 							| Luke	 		|
+| Terraform, Postman 											| Ben Edwards 	|
+| Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
+| dogfood.fleetdm.com 											| Ben Edwards  	|
+| Quality of core product UI 									| Luke 			|
+| Quality of tickets after Noah's done with them   				| Luke 			|
+| Quality of core product API 									| Tomas 		|
+| Customer deployments like expedia.fleetdm.com 				| Tomas 		|
+| Quality of fleetctl (and other tools)							| Tomas  		|
+| Final cut of what goes into each release 						| Zach 			|
+| When we cut a release, version numbers, and whether to release| Zach 			|
+| Release notes 												| Noah  		|
+| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+
+>You can read more about in directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+
 ## Manual QA
 
 This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
@@ -359,37 +391,6 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
-### Directly responsible individuals
-
-At Fleet we utilize the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the product.
-
-These people will be responsible for ensuring that their team has the resources they need to acomplish their goal, and will make the final decisions about that aspect of the product. 
-
-DRIs help us collaberate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
-
-
-Below is a table of DRIs for aspects of Fleet
-
-|    Aspect              										| DRI     		|
-| ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah			|
-| How the product works 										| Noah 			|
-| fleetctl CLI interface (and other tools) 						| Tomas 		|
-| REST API interface, REST API docs 							| Luke	 		|
-| Terraform, Postman 											| Ben Edwards 	|
-| Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
-| dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke 			|
-| Quality of tickets after Noah's done with them   				| Luke 			|
-| Quality of core product API 									| Tomas 		|
-| Customer deployments like expedia.fleetdm.com 				| Tomas 		|
-| Quality of fleetctl (and other tools)							| Tomas  		|
-| Final cut of what goes into each release 						| Zach 			|
-| When we cut a release, version numbers, and whether to release| Zach 			|
-| Release notes 												| Noah  		|
-| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
-
->You can read more about in directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 <meta name="maintainedBy" value="mike-j-thomas">
 

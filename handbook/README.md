@@ -22,13 +22,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Fleet docs](./product.md#fleet-docs)
 
+[Directly responsible individuals](./product.md#directly-responsible-individuals)
+
 [Manual QA](./product.md#manual-qa)
 
 [Release process](./product.md#release-process)
 
 [Support process](./product.md#support-process)
 
-[Product design](./product.md#product-design)
+[UI design](./product.md#ui-design)
 
 ### Growth
 
