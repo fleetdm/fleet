@@ -362,7 +362,7 @@ There are several locations in Fleet's public and internal documentation that ca
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
 
-## Product Design
+## UI Design
 
 ### Communicating design changes to Engineering
 For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
