@@ -1,0 +1,1 @@
+* Add `author_email` field to the payload returned by get/list query.
