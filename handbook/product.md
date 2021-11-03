@@ -252,6 +252,7 @@ Premium version supported for bug fixes: **Latest version only**
 Premium support for support/troubleshooting: **All versions**
 
 ### Goals
+At Fleet, our primary quality objectives are *defect reduction* and *customer service*. This entails Key Performance Indicators such as number of bugs resolved per cycle and customer response time, among others. 
 
 - Get familiar with and stay abreast of what our community wants and the problems they're having.
 
