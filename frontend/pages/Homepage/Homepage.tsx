@@ -91,17 +91,19 @@ const Homepage = (): JSX.Element => {
           </InfoCard>
         </div>
       )}
-      <div className={`
+      <div
+        className={`
         ${baseClass}__section 
-        ${currentTeam ? 'one' : 'two'}-column
-      `}>
+        ${currentTeam ? "one" : "two"}-column
+      `}
+      >
         {!currentTeam && (
-          <InfoCard 
+          <InfoCard
             title="Software"
-            action={{ 
-              type: "button", 
-              text: "View all software", 
-              onClick: () => setIsSoftwareModalOpen(true)
+            action={{
+              type: "button",
+              text: "View all software",
+              onClick: () => setIsSoftwareModalOpen(true),
             }}
           >
             <Software
