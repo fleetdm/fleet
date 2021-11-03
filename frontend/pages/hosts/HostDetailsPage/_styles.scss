@@ -386,12 +386,15 @@
     .linkToFilteredHosts__header {
       width: 0;
     }
+
     .policy-link img {
       width: 16px;
     }
+
     .table-container__header {
       display: none;
     }
+
     .info-banner {
       margin-bottom: 1rem;
       p {
@@ -402,6 +405,14 @@
         text-decoration: none;
         font-weight: bold;
       }
+    }
+
+    th:first-child {
+      width: 70%;
+    }
+
+    th:nth-last-child(2) {
+      border-right: none !important;
     }
   }
 
