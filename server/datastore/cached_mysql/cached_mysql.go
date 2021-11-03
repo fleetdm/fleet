@@ -65,7 +65,7 @@ func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	ac, err := ds.Datastore.NewAppConfig(ctx, info)
 	if err != nil {
-		return nil, fmt.Errorf("calling new app config: %w", err)
+		return nil, err
 	}
 
 	err = ds.storeInRedis(CacheKeyAppConfig, ac)
@@ -84,7 +84,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 
 	ac, err = ds.Datastore.AppConfig(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("calling app config: %w", err)
+		return nil, err
 	}
 
 	err = ds.storeInRedis(CacheKeyAppConfig, ac)
@@ -95,7 +95,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	err := ds.Datastore.SaveAppConfig(ctx, info)
 	if err != nil {
-		return fmt.Errorf("calling save app config: %w", err)
+		return err
 	}
 
 	return ds.storeInRedis(CacheKeyAppConfig, info)
