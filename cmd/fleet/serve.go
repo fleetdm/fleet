@@ -184,7 +184,9 @@ the way that the Fleet server works.
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"################################################################################\n",
 					os.Args[0])
-
+				if config.Upgrades.ExitIfMigrationsMissing {
+					os.Exit(1)
+				}
 			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+

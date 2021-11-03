@@ -107,7 +107,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Starting Docker containers...")
 			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(),
+				"FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName),
+				"FLEET_UPGRADES_EXIT_IF_MIGRATIONS_MISSING=1",
+			)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))

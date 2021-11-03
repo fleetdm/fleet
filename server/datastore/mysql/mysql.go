@@ -31,10 +31,8 @@ const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 )
 
-var (
-	// Matches all non-word and '-' characters for replacement
-	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
-)
+// Matches all non-word and '-' characters for replacement
+var columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {

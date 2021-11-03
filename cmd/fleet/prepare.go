@@ -13,7 +13,7 @@ import (
 )
 
 func createPrepareCmd(configManager config.Manager) *cobra.Command {
-	var prepareCmd = &cobra.Command{
+	prepareCmd := &cobra.Command{
 		Use:   "prepare",
 		Short: "Subcommands for initializing Fleet infrastructure",
 		Long: `
@@ -30,7 +30,7 @@ To setup Fleet infrastructure, use one of the available commands.
 	// Whether to enable developer options
 	dev := false
 
-	var dbCmd = &cobra.Command{
+	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Given correct database configurations, prepare the databases for use",
 		Long:  ``,
@@ -53,10 +53,11 @@ To setup Fleet infrastructure, use one of the available commands.
 			}
 
 			switch status {
+			case fleet.NoMigrationsCompleted:
+				// OK, from scratch.
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations already completed. Nothing to do.")
 				return
-
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
 					fmt.Printf("################################################################################\n" +
