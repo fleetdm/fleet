@@ -26,9 +26,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Release process](./product.md#release-process)
 
-[Support process](./product.md#release-process)
+[Support process](./product.md#support-process)
 
-[UI design](./product.md#ui-design)
+[Product design](./product.md#product-design)
 
 ### Growth
 
