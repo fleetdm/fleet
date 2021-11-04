@@ -194,11 +194,20 @@ describe(
       // On the Schedule page, they should
       // See Oranges (team they maintain) only, not able to reach packs, able to schedule a query
       cy.visit("/schedule/manage");
-      cy.findByText(/oranges/i).click();
-      cy.findByText(/apples/i).should("not.exist");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findAllByText(/oranges/i).should("exist");
       cy.findByText(/advanced/i).should("not.exist");
       cy.findByRole("button", { name: /schedule a query/i }).click();
-      // TODO: Write e2e test for team maintainer to schedule a query
+      cy.findByText(/select query/i).click();
+      cy.findByText(/detect presence/i).click();
+      cy.get(".schedule-editor-modal__btn-wrap")
+        .contains("button", /schedule/i)
+        .click();
+
+      cy.visit("/schedule/manage");
+
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findByText(/detect presence/i).should("exist");
 
       cy.visit("/hosts/manage");
       cy.contains(".table-container .data-table__table th", "Team").should(
