@@ -14,6 +14,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### People
 
+[Directly responsible individuals](./people.md#directly-resonsible-individuals)
+
 [Spending company money](./people.md#spending-company-money)
 
 [Meetings](./people.md#meetings)
@@ -21,8 +23,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### Product
 
 [Fleet docs](./product.md#fleet-docs)
-
-[Directly responsible individuals](./product.md#directly-responsible-individuals)
 
 [Manual QA](./product.md#manual-qa)
 
