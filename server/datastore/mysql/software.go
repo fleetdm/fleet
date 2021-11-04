@@ -224,6 +224,33 @@ func listSoftwareDB(
 		),
 	)
 
+	if hostID != nil {
+		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
+	}
+	if opts.TeamID != nil {
+		ds = ds.Where(goqu.I("h.team_id").Eq(opts.TeamID))
+	}
+
+	if match := opts.MatchQuery; match != "" {
+		match = likePattern(match)
+		ds = ds.Where(
+			goqu.Or(
+				goqu.I("s.name").ILike(match),
+				goqu.I("s.version").ILike(match),
+			),
+		)
+	}
+
+	ds = ds.GroupBy(
+		goqu.I("s.id"),
+		goqu.I("s.name"),
+		goqu.I("s.version"),
+		goqu.I("s.source"),
+		goqu.I("generated_cpe"),
+	)
+
+	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+
 	if opts.VulnerableOnly {
 		ds = ds.Join(
 			goqu.I("software_cpe").As("scp"),
@@ -242,33 +269,6 @@ func listSoftwareDB(
 			),
 		)
 	}
-
-	if hostID != nil {
-		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
-	}
-	if opts.TeamID != nil {
-		ds = ds.Where(goqu.I("h.team_id").Eq(opts.TeamID))
-	}
-
-	if match := opts.MatchQuery; match != "" {
-		match = likePattern(match)
-		ds = ds.Where(
-			goqu.Or(
-				goqu.I("s.name").Like(match),
-				goqu.I("s.version").Like(match),
-			),
-		)
-	}
-
-	ds = ds.GroupBy(
-		goqu.I("s.id"),
-		goqu.I("s.name"),
-		goqu.I("s.version"),
-		goqu.I("s.source"),
-		goqu.I("generated_cpe"),
-	)
-
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
 	sql, args, err := ds.ToSQL()
 	if err != nil {
