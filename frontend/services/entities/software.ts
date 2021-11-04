@@ -36,8 +36,19 @@ export default {
     const { SOFTWARE } = endpoints;
     const pagination = `page=${page}&per_page=${perPage}`;
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
-    const team = teamId ? `team_id=${teamId}` : "";
-    const path = `${SOFTWARE}?${pagination}&${sort}&${team}&${query}&${vulnerable}`;
+    let path = `${SOFTWARE}?${pagination}&${sort}`;
+
+    if (teamId) {
+      path += `&team_id=${teamId}`;
+    }
+
+    if (query) {
+      path += `&query=${query}`;
+    }
+
+    if (vulnerable) {
+      path += `&vulnerable=${vulnerable}`;
+    }
 
     try {
       const { software }: ISoftwareResponse = await sendRequest("GET", path);
