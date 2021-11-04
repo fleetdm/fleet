@@ -511,7 +511,6 @@ const ManageHostsPage = ({
         queryParams: Object.assign({}, queryParams, {
           policy_id: policyId,
           policy_response: response,
-          team_id: currentTeam?.id,
         }),
       })
     );
