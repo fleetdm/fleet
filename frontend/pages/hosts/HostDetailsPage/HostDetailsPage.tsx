@@ -642,6 +642,7 @@ const HostDetailsPage = ({
               isAllPagesSelected={false}
               disablePagination
               disableCount
+              highlightOnHover
             />
           </>
         )}
@@ -725,6 +726,7 @@ const HostDetailsPage = ({
                 wideSearch
                 filteredCount={softwareState.length}
                 clientSidePagination
+                highlightOnHover
               />
             )}
           </>
