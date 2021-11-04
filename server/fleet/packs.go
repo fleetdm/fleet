@@ -14,7 +14,7 @@ type Pack struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description,omitempty"`
 	Platform    string  `json:"platform,omitempty"`
-	Disabled    bool    `json:"disabled,omitempty"`
+	Disabled    bool    `json:"disabled"`
 	Type        *string `json:"type" db:"pack_type"`
 	LabelIDs    []uint  `json:"label_ids"`
 	HostIDs     []uint  `json:"host_ids"`

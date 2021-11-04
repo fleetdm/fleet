@@ -3013,6 +3013,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
     "id": 17,
     "name": "Title2",
     "description": "MacOS hosts are targeted",
+    "disabled": false,
+    "type": null,
     "query_count": 0,
     "total_hosts_count": 110,
     "host_ids": [],
