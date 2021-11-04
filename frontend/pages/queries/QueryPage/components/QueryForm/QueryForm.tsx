@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
@@ -49,28 +50,6 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
-// This custom hook is adapted from https://github.com/uidotdev/usehooks/blob/master/src/pages/useDebounce.md
-const useDebounce = (value: number | string, delay: number) => {
-  // State and setters for debounced value
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(
-    () => {
-      // Update debounced value after delay
-      const handler = setTimeout(() => {
-        setDebouncedValue(value);
-      }, delay);
-      // Cancel the timeout if value changes (also on delay change or unmount)
-      // This is how we prevent debounced value from updating if value is changed
-      // within the delay period. Timeout gets cleared and restarted.
-      return () => {
-        clearTimeout(handler);
-      };
-    },
-    [value, delay] // Only re-call effect if value or delay changes
-  );
-  return debouncedValue;
-};
-
 const QueryForm = ({
   queryIdForEdit,
   showOpenSchemaActionText,
@@ -111,16 +90,18 @@ const QueryForm = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
-  const debouncedQueryString = useDebounce(lastEditedQueryBody, 250);
-
-  useEffect(
-    () =>
+  const debounceCompatiblePlatforms = useDebouncedCallback(
+    (queryString: string) => {
       setCompatiblePlatforms(
-        listCompatiblePlatforms(parseSqlTables(debouncedQueryString))
-      ),
-
-    [debouncedQueryString]
+        listCompatiblePlatforms(parseSqlTables(queryString))
+      );
+    },
+    300
   );
+
+  useEffect(() => {
+    debounceCompatiblePlatforms(lastEditedQueryBody);
+  }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
