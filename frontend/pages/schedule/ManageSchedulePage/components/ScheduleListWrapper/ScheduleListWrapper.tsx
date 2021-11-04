@@ -20,7 +20,7 @@ import {
   generateDataSet,
 } from "./ScheduleTableConfig";
 // @ts-ignore
-import scheduleSvg from "../../../../../../assets/images/no-schedule.svg";
+import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
