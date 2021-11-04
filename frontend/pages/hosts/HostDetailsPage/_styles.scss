@@ -435,219 +435,219 @@
       width: 70%;
     }
   }
-}
 
-.section--software {
-  th {
-    width: 200px;
-
-    &:first-child {
-      border-right: none;
-      width: 16px;
-      padding-right: 0px;
-    }
-    &:last-child {
+  .section--software {
+    th {
       width: 200px;
-      padding: 0px;
-      overflow: none;
-    }
 
-    &:nth-last-child(2) {
-      border-right: 0 !important;
-    }
-  }
-  tr {
-    td {
       &:first-child {
+        border-right: none;
+        width: 16px;
         padding-right: 0px;
       }
-    }
+      &:last-child {
+        width: 200px;
+        padding: 0px;
+        overflow: none;
+      }
 
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
+      &:nth-last-child(2) {
+        border-right: 0 !important;
+      }
     }
+    tr {
+      td {
+        &:first-child {
+          padding-right: 0px;
+        }
+      }
 
-    .software-link {
-      visibility: hidden;
-      img {
-        vertical-align: text-top;
+      a {
+        font-size: $x-small;
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+        text-decoration: none;
+      }
+
+      .software-link {
+        visibility: hidden;
+        img {
+          vertical-align: text-top;
+        }
+      }
+
+      &:hover {
+        .software-link {
+          visibility: visible;
+          img {
+            width: 16px;
+          }
+        }
       }
     }
 
-    &:hover {
-      .software-link {
-        visibility: visible;
-        img {
-          width: 16px;
+    .data-table__table {
+      table-layout: fixed;
+
+      td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &:last-child {
+          text-overflow: unset;
         }
       }
     }
   }
 
-  .data-table__table {
-    table-layout: fixed;
-
-    td {
-      overflow: hidden;
-      text-overflow: ellipsis;
-
-      &:last-child {
-        text-overflow: unset;
-      }
+  .section--users {
+    .host-details__wrapper {
+      overflow: auto;
     }
   }
-}
 
-.section--users {
-  .host-details__wrapper {
-    overflow: auto;
-  }
-}
-
-tbody {
-  td {
-    padding: 12px 27px;
-    white-space: nowrap;
-  }
-}
-
-&__back-link {
-  display: flex;
-  align-items: center;
-  padding-bottom: $pad-small;
-  height: 16px;
-  font-size: $x-small;
-  color: $core-vibrant-blue;
-  font-weight: $bold;
-  text-decoration: none;
-}
-
-#back-chevron {
-  width: 16px;
-  margin-right: $pad-small;
-}
-
-.accordion {
-  border-radius: 2px;
-}
-
-.accordion__item + .accordion__item {
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.accordion__button {
-  background-color: #fff;
-  color: $core-fleet-black;
-  cursor: pointer;
-  text-align: left;
-  font-size: $x-small;
-  font-weight: bold;
-  border: none;
-  padding: 17px 12px;
-}
-
-.accordion__button:hover {
-  background-color: $ui-vibrant-blue-10;
-}
-
-.accordion__button:after {
-  display: block;
-  content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
-  text-align: center;
-  top: 50%;
-  float: right;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  transform: scale(0.5) translate(-50%, -60%);
-}
-
-.accordion__button[aria-expanded="true"]::after,
-.accordion__button[aria-selected="true"]::after {
-  background-color: $core-vibrant-blue;
-  content: url("../assets/images/icon-accordion-collapse-16x16@2x.png");
-}
-
-[hidden] {
-  display: none;
-}
-
-.accordion__panel {
-  padding: 0;
-  animation: fadein 0.35s ease-in;
-}
-
-/* -------------------------------------------------- */
-/* ---------------- Animation part ------------------ */
-/* -------------------------------------------------- */
-
-@keyframes fadein {
-  0% {
-    opacity: 0;
+  tbody {
+    td {
+      padding: 12px 27px;
+      white-space: nowrap;
+    }
   }
 
-  100% {
-    opacity: 1;
+  &__back-link {
+    display: flex;
+    align-items: center;
+    padding-bottom: $pad-small;
+    height: 16px;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
   }
-}
 
-&__pack-table {
-  .table-container__header {
+  #back-chevron {
+    width: 16px;
+    margin-right: $pad-small;
+  }
+
+  .accordion {
+    border-radius: 2px;
+  }
+
+  .accordion__item + .accordion__item {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .accordion__button {
+    background-color: #fff;
+    color: $core-fleet-black;
+    cursor: pointer;
+    text-align: left;
+    font-size: $x-small;
+    font-weight: bold;
+    border: none;
+    padding: 17px 12px;
+  }
+
+  .accordion__button:hover {
+    background-color: $ui-vibrant-blue-10;
+  }
+
+  .accordion__button:after {
+    display: block;
+    content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
+    text-align: center;
+    top: 50%;
+    float: right;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    transform: scale(0.5) translate(-50%, -60%);
+  }
+
+  .accordion__button[aria-expanded="true"]::after,
+  .accordion__button[aria-selected="true"]::after {
+    background-color: $core-vibrant-blue;
+    content: url("../assets/images/icon-accordion-collapse-16x16@2x.png");
+  }
+
+  [hidden] {
     display: none;
   }
 
-  .data-table__table {
-    table-layout: fixed;
+  .accordion__panel {
+    padding: 0;
+    animation: fadein 0.35s ease-in;
+  }
 
-    thead {
-      // Width for all columns except the "Query name" column
-      // Width calculation adjusts for each row's horizontal padding
-      th {
-        width: calc(200px - 27px * 2);
+  /* -------------------------------------------------- */
+  /* ---------------- Animation part ------------------ */
+  /* -------------------------------------------------- */
+
+  @keyframes fadein {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  &__pack-table {
+    .table-container__header {
+      display: none;
+    }
+
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        // Width for all columns except the "Query name" column
+        // Width calculation adjusts for each row's horizontal padding
+        th {
+          width: calc(200px - 27px * 2);
+        }
+
+        // Width for the "Query name" column
+        th:nth-child(1) {
+          width: auto !important;
+        }
       }
 
-      // Width for the "Query name" column
-      th:nth-child(1) {
-        width: auto !important;
+      tbody {
+        td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      .__react_component_tooltip {
+        text-align: center;
       }
     }
 
-    tbody {
-      td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-    }
-
-    .__react_component_tooltip {
+    .icon-tooltip {
+      display: inline;
+      position: relative;
+      top: 2px;
+      margin-left: $pad-small;
+      font-weight: 400;
       text-align: center;
     }
   }
-
-  .icon-tooltip {
-    display: inline;
-    position: relative;
-    top: 2px;
-    margin-left: $pad-small;
-    font-weight: 400;
-    text-align: center;
+  .tooltip__tooltip-icon {
+    img {
+      vertical-align: middle;
+      height: 16px;
+      width: auto;
+    }
   }
-}
-.tooltip__tooltip-icon {
-  img {
-    vertical-align: middle;
-    height: 16px;
-    width: auto;
+
+  .software-name {
+    margin-left: 8px;
   }
-}
 
-.software-name {
-  margin-left: 8px;
-}
-
-.software-last-used-muted {
-  color: $ui-fleet-black-50;
+  .software-last-used-muted {
+    color: $ui-fleet-black-50;
+  }
 }
