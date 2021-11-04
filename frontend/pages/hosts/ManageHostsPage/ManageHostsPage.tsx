@@ -415,8 +415,6 @@ const ManageHostsPage = ({
   }, [location, labels]);
 
   useDeepEffect(() => {
-    // TODO: Figure out why multiple use deep effects are happening 11/3/21
-    console.log("MULTIPLE USE DEEP EFFECT?");
     // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
@@ -513,6 +511,7 @@ const ManageHostsPage = ({
         queryParams: Object.assign({}, queryParams, {
           policy_id: policyId,
           policy_response: response,
+          team_id: currentTeam?.id,
         }),
       })
     );
@@ -570,7 +569,6 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
-
     router.replace(nextLocation);
   };
 
@@ -667,6 +665,10 @@ const ManageHostsPage = ({
 
     if (teamId) {
       newQueryParams.team_id = teamId;
+    }
+
+    if (queryParams.team_id) {
+      newQueryParams.team_id = queryParams.team_id;
     }
 
     if (policyId) {
