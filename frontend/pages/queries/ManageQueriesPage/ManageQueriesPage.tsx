@@ -120,22 +120,23 @@ const ManageQueriesPage = (): JSX.Element => {
   );
 
   const fleetQueriesByPlatform = useMemo(() => {
-    const dictionary: IQueriesByPlatform = {
+    const emptyDictionary: IQueriesByPlatform = {
       all: [],
       darwin: [],
       linux: [],
       windows: [],
     };
-    const result = fleetQueries?.reduce((dict: IQueriesByPlatform, q) => {
-      const queryEntry = enhanceQuery(q);
-      dict.all.push(queryEntry);
-      queryEntry.platforms.forEach((platform) =>
-        dict[platform]?.push(queryEntry)
-      );
-      return dict;
-    }, dictionary);
+    const queriesByPlatform = fleetQueries?.reduce(
+      (dict: IQueriesByPlatform, q: IQuery) => {
+        const query = enhanceQuery(q);
+        dict.all.push(query);
+        query.platforms.forEach((platform) => dict[platform]?.push(query));
+        return dict;
+      },
+      emptyDictionary
+    );
 
-    return result || dictionary;
+    return queriesByPlatform || emptyDictionary;
   }, [fleetQueries]);
 
   useEffect(() => {
