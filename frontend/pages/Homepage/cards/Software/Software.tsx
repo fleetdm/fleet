@@ -98,6 +98,7 @@ const Software = ({
               isAllPagesSelected={false}
               searchable
               disableActionButton
+              isClientSideSearch
             />
           </>
         </Modal>
