@@ -315,7 +315,7 @@ func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return results, nil
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -367,6 +367,11 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			}
 		}
 
+		// if we are deferring host updates, we return at this point and do the change outside of the tx
+		if deferredSaveHost {
+			return nil
+		}
+
 		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
 		if err != nil {
 			return errors.Wrap(err, "updating hosts label updated at")
@@ -378,6 +383,19 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		return err
 	}
 
+	if deferredSaveHost {
+		errCh := make(chan error)
+		d.writeCh <- itemToWrite{
+			ctx:   ctx,
+			errCh: errCh,
+			item: hostXUpdatedAt{
+				hostID:    host.ID,
+				updatedAt: updated,
+				what:      "label_updated_at",
+			},
+		}
+		return <-errCh
+	}
 	return nil
 }
 

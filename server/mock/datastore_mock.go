@@ -1053,7 +1053,7 @@ func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t)
 }
@@ -1468,7 +1468,7 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
 	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated)
 }

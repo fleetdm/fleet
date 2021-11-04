@@ -43,11 +43,13 @@ func TestLabels(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"AddAllHosts", testLabelsAddAllHosts},
+		{"AddAllHostsDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(true, t, ds) }},
+		{"AddAllHostsNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(true, t, ds) }},
 		{"Search", testLabelsSearch},
 		{"ListHostsInLabel", testLabelsListHostsInLabel},
 		{"ListHostsInLabelAndStatus", testLabelsListHostsInLabelAndStatus},
-		{"ListHostsInLabelAndTeamFilter", testLabelsListHostsInLabelAndTeamFilter},
+		{"ListHostsInLabelAndTeamFilterDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(true, t, ds) }},
+		{"ListHostsInLabelAndTeamFilterNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(false, t, ds) }},
 		{"BuiltIn", testLabelsBuiltIn},
 		{"ListUniqueHostsInLabels", testLabelsListUniqueHostsInLabels},
 		{"ChangeDetails", testLabelsChangeDetails},
@@ -67,7 +69,7 @@ func TestLabels(t *testing.T) {
 	}
 }
 
-func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
+func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 	hosts := []fleet.Host{}
 	var host *fleet.Host
@@ -137,11 +139,9 @@ func testLabelsAddAllHosts(t *testing.T, db *Datastore) {
 	baseTime := time.Now()
 
 	// Record a query execution
-	err = db.RecordLabelQueryExecutions(
-		context.Background(),
-		host, map[uint]*bool{
-			1: ptr.Bool(true), 2: ptr.Bool(false), 3: ptr.Bool(true), 4: ptr.Bool(false), 5: ptr.Bool(false),
-		}, baseTime)
+	err = db.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{
+		1: ptr.Bool(true), 2: ptr.Bool(false), 3: ptr.Bool(true), 4: ptr.Bool(false), 5: ptr.Bool(false),
+	}, baseTime, deferred)
 	assert.Nil(t, err)
 
 	host, err = db.Host(context.Background(), host.ID)
@@ -289,7 +289,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	}
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -357,7 +357,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2, h3} {
-		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		assert.Nil(t, err)
 	}
 
@@ -375,7 +375,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 	}
 }
 
-func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
+func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -419,7 +419,7 @@ func testLabelsListHostsInLabelAndTeamFilter(t *testing.T, db *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, h := range []*fleet.Host{h1, h2} {
-		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), deferred)
 		assert.Nil(t, err)
 	}
 
@@ -493,12 +493,12 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	require.Nil(t, err)
 
 	for i := 0; i < 3; i++ {
-		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now())
+		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		assert.Nil(t, err)
 	}
 	// host 2 executes twice
 	for i := 2; i < len(hosts); i++ {
-		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now())
+		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l2.ID: ptr.Bool(true)}, time.Now(), false)
 		assert.Nil(t, err)
 	}
 
@@ -641,7 +641,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	label.Name = "changed name"
 	label.Description = "changed description"
 
-	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	_, err = db.SaveLabel(context.Background(), label)
 	require.NoError(t, err)
@@ -700,7 +700,7 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1})
 	require.Nil(t, err)
 
-	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
 }
 
 func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
@@ -727,7 +727,7 @@ func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 		label, err = ds.NewLabel(context.Background(), label)
 		require.NoError(t, err)
 
-		require.NoError(t, ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+		require.NoError(t, ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 		return host, label
 	}
 

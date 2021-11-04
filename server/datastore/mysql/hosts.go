@@ -330,6 +330,12 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	if err != nil {
 		return errors.Wrap(err, "deleting host seen times")
 	}
+
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id=?`, hid)
+	if err != nil {
+		return errors.Wrap(err, "deleting host seen times")
+	}
+
 	return nil
 }
 
@@ -944,10 +950,41 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	if !ac.HostExpirySettings.HostExpiryEnabled {
 		return nil
 	}
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))`, ac.HostExpirySettings.HostExpiryWindow)
+
+	// Usual clean up queries used to be like this:
+	// DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
+	// This means a full table scan for hosts, and for big deployments, that's not ideal
+	// so instead, we get the ids one by one and delete things one by one
+	// it might take longer, but it should lock only the row we need
+
+	rows, err := d.writer.QueryContext(
+		ctx,
+		`SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`,
+		ac.HostExpirySettings.HostExpiryWindow,
+	)
 	if err != nil {
-		return errors.Wrap(err, "deleting expired hosts")
+		return errors.Wrap(err, "getting expired host ids")
 	}
+
+	for rows.Next() {
+		var id uint
+		err := rows.Scan(&id)
+		if err != nil {
+			return errors.Wrap(err, "scanning expired host id")
+		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, id)
+		if err != nil {
+			return errors.Wrap(err, "deleting expired hosts")
+		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id = ?`, id)
+		if err != nil {
+			return errors.Wrap(err, "deleting expired host software")
+		}
+		if err := rows.Err(); err != nil {
+			return errors.Wrap(err, "expired hosts, row err")
+		}
+	}
+
 	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
 	if err != nil {
 		return errors.Wrap(err, "deleting expired host seen times")

@@ -230,11 +230,21 @@ type itemToWrite struct {
 	item  interface{}
 }
 
+type hostXUpdatedAt struct {
+	hostID    uint
+	updatedAt time.Time
+	what      string
+}
+
 func (d *Datastore) writeChanLoop() {
 	for item := range d.writeCh {
 		switch actualItem := item.item.(type) {
 		case *fleet.Host:
 			item.errCh <- d.SaveHost(item.ctx, actualItem)
+		case hostXUpdatedAt:
+			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			item.errCh <- errors.Wrap(err, "updating hosts label updated at")
 		}
 	}
 }
