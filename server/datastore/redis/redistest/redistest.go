@@ -12,6 +12,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type nopRedis struct{}
+
+func (nopRedis) Get() redigo.Conn { return nopConn{} }
+
+func (nopRedis) Close() error { return nil }
+
+func (nopRedis) Stats() map[string]redigo.PoolStats { return nil }
+
+func (nopRedis) Mode() fleet.RedisMode { return fleet.RedisStandalone }
+
+type nopConn struct{}
+
+func (nopConn) Close() error                                       { return nil }
+func (nopConn) Err() error                                         { return nil }
+func (nopConn) Do(_ string, _ ...interface{}) (interface{}, error) { return nil, nil }
+func (nopConn) Send(_ string, _ ...interface{}) error              { return nil }
+func (nopConn) Flush() error                                       { return nil }
+func (nopConn) Receive() (interface{}, error)                      { return nil, nil }
+
+func NopRedis() fleet.RedisPool {
+	return nopRedis{}
+}
+
 func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")

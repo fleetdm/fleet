@@ -32,3 +32,6 @@ tmp/
 cypress/screenshots
 cypress/videos
 cypress/downloads
+
+# fleetdm.com website (uses its own formatting conventions)
+website/

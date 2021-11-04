@@ -283,8 +283,7 @@ const WelcomeHost = (): JSX.Element => {
               <p>{currentPolicyShown?.query_description}</p>
               {currentPolicyShown?.resolution && (
                 <p>
-                  <b>Resolve:</b>
-                  {currentPolicyShown.resolution}
+                  <b>Resolve:</b> {currentPolicyShown.resolution}
                 </p>
               )}
               <div className="done">

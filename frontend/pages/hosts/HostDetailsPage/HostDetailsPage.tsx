@@ -172,7 +172,7 @@ const HostDetailsPage = ({
     Error,
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL && isPremiumTier,
+    enabled: !!hostIdFromURL && !!isPremiumTier,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
