@@ -41,35 +41,33 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 ## Directly responsible individuals
 
-At Fleet we utilize the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the product.
+At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.
 
-These people will be responsible for ensuring that their team has the resources they need to acomplish their goal, and will make the final decisions about that aspect of the product. 
+This person is responsible for accomplishing goals and making decisions about a particular aspect of Fleet.
 
-DRIs help us collaberate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
+DRIs help us collaborate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
 
-
-Below is a table of DRIs for aspects of Fleet
+Below is a table of DRIs for aspects of Fleet:
 
 |    Aspect              										| DRI     		|
 | ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah			|
-| How the product works 										| Noah 			|
-| fleetctl CLI interface (and other tools) 						| Tomas 		|
-| REST API interface, REST API docs 							| Luke	 		|
+| Wireframes (figma)	 										| Noah Talerman	|
+| How the product works 										| Noah Talerman |
+| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
+| REST API interface, REST API docs 							| Luke Heath	|
 | Terraform, Postman 											| Ben Edwards 	|
 | Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke 			|
-| Quality of tickets after Noah's done with them   				| Luke 			|
-| Quality of core product API 									| Tomas 		|
-| Customer deployments like expedia.fleetdm.com 				| Tomas 		|
-| Quality of fleetctl (and other tools)							| Tomas  		|
-| Final cut of what goes into each release 						| Zach 			|
-| When we cut a release, version numbers, and whether to release| Zach 			|
-| Release notes 												| Noah  		|
+| Quality of core product UI 									| Luke Heath 	|
+| Quality of tickets after Noah's done with them   				| Luke Heath 	|
+| Quality of core product API 									| Tomás Touceda |
+| Quality of fleetctl (and other tools)							| Tomás Touceda |
+| Final cut of what goes into each release 						| Zach Wasserman|
+| When we cut a release, version numbers, and whether to release| Zach Wasserman|
+| Release notes 												| Noah Talerman |
 | Publishing release blog post, and promoting releases 			| Mike Thomas  	|
 
->You can read more about in directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+>You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 ## Manual QA
 
