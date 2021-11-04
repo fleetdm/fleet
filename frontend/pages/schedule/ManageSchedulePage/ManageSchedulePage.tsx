@@ -148,7 +148,7 @@ const ManageSchedulePage = ({
   const { MANAGE_PACKS } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
-  const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+  const { currentUser, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const isTeamMaintainerOrTeamAdmin = (() => {
     return !!permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, teamId);
@@ -203,10 +203,6 @@ const ManageSchedulePage = ({
         : globalScheduledQueryActions.loadAll()
     );
   }, [dispatch, teamId]);
-
-  const isPremiumTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "premium";
-  });
 
   const user = useSelector(
     (state: IRootState): IUser => {

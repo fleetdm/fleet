@@ -282,6 +282,7 @@ Premium version supported for bug fixes: **Latest version only**
 Premium support for support/troubleshooting: **All versions**
 
 ### Goals
+At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
 
 - Get familiar with and stay abreast of what our community wants and the problems they're having.
 
@@ -390,5 +391,5 @@ We have certain design conventions that we include in Fleet. We will document mo
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="noahtalerman">
 

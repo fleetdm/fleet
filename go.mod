@@ -19,6 +19,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dnaeon/go-vcr/v2 v2.0.1
+	github.com/doug-martin/goqu/v9 v9.18.0 // indirect
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
@@ -28,7 +29,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
 	github.com/google/go-cmp v0.5.6
@@ -59,6 +60,7 @@ require (
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/rotisserie/eris v0.5.1 // indirect
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -71,6 +73,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0

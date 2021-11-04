@@ -161,6 +161,7 @@ const EditPacksPage = ({
     ["all teams"],
     () => teamsAPI.loadAll(),
     {
+      enabled: !!isPremiumTier,
       select: (data: IStoredTeamsResponse) => data.teams,
     }
   );
