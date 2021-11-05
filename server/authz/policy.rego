@@ -16,6 +16,7 @@ write := "write"
 write_role := "write_role"
 run := "run"
 run_new := "run_new"
+write_team_secrets := "write_team_secrets"
 
 # Roles
 admin := "admin"
@@ -70,26 +71,40 @@ allow {
   team_role(subject, object.id) == [admin,maintainer][_]
   action == read
 }
-# or global admins
+# or global admins or global maintainers
 allow {
   object.type == "team"
   object.id != 0
-  subject.global_role == admin
+  subject.global_role == [admin, maintainer][_]
   action == read
 }
 
-# Admin can write teams
+# Admin can write teams and team secrets
 allow {
   object.type == "team"
   subject.global_role == admin
-  action == write
+  action == [write, write_team_secrets][_]
 }
 
-# Team admin can write teams
+# Maintainer can write team secrets
+allow {
+  object.type == "team"
+  subject.global_role == maintainer
+  action == write_team_secrets
+}
+
+# Team admin can write teams and team secrets
 allow {
   object.type == "team"
   team_role(subject, object.id) == admin
-  action == write
+  action == [write, write_team_secrets][_]
+}
+
+# Team maintainer can write team secrets
+allow {
+  object.type == "team"
+  team_role(subject, object.id) == maintainer
+  action == write_team_secrets
 }
 
 ##

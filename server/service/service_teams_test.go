@@ -43,16 +43,22 @@ func TestTeamAuth(t *testing.T) {
 	ds.TeamEnrollSecretsFunc = func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
-	var testCases = []struct {
-		name                  string
-		user                  *fleet.User
-		shouldFailTeamWrite   bool
-		shouldFailGlobalWrite bool
-		shouldFailRead        bool
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name                       string
+		user                       *fleet.User
+		shouldFailTeamWrite        bool
+		shouldFailGlobalWrite      bool
+		shouldFailRead             bool
+		shouldFailTeamSecretsWrite bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
 			false,
 			false,
 			false,
@@ -62,11 +68,13 @@ func TestTeamAuth(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			true,
 			true,
-			true,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
 			true,
 			true,
 			true,
@@ -77,6 +85,7 @@ func TestTeamAuth(t *testing.T) {
 			false,
 			true,
 			false,
+			false,
 		},
 		{
 			"team maintainer, belongs to team",
@@ -84,10 +93,12 @@ func TestTeamAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			false,
 		},
 		{
 			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
 			true,
 			true,
 			true,
@@ -98,6 +109,7 @@ func TestTeamAuth(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -105,10 +117,12 @@ func TestTeamAuth(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
 		},
 		{
 			"team observer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
 			true,
 			true,
 			true,
@@ -123,6 +137,9 @@ func TestTeamAuth(t *testing.T) {
 
 			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Name: ptr.String("othername")})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Secrets: []*fleet.EnrollSecret{{Secret: "foo", CreatedAt: time.Now()}}})
+			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 
 			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
@@ -144,6 +161,9 @@ func TestTeamAuth(t *testing.T) {
 
 			_, err = svc.TeamEnrollSecrets(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "foo", CreatedAt: time.Now()}})
+			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 		})
 	}
 }
