@@ -179,7 +179,8 @@ CREATE TABLE `host_seen_times` (
 CREATE TABLE `host_software` (
   `host_id` int(10) unsigned NOT NULL,
   `software_id` bigint(20) unsigned NOT NULL,
-  PRIMARY KEY (`host_id`,`software_id`)
+  PRIMARY KEY (`host_id`,`software_id`),
+  KEY `host_software_software_fk` (`software_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

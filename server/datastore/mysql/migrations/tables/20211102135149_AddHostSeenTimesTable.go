@@ -51,12 +51,6 @@ func Up_20211102135149(tx *sql.Tx) error {
 			}
 		}
 	}
-	_, err = tx.Exec(`ALTER TABLE host_software DROP KEY host_software_software_fk`)
-	if err != nil {
-		if !strings.Contains(err.Error(), "check that column/key exists") {
-			return errors.Wrapf(err, "dropping fk host_software_software_fk")
-		}
-	}
 
 	return nil
 }
