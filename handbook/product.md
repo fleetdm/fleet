@@ -9,7 +9,7 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | fleetctl CLI interface (and other tools) 						| Tomás Touceda |
 | REST API interface, REST API docs 							| Luke Heath	|
 | Terraform, Postman 											| Ben Edwards 	|
-| Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
+| Customer deployments like acme.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
 | Quality of core product UI 									| Luke Heath 	|
 | Quality of tickets after Noah's done with them   				| Luke Heath 	|
