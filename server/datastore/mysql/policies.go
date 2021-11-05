@@ -99,7 +99,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	}
 
 	if deferredSaveHost {
-		errCh := make(chan error)
+		errCh := make(chan error, 1)
 		defer close(errCh)
 		select {
 		case <-ctx.Done():

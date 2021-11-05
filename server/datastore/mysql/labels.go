@@ -384,7 +384,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 	}
 
 	if deferredSaveHost {
-		errCh := make(chan error)
+		errCh := make(chan error, 1)
 		defer close(errCh)
 		select {
 		case <-ctx.Done():

@@ -68,6 +68,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 
 func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
 	errCh := make(chan error, 1)
+	defer close(errCh)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
