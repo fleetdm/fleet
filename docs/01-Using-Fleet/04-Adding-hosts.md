@@ -1,5 +1,5 @@
 # Adding hosts
-- [Orbit for osquery](#orbit-for-osquery)
+- [fleetctl packagey](#fleetctl-package)
 - [Native osquery TLS plugins](#native-osquery-tls-plugins)
 	- [Set an environment variable with an agent enrollment secret](#set-an-environment-variable-with-an-agent-enrollment-secret)
   - [Deploy the TLS certificate that osquery will use to communicate with Fleet](#deploy-the-tls-certificate-that-osquery-will-use-to-communicate-with-fleet)
@@ -9,18 +9,49 @@
 - [Enrolling multiple macOS hosts](#enrolling-multiple-macos-hosts)
 - [Multiple enroll secrets](#multiple-enroll-secrets)
 
-Fleet is powered by the open source osquery tool. To connect a host to Fleet, you have three general options: 
-- You can use [Orbit for osquery](https://github.com/fleetdm/orbit)
-- You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads
+Fleet is powered by the open source osquery tool. To install osquery and connect a host to Fleet, you have three options: 
+- You can use the `fleetctl package` command to create an osquery installer.
+- You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads.
 - You can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher).
 
-## Orbit for osquery
+## fleetctl package
 
-Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
+You can use the `fleetctl package` command to create a fully bootstraped osquery installer, configured to communicate with your Fleet instance.
 
-Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
+`fleetctl package` can be used to create an osquery installer for macOS (**.pkg**), Windows (**.msi**), and Linux systems (**.deb** or **.rpm**).
 
-Check out the [Orbit Github repository](https://github.com/fleetdm/fleet) for information on using and packaging Orbit for osquery.
+The following command would create an installable `.pkg` file for macOS, located in the folder where the command is run.
+
+```sh
+fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
+```
+  >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance you'll need to specify a `--fleet-url` and `--enroll-secret`
+
+When installing osquery using the generated package, host machines will be automatically enrolled in the specified Fleet instance.
+
+### Configuration
+
+To configure an osquery installer to comminucate with a specific Fleet instance, you can pass in the CLI flags below.
+
+|Flag | Options|
+|------|--------|
+|  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
+|--enroll-secret |      Enroll secret for authenticating to Fleet server |
+|--fleet-url |          URL (`host:port`) of Fleet server |
+|--fleet-certificate |  Path to server cerificate bundle |
+|--identifier |         Identifier for package product (default: `com.fleetdm.orbit`) |
+|--version |            Version for package product (default: `0.0.3`) |
+| --insecure  |             Disable TLS certificate verification (default: `false`) |
+| --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
+|--sign-identity |      Identity to use for macOS codesigning |
+| --notarize |             Whether to notarize macOS packages (default: `false`) |
+|--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
+|--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
+|--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
+|--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
+| --debug     |             Enable debug logging (default: `false`) |
+| --help, -h    |             show help (default: `false`) |
+
 
 ## Native osquery TLS plugins
 
