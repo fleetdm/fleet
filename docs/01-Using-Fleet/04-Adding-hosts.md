@@ -18,7 +18,7 @@ Fleet is powered by the open source osquery tool. To install osquery and connect
 
 You can use the `fleetctl package` command to create a fully bootstraped osquery installer, configured to communicate with your Fleet instance.
 
-`fleetctl package` can be used create an osquery installer for macOS (**.pkg**), Windows (**.msi**), and Linux systems (**.deb** or **.rpm**).
+`fleetctl package` can be used to create an osquery installer for macOS (**.pkg**), Windows (**.msi**), and Linux systems (**.deb** or **.rpm**).
 
 The following command would create an installable `.pkg` file for macOS, located in the folder where you the command is run.
 
