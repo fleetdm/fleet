@@ -10,8 +10,8 @@ module.exports = {
   inputs: {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
-    sender: { required: true, type: {}, example: { login: 'johnabrams7' } },
-    repository: { required: true, type: {}, example: { name: 'fleet', owner: { login: 'fleetdm' } } },
+    sender: { required: true, type: {}, example: {login: 'johnabrams7'} },
+    repository: { required: true, type: {}, example: {name: 'fleet', owner: {login: 'fleetdm'}} },
     changes: { type: {}, description: 'Only present when webhook request is related to an edit on GitHub.' },
     issue: { type: {} },
     comment: { type: {} },
@@ -20,7 +20,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label }) {
+  fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
 
     let GitHub = require('machinepack-github');
 
@@ -54,7 +54,7 @@ module.exports = {
       throw new Error('No GitHub bot webhook secret configured!  (Please set `sails.config.custom.githubBotWebhookSecret`.)');
     }//•
     if (sails.config.custom.githubBotWebhookSecret !== botSignature) {
-      throw new Error('Received unexpected GitHub webhook request with botSignature set to: ' + botSignature);
+      throw new Error('Received unexpected GitHub webhook request with botSignature set to: '+botSignature);
     }//•
 
     if (!sails.config.custom.githubAccessToken) {
@@ -67,7 +67,7 @@ module.exports = {
     let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
     // sails.log(ghNoun, action, {sender, repository, issue, comment, pr, label});
     if (
-      (ghNoun === 'issues' && ['opened', 'reopened'].includes(action))
+      (ghNoun === 'issues' &&        ['opened','reopened'].includes(action))
     ) {
       //  ██╗███████╗███████╗██╗   ██╗███████╗
       //  ██║██╔════╝██╔════╝██║   ██║██╔════╝
@@ -134,7 +134,7 @@ module.exports = {
       // }//ﬁ
 
     } else if (
-      (ghNoun === 'pull_request' && ['opened', 'reopened', 'edited'].includes(action))
+      (ghNoun === 'pull_request' &&  ['opened','reopened','edited'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗
       //  ██╔══██╗██║   ██║██║     ██║         ██╔══██╗██╔════╝██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝
@@ -205,7 +205,7 @@ module.exports = {
       //     });
       //   }//ﬁ
       // }
-    } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr && issueOrPr.state === 'open')) {
+    } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
       //  ██║     ██║   ██║██╔████╔██║██╔████╔██║█████╗  ██╔██╗ ██║   ██║
@@ -227,16 +227,16 @@ module.exports = {
 
       let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
       if (!wasPostedByBot) {
-        let greenLabels = _.filter(issueOrPr.labels, ({ color }) => color === GREEN_LABEL_COLOR);
-        await sails.helpers.flow.simultaneouslyForEach(greenLabels, async (greenLabel) => {
+        let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
+        await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
           await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
         });//∞ß
       }//ﬁ
     } else if (
-      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login)) ||
-      (ghNoun === 'commit_comment' && ['created'].includes(action)) ||
-      (ghNoun === 'label' && ['created', 'edited', 'deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login) ||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
-      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login))
+      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
+      (ghNoun === 'commit_comment' && ['created'].includes(action))||
+      (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
+      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
       //  ██║████╗  ██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║    ██║   ██║██╔════╝
@@ -273,10 +273,10 @@ module.exports = {
               `@${sender.login} just created a zombie comment in a GitHub issue or PR that had already been closed for >7 days (${issueOrPr.html_url}):\n\n> ${comment.html_url}\n\`\`\`\n${comment.body}\n\`\`\``
           )+`\n`
         },
-        { 'Content-Type': 'application/json' }
+        {'Content-Type':'application/json'}
       )
-        .timeout(5000)
-        .retry([{ name: 'TimeoutError' }, 'non200Response', 'requestFailed']);
+      .timeout(5000)
+      .retry([{name: 'TimeoutError'}, 'non200Response', 'requestFailed']);
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
       //  ████╗ ████║██║██╔════╝██╔════╝
