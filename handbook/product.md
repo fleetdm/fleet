@@ -27,7 +27,7 @@ The following highlights should be considered when deciding if feature flags sho
 
 - The feature flag must be disabled by default.
 - The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
-- The feature flag will not be advertised. This includes, and is not limited to, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+- The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
