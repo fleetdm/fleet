@@ -63,6 +63,7 @@ interface ITableContainerProps {
   searchToolTipText?: string;
   isClientSidePagination?: boolean;
   isClientSideSearch?: boolean;
+  highlightOnHover?: boolean;
 }
 
 const baseClass = "table-container";
@@ -110,6 +111,7 @@ const TableContainer = ({
   searchToolTipText,
   isClientSidePagination,
   isClientSideSearch,
+  highlightOnHover,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -324,6 +326,7 @@ const TableContainer = ({
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
               isClientSidePagination={isClientSidePagination}
+              highlightOnHover={highlightOnHover}
             />
             {!disablePagination && !isClientSidePagination && (
               <Pagination
