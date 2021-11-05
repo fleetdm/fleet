@@ -210,7 +210,7 @@
           ) %>
 
           <div class="d-block pb-3" purpose="next-steps-buttons" v-if="thisPage.title === 'Learn how to use Fleet'">
-            <h2>Next steps</h2>
+            <h3 style="font-size: 24px;line-height: 28px;">Next steps</h3>
             <div class="d-sm-flex">
               <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3">
                 Learn how to deploy Fleet
@@ -221,7 +221,7 @@
               </a>
             </div>
           </div>
-          <div class="d-block">
+          <div class="d-block" v-else>
             <h3 class="pb-4 m-0">Is there something missing?</h3>
             <p>
               If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath">here</a> to edit this page.
