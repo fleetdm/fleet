@@ -136,6 +136,7 @@ const PackQueriesListWrapper = ({
           searchable
           disablePagination
           isAllPagesSelected={false}
+          isClientSideSearch
         />
       )}
     </div>

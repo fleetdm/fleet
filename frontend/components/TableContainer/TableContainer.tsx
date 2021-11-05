@@ -61,7 +61,8 @@ interface ITableContainerProps {
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
-  clientSidePagination?: boolean;
+  isClientSidePagination?: boolean;
+  isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
 }
 
@@ -108,7 +109,8 @@ const TableContainer = ({
   onSelectSingleRow,
   filteredCount,
   searchToolTipText,
-  clientSidePagination,
+  isClientSidePagination,
+  isClientSideSearch,
   highlightOnHover,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -172,7 +174,7 @@ const TableContainer = ({
 
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
-      if (!hasPageIndexChangedRef.current) {
+      if (!hasPageIndexChangedRef.current && !isClientSideSearch) {
         const updateQueryData = {
           ...queryData,
           pageIndex: 0,
@@ -323,10 +325,10 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
-              clientSidePagination={clientSidePagination}
+              isClientSidePagination={isClientSidePagination}
               highlightOnHover={highlightOnHover}
             />
-            {!disablePagination && !clientSidePagination && (
+            {!disablePagination && !isClientSidePagination && (
               <Pagination
                 resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}

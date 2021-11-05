@@ -106,6 +106,7 @@ const QueriesListWrapper = ({
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
         customControl={customControl}
+        isClientSideSearch
       />
     </div>
   ) : null;
