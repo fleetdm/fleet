@@ -20,7 +20,7 @@ You can use the `fleetctl package` command to create a fully bootstraped osquery
 
 `fleetctl package` can be used to create an osquery installer for macOS (**.pkg**), Windows (**.msi**), and Linux systems (**.deb** or **.rpm**).
 
-The following command would create an installable `.pkg` file for macOS, located in the folder where you the command is run.
+The following command would create an installable `.pkg` file for macOS, located in the folder where the command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
