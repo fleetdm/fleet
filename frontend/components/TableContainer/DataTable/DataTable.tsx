@@ -43,7 +43,7 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
-  clientSidePagination?: boolean;
+  isClientSidePagination?: boolean;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -70,7 +70,7 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   onSelectSingleRow,
-  clientSidePagination,
+  isClientSidePagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -288,7 +288,7 @@ const DataTable = ({
     showMarkAllPages &&
     !isAllPagesSelected;
 
-  const pageOrRows = clientSidePagination ? page : rows;
+  const pageOrRows = isClientSidePagination ? page : rows;
 
   useEffect(() => {
     setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
@@ -396,7 +396,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {clientSidePagination && (
+      {isClientSidePagination && (
         <div className={`${baseClass}__pagination`}>
           <Button
             variant="unstyled"

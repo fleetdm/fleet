@@ -678,7 +678,8 @@ const HostDetailsPage = ({
               searchable
               wideSearch
               filteredCount={usersState.length}
-              clientSidePagination
+              isClientSidePagination
+              isClientSideSearch
             />
           )}
         </div>
@@ -724,7 +725,8 @@ const HostDetailsPage = ({
                 searchable
                 wideSearch
                 filteredCount={softwareState.length}
-                clientSidePagination
+                isClientSidePagination
+                isClientSideSearch
               />
             )}
           </>
