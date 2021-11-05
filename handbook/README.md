@@ -22,6 +22,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
+[Product DRIs](./product.md#product-dris)
+
 [Fleet docs](./product.md#fleet-docs)
 
 [Manual QA](./product.md#manual-qa)
