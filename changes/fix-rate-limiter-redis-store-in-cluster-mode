@@ -1,1 +1,0 @@
-* Fix the rate limiter Redis store when using Redis Cluster.

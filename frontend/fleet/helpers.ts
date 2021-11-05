@@ -689,7 +689,8 @@ const getSortedTeamOptions = memoize((teams: ITeam[]) =>
 export const generateTeamFilterDropdownOptions = (
   teams: ITeam[],
   currentUser: IUser | null,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  hideAllTeamsOption: boolean
 ) => {
   let currentUserTeams: ITeam[] = [];
   if (isOnGlobalTeam) {
@@ -698,7 +699,7 @@ export const generateTeamFilterDropdownOptions = (
     currentUserTeams = currentUser.teams;
   }
 
-  const allTeamsOption = [
+  const allTeamOption = [
     {
       disabled: false,
       label: "All teams",
@@ -708,7 +709,9 @@ export const generateTeamFilterDropdownOptions = (
 
   const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
 
-  return allTeamsOption.concat(sortedCurrentUserTeamOptions);
+  return !hideAllTeamsOption
+    ? allTeamOption.concat(sortedCurrentUserTeamOptions)
+    : sortedCurrentUserTeamOptions;
 };
 
 export const getValidatedTeamId = (

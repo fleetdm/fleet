@@ -16,14 +16,17 @@ import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/host_policy";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
+import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/loaders/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal"; // @ts-ignore
-import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount"; // @ts-ignore
+import Modal from "components/modals/Modal";
+import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner";
 
@@ -42,7 +45,8 @@ import {
   humanHostMemory,
   humanHostDetailUpdated,
   secondsToHms,
-} from "fleet/helpers"; // @ts-ignore
+} from "fleet/helpers";
+// @ts-ignore
 import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
 import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
@@ -97,9 +101,22 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
+    currentUser,
   } = useContext(AppContext);
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+
+  const canDeleteHost = (user: IUser, host: IHost) => {
+    if (
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      permissionUtils.isTeamAdmin(user, host.team_id) ||
+      permissionUtils.isTeamMaintainer(user, host.team_id)
+    ) {
+      return true;
+    }
+    return false;
+  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
     false
@@ -155,7 +172,7 @@ const HostDetailsPage = ({
     Error,
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL && canTransferTeam,
+    enabled: !!hostIdFromURL && !!isPremiumTier,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -474,7 +491,7 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {!isOnlyObserver && (
+        {currentUser && host && canDeleteHost(currentUser, host) && (
           <Button
             onClick={() => setShowDeleteHostModal(true)}
             variant="text-icon"

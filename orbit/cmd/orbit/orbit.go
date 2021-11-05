@@ -115,7 +115,7 @@ func main() {
 
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
 		if logfile := c.String("log-file"); logfile != "" {
-			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND, 0o600)
+			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 			if err != nil {
 				return errors.Wrap(err, "open logfile")
 			}

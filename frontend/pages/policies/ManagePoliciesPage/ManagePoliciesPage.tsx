@@ -59,7 +59,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const {
     config,
     currentUser,
-    isAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
@@ -67,9 +67,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
-  const { isTeamMaintainer } = permissionsUtils;
+  const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer(user, teamId);
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamAdmin(user, teamId);
 
   const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
     enabled: !!isPremiumTier,
@@ -287,7 +290,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
     // so a falsiness check cannot be used here. Null case here allows us to skip API call.
     if (selectedTeamId !== null) {
-      if (isOnGlobalTeam || isAnyTeamMaintainer) {
+      if (isOnGlobalTeam || isAnyTeamMaintainerOrTeamAdmin) {
         getGlobalPolicies();
       }
       if (selectedTeamId) {
@@ -297,7 +300,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   }, [
     getGlobalPolicies,
     getTeamPolicies,
-    isAnyTeamMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
     isOnGlobalTeam,
     selectedTeamId,
   ]);

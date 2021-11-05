@@ -356,6 +356,19 @@ The database to use when connecting to the Redis instance.
     database: 14
   ```
 
+##### redis_use_tls
+
+Use a TLS connection to the Redis server.
+
+- Default value: `false`
+- Environment variable: `FLEET_REDIS_USE_TLS`
+- Config file format:
+
+  ```
+  redis:
+    use_tls: true
+  ```
+
 ##### redis_duplicate_results
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
@@ -470,7 +483,6 @@ The path to a PEM-encoded private key used for tls authentication.
 ##### redis_tls_ca
 
 The path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
-Required to use TLS connections.
 
 - Default value: none
 - Environment variable: `FLEET_REDIS_TLS_CA`
@@ -557,6 +569,21 @@ Maximum amount of time a Redis connection may stay idle. A value of 0 means no l
   ```
   redis:
   	idle_timeout: 5m
+  ```
+
+##### redis_conn_wait_timeout
+
+Maximum amount of time to wait for a Redis connection if the max_open_conns
+limit is reached. A value of 0 means no wait. This is ignored if Redis is not
+running in cluster mode.
+
+- Default value: 0
+- Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	conn_wait_timeout: 1s
   ```
 
 #### Server
@@ -863,7 +890,7 @@ Valid time units are `s`, `m`, `h`.
 
 Which log output plugin should be used for osquery status logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -878,7 +905,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout
 
 Which log output plugin should be used for osquery result logs received from clients.
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -905,6 +932,136 @@ to the amount of time it takes for fleet to give the host the label queries.
   ```
   osquery:
   	max_jitter_percent: 10
+  ```
+
+##### osquery_enable_async_host_processing
+
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution results. This may improve performance and CPU usage of the fleet instances and MySQL database servers for setups with a large number of hosts (100 000+), while requiring more resources from Redis server(s). Using Redis Cluster is recommended to enable this mode.
+
+- Default value: false
+- Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
+- Config file format:
+
+  ```
+  osquery:
+  	enable_async_host_processing: true
+  ```
+
+##### osquery_async_host_collect_interval
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+
+- Default value: 30s
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_interval: 1m
+  ```
+
+##### osquery_async_host_collect_max_jitter_percent
+
+Applies only when `osquery_enable_async_host_processing` is enabled. A number interpreted as a percentage of `osquery_async_host_collect_interval` to add to (or remove from) the interval so that not all hosts try to do the collection at the same time.
+
+- Default value: 10
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_MAX_JITTER_PERCENT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_max_jitter_percent: 5
+  ```
+
+##### osquery_async_host_collect_lock_timeout
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another fleet instance can proceed with the next collection.
+
+- Default value: 1m
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_lock_timeout: 5m
+  ```
+
+##### osquery_async_host_collect_log_stats_interval
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Interval at which the host collection statistics are logged, 0 to disable logging of statistics. Note that logging is done at the "debug" level.
+
+- Default value: 1m
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOG_STATS_INTERVAL`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_collect_log_stats_interval: 5m
+  ```
+
+##### osquery_async_host_insert_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the INSERT batch when collecting host data into the database.
+
+- Default value: 2000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_INSERT_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_insert_batch: 1000
+  ```
+
+##### osquery_async_host_delete_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the DELETE batch when collecting host data into the database.
+
+- Default value: 2000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_DELETE_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_delete_batch: 1000
+  ```
+
+##### osquery_async_host_update_batch
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Size of the UPDATE batch when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_UPDATE_BATCH`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_update_batch: 500
+  ```
+
+##### osquery_async_host_redis_pop_count
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Maximum number of items to pop from a redis key at a time when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_POP_COUNT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_redis_pop_count: 500
+  ```
+
+##### osquery_async_host_redis_scan_keys_count
+
+Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of keys to scan in a single SCAN request for keys to process when collecting host data into the database.
+
+- Default value: 1000
+- Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
+- Config file format:
+
+  ```
+  osquery:
+  	async_host_redis_scan_keys_count: 100
   ```
 
 #### Logging (Fleet server logging)
@@ -946,6 +1103,20 @@ Whether or not to log the welcome banner.
   ```
   logging:
   	disable_banner: true
+  ```
+
+##### logging_error_retention_period
+
+The amount of time to keep an error. Unique instances of errors are stored temporarily to help
+with troubleshooting, this setting controls that duration.
+
+- Default value: 24h
+- Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
+- Config file format:
+
+  ```
+  logging:
+  	error_retention_period: 1h
   ```
 
 #### Filesystem
@@ -1413,6 +1584,68 @@ This feature is useful when combined with [subscription filters](https://cloud.g
     status_topic: osquery_status
   ```
 
+#### Kafka Rest Proxy Logging
+
+##### kafkarest_proxyhost
+
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+
+The URL of the host which to check for the topic existence and post messages to the specified topic.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_PROXYHOST`
+- Config file format:
+
+  ```
+  kafkarest:
+    proxyhost: "https://localhost:8443"
+  ```
+
+##### kafkarest_status_topic
+
+This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_STATUS_TOPIC`
+- Config file format:
+
+  ```
+  kafkarest:
+    status_topic: osquery_status
+  ```
+
+##### kafkarest_result_topic
+
+This flag only has effect if `osquery_result_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_RESULT_TOPIC`
+- Config file format:
+
+  ```
+  kafkarest:
+    status_topic: osquery_result
+  ```
+
+##### kafkarest_timeout
+
+This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+
+The timeout value for the http post attempt.  Value is in units of seconds.
+
+- Default value: 5
+- Environment variable: `FLEET_KAFKAREST_TIMEOUT`
+- Config file format:
+
+  ```
+  kafkarest:
+    timeout: 5
+  ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -1536,7 +1769,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-- Default value: 
+- Default value:
 - Environment variable: `FLEET_S3_REGION`
 - Config file format:
 

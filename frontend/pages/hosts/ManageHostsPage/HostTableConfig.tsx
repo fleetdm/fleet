@@ -322,7 +322,11 @@ const generateAvailableTableHeaders = (
         // In premium tier, we want to check user role to enable/disable select column
         !permissionUtils.isGlobalAdmin(currentUser) &&
         !permissionUtils.isGlobalMaintainer(currentUser) &&
-        !permissionUtils.isTeamMaintainer(currentUser, currentTeam?.id || null)
+        !permissionUtils.isTeamMaintainer(
+          currentUser,
+          currentTeam?.id || null
+        ) &&
+        !permissionUtils.isTeamAdmin(currentUser, currentTeam?.id || null)
       ) {
         if (currentColumn.id === "selection") {
           return columns;

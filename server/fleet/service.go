@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/kolide/kit/version"
@@ -14,8 +15,15 @@ type OsqueryService interface {
 	) (nodeKey string, err error)
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
-	// GetDistributedQueries retrieves the distributed queries to run for the host in the provided context. These may be
-	// detail queries, label queries, or user-initiated distributed queries. A map from query name to query is returned.
+	// GetDistributedQueries retrieves the distributed queries to run for the host in
+	// the provided context. These may be (depending on update intervals):
+	//	- detail queries (including additional queries, if any),
+	//	- label queries,
+	//	- user-initiated distributed queries (aka live queries),
+	//	- policy queries.
+	//
+	// A map from query name to query is returned.
+	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
 	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
@@ -213,6 +221,10 @@ type Service interface {
 	// Note that the type signature is somewhat inconsistent due to this being a streaming API and not the typical
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
+
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService

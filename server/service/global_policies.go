@@ -37,7 +37,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, queryID uint, resolution
 		return nil, err
 	}
 
-	return svc.ds.NewGlobalPolicy(ctx, queryID, "")
+	return svc.ds.NewGlobalPolicy(ctx, queryID, resolution)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

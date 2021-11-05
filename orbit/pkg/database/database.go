@@ -1,6 +1,7 @@
 package database
 
 import (
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
@@ -8,18 +9,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	compactionInterval = 5 * time.Minute
-	// This is the discard ratio recommended in Badger docs
-	// (https://pkg.go.dev/github.com/dgraph-io/badger#DB.RunValueLogGC)
-	compactionDiscardRatio = 0.5
-)
+// This is the discard ratio recommended in Badger docs
+// (https://pkg.go.dev/github.com/dgraph-io/badger#DB.RunValueLogGC)
+const compactionDiscardRatio = 0.5
+
+var compactionInterval = 5 * time.Minute
 
 // BadgerDB is a wrapper around the standard badger.DB that provides a
 // background compaction routine.
 type BadgerDB struct {
 	*badger.DB
 	closeChan chan struct{}
+	m         sync.Mutex // synchronizes start/stop compaction.
 }
 
 // Open opens (initializing if necessary) a Badger database at the specified
@@ -62,6 +63,9 @@ func OpenTruncate(path string) (*BadgerDB, error) {
 // compaction method on the database. Badger does not do this automatically, so
 // we need to be sure to do so here (or elsewhere).
 func (b *BadgerDB) startBackgroundCompaction() {
+	b.m.Lock()
+	defer b.m.Unlock()
+
 	if b.closeChan != nil {
 		panic("background compaction already running")
 	}
@@ -74,10 +78,14 @@ func (b *BadgerDB) startBackgroundCompaction() {
 			select {
 			case <-b.closeChan:
 				return
-
 			case <-ticker.C:
-				if err := b.DB.RunValueLogGC(compactionDiscardRatio); err != nil && !errors.Is(err, badger.ErrNoRewrite) {
-					log.Error().Err(err).Msg("compact badger")
+				err := b.DB.RunValueLogGC(compactionDiscardRatio)
+				if err == nil || errors.Is(err, badger.ErrNoRewrite) {
+					continue
+				}
+				log.Error().Err(err).Msg("compact badger")
+				if errors.Is(err, badger.ErrDBClosed) {
+					return
 				}
 			}
 		}
@@ -86,8 +94,13 @@ func (b *BadgerDB) startBackgroundCompaction() {
 
 // stopBackgroundCompaction stops the background compaction routine.
 func (b *BadgerDB) stopBackgroundCompaction() {
-	b.closeChan <- struct{}{}
-	b.closeChan = nil
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	if b.closeChan != nil {
+		b.closeChan <- struct{}{}
+		b.closeChan = nil
+	}
 }
 
 // Close closes the database connection and releases the associated resources.

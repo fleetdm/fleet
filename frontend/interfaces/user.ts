@@ -7,6 +7,7 @@ export default PropTypes.shape({
   id: PropTypes.number,
   name: PropTypes.string,
   email: PropTypes.string,
+  role: PropTypes.string,
   force_password_reset: PropTypes.bool,
   gravatar_url: PropTypes.string,
   sso_enabled: PropTypes.bool,
@@ -21,6 +22,7 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
+  role: string;
   force_password_reset: boolean;
   gravatar_url: string;
   sso_enabled: boolean;
@@ -38,4 +40,11 @@ export interface IUserUpdateBody {
   name?: string;
   email?: string;
   sso_enabled?: boolean;
+}
+
+export interface IUserFormErrors {
+  email: string | null;
+  name: string | null;
+  password: string | null;
+  sso_enabled: boolean | null;
 }

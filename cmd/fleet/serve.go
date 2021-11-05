@@ -4,16 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/url"
-
-	"github.com/e-dard/netbug"
-	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
-
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -21,23 +15,30 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-
 	"github.com/WatchBeam/clock"
+	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -220,6 +221,7 @@ the way that the Fleet server works.
 				MaxOpenConns:              config.Redis.MaxOpenConns,
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
+				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -242,7 +244,19 @@ the way that the Fleet server works.
 				initFatal(err, "initializing osquery logging")
 			}
 
-			svc, err := service.NewService(ds, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			task := &async.Task{
+				Datastore:          ds,
+				Pool:               redisPool,
+				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
+				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
+				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
+				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
+				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
+				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
+				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
+				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
+			}
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -254,7 +268,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, kitlog.With(logger, "component", "crons"), config)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config)
 
 			// Flush seen hosts every second
 			go func() {
@@ -334,6 +348,11 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
+			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
 			rootMux.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
@@ -341,7 +360,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -377,14 +396,41 @@ the way that the Fleet server works.
 				rootMux = prefixMux
 			}
 
+			liveQueryRestPeriod := 90 * time.Second // default (see #1798)
+			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
+				duration, err := time.ParseDuration(v)
+				if err != nil {
+					level.Error(logger).Log("live_query_rest_period_err", err)
+				} else {
+					liveQueryRestPeriod = duration
+				}
+			}
+
+			defaultWritetimeout := 40 * time.Second
+			writeTimeout := defaultWritetimeout
+			// The "GET /api/v1/fleet/queries/run" API requires
+			// WriteTimeout to be higher than the live query rest period
+			// (otherwise the response is not sent back to the client).
+			//
+			// We add 10s to the live query rest period to allow the writing
+			// of the response.
+			liveQueryRestPeriod += 10 * time.Second
+			if liveQueryRestPeriod > writeTimeout {
+				writeTimeout = liveQueryRestPeriod
+			}
+
+			httpSrvCtx := ctxerr.NewContext(ctx, eh)
 			srv := &http.Server{
 				Addr:              config.Server.Address,
 				Handler:           launcher.Handler(rootMux),
 				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      40 * time.Second,
+				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
+				BaseContext: func(l net.Listener) context.Context {
+					return httpSrvCtx
+				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
@@ -404,11 +450,12 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig //block on signal
+				<-sig // block on signal
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
 					cancelBackground()
+					cancelFunc()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()
@@ -456,13 +503,17 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
+
+	// StartCollectors starts a goroutine per collector, using ctx to cancel.
+	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
+		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
 	go cronVulnerabilities(

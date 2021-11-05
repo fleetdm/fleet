@@ -27,5 +27,9 @@
         "debugAdapter": "legacy",
         "substitutePath": []
     },
-    "go.testTimeout": "60s"
+    "go.testTimeout": "60s",
+    "html.format.templating": true,
+    "html.format.wrapAttributes": "preserve",
+    "html.format.wrapLineLength": 0,
+    "prettier.requireConfig": true
 }

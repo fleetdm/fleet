@@ -88,7 +88,7 @@ func TestToTLSConfig(t *testing.T) {
 		in          TLS
 		errContains string
 	}{
-		{"zero", TLS{}, "no such file"},
+		{"zero", TLS{}, ""},
 		{"invalid file", TLS{TLSCA: "/no/such/file"}, "no such file"},
 		{"CA", TLS{TLSCA: caFile}, ""},
 		{"invalid CA content", TLS{TLSCA: garbageFile}, "failed to append PEM"},
@@ -113,8 +113,12 @@ func TestToTLSConfig(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, got)
 
-			// root ca is required
-			require.NotNil(t, got.RootCAs)
+			// root ca is required if TLSCA is set
+			if c.in.TLSCA != "" {
+				require.NotNil(t, got.RootCAs)
+			} else {
+				require.Nil(t, got.RootCAs)
+			}
 			require.Equal(t, got.ServerName, c.in.TLSServerName)
 			if c.in.TLSCert != "" {
 				require.Len(t, got.Certificates, 1)

@@ -75,6 +75,8 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
+type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
+
 type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
 
 type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
@@ -128,6 +130,12 @@ type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilt
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
 type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
+
+type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
+
+type AsyncBatchDeleteLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
+
+type AsyncBatchUpdateLabelTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
 
 type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
 
@@ -406,6 +414,9 @@ type DataStore struct {
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
 
+	DistributedQueryCampaignsForQueryFunc        DistributedQueryCampaignsForQueryFunc
+	DistributedQueryCampaignsForQueryFuncInvoked bool
+
 	ApplyPackSpecsFunc        ApplyPackSpecsFunc
 	ApplyPackSpecsFuncInvoked bool
 
@@ -486,6 +497,15 @@ type DataStore struct {
 
 	LabelIDsByNameFunc        LabelIDsByNameFunc
 	LabelIDsByNameFuncInvoked bool
+
+	AsyncBatchInsertLabelMembershipFunc        AsyncBatchInsertLabelMembershipFunc
+	AsyncBatchInsertLabelMembershipFuncInvoked bool
+
+	AsyncBatchDeleteLabelMembershipFunc        AsyncBatchDeleteLabelMembershipFunc
+	AsyncBatchDeleteLabelMembershipFuncInvoked bool
+
+	AsyncBatchUpdateLabelTimestampFunc        AsyncBatchUpdateLabelTimestampFunc
+	AsyncBatchUpdateLabelTimestampFuncInvoked bool
 
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
@@ -918,6 +938,11 @@ func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
 }
 
+func (s *DataStore) DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error) {
+	s.DistributedQueryCampaignsForQueryFuncInvoked = true
+	return s.DistributedQueryCampaignsForQueryFunc(ctx, queryID)
+}
+
 func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
 	s.ApplyPackSpecsFuncInvoked = true
 	return s.ApplyPackSpecsFunc(ctx, specs)
@@ -1051,6 +1076,21 @@ func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
 	s.LabelIDsByNameFuncInvoked = true
 	return s.LabelIDsByNameFunc(ctx, labels)
+}
+
+func (s *DataStore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
+	s.AsyncBatchInsertLabelMembershipFuncInvoked = true
+	return s.AsyncBatchInsertLabelMembershipFunc(ctx, batch)
+}
+
+func (s *DataStore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
+	s.AsyncBatchDeleteLabelMembershipFuncInvoked = true
+	return s.AsyncBatchDeleteLabelMembershipFunc(ctx, batch)
+}
+
+func (s *DataStore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	s.AsyncBatchUpdateLabelTimestampFuncInvoked = true
+	return s.AsyncBatchUpdateLabelTimestampFunc(ctx, ids, ts)
 }
 
 func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {

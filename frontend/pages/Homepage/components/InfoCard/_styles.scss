@@ -1,0 +1,31 @@
+.homepage-info-card {
+  padding: 32px;
+  width: 100%;
+  background-color: $core-white;
+  border: 1px solid $ui-fleet-blue-15;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 0 $ui-fleet-blue-15;
+  box-sizing: border-box;
+
+  &__section-title {
+    display: flex;
+    justify-content: space-between;
+
+    h2 {
+      font-weight: $bold;
+    }
+  }
+
+  &__action-button {
+    display: flex;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none !important;
+  }
+
+  #link-arrow {
+    transform: scale(0.5);
+  }
+}

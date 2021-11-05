@@ -60,10 +60,11 @@
 
         &:first-child {
           border-top-left-radius: 6px;
+          padding: $pad-medium 17px;
         }
 
         &.selection__header {
-          width: 20px;
+          width: 1px;
         }
 
         &:last-child {
@@ -142,9 +143,14 @@
 
     tbody {
       td {
-        padding: 0px 27px;
+        padding: 0 27px;
         white-space: nowrap;
         height: 40px;
+
+        &:first-child {
+          padding: 0 17px;
+          width: 1px;
+        }
 
         // form-field wraps the dropdown menu
         .form-field {
