@@ -385,7 +385,11 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 
 	if deferredSaveHost {
 		errCh := make(chan error)
-		d.writeCh <- itemToWrite{
+		defer close(errCh)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case d.writeCh <- itemToWrite{
 			ctx:   ctx,
 			errCh: errCh,
 			item: hostXUpdatedAt{
@@ -393,8 +397,9 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 				updatedAt: updated,
 				what:      "label_updated_at",
 			},
+		}:
+			return <-errCh
 		}
-		return <-errCh
 	}
 	return nil
 }

@@ -180,7 +180,7 @@ func (svc Service) serialSaveHost(host *fleet.Host) {
 	defer cancelFunc()
 	err := svc.ds.SerialSaveHost(ctx, host)
 	if err != nil {
-		level.Debug(svc.logger).Log("background-err", err)
+		level.Error(svc.logger).Log("background-err", err)
 	}
 }
 

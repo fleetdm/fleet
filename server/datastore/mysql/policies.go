@@ -100,7 +100,11 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 
 	if deferredSaveHost {
 		errCh := make(chan error)
-		ds.writeCh <- itemToWrite{
+		defer close(errCh)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ds.writeCh <- itemToWrite{
 			ctx:   ctx,
 			errCh: errCh,
 			item: hostXUpdatedAt{
@@ -108,8 +112,9 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 				updatedAt: updated,
 				what:      "policy_updated_at",
 			},
+		}:
+			return <-errCh
 		}
-		return <-errCh
 	}
 	return nil
 }

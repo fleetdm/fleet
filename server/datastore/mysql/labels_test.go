@@ -44,7 +44,7 @@ func TestLabels(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"AddAllHostsDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(true, t, ds) }},
-		{"AddAllHostsNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(true, t, ds) }},
+		{"AddAllHostsNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(false, t, ds) }},
 		{"Search", testLabelsSearch},
 		{"ListHostsInLabel", testLabelsListHostsInLabel},
 		{"ListHostsInLabelAndStatus", testLabelsListHostsInLabelAndStatus},

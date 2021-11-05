@@ -76,12 +76,7 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 		errCh: errCh,
 		item:  host,
 	}:
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-errCh:
-			return err
-		}
+		return <-errCh
 	}
 }
 
@@ -965,6 +960,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "getting expired host ids")
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id uint
@@ -980,9 +976,9 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "deleting expired host software")
 		}
-		if err := rows.Err(); err != nil {
-			return errors.Wrap(err, "expired hosts, row err")
-		}
+	}
+	if err := rows.Err(); err != nil {
+		return errors.Wrap(err, "expired hosts, row err")
 	}
 
 	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)

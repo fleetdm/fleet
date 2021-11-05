@@ -2,6 +2,8 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -11,6 +13,8 @@ func init() {
 }
 
 func Up_20211102135149(tx *sql.Tx) error {
+	// Detach seen_times from hosts to allow for bulk updates without locking the hosts table
+	// See https://github.com/fleetdm/fleet/issues/2776
 	hostSeenTimesTable := `
 		CREATE TABLE IF NOT EXISTS host_seen_times (
 			host_id int(10) UNSIGNED NOT NULL,
@@ -29,6 +33,29 @@ func Up_20211102135149(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(`ALTER TABLE hosts DROP COLUMN seen_time`); err != nil {
 		return errors.Wrap(err, "dropping host seen_times")
+	}
+
+	referencedTables := map[string]struct{}{"hosts": {}, "software": {}}
+	table := "host_software"
+
+	constraints, err := constraintsForTable(tx, table, referencedTables)
+	if err != nil {
+		return err
+	}
+
+	for _, constraint := range constraints {
+		_, err = tx.Exec(fmt.Sprintf(`ALTER TABLE host_software DROP FOREIGN KEY %s;`, constraint))
+		if err != nil {
+			if !strings.Contains(err.Error(), "check that column/key exists") {
+				return errors.Wrapf(err, "dropping fk %s", constraint)
+			}
+		}
+	}
+	_, err = tx.Exec(`ALTER TABLE host_software DROP KEY host_software_software_fk`)
+	if err != nil {
+		if !strings.Contains(err.Error(), "check that column/key exists") {
+			return errors.Wrapf(err, "dropping fk host_software_software_fk")
+		}
 	}
 
 	return nil
