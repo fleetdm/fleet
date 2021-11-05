@@ -21,7 +21,7 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | Publishing release blog post, and promoting releases 			| Mike Thomas  	|
 
 ## Feature flags
-In Fleet, features are placed behind flags if the changes could affect Fleet's availability of existing functionalities.
+In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
 
 The following highlights should be considered when deciding if feature flags should be leveraged:
 
