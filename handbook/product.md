@@ -1,3 +1,24 @@
+## Product DRIs
+
+Below is a table of [directly responsible individuals (DRIs)](./people.md#directly-resonsible-individuals) for aspects of the Fleet product:
+
+|    Aspect              										| DRI     		|
+| ------------------------------------------------------------- | ------------- |
+| Wireframes (figma)	 										| Noah Talerman	|
+| How the product works 										| Noah Talerman |
+| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
+| REST API interface, REST API docs 							| Luke Heath	|
+| Terraform, Postman 											| Ben Edwards 	|
+| Customer deployments like expedia.fleetdm.com 				| Ben Edwards 	|
+| dogfood.fleetdm.com 											| Ben Edwards  	|
+| Quality of core product UI 									| Luke Heath 	|
+| Quality of tickets after Noah's done with them   				| Luke Heath 	|
+| Quality of core product API 									| Tomás Touceda |
+| Quality of fleetctl (and other tools)							| Tomás Touceda |
+| Final cut of what goes into each release 						| Zach Wasserman|
+| When we cut a release, version numbers, and whether to release| Zach Wasserman|
+| Release notes 												| Noah Talerman |
+| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
 
 ## Fleet docs
 
@@ -359,7 +380,6 @@ We have certain design conventions that we include in Fleet. We will document mo
 **Table empty states**
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
-
 
 
 <meta name="maintainedBy" value="noahtalerman">
