@@ -138,9 +138,6 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Name: ptr.String("othername")})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Secrets: []*fleet.EnrollSecret{{Secret: "foo", CreatedAt: time.Now()}}})
-			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
-
 			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
