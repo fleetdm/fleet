@@ -1105,6 +1105,20 @@ Whether or not to log the welcome banner.
   	disable_banner: true
   ```
 
+##### logging_error_retention_period
+
+The amount of time to keep an error. Unique instances of errors are stored temporarily to help
+with troubleshooting, this setting controls that duration.
+
+- Default value: 24h
+- Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
+- Config file format:
+
+  ```
+  logging:
+  	error_retention_period: 1h
+  ```
+
 #### Filesystem
 
 ##### filesystem_status_log_file

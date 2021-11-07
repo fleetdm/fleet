@@ -630,6 +630,7 @@ export class UserManagementPage extends Component {
             resultsTitle={"users"}
             emptyComponent={EmptyUsers}
             searchable
+            isClientSideSearch
           />
         )}
         {renderCreateUserModal()}

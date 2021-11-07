@@ -14,11 +14,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### People
 
+[Directly responsible individuals](./people.md#directly-resonsible-individuals)
+
 [Spending company money](./people.md#spending-company-money)
 
 [Meetings](./people.md#meetings)
 
 ### Product
+
+[Product DRIs](./product.md#product-dris)
 
 [Fleet docs](./product.md#fleet-docs)
 
@@ -26,7 +30,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Release process](./product.md#release-process)
 
-[Support process](./product.md#release-process)
+[Support process](./product.md#support-process)
 
 [UI design](./product.md#ui-design)
 

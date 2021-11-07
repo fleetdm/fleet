@@ -1,3 +1,12 @@
+## Directly responsible individuals
+
+At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.
+
+This person is responsible for accomplishing goals and making decisions about a particular aspect of Fleet.
+
+DRIs help us collaborate efficiently by knowing exactly who is responsible, and can make decisions about the work they're doing.
+
+>You can read more about directly responsible individuals in [Gitlab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 
 ## Spending company money
 As we continue to expand our own company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.

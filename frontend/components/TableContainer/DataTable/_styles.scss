@@ -53,6 +53,16 @@
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
 
+      img {
+        width: 16px;
+        height: 16px;
+        vertical-align: sub;
+      }
+
+      .header-icon-text {
+        margin-left: 10px;
+      }
+
       th {
         padding: $pad-medium 27px;
         white-space: nowrap;
@@ -208,8 +218,8 @@
         border-radius: 100%;
         content: " ";
         display: inline-block;
-        height: 8px;
         margin-right: $pad-small;
+        height: 8px;
         width: 8px;
         margin-bottom: 1px;
       }
@@ -223,6 +233,20 @@
       &--disabled:before,
       &--mia:before {
         background-color: $ui-offline;
+      }
+
+      &--yes:before {
+        padding-right: 10px;
+        content: url(../assets/images/icon-check-circle-green-16x16@2x.png);
+        transform: scale(0.5);
+        vertical-align: text-top;
+      }
+
+      &--no:before {
+        padding-right: 10px;
+        content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
+        transform: scale(0.5);
+        vertical-align: text-top;
       }
 
       &--mia {

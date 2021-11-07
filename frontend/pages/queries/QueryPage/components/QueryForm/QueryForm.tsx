@@ -1,7 +1,8 @@
-import React, { useState, useRef, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
@@ -20,6 +21,7 @@ import NewQueryModal from "../NewQueryModal";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
+import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 const baseClass = "query-form";
 
@@ -88,10 +90,17 @@ const QueryForm = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
+  const debounceCompatiblePlatforms = useDebouncedCallback(
+    (queryString: string) => {
+      setCompatiblePlatforms(
+        listCompatiblePlatforms(parseSqlTables(queryString))
+      );
+    },
+    300
+  );
+
   useEffect(() => {
-    setCompatiblePlatforms(
-      listCompatiblePlatforms(parseSqlTables(lastEditedQueryBody))
-    );
+    debounceCompatiblePlatforms(lastEditedQueryBody);
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -176,6 +185,16 @@ const QueryForm = ({
   };
 
   const renderPlatformCompatibility = () => {
+    const displayOrder = ["macOS", "Windows", "Linux"];
+
+    const displayIncompatibilityText = () => {
+      if (compatiblePlatforms[0] === "Invalid query") {
+        return "No platforms (check your query for a possible syntax error)";
+      } else if (compatiblePlatforms[0] === "None") {
+        return "No platforms (check your query for invalid tables or tables that are supported on different platforms)";
+      }
+    };
+
     const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
       switch (string) {
         case "darwin":
@@ -188,23 +207,54 @@ const QueryForm = ({
           return string;
       }
     });
-    const displayOrder = ["macOS", "Windows", "Linux"];
 
     return (
       <span className={`${baseClass}__platform-compatibility`}>
         <b>Compatible with:</b>
-        {displayOrder.map((platform) => {
-          const isCompatible = displayFormattedPlatforms.includes(platform);
-          return (
-            <span key={`platform-compatibility__${platform}`}>
-              {platform}{" "}
-              <img
-                alt={isCompatible ? "compatible" : "incompatible"}
-                src={isCompatible ? CompatibleIcon : IncompatibleIcon}
-              />
+        <span className={`tooltip`}>
+          <span
+            className={`tooltip__tooltip-icon`}
+            data-tip
+            data-for="query-compatibility-tooltip"
+            data-tip-disable={false}
+          >
+            <img alt="question icon" src={QuestionIcon} />
+          </span>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="query-compatibility-tooltip"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              Estimated compatiblity
+              <br />
+              based on the tables used
+              <br />
+              in the query
             </span>
-          );
-        })}
+          </ReactTooltip>
+        </span>
+        {displayIncompatibilityText() ||
+          displayOrder.map((platform) => {
+            const isCompatible =
+              displayFormattedPlatforms.includes(platform) ||
+              displayFormattedPlatforms[0] === "No tables in query AST"; // If query has no tables but is still syntatically valid sql, we treat it as compatible with all platforms
+            return (
+              <span
+                key={`platform-compatibility__${platform}`}
+                className="platform"
+              >
+                {platform}{" "}
+                <img
+                  alt={isCompatible ? "compatible" : "incompatible"}
+                  src={isCompatible ? CompatibleIcon : IncompatibleIcon}
+                />
+              </span>
+            );
+          })}
       </span>
     );
   };

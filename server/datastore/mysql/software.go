@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -200,58 +202,136 @@ func insertNewInstalledHostSoftwareDB(
 	return nil
 }
 
-func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	hostWhere := `hs.host_id=?`
-	if hostID == nil {
-		hostWhere = "TRUE"
+var dialect = goqu.Dialect("mysql")
+
+// listSoftwareDB returns all the software installed in the given hostID and list options.
+// If hostID is nil, then the method will look into the installed software of all hosts.
+func listSoftwareDB(
+	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
+) ([]fleet.Software, error) {
+	ds := dialect.From(goqu.I("host_software").As("hs")).SelectDistinct(
+		"s.*",
+		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+	).Join(
+		goqu.I("hosts").As("h"),
+		goqu.On(
+			goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+		),
+	).Join(
+		goqu.I("software").As("s"),
+		goqu.On(
+			goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+		),
+	)
+
+	if hostID != nil {
+		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
 	}
-	teamWhere := `h.team_id=?`
-	if opt.TeamID == nil {
-		teamWhere = "TRUE"
+	if opts.TeamID != nil {
+		ds = ds.Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
-	vulnerableJoin := "LEFT JOIN software_cpe scp ON (s.id=scp.software_id)"
-	if opt.VulnerableOnly {
-		vulnerableJoin = `JOIN software_cpe scp ON (s.id=scp.software_id)
-		JOIN software_cve scv ON (scp.id=scv.cpe_id)`
+
+	if match := opts.MatchQuery; match != "" {
+		match = likePattern(match)
+		ds = ds.Where(
+			goqu.Or(
+				goqu.I("s.name").ILike(match),
+				goqu.I("s.version").ILike(match),
+			),
+		)
 	}
-	sql := fmt.Sprintf(`
-		SELECT DISTINCT s.*, coalesce(scp.cpe, "") as generated_cpe
-		FROM host_software hs
-		JOIN hosts h ON (hs.host_id=h.id)
-		JOIN software s ON (hs.software_id=s.id)
-		%s
-		WHERE %s AND %s
-	`, vulnerableJoin, hostWhere, teamWhere)
+
+	ds = ds.GroupBy(
+		goqu.I("s.id"),
+		goqu.I("s.name"),
+		goqu.I("s.version"),
+		goqu.I("s.source"),
+		goqu.I("generated_cpe"),
+	)
+
+	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+
+	if opts.VulnerableOnly {
+		ds = ds.Join(
+			goqu.I("software_cpe").As("scp"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			),
+		).Join(
+			goqu.I("software_cve").As("scv"),
+			goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+		)
+	} else {
+		ds = ds.LeftJoin(
+			goqu.I("software_cpe").As("scp"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			),
+		)
+	}
+
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, errors.Wrap(err, "sql build")
+	}
 
 	var result []fleet.Software
-	vars := []interface{}{}
-	if hostID != nil {
-		vars = append(vars, hostID)
-	}
-	if opt.TeamID != nil {
-		vars = append(vars, opt.TeamID)
-	}
-	sql, listVars := searchLike(sql, vars, opt.MatchQuery, "s.name", "s.version")
-	sql += ` GROUP BY s.id, s.name, s.version, s.source, generated_cpe `
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
-	if err := sqlx.SelectContext(ctx, q, &result, sql, listVars...); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
 
-	if opt.SkipLoadingCVEs {
+	if opts.SkipLoadingCVEs {
 		return result, nil
 	}
 
-	sql = fmt.Sprintf(`
-		SELECT DISTINCT hs.software_id, scv.cve
-		FROM host_software hs
-		JOIN hosts h ON (hs.host_id=h.id)
-		JOIN software_cpe scp ON (hs.software_id=scp.software_id)
-		JOIN software_cve scv ON (scp.id=scv.cpe_id)
-		WHERE %s AND %s
-	`, hostWhere, teamWhere)
+	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "load CVEs by software")
+	}
+	for i := range result {
+		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+	}
+	return result, nil
+}
 
-	rows, err := q.QueryxContext(ctx, sql, vars...)
+// loadCVEsbySoftware loads all the CVEs on software installed on the given hostID and list options.
+// If hostID is nil, then the method will look into the installed software of all hosts.
+func loadCVEsBySoftware(
+	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opt fleet.SoftwareListOptions,
+) (map[uint]fleet.VulnerabilitiesSlice, error) {
+	ds := dialect.From(goqu.I("host_software").As("hs")).SelectDistinct(
+		goqu.I("hs.software_id"),
+		goqu.I("scv.cve"),
+	).Join(
+		goqu.I("hosts").As("h"),
+		goqu.On(
+			goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+		),
+	).Join(
+		goqu.I("software_cpe").As("scp"),
+		goqu.On(
+			goqu.I("hs.software_id").Eq(goqu.I("scp.software_id")),
+		),
+	).Join(
+		goqu.I("software_cve").As("scv"),
+		goqu.On(
+			goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
+		),
+	)
+
+	if hostID != nil {
+		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
+	}
+	if opt.TeamID != nil {
+		ds = ds.Where(goqu.I("h.team_id").Eq(opt.TeamID))
+	}
+
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, errors.Wrap(err, "sql2 build")
+	}
+
+	rows, err := q.QueryxContext(ctx, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "load host software")
 	}
@@ -272,14 +352,7 @@ func listSoftwareDB(ctx context.Context, q sqlx.QueryerContext, hostID *uint, op
 	if err := rows.Err(); err != nil {
 		return nil, errors.Wrap(err, "error iterating through cve rows")
 	}
-
-	var resultWithCVEs []fleet.Software
-	for _, software := range result {
-		software.Vulnerabilities = cvesBySoftware[software.ID]
-		resultWithCVEs = append(resultWithCVEs, software)
-	}
-
-	return resultWithCVEs, nil
+	return cvesBySoftware, nil
 }
 
 func (d *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {

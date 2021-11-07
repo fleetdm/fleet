@@ -116,20 +116,34 @@
     b,
     img,
     span {
-      display: inline-flex;
+      display: flex;
       align-items: center;
     }
 
-    b,
-    span {
-      padding-right: $pad-small;
-      margin-right: $pad-xsmall;
+    b {
+      padding-right: $pad-xsmall;
     }
 
     img {
       height: 16px;
       width: auto;
       padding-left: $pad-xsmall;
+    }
+
+    .tooltip {
+      padding-right: 12px;
+
+      img {
+        padding: 0px;
+      }
+
+      &__tooltip-text {
+        text-align: center;
+      }
+    }
+
+    .platform {
+      padding-right: 12px;
     }
   }
 }

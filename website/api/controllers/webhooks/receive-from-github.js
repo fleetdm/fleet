@@ -44,7 +44,7 @@ module.exports = {
       'eashaw',
       'drewbakerfdm'
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'rlynnj11';// « Used below
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');

@@ -172,7 +172,7 @@ const HostDetailsPage = ({
     Error,
     ITeam[]
   >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL && isPremiumTier,
+    enabled: !!hostIdFromURL && !!isPremiumTier,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -642,6 +642,7 @@ const HostDetailsPage = ({
               isAllPagesSelected={false}
               disablePagination
               disableCount
+              highlightOnHover
             />
           </>
         )}
@@ -678,7 +679,8 @@ const HostDetailsPage = ({
               searchable
               wideSearch
               filteredCount={usersState.length}
-              clientSidePagination
+              isClientSidePagination
+              isClientSideSearch
             />
           )}
         </div>
@@ -724,7 +726,9 @@ const HostDetailsPage = ({
                 searchable
                 wideSearch
                 filteredCount={softwareState.length}
-                clientSidePagination
+                isClientSidePagination
+                isClientSideSearch
+                highlightOnHover
               />
             )}
           </>

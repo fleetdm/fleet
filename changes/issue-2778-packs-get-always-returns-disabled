@@ -1,0 +1,1 @@
+* `GET /api/v1/fleet/packs/{id}` fixed to always return the `disabled` field.
