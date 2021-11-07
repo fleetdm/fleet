@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/go-tuf/data"
@@ -82,6 +86,21 @@ func TestUpdatesInit(t *testing.T) {
 	require.Error(t, runUpdatesCommand("init", "--path", tmpDir))
 }
 
+func TestUpdatesErrorInvalidPassphrase(t *testing.T) {
+	// Not t.Parallel() due to modifications to environment.
+	tmpDir := t.TempDir()
+
+	setPassphrases(t)
+
+	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
+
+	// Should not be able to add with invalid passphrase
+	require.NoError(t, os.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "invalid"))
+	// Reset the cache that already has correct passwords stored
+	passHandler = newPassphraseHandler()
+	require.Error(t, runUpdatesCommand("add", "--path", tmpDir, "--target", "anything", "--platform", "windows", "--name", "test", "--version", "1.3.4.7"))
+}
+
 func TestUpdatesInitKeysInitializedError(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir := t.TempDir()
@@ -101,6 +120,13 @@ func assertFileExists(t *testing.T, path string) {
 	assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
 }
 
+func assertVersion(t *testing.T, expected int, versionFunc func() (int, error)) {
+	t.Helper()
+	actual, err := versionFunc()
+	require.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func TestUpdatesIntegration(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir := t.TempDir()
@@ -109,8 +135,12 @@ func TestUpdatesIntegration(t *testing.T) {
 
 	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
 
+	// Run an HTTP server to serve the update metadata
+	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(tmpDir, "repository"))))
+	defer server.Close()
+
 	// Capture stdout while running the updates roots command
-	func() {
+	getRoots := func() string {
 		stdout := os.Stdout
 		defer func() { os.Stdout = stdout }()
 
@@ -130,23 +160,113 @@ func TestUpdatesIntegration(t *testing.T) {
 		require.Len(t, keys, 1)
 		assert.Greater(t, len(keys[0].IDs()), 0)
 		assert.Equal(t, "ed25519", keys[0].Type)
-	}()
 
-	testPath := filepath.Join(tmpDir, "test")
-	require.NoError(t, ioutil.WriteFile(testPath, []byte("test"), os.ModePerm))
+		return string(out)
+	}
+	roots := getRoots()
+
+	// Initialize an update client
+	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
+	require.NoError(t, err)
+	client, err := update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	require.NoError(t, err)
+	require.NoError(t, client.UpdateMetadata())
+	_, err = client.Lookup("any", "target")
+	require.Error(t, err, "lookup should fail before targets added")
+
+	repo, err := openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 1, repo.RootVersion)
+	assertVersion(t, 1, repo.TargetsVersion)
+	assertVersion(t, 1, repo.SnapshotVersion)
+	assertVersion(t, 1, repo.TimestampVersion)
+
+	// Add some targets
+	// Use the current binary for this test so that it is a binary that is valid for execution on
+	// the current system.
+	testPath, err := os.Executable()
+	require.NoError(t, err)
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "linux", "--name", "test", "--version", "1.3.3.7"))
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "macos", "--name", "test", "--version", "1.3.3.7"))
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
-
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "linux", "1.3.3.7", "test"))
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "macos", "1.3.3.7", "test"))
 	assertFileExists(t, filepath.Join(tmpDir, "repository", "targets", "test", "windows", "1.3.3.7", "test"))
 
+	// Verify the client can look up and download the updates
+	require.NoError(t, client.UpdateMetadata())
+	targets, err := client.Targets()
+	require.NoError(t, err)
+	assert.Len(t, targets, 3)
+	_, err = client.Get("test", "1.3.3.7")
+	require.NoError(t, err)
+
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 1, repo.RootVersion)
+	assertVersion(t, 4, repo.TargetsVersion)
+	assertVersion(t, 4, repo.SnapshotVersion)
+	assertVersion(t, 4, repo.TimestampVersion)
+
 	require.NoError(t, runUpdatesCommand("timestamp", "--path", tmpDir))
 
-	// Should not be able to add with invalid passphrase
-	require.NoError(t, os.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "invalid"))
-	// Reset the cache that already has correct passwords stored
-	passHandler = newPassphraseHandler()
-	require.Error(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.4.7"))
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 1, repo.RootVersion)
+	assertVersion(t, 4, repo.TargetsVersion)
+	assertVersion(t, 4, repo.SnapshotVersion)
+	assertVersion(t, 5, repo.TimestampVersion)
+
+	// Rotate root
+	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "root"))
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 2, repo.RootVersion)
+	assertVersion(t, 5, repo.TargetsVersion)
+	assertVersion(t, 5, repo.SnapshotVersion)
+	assertVersion(t, 6, repo.TimestampVersion)
+
+	// Rotate targets
+	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "targets"))
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 3, repo.RootVersion)
+	assertVersion(t, 6, repo.TargetsVersion)
+	assertVersion(t, 6, repo.SnapshotVersion)
+	assertVersion(t, 7, repo.TimestampVersion)
+
+	// Rotate snapshot
+	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "snapshot"))
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 4, repo.RootVersion)
+	assertVersion(t, 7, repo.TargetsVersion)
+	assertVersion(t, 7, repo.SnapshotVersion)
+	assertVersion(t, 8, repo.TimestampVersion)
+
+	// Rotate timestamp
+	require.NoError(t, runUpdatesCommand("rotate", "--path", tmpDir, "timestamp"))
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	assertVersion(t, 5, repo.RootVersion)
+	assertVersion(t, 8, repo.TargetsVersion)
+	assertVersion(t, 8, repo.SnapshotVersion)
+	assertVersion(t, 9, repo.TimestampVersion)
+
+	// Should still be able to add after rotations
+	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
+
+	// Root key should have changed
+	newRoots := getRoots()
+	assert.NotEqual(t, roots, newRoots)
+
+	// Should still be able to retrieve an update after rotations
+	require.NoError(t, client.UpdateMetadata())
+	targets, err = client.Targets()
+	require.NoError(t, err)
+	assert.Len(t, targets, 3)
+	// Remove the old copy first
+	require.NoError(t, os.RemoveAll(client.LocalPath("test", "1.3.3.7")))
+	_, err = client.Get("test", "1.3.3.7")
+	require.NoError(t, err)
 }
