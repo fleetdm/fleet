@@ -20,7 +20,7 @@ type ISoftwareParams = Partial<IGetSoftwareProps>;
 
 const DEFAULT_PAGE = 0;
 const PER_PAGE = 8;
-const ORDER_KEY = "hosts_count";
+const ORDER_KEY = "name";
 const ORDER_DIRECTION = "desc";
 
 export default {
