@@ -20,7 +20,7 @@ import teamActions from "redux/nodes/entities/teams/actions";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EmptyUsers from "./components/EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -630,6 +630,7 @@ export class UserManagementPage extends Component {
             resultsTitle={"users"}
             emptyComponent={EmptyUsers}
             searchable
+            isClientSideSearch
           />
         )}
         {renderCreateUserModal()}

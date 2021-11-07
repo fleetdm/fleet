@@ -171,6 +171,28 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					field.SetUint(uint64(queryValUint))
 				case reflect.Bool:
 					field.SetBool(queryVal == "1" || queryVal == "true")
+				case reflect.Int:
+					queryValInt := 0
+					switch queryTagValue {
+					case "order_direction":
+						switch queryVal {
+						case "desc":
+							queryValInt = int(fleet.OrderDescending)
+						case "asc":
+							queryValInt = int(fleet.OrderAscending)
+						case "":
+							queryValInt = int(fleet.OrderAscending)
+						default:
+							return fleet.ListOptions{},
+								errors.New("unknown order_direction: " + queryVal)
+						}
+					default:
+						queryValInt, err = strconv.Atoi(queryVal)
+						if err != nil {
+							return nil, errors.Wrap(err, "parsing uint from query")
+						}
+					}
+					field.SetInt(int64(queryValInt))
 				default:
 					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
 				}

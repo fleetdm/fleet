@@ -15,7 +15,7 @@ import Button from "components/buttons/Button"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 

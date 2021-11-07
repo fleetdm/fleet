@@ -2,7 +2,7 @@ import React from "react";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
 

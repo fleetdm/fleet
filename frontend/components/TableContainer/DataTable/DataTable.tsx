@@ -17,7 +17,7 @@ import sort from "utilities/sort";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
@@ -43,7 +43,8 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
-  clientSidePagination?: boolean;
+  isClientSidePagination?: boolean;
+  highlightOnHover?: boolean;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -70,7 +71,8 @@ const DataTable = ({
   primarySelectActionButtonText,
   secondarySelectActions,
   onSelectSingleRow,
-  clientSidePagination,
+  isClientSidePagination,
+  highlightOnHover,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -288,7 +290,7 @@ const DataTable = ({
     showMarkAllPages &&
     !isAllPagesSelected;
 
-  const pageOrRows = clientSidePagination ? page : rows;
+  const pageOrRows = isClientSidePagination ? page : rows;
 
   useEffect(() => {
     setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
@@ -374,6 +376,7 @@ const DataTable = ({
 
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
+                "highlight-on-hover": highlightOnHover,
               });
               return (
                 <tr
@@ -396,7 +399,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {clientSidePagination && (
+      {isClientSidePagination && (
         <div className={`${baseClass}__pagination`}>
           <Button
             variant="unstyled"

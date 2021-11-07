@@ -425,7 +425,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	soft2 := fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 			{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 		},
@@ -452,7 +452,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
 
@@ -479,7 +479,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
-		expected := []fleet.Software{foo002}
+		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -519,11 +519,23 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "bar"}})
+		// query by name (case insensitive)
+		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}})
 		require.NoError(t, err)
-
 		require.Len(t, software, 1)
 		expected := []fleet.Software{bar003}
+		test.ElementsMatchSkipID(t, software, expected)
+		// query by version
+		software, err = ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}})
+		require.NoError(t, err)
+		require.Len(t, software, 2)
+		expected = []fleet.Software{foo003, bar003}
+		test.ElementsMatchSkipID(t, software, expected)
+		// query by version (case insensitive)
+		software, err = ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}})
+		require.NoError(t, err)
+		require.Len(t, software, 1)
+		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/doug-martin/goqu/v9"
+	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
@@ -31,10 +33,8 @@ const (
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
 )
 
-var (
-	// Matches all non-word and '-' characters for replacement
-	columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
-)
+// Matches all non-word and '-' characters for replacement
+var columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
 
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
@@ -354,6 +354,38 @@ func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
 
+// appendListOptionsToSelect will apply the given list options to ds and
+// return the new select dataset.
+//
+// NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
+func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
+	if opts.OrderKey != "" {
+		var orderedExp exp.OrderedExpression
+		ident := goqu.I(sanitizeColumn(opts.OrderKey))
+		if opts.OrderDirection == fleet.OrderDescending {
+			orderedExp = ident.Desc()
+		} else {
+			orderedExp = ident.Asc()
+		}
+		ds = ds.Order(orderedExp)
+	}
+
+	perPage := opts.PerPage
+	// If caller doesn't supply a limit apply a default limit of 1000
+	// to insure that an unbounded query with many results doesn't consume too
+	// much memory or hang
+	if perPage == 0 {
+		perPage = defaultSelectLimit
+	}
+	ds = ds.Limit(perPage)
+
+	offset := perPage * opts.Page
+	if offset > 0 {
+		ds = ds.Offset(offset)
+	}
+	return ds
+}
+
 func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 	if opts.OrderKey != "" {
 		direction := "ASC"
@@ -545,6 +577,13 @@ func isChildForeignKeyError(err error) bool {
 	return mysqlErr.Number == ER_NO_REFERENCED_ROW_2
 }
 
+// likePattern returns a pattern to match m with LIKE.
+func likePattern(m string) string {
+	m = strings.Replace(m, "_", "\\_", -1)
+	m = strings.Replace(m, "%", "\\%", -1)
+	return "%" + m + "%"
+}
+
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
 //
 // The input columns must be sanitized if they are provided by the user.
@@ -553,9 +592,7 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 		return sql, params
 	}
 
-	match = strings.Replace(match, "_", "\\_", -1)
-	match = strings.Replace(match, "%", "\\%", -1)
-	pattern := "%" + match + "%"
+	pattern := likePattern(match)
 	ors := make([]string, 0, len(columns))
 	for _, column := range columns {
 		ors = append(ors, column+" LIKE ?")

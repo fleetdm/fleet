@@ -3,8 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import moment from "moment";
-import { capitalize } from "lodash";
+import format from "date-fns/format";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -140,7 +139,7 @@ const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={moment(cellProps.cell.value).format("MM/DD/YY")} />
+        <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/yy")} />
       ),
     },
   ];
