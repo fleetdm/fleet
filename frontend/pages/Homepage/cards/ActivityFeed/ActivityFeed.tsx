@@ -11,7 +11,7 @@ import { IActivity, ActivityType } from "interfaces/activity";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
-import Spinner from "components/loaders/Spinner"; // @ts-ignore
+import Spinner from "components/Spinner"; // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";

@@ -14,7 +14,7 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import TeamsDropdown from "components/TeamsDropdown";

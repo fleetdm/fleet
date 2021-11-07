@@ -7,7 +7,7 @@ import { IFormFieldProps } from "components/forms/FormField/FormField";
 
 const baseClass = "fleet-checkbox";
 
-interface ICheckboxProps {
+export interface ICheckboxProps {
   children?: JSX.Element | Array<JSX.Element> | string;
   className?: string;
   disabled?: boolean;

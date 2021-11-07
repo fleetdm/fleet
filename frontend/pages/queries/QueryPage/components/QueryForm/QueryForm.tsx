@@ -15,7 +15,7 @@ import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/loaders/Spinner"; // @ts-ignore
+import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewQueryModal from "../NewQueryModal";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";

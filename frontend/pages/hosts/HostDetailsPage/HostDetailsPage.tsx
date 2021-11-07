@@ -23,9 +23,9 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner";

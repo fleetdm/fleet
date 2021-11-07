@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-interface IIconToolTipProps {
+export interface IIconToolTipProps {
   text: string;
   isHtml?: boolean;
   issue?: boolean;

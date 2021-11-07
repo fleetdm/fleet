@@ -4,6 +4,7 @@ The Fleet front-end is a Single Page Application using React with Typescript and
 
 ## Table of Contents
 - [Running the Fleet web app](#running-the-fleet-web-app)
+- [Storybook](#storybook)
 - [Directory Structure](#directory-structure)
 - [Deprecated](#deprecated)
 - [Patterns](#patterns)
@@ -18,6 +19,33 @@ The Fleet front-end is a Single Page Application using React with Typescript and
 
 For details instruction on building and serving the Fleet web application
 consult the [Contributing documentation](../docs/03-Contributing/README.md).
+
+## Storybook
+
+[Storybook](https://storybook.js.org/) is a tool to document and visualize components, and we 
+use it to capture our global components used across Fleet. Storybook is key when developing new 
+features and testing components before release. It runs a separate server exposed on port `6006`.
+To run this server, do the following:
+
+- Go to your root fleet project directory
+- Run `make deps`
+- Run `yarn storybook`
+
+The URL `localhost:6006` should automatically show in your browser. If not, visit it manually.
+
+As mentioned, there are two key times Storybook should be used:
+
+1. When building new features
+
+As we create new features, we re-use Fleet components often. Running Storybook before implementing 
+new UI elements can clarify if new components need to be created or already exist. This helps us 
+avoid duplicating code.
+
+2. Testing components
+
+After creating a component, create a new file, `component.stories.tsx`, within its directory. Then, 
+fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize 
+the component within Storybook to determine if it looks and behaves as expected.
 
 ## Directory Structure
 
