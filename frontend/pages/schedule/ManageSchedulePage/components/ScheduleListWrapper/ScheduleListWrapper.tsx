@@ -27,7 +27,7 @@ const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
   hostsByTeamPRoute: (teamId: number | undefined | null) => {
-    return `${teamId ? `/&team_id=${teamId}` : ""}`;
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
 interface IScheduleListWrapperProps {

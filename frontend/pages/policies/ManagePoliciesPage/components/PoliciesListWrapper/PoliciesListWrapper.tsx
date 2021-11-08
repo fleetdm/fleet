@@ -14,8 +14,8 @@ const baseClass = "policies-list-wrapper";
 const noPoliciesClass = "no-policies";
 
 const TAGGED_TEMPLATES = {
-  hostsByTeamPRoute: (teamId: number | undefined | null) => {
-    return `${teamId ? `/&team_id=${teamId}` : ""}`;
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
 
@@ -62,7 +62,7 @@ const PoliciesListWrapper = ({
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamId)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamId)
                       }
                     >
                       {selectedTeamData.name}
