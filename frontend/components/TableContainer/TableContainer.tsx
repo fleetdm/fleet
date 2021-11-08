@@ -61,6 +61,8 @@ interface ITableContainerProps {
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
+  searchQueryColumn?: string;
+  selectedPlatform?: string;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   isClientSideSearch?: boolean;
@@ -114,6 +116,8 @@ const TableContainer = ({
   isClientSideFilter,
   isClientSideSearch,
   highlightOnHover,
+  selectedPlatform,
+  searchQueryColumn,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -122,6 +126,7 @@ const TableContainer = ({
   );
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
+  const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -149,6 +154,10 @@ const TableContainer = ({
   const onPaginationChange = (newPage: number) => {
     setPageIndex(newPage);
     hasPageIndexChangedRef.current = true;
+  };
+
+  const onClientFilterChange = (resultsCount: number) => {
+    setClientFilterCount(resultsCount);
   };
 
   // We use useRef to keep track of the previous searchQuery value. This allows us
@@ -207,7 +216,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || data.length;
+  const displayCount = filteredCount || clientFilterCount || data.length;
 
   return (
     <div className={wrapperClasses}>
@@ -333,7 +342,9 @@ const TableContainer = ({
               isClientSideFilter={isClientSideFilter}
               highlightOnHover={highlightOnHover}
               searchQuery={searchQuery}
-              searchQueryColumn="name"
+              searchQueryColumn={searchQueryColumn}
+              selectedPlatform={selectedPlatform}
+              onClientFilterChange={onClientFilterChange}
             />
             {!disablePagination && !isClientSidePagination && (
               <Pagination

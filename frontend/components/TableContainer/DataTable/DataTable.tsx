@@ -45,11 +45,13 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
+  onClientFilterChange?: (value: number) => void;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   searchQuery?: string;
   searchQueryColumn?: string;
+  selectedPlatform?: string;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -81,6 +83,8 @@ const DataTable = ({
   highlightOnHover,
   searchQuery,
   searchQueryColumn,
+  selectedPlatform,
+  onClientFilterChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -159,11 +163,21 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds } = tableState;
 
+  if (isClientSideFilter && onClientFilterChange) {
+    onClientFilterChange(rows.length);
+  }
+
   useEffect(() => {
-    if (isClientSideFilter) {
+    if (isClientSideFilter && searchQueryColumn) {
       setFilter(searchQueryColumn, searchQuery || "");
     }
-  }, [isClientSideFilter, searchQuery, setFilter]);
+  }, [isClientSideFilter, searchQuery, searchQueryColumn, setFilter]);
+
+  useEffect(() => {
+    if (isClientSideFilter && selectedPlatform && selectedPlatform !== "all") {
+      setFilter("platforms", selectedPlatform);
+    }
+  }, [isClientSideFilter, selectedPlatform, setFilter]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
