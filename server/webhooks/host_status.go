@@ -38,7 +38,7 @@ func TriggerHostStatusWebhook(
 			percentUnseen, appConfig.WebhookSettings.HostStatusWebhook.DaysCount,
 		)
 		payload := map[string]interface{}{
-			"message": message,
+			"text": message,
 			"data": map[string]interface{}{
 				"unseen_hosts": unseen,
 				"total_hosts":  total,
