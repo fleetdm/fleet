@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/doug-martin/goqu/v9"
@@ -40,10 +41,10 @@ func uniqueStringToSoftware(s string) fleet.Software {
 	}
 }
 
-func softwareSliceToSet(softwares []fleet.Software) map[string]bool {
-	result := make(map[string]bool)
+func softwareSliceToSet(softwares []fleet.Software) map[string]struct{} {
+	result := make(map[string]struct{})
 	for _, s := range softwares {
-		result[softwareToUniqueString(s)] = true
+		result[softwareToUniqueString(s)] = struct{}{}
 	}
 	return result
 }
@@ -122,7 +123,7 @@ func deleteUninstalledHostSoftwareDB(
 	tx sqlx.ExecerContext,
 	hostID uint,
 	currentIdmap map[string]uint,
-	incomingBitmap map[string]bool,
+	incomingBitmap map[string]struct{},
 ) error {
 	var deletesHostSoftware []interface{}
 	deletesHostSoftware = append(deletesHostSoftware, hostID)
@@ -179,10 +180,15 @@ func insertNewInstalledHostSoftwareDB(
 	tx sqlx.ExtContext,
 	hostID uint,
 	currentIdmap map[string]uint,
-	incomingBitmap map[string]bool,
+	incomingBitmap map[string]struct{},
 ) error {
 	var insertsHostSoftware []interface{}
+	incomingOrdered := make([]string, 0, len(incomingBitmap))
 	for s := range incomingBitmap {
+		incomingOrdered = append(incomingOrdered, s)
+	}
+	sort.Strings(incomingOrdered)
+	for _, s := range incomingOrdered {
 		if _, ok := currentIdmap[s]; !ok {
 			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
