@@ -85,35 +85,6 @@ func makeHostByIdentifierEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Host Summary
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostSummaryRequest struct {
-	TeamID *uint `query:"team_id"`
-}
-
-type getHostSummaryResponse struct {
-	fleet.HostSummary
-	Err error `json:"error,omitempty"`
-}
-
-func (r getHostSummaryResponse) error() error { return r.Err }
-
-func makeGetHostSummaryEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		summary, err := svc.GetHostSummary(ctx)
-		if err != nil {
-			return getHostSummaryResponse{Err: err}, nil
-		}
-
-		resp := getHostSummaryResponse{
-			HostSummary: *summary,
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Host
 ////////////////////////////////////////////////////////////////////////////////
 
