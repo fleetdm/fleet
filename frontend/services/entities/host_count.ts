@@ -32,6 +32,7 @@ export default {
 
     const labelPrefix = "labels/";
 
+    console.log("selectedLabels", selectedLabels);
     // Handle multiple filters
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
