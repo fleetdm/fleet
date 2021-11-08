@@ -922,6 +922,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
 		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		SeenTime:        mockClock.Now().Add(-30 * time.Second),
+		Platform:        "linux",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 15
@@ -937,6 +938,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
 		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		SeenTime:        mockClock.Now().Add(-1 * time.Minute),
+		Platform:        "windows",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 60
@@ -952,6 +954,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
 		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		SeenTime:        mockClock.Now().Add(-1 * time.Hour),
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	h.DistributedInterval = 300
@@ -967,8 +970,15 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		SeenTime:        mockClock.Now().Add(-35 * (24 * time.Hour)),
+		Platform:        "linux",
 	})
 	require.NoError(t, err)
+
+	wantPlatforms := []*fleet.HostSummaryPlatform{
+		{Platform: "linux", HostsCount: 2},
+		{Platform: "windows", HostsCount: 1},
+		{Platform: "darwin", HostsCount: 1},
+	}
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
@@ -977,6 +987,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(4), summary.NewCount)
+	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
@@ -985,6 +996,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(3), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(4), summary.NewCount)
+	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
