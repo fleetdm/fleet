@@ -1,13 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { reduce } from "lodash";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
 import { ILabel } from "interfaces/label";
-// @ts-ignore
-import { getLabels } from "redux/nodes/components/ManageHostsPage/actions";
 
-import hostCountAPI, {
-  IHostCountLoadOptions,
-} from "services/entities/host_count";
+import hostCountAPI from "services/entities/host_count";
+import labelsAPI from "services/entities/labels";
 
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
@@ -18,109 +14,88 @@ const baseClass = "hosts-summary";
 interface IHostsSummaryProps {
   currentTeamId: number | undefined;
 }
-interface IRootState {
-  entities: {
-    labels: {
-      isLoading: boolean;
-      data: {
-        [id: number]: ILabel;
-      };
-    };
-  };
+
+interface ILabelsResponse {
+  labels: ILabel[];
 }
 
-const PLATFORM_STRINGS = {
-  macOS: "macOS",
-  windows: "MS Windows",
-  linux: "All Linux",
-};
+interface IHostCountResponse {
+  count: number;
+}
 
 const HostsSummary = ({ currentTeamId }: IHostsSummaryProps): JSX.Element => {
-  console.log("currentTeamId", currentTeamId);
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    dispatch(getLabels());
-  }, []);
-
   const [macCount, setMacCount] = useState<string | undefined>();
   const [windowsCount, setWindowsCount] = useState<string | undefined>();
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
-  const labels = useSelector((state: IRootState) => state.entities.labels.data);
+  const getLabel = (labelString: string, labels: ILabel[]) => {
+    return Object.values(labels).filter((label: ILabel) => {
+      return label.label_type === "builtin" && label.name === labelString;
+    });
+  };
+  const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
-  if (!currentTeamId) {
-    const allTeamsHostCount = useCallback(() => {
-      // Builtin labels from state populate os counts
-      const getAllTeamsCount = (platformTitles: string) => {
-        const count = reduce(
-          Object.values(labels),
-          (total, label) => {
-            return label.label_type === "builtin" &&
-              platformTitles === label.name &&
-              label.count
-              ? total + label.count
-              : total;
-          },
-          0
-        );
-        return count;
-      };
-
-      setMacCount(
-        getAllTeamsCount(PLATFORM_STRINGS.macOS).toLocaleString("en-US")
+  useQuery<IHostCountResponse, Error, number>(
+    ["mac host count", currentTeamId],
+    () => {
+      const macOsLabel = getLabel("macOS", labels || []);
+      return (
+        hostCountAPI.load({
+          selectedLabels: [`labels/${macOsLabel[0].id}`],
+          teamId: currentTeamId,
+        }) || { count: 0 }
       );
-      setWindowsCount(
-        getAllTeamsCount(PLATFORM_STRINGS.windows).toLocaleString("en-US")
+    },
+    {
+      select: (data: IHostCountResponse) => data.count,
+      enabled: !!labels,
+      onSuccess: (data: number) => setMacCount(data.toLocaleString("en-US")),
+    }
+  );
+
+  useQuery<IHostCountResponse, Error, number>(
+    ["windows host count", currentTeamId],
+    () => {
+      const windowsLabel = getLabel("MS Windows", labels || []);
+      return (
+        hostCountAPI.load({
+          selectedLabels: [`labels/${windowsLabel[0].id}`],
+          teamId: currentTeamId,
+        }) || { count: 0 }
       );
-      setLinuxCount(
-        getAllTeamsCount(PLATFORM_STRINGS.linux).toLocaleString("en-US")
+    },
+    {
+      select: (data: IHostCountResponse) => data.count,
+      enabled: !!labels,
+      onSuccess: (data: number) =>
+        setWindowsCount(data.toLocaleString("en-US")),
+    }
+  );
+
+  useQuery<IHostCountResponse, Error, number>(
+    ["linux host count", currentTeamId],
+    () => {
+      const linuxLabel = getLabel("All Linux", labels || []);
+      return (
+        hostCountAPI.load({
+          selectedLabels: [`labels/${linuxLabel[0].id}`],
+          teamId: currentTeamId,
+        }) || { count: 0 }
       );
-    }, [currentTeamId]);
+    },
+    {
+      select: (data: IHostCountResponse) => data.count,
+      enabled: !!labels,
+      onSuccess: (data: number) => setLinuxCount(data.toLocaleString("en-US")),
+    }
+  );
 
-    allTeamsHostCount();
-  } else {
-    const teamHostCount = useCallback(() => {
-      const macOsLabel = Object.values(labels).filter((label: ILabel) => {
-        return label.label_type === "builtin" && label.name === "macOS";
-      });
-
-      const windowsLabel = Object.values(labels).filter((label: ILabel) => {
-        return label.label_type === "builtin" && label.name === "MS Windows";
-      });
-
-      const linuxLabel = Object.values(labels).filter((label: ILabel) => {
-        return label.label_type === "builtin" && label.name === "All Linux";
-      });
-
-      const retrieveHostCount = async () => {
-        try {
-          const { count: returnedTeamMacCount } = await hostCountAPI.load({
-            selectedLabels: [`labels/${macOsLabel[0].id}`],
-            teamId: currentTeamId,
-          });
-          const { count: returnedTeamWindowsCount } = await hostCountAPI.load({
-            selectedLabels: [`labels/${windowsLabel[0].id}`],
-            teamId: currentTeamId,
-          });
-          const { count: returnedTeamLinuxCount } = await hostCountAPI.load({
-            selectedLabels: [`labels/${linuxLabel[0].id}`],
-            teamId: currentTeamId,
-          });
-
-          setMacCount(returnedTeamMacCount.toLocaleString("en-US"));
-          setWindowsCount(returnedTeamWindowsCount.toLocaleString("en-US"));
-          setLinuxCount(returnedTeamLinuxCount.toLocaleString("en-US"));
-        } catch (error) {
-          console.error(error);
-        }
-
-        retrieveHostCount();
-      };
-    }, [currentTeamId]);
-
-    teamHostCount();
-  }
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__tile mac-tile`}>
