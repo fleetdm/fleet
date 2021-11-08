@@ -111,7 +111,6 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 
 func (svc *Service) FlushSeenHosts(ctx context.Context) error {
 	// No authorization check because this is used only internally.
-
 	hostIDs := svc.seenHostSet.getAndClearHostIDs()
 	return svc.ds.MarkHostsSeen(ctx, hostIDs, svc.clock.Now())
 }

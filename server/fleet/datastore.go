@@ -148,7 +148,7 @@ type Datastore interface {
 
 	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
-	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time) error
+	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
 	// ListLabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
@@ -176,6 +176,7 @@ type Datastore interface {
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
 	SaveHost(ctx context.Context, host *Host) error
+	SerialSaveHost(ctx context.Context, host *Host) error
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
@@ -353,7 +354,7 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time) error
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)

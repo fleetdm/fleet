@@ -53,7 +53,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	return &policy, nil
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -77,18 +77,46 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		strings.Join(bindvars, ","),
 	)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, query, vals...)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
 		}
 
-		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, host.PolicyUpdatedAt, host.ID)
+		// if we are deferring host updates, we return at this point and do the change outside of the tx
+		if deferredSaveHost {
+			return nil
+		}
+
+		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	if deferredSaveHost {
+		errCh := make(chan error, 1)
+		defer close(errCh)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ds.writeCh <- itemToWrite{
+			ctx:   ctx,
+			errCh: errCh,
+			item: hostXUpdatedAt{
+				hostID:    host.ID,
+				updatedAt: updated,
+				what:      "policy_updated_at",
+			},
+		}:
+			return <-errCh
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {

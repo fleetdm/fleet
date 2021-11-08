@@ -141,6 +141,8 @@ type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error
 
 type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
+type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
+
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
@@ -512,6 +514,9 @@ type DataStore struct {
 
 	SaveHostFunc        SaveHostFunc
 	SaveHostFuncInvoked bool
+
+	SerialSaveHostFunc        SerialSaveHostFunc
+	SerialSaveHostFuncInvoked bool
 
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
@@ -1048,7 +1053,7 @@ func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t)
 }
@@ -1101,6 +1106,11 @@ func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostFuncInvoked = true
 	return s.SaveHostFunc(ctx, host)
+}
+
+func (s *DataStore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
+	s.SerialSaveHostFuncInvoked = true
+	return s.SerialSaveHostFunc(ctx, host)
 }
 
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1458,7 +1468,7 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
 	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated)
 }

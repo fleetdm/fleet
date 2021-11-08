@@ -150,7 +150,7 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 // Query returns a single Query identified by id, if such exists.
 func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	sql := `
-		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name
+		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, COALESCE(u.email, '') AS author_email
 		FROM queries q
 		LEFT JOIN users u
 			ON q.author_id = u.id
@@ -175,6 +175,7 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 		SELECT
 		       q.*,
 		       COALESCE(u.name, '<deleted>') AS author_name,
+		       COALESCE(u.email, '') AS author_email,
 		       JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50,
 		       JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
 		       JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50,

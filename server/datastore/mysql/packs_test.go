@@ -353,12 +353,7 @@ func testPacksListForHost(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	require.Len(t, packs, 0)
 
-	err = ds.RecordLabelQueryExecutions(
-		context.Background(),
-		h1,
-		map[uint]*bool{l1.ID: ptr.Bool(true)},
-		mockClock.Now(),
-	)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now(), false)
 	require.Nil(t, err)
 
 	packs, err = ds.ListPacksForHost(context.Background(), h1.ID)
@@ -367,24 +362,14 @@ func testPacksListForHost(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "foo_pack", packs[0].Name)
 	}
 
-	err = ds.RecordLabelQueryExecutions(
-		context.Background(),
-		h1,
-		map[uint]*bool{l1.ID: ptr.Bool(false), l2.ID: ptr.Bool(true)},
-		mockClock.Now(),
-	)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{l1.ID: ptr.Bool(false), l2.ID: ptr.Bool(true)}, mockClock.Now(), false)
 	require.Nil(t, err)
 
 	packs, err = ds.ListPacksForHost(context.Background(), h1.ID)
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 
-	err = ds.RecordLabelQueryExecutions(
-		context.Background(),
-		h1,
-		map[uint]*bool{l1.ID: ptr.Bool(true), l2.ID: ptr.Bool(true)},
-		mockClock.Now(),
-	)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{l1.ID: ptr.Bool(true), l2.ID: ptr.Bool(true)}, mockClock.Now(), false)
 	require.Nil(t, err)
 
 	packs, err = ds.ListPacksForHost(context.Background(), h1.ID)
@@ -393,24 +378,14 @@ func testPacksListForHost(t *testing.T, ds *Datastore) {
 
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", mockClock.Now())
 
-	err = ds.RecordLabelQueryExecutions(
-		context.Background(),
-		h2,
-		map[uint]*bool{l2.ID: ptr.Bool(true)},
-		mockClock.Now(),
-	)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h2, map[uint]*bool{l2.ID: ptr.Bool(true)}, mockClock.Now(), false)
 	require.Nil(t, err)
 
 	packs, err = ds.ListPacksForHost(context.Background(), h1.ID)
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
 
-	err = ds.RecordLabelQueryExecutions(
-		context.Background(),
-		h1,
-		map[uint]*bool{l2.ID: ptr.Bool(false)},
-		mockClock.Now(),
-	)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{l2.ID: ptr.Bool(false)}, mockClock.Now(), false)
 	require.Nil(t, err)
 
 	packs, err = ds.ListPacksForHost(context.Background(), h1.ID)
