@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { Row, useAsyncDebounce } from "react-table";
 
@@ -62,6 +62,7 @@ interface ITableContainerProps {
   filteredCount?: number;
   searchToolTipText?: string;
   isClientSidePagination?: boolean;
+  isClientSideFilter?: boolean;
   isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
 }
@@ -110,6 +111,7 @@ const TableContainer = ({
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
+  isClientSideFilter,
   isClientSideSearch,
   highlightOnHover,
 }: ITableContainerProps): JSX.Element => {
@@ -179,15 +181,17 @@ const TableContainer = ({
           ...queryData,
           pageIndex: 0,
         };
-        // searchQuery has changed; we want to debounce calling the handler so the
-        // user can finish typing.
-        if (searchQuery !== prevSearchQuery) {
-          debounceOnQueryChange(updateQueryData);
-        } else {
-          onQueryChange(updateQueryData);
+        if (!isClientSideFilter) {
+          // searchQuery has changed; we want to debounce calling the handler so the
+          // user can finish typing.
+          if (searchQuery !== prevSearchQuery) {
+            debounceOnQueryChange(updateQueryData);
+          } else {
+            onQueryChange(updateQueryData);
+          }
+          setPageIndex(0);
         }
-        setPageIndex(0);
-      } else {
+      } else if (!isClientSideFilter) {
         onQueryChange(queryData);
       }
 
@@ -326,7 +330,10 @@ const TableContainer = ({
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
               isClientSidePagination={isClientSidePagination}
+              isClientSideFilter={isClientSideFilter}
               highlightOnHover={highlightOnHover}
+              searchQuery={searchQuery}
+              searchQueryColumn="name"
             />
             {!disablePagination && !isClientSidePagination && (
               <Pagination
