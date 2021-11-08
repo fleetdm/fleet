@@ -194,7 +194,7 @@ func (d *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 		}
 		_, err = tx.ExecContext(ctx, query, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "")
+			return ctxerr.Wrap(ctx, err, "updating invite")
 		}
 
 		query, args, err = dialect.Delete("invite_teams").Where(goqu.Ex{"invite_id": id}).ToSQL()
