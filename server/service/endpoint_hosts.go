@@ -88,6 +88,10 @@ func makeHostByIdentifierEndpoint(svc fleet.Service) endpoint.Endpoint {
 // Get Host Summary
 ////////////////////////////////////////////////////////////////////////////////
 
+type getHostSummaryRequest struct {
+	TeamID *uint `query:"team_id"`
+}
+
 type getHostSummaryResponse struct {
 	fleet.HostSummary
 	Err error `json:"error,omitempty"`

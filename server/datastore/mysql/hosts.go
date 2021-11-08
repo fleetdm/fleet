@@ -337,10 +337,10 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT 
+		SELECT
 		       h.*,
 		       hst.seen_time,
-		       t.name AS team_name, 
+		       t.name AS team_name,
 		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
 		       coalesce(failing_policies.count, 0) as failing_policies_count,
 		       coalesce(failing_policies.count, 0) as total_issues_count
@@ -528,6 +528,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 
 	sqlStatement := fmt.Sprintf(`
 			SELECT
+        COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
@@ -793,7 +794,7 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership_history 
+		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
 			return errors.Wrap(err, "add host to team sqlx in")
@@ -912,14 +913,14 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT 
-		p.id, 
-		p.query_id, 
-		q.name AS query_name, 
+	query := `SELECT
+		p.id,
+		p.query_id,
+		q.name AS query_name,
 		CASE
-			WHEN pm.passes = 1 THEN 'pass' 
-			WHEN pm.passes = 0 THEN 'fail' 
-			ELSE '' 
+			WHEN pm.passes = 1 THEN 'pass'
+			WHEN pm.passes = 0 THEN 'fail'
+			ELSE ''
 		END AS response,
 		q.description,
 		coalesce(p.resolution, '') as resolution
@@ -927,8 +928,8 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm 
-	JOIN policies p ON (p.id=pm.policy_id) 
+	) as pm
+	JOIN policies p ON (p.id=pm.policy_id)
 	JOIN queries q ON (p.query_id=q.id)`
 
 	var policies []*fleet.HostPolicy

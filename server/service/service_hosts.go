@@ -69,8 +69,8 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
 }
 
-func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+func (svc Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.HostSummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 	vc, ok := viewer.FromContext(ctx)
