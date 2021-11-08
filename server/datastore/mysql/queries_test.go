@@ -225,10 +225,9 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts := fleet.ListQueryOptions{}
 	results, err := ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	if assert.Equal(t, 10, len(results)) {
-		assert.Equal(t, "Zach", results[0].AuthorName)
-		assert.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
-	}
+	require.Equal(t, 10, len(results))
+	assert.Equal(t, "Zach", results[0].AuthorName)
+	assert.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
 
 	idWithAgg := results[0].ID
 
