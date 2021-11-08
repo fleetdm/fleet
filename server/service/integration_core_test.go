@@ -630,32 +630,3 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }
-
-func (s *integrationTestSuite) TestModifyTeamEnrollSecrets() {
-	t := s.T()
-
-	_, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          2,
-		Name:        "team2",
-		Description: "desc team2",
-	})
-	require.NoError(t, err)
-
-	team, err := s.ds.Team(context.Background(), 2)
-	require.NoError(t, err)
-	require.Len(t, team.Secrets[0].Secret, fleet.EnrollSecretDefaultLength)
-
-	secrets := []*fleet.EnrollSecret{{Secret: "testsecret"}}
-
-	type secretsResponse struct {
-		Secrets []*fleet.EnrollSecret `json:"secrets"`
-	}
-	var resp secretsResponse
-	s.DoJSON("PATCH", "/api/v1/fleet/teams/2/secrets", secrets, http.StatusOK, &resp)
-	require.Len(t, resp.Secrets, 1)
-	assert.Equal(t, "testsecret", resp.Secrets[0].Secret)
-
-	team, err = s.ds.Team(context.Background(), 2)
-	require.NoError(t, err)
-	assert.Equal(t, "testsecret", team.Secrets[0].Secret)
-}

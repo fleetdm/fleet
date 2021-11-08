@@ -16,7 +16,6 @@ write := "write"
 write_role := "write_role"
 run := "run"
 run_new := "run_new"
-write_team_secrets := "write_team_secrets"
 
 # Roles
 admin := "admin"
@@ -83,28 +82,14 @@ allow {
 allow {
   object.type == "team"
   subject.global_role == admin
-  action == [write, write_team_secrets][_]
-}
-
-# Maintainer can write team secrets
-allow {
-  object.type == "team"
-  subject.global_role == maintainer
-  action == write_team_secrets
+  action == write
 }
 
 # Team admin can write teams and team secrets
 allow {
   object.type == "team"
   team_role(subject, object.id) == admin
-  action == [write, write_team_secrets][_]
-}
-
-# Team maintainer can write team secrets
-allow {
-  object.type == "team"
-  team_role(subject, object.id) == maintainer
-  action == write_team_secrets
+  action == write
 }
 
 ##
@@ -184,25 +169,18 @@ allow {
 # Enroll Secrets
 ##
 
-# Admins can read/write all
+# Global admins and maintainers can read/write all
 allow {
 	object.type == "enroll_secret"
-	subject.global_role == admin
+	subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Global maintainers can read all
-allow {
-	object.type == "enroll_secret"
-	subject.global_role == maintainer
-	action == read
-}
-
-# Team admins and maintainers can read for appropriate teams
+# Team admins and maintainers can read/write for appropriate teams
 allow {
 	object.type == "enroll_secret"
 	team_role(subject, object.team_id) == [admin, maintainer][_]
-	action == read
+	action == [read, write][_]
 }
 
 # (Observers are not granted read for enroll secrets)

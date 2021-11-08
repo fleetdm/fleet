@@ -244,26 +244,28 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return svc.ds.TeamEnrollSecrets(ctx, teamID)
 }
 
-func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, newSecrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
+func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	if secrets == nil {
+		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
+	}
 	team, err := svc.ds.Team(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
-	if newSecrets != nil {
-		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWriteTeamSecrets); err != nil {
-			return nil, err
-		}
-	}
-	var secrets []*fleet.EnrollSecret
-	for _, secret := range newSecrets {
-		secrets = append(secrets, &fleet.EnrollSecret{
+
+	var newSecrets []*fleet.EnrollSecret
+	for _, secret := range secrets {
+		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
-	if err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
+	if err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), newSecrets); err != nil {
 		return nil, err
 	}
 	// logging.WithExtras(ctx, "old secrets", team.Secrets, "new secrets", newSecrets) // TODO: Is there any logging we want to include?
 
-	return secrets, nil
+	return newSecrets, nil
 }

@@ -13,6 +13,4 @@ const (
 	ActionRun = "run"
 	// ActionRunNew is the action for running a new live query.
 	ActionRunNew = "run_new"
-	// ActionWriteTeamSecrets
-	ActionWriteTeamSecrets = "write_team_secrets"
 )
