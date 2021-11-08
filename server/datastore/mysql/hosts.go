@@ -527,7 +527,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
 
-	whereClause := d.whereFilterHostsByTeams(filter, "hosts")
+	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
         COUNT(*) total,
@@ -549,10 +549,10 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	sqlStatement = fmt.Sprintf(`
 			SELECT
         COUNT(*) total,
-        platform
-			FROM hosts
+        h.platform
+			FROM hosts h
       WHERE %s
-      GROUP BY platform
+      GROUP BY h.platform
 		`, whereClause)
 
 	var platforms []*fleet.HostSummaryPlatform

@@ -213,7 +213,7 @@ func (svc Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID *uint `query:"team_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getHostSummaryResponse struct {
