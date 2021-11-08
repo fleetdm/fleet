@@ -530,7 +530,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
-        COUNT(*) total,
+				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
@@ -545,14 +545,15 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
-	// get the counts per platform
+	// get the counts per platform, the `h` alias for hosts is required so that
+	// reusing the whereClause is ok.
 	sqlStatement = fmt.Sprintf(`
 			SELECT
-        COUNT(*) total,
-        h.platform
+			  COUNT(*) total,
+			  h.platform
 			FROM hosts h
-      WHERE %s
-      GROUP BY h.platform
+			WHERE %s
+			GROUP BY h.platform
 		`, whereClause)
 
 	var platforms []*fleet.HostSummaryPlatform
