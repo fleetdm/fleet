@@ -14,7 +14,7 @@ import { IHost } from "interfaces/host";
 // @ts-ignore
 import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
 import Button from "components/buttons/Button";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
 import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";

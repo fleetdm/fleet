@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -38,6 +39,8 @@ func (e osqueryError) Error() string {
 func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
+
+var counter = int64(0)
 
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
@@ -153,12 +156,32 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		save = true
 	}
 	if save {
-		if err := svc.ds.SaveHost(ctx, host); err != nil {
-			return "", osqueryError{message: "saving host details: " + err.Error(), nodeInvalid: true}
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialSaveHost(host)
+		} else {
+			err = svc.ds.SaveHost(ctx, host)
+			if err != nil {
+				return "", errors.Wrap(err, "save host in enroll agent")
+			}
 		}
 	}
 
-	return host.NodeKey, nil
+	return nodeKey, nil
+}
+
+func (svc Service) serialSaveHost(host *fleet.Host) {
+	newVal := atomic.AddInt64(&counter, 1)
+	defer func() {
+		atomic.AddInt64(&counter, -1)
+	}()
+	level.Debug(svc.logger).Log("background", newVal)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+	err := svc.ds.SerialSaveHost(ctx, host)
+	if err != nil {
+		level.Error(svc.logger).Log("background-err", err)
+	}
 }
 
 func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -336,9 +359,17 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	}
 
 	if saveHost {
-		err := svc.ds.SaveHost(ctx, &host)
+		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "get app config on get client config")
+		}
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialSaveHost(&host)
+		} else {
+			err = svc.ds.SaveHost(ctx, &host)
+			if err != nil {
+				return nil, errors.Wrap(err, "save host in get client config")
+			}
 		}
 	}
 
@@ -715,15 +746,26 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting app config")
+	}
+
 	if len(labelResults) > 0 {
-		if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now()); err != nil {
-			logging.WithErr(ctx, err)
+		if ac.ServerSettings.DeferredSaveHost {
+			if err := svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now(), true); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		} else {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now()); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
 	if len(policyResults) > 0 {
 		host.PolicyUpdatedAt = svc.clock.Now()
-		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now())
+		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -752,9 +794,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if host.Modified {
-		err = svc.ds.SaveHost(ctx, &host)
+		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			logging.WithErr(ctx, err)
+		} else {
+			if appConfig.ServerSettings.DeferredSaveHost {
+				go svc.serialSaveHost(&host)
+			} else {
+				err = svc.ds.SaveHost(ctx, &host)
+				if err != nil {
+					logging.WithErr(ctx, err)
+				}
+			}
 		}
 	}
 

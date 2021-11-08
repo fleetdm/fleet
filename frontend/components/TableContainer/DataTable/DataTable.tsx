@@ -17,7 +17,7 @@ import sort from "utilities/sort";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
@@ -44,6 +44,7 @@ interface IDataTableProps {
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
   isClientSidePagination?: boolean;
+  highlightOnHover?: boolean;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -71,6 +72,7 @@ const DataTable = ({
   secondarySelectActions,
   onSelectSingleRow,
   isClientSidePagination,
+  highlightOnHover,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -374,6 +376,7 @@ const DataTable = ({
 
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
+                "highlight-on-hover": highlightOnHover,
               });
               return (
                 <tr

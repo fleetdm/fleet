@@ -3,7 +3,7 @@ import React, { useCallback, useState } from "react";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import endpoints from "fleet/endpoints";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPagePage/components/AutocompleteDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";

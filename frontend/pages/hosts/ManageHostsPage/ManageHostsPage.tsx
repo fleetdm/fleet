@@ -40,7 +40,7 @@ import Button from "components/buttons/Button"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
 import LabelForm from "components/forms/LabelForm";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";

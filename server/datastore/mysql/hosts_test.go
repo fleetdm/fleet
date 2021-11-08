@@ -100,6 +100,11 @@ func TestHosts(t *testing.T) {
 }
 
 func testHostsSave(t *testing.T, ds *Datastore) {
+	testSaveHost(t, ds, ds.SaveHost)
+	testSaveHost(t, ds, ds.SerialSaveHost)
+}
+
+func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context, *fleet.Host) error) {
 	policyUpdatedAt := time.Now().UTC().Truncate(time.Second)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -116,7 +121,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host)
 
 	host.Hostname = "bar.local"
-	err = ds.SaveHost(context.Background(), host)
+	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -129,7 +134,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	additionalJSON := json.RawMessage(`{"foobar": "bim"}`)
 	host.Additional = &additionalJSON
 
-	require.NoError(t, ds.SaveHost(context.Background(), host))
+	require.NoError(t, saveHostFunc(context.Background(), host))
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host))
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -138,7 +143,7 @@ func testHostsSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host.Additional)
 	assert.Equal(t, additionalJSON, *host.Additional)
 
-	err = ds.SaveHost(context.Background(), host)
+	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
 	host, err = ds.Host(context.Background(), host.ID)
@@ -1525,8 +1530,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now(), false))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
@@ -1617,18 +1622,18 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 }
 

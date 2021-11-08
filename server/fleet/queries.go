@@ -30,6 +30,9 @@ type Query struct {
 	// AuthorName is retrieved with a join to the users table in the MySQL
 	// backend (using AuthorID)
 	AuthorName string `json:"author_name" db:"author_name"`
+	// AuthorEmail is the email address of the author, which is also used to
+	// generate the avatar.
+	AuthorEmail string `json:"author_email" db:"author_email"`
 	// Packs is loaded when retrieving queries, but is stored in a join
 	// table in the MySQL backend.
 	Packs []Pack `json:"packs" db:"-"`
