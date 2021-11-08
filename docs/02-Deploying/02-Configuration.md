@@ -1917,6 +1917,19 @@ sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
 
+## Using a Proxy
+If you are in an enterprise environment where Fleet is behind a proxy and you would like to be able to retrieve Vulnerability data for [Vulnerability Processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing), it will be necessary to configure this, Fleet automatically uses environment variables.
+
+But to be able to use it in the service, configured in the above systemd file, you will need to add the following lines under `[Service]` to be able to use your configured proxy.
+```
+[Service]
+Environment="HTTP_PROXY=http(s)://PROXY_URL:PORT/"
+Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
+Environment="NO_PROXY=localhost,127.0.0.1,::1"
+```
+
+After this you will need to reload and restart the fleet service, as explained above.
+
 ## Configuring single sign on (SSO)
 
 Fleet supports SAML single sign on capability.
