@@ -245,26 +245,26 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	longName := strings.Repeat("a", 260)
 
-	incoming := make(map[string]bool)
+	incoming := make(map[string]struct{})
 	soft2Key := softwareToUniqueString(fleet.Software{
 		Name:    longName + "b",
 		Version: "0.0.1",
 		Source:  "chrome_extension",
 	})
-	incoming[soft2Key] = true
+	incoming[soft2Key] = struct{}{}
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
 	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]uint), incoming))
 	require.NoError(t, tx.Commit())
 
-	incoming = make(map[string]bool)
+	incoming = make(map[string]struct{})
 	soft3Key := softwareToUniqueString(fleet.Software{
 		Name:    longName + "c",
 		Version: "0.0.1",
 		Source:  "chrome_extension",
 	})
-	incoming[soft3Key] = true
+	incoming[soft3Key] = struct{}{}
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
@@ -422,6 +422,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		},
 	}
 	host1.HostSoftware = soft1
+
 	soft2 := fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
@@ -501,7 +502,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "id"}, TeamID: &team1.ID})
+		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:  1,
+				Page:     1,
+				OrderKey: "id",
+			},
+			TeamID: &team1.ID,
+		})
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
