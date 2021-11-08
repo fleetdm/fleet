@@ -6,9 +6,9 @@ import (
 
 // InvitePayload contains fields required to create a new user invite.
 type InvitePayload struct {
-	Email      *string
-	Name       *string
-	Position   *string
+	Email      *string     `json:"email"`
+	Name       *string     `json:"name"`
+	Position   *string     `json:"position"`
 	SSOEnabled *bool       `json:"sso_enabled"`
 	GlobalRole null.String `json:"global_role"`
 	Teams      []UserTeam  `json:"teams"`
@@ -17,15 +17,15 @@ type InvitePayload struct {
 // Invite represents an invitation for a user to join Fleet.
 type Invite struct {
 	UpdateCreateTimestamps
-	ID         uint        `json:"id"`
+	ID         uint        `json:"id" goqu:"skipupdate"`
 	InvitedBy  uint        `json:"invited_by" db:"invited_by"`
-	Email      string      `json:"email"`
-	Name       string      `json:"name"`
+	Email      string      `json:"email" db:"email"`
+	Name       string      `json:"name" db:"name"`
 	Position   string      `json:"position,omitempty"`
 	Token      string      `json:"-"`
 	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
 	GlobalRole null.String `json:"global_role" db:"global_role"`
-	Teams      []UserTeam  `json:"teams"`
+	Teams      []UserTeam  `json:"teams" goqu:"skipupdate"`
 }
 
 func (i Invite) AuthzType() string {

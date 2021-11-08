@@ -225,6 +225,8 @@ type InviteByTokenFunc func(ctx context.Context, token string) (*fleet.Invite, e
 
 type DeleteInviteFunc func(ctx context.Context, id uint) error
 
+type UpdateInviteFunc func(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error)
+
 type ListScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
 type NewScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
@@ -638,6 +640,9 @@ type DataStore struct {
 
 	DeleteInviteFunc        DeleteInviteFunc
 	DeleteInviteFuncInvoked bool
+
+	UpdateInviteFunc        UpdateInviteFunc
+	UpdateInviteFuncInvoked bool
 
 	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
 	ListScheduledQueriesInPackFuncInvoked bool
@@ -1311,6 +1316,11 @@ func (s *DataStore) InviteByToken(ctx context.Context, token string) (*fleet.Inv
 func (s *DataStore) DeleteInvite(ctx context.Context, id uint) error {
 	s.DeleteInviteFuncInvoked = true
 	return s.DeleteInviteFunc(ctx, id)
+}
+
+func (s *DataStore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error) {
+	s.UpdateInviteFuncInvoked = true
+	return s.UpdateInviteFunc(ctx, id, i)
 }
 
 func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {

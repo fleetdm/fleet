@@ -306,6 +306,8 @@ type Service interface {
 	// VerifyInvite verifies that an invite exists and that it matches the invite token.
 	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
 
+	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetService
 
