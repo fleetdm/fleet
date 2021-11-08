@@ -211,6 +211,7 @@ type ServerSettings struct {
 	LiveQueryDisabled bool   `json:"live_query_disabled"`
 	EnableAnalytics   bool   `json:"enable_analytics"`
 	DebugHostIDs      []uint `json:"debug_host_ids,omitempty"`
+	DeferredSaveHost  bool   `json:"deferred_save_host"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
