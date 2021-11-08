@@ -527,6 +527,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
 
+	whereClause := d.whereFilterHostsByTeams(filter, "hosts")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
         COUNT(*) total,
@@ -536,15 +537,30 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
-		d.whereFilterHostsByTeams(filter, "hosts"),
-	)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
 	var summary fleet.HostSummary
 	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
+
+	// get the counts per platform
+	sqlStatement = fmt.Sprintf(`
+			SELECT
+        COUNT(*) total,
+        platform
+			FROM hosts
+      WHERE %s
+      GROUP BY platform
+		`, whereClause)
+
+	var platforms []*fleet.HostSummaryPlatform
+	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
+	}
+	summary.Platforms = platforms
 
 	return &summary, nil
 }

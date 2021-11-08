@@ -170,8 +170,8 @@ type HostSummary struct {
 // HostSummaryPlatform represents the hosts statistics for a given platform,
 // as returned inside the HostSummary struct by the GetHostSummary service.
 type HostSummaryPlatform struct {
-	Platform   string `json:"platform"`
-	HostsCount uint   `json:"hosts_count"`
+	Platform   string `json:"platform" db:"platform"`
+	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
 // Status calculates the online status of the host
