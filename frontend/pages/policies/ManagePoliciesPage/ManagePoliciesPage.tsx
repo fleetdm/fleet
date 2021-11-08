@@ -408,7 +408,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
-                selectedTeamId={selectedTeamId}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -425,7 +424,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
-                selectedTeamId={selectedTeamId}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -467,7 +465,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               onRemovePoliciesClick={noop}
               toggleAddPolicyModal={noop}
               resultsTitle="policies"
-              selectedTeamId={null}
               canAddOrRemovePolicy={canAddOrRemovePolicy(
                 currentUser,
                 selectedTeamId

@@ -25,7 +25,6 @@ interface IPoliciesListWrapperProps {
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   toggleAddPolicyModal: () => void;
   resultsTitle?: string;
-  selectedTeamId?: number | null;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
@@ -37,12 +36,11 @@ const PoliciesListWrapper = ({
   onRemovePoliciesClick,
   toggleAddPolicyModal,
   resultsTitle,
-  selectedTeamId,
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
 }: IPoliciesListWrapperProps): JSX.Element => {
-  const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
+  const { MANAGE_HOSTS } = paths;
 
   const NoPolicies = () => {
     return (
@@ -62,7 +60,7 @@ const PoliciesListWrapper = ({
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamId)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
                       }
                     >
                       {selectedTeamData.name}
@@ -113,7 +111,7 @@ const PoliciesListWrapper = ({
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         columns={generateTableHeaders({
-          selectedTeamId,
+          selectedTeamId: selectedTeamData?.id,
           showSelectionColumn: canAddOrRemovePolicy,
           tableType,
         })}
