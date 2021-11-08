@@ -245,7 +245,7 @@ func (d *Datastore) writeChanLoop() {
 		case hostXUpdatedAt:
 			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
 			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
-			item.errCh <- errors.Wrap(err, "updating hosts label updated at")
+			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
 }
