@@ -5,7 +5,7 @@ interface IAvatarUserInterface {
   gravatarURL: string;
 }
 
-interface IAvatarInterface {
+export interface IAvatarInterface {
   className?: string;
   size?: string;
   user: IAvatarUserInterface;
@@ -31,7 +31,7 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
   const { gravatarURL } = user;
 
   return (
-    <div className={avatarClasses}>
+    <div>
       <img
         alt={!isLoading && !isError ? "User avatar" : ""}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}

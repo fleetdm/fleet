@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";

@@ -107,6 +107,7 @@ const generatePolicyTableHeaders = (
             }
             className={`policy-link`}
           >
+            View all hosts{" "}
             <img alt="link to hosts filtered by policy ID" src={Chevron} />
           </Link>
         );

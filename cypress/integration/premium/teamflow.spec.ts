@@ -48,6 +48,7 @@ describe("Teams flow", () => {
 
     // Check team in schedules
     cy.visit("/queries/manage");
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByRole("button", { name: /create new query/i }).click();
 

@@ -387,8 +387,32 @@
       width: 0;
     }
 
-    .policy-link img {
-      width: 16px;
+    tr {
+      a {
+        font-size: $x-small;
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+        text-decoration: none;
+      }
+
+      .policy-link {
+        visibility: hidden;
+        text-overflow: none;
+        img {
+          vertical-align: text-top;
+        }
+      }
+
+      &:hover {
+        .policy-link {
+          visibility: visible;
+          text-overflow: none;
+
+          img {
+            width: 16px;
+          }
+        }
+      }
     }
 
     .table-container__header {
@@ -410,28 +434,54 @@
     th:first-child {
       width: 70%;
     }
-
-    th:nth-last-child(2) {
-      border-right: none !important;
-    }
   }
 
   .section--software {
     th {
+      width: 200px;
+
       &:first-child {
         border-right: none;
         width: 16px;
         padding-right: 0px;
       }
       &:last-child {
-        width: 90px;
+        width: 200px;
         padding: 0px;
+        overflow: none;
+      }
+
+      &:nth-last-child(2) {
+        border-right: 0 !important;
       }
     }
     tr {
       td {
         &:first-child {
           padding-right: 0px;
+        }
+      }
+
+      a {
+        font-size: $x-small;
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+        text-decoration: none;
+      }
+
+      .software-link {
+        visibility: hidden;
+        img {
+          vertical-align: text-top;
+        }
+      }
+
+      &:hover {
+        .software-link {
+          visibility: visible;
+          img {
+            width: 16px;
+          }
         }
       }
     }
@@ -442,6 +492,10 @@
       td {
         overflow: hidden;
         text-overflow: ellipsis;
+
+        &:last-child {
+          text-overflow: unset;
+        }
       }
     }
   }
@@ -595,14 +649,5 @@
 
   .software-last-used-muted {
     color: $ui-fleet-black-50;
-  }
-
-  .software-link {
-    img {
-      transform: rotate(-90deg);
-      height: 16px;
-      width: auto;
-      vertical-align: middle;
-    }
   }
 }

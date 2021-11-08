@@ -7,7 +7,7 @@ import { useDeepEffect } from "utilities/hooks";
 import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 
 export interface INewQueryModalProps {
   baseClass: string;
