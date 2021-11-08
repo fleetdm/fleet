@@ -98,11 +98,10 @@ func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) err
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration.
-func Handle(ctx context.Context, err error) error {
+func Handle(ctx context.Context, err error) {
 	if eh := fromContext(ctx); eh != nil {
-		return eh.Store(err)
+		eh.Store(err)
 	}
-	return err
 }
 
 func ensureCommonMetadata(ctx context.Context, err error) error {
