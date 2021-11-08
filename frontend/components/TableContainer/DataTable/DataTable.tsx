@@ -174,8 +174,10 @@ const DataTable = ({
   }, [isClientSideFilter, searchQuery, searchQueryColumn, setFilter]);
 
   useEffect(() => {
-    if (isClientSideFilter && selectedPlatform && selectedPlatform !== "all") {
-      setFilter("platforms", selectedPlatform);
+    if (isClientSideFilter && selectedPlatform) {
+      selectedPlatform === "all"
+        ? setFilter("platforms", "")
+        : setFilter("platforms", selectedPlatform);
     }
   }, [isClientSideFilter, selectedPlatform, setFilter]);
 
