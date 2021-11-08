@@ -2,9 +2,8 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type CarveStore interface {
