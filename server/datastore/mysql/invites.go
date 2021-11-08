@@ -192,7 +192,7 @@ func (d *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "invite update sql build")
 		}
-		_, err = d.writer.ExecContext(ctx, query, args...)
+		_, err = tx.ExecContext(ctx, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "")
 		}
@@ -201,7 +201,7 @@ func (d *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clear invite teams sql build")
 		}
-		_, err = d.writer.ExecContext(ctx, query, args...)
+		_, err = tx.ExecContext(ctx, query, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "")
 		}
@@ -211,7 +211,7 @@ func (d *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "invite team update sql build")
 			}
-			_, err = d.writer.ExecContext(ctx, query, args...)
+			_, err = tx.ExecContext(ctx, query, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "")
 			}
