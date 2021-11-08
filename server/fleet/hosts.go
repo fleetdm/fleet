@@ -159,12 +159,12 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TotalsHostsCount uint                   `json:"totals_hosts_count"`
+	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
 	Platforms        []*HostSummaryPlatform `json:"platforms"`
-	OnlineCount      uint                   `json:"online_count"`
-	OfflineCount     uint                   `json:"offline_count"`
-	MIACount         uint                   `json:"mia_count"`
-	NewCount         uint                   `json:"new_count"`
+	OnlineCount      uint                   `json:"online_count" db:"online"`
+	OfflineCount     uint                   `json:"offline_count" db:"offline"`
+	MIACount         uint                   `json:"mia_count" db:"mia"`
+	NewCount         uint                   `json:"new_count" db:"new"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,

@@ -905,12 +905,13 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	mockClock := clock.NewMockClock()
 
-	online, offline, mia, new, err := ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
+	summary, err := ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
-	assert.Equal(t, uint(0), online)
-	assert.Equal(t, uint(0), offline)
-	assert.Equal(t, uint(0), mia)
-	assert.Equal(t, uint(0), new)
+	assert.Equal(t, uint(0), summary.TotalsHostsCount)
+	assert.Equal(t, uint(0), summary.OnlineCount)
+	assert.Equal(t, uint(0), summary.OfflineCount)
+	assert.Equal(t, uint(0), summary.MIACount)
+	assert.Equal(t, uint(0), summary.NewCount)
 
 	// Online
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -969,19 +970,21 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
-	assert.Equal(t, uint(2), online)
-	assert.Equal(t, uint(1), offline)
-	assert.Equal(t, uint(1), mia)
-	assert.Equal(t, uint(4), new)
+	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(2), summary.OnlineCount)
+	assert.Equal(t, uint(1), summary.OfflineCount)
+	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(4), summary.NewCount)
 
-	online, offline, mia, new, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
-	assert.Equal(t, uint(0), online)
-	assert.Equal(t, uint(3), offline)
-	assert.Equal(t, uint(1), mia)
-	assert.Equal(t, uint(4), new)
+	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(0), summary.OnlineCount)
+	assert.Equal(t, uint(3), summary.OfflineCount)
+	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(4), summary.NewCount)
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {

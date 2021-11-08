@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -522,7 +523,7 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets
 
@@ -539,24 +540,13 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 		d.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	counts := struct {
-		Total   uint `db:"total"`
-		MIA     uint `db:"mia"`
-		Offline uint `db:"offline"`
-		Online  uint `db:"online"`
-		New     uint `db:"new"`
-	}{}
-	err := sqlx.GetContext(ctx, d.reader, &counts, sqlStatement, now, now, now, now, now)
+	var summary fleet.HostSummary
+	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
-		e = errors.Wrap(err, "generating host statistics")
-		return
+		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
-	mia = counts.MIA
-	offline = counts.Offline
-	online = counts.Online
-	new = counts.New
-	return online, offline, mia, new, nil
+	return &summary, nil
 }
 
 // EnrollHost enrolls a host
