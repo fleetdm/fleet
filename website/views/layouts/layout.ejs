@@ -123,7 +123,8 @@
 
       <%- body %>
 
-      <div style="background-color: #182147;" purpose="page-footer">
+
+      <div style="background-color: #182147;" class="invisible" purpose="page-footer" data-hide-until-rendered>
         <div style="max-width: 1248px;" purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
           <div class="d-flex flex-column order-first justify-content-start">
             <div class="d-flex pb-4 pr-4">
@@ -330,6 +331,13 @@
         }
       }
     })();
+    </script>
+    <script>
+      if($) {
+        $(function() {
+          $('[data-hide-until-rendered]').removeClass('invisible');
+        });
+      }
     </script>
 
   </body>
