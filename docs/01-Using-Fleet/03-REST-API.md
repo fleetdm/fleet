@@ -3381,13 +3381,17 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
-Policies allow you to see which hosts meet a certain standard.
+WARNING: Fleet 4.6.0 (estimated release 2021-11-18), will introduce [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes documented below. Therefore, after upgrading to Fleet 4.6.0, any current integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
+
+Policies are yes or no questions you can ask about your hosts.
 
 Policies in Fleet are defined by osquery queries.
 
-Host that return results for a policy's query are "Passing."
+A passing host answers "yes" to a policy if the host returns results for a policy's query.
 
-Hosts that do not return results for a policy's query are "Failing."
+A failing host answers "no" to a policy if the host does not return results for a policy's query.
+
+For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
