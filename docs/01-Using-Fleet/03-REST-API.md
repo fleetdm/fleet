@@ -3381,7 +3381,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
-WARNING: Fleet 4.6.0 (estimated release 2021-11-18), will introduce [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes documented below. Therefore, after upgrading to Fleet 4.6.0, any current integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
+> Fleet 4.6.0 (release on 2021-11-18), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.6.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
 
 Policies are yes or no questions you can ask about your hosts.
 
