@@ -81,7 +81,12 @@ type PackTarget struct {
 }
 
 type PackStats struct {
-	PackID     uint                  `json:"pack_id,omitempty"`
-	PackName   string                `json:"pack_name,omitempty"`
+	PackID   uint   `json:"pack_id"`
+	PackName string `json:"pack_name"`
+	// Type indicates the type of the pack:
+	//	- "global" is the type of the global pack.
+	//	- "team-$ID" is returned for team packs.
+	//	- nil means it is a user created packs
+	Type       *string               `json:"type"`
 	QueryStats []ScheduledQueryStats `json:"query_stats"`
 }
