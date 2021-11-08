@@ -359,6 +359,10 @@ const ManageHostsPage = ({
       ),
     };
 
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
+
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
