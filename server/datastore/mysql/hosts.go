@@ -540,6 +540,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	)
 
 	counts := struct {
+		Total   uint `db:"total"`
 		MIA     uint `db:"mia"`
 		Offline uint `db:"offline"`
 		Online  uint `db:"online"`
