@@ -246,14 +246,9 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.Ho
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
+	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
 	if err != nil {
 		return nil, err
 	}
-	return &fleet.HostSummary{
-		OnlineCount:  online,
-		OfflineCount: offline,
-		MIACount:     mia,
-		NewCount:     new,
-	}, nil
+	return summary, nil
 }

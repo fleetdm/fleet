@@ -41,8 +41,14 @@ func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
-		return 1, 2, 3, 4, nil
+	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
+		return &fleet.HostSummary{
+			OnlineCount:      1,
+			OfflineCount:     2,
+			MIACount:         3,
+			NewCount:         4,
+			TotalsHostsCount: 5,
+		}, nil
 	}
 
 	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil)
@@ -51,6 +57,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.Equal(t, uint(2), summary.OfflineCount)
 	require.Equal(t, uint(3), summary.MIACount)
 	require.Equal(t, uint(4), summary.NewCount)
+	require.Equal(t, uint(5), summary.TotalsHostsCount)
 
 	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil)
 	require.NoError(t, err)
