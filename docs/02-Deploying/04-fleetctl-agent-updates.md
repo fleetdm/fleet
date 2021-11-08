@@ -128,7 +128,6 @@ fleetctl updates roots
 
 This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Orbit packager](https://github.com/fleetdm/orbit#packaging):
 
-
 ### Packaging with Orbit
 
 See [Orbit Docs](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for more details
@@ -137,3 +136,24 @@ You can use `fleetctl package` to generate installer packages of Orbit (a bootst
 
 For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
 to communicate with your fleet instance.
+
+### Key Rotation
+
+Key rotation is supported for each of the update role keys via the `fleetctl updates rotate` command.
+
+Rotation is required for a key if the key has been compromised, or before the key expires.
+
+Compromise of a single key (besides the root key) within the system does not enable an attacker to
+push arbitrary updates. Compromise of the root key is a catastrophic failure allowing arbitrary
+updates, and for this reason the root key is highly guarded in an offline context. See Section 7.4
+of the [_Survivable Key
+Compromise_](https://theupdateframework.io/papers/survivable-key-compromise-ccs2010.pdf) paper for a
+more in-depth discussion of the implications of key compromise in the TUF system.
+
+To rotate (for example) the targets key:
+
+```
+fleetctl updates rotate targets
+```
+
+After the key(s) have been rotated, publish the repository in the same fashion as any other update.
