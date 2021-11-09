@@ -78,14 +78,14 @@ allow {
   action == read
 }
 
-# Admin can write teams and team secrets
+# Admin can write teams
 allow {
   object.type == "team"
   subject.global_role == admin
   action == write
 }
 
-# Team admin can write teams and team secrets
+# Team admin can write teams
 allow {
   object.type == "team"
   team_role(subject, object.id) == admin
