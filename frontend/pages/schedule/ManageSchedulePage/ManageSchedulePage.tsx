@@ -4,8 +4,9 @@ import React, { useState, useCallback, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { AppContext } from "context/app";
-
 import { push } from "react-router-redux";
+import { find } from "lodash";
+
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
@@ -85,6 +86,7 @@ interface ITeamSchedulesPageProps {
   params: {
     team_id: string;
   };
+  location: any; // no type in react-router v3
 }
 
 // TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
@@ -122,8 +124,8 @@ interface ITeamOptions {
 
 const ManageSchedulePage = ({
   params: { team_id },
+  location,
 }: ITeamSchedulesPageProps): JSX.Element => {
-  let teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
@@ -134,9 +136,37 @@ const ManageSchedulePage = ({
     isPremiumTier,
     isTeamMaintainerOrTeamAdmin,
     isAnyTeamMaintainerOrTeamAdmin,
+    setCurrentTeam,
+    currentTeam,
   } = useContext(AppContext);
 
+  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
+    enabled: !!isPremiumTier,
+    select: (data) => data.teams,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: fleetQueries } = useQuery(
+    ["fleetQueries"],
+    () => fleetQueriesAPI.loadAll(),
+    {
+      select: (data) => data.queries,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  let teamId = parseInt(team_id, 10);
+  const team = find(teams, ["id", teamId]);
+  setCurrentTeam(team);
+  console.log("isTeamMaintainerOrTeamAdmin", isTeamMaintainerOrTeamAdmin);
+  console.log("currentTeam", currentTeam);
+  console.log("teamId", teamId);
+
   const onChangeSelectedTeam = (selectedTeamId: number) => {
+    const team = find(teams, ["id", selectedTeamId]);
+    setCurrentTeam(team);
     if (isNaN(selectedTeamId)) {
       dispatch(push(MANAGE_SCHEDULE));
     } else {
@@ -175,23 +205,6 @@ const ManageSchedulePage = ({
       }
     }
   }
-
-  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
-    enabled: !!isPremiumTier,
-    select: (data) => data.teams,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
-  const { data: fleetQueries } = useQuery(
-    ["fleetQueries"],
-    () => fleetQueriesAPI.loadAll(),
-    {
-      select: (data) => data.queries,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-    }
-  );
 
   // TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
   useEffect(() => {
