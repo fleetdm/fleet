@@ -269,7 +269,7 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]fleet.PackStats, error) {
 	packs, err := listPacksForHost(ctx, db, hid)
 	if err != nil {
-		return nil, errors.Wrapf(err, "list packs for host: %d", hid)
+		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
 	}
 	if len(packs) == 0 {
 		return nil, nil
@@ -311,18 +311,18 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) 
 	)
 	sql, args, err := ds.ToSQL()
 	if err != nil {
-		return nil, errors.Wrap(err, "sql build")
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 	var stats []fleet.ScheduledQueryStats
 	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "load pack stats")
+		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
 	}
 	packStats := map[uint]fleet.PackStats{}
 	for _, query := range stats {
 		pack := packStats[query.PackID]
 		pack.PackName = query.PackName
 		pack.PackID = query.PackID
-		pack.Type = packTypes[pack.PackID]
+		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
 		pack.QueryStats = append(pack.QueryStats, query)
 		packStats[pack.PackID] = pack
 	}
@@ -331,6 +331,13 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) 
 		ps = append(ps, pack)
 	}
 	return ps, nil
+}
+
+func getPackTypeFromDBField(t *string) string {
+	if t == nil {
+		return "pack"
+	}
+	return *t
 }
 
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {

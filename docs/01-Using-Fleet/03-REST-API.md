@@ -649,7 +649,7 @@ All the scheduled queries that are configured to run on the host (and their stat
 `pack_stats`. The `pack_stats[i].type` field can have the following values:
 1. `"global"`: identifies the global pack.
 2. `"team-$TEAM_ID"`: identifies a team's pack.
-3. `null`: this is the case for user created packs.
+3. `"pack"`: identifies a user created pack.
 
 If the scheduled queries haven't run on the host yet, the stats have zero values.
 
