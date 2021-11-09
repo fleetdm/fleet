@@ -3,6 +3,7 @@ package s3
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -220,7 +221,8 @@ func (d *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata,
 		Range:  &rangeString,
 	})
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == s3.ErrCodeNoSuchKey {
+		var awsErr awserr.Error
+		if errors.As(err, &awsErr) && awsErr.Code() == s3.ErrCodeNoSuchKey {
 			// The carve does not exists in S3, mark expired
 			metadata.Expired = true
 			if updateErr := d.UpdateCarve(ctx, metadata); err != nil {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -55,7 +56,8 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 
 	host, err := svc.ds.AuthenticateHost(ctx, nodeKey)
 	if err != nil {
-		switch err.(type) {
+		root := ctxerr.Cause(err)
+		switch root.(type) {
 		case fleet.NotFoundError:
 			return nil, false, osqueryError{
 				message:     "authentication error: invalid node key: " + nodeKey,
@@ -634,8 +636,9 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 
 	err = svc.resultStore.WriteResult(res)
 	if err != nil {
-		nErr, ok := err.(pubsub.Error)
-		if !ok || !nErr.NoSubscriber() {
+		var pse pubsub.Error
+		ok := errors.As(err, &pse)
+		if !ok || !pse.NoSubscriber() {
 			return osqueryError{message: "writing results: " + err.Error()}
 		}
 

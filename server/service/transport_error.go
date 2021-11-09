@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors
@@ -161,14 +162,16 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		// Get specific status code if it is available from this error type,
 		// defaulting to HTTP 500
 		status := http.StatusInternalServerError
-		if e, ok := err.(kithttp.StatusCoder); ok {
-			status = e.StatusCode()
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) {
+			status = sce.StatusCode()
 		}
 
 		// See header documentation
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-		if e, ok := err.(fleet.ErrWithRetryAfter); ok {
-			w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
+		var ewra fleet.ErrWithRetryAfter
+		if errors.As(err, &ewra) {
+			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
 		w.WriteHeader(status)

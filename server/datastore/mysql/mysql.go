@@ -614,6 +614,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 // isForeignKeyError checks if the provided error is a MySQL child foreign key
 // error (Error #1452)
 func isChildForeignKeyError(err error) bool {
+	err = ctxerr.Cause(err)
 	mysqlErr, ok := err.(*mysql.MySQLError)
 	if !ok {
 		return false
