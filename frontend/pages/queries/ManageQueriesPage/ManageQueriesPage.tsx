@@ -37,12 +37,6 @@ interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-interface IQueriesByPlatform extends Record<string, IQueryTableData[]> {
-  all: IQueryTableData[];
-  darwin: IQueryTableData[];
-  linux: IQueryTableData[];
-  windows: IQueryTableData[];
-}
 
 const PLATFORMS = ["darwin", "linux", "windows"];
 
@@ -93,11 +87,12 @@ const ManageQueriesPage = (): JSX.Element => {
 
   const { isOnlyObserver } = useContext(AppContext);
 
-  const [filteredQueries, setFilteredQueries] = useState<
-    IQueryTableData[] | null
-  >(null);
-  const [searchString, setSearchString] = useState<string>("");
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
+    null
+  );
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>(
+    "all"
+  );
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
@@ -119,42 +114,20 @@ const ManageQueriesPage = (): JSX.Element => {
     }
   );
 
-  const fleetQueriesByPlatform = useMemo(() => {
-    const emptyDictionary: IQueriesByPlatform = {
-      all: [],
-      darwin: [],
-      linux: [],
-      windows: [],
-    };
-    const queriesByPlatform = fleetQueries?.reduce(
-      (dict: IQueriesByPlatform, q: IQuery) => {
-        const query = enhanceQuery(q);
-        dict.all.push(query);
-        query.platforms.forEach((platform) => dict[platform]?.push(query));
-        return dict;
-      },
-      emptyDictionary
-    );
+  const enhancedQueriesList = useMemo(() => {
+    const enhancedQueries = fleetQueries?.map((q: IQuery) => {
+      const query = enhanceQuery(q);
+      return query;
+    });
 
-    return queriesByPlatform || emptyDictionary;
+    return enhancedQueries || [];
   }, [fleetQueries]);
 
   useEffect(() => {
-    if (!isLoadingFleetQueries && fleetQueriesByPlatform) {
-      let queriesList = fleetQueriesByPlatform[selectedPlatform];
-      if (searchString) {
-        queriesList = queriesList.filter((q) =>
-          q.name.toLowerCase().includes(searchString.toLowerCase())
-        );
-      }
-      setFilteredQueries(queriesList);
+    if (!isLoadingFleetQueries && enhancedQueriesList) {
+      setQueriesList(enhancedQueriesList);
     }
-  }, [
-    fleetQueriesByPlatform,
-    isLoadingFleetQueries,
-    searchString,
-    selectedPlatform,
-  ]);
+  }, [enhancedQueriesList, isLoadingFleetQueries]);
 
   const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
 
@@ -211,23 +184,21 @@ const ManageQueriesPage = (): JSX.Element => {
         dispatch(queryActions.loadAll());
         toggleRemoveQueryModal();
       });
-  }, [dispatch, selectedQueryIds]);
+  }, [dispatch, refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
   const renderPlatformDropdown = () => {
-    return fleetQueriesByPlatform?.all.length ? (
+    return (
       <Dropdown
-        value={selectedPlatform}
+        value={selectedDropdownFilter}
         className={`${baseClass}__platform_dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
-        onChange={setSelectedPlatform}
+        onChange={setSelectedDropdownFilter}
       />
-    ) : (
-      <></>
     );
   };
 
-  const isTableDataLoading = isLoadingFleetQueries || filteredQueries === null;
+  const isTableDataLoading = isLoadingFleetQueries || queriesList === null;
 
   return (
     <div className={baseClass}>
@@ -245,7 +216,7 @@ const ManageQueriesPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && !!fleetQueriesByPlatform?.all.length && (
+          {!isOnlyObserver && !!fleetQueries?.length && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -263,13 +234,13 @@ const ManageQueriesPage = (): JSX.Element => {
             <TableDataError />
           ) : (
             <QueriesListWrapper
-              queriesList={filteredQueries}
+              queriesList={queriesList}
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onRemoveQueryClick={onRemoveQueryClick}
-              searchable={!!fleetQueriesByPlatform?.all.length}
-              onSearchChange={setSearchString}
+              searchable={!!queriesList}
               customControl={renderPlatformDropdown}
+              selectedDropdownFilter={selectedDropdownFilter}
             />
           )}
         </div>
