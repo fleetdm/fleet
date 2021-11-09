@@ -133,6 +133,7 @@ const ManageSchedulePage = ({
     isOnGlobalTeam,
     isPremiumTier,
     isTeamMaintainerOrTeamAdmin,
+    isAnyTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
 
   const onChangeSelectedTeam = (selectedTeamId: number) => {
@@ -260,7 +261,7 @@ const ManageSchedulePage = ({
   const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
     const teamOptions: ITeamOptions[] = [];
 
-    if (isTeamMaintainerOrTeamAdmin && currentUser) {
+    if (isAnyTeamMaintainerOrTeamAdmin && currentUser) {
       currentUser.teams.forEach((team) => {
         if (team.role === "admin" || team.role === "maintainer") {
           teamOptions.push({
