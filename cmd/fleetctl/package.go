@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"path/filepath"
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/pkg/errors"
+	"github.com/skratchdot/open-golang/open"
 	"github.com/urfave/cli/v2"
 )
 
@@ -114,18 +117,32 @@ func packageCommand() *cli.Command {
 				return errors.New("Windows can only build MSI packages.")
 			}
 
+			var buildFunc func(packaging.Options) (string, error)
 			switch c.String("type") {
 			case "pkg":
-				return packaging.BuildPkg(opt)
+				buildFunc = packaging.BuildPkg
 			case "deb":
-				return packaging.BuildDeb(opt)
+				buildFunc = packaging.BuildDeb
 			case "rpm":
-				return packaging.BuildRPM(opt)
+				buildFunc = packaging.BuildRPM
 			case "msi":
-				return packaging.BuildMSI(opt)
+				buildFunc = packaging.BuildMSI
 			default:
 				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi')")
 			}
+
+			fmt.Println("Generating your osquery installer...")
+			path, err := buildFunc(opt)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Success! You generated an osquery installer at %s\n", path)
+
+			fmt.Println(`To add this device to Fleet, double-click to open your installer.
+
+To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts`)
+			open.Start(filepath.Dir(path))
+			return nil
 		},
 	}
 }
