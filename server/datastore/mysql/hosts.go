@@ -523,39 +523,48 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and CountHostsInTargets
+	// host.Status and CountHostsInTargets - that is, the intervals associated
+	// with each status must be the same.
 
+	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
+				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
-		d.whereFilterHostsByTeams(filter, "hosts"),
-	)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
-	counts := struct {
-		MIA     uint `db:"mia"`
-		Offline uint `db:"offline"`
-		Online  uint `db:"online"`
-		New     uint `db:"new"`
-	}{}
-	err := sqlx.GetContext(ctx, d.reader, &counts, sqlStatement, now, now, now, now, now)
+	var summary fleet.HostSummary
+	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
-		e = ctxerr.Wrap(ctx, err, "generating host statistics")
-		return
+		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
-	mia = counts.MIA
-	offline = counts.Offline
-	online = counts.Online
-	new = counts.New
-	return online, offline, mia, new, nil
+	// get the counts per platform, the `h` alias for hosts is required so that
+	// reusing the whereClause is ok.
+	sqlStatement = fmt.Sprintf(`
+			SELECT
+			  COUNT(*) total,
+			  h.platform
+			FROM hosts h
+			WHERE %s
+			GROUP BY h.platform
+		`, whereClause)
+
+	var platforms []*fleet.HostSummaryPlatform
+	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
+	}
+	summary.Platforms = platforms
+
+	return &summary, nil
 }
 
 // EnrollHost enrolls a host

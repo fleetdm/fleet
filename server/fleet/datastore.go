@@ -197,7 +197,7 @@ type Datastore interface {
 	// different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
-	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time) (online, offline, mia, new uint, err error)
+	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
