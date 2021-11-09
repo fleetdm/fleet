@@ -69,28 +69,6 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
 }
 
-func (svc Service) GetHostSummary(ctx context.Context) (*fleet.HostSummary, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	online, offline, mia, new, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now())
-	if err != nil {
-		return nil, err
-	}
-	return &fleet.HostSummary{
-		OnlineCount:  online,
-		OfflineCount: offline,
-		MIACount:     mia,
-		NewCount:     new,
-	}, nil
-}
-
 func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err

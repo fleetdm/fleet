@@ -133,6 +133,10 @@ type TeamFilter struct {
 	User *User
 	// IncludeObserver determines whether to include teams the user is an observer on.
 	IncludeObserver bool
+	// TeamID is the specific team id to filter by. If other criteria are
+	// specified, they must met too (e.g. if a User is provided, that team ID
+	// must be part of their teams).
+	TeamID *uint
 }
 
 const (
