@@ -971,9 +971,10 @@ const HostDetailsPage = ({
             </div>
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Osquery</span>
-              <span className="info-flex__data">{titleData.osquery_version}</span>
+              <span className="info-flex__data">
+                {titleData.osquery_version}
+              </span>
             </div>
-
           </div>
         </div>
       </div>
