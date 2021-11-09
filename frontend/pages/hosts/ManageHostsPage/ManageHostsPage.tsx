@@ -332,6 +332,10 @@ const ManageHostsPage = ({
       ),
     };
 
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
+
     try {
       const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
         options
