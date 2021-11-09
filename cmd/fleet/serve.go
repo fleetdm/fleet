@@ -668,6 +668,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	}
 
 	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+	level.Debug(logger).Log("interval", interval.String())
 	ticker := time.NewTicker(interval)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
