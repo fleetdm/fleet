@@ -248,12 +248,8 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if secrets == nil {
-		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
-	}
-	team, err := svc.ds.Team(ctx, teamID)
-	if err != nil {
-		return nil, err
+	if len(secrets) < 1 {
+		return nil, fleet.NewInvalidArgumentError("secrets", "need to define at least one secret for the team")
 	}
 
 	var newSecrets []*fleet.EnrollSecret
@@ -262,10 +258,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 			Secret: secret.Secret,
 		})
 	}
-	if err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), newSecrets); err != nil {
+	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
 	}
-	// logging.WithExtras(ctx, "old secrets", team.Secrets, "new secrets", newSecrets) // TODO: Is there any logging we want to include?
 
 	return newSecrets, nil
 }

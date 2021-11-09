@@ -4431,30 +4431,6 @@ Replaces all existing team enroll secrets.
 
 #### Example
 
-Delete all of a team's existing enroll secrets
-
-`PATCH /api/v1/fleet/teams/2/secrets`
-
-##### Request body
-
-```json
-{
-  "secrets": []
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "secrets": null
-}
-```
-
-#### Example
-
 Replace all of a team's existing enroll secrets with a new enroll secret
 
 `PATCH /api/v1/fleet/teams/2/secrets`
