@@ -45,6 +45,13 @@ const generateUsersTableHeaders = (): IDataColumn[] => {
       accessor: "username",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
+    {
+      title: "Shell",
+      Header: (cellProps) => <HeaderCell value={cellProps.column.title} />,
+      disableSortBy: true,
+      accessor: "shell",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
   ];
 };
 
