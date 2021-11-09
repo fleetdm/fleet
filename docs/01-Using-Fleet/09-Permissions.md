@@ -41,8 +41,8 @@ The following table depicts various permissions levels for each role.
 | Edit users                                           |          |            | ✅    |
 | Delete users                                         |          |            | ✅    |
 | Edit organization settings                           |          |            | ✅    |
-| Create enroll secrets                                |          |            | ✅    |
-| Edit enroll secrets                                  |          |            | ✅    |
+| Create enroll secrets                                |          | ✅         | ✅    |
+| Edit or delete enroll secrets                        |          | ✅         | ✅    |
 | Edit agent options                                   |          |            | ✅    |
 | Edit agent options for hosts assigned to teams\*     |          |            | ✅    |
 | Create teams\*                                       |          |            | ✅    |
@@ -88,4 +88,6 @@ The following table depicts various permissions levels in a team.
 | Remove policies for hosts assigned to team                   |          | ✅         | ✅       |
 | Edit users assigned to team                                  |          |            | ✅       |
 | Remove users assigned to team                                |          |            | ✅       |
+| Create team enroll secrets                                   |          | ✅         | ✅       |
+| Edit or delete team enroll secrets                           |          | ✅         | ✅       |
 | Edit agent options for hosts assigned to team                |          |            | ✅       |
