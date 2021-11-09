@@ -22,7 +22,7 @@ interface IQueriesListWrapperProps {
   onCreateQueryClick: () => void;
   searchable: boolean;
   customControl?: () => JSX.Element;
-  selectedPlatform: string;
+  selectedDropdownFilter: string;
 }
 
 const QueriesListWrapper = ({
@@ -32,7 +32,7 @@ const QueriesListWrapper = ({
   onCreateQueryClick,
   searchable,
   customControl,
-  selectedPlatform,
+  selectedDropdownFilter,
 }: IQueriesListWrapperProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
@@ -107,7 +107,7 @@ const QueriesListWrapper = ({
         customControl={customControl}
         isClientSideFilter
         searchQueryColumn="name"
-        selectedPlatform={selectedPlatform}
+        selectedDropdownFilter={selectedDropdownFilter}
       />
     </div>
   ) : null;

@@ -62,7 +62,7 @@ interface ITableContainerProps {
   filteredCount?: number;
   searchToolTipText?: string;
   searchQueryColumn?: string;
-  selectedPlatform?: string;
+  selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   isClientSideSearch?: boolean;
@@ -116,7 +116,7 @@ const TableContainer = ({
   isClientSideFilter,
   isClientSideSearch,
   highlightOnHover,
-  selectedPlatform,
+  selectedDropdownFilter,
   searchQueryColumn,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -156,7 +156,7 @@ const TableContainer = ({
     hasPageIndexChangedRef.current = true;
   };
 
-  const onClientFilterChange = (resultsCount: number) => {
+  const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
   };
 
@@ -338,13 +338,13 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
+              onResultsCountChange={onResultsCountChange}
               isClientSidePagination={isClientSidePagination}
               isClientSideFilter={isClientSideFilter}
               highlightOnHover={highlightOnHover}
               searchQuery={searchQuery}
               searchQueryColumn={searchQueryColumn}
-              selectedPlatform={selectedPlatform}
-              onClientFilterChange={onClientFilterChange}
+              selectedDropdownFilter={selectedDropdownFilter}
             />
             {!disablePagination && !isClientSidePagination && (
               <Pagination

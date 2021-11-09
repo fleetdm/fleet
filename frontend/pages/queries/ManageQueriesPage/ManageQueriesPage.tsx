@@ -90,7 +90,7 @@ const ManageQueriesPage = (): JSX.Element => {
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
@@ -187,11 +187,11 @@ const ManageQueriesPage = (): JSX.Element => {
   const renderPlatformDropdown = () => {
     return (
       <Dropdown
-        value={selectedPlatform}
+        value={selectedDropdownFilter}
         className={`${baseClass}__platform_dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         searchable={false}
-        onChange={setSelectedPlatform}
+        onChange={setSelectedDropdownFilter}
       />
     );
   };
@@ -238,7 +238,7 @@ const ManageQueriesPage = (): JSX.Element => {
               onRemoveQueryClick={onRemoveQueryClick}
               searchable={!!queriesList}
               customControl={renderPlatformDropdown}
-              selectedPlatform={selectedPlatform}
+              selectedDropdownFilter={selectedDropdownFilter}
             />
           )}
         </div>

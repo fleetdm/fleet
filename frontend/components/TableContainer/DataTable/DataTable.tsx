@@ -45,13 +45,13 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
-  onClientFilterChange?: (value: number) => void;
+  onResultsCountChange?: (value: number) => void;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   searchQuery?: string;
   searchQueryColumn?: string;
-  selectedPlatform?: string;
+  selectedDropdownFilter?: string;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -83,8 +83,8 @@ const DataTable = ({
   highlightOnHover,
   searchQuery,
   searchQueryColumn,
-  selectedPlatform,
-  onClientFilterChange,
+  selectedDropdownFilter,
+  onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -163,9 +163,12 @@ const DataTable = ({
 
   const { sortBy, selectedRowIds } = tableState;
 
-  if (isClientSideFilter && onClientFilterChange) {
-    onClientFilterChange(rows.length);
-  }
+  // Listen for changes to filters if clientSideFilter is enabled
+  useEffect(() => {
+    if (isClientSideFilter && onResultsCountChange) {
+      onResultsCountChange(rows.length);
+    }
+  }, [isClientSideFilter, onResultsCountChange, rows.length]);
 
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
@@ -174,12 +177,12 @@ const DataTable = ({
   }, [isClientSideFilter, searchQuery, searchQueryColumn, setFilter]);
 
   useEffect(() => {
-    if (isClientSideFilter && selectedPlatform) {
-      selectedPlatform === "all"
+    if (isClientSideFilter && selectedDropdownFilter) {
+      selectedDropdownFilter === "all"
         ? setFilter("platforms", "")
-        : setFilter("platforms", selectedPlatform);
+        : setFilter("platforms", selectedDropdownFilter);
     }
-  }, [isClientSideFilter, selectedPlatform, setFilter]);
+  }, [isClientSideFilter, selectedDropdownFilter, setFilter]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
