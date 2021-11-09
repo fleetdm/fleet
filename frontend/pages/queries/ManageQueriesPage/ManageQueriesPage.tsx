@@ -90,7 +90,9 @@ const ManageQueriesPage = (): JSX.Element => {
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>("all");
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>(
+    "all"
+  );
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
