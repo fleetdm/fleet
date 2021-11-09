@@ -20,6 +20,7 @@ import fleetQueriesAPI from "services/entities/queries";
 import teamsAPI from "services/entities/teams";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
+import permissionUtils from "utilities/permissions";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
@@ -134,10 +135,7 @@ const ManageSchedulePage = ({
     currentUser,
     isOnGlobalTeam,
     isPremiumTier,
-    isTeamMaintainerOrTeamAdmin,
     isAnyTeamMaintainerOrTeamAdmin,
-    setCurrentTeam,
-    currentTeam,
   } = useContext(AppContext);
 
   const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
@@ -159,14 +157,13 @@ const ManageSchedulePage = ({
 
   let teamId = parseInt(team_id, 10);
   const team = find(teams, ["id", teamId]);
-  setCurrentTeam(team);
-  console.log("isTeamMaintainerOrTeamAdmin", isTeamMaintainerOrTeamAdmin);
-  console.log("currentTeam", currentTeam);
-  console.log("teamId", teamId);
+
+  // isTeamMaintainerOrTeamAdmin set locally and not in AppContext
+  const isTeamMaintainerOrTeamAdmin = (() => {
+    return !!permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, teamId);
+  })();
 
   const onChangeSelectedTeam = (selectedTeamId: number) => {
-    const team = find(teams, ["id", selectedTeamId]);
-    setCurrentTeam(team);
     if (isNaN(selectedTeamId)) {
       dispatch(push(MANAGE_SCHEDULE));
     } else {
