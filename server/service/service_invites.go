@@ -24,7 +24,8 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 	if err == nil {
 		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
 	}
-	if _, ok := err.(fleet.NotFoundError); !ok {
+	var nfe fleet.NotFoundError
+	if !errors.As(err, &nfe) {
 		return nil, err
 	}
 
