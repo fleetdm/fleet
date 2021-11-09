@@ -323,6 +323,10 @@ const ManageHostsPage = ({
       ),
     };
 
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
+
     try {
       const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
         options
@@ -349,6 +353,10 @@ const ManageHostsPage = ({
         isOnGlobalTeam as boolean
       ),
     };
+
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
 
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
@@ -656,6 +664,10 @@ const ManageHostsPage = ({
 
     if (teamId) {
       newQueryParams.team_id = teamId;
+    }
+
+    if (queryParams.team_id) {
+      newQueryParams.team_id = queryParams.team_id;
     }
 
     if (policyId) {
