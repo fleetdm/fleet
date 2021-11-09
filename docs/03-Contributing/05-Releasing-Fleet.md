@@ -122,7 +122,8 @@ must be created and relevant changes cherry-picked onto that branch:
    be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview
    --tag patch-fleet-v4.3.1`).
 
-4. Check in the GitHub UI that Actions ran successfully for this branch and perform QA smoke testing.
+4. Check in the GitHub UI that Actions ran successfully for this branch and perform [QA smoke
+   testing](../../.github/ISSUE_TEMPLATE/smoke-tests.md).
 
 5. Follow the standard release instructions at the top of this document. Be sure that modifications
    to the changelog and config files are commited _on the `patch-*` branch_. When the patch has been
@@ -136,3 +137,5 @@ must be created and relevant changes cherry-picked onto that branch:
    are new migrations that were not cherry-picked, verify that those migrations have higher
    timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that
    migrations are run in the appropriate order.
+
+   TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
