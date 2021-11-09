@@ -359,7 +359,9 @@ const ManageHostsPage = ({
       ),
     };
 
-    console.log("options", options);
+    if (queryParams.team_id) {
+      options.teamId = queryParams.team_id;
+    }
 
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
@@ -669,7 +671,6 @@ const ManageHostsPage = ({
       newQueryParams.team_id = teamId;
     }
 
-    console.log("queryParams.team_id", queryParams.team_id);
     if (queryParams.team_id) {
       newQueryParams.team_id = queryParams.team_id;
     }
