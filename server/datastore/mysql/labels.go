@@ -213,7 +213,6 @@ func (d *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	id, _ := result.LastInsertId()
 	label.ID = uint(id)
 	return label, nil
-
 }
 
 func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.Label, error) {
@@ -396,7 +395,6 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 	}
 
 	return labels, nil
-
 }
 
 // ListHostsInLabel returns a list of fleet.Host that are associated
@@ -472,7 +470,6 @@ func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.Te
 	}
 
 	return hosts, nil
-
 }
 
 func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
