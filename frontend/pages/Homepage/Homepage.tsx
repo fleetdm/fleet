@@ -26,7 +26,7 @@ interface ITeamsResponse {
 const baseClass = "homepage";
 
 const TAGGED_TEMPLATES = {
-  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
     return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
@@ -85,8 +85,7 @@ const Homepage = (): JSX.Element => {
           action={{
             type: "link",
             to:
-              MANAGE_HOSTS +
-              TAGGED_TEMPLATES.hostsByTeamPRoute(currentTeam?.id),
+              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
             text: "View all hosts",
           }}
         >
