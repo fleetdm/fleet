@@ -525,7 +525,8 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 
 func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and CountHostsInTargets
+	// host.Status and CountHostsInTargets - that is, the intervals associated
+	// with each status must be the same.
 
 	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
