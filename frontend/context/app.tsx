@@ -28,7 +28,6 @@ type InitialStateType = {
   isTeamMaintainer: boolean | undefined;
   isTeamMaintainerOrTeamAdmin: boolean | undefined;
   isAnyTeamAdmin: boolean | undefined;
-
   isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
   setCurrentUser: (user: IUser) => void;
