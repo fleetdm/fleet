@@ -508,6 +508,15 @@
     .host-details__wrapper {
       overflow: auto;
     }
+
+    .shell__header {
+      span {
+        margin-right: $pad-small;
+      }
+      .host-users-table__shell-tooltip {
+        font-weight: 400;
+      }
+    }
   }
 
   tbody {
