@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -337,10 +338,10 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT 
+		SELECT
 		       h.*,
 		       hst.seen_time,
-		       t.name AS team_name, 
+		       t.name AS team_name,
 		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
 		       coalesce(failing_policies.count, 0) as failing_policies_count,
 		       coalesce(failing_policies.count, 0) as total_issues_count
@@ -522,39 +523,48 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and CountHostsInTargets
+	// host.Status and CountHostsInTargets - that is, the intervals associated
+	// with each status must be the same.
 
+	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
+				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
-		d.whereFilterHostsByTeams(filter, "hosts"),
-	)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
-	counts := struct {
-		MIA     uint `db:"mia"`
-		Offline uint `db:"offline"`
-		Online  uint `db:"online"`
-		New     uint `db:"new"`
-	}{}
-	err := sqlx.GetContext(ctx, d.reader, &counts, sqlStatement, now, now, now, now, now)
+	var summary fleet.HostSummary
+	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
-		e = errors.Wrap(err, "generating host statistics")
-		return
+		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
-	mia = counts.MIA
-	offline = counts.Offline
-	online = counts.Online
-	new = counts.New
-	return online, offline, mia, new, nil
+	// get the counts per platform, the `h` alias for hosts is required so that
+	// reusing the whereClause is ok.
+	sqlStatement = fmt.Sprintf(`
+			SELECT
+			  COUNT(*) total,
+			  h.platform
+			FROM hosts h
+			WHERE %s
+			GROUP BY h.platform
+		`, whereClause)
+
+	var platforms []*fleet.HostSummaryPlatform
+	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
+	}
+	summary.Platforms = platforms
+
+	return &summary, nil
 }
 
 // EnrollHost enrolls a host
@@ -793,7 +803,7 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership_history 
+		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
 			return errors.Wrap(err, "add host to team sqlx in")
@@ -912,14 +922,14 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT 
-		p.id, 
-		p.query_id, 
-		q.name AS query_name, 
+	query := `SELECT
+		p.id,
+		p.query_id,
+		q.name AS query_name,
 		CASE
-			WHEN pm.passes = 1 THEN 'pass' 
-			WHEN pm.passes = 0 THEN 'fail' 
-			ELSE '' 
+			WHEN pm.passes = 1 THEN 'pass'
+			WHEN pm.passes = 0 THEN 'fail'
+			ELSE ''
 		END AS response,
 		q.description,
 		coalesce(p.resolution, '') as resolution
@@ -927,8 +937,8 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm 
-	JOIN policies p ON (p.id=pm.policy_id) 
+	) as pm
+	JOIN policies p ON (p.id=pm.policy_id)
 	JOIN queries q ON (p.query_id=q.id)`
 
 	var policies []*fleet.HostPolicy

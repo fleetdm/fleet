@@ -182,14 +182,18 @@ type HostStatusWebhookSettings struct {
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
+
 	c.SMTPSettings.SMTPPort = 587
 	c.SMTPSettings.SMTPEnableStartTLS = true
 	c.SMTPSettings.SMTPAuthenticationType = AuthTypeNameUserNamePassword
 	c.SMTPSettings.SMTPAuthenticationMethod = AuthMethodNamePlain
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
+
 	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/v1/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
+
+	c.HostSettings.EnableSoftwareInventory = true
 
 	c.ApplyDefaults()
 }

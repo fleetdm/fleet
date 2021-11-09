@@ -379,7 +379,7 @@ func TestLabelQueries(t *testing.T) {
 	var gotHost *fleet.Host
 	var gotResults map[uint]*bool
 	var gotTime time.Time
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		gotHost = host
 		gotResults = results
 		gotTime = t
@@ -1678,7 +1678,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		return errors.New("something went wrong")
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1906,7 +1906,7 @@ func TestPolicyQueries(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
 		recordedResults = results
 		host = gotHost
 		return nil
