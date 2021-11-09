@@ -102,6 +102,7 @@ describe(
         cy.findByText(/back to queries/i).should("exist");
         cy.visit("/queries/manage");
 
+        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all/i).click();
 
         cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
