@@ -311,7 +311,6 @@ WHERE host_id = ? AND p.pack_type IS NULL
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
 	sql := `SELECT username, groupname, uid, user_type, shell FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := sqlx.SelectContext(ctx, db, &host.Users, sql, host.ID); err != nil {
-		fmt.Println("ERROR? ", err)
 		return errors.Wrap(err, "load host users")
 	}
 	return nil

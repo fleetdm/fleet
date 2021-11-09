@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up20211111140000, Down20211111140000)
+	MigrationClient.AddMigration(Up20211111110000, Down20211111110000)
 }
 
-func Up20211111140000(tx *sql.Tx) error {
+func Up20211111110000(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"ALTER TABLE `host_users` " +
 			"ADD COLUMN `shell` varchar(255) DEFAULT NULL",
@@ -16,6 +16,6 @@ func Up20211111140000(tx *sql.Tx) error {
 	return err
 }
 
-func Down20211111140000(tx *sql.Tx) error {
+func Down20211111110000(tx *sql.Tx) error {
 	return nil
 }
