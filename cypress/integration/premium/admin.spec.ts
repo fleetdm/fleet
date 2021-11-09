@@ -95,7 +95,7 @@ describe(
         cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all/i).click();
 
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/run query/i).should("exist");
 
         cy.get(".ace_scroller")
