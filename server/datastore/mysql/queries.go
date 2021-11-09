@@ -103,7 +103,7 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	result, err := d.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Query", 0)
+		return nil, alreadyExists("Query", query.Name)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "creating new Query")
 	}

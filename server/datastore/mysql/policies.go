@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,16 +12,33 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (ds *Datastore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
-	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id, resolution) VALUES (?, ?)`, queryID, resolution)
-	if err != nil {
+func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
+	if queryID != 0 {
+		q, err := ds.Query(ctx, queryID)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching query from id")
+		}
+		name = q.Name
+		query = q.Query
+		description = q.Description
+	}
+	res, err := ds.writer.ExecContext(ctx,
+		`INSERT INTO policies (name, query, description, resolution, author_id) VALUES (?, ?, ?, ?, ?)`,
+		name, query, description, resolution, authorID,
+	)
+	switch {
+	case err == nil:
+		// OK
+	case isDuplicate(err):
+		return nil, alreadyExists("Policy", name)
+	default:
 		return nil, errors.Wrap(err, "inserting new policy")
 	}
+
 	lastIdInt64, err := res.LastInsertId()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting last id after inserting policy")
 	}
-
 	return policyDB(ctx, ds.writer, uint(lastIdInt64), nil)
 }
 
@@ -40,17 +56,38 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
-		fmt.Sprintf(`SELECT
-       		p.*,
-       		q.name as query_name,
+		fmt.Sprintf(`SELECT p.*, COALESCE(u.name, '<deleted>') AS author_name,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE p.id=? AND %s`, teamWhere),
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.id=? AND %s`, teamWhere),
 		args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting policy")
 	}
 	return &policy, nil
+}
+
+// SavePolicy updates some fields of the given policy on the datastore.
+func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+	sql := `
+		UPDATE policies
+			SET name = ?, query = ?, description = ?, resolution = ?
+			WHERE id = ?
+	`
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution)
+	if err != nil {
+		return errors.Wrap(err, "updating policy")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "rows affected updating policy")
+	}
+	if rows == 0 {
+		return notFound("Policy").WithID(p.ID)
+	}
+	return nil
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
@@ -135,12 +172,12 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		ctx,
 		q,
 		&policies,
-		fmt.Sprintf(`SELECT
-       		p.*,
-       		q.name as query_name,
+		fmt.Sprintf(`SELECT p.*, COALESCE(u.name, '<deleted>') AS author_name,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE %s`, teamWhere), args...,
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE %s`, teamWhere), args...,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing policies")
@@ -181,7 +218,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		ctx,
 		ds.reader,
 		&globalRows,
-		`SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE team_id is NULL`,
+		`SELECT p.id, p.query FROM policies p WHERE team_id is NULL`,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "selecting policies for host")
@@ -194,7 +231,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 			ctx,
 			ds.reader,
 			&teamRows,
-			`SELECT p.id, q.query FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE team_id = ?`,
+			`SELECT p.id, p.query FROM policies p WHERE team_id = ?`,
 			*host.TeamID,
 		)
 		if err != nil {
@@ -213,8 +250,19 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	return results, nil
 }
 
-func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
-	res, err := ds.writer.ExecContext(ctx, `INSERT INTO policies (query_id, team_id, resolution) VALUES (?, ?, ?)`, queryID, teamID, resolution)
+func (ds *Datastore) NewTeamPolicy(ctx context.Context, authorID, teamID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
+	if queryID != 0 {
+		q, err := ds.Query(ctx, queryID)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching query from id")
+		}
+		name = q.Name
+		query = q.Query
+		description = q.Description
+	}
+	res, err := ds.writer.ExecContext(ctx,
+		`INSERT INTO policies (name, query, description, team_id, resolution, author_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		name, query, description, teamID, resolution, authorID)
 	if err != nil {
 		return nil, errors.Wrap(err, "inserting new team policy")
 	}
@@ -222,8 +270,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uin
 	if err != nil {
 		return nil, errors.Wrap(err, "getting last id after inserting policy")
 	}
-
-	return policyDB(ctx, ds.writer, uint(lastIdInt64), nil)
+	return policyDB(ctx, ds.writer, uint(lastIdInt64), &teamID)
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
@@ -238,45 +285,40 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 	return policyDB(ctx, ds.reader, policyID, &teamID)
 }
 
-func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
+// ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
+// already exist (a policy is identified by its name and the team it belongs to).
+//
+// NOTE(lucas): Mimicking ApplyQueries, it will update the author_id of the policies that are updated.
+func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO(lucas): Amend IFNULL hack for team_id.
+		sql := `
+		INSERT INTO policies (
+			name,
+			query,
+			description,
+			author_id,
+			resolution,
+			team_id
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?) )
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			query = VALUES(query),
+			description = VALUES(description),
+			author_id = VALUES(author_id),
+			resolution = VALUES(resolution),
+			team_id = VALUES(team_id)
+		`
 		for _, spec := range specs {
-			if spec.QueryName == "" {
-				return errors.New("query name must not be empty")
+			if spec.Name == "" {
+				return errors.New("policy name must not be empty")
 			}
-
-			// We update by hand because team_id can be null and that means compound index wont work
-
-			teamCheck := `team_id is NULL`
-			args := []interface{}{spec.QueryName}
-			if spec.Team != "" {
-				teamCheck = `team_id=(SELECT id FROM teams WHERE name=?)`
-				args = append(args, spec.Team)
+			if spec.Query == "" {
+				return errors.New("policy query must not be empty")
 			}
-			row := tx.QueryRowxContext(ctx,
-				fmt.Sprintf(`SELECT 1 FROM policies WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
-				args...,
-			)
-			var exists int
-			err := row.Scan(&exists)
-			if err != nil && err != sql.ErrNoRows {
-				return errors.Wrap(err, "checking policy existence")
-			}
-			if exists > 0 {
-				_, err = tx.ExecContext(ctx,
-					fmt.Sprintf(`UPDATE policies SET resolution=? WHERE query_id=(SELECT id FROM queries WHERE name=?) AND %s`, teamCheck),
-					append([]interface{}{spec.Resolution}, args...)...,
-				)
-				if err != nil {
-					return errors.Wrap(err, "exec ApplyPolicySpecs update")
-				}
-			} else {
-				_, err = tx.ExecContext(ctx,
-					`INSERT INTO policies (query_id, team_id, resolution) VALUES ((SELECT id FROM queries WHERE name=?), (SELECT id FROM teams WHERE name=?),?)`,
-					spec.QueryName, spec.Team, spec.Resolution)
-				if err != nil {
-					return errors.Wrap(err, "exec ApplyPolicySpecs insert")
-				}
+			_, err := tx.ExecContext(ctx, sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team)
+			if err != nil {
+				return errors.Wrap(err, "exec ApplyPolicySpecs insert")
 			}
 		}
 		return nil

@@ -110,7 +110,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run
+	golangci-lint run --skip-dirs ./node_modules
 
 lint: lint-go lint-js
 

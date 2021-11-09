@@ -131,6 +131,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	assert.Equal(t, "http://iii.com", *activities.Activities[0].ActorGravatar)
 	assert.Equal(t, "created_saved_query", activities.Activities[0].Type)
 }
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 
@@ -375,20 +376,25 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
-	assert.Equal(t, qr.ID, gpResp.Policy.QueryID)
+	assert.Equal(t, qr.Name, gpResp.Policy.Name)
+	assert.Equal(t, qr.Query, gpResp.Policy.Query)
+	assert.Equal(t, qr.Description, gpResp.Policy.Description)
 	require.NotNil(t, gpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 1)
-	assert.Equal(t, qr.ID, policiesResponse.Policies[0].QueryID)
+	assert.Equal(t, qr.Name, policiesResponse.Policies[0].Name)
+	assert.Equal(t, qr.Query, policiesResponse.Policies[0].Query)
+	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
 
 	singlePolicyResponse := getPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
 	s.DoJSON("GET", singlePolicyURL, nil, http.StatusOK, &singlePolicyResponse)
-	assert.Equal(t, qr.ID, singlePolicyResponse.Policy.QueryID)
-	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.QueryName)
+	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.Name)
+	assert.Equal(t, qr.Query, singlePolicyResponse.Policy.Query)
+	assert.Equal(t, qr.Description, singlePolicyResponse.Policy.Description)
 
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -626,8 +632,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
 
+	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	p, err := s.ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))

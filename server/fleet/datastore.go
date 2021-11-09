@@ -351,15 +351,19 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, authorID uint, queryID uint, name, query, description, resolution string) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	// SavePolicy updates some fields of the given policy on the datastore.
+	//
+	// It is also used to update team policies.
+	SavePolicy(ctx context.Context, p *Policy) error
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
@@ -373,7 +377,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, authorID uint, teamID uint, queryID uint, name, query, description, resolution string) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)

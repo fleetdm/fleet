@@ -37,16 +37,20 @@ spec:
   platform: ""
   platform_like: ""
   policies:
-    - id: 1
+    - author_id: 1
+      author_name: Alice
+      id: 1
       query_description: ""
-      query_id: 2
       query_name: query1
+      query: select 1 from osquery_info where start_time > 1;
       resolution: ""
       response: passes
-    - id: 2
+    - author_id: 1
+      author_name: Alice
+      id: 2
       query_description: ""
-      query_id: 43
       query_name: query2
+      query: select 1 from osquery_info where start_time > 1;
       resolution: ""
       response: fails
   policy_updated_at: "0001-01-01T00:00:00Z"

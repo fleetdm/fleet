@@ -924,22 +924,21 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
 	query := `SELECT
 		p.id,
-		p.query_id,
-		q.name AS query_name,
+		p.name,
+		p.query,
+		p.description,
 		CASE
 			WHEN pm.passes = 1 THEN 'pass'
 			WHEN pm.passes = 0 THEN 'fail'
 			ELSE ''
 		END AS response,
-		q.description,
 		coalesce(p.resolution, '') as resolution
 	FROM policies p
 	LEFT JOIN (
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm ON (p.id=pm.policy_id)
-	JOIN queries q ON (p.query_id=q.id)`
+	) as pm ON (p.id=pm.policy_id)`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {

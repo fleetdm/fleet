@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
@@ -12,8 +14,11 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID    uint   `json:"query_id"`
-	Resolution string `json:"resolution"`
+	QueryID     uint   `json:"query_id"`
+	Query       string `json:"query"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Resolution  string `json:"resolution"`
 }
 
 type globalPolicyResponse struct {
@@ -25,19 +30,47 @@ func (r globalPolicyResponse) error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*globalPolicyRequest)
-	resp, err := svc.NewGlobalPolicy(ctx, req.QueryID, req.Resolution)
+	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
+		QueryID:     req.QueryID,
+		Query:       req.Query,
+		Name:        req.Name,
+		Description: req.Description,
+		Resolution:  req.Resolution,
+	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
 	}
 	return globalPolicyResponse{Policy: resp}, nil
 }
 
-func (svc Service) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
+type NewPolicyArgs struct {
+	QueryID     uint
+	Query       string
+	Name        string
+	Description string
+	Resolution  string
+}
+
+func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.NewGlobalPolicy(ctx, queryID, resolution)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("user must be authenticated to create team policies")
+	}
+	if p.QueryID != 0 && p.Query != "" {
+		return nil, ctxerr.New(ctx, "both fields \"queryID\" and \"query\" cannot be set")
+	}
+	// TODO(lucas): Implement me.
+	// if err := p.ValidateSQL(); err != nil {
+	//	return nil, err
+	// }
+
+	// TODO(lucas): Add activity entry.
+
+	return svc.ds.NewGlobalPolicy(ctx, vc.UserID(), p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +170,35 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Modify
+/////////////////////////////////////////////////////////////////////////////////
+
+type modifyGlobalPolicyRequest struct {
+	PolicyID uint `url:"policy_id"`
+	fleet.ModifyPolicyPayload
+}
+
+type modifyGlobalPolicyResponse struct {
+	Policy *fleet.Policy `json:"policy,omitempty"`
+	Err    error         `json:"error,omitempty"`
+}
+
+func (r modifyGlobalPolicyResponse) error() error { return r.Err }
+
+func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyGlobalPolicyRequest)
+	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
+	if err != nil {
+		return modifyGlobalPolicyResponse{Err: err}, nil
+	}
+	return modifyGlobalPolicyResponse{Policy: resp}, nil
+}
+
+func (svc Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
+	return svc.modifyPolicy(ctx, nil, id, p)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Apply Spec
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -179,6 +241,10 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 			return err
 		}
 	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errors.New("user must be authenticated to apply policies")
+	}
 
-	return svc.ds.ApplyPolicySpecs(ctx, policies)
+	return svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies)
 }
