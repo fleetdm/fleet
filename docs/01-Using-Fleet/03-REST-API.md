@@ -607,11 +607,13 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-None.
+| Name    | Type    | In    | Description                                                                     |
+| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary`
+`GET /api/v1/fleet/host_summary?team_id=1`
 
 ##### Default response
 
@@ -619,6 +621,17 @@ None.
 
 ```json
 {
+  "totals_hosts_count": 2408,
+  "platforms": [
+    {
+      "platform": "linux",
+      "hosts_count": 1204
+    },
+    {
+      "platform": "darwin",
+      "hosts_count": 1204
+    }
+  ],
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
