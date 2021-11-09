@@ -20,7 +20,7 @@ interface ITargetsInputProps {
   selectedTargets: ITarget[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
-  onPrimarySelectActionClick: (value: number[]) => void;
+  handleRowRemove: (value: Row) => void;
 }
 
 const baseClass = "targets-input";
@@ -33,8 +33,8 @@ const TargetsInput = ({
   hasFetchError,
   selectedTargets,
   handleRowSelect,
+  handleRowRemove,
   setSearchText,
-  onPrimarySelectActionClick,
 }: ITargetsInputProps) => {
   const resultsDropdownTableHeaders = generateTableHeaders(false);
   const selectedTableHeaders = generateTableHeaders(true);
@@ -109,19 +109,17 @@ const TargetsInput = ({
       )}
       <div className={`${baseClass}__hosts-selected-table`}>
         <TableContainer
-          resultsTitle=""
           columns={selectedTableHeaders}
           data={finalSelectedHostTargets}
           isLoading={false}
+          resultsTitle=""
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
           disablePagination
-          onPrimarySelectActionClick={onPrimarySelectActionClick}
-          primarySelectActionButtonVariant="text-link"
-          primarySelectActionButtonIcon="close"
-          primarySelectActionButtonText={"Remove"}
+          disableMultiRowSelect
           emptyComponent={() => <></>}
+          onSelectSingleRow={handleRowRemove}
         />
       </div>
     </div>
