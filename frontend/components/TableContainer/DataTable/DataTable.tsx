@@ -10,7 +10,7 @@ import {
   usePagination,
   useFilters,
 } from "react-table";
-import { isString, kebabCase, noop } from "lodash";
+import { debounce, isString, kebabCase, noop } from "lodash";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -22,6 +22,7 @@ import Spinner from "components/loaders/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
+import { useDebounce } from "use-debounce/lib";
 
 const baseClass = "data-table-container";
 
@@ -164,6 +165,11 @@ const DataTable = ({
   const { sortBy, selectedRowIds } = tableState;
 
   // Listen for changes to filters if clientSideFilter is enabled
+
+  const setDebouncedClientFilter = debounce((column, query) => {
+    setFilter(column, query);
+  }, 300);
+
   useEffect(() => {
     if (isClientSideFilter && onResultsCountChange) {
       onResultsCountChange(rows.length);
@@ -172,17 +178,17 @@ const DataTable = ({
 
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
-      setFilter(searchQueryColumn, searchQuery || "");
+      setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
-  }, [isClientSideFilter, searchQuery, searchQueryColumn, setFilter]);
+  }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
     if (isClientSideFilter && selectedDropdownFilter) {
       selectedDropdownFilter === "all"
-        ? setFilter("platforms", "")
-        : setFilter("platforms", selectedDropdownFilter);
+        ? setDebouncedClientFilter("platforms", "")
+        : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
-  }, [isClientSideFilter, selectedDropdownFilter, setFilter]);
+  }, [selectedDropdownFilter]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
