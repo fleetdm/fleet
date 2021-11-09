@@ -28,10 +28,10 @@ describe(
       () => {
         cy.visit("/hosts/manage");
 
-        cy.contains("button", /add new host/i).click();
+        cy.contains("button", /generate installer/i).click();
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(1000);
-        cy.get('a[href*="showSecret"]').click();
+        cy.wait(2000);
+        cy.findByText(/rpm/i).click();
         cy.contains("a", /download/i)
           .first()
           .click();
@@ -42,13 +42,11 @@ describe(
         if (Cypress.platform !== "win32") {
           // windows has issues with downloads location
           cy.readFile(
-            path.join(Cypress.config("downloadsFolder"), "secret.txt"),
+            path.join(Cypress.config("downloadsFolder"), "fleet.pem"),
             {
               timeout: 5000,
             }
-          ).then((contents) => {
-            cy.get("input[disabled]").should("have.value", contents);
-          });
+          );
         }
 
         cy.visit("/hosts/manage");
@@ -142,7 +140,7 @@ describe(
             })
             .then(() => {
               cy.findByText(/add your hosts to fleet/i).should("exist");
-              cy.findByText(/add new host/i).should("exist");
+              cy.findByText(/generate installer/i).should("exist");
               cy.findByText(/about this host/i).should("not.exist");
               cy.findByText(hostname).should("not.exist");
             });

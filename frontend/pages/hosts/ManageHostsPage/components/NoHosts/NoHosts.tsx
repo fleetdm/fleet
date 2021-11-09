@@ -8,26 +8,28 @@ import { ITeam } from "interfaces/team";
 import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 
 interface INoHostsProps {
-  setShowAddHostModal: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleGenerateInstallerModal: () => void;
 }
 
 const baseClass = "no-hosts";
 
-const NoHosts = ({ setShowAddHostModal }: INoHostsProps): JSX.Element => {
+const NoHosts = ({
+  toggleGenerateInstallerModal,
+}: INoHostsProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <img src={RoboDogImage} alt="No Hosts" />
         <div>
-          <h2>Add your hosts to Fleet</h2>
-          <p>Add your laptops and servers to securely monitor them.</p>
+          <h2>Add your devices to Fleet</h2>
+          <p>Generate an installer to add your own devices.</p>
           <div className={`${baseClass}__no-hosts-button`}>
             <Button
-              onClick={() => setShowAddHostModal(true)}
+              onClick={toggleGenerateInstallerModal}
               type="button"
               className="button button--brand"
             >
-              Add new hosts
+              Generate installer
             </Button>
           </div>
         </div>

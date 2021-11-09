@@ -36,19 +36,9 @@ describe(
         // See the “Teams” column in the Hosts table
         cy.get("thead").contains(/team/i).should("exist");
 
-        // See and select the “Add new host” button
-        cy.contains("button", /add new host/i).click();
-
-        // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-        cy.get(
-          ".add-host-modal__team-dropdown-wrapper .Select-control"
-        ).click();
-
-        cy.get(".Select-menu-outer").within(() => {
-          cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).should("exist");
-        });
+        // See and select the “Generate installer” button
+        cy.contains("button", /generate installer/i).click();
+        cy.contains("button", /done/i).click();
 
         // On the Host details page, they should…
         // See the “Team” information below the hostname
