@@ -10,7 +10,8 @@ import {
   usePagination,
   useFilters,
 } from "react-table";
-import { debounce, isString, kebabCase, noop } from "lodash";
+import { isString, kebabCase, noop } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -22,7 +23,6 @@ import Spinner from "components/loaders/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
-import { useDebounce } from "use-debounce/lib";
 
 const baseClass = "data-table-container";
 
@@ -166,9 +166,12 @@ const DataTable = ({
 
   // Listen for changes to filters if clientSideFilter is enabled
 
-  const setDebouncedClientFilter = debounce((column, query) => {
-    setFilter(column, query);
-  }, 300);
+  const setDebouncedClientFilter = useDebouncedCallback(
+    (column: string, query: string) => {
+      setFilter(column, query);
+    },
+    300
+  );
 
   useEffect(() => {
     if (isClientSideFilter && onResultsCountChange) {
