@@ -220,20 +220,3 @@ func makeTeamEnrollSecretsEndpoint(svc fleet.Service) endpoint.Endpoint {
 		return teamEnrollSecretsResponse{Secrets: secrets}, err
 	}
 }
-
-type modifyTeamEnrollSecretsRequest struct {
-	TeamID  uint                 // From request path
-	Secrets []fleet.EnrollSecret `json:"secrets"`
-}
-
-func makeModifyTeamEnrollSecretsEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(modifyTeamEnrollSecretsRequest)
-		secrets, err := svc.ModifyTeamEnrollSecrets(ctx, req.TeamID, req.Secrets)
-		if err != nil {
-			return teamEnrollSecretsResponse{Err: err}, nil
-		}
-
-		return teamEnrollSecretsResponse{Secrets: secrets}, err
-	}
-}

@@ -161,9 +161,6 @@ func TestTeamAuth(t *testing.T) {
 
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
-
-			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{})
-			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 		})
 	}
 }
