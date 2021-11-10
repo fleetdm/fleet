@@ -315,7 +315,7 @@ func (d *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return results, nil
 }
 
-func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -367,6 +367,11 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			}
 		}
 
+		// if we are deferring host updates, we return at this point and do the change outside of the tx
+		if deferredSaveHost {
+			return nil
+		}
+
 		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
 		if err != nil {
 			return errors.Wrap(err, "updating hosts label updated at")
@@ -378,6 +383,24 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		return err
 	}
 
+	if deferredSaveHost {
+		errCh := make(chan error, 1)
+		defer close(errCh)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case d.writeCh <- itemToWrite{
+			ctx:   ctx,
+			errCh: errCh,
+			item: hostXUpdatedAt{
+				hostID:    host.ID,
+				updatedAt: updated,
+				what:      "label_updated_at",
+			},
+		}:
+			return <-errCh
+		}
+	}
 	return nil
 }
 
@@ -403,10 +426,10 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	query := `
-			SELECT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+			SELECT h.*, hst.seen_time, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
-			JOIN hosts h
-			ON lm.host_id = h.id
+			JOIN hosts h ON (lm.host_id = h.id)
+			LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 			WHERE lm.label_id = ?
 	`
 
@@ -433,7 +456,10 @@ func (d *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, que
 }
 
 func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
-	query := `SELECT count(*) FROM label_membership lm JOIN hosts h ON lm.host_id = h.id WHERE lm.label_id = ?`
+	query := `SELECT count(*) FROM label_membership lm 
+    JOIN hosts h ON (lm.host_id = h.id)
+	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	WHERE lm.label_id = ?`
 
 	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
 

@@ -119,7 +119,7 @@ type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error
+type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
 
@@ -141,6 +141,8 @@ type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error
 
 type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
+type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
+
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
@@ -159,7 +161,7 @@ type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query st
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
-type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error)
+type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error)
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
@@ -283,7 +285,7 @@ type NewGlobalPolicyFunc func(ctx context.Context, queryID uint, resolution stri
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
-type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
@@ -512,6 +514,9 @@ type DataStore struct {
 
 	SaveHostFunc        SaveHostFunc
 	SaveHostFuncInvoked bool
+
+	SerialSaveHostFunc        SerialSaveHostFunc
+	SerialSaveHostFuncInvoked bool
 
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
@@ -1048,9 +1053,9 @@ func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time) error {
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
 	s.RecordLabelQueryExecutionsFuncInvoked = true
-	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t)
+	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t, deferredSaveHost)
 }
 
 func (s *DataStore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -1103,6 +1108,11 @@ func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	return s.SaveHostFunc(ctx, host)
 }
 
+func (s *DataStore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
+	s.SerialSaveHostFuncInvoked = true
+	return s.SerialSaveHostFunc(ctx, host)
+}
+
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	s.DeleteHostFuncInvoked = true
 	return s.DeleteHostFunc(ctx, hid)
@@ -1148,7 +1158,7 @@ func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return s.CleanupIncomingHostsFunc(ctx, now)
 }
 
-func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online uint, offline uint, mia uint, new uint, err error) {
+func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
 }
@@ -1458,9 +1468,9 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 	return s.PolicyFunc(ctx, id)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
-	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated)
+	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated, deferredSaveHost)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {

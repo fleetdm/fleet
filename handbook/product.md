@@ -8,7 +8,8 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | How the product works 										| Noah Talerman |
 | fleetctl CLI interface (and other tools) 						| Tomás Touceda |
 | REST API interface, REST API docs 							| Luke Heath	|
-| Terraform, Postman 											| Ben Edwards 	|
+| Postman 											| Ben Edwards (transitioning to Luke Heath) 	|
+| Terraform 											| Ben Edwards 	|
 | Customer deployments like acme.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
 | Quality of core product UI 									| Luke Heath 	|
@@ -19,6 +20,17 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | When we cut a release, version numbers, and whether to release| Zach Wasserman|
 | Release notes 												| Noah Talerman |
 | Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+
+## Feature flags
+In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
+
+The following highlights should be considered when deciding if feature flags should be leveraged:
+
+- The feature flag must be disabled by default.
+- The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
+- The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+
+Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
 ## Fleet docs
 

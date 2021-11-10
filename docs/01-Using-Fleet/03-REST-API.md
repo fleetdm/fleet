@@ -607,11 +607,13 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-None.
+| Name    | Type    | In    | Description                                                                     |
+| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary`
+`GET /api/v1/fleet/host_summary?team_id=1`
 
 ##### Default response
 
@@ -619,6 +621,17 @@ None.
 
 ```json
 {
+  "totals_hosts_count": 2408,
+  "platforms": [
+    {
+      "platform": "linux",
+      "hosts_count": 1204
+    },
+    {
+      "platform": "darwin",
+      "hosts_count": 1204
+    }
+  ],
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
@@ -2089,6 +2102,7 @@ Returns the query specified by ID.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "John",
+    "author_email": "john@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2139,6 +2153,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -2169,6 +2184,7 @@ Returns a list of all queries in the Fleet instance.
     "observer_can_run": true,
     "author_id": 1,
     "author_name": "noah",
+    "author_email": "noah@example.com",
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -2227,6 +2243,7 @@ Returns a list of all queries in the Fleet instance.
     "saved": true,
     "author_id": 1,
     "author_name": "",
+    "author_email": "",
     "observer_can_run": true,
     "packs": []
   }
@@ -2363,7 +2380,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Runs one or more live queries against the specified hosts and responds with the results 
+Runs one or more live queries against the specified hosts and responds with the results
 over a fixed period of 90 seconds.
 
 WARNING: this endpoint collects responses in memory and the elapsed time is capped at 90 seconds, regardless of whether all results have been gathered or not. This can cause an autoscaling event, depending on the configuration, or the Fleet server crashing.
@@ -3377,13 +3394,17 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
-Policies allow you to see which hosts meet a certain standard.
+> Fleet 4.6.0 (release on 2021-11-18), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.6.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
+
+Policies are yes or no questions you can ask about your hosts.
 
 Policies in Fleet are defined by osquery queries.
 
-Host that return results for a policy's query are "Passing."
+A passing host answers "yes" to a policy if the host returns results for a policy's query.
 
-Hosts that do not return results for a policy's query are "Failing."
+A failing host answers "no" to a policy if the host does not return results for a policy's query.
+
+For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ This policy's osquery query might look like the following: `SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;`
 
 ### List policies
 
