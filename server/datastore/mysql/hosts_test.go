@@ -924,6 +924,13 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
+
+	// specific team id
+	filter.TeamID = &team2.ID
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, hosts[0].ID, h2.ID)
 }
 
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {
@@ -1193,8 +1200,9 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 }
 
 func testHostsIDsByName(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
-		_, err := ds.NewHost(context.Background(), &fleet.Host{
+	hosts := make([]*fleet.Host, 10)
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
@@ -1205,13 +1213,42 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
 		require.NoError(t, err)
+		hosts[i] = h
 	}
 
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts, err := ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	sort.Slice(hosts, func(i, j int) bool { return hosts[i] < hosts[j] })
-	assert.Equal(t, hosts, []uint{2, 3, 6})
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hostsByName, err := ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	require.NoError(t, err)
+	sort.Slice(hostsByName, func(i, j int) bool { return hostsByName[i] < hostsByName[j] })
+	assert.Equal(t, hostsByName, []uint{2, 3, 6})
+
+	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	filter = fleet.TeamFilter{User: userObs}
+
+	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	require.NoError(t, err)
+	assert.Len(t, hostsByName, 0)
+
+	filter.IncludeObserver = true
+	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	require.NoError(t, err)
+	assert.Len(t, hostsByName, 3)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	filter = fleet.TeamFilter{User: userTeam1}
+
+	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	require.NoError(t, err)
+	assert.Len(t, hostsByName, 0)
+
+	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.0.local", "foo.1.local", "foo.5.local"})
+	require.NoError(t, err)
+	require.Len(t, hostsByName, 1)
+	assert.Equal(t, hostsByName[0], hosts[0].ID)
 }
 
 func testAuthenticateHostLoadsDisk(t *testing.T, ds *Datastore) {
