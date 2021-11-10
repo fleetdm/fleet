@@ -312,7 +312,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
   alarm_name                = "redis-replication-lag-${terraform.workspace}"
   alarm_description         = "This metric is only applicable for a node running as a read replica. It represents how far behind, in seconds, the replica is in applying changes from the primary node. For Redis engine version 5.0.6 onwards, the lag can be measured in milliseconds."
   comparison_operator       = "GreaterThanUpperThreshold"
-  evaluation_periods        = "1"
+  evaluation_periods        = "3"
   threshold_metric_id       = "e1"
   alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
