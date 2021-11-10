@@ -147,6 +147,7 @@ func packageCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			path, _ = filepath.Abs(path)
 			fmt.Printf(`
 Success! You generated an osquery installer at %s
 
