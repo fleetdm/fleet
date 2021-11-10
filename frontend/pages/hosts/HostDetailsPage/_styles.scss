@@ -244,6 +244,35 @@
     transform: scale(0.5);
   }
 
+  .component__tabs-wrapper {
+    background-color: $ui-off-white;
+    width: 100%;
+
+    .react-tabs__tab {
+      padding: 6px 0px 16px 0px;
+      margin-right: $pad-xxlarge;
+    }
+    .react-tabs__tab--selected {
+      background-color: $ui-off-white;
+    }
+
+    .section {
+      margin-top: $pad-medium;
+    }
+  }
+
+  .col-2 {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .section.osquery {
+    margin-right: $pad-small;
+  }
+  .section.labels {
+    margin-left: $pad-small;
+  }
+
   .about,
   .osquery {
     .info {
@@ -505,6 +534,8 @@
   }
 
   .section--users {
+    margin-top: $pad-medium;
+
     .host-details__wrapper {
       overflow: auto;
     }
@@ -565,7 +596,7 @@
     width: 32px;
     height: 32px;
     border-radius: 4px;
-    transform: scale(0.5) translate(-50%, -60%);
+    transform: scale(0.5) translate(40%, -40%);
   }
 
   .accordion__button[aria-expanded="true"]::after,
@@ -598,6 +629,8 @@
   }
 
   &__pack-table {
+    padding-bottom: 12px;
+
     .table-container__header {
       display: none;
     }

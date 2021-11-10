@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
@@ -28,6 +30,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
+import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 
 import {
@@ -971,71 +974,111 @@ const HostDetailsPage = ({
           </div>
         </div>
       </div>
-      <div className="section about">
-        <p className="section__header">About this host</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Created at</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Updated at</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostLastSeen, titleData.detail_updated_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Uptime</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Hardware model</span>
-            <span className="info-grid__data">{aboutData.hardware_model}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Serial number</span>
-            <span className="info-grid__data">{aboutData.hardware_serial}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">IPv4</span>
-            <span className="info-grid__data">{aboutData.primary_ip}</span>
-          </div>
-          {renderMunkiData()}
-          {renderMDMData()}
-        </div>
-      </div>
-      {host?.policies && renderPolicies()}
-      <div className="section osquery col-50">
-        <p className="section__header">Agent options</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Config TLS refresh</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.config_tls_refresh)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Logger TLS period</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.logger_tls_period)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Distributed interval</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.distributed_interval)}
-            </span>
-          </div>
-        </div>
-      </div>
-      {renderLabels()}
-      {renderPacks()}
-      {host?.software && renderSoftware()}
-      {renderUsers()}
+      <TabsWrapper>
+        <Tabs>
+          <TabList>
+            <Tab>Details</Tab>
+            <Tab>Schedule</Tab>
+            <Tab>Policies</Tab>
+          </TabList>
+          <TabPanel>
+            <div className="section about">
+              <p className="section__header">About this host</p>
+              <div className="info-grid">
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostEnrolled,
+                      aboutData.last_enrolled_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Updated at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostLastSeen,
+                      titleData.detail_updated_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Hardware model</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_model}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Serial number</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_serial}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">IPv4</span>
+                  <span className="info-grid__data">
+                    {aboutData.primary_ip}
+                  </span>
+                </div>
+                {renderMunkiData()}
+                {renderMDMData()}
+              </div>
+            </div>
+            <div className="col-2">
+              <div className="section osquery col-50">
+                <p className="section__header">Agent options</p>
+                <div className="info-grid">
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Config TLS refresh
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.config_tls_refresh
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">Logger TLS period</span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.logger_tls_period
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Distributed interval
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.distributed_interval
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {renderLabels()}
+            </div>
+
+            {host?.software && renderSoftware()}
+            {renderUsers()}
+          </TabPanel>
+          <TabPanel>{renderPacks()}</TabPanel>
+          <TabPanel>{host?.policies && renderPolicies()}</TabPanel>
+        </Tabs>
+      </TabsWrapper>
+
       {showDeleteHostModal && renderDeleteHostModal()}
       {showQueryHostModal && (
         <SelectQueryModal
