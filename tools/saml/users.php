@@ -15,6 +15,11 @@ $config = array(
             'eduPersonAffiliation' => array('group1'),
             'email' => 'sso_user@example.com',
         ),
+        'sso_user2:user123#' => array(
+            'uid' => array('2'),
+            'eduPersonAffiliation' => array('group1'),
+            'email' => 'sso_user2@example.com',
+        ),
     ),
 
 );
