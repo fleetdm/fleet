@@ -136,11 +136,13 @@ func packageCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Success! You generated an osquery installer at %s\n", path)
+			fmt.Printf(`
+Success! You generated an osquery installer at %s
 
-			fmt.Println(`To add this device to Fleet, double-click to open your installer.
+To add this device to Fleet, double-click to open your installer.
 
-To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts`)
+To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
+`, path)
 			open.Start(filepath.Dir(path))
 			return nil
 		},
