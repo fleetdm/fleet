@@ -942,14 +942,14 @@ func TestDetailQueries(t *testing.T) {
 		Username:  "user1",
 		Type:      "sometype",
 		GroupName: "somegroup",
-		Shell:     ptr.String("someloginshell"),
+		Shell:     "someloginshell",
 	}, gotHost.Users[0])
 	assert.Equal(t, fleet.HostUser{
 		Uid:       5678,
 		Username:  "user2",
 		Type:      "sometype",
 		GroupName: "somegroup",
-		Shell:     nil,
+		Shell:     "",
 	}, gotHost.Users[1])
 
 	// software
