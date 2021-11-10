@@ -156,7 +156,6 @@ const ManageSchedulePage = ({
   );
 
   let teamId = parseInt(team_id, 10);
-  const team = find(teams, ["id", teamId]);
 
   // isTeamMaintainerOrTeamAdmin set locally and not in AppContext
   const isTeamMaintainerOrTeamAdmin = (() => {
