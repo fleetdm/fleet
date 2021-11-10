@@ -442,8 +442,6 @@
 
   .section--software {
     th {
-      width: 200px;
-
       &:first-child {
         border-right: none;
         width: 16px;
@@ -458,11 +456,28 @@
       &:nth-last-child(2) {
         border-right: 0 !important;
       }
+
+      &.source__header {
+        width: 20%;
+      }
+
+      &.version__header {
+        width: 10%;
+      }
     }
     tr {
       td {
+        position: relative;
         &:first-child {
           padding-right: 0px;
+        }
+        .name-container {
+          .tooltip__tooltip-icon {
+            @include breakpoint(ltdesktop) {
+              position: absolute;
+              right: 0.5rem;
+            }
+          }
         }
       }
 
