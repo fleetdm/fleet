@@ -11,27 +11,87 @@ import TableContainer from "components/TableContainer";
 
 import { generateTableHeaders } from "./SoftwareTableConfig";
 
+interface ITableQueryProps {
+  pageIndex: number;
+  pageSize: number;
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+}
+
 interface ISoftwareCardProps {
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
 
+const PAGE_SIZE = 8;
 const baseClass = "home-software";
 
 const Software = ({
   isModalOpen,
   setIsSoftwareModalOpen,
 }: ISoftwareCardProps): JSX.Element => {
-  const [softwarePage, setSoftwarePage] = useState<number>(0);
+  const [softwarePageIndex, setSoftwarePageIndex] = useState<number>(0);
+  const [softwareSearchText, setSoftwareSearchText] = useState<string>("");
+  const [vSoftwarePageIndex, setvSoftwarePageIndex] = useState<number>(0);
+  const [vSoftwareSearchText, setvSoftwareSearchText] = useState<string>("");
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
   const { data: software, isLoading: isLoadingSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["software", softwarePage], () => softwareAPI.load({}));
+  >(["software", softwarePageIndex, softwareSearchText], () =>
+    softwareAPI.load({
+      page: softwarePageIndex,
+      perPage: PAGE_SIZE,
+      query: softwareSearchText,
+    })
+  );
+
+  const {
+    data: vulnerableSoftware,
+    isLoading: isLoadingVulnerableSoftware,
+  } = useQuery<ISoftware[], Error>(
+    ["vSoftware", vSoftwarePageIndex, vSoftwareSearchText],
+    () =>
+      softwareAPI.load({
+        page: softwarePageIndex,
+        perPage: PAGE_SIZE,
+        query: softwareSearchText,
+      }),
+    {
+      select: (data: ISoftware[]) => data.filter((s) => s.vulnerabilities)
+    }
+  );
+
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component will call this handler.
+  const onAllSoftwareQueryChange = async ({
+    pageIndex,
+    searchQuery,
+  }: ITableQueryProps) => {
+    if (pageIndex === softwarePageIndex) {
+      return false;
+    }
+
+    setSoftwarePageIndex(pageIndex);
+    setSoftwareSearchText(searchQuery);
+  };
+
+  const onVulnerableSoftwareQueryChange = async ({
+    pageIndex,
+    searchQuery,
+  }: ITableQueryProps) => {
+    if (pageIndex === softwarePageIndex) {
+      return false;
+    }
+
+    setvSoftwarePageIndex(pageIndex);
+    setvSoftwareSearchText(searchQuery);
+  };
 
   const tableHeaders = generateTableHeaders();
-  const vulnerableSoftware = software?.filter((s) => s.vulnerabilities);
+  // const vulnerableSoftware = software?.filter((s) => s.vulnerabilities);
   return (
     <div className={baseClass}>
       <TabsWrapper>
@@ -45,8 +105,8 @@ const Software = ({
               columns={tableHeaders}
               data={software || []}
               isLoading={isLoadingSoftware}
-              defaultSortHeader={"hosts_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software"}
               emptyComponent={() => <span>No software</span>}
@@ -54,15 +114,17 @@ const Software = ({
               isAllPagesSelected={false}
               disableCount
               disableActionButton
+              pageSize={PAGE_SIZE}
+              onQueryChange={onAllSoftwareQueryChange}
             />
           </TabPanel>
           <TabPanel>
             <TableContainer
               columns={tableHeaders}
               data={vulnerableSoftware || []}
-              isLoading={isLoadingSoftware}
-              defaultSortHeader={"hosts_count"}
-              defaultSortDirection={"desc"}
+              isLoading={isLoadingVulnerableSoftware}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software"}
               emptyComponent={() => <span>No vulnerable software</span>}
@@ -70,6 +132,8 @@ const Software = ({
               isAllPagesSelected={false}
               disableCount
               disableActionButton
+              pageSize={PAGE_SIZE}
+              onQueryChange={onVulnerableSoftwareQueryChange}
             />
           </TabPanel>
         </Tabs>
@@ -89,8 +153,8 @@ const Software = ({
               columns={tableHeaders}
               data={software || []}
               isLoading={isLoadingSoftware}
-              defaultSortHeader={"hosts_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software items"}
               emptyComponent={() => <span>No vulnerable software</span>}
@@ -98,7 +162,8 @@ const Software = ({
               isAllPagesSelected={false}
               searchable
               disableActionButton
-              isClientSideSearch
+              pageSize={PAGE_SIZE}
+              onQueryChange={onAllSoftwareQueryChange}
             />
           </>
         </Modal>

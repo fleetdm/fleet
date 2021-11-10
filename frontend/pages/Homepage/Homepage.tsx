@@ -113,11 +113,9 @@ const Homepage = (): JSX.Element => {
           </InfoCard>
         )}
         {!isPreviewMode && !currentTeam && (
-          <div className={`${baseClass}__section one-column`}>
-            <InfoCard title="Activity">
-              <ActivityFeed />
-            </InfoCard>
-          </div>
+          <InfoCard title="Activity">
+            <ActivityFeed />
+          </InfoCard>
         )}
       </div>
     </div>

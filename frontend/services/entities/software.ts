@@ -18,15 +18,13 @@ interface ISoftwareResponse {
 
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
-const DEFAULT_PAGE = 0;
-const PER_PAGE = 8;
 const ORDER_KEY = "name";
-const ORDER_DIRECTION = "desc";
+const ORDER_DIRECTION = "asc";
 
 export default {
   load: async ({
-    page = DEFAULT_PAGE,
-    perPage = PER_PAGE,
+    page,
+    perPage,
     orderKey = ORDER_KEY,
     orderDir = ORDER_DIRECTION,
     query,

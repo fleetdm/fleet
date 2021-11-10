@@ -51,17 +51,17 @@ export const generateTableHeaders = (): IDataColumn[] => {
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    {
-      title: "Hosts",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "hosts_count",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
+    // {
+    //   title: "Hosts",
+    //   Header: (cellProps) => (
+    //     <HeaderCell
+    //       value={cellProps.column.title}
+    //       isSortedDesc={cellProps.column.isSortedDesc}
+    //     />
+    //   ),
+    //   accessor: "hosts_count",
+    //   Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    // },
     {
       title: "Actions",
       Header: "",

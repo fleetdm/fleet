@@ -64,6 +64,7 @@ interface ITableContainerProps {
   isClientSidePagination?: boolean;
   isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
+  pageSize?: number;
 }
 
 const baseClass = "table-container";
@@ -112,13 +113,13 @@ const TableContainer = ({
   isClientSidePagination,
   isClientSideSearch,
   highlightOnHover,
+  pageSize = DEFAULT_PAGE_SIZE,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
 
   const wrapperClasses = classnames(baseClass, className);
