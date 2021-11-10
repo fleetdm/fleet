@@ -37,9 +37,7 @@ interface IScheduleListWrapperProps {
   ) => void;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
-  teamId: number;
   inheritedQueries?: boolean;
-  isTeamMaintainerOrTeamAdmin: boolean;
   isOnGlobalTeam: boolean;
   selectedTeamData: ITeam | undefined;
 }
@@ -61,9 +59,7 @@ const ScheduleListWrapper = ({
   allScheduledQueriesList,
   toggleScheduleEditorModal,
   onEditScheduledQueryClick,
-  teamId,
   inheritedQueries,
-  isTeamMaintainerOrTeamAdmin,
   isOnGlobalTeam,
   selectedTeamData,
 }: IScheduleListWrapperProps): JSX.Element => {
@@ -71,6 +67,8 @@ const ScheduleListWrapper = ({
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+
+  console.log("selectedTeamData.id", selectedTeamData?.id);
 
   const NoScheduledQueries = () => {
     return (
@@ -158,7 +156,7 @@ const ScheduleListWrapper = ({
 
   const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector((state: IRootState) => {
-    if (teamId) {
+    if (selectedTeamData?.id) {
       return state.entities.team_scheduled_queries.isLoading;
     }
     return state.entities.global_scheduled_queries.isLoading;
@@ -191,7 +189,7 @@ const ScheduleListWrapper = ({
         <TableContainer
           resultsTitle={"queries"}
           columns={inheritedQueriesTableHeaders}
-          data={generateDataSet(allScheduledQueriesList, teamId)}
+          data={generateDataSet(allScheduledQueriesList, selectedTeamData?.id)}
           isLoading={loadingInheritedQueriesTableData}
           defaultSortHeader={"query"}
           defaultSortDirection={"desc"}
@@ -211,7 +209,7 @@ const ScheduleListWrapper = ({
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={generateDataSet(allScheduledQueriesList, teamId)}
+        data={generateDataSet(allScheduledQueriesList, selectedTeamData?.id)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

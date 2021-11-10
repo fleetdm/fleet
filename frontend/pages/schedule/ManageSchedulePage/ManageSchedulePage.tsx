@@ -44,8 +44,6 @@ const renderTable = (
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
   allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
-  teamId: number,
-  isTeamMaintainerOrTeamAdmin: boolean,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined
 ): JSX.Element => {
@@ -59,8 +57,6 @@ const renderTable = (
       onEditScheduledQueryClick={onEditScheduledQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
-      teamId={teamId}
-      isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
       isOnGlobalTeam={isOnGlobalTeam}
       selectedTeamData={selectedTeamData}
     />
@@ -70,8 +66,6 @@ const renderTable = (
 const renderAllTeamsTable = (
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
   allTeamsScheduledQueriesError: { name: string; reason: string }[],
-  teamId: number,
-  isTeamMaintainerOrTeamAdmin: boolean,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined
 ): JSX.Element => {
@@ -84,8 +78,6 @@ const renderAllTeamsTable = (
       <ScheduleListWrapper
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
-        teamId={teamId}
-        isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
         isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
       />
@@ -518,8 +510,6 @@ const ManageSchedulePage = ({
             allScheduledQueriesList,
             allScheduledQueriesError,
             toggleScheduleEditorModal,
-            teamId,
-            isTeamMaintainerOrTeamAdmin,
             isOnGlobalTeam || false,
             selectedTeamData
           )}
@@ -555,8 +545,6 @@ const ManageSchedulePage = ({
           renderAllTeamsTable(
             allTeamsScheduledQueriesList,
             allTeamsScheduledQueriesError,
-            teamId,
-            isTeamMaintainerOrTeamAdmin,
             isOnGlobalTeam || false,
             selectedTeamData
           )}
