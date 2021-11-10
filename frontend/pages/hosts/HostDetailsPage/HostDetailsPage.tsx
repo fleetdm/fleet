@@ -13,7 +13,8 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
-import { IHost } from "interfaces/host";
+import { IHost, IPackStats } from "interfaces/host";
+import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/host_policy";
 import { ILabel } from "interfaces/label";
@@ -73,6 +74,9 @@ import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.pn
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+
+// @ts-ignore
+import MOCK_DATA from "./mockdata";
 
 const baseClass = "host-details";
 
@@ -153,6 +157,8 @@ const HostDetailsPage = ({
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
   ] = useState<boolean>(false);
+  const [packsState, setPacksState] = useState<IPackStats[]>();
+  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
   const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
@@ -204,8 +210,26 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         setSoftwareState(returnedHost.software);
         setUsersState(returnedHost.users);
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+        if (returnedHost.pack_stats) {
+          const packStatsByType = returnedHost.pack_stats.reduce(
+            (
+              dictionary: { packs: IPackStats[]; schedule: IQueryStats[] },
+              pack: IPackStats
+            ) => {
+              if (pack.type === "pack") {
+                dictionary.packs.push(pack);
+              } else {
+                dictionary.schedule.push(...pack.query_stats);
+              }
+              return dictionary;
+            },
+            { packs: [], schedule: [] }
+          );
+          setPacksState(packStatsByType.packs);
+          setScheduleState(packStatsByType.schedule);
+        }
 
+        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -540,13 +564,13 @@ const HostDetailsPage = ({
   };
 
   const renderPacks = () => {
-    const pack_stats = host?.pack_stats;
+    const packs = packsState;
     const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
-    if (pack_stats) {
-      packsAccordion = pack_stats.map((pack) => {
+    if (packs) {
+      packsAccordion = packs.map((pack) => {
         return (
           <AccordionItem key={pack.pack_id}>
             <AccordionItemHeading>
@@ -583,17 +607,49 @@ const HostDetailsPage = ({
       });
     }
 
-    return (
+    return !packs || !packs.length ? null : (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {!pack_stats ? (
-          <p className="results__data">
-            No packs with scheduled queries have this host as a target.
-          </p>
+        <Accordion allowMultipleExpanded allowZeroExpanded>
+          {packsAccordion}
+        </Accordion>
+      </div>
+    );
+  };
+
+  const renderSchedule = () => {
+    const schedule = scheduleState;
+    const wrapperClassName = `${baseClass}__pack-table`;
+    const tableHeaders = generatePackTableHeaders();
+
+    return (
+      <div className="section section--packs">
+        <p className="section__header">Schedule</p>
+        {!schedule || !schedule.length ? (
+          <div className="results__data">
+            <b>No queries are scheduled for this host.</b>
+            <p>
+              Expecting to see queries? Try selecting “Refetch” to ask this host
+              to report new vitals.
+            </p>
+          </div>
         ) : (
-          <Accordion allowMultipleExpanded allowZeroExpanded>
-            {packsAccordion}
-          </Accordion>
+          <div className={`${wrapperClassName}`}>
+            <TableContainer
+              columns={tableHeaders}
+              data={generatePackDataSet(schedule)}
+              isLoading={isLoadingHost}
+              onQueryChange={() => null}
+              resultsTitle={"queries"}
+              defaultSortHeader={"scheduled_query_name"}
+              defaultSortDirection={"asc"}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              emptyComponent={() => <></>}
+              disablePagination
+              disableCount
+            />
+          </div>
         )}
       </div>
     );
@@ -1074,7 +1130,10 @@ const HostDetailsPage = ({
             {host?.software && renderSoftware()}
             {renderUsers()}
           </TabPanel>
-          <TabPanel>{renderPacks()}</TabPanel>
+          <TabPanel>
+            {renderSchedule()}
+            {renderPacks()}
+          </TabPanel>
           <TabPanel>{host?.policies && renderPolicies()}</TabPanel>
         </Tabs>
       </TabsWrapper>
