@@ -75,9 +75,6 @@ import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
-// @ts-ignore
-import MOCK_DATA from "./mockdata";
-
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
