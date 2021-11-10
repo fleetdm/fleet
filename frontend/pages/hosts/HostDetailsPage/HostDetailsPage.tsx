@@ -51,7 +51,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 // @ts-ignore
-import SelectQueryModal from "./SelectQueryModal";
+import SelectQueryModal from "./SelectQueryModalTsx";
 import TransferHostModal from "./TransferHostModal";
 import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 import {
@@ -1158,12 +1158,11 @@ const HostDetailsPage = ({
       </TabsWrapper>
 
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showQueryHostModal && (
+      {showQueryHostModal && host && (
         <SelectQueryModal
           host={host}
           onCancel={() => setShowQueryHostModal(false)}
-          queries={fleetQueries}
-          dispatch={dispatch}
+          queries={fleetQueries || []}
           queryErrors={fleetQueriesError}
           isOnlyObserver={isOnlyObserver}
         />
