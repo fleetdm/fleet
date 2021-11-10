@@ -1,3 +1,39 @@
+terraform {
+  // these values should match what is bootstrapped in ./remote-state
+  backend "s3" {
+    bucket         = "fleet-terraform-remote-state"
+    region         = "us-east-2"
+    key            = "fleet-monitoring/"
+    dynamodb_table = "fleet-terraform-state-lock"
+  }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "3.57.0"
+    }
+  }
+}
+provider "aws" {
+  region = "us-east-2"
+}
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+data "terraform_remote_state" "fleet" {
+  backend = "s3"
+  config = {
+    bucket = "fleet-terraform-remote-state"
+    region = "us-east-2"
+    key    = "env:/${terraform.workspace}/fleet"
+  }
+}
+
+locals {
+  fleet_ecs_service_name = data.terraform_remote_state.fleet.outputs.fleet_ecs_service_name
+  alb_target_group_name  = data.terraform_remote_state.fleet.outputs.aws_alb_target_group_name
+  alb_name               = data.terraform_remote_state.fleet.outputs.aws_alb_name
+}
+
 // sns topic to send cloudwatch alarms to
 resource "aws_sns_topic" "cloudwatch_alarm_topic" {
   name = "cloudwatch-alarm-${terraform.workspace}"
@@ -67,7 +103,7 @@ data "aws_iam_policy_document" "sns_topic_policy" {
 
 // Database alarms
 resource "aws_cloudwatch_metric_alarm" "cpu_utilization_too_high" {
-  for_each            = toset(module.aurora_mysql.rds_cluster_instance_ids)
+  for_each            = data.terraform_remote_state.fleet.outputs.mysql_cluster_members
   alarm_name          = "rds_cpu_utilization_too_high-${each.key}-${terraform.workspace}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
@@ -89,7 +125,7 @@ resource "aws_db_event_subscription" "default" {
   sns_topic = aws_sns_topic.cloudwatch_alarm_topic.arn
 
   source_type = "db-instance"
-  source_ids  = module.aurora_mysql.rds_cluster_instance_ids
+  source_ids  = data.terraform_remote_state.fleet.outputs.mysql_cluster_members
 
   event_categories = [
     "failover",
@@ -114,14 +150,14 @@ resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
   namespace           = "AWS/ApplicationELB"
   period              = "60"
   statistic           = "Minimum"
-  threshold           = var.fleet_min_capacity
-  alarm_description   = "This alarm indicates the number of Healthy Fleet hosts is lower than expected. Please investigate the load balancer \"${aws_alb.main.name}\" or the target group \"${aws_alb_target_group.main.name}\" and the fleet backend service \"${aws_ecs_service.fleet.name}\""
+  threshold           = data.terraform_remote_state.fleet.outputs.fleet_min_capacity
+  alarm_description   = "This alarm indicates the number of Healthy Fleet hosts is lower than expected. Please investigate the load balancer \"${local.alb_name}\" or the target group \"${local.alb_target_group_name}\" and the fleet backend service \"${local.fleet_ecs_service_name}\""
   actions_enabled     = "true"
   alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   dimensions = {
-    TargetGroup  = aws_alb_target_group.main.arn_suffix
-    LoadBalancer = aws_alb.main.arn_suffix
+    TargetGroup  = data.terraform_remote_state.fleet.outputs.target_group_arn_suffix
+    LoadBalancer = data.terraform_remote_state.fleet.outputs.load_balancer_arn_suffix
   }
 }
 
@@ -131,7 +167,7 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
   comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "2"
   threshold_metric_id       = "e1"
-  alarm_description         = "This alarm indicates the Fleet server response time is greater than it usually is. Please investigate the ecs service \"${aws_ecs_service.fleet.name}\" because the backend might need to be scaled up."
+  alarm_description         = "This alarm indicates the Fleet server response time is greater than it usually is. Please investigate the ecs service \"${local.fleet_ecs_service_name}\" because the backend might need to be scaled up."
   alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   insufficient_data_actions = []
@@ -154,8 +190,8 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
       unit        = "Count"
 
       dimensions = {
-        TargetGroup  = aws_alb_target_group.main.arn_suffix
-        LoadBalancer = aws_alb.main.arn_suffix
+        TargetGroup  = data.terraform_remote_state.fleet.outputs.target_group_arn_suffix
+        LoadBalancer = data.terraform_remote_state.fleet.outputs.load_balancer_arn_suffix
       }
     }
   }
@@ -174,13 +210,13 @@ resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
   alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   dimensions = {
-    LoadBalancer = aws_alb.main.arn_suffix
+    LoadBalancer = data.terraform_remote_state.fleet.outputs.load_balancer_arn_suffix
   }
 }
 
 // Elasticache (redis) alerts https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
+  for_each            = data.terraform_remote_state.fleet.outputs.redis_cluster_members
   alarm_name          = "redis-cpu-utilization-${each.key}-${terraform.workspace}"
   alarm_description   = "Redis cluster CPU utilization node ${each.key}"
   comparison_operator = "GreaterThanThreshold"
@@ -198,11 +234,10 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
     CacheClusterId = each.key
   }
 
-  depends_on = [aws_elasticache_replication_group.default]
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
-  for_each            = toset(aws_elasticache_replication_group.default.member_clusters)
+  for_each            = data.terraform_remote_state.fleet.outputs.redis_cluster_members
   alarm_name          = "redis-cpu-engine-utilization-${each.key}-${terraform.workspace}"
   alarm_description   = "Redis cluster CPU Engine utilization node ${each.key}"
   comparison_operator = "GreaterThanThreshold"
@@ -220,7 +255,6 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
     CacheClusterId = each.key
   }
 
-  depends_on = [aws_elasticache_replication_group.default]
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis-database-memory-percentage" {
@@ -237,11 +271,10 @@ resource "aws_cloudwatch_metric_alarm" "redis-database-memory-percentage" {
 
   threshold = "80"
 
-  depends_on = [aws_elasticache_replication_group.default]
 }
 
 resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
-  for_each                  = toset(aws_elasticache_replication_group.default.member_clusters)
+  for_each                  = data.terraform_remote_state.fleet.outputs.redis_cluster_members
   alarm_name                = "redis-current-connections-${each.key}-${terraform.workspace}"
   alarm_description         = "Redis current connections for node ${each.key}"
   comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
@@ -279,7 +312,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
   alarm_name                = "redis-replication-lag-${terraform.workspace}"
   alarm_description         = "This metric is only applicable for a node running as a read replica. It represents how far behind, in seconds, the replica is in applying changes from the primary node. For Redis engine version 5.0.6 onwards, the lag can be measured in milliseconds."
   comparison_operator       = "GreaterThanUpperThreshold"
-  evaluation_periods        = "1"
+  evaluation_periods        = "3"
   threshold_metric_id       = "e1"
   alarm_actions             = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions                = [aws_sns_topic.cloudwatch_alarm_topic.arn]
@@ -320,6 +353,6 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
 
   dimensions = {
-    CertificateArn = aws_acm_certificate.dogfood_fleetdm_com.arn
+    CertificateArn = data.terraform_remote_state.fleet.outputs.acm_certificate_arn
   }
 }
