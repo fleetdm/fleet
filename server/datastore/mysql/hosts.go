@@ -540,7 +540,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
-	var summary fleet.HostSummary
+	summary := fleet.HostSummary{TeamID: filter.TeamID}
 	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")

@@ -907,6 +907,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 
 	summary, err := ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
+	assert.Nil(t, summary.TeamID)
 	assert.Equal(t, uint(0), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(0), summary.OfflineCount)
