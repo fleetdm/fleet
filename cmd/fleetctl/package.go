@@ -7,6 +7,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/urfave/cli/v2"
 )
@@ -98,8 +100,12 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "debug",
-				Usage:       "Enable debug logging",
+				Usage:       "Enable debug logging in orbit",
 				Destination: &opt.Debug,
+			},
+			&cli.BoolFlag{
+				Name:  "verbose",
+				Usage: "Log detailed information when building the package",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -129,6 +135,11 @@ func packageCommand() *cli.Command {
 				buildFunc = packaging.BuildMSI
 			default:
 				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi')")
+			}
+
+			// disable detailed logging unless verbose is set
+			if !c.Bool("verbose") {
+				zlog.Logger = zerolog.Nop()
 			}
 
 			fmt.Println("Generating your osquery installer...")
