@@ -58,11 +58,11 @@ func (l ListOptions) Empty() bool {
 }
 
 type HostUser struct {
-	Uid       uint   `json:"uid" db:"uid"`
-	Username  string `json:"username" db:"username"`
-	Type      string `json:"type" db:"user_type"`
-	GroupName string `json:"groupname" db:"groupname"`
-	Shell     string `json:"shell" db:"shell"`
+	Uid       uint    `json:"uid" db:"uid"`
+	Username  string  `json:"username" db:"username"`
+	Type      string  `json:"type" db:"user_type"`
+	GroupName string  `json:"groupname" db:"groupname"`
+	Shell     *string `json:"shell" db:"shell"`
 }
 
 type Host struct {
