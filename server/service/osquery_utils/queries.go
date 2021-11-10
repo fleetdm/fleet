@@ -536,7 +536,7 @@ var usersQuery = DetailQuery{
 				Username:  username,
 				Type:      type_,
 				GroupName: groupname,
-				Shell:     shell,
+				Shell:     &shell,
 			}
 			users = append(users, u)
 		}
