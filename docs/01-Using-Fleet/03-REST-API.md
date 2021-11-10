@@ -5303,7 +5303,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 2
       },
       {
         "id": 2,
@@ -5311,7 +5312,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 22
       },
       {
         "id": 3,
@@ -5319,7 +5321,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 5
       },
       {
         "id": 4,
@@ -5327,8 +5330,9 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
+        "vulnerabilities": null,
+        "host_count": 9
+      }
     ]
   }
 }
