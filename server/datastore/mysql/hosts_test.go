@@ -768,7 +768,7 @@ func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 }
 
 func testHostsSearch(t *testing.T, ds *Datastore) {
-	_, err := ds.NewHost(context.Background(), &fleet.Host{
+	h1, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -804,8 +804,18 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	filter := fleet.TeamFilter{User: user}
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
+	h1.TeamID = &team1.ID
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
+	h2.TeamID = &team2.ID
+
+	userAdmin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	filter := fleet.TeamFilter{User: userAdmin}
 
 	// We once threw errors when the search query was empty. Verify that we
 	// don't error.
@@ -877,6 +887,43 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	hits, err = ds.SearchHosts(context.Background(), filter, "x", h3.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(hits))
+
+	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	filter = fleet.TeamFilter{User: userObs}
+
+	// observer not included
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	assert.Len(t, hosts, 0)
+
+	// observer included
+	filter.IncludeObserver = true
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	assert.Len(t, hosts, 3)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	filter = fleet.TeamFilter{User: userTeam1}
+
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, hosts[0].ID, h1.ID)
+
+	userTeam2 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}}}
+	filter = fleet.TeamFilter{User: userTeam2}
+
+	// observer not included
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	assert.Len(t, hosts, 0)
+
+	// observer included
+	filter.IncludeObserver = true
+	hosts, err = ds.SearchHosts(context.Background(), filter, "local")
+	assert.Nil(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, hosts[0].ID, h2.ID)
 }
 
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {
