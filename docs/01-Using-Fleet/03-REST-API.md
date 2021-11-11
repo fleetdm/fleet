@@ -4488,7 +4488,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                       |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
@@ -4503,7 +4503,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
   "email": "john_appleseed@example.com",
   "name": "John",
   "sso_enabled": false,
-  "global_role": "admin",
+  "global_role": null,
   "teams": [
     {
       "id": 2,
@@ -4512,7 +4512,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -4677,6 +4677,85 @@ Verify the specified invite.
             "reason": "Invite with token <token> was not found in the datastore"
         }
     ]
+}
+```
+
+### Update invite
+
+`PATCH /api/v1/fleet/invites/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
+| name        | string  | body | The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/invites/123`
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
 }
 ```
 
