@@ -27,6 +27,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
+import teams from "fleet/entities/teams";
 
 const baseClass = "create-user-form";
 
@@ -299,13 +300,9 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   renderGlobalRoleForm = (): JSX.Element => {
     const { onGlobalUserRoleChange } = this;
     const {
-      formData: { global_role, teams },
+      formData: { global_role },
     } = this.state;
-    const {
-      availableTeams,
-      isModifiedByGlobalAdmin,
-      isPremiumTier,
-    } = this.props;
+    const { isPremiumTier } = this.props;
     return (
       <>
         {isPremiumTier && (
@@ -430,6 +427,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
       currentTeam,
       isModifiedByGlobalAdmin,
       serverErrors,
+      availableTeams,
     } = this.props;
     const {
       onFormSubmit,
@@ -646,6 +644,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
                     value={UserTeamType.AssignTeams}
                     name={"userTeamType"}
                     onChange={onIsGlobalUserChange}
+                    disabled={!availableTeams.length}
                   />
                 </>
               ) : (
