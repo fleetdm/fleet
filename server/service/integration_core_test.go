@@ -640,7 +640,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }
 
-<<<<<<< HEAD
 func (s *integrationTestSuite) TestInvites() {
 	t := s.T()
 
