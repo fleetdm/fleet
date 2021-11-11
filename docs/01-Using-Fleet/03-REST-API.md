@@ -645,6 +645,8 @@ Returns the information of the specified host.
 
 The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
+The host_count parameter in the software list will always be 1 in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
+
 `GET /api/v1/fleet/hosts/{id}`
 
 #### Parameters
@@ -673,7 +675,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 1146,
@@ -681,7 +684,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "version": "1.30",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 321,
@@ -690,7 +694,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "source": "apps",
         "bundle_identifier": "com.some.app",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       }
     ],
     "id": 1,
