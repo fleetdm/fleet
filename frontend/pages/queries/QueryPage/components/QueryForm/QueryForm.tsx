@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
+import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
@@ -23,7 +24,6 @@ import CompatibleIcon from "../../../../../../assets/images/icon-compatible-gree
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
-import { addGravatarUrlToResource } from "fleet/helpers";
 
 const baseClass = "query-form";
 
