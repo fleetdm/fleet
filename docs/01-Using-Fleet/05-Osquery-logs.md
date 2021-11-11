@@ -6,6 +6,9 @@
   - [Lambda](#lambda)
   - [PubSub](#pubsub)
   - [Stdout](#stdout)
+- [Advanced Destinations](#advanced-destinations)
+  - [Snowflake via AWS Firehose](#snowflake)
+  - [Splunk via AWS Firehose](#splunk)
 
 Osquery agents are typically configured to send logs to the Fleet server (`--logger_plugin=tls`). This is not a requirement, and any other logger plugin can be used even when osquery clients are connecting to the Fleet server to retrieve configuration or run live queries. See the [osquery logging documentation](https://osquery.readthedocs.io/en/stable/deployment/logging/) for more about configuring logging on the agent.
 
@@ -95,3 +98,22 @@ on the Fleet server. This is typically used for debugging or with a log
 forwarding setup that will capture and forward stdout logs into a logging
 pipeline. Note that if multiple load-balanced Fleet servers are used, the logs
 will be load-balanced across those servers (not duplicated).
+
+## Advanced Destinations
+
+### Snowflake
+
+After configuring Fleet to use [firehose logging plugin](#firehose) you can enable Firehose to Snowflake with the
+Snowpipe integration. Using [firehose.tf](https://github.com/fleetdm/fleet/blob/main/tools/terraform/firehose.tf)
+and the [AWS guide](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/automate-data-stream-ingestion-into-a-snowflake-database-by-using-snowflake-snowpipe-amazon-s3-amazon-sns-and-amazon-kinesis-data-firehose.html)
+its possible to continuously ship osquery results to Snowflake. Snowflake also provides some [details](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3.html#prerequisite-create-an-amazon-sns-topic-and-subscription)
+to get the destination tables and IAM roles required in AWS prepared.
+
+### Splunk
+
+After configuring Fleet to use [firehose logging plugin](#firehose) you can enable Firehose to forward directly to Splunk
+as a [supported destination](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk).
+Using [firehose.tf](https://github.com/fleetdm/fleet/blob/main/tools/terraform/firehose.tf) as a starting point replace the S3
+destination with [a splunk destination](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination)
+. Splunk also provides [a guide](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare the
+Splunk platform for the data.
