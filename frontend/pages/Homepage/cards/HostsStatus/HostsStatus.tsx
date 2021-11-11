@@ -1,8 +1,4 @@
-import React, { useState } from "react";
-
-import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
-import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
-import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
+import React from "react";
 
 const baseClass = "hosts-status";
 

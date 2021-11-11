@@ -87,7 +87,7 @@ const Homepage = (): JSX.Element => {
         const windowsHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
-        setWindowsCount(windowsHosts.hosts_count?.toLocaleString("en-US"));
+        setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
       },
     }
   );

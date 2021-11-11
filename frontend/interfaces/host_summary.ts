@@ -11,6 +11,7 @@ export interface IHostSummaryPlatforms {
   platform: string;
   hosts_count: number;
 }
+
 export interface IHostSummary {
   totals_hosts_count: number;
   platforms: IHostSummaryPlatforms[] | null;
