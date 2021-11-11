@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { push } from "react-router-redux";
+import { push, routerMiddleware } from "react-router-redux";
 import { useDispatch } from "react-redux";
 
 import { filter, includes } from "lodash";
@@ -91,12 +91,27 @@ const SelectQueryModal = ({
 
   const queriesCount = queriesFiltered.length;
 
+  // const onQueryHostCustom = (host: IHost) => {
+  //   return dispatch(
+  //     push({
+  //       pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
+  //     })
+  //   );
+  // };
+
+  // how can I replace dispatch with react router replace?
   const onQueryHostCustom = (host: IHost) => {
-    return dispatch(
-      push({
-        pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
-      })
-    );
+    const hostIdParam = { host_id: host.id };
+
+    const routeTemplate = route && route.path ? route.path : "";
+
+    const nextLocation = getNextLocationPath({
+      pathPrefix: PATHS.NEW_QUERY,
+      routeTemplate,
+      queryParams: hostIdParam,
+    });
+
+    router.replace(nextLocation);
   };
 
   const onQueryHostSaved = (host: IHost, selectedQuery: IQuery) => {
@@ -108,6 +123,7 @@ const SelectQueryModal = ({
       })
     );
   };
+
   const results = (): JSX.Element => {
     if (queryErrors) {
       return (

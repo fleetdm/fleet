@@ -7,3 +7,11 @@ export interface IPolicy {
   failing_host_count: number;
   last_run_time?: string;
 }
+
+export interface IPolicyNew {
+  id?: number;
+  name: string;
+  description: string;
+  query: string;
+  resolution: string;
+}

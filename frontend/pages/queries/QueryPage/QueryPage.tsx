@@ -41,6 +41,10 @@ const QueryPage = ({
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
+  console.log("paramsQueryId", paramsQueryId);
+  console.log("queryIdForEdit QueryPage", queryIdForEdit);
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -117,6 +121,9 @@ const QueryPage = ({
         setIsLiveQueryRunnable(false);
       });
     };
+
+    console.log("queryIdForEdit with refetchStoredQuery", queryIdForEdit);
+    debugger;
 
     detectIsFleetQueryRunnable();
     !!queryIdForEdit && refetchStoredQuery();
