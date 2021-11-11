@@ -14,8 +14,8 @@ export default {
     return sendRequest("GET", path);
   },
   loadEnrollSecret: () => {
-    const { ENROLL_SECRET } = endpoints;
-    const path = `${ENROLL_SECRET}`;
+    const { GLOBAL_ENROLL_SECRETS } = endpoints;
+    const path = `${GLOBAL_ENROLL_SECRETS}`;
 
     return sendRequest("GET", path);
   },

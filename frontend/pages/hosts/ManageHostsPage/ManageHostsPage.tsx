@@ -7,6 +7,7 @@ import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
 
 import configAPI from "services/entities/config";
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import statusLabelsAPI from "services/entities/statusLabels";
 import teamsAPI from "services/entities/teams";
@@ -23,7 +24,10 @@ import hostCountAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
@@ -237,11 +241,6 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
 
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecret,
-  };
-
   const {
     isLoading: isLabelsLoading,
     data: labels,
@@ -254,6 +253,47 @@ const ManageHostsPage = ({
       select: (data: ILabelsResponse) => data.labels,
     }
   );
+
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    error: globalSecretsError,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
+    {
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  // TODO: Revisit this to make the API be called only if there is a currentTeam 11/11 RP SG
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    error: teamSecretsError,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  // TODO: Come back to this in case secrets change, ensure they change here
+  const generateInstallerTeam = currentTeam || {
+    name: "No team",
+    secrets: globalSecrets || null,
+  };
+
+  console.log("currentTeam", currentTeam);
 
   // TODO: add counts to status dropdown
   useQuery<IStatusLabels, Error>(
@@ -725,130 +765,175 @@ const ManageHostsPage = ({
   // MATCH teamsAPI.removeEnrollSecret on services/entities/teams.ts to API
   // UPDATE API parameters below accordingly
   const onSaveSecret = async () => {
-    if (!newEnrollSecretString) {
-      return null;
-    }
-    // New secret
-    if (!selectedSecret) {
-      // New team secret
-      if (currentTeam) {
-        const newSecrets = currentTeam.secrets?.push({
-          team_id: currentTeam.id,
-          secret: newEnrollSecretString,
-        });
-        try {
-          await teamsAPI.addEnrollSecret(currentTeam.id, newSecrets);
-          toggleSecretEditorModal();
-          refetchTeams();
-          router.push(
-            getNextLocationPath({
-              pathPrefix: PATHS.MANAGE_HOSTS,
-              routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-              routeParams,
-              queryParams,
-            })
-          );
-        } catch (error) {
-          console.error(error);
-          dispatch(
-            renderFlash("error", "Could not add secret. Please try again.")
-          );
-        }
-      }
-      // New Global secret
-      else {
-        if (!globalSecret || !newEnrollSecretString) {
-          console.error("Secret isn't available. This should not happen.");
-          return false;
-        }
-        const newSecrets = globalSecret.push({
-          secret: newEnrollSecretString,
-        });
-        try {
-          await configAPI.newEnrollSecret(newSecrets);
-          toggleSecretEditorModal();
-          // refetchConfig(); TODO: Update global enroll secrets on this page
-          router.push(
-            getNextLocationPath({
-              pathPrefix: PATHS.MANAGE_HOSTS,
-              routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-              routeParams,
-              queryParams,
-            })
-          );
-        } catch (error) {
-          console.error(error);
-          dispatch(
-            renderFlash("error", "Could not delete secret. Please try again.")
-          );
-        }
-      }
-    }
-    // Edited secret
-    else {
-      // Edited team secret
-      if (currentTeam) {
-        const newSecrets = currentTeam.secrets?.push({
-          team_id: currentTeam.id,
-          secret: newEnrollSecretString,
-        });
-        if (newSecrets) {
-          // newSecrets.filter((secret: IEnrollSecret) => {
-          //   return selectedSecret.secret !== secret.secret;
-          // });
-        }
-        try {
-          await teamsAPI.addEnrollSecret(currentTeam.id, newSecrets);
-          toggleSecretEditorModal();
-          refetchTeams();
-          router.push(
-            getNextLocationPath({
-              pathPrefix: PATHS.MANAGE_HOSTS,
-              routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-              routeParams,
-              queryParams,
-            })
-          );
-        } catch (error) {
-          console.error(error);
-          dispatch(
-            renderFlash("error", "Could not add secret. Please try again.")
-          );
-        }
-      }
-      // Edited Global secret
-      else {
-        if (!globalSecret) {
-          console.error("Secret isn't available. This should not happen.");
-          return false;
-        }
-        const newSecrets = globalSecret.push({
-          secret: newEnrollSecretString,
-        });
-        // newSecrets.filter((secret: IEnrollSecret) => {
-        //   return selectedSecret.secret !== secret.secret;
-        // });
+    // need the current secrets
+    const currentSecrets = currentTeam
+      ? currentTeam.secrets || []
+      : globalSecrets || [];
 
-        try {
-          await configAPI.newEnrollSecret(newSecrets);
-          toggleSecretEditorModal();
-          // refetchConfig(); TODO: Update global enroll secrets on this page
-          router.push(
-            getNextLocationPath({
-              pathPrefix: PATHS.MANAGE_HOSTS,
-              routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-              routeParams,
-              queryParams,
-            })
-          );
-        } catch (error) {
-          console.error(error);
-          dispatch(
-            renderFlash("error", "Could not delete secret. Please try again.")
-          );
-        }
-      }
+    // need the secret being modified if it's being modified
+    const oldSecret = selectedSecret;
+
+    // need the new secret
+    const newSecret = newEnrollSecretString;
+
+    // need team id if it's a team secret
+    const teamId = currentTeam?.id;
+
+    let newSecrets = currentSecrets.filter(
+      (s) => s.secret !== oldSecret?.secret
+    );
+
+    if (newSecret) {
+      newSecrets.push({ secret: newSecret });
     }
+
+    try {
+      if (teamId) {
+        await enrollSecretsAPI.modifyTeamEnrollSecrets(teamId, newSecrets);
+      } else {
+        await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
+      }
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not modify enroll secrets. Please try again."
+        )
+      );
+    } finally {
+      // TODO: refetch secrets we need beause they were updated
+    }
+
+    // if (!newEnrollSecretString) {
+    //   return null;
+    // }
+
+    // // New secret
+    // if (!selectedSecret) {
+    //   // New team secret
+    //   if (currentTeam) {
+    //     const newSecrets = currentTeam.secrets?.push({
+    //       team_id: currentTeam.id,
+    //       secret: newEnrollSecretString,
+    //     });
+    //     try {
+    //       await enrollSecretsAPI.modifyTeamEnrollSecrets(
+    //         currentTeam.id,
+    //         newSecrets
+    //       );
+    //       toggleSecretEditorModal();
+    //       refetchTeams();
+    //       router.push(
+    //         getNextLocationPath({
+    //           pathPrefix: PATHS.MANAGE_HOSTS,
+    //           routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //           routeParams,
+    //           queryParams,
+    //         })
+    //       );
+    //     } catch (error) {
+    //       console.error(error);
+    //       dispatch(
+    //         renderFlash("error", "Could not add secret. Please try again.")
+    //       );
+    //     }
+    //   }
+
+    //   // New Global secret
+    //   else {
+    //     if (!globalSecret || !newEnrollSecretString) {
+    //       console.error("Secret isn't available. This should not happen.");
+    //       return false;
+    //     }
+    //     const newSecrets = globalSecret.push({
+    //       secret: newEnrollSecretString,
+    //     });
+    //     try {
+    //       await configAPI.newEnrollSecret(newSecrets);
+    //       toggleSecretEditorModal();
+    //       // refetchConfig(); TODO: Update global enroll secrets on this page
+    //       router.push(
+    //         getNextLocationPath({
+    //           pathPrefix: PATHS.MANAGE_HOSTS,
+    //           routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //           routeParams,
+    //           queryParams,
+    //         })
+    //       );
+    //     } catch (error) {
+    //       console.error(error);
+    //       dispatch(
+    //         renderFlash("error", "Could not delete secret. Please try again.")
+    //       );
+    //     }
+    //   }
+    // }
+    // // Edited secret
+    // else {
+    //   // Edited team secret
+    //   if (currentTeam) {
+    //     const newSecrets = currentTeam.secrets?.push({
+    //       team_id: currentTeam.id,
+    //       secret: newEnrollSecretString,
+    //     });
+    //     if (newSecrets) {
+    //       // newSecrets.filter((secret: IEnrollSecret) => {
+    //       //   return selectedSecret.secret !== secret.secret;
+    //       // });
+    //     }
+    //     try {
+    //       await teamsAPI.addEnrollSecret(currentTeam.id, newSecrets);
+    //       toggleSecretEditorModal();
+    //       refetchTeams();
+    //       router.push(
+    //         getNextLocationPath({
+    //           pathPrefix: PATHS.MANAGE_HOSTS,
+    //           routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //           routeParams,
+    //           queryParams,
+    //         })
+    //       );
+    //     } catch (error) {
+    //       console.error(error);
+    //       dispatch(
+    //         renderFlash("error", "Could not add secret. Please try again.")
+    //       );
+    //     }
+    //   }
+    //   // Edited Global secret
+    //   else {
+    //     if (!globalSecret) {
+    //       console.error("Secret isn't available. This should not happen.");
+    //       return false;
+    //     }
+    //     const newSecrets = globalSecret.push({
+    //       secret: newEnrollSecretString,
+    //     });
+    //     // newSecrets.filter((secret: IEnrollSecret) => {
+    //     //   return selectedSecret.secret !== secret.secret;
+    //     // });
+
+    //     try {
+    //       await configAPI.newEnrollSecret(newSecrets);
+    //       toggleSecretEditorModal();
+    //       // refetchConfig(); TODO: Update global enroll secrets on this page
+    //       router.push(
+    //         getNextLocationPath({
+    //           pathPrefix: PATHS.MANAGE_HOSTS,
+    //           routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //           routeParams,
+    //           queryParams,
+    //         })
+    //       );
+    //     } catch (error) {
+    //       console.error(error);
+    //       dispatch(
+    //         renderFlash("error", "Could not delete secret. Please try again.")
+    //       );
+    //     }
+    //   }
+    // }
   };
 
   // TODO: 10/25 RP Finish and test onDeleteSecret Functionality
@@ -861,54 +946,54 @@ const ManageHostsPage = ({
     }
     const { MANAGE_HOSTS } = PATHS;
 
-    // Delete team secret
-    if (currentTeam) {
-      try {
-        await teamsAPI.removeEnrollSecret(currentTeam.id, {
-          secrets: [{ secret: selectedSecret.secret }],
-        });
-        toggleDeleteSecretModal();
-        refetchTeams();
-        router.push(
-          getNextLocationPath({
-            pathPrefix: MANAGE_HOSTS,
-            routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-            routeParams,
-            queryParams,
-          })
-        );
-      } catch (error) {
-        console.error(error);
-        dispatch(
-          renderFlash("error", "Could not delete secret. Please try again.")
-        );
-      }
-    }
-    // Delete global secret
-    else {
-      if (!globalSecret) {
-        console.error("Secret isn't available. This should not happen.");
-        return false;
-      }
-      try {
-        await configAPI.removeEnrollSecret(globalSecret, selectedSecret);
-        toggleDeleteSecretModal();
-        // refetchConfig(); TODO: Update global enroll secrets on this page
-        router.push(
-          getNextLocationPath({
-            pathPrefix: MANAGE_HOSTS,
-            routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
-            routeParams,
-            queryParams,
-          })
-        );
-      } catch (error) {
-        console.error(error);
-        dispatch(
-          renderFlash("error", "Could not delete secret. Please try again.")
-        );
-      }
-    }
+    // // Delete team secret
+    // if (currentTeam) {
+    //   try {
+    //     await teamsAPI.removeEnrollSecret(currentTeam.id, {
+    //       secrets: [{ secret: selectedSecret.secret }],
+    //     });
+    //     toggleDeleteSecretModal();
+    //     refetchTeams();
+    //     router.push(
+    //       getNextLocationPath({
+    //         pathPrefix: MANAGE_HOSTS,
+    //         routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //         routeParams,
+    //         queryParams,
+    //       })
+    //     );
+    //   } catch (error) {
+    //     console.error(error);
+    //     dispatch(
+    //       renderFlash("error", "Could not delete secret. Please try again.")
+    //     );
+    //   }
+    // }
+    // // Delete global secret
+    // else {
+    //   if (!globalSecret) {
+    //     console.error("Secret isn't available. This should not happen.");
+    //     return false;
+    //   }
+    //   try {
+    //     await configAPI.removeEnrollSecret(globalSecret, selectedSecret);
+    //     toggleDeleteSecretModal();
+    //     // refetchConfig(); TODO: Update global enroll secrets on this page
+    //     router.push(
+    //       getNextLocationPath({
+    //         pathPrefix: MANAGE_HOSTS,
+    //         routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+    //         routeParams,
+    //         queryParams,
+    //       })
+    //     );
+    //   } catch (error) {
+    //     console.error(error);
+    //     dispatch(
+    //       renderFlash("error", "Could not delete secret. Please try again.")
+    //     );
+    //   }
+    // }
   };
 
   const onEditLabel = async (formData: ILabelFormData) => {
@@ -1269,7 +1354,7 @@ const ManageHostsPage = ({
           isPremiumTier={isPremiumTier as boolean}
           toggleSecretEditorModal={toggleSecretEditorModal}
           toggleDeleteSecretModal={toggleDeleteSecretModal}
-          setSelectedSecret={setSelectedSecret}
+          setSelectedSecret={setSelectedSecret} // wth
         />
       </Modal>
     );
