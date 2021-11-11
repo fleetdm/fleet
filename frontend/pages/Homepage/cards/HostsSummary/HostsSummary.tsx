@@ -14,6 +14,7 @@ const baseClass = "hosts-summary";
 interface IHostSummaryProps {
   currentTeamId: number | undefined;
   macCount: string | undefined;
+  windowsCount: string | undefined;
 }
 
 interface ILabelsResponse {
@@ -27,8 +28,8 @@ interface IHostCountResponse {
 const HostsSummary = ({
   currentTeamId,
   macCount,
+  windowsCount,
 }: IHostSummaryProps): JSX.Element => {
-  const [windowsCount, setWindowsCount] = useState<string | undefined>();
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
   const getLabel = (labelString: string, labels: ILabel[]) => {
@@ -41,25 +42,6 @@ const HostsSummary = ({
     () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
-    }
-  );
-
-  useQuery<IHostCountResponse, Error, number>(
-    ["windows host count", currentTeamId],
-    () => {
-      const windowsLabel = getLabel("MS Windows", labels || []);
-      return (
-        hostCountAPI.load({
-          selectedLabels: [`labels/${windowsLabel[0].id}`],
-          teamId: currentTeamId,
-        }) || { count: 0 }
-      );
-    },
-    {
-      select: (data: IHostCountResponse) => data.count,
-      enabled: !!labels,
-      onSuccess: (data: number) =>
-        setWindowsCount(data.toLocaleString("en-US")),
     }
   );
 

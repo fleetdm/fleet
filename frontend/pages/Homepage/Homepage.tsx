@@ -48,9 +48,8 @@ const Homepage = (): JSX.Element => {
     false
   );
   const [totalCount, setTotalCount] = useState<string | undefined>();
-  const [macCount, setMacCount] = useState<string | undefined>();
-  const [windowsCount, setWindowsCount] = useState<string | undefined>();
-  const [linuxCount, setLinuxCount] = useState<string | undefined>();
+  const [macCount, setMacCount] = useState<string>("0");
+  const [windowsCount, setWindowsCount] = useState<string>("0");
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
@@ -77,16 +76,22 @@ const Homepage = (): JSX.Element => {
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: any) => {
-        console.log("data.platforms", data.platforms);
         setTotalCount(data.totals_hosts_count.toLocaleString("en-US"));
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
         setNewCount(data.new_count.toLocaleString("en-US"));
-        const macObject = data.platforms.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
+        const macHosts =
+          data.platforms?.find(
+            (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
+          ) || 0;
+        setMacCount(macHosts?.hosts_count.toLocaleString("en-US") || "0");
+        const windowsHosts =
+          data.platforms?.find(
+            (platform: IHostSummaryPlatforms) => platform.platform === "windows"
+          ) || 0;
+        setWindowsCount(
+          windowsHosts?.hosts_count.toLocaleString("en-US") || "0"
         );
-
-        setMacCount(macObject.hosts_count);
       },
     }
   );
@@ -122,7 +127,11 @@ const Homepage = (): JSX.Element => {
           }}
           total_host_count={totalCount}
         >
-          <HostsSummary currentTeamId={currentTeam?.id} macCount={macCount} />
+          <HostsSummary
+            currentTeamId={currentTeam?.id}
+            macCount={macCount}
+            windowsCount={windowsCount}
+          />
         </InfoCard>
       </div>
       <div className={`${baseClass}__section one-column`}>
