@@ -35,7 +35,7 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 }
 
 // ElementsMatchSkipIDAndHostCount asserts that the elements match, skipping any field with
-// name "ID".
+// name "ID" or "HostCount".
 func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
 	t.Helper()
 
