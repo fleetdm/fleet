@@ -31,7 +31,8 @@
     "go.testEnvVars": {
         "MYSQL_TEST": "1",
         "REDIS_TEST": "1"
-    },    "html.format.templating": true,
+    },
+    "html.format.templating": true,
     "html.format.wrapAttributes": "preserve",
     "html.format.wrapLineLength": 0,
     "prettier.requireConfig": true
