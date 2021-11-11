@@ -1,0 +1,1 @@
+* Add the total count and per platform count of hosts to the the response payload of host summary endpoint.

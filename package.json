@@ -12,7 +12,9 @@
     "e2e-browser:premium": "yarn cypress open --config-file cypress-premium.json",
     "e2e-cli": "cypress run",
     "e2e-cli:free": "yarn cypress run --config-file cypress-free.json",
-    "e2e-cli:premium": "yarn cypress run --config-file cypress-premium.json"
+    "e2e-cli:premium": "yarn cypress run --config-file cypress-premium.json",
+    "storybook": "start-storybook -p 6006",
+    "build-storybook": "build-storybook"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^1.5.1",
@@ -39,7 +41,7 @@
     "moment": "2.22.2",
     "nock": "^13.0.5",
     "node-bourbon": "4.2.8",
-    "node-sass": "^4.13.0",
+    "node-sass": "^6.0.1",
     "normalizr": "2.3.1",
     "postcss-loader": "^3.0.0",
     "prop-types": "^15.0.0",
@@ -145,6 +147,10 @@
     "@babel/preset-env": "^7.12.7",
     "@babel/preset-react": "^7.12.7",
     "@babel/preset-typescript": "^7.12.7",
+    "@storybook/addon-actions": "^6.3.12",
+    "@storybook/addon-essentials": "^6.3.12",
+    "@storybook/addon-links": "^6.3.12",
+    "@storybook/react": "^6.3.12",
     "@testing-library/cypress": "^7.0.4",
     "@testing-library/jest-dom": "^5.11.9",
     "@testing-library/react": "^11.2.5",

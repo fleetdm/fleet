@@ -1,9 +1,9 @@
 import React from "react";
 import { useSelector } from "react-redux";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
-import EnrollSecretTable from "components/config/EnrollSecretTable";
+import EnrollSecretTable from "components/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 

@@ -1,6 +1,12 @@
 .policy-list-wrapper {
   border-collapse: collapse;
 
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
   &__wrapper {
     border: 1px solid $ui-fleet-blue-15;
     border-radius: 4px;
@@ -66,7 +72,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: $pad-xxxlarge;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
+
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
 
   h1 {
     font-size: $large;
@@ -86,7 +99,8 @@
 
   &__inner {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    align-items: center;
 
     h1 {
       font-size: $small;
@@ -95,8 +109,7 @@
     }
 
     img {
-      width: 176px;
-      margin-right: $pad-xlarge;
+      width: 322px;
     }
 
     p {
@@ -109,11 +122,18 @@
   }
 
   &__inner-text {
-    padding-left: $pad-xlarge;
-    width: 485px;
+    width: 500px;
+    padding: $pad-xxlarge 0;
   }
 
-  &__add-policy-button {
-    margin-right: $pad-small;
+  &__bullet-text {
+    width: 455px;
+    text-align: left;
   }
+}
+
+.no-team-policy {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
 }

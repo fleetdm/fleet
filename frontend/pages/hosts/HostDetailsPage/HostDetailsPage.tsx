@@ -23,9 +23,9 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner";
@@ -312,6 +312,7 @@ const HostDetailsPage = ({
       "memory",
       "cpu_type",
       "os_version",
+      "osquery_version",
       "enroll_secret_name",
       "detail_updated_at",
       "percent_disk_space_available",
@@ -967,6 +968,12 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">OS</span>
               <span className="info-flex__data">{titleData.os_version}</span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Osquery</span>
+              <span className="info-flex__data">
+                {titleData.osquery_version}
+              </span>
             </div>
           </div>
         </div>

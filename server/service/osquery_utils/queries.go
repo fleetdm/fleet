@@ -519,7 +519,7 @@ FROM python_packages;
 }
 
 var usersQuery = DetailQuery{
-	Query: `SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid=u.gid;`,
+	Query: `SELECT uid, username, type, groupname, shell FROM users u JOIN groups g ON g.gid=u.gid;`,
 	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 		var users []fleet.HostUser
 		for _, row := range rows {
@@ -530,11 +530,13 @@ var usersQuery = DetailQuery{
 			username := row["username"]
 			type_ := row["type"]
 			groupname := row["groupname"]
+			shell := row["shell"]
 			u := fleet.HostUser{
 				Uid:       uint(uid),
 				Username:  username,
 				Type:      type_,
 				GroupName: groupname,
+				Shell:     shell,
 			}
 			users = append(users, u)
 		}

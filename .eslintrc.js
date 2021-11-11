@@ -37,6 +37,7 @@ module.exports = {
     ],
     "react/require-default-props": 0, // TODO set default props and enable this check
     "react/jsx-filename-extension": [1, { extensions: [".jsx", ".tsx"] }],
+    "react-hooks/exhaustive-deps": 0,
     "no-param-reassign": 0,
     "new-cap": 0,
     "import/no-unresolved": [2, { caseSensitive: false }],

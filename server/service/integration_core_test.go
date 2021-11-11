@@ -132,6 +132,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	assert.Equal(t, "http://iii.com", *activities.Activities[0].ActorGravatar)
 	assert.Equal(t, "created_saved_query", activities.Activities[0].Type)
 }
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 
@@ -338,6 +339,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
+
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count", "order_direction", "desc")
+	assert.Len(t, lsResp.Software, 1)
+	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -397,8 +405,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now()))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false))
 
 	listHostsURL = fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -458,8 +466,8 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
 		Filters: struct {
@@ -518,6 +526,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        "linux",
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -555,7 +564,7 @@ func (s *integrationTestSuite) TestCountSoftware() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := countHostsRequest{}
 	resp := countHostsResponse{}
@@ -623,7 +632,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	p, err := s.ds.NewGlobalPolicy(context.Background(), q.ID, "")
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
@@ -631,6 +640,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }
 
+<<<<<<< HEAD
 func (s *integrationTestSuite) TestInvites() {
 	t := s.T()
 
@@ -673,4 +683,38 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Equal(t, "", verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
+}
+
+func (s *integrationTestSuite) TestGetHostSummary() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+
+	var resp getHostSummaryResponse
+
+	// no team filter
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp)
+	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
+	require.Len(t, resp.Platforms, 1)
+	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, uint(len(hosts)), resp.Platforms[0].HostsCount)
+
+	// team filter, no host
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
+	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Len(t, resp.Platforms, 0)
+
+	// team filter, one host
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
+	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Len(t, resp.Platforms, 1)
+	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 }

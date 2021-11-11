@@ -1,13 +1,15 @@
-//resource "aws_route53_record" "record" {
-//  name = "fleetdm"
-//  type = "A"
-//  zone_id = "Z046188311R47QSK245X"
-//  alias {
-//    evaluate_target_health = false
-//    name = aws_alb.main.dns_name
-//    zone_id = aws_alb.main.zone_id
-//  }
-//}
+data "aws_region" "current" {}
+
+resource "aws_route53_record" "record" {
+  name    = "fleet-alb-${terraform.workspace}"
+  type    = "A"
+  zone_id = aws_route53_zone.dogfood_fleetdm_com.zone_id
+  alias {
+    evaluate_target_health = false
+    name                   = aws_alb.main.dns_name
+    zone_id                = aws_alb.main.zone_id
+  }
+}
 
 resource "aws_alb" "main" {
   name            = "fleetdm"
@@ -111,12 +113,6 @@ resource "aws_cloudwatch_log_group" "backend" {
   retention_in_days = 1
 }
 
-data "aws_region" "current" {}
-
-data "aws_secretsmanager_secret" "license" {
-  name = "/fleet/license"
-}
-
 resource "aws_ecs_task_definition" "backend" {
   family                   = "fleet"
   network_mode             = "awsvpc"
@@ -159,10 +155,6 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
-          },
-          {
-            name      = "FLEET_LICENSE_KEY"
-            valueFrom = data.aws_secretsmanager_secret.license.arn
           }
         ]
         environment = [
@@ -235,7 +227,7 @@ resource "aws_ecs_task_definition" "backend" {
             value = var.logging_debug
           },
           {
-            name = "FLEET_LOGGING_JSON"
+            name  = "FLEET_LOGGING_JSON"
             value = var.logging_json
           },
           {
@@ -246,6 +238,10 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_S3_PREFIX"
             value = "carve_results/"
           },
+          {
+            name  = "FLEET_LICENSE_KEY"
+            value = var.fleet_license
+          }
         ]
       }
   ])

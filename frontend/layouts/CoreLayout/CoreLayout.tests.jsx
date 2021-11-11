@@ -29,10 +29,6 @@ describe("CoreLayout - layouts", () => {
         isVisible: true,
         message: "nice jerb!",
       },
-      persistentFlash: {
-        showFlash: false,
-        message: "",
-      },
     };
     const mockStoreWithNotifications = reduxMockStore(storeWithNotifications);
     const componentWithFlash = connectedComponent(CoreLayout, {
@@ -50,29 +46,5 @@ describe("CoreLayout - layouts", () => {
 
     expect(appWithFlash.find("FlashMessage").html()).toBeTruthy();
     expect(appWithoutFlash.find("FlashMessage").html()).toBeFalsy();
-  });
-
-  it("renders the PersistentFlash component when showFlash is true", () => {
-    const storeWithPersistentFlash = {
-      ...store,
-      persistentFlash: {
-        showFlash: true,
-        message: "This is the flash message",
-      },
-    };
-
-    const mockStoreWithPersistentFlash = reduxMockStore(
-      storeWithPersistentFlash
-    );
-
-    const Layout = connectedComponent(CoreLayout, {
-      mockStore: mockStoreWithPersistentFlash,
-    });
-    const MountedLayout = mount(Layout);
-
-    expect(MountedLayout.find("PersistentFlash").length).toEqual(
-      1,
-      "Expected the Persistent Flash to be on the page"
-    );
   });
 });

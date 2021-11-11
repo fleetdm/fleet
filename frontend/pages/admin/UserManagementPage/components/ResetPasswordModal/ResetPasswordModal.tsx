@@ -1,6 +1,6 @@
 import React from "react";
 import { IUser } from "interfaces/user";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "reset-password-modal";

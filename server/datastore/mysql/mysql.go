@@ -56,6 +56,8 @@ type Datastore struct {
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
+
+	writeCh chan itemToWrite
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -214,9 +216,37 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		clock:             c,
 		config:            config,
 		readReplicaConfig: options.replicaConfig,
+		writeCh:           make(chan itemToWrite),
 	}
 
+	go ds.writeChanLoop()
+
 	return ds, nil
+}
+
+type itemToWrite struct {
+	ctx   context.Context
+	errCh chan error
+	item  interface{}
+}
+
+type hostXUpdatedAt struct {
+	hostID    uint
+	updatedAt time.Time
+	what      string
+}
+
+func (d *Datastore) writeChanLoop() {
+	for item := range d.writeCh {
+		switch actualItem := item.item.(type) {
+		case *fleet.Host:
+			item.errCh <- d.SaveHost(item.ctx, actualItem)
+		case hostXUpdatedAt:
+			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			item.errCh <- errors.Wrap(err, "updating hosts label updated at")
+		}
+	}
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
@@ -428,15 +458,19 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 		return "FALSE"
 	}
 
+	defaultAllowClause := "TRUE"
+	if filter.TeamID != nil {
+		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", hostKey, *filter.TeamID)
+	}
+
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-
 		case fleet.RoleAdmin, fleet.RoleMaintainer:
-			return "TRUE"
+			return defaultAllowClause
 
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
-				return "TRUE"
+				return defaultAllowClause
 			}
 			return "FALSE"
 
@@ -447,15 +481,27 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 
 	// Collect matching teams
 	var idStrs []string
+	var teamIDSeen bool
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			if filter.TeamID != nil && *filter.TeamID == team.ID {
+				teamIDSeen = true
+			}
 		}
 	}
 
 	if len(idStrs) == 0 {
 		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	if filter.TeamID != nil {
+		if teamIDSeen {
+			// all good, this user has the right to see the requested team
+			return defaultAllowClause
+		}
 		return "FALSE"
 	}
 

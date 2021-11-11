@@ -151,6 +151,12 @@ func TestAuthorizeInvite(t *testing.T) {
 func TestAuthorizeEnrollSecret(t *testing.T) {
 	t.Parallel()
 
+	teamAdmin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+		},
+	}
+
 	teamMaintainer := &fleet.User{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
@@ -190,15 +196,21 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 
 		// Maintainer can read all
 		{user: test.UserMaintainer, object: globalSecret, action: read, allow: true},
-		{user: test.UserMaintainer, object: globalSecret, action: write, allow: false},
+		{user: test.UserMaintainer, object: globalSecret, action: write, allow: true},
 		{user: test.UserMaintainer, object: teamSecret, action: read, allow: true},
-		{user: test.UserMaintainer, object: teamSecret, action: write, allow: false},
+		{user: test.UserMaintainer, object: teamSecret, action: write, allow: true},
 
-		// Team maintainer can read team secret
+		// Team admin can read/write team secret
+		{user: teamAdmin, object: globalSecret, action: read, allow: false},
+		{user: teamAdmin, object: globalSecret, action: write, allow: false},
+		{user: teamAdmin, object: teamSecret, action: read, allow: true},
+		{user: teamAdmin, object: teamSecret, action: write, allow: true},
+
+		// Team maintainer can read/write team secret
 		{user: teamMaintainer, object: globalSecret, action: read, allow: false},
 		{user: teamMaintainer, object: globalSecret, action: write, allow: false},
 		{user: teamMaintainer, object: teamSecret, action: read, allow: true},
-		{user: teamMaintainer, object: teamSecret, action: write, allow: false},
+		{user: teamMaintainer, object: teamSecret, action: write, allow: true},
 	})
 }
 

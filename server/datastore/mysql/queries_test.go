@@ -27,6 +27,7 @@ func TestQueries(t *testing.T) {
 		{"List", testQueriesList},
 		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
+		{"ListFiltersObservers", testQueriesListFiltersObservers},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -195,6 +196,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, queryVerify)
 	assert.Equal(t, "baz", queryVerify.Query)
 	assert.Equal(t, "Zach", queryVerify.AuthorName)
+	assert.Equal(t, "zwass@fleet.co", queryVerify.AuthorEmail)
 	assert.True(t, queryVerify.ObserverCanRun)
 }
 
@@ -223,7 +225,9 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	opts := fleet.ListQueryOptions{}
 	results, err := ds.ListQueries(context.Background(), opts)
 	require.NoError(t, err)
-	assert.Equal(t, 10, len(results))
+	require.Equal(t, 10, len(results))
+	assert.Equal(t, "Zach", results[0].AuthorName)
+	assert.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
 
 	idWithAgg := results[0].ID
 
@@ -394,10 +398,7 @@ func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 	assert.Contains(t, err.Error(), "already exists")
 }
 
-func TestListQueryFiltersObserver(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
+func testQueriesListFiltersObservers(t *testing.T, ds *Datastore) {
 	_, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:  "query1",
 		Query: "select 1;",
