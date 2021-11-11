@@ -5,13 +5,16 @@ import { Link } from "react-router";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
+import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
-import { ITeam } from "interfaces/team";
+import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ISoftware } from "interfaces/software";
+import { ITeam } from "interfaces/team";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Button from "components/buttons/Button";
 import InfoCard from "./components/InfoCard";
+import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
@@ -44,6 +47,13 @@ const Homepage = (): JSX.Element => {
   const [isSoftwareModalOpen, setIsSoftwareModalOpen] = useState<boolean>(
     false
   );
+  const [totalCount, setTotalCount] = useState<string | undefined>();
+  const [macCount, setMacCount] = useState<string | undefined>();
+  const [windowsCount, setWindowsCount] = useState<string | undefined>();
+  const [linuxCount, setLinuxCount] = useState<string | undefined>();
+  const [onlineCount, setOnlineCount] = useState<string | undefined>();
+  const [offlineCount, setOfflineCount] = useState<string | undefined>();
+  const [newCount, setNewCount] = useState<string | undefined>();
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ITeamsResponse,
@@ -58,6 +68,28 @@ const Homepage = (): JSX.Element => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
   };
+
+  useQuery<IHostSummary, Error, IHostSummary>(
+    ["host summary", currentTeam],
+    () => {
+      return hostSummaryAPI.getSummary(currentTeam?.id);
+    },
+    {
+      select: (data: IHostSummary) => data,
+      onSuccess: (data: any) => {
+        console.log("data.platforms", data.platforms);
+        setTotalCount(data.totals_hosts_count.toLocaleString("en-US"));
+        setOnlineCount(data.online_count.toLocaleString("en-US"));
+        setOfflineCount(data.offline_count.toLocaleString("en-US"));
+        setNewCount(data.new_count.toLocaleString("en-US"));
+        const macObject = data.platforms.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
+        );
+
+        setMacCount(macObject.hosts_count);
+      },
+    }
+  );
 
   return (
     <div className={baseClass}>
@@ -88,8 +120,18 @@ const Homepage = (): JSX.Element => {
               MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
             text: "View all hosts",
           }}
+          total_host_count={totalCount}
         >
-          <HostsSummary currentTeamId={currentTeam?.id} />
+          <HostsSummary currentTeamId={currentTeam?.id} macCount={macCount} />
+        </InfoCard>
+      </div>
+      <div className={`${baseClass}__section one-column`}>
+        <InfoCard title="">
+          <HostsStatus
+            onlineCount={onlineCount}
+            offlineCount={offlineCount}
+            newCount={newCount}
+          />
         </InfoCard>
       </div>
       {isPreviewMode && (

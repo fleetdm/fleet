@@ -11,8 +11,9 @@ import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
 
 const baseClass = "hosts-summary";
 
-interface IHostsSummaryProps {
+interface IHostSummaryProps {
   currentTeamId: number | undefined;
+  macCount: string | undefined;
 }
 
 interface ILabelsResponse {
@@ -23,8 +24,10 @@ interface IHostCountResponse {
   count: number;
 }
 
-const HostsSummary = ({ currentTeamId }: IHostsSummaryProps): JSX.Element => {
-  const [macCount, setMacCount] = useState<string | undefined>();
+const HostsSummary = ({
+  currentTeamId,
+  macCount,
+}: IHostSummaryProps): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState<string | undefined>();
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
@@ -38,24 +41,6 @@ const HostsSummary = ({ currentTeamId }: IHostsSummaryProps): JSX.Element => {
     () => labelsAPI.loadAll(),
     {
       select: (data: ILabelsResponse) => data.labels,
-    }
-  );
-
-  useQuery<IHostCountResponse, Error, number>(
-    ["mac host count", currentTeamId],
-    () => {
-      const macOsLabel = getLabel("macOS", labels || []);
-      return (
-        hostCountAPI.load({
-          selectedLabels: [`labels/${macOsLabel[0].id}`],
-          teamId: currentTeamId,
-        }) || { count: 0 }
-      );
-    },
-    {
-      select: (data: IHostCountResponse) => data.count,
-      enabled: !!labels,
-      onSuccess: (data: number) => setMacCount(data.toLocaleString("en-US")),
     }
   );
 
