@@ -1,3 +1,16 @@
+## Fleet 4.5.1 (Nov 10, 2021)
+
+* Fix performance issues with search filtering on manage queries page.
+
+* Improve correctness and UX for query platform compatibility.
+
+* Fleet Premium: Show correct hosts when a team is selected.
+
+* Fix a bug preventing login for new SSO users.
+
+* Always return the `disabled` value in the `GET /api/v1/fleet/packs/{id}` API (previously it was
+  sometimes left out).
+
 ## Fleet 4.5.0 (Nov 1, 2021)
 
 * Fleet Premium: Add a Team admin user role. This allows users to delegate the responsibility of managing team members in Fleet. Documentation for the permissions associated with the Team admin and other user roles can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
