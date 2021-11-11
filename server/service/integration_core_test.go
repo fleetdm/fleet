@@ -337,6 +337,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
+
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count", "order_direction", "desc")
+	assert.Len(t, lsResp.Software, 1)
+	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -517,6 +524,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        "linux",
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, host)
@@ -628,4 +636,38 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+}
+
+func (s *integrationTestSuite) TestGetHostSummary() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+
+	var resp getHostSummaryResponse
+
+	// no team filter
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp)
+	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
+	require.Len(t, resp.Platforms, 1)
+	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, uint(len(hosts)), resp.Platforms[0].HostsCount)
+
+	// team filter, no host
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
+	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Len(t, resp.Platforms, 0)
+
+	// team filter, one host
+	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
+	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Len(t, resp.Platforms, 1)
+	require.Equal(t, "linux", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 }

@@ -8,8 +8,10 @@ import {
   useRowSelect,
   Row,
   usePagination,
+  useFilters,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
@@ -19,6 +21,7 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
+// @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
 const baseClass = "data-table-container";
@@ -43,8 +46,13 @@ interface IDataTableProps {
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
   onSelectSingleRow?: (value: Row) => void;
+  onResultsCountChange?: (value: number) => void;
   isClientSidePagination?: boolean;
+  isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
+  searchQuery?: string;
+  searchQueryColumn?: string;
+  selectedDropdownFilter?: string;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -72,7 +80,12 @@ const DataTable = ({
   secondarySelectActions,
   onSelectSingleRow,
   isClientSidePagination,
+  isClientSideFilter,
   highlightOnHover,
+  searchQuery,
+  searchQueryColumn,
+  selectedDropdownFilter,
+  onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
 
@@ -99,12 +112,13 @@ const DataTable = ({
     // The rest of these things are super handy, too ;)
     canPreviousPage,
     canNextPage,
-    pageOptions,
-    pageCount,
-    gotoPage,
+    // pageOptions,
+    // pageCount,
+    // gotoPage,
     nextPage,
     previousPage,
     setPageSize,
+    setFilter,
   } = useTable(
     {
       columns,
@@ -142,12 +156,42 @@ const DataTable = ({
         []
       ),
     },
+    useFilters,
     useSortBy,
     usePagination,
     useRowSelect
   );
 
-  const { sortBy, selectedRowIds, pageIndex, pageSize } = tableState;
+  const { sortBy, selectedRowIds } = tableState;
+
+  // Listen for changes to filters if clientSideFilter is enabled
+
+  const setDebouncedClientFilter = useDebouncedCallback(
+    (column: string, query: string) => {
+      setFilter(column, query);
+    },
+    300
+  );
+
+  useEffect(() => {
+    if (isClientSideFilter && onResultsCountChange) {
+      onResultsCountChange(rows.length);
+    }
+  }, [isClientSideFilter, onResultsCountChange, rows.length]);
+
+  useEffect(() => {
+    if (isClientSideFilter && searchQueryColumn) {
+      setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
+    }
+  }, [searchQuery, searchQueryColumn]);
+
+  useEffect(() => {
+    if (isClientSideFilter && selectedDropdownFilter) {
+      selectedDropdownFilter === "all"
+        ? setDebouncedClientFilter("platforms", "")
+        : setDebouncedClientFilter("platforms", selectedDropdownFilter);
+    }
+  }, [selectedDropdownFilter]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
@@ -169,7 +213,11 @@ const DataTable = ({
     if (isAllPagesSelected) {
       toggleAllRowsSelected(true);
     }
-  }, [isAllPagesSelected]);
+  }, [isAllPagesSelected, toggleAllRowsSelected]);
+
+  useEffect(() => {
+    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+  }, [setPageSize]);
 
   useDeepEffect(() => {
     if (
@@ -187,7 +235,7 @@ const DataTable = ({
   const onClearSelectionClick = useCallback(() => {
     toggleAllRowsSelected(false);
     toggleAllPagesSelected(false);
-  }, [toggleAllRowsSelected]);
+  }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSingleRowClick = useCallback(
     (row) => {
@@ -197,7 +245,7 @@ const DataTable = ({
         toggleAllRowsSelected(false);
       }
     },
-    [disableMultiRowSelect]
+    [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
 
   const renderSelectedCount = (): JSX.Element => {
@@ -292,10 +340,6 @@ const DataTable = ({
 
   const pageOrRows = isClientSidePagination ? page : rows;
 
-  useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
-  }, []);
-
   const previousButton = (
     <>
       <FleetIcon name="chevronleft" /> Previous
@@ -306,6 +350,7 @@ const DataTable = ({
       Next <FleetIcon name="chevronright" />
     </>
   );
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -364,7 +409,7 @@ const DataTable = ({
                     className={column.id ? `${column.id}__header` : ""}
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                   >
-                    {column.render("Header")}
+                    <div>{column.render("Header")}</div>
                   </th>
                 ))}
               </tr>

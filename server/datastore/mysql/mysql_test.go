@@ -476,6 +476,60 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 			},
 			expected: "hosts.team_id IN (2,3)",
 		},
+		{
+			filter: fleet.TeamFilter{
+				TeamID: ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(3),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(2),
+			},
+			expected: "hosts.team_id = 2",
+		},
 	}
 
 	for _, tt := range testCases {

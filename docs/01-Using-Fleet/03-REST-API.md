@@ -607,11 +607,13 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-None.
+| Name    | Type    | In    | Description                                                                     |
+| ------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary`
+`GET /api/v1/fleet/host_summary?team_id=1`
 
 ##### Default response
 
@@ -619,6 +621,17 @@ None.
 
 ```json
 {
+  "totals_hosts_count": 2408,
+  "platforms": [
+    {
+      "platform": "linux",
+      "hosts_count": 1204
+    },
+    {
+      "platform": "darwin",
+      "hosts_count": 1204
+    }
+  ],
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
@@ -631,6 +644,8 @@ None.
 Returns the information of the specified host.
 
 The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+
+The host_count parameter in the software list will always be 1 in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -660,7 +675,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 1146,
@@ -668,7 +684,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "version": "1.30",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 321,
@@ -677,7 +694,8 @@ The endpoint returns the host's installed `software` if the software inventory f
         "source": "apps",
         "bundle_identifier": "com.some.app",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       }
     ],
     "id": 1,
@@ -5290,7 +5308,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 2
       },
       {
         "id": 2,
@@ -5298,7 +5317,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 22
       },
       {
         "id": 3,
@@ -5306,7 +5326,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 5
       },
       {
         "id": 4,
@@ -5314,8 +5335,9 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
+        "vulnerabilities": null,
+        "host_count": 9
+      }
     ]
   }
 }

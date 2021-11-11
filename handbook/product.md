@@ -8,7 +8,8 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | How the product works 										| Noah Talerman |
 | fleetctl CLI interface (and other tools) 						| Tomás Touceda |
 | REST API interface, REST API docs 							| Luke Heath	|
-| Terraform, Postman 											| Ben Edwards 	|
+| Postman 											| Ben Edwards (transitioning to Luke Heath) 	|
+| Terraform 											| Ben Edwards 	|
 | Customer deployments like acme.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
 | Quality of core product UI 									| Luke Heath 	|

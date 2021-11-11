@@ -434,6 +434,10 @@
     th:first-child {
       width: 70%;
     }
+
+    .response__header {
+      border-right: none;
+    }
   }
 
   .section--software {

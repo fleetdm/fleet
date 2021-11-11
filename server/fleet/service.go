@@ -238,7 +238,7 @@ type Service interface {
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.

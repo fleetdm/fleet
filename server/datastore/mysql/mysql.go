@@ -458,15 +458,19 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 		return "FALSE"
 	}
 
+	defaultAllowClause := "TRUE"
+	if filter.TeamID != nil {
+		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", hostKey, *filter.TeamID)
+	}
+
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-
 		case fleet.RoleAdmin, fleet.RoleMaintainer:
-			return "TRUE"
+			return defaultAllowClause
 
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
-				return "TRUE"
+				return defaultAllowClause
 			}
 			return "FALSE"
 
@@ -477,15 +481,27 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 
 	// Collect matching teams
 	var idStrs []string
+	var teamIDSeen bool
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			if filter.TeamID != nil && *filter.TeamID == team.ID {
+				teamIDSeen = true
+			}
 		}
 	}
 
 	if len(idStrs) == 0 {
 		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	if filter.TeamID != nil {
+		if teamIDSeen {
+			// all good, this user has the right to see the requested team
+			return defaultAllowClause
+		}
 		return "FALSE"
 	}
 

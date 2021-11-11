@@ -44,9 +44,8 @@ const renderTable = (
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
   allScheduledQueriesError: { name: string; reason: string }[],
   toggleScheduleEditorModal: () => void,
-  teamId: number,
-  isTeamMaintainerOrTeamAdmin: boolean,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  selectedTeamData: ITeam | undefined
 ): JSX.Element => {
   if (Object.keys(allScheduledQueriesError).length !== 0) {
     return <TableDataError />;
@@ -58,9 +57,8 @@ const renderTable = (
       onEditScheduledQueryClick={onEditScheduledQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
-      teamId={teamId}
-      isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
       isOnGlobalTeam={isOnGlobalTeam}
+      selectedTeamData={selectedTeamData}
     />
   );
 };
@@ -68,9 +66,8 @@ const renderTable = (
 const renderAllTeamsTable = (
   allTeamsScheduledQueriesList: IGlobalScheduledQuery[],
   allTeamsScheduledQueriesError: { name: string; reason: string }[],
-  teamId: number,
-  isTeamMaintainerOrTeamAdmin: boolean,
-  isOnGlobalTeam: boolean
+  isOnGlobalTeam: boolean,
+  selectedTeamData: ITeam | undefined
 ): JSX.Element => {
   if (Object.keys(allTeamsScheduledQueriesError).length > 0) {
     return <TableDataError />;
@@ -81,9 +78,8 @@ const renderAllTeamsTable = (
       <ScheduleListWrapper
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
-        teamId={teamId}
-        isTeamMaintainerOrTeamAdmin={isTeamMaintainerOrTeamAdmin}
         isOnGlobalTeam={isOnGlobalTeam}
+        selectedTeamData={selectedTeamData}
       />
     </div>
   );
@@ -239,6 +235,10 @@ const ManageSchedulePage = ({
   const allTeamsList = Object.values(allTeams.data);
 
   const selectedTeam = isNaN(teamId) ? "global" : teamId;
+
+  const selectedTeamData = allTeamsList.find(
+    (team) => selectedTeam === team.id
+  );
 
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
     false
@@ -510,9 +510,8 @@ const ManageSchedulePage = ({
             allScheduledQueriesList,
             allScheduledQueriesError,
             toggleScheduleEditorModal,
-            teamId,
-            isTeamMaintainerOrTeamAdmin,
-            isOnGlobalTeam || false
+            isOnGlobalTeam || false,
+            selectedTeamData
           )}
         </div>
         {/* must use ternary for NaN */}
@@ -546,9 +545,8 @@ const ManageSchedulePage = ({
           renderAllTeamsTable(
             allTeamsScheduledQueriesList,
             allTeamsScheduledQueriesError,
-            teamId,
-            isTeamMaintainerOrTeamAdmin,
-            isOnGlobalTeam || false
+            isOnGlobalTeam || false,
+            selectedTeamData
           )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal
