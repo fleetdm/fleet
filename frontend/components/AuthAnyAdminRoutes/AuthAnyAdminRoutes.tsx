@@ -46,7 +46,7 @@ const AuthAnyAdminRoutes = ({
   if (
     (!permissionUtils.isGlobalAdmin(user) &&
       !permissionUtils.isAnyTeamAdmin(user)) ||
-    !allowAccess
+    (!permissionUtils.isGlobalAdmin(user) && !allowAccess)
   ) {
     dispatch(push(HOME));
     dispatch(renderFlash("error", "You do not have permissions for that page"));
