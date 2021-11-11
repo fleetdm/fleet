@@ -4696,6 +4696,8 @@ Verify the specified invite.
 
 #### Example
 
+`PATCH /api/v1/fleet/invites/123`
+
 ##### Request body
 
 ```json
@@ -4716,8 +4718,6 @@ Verify the specified invite.
   ]
 }
 ```
-
-`PATCH /api/v1/fleet/invites/123`
 
 ##### Default response
 
