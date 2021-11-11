@@ -80,18 +80,14 @@ const Homepage = (): JSX.Element => {
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
         setNewCount(data.new_count.toLocaleString("en-US"));
-        const macHosts =
-          data.platforms?.find(
-            (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
-          ) || 0;
-        setMacCount(macHosts?.hosts_count.toLocaleString("en-US") || "0");
-        const windowsHosts =
-          data.platforms?.find(
-            (platform: IHostSummaryPlatforms) => platform.platform === "windows"
-          ) || 0;
-        setWindowsCount(
-          windowsHosts?.hosts_count.toLocaleString("en-US") || "0"
-        );
+        const macHosts = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
+        ) || { platform: "darwin", hosts_count: 0 };
+        setMacCount(macHosts.hosts_count.toLocaleString("en-US"));
+        const windowsHosts = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "windows"
+        ) || { platform: "windows", hosts_count: 0 };
+        setWindowsCount(windowsHosts.hosts_count?.toLocaleString("en-US"));
       },
     }
   );
