@@ -33,9 +33,20 @@ const AuthAnyAdminRoutes = ({
     return null;
   }
 
+  const teamId = Number(children.props.params.team_id) || null;
+  let allowAccess;
+
+  if (teamId && user.teams) {
+    const userAdminTeams = user.teams.filter(
+      (thisTeam) => thisTeam.role === "admin"
+    );
+    allowAccess = userAdminTeams.some((thisTeam) => thisTeam.id === teamId);
+  }
+
   if (
-    !permissionUtils.isGlobalAdmin(user) &&
-    !permissionUtils.isAnyTeamAdmin(user)
+    (!permissionUtils.isGlobalAdmin(user) &&
+      !permissionUtils.isAnyTeamAdmin(user)) ||
+    !allowAccess
   ) {
     dispatch(push(HOME));
     dispatch(renderFlash("error", "You do not have permissions for that page"));
