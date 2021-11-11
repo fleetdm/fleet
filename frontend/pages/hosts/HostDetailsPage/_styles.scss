@@ -508,6 +508,22 @@
     .host-details__wrapper {
       overflow: auto;
     }
+
+    .username__header {
+      width: 80%;
+    }
+
+    .shell__header {
+      width: 20%;
+
+      span {
+        margin-right: $pad-small;
+      }
+
+      .host-users-table__shell-tooltip {
+        font-weight: 400;
+      }
+    }
   }
 
   tbody {
