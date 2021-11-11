@@ -1377,12 +1377,14 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 		Username:  "user",
 		Type:      "aaa",
 		GroupName: "group",
+		Shell:     "shell",
 	}
 	u2 := fleet.HostUser{
 		Uid:       43,
 		Username:  "user2",
 		Type:      "aaa",
 		GroupName: "group",
+		Shell:     "shell",
 	}
 	host.Users = []fleet.HostUser{u1, u2}
 	host.Modified = true
@@ -1446,11 +1448,13 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 		Username:  "user",
 		Type:      "aaa",
 		GroupName: "group",
+		Shell:     "shell",
 	}
 	u2 := fleet.HostUser{
 		Username:  "user2",
 		Type:      "aaa",
 		GroupName: "group",
+		Shell:     "shell",
 	}
 	host.Users = []fleet.HostUser{u1, u2}
 	host.Modified = true
@@ -1729,12 +1733,14 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				Username:  "user",
 				Type:      "aaa",
 				GroupName: "group",
+				Shell:     "shell",
 			}
 			u2 := fleet.HostUser{
 				Uid:       43,
 				Username:  "user2",
 				Type:      "aaa",
 				GroupName: "group",
+				Shell:     "shell",
 			}
 			host1.Users = []fleet.HostUser{u1, u2}
 			host1.SeenTime = time.Now()
@@ -1782,12 +1788,14 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 				Username:  "user",
 				Type:      "aaa",
 				GroupName: "group",
+				Shell:     "shell",
 			}
 			u2 := fleet.HostUser{
 				Uid:       98,
 				Username:  "user2",
 				Type:      "aaa",
 				GroupName: "group",
+				Shell:     "shell",
 			}
 			host2.Users = []fleet.HostUser{u1, u2}
 			host2.SeenTime = time.Now()

@@ -193,7 +193,7 @@ CREATE TABLE `host_users` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `removed_at` timestamp NULL DEFAULT NULL,
   `user_type` varchar(255) DEFAULT NULL,
-  `shell` varchar(255) DEFAULT NULL,
+  `shell` varchar(255) DEFAULT '',
   PRIMARY KEY (`host_id`,`uid`,`username`),
   UNIQUE KEY `idx_uid_username` (`host_id`,`uid`,`username`),
   CONSTRAINT `host_users_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
@@ -419,6 +419,7 @@ CREATE TABLE `policies` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `team_id` int(10) unsigned DEFAULT NULL,
+  `resolution` text,
   PRIMARY KEY (`id`),
   KEY `fk_policies_query_id` (`query_id`),
   KEY `fk_policies_team_id` (`team_id`),
@@ -535,6 +536,7 @@ CREATE TABLE `software` (
   `name` varchar(255) NOT NULL,
   `version` varchar(255) NOT NULL DEFAULT '',
   `source` varchar(64) NOT NULL,
+  `bundle_identifier` varchar(255) DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_name_version` (`name`,`version`,`source`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
