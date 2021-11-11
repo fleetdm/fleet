@@ -11,6 +11,74 @@ export enum PolicyResponse {
 export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
 
+export const DEFAULT_POLICIES = [
+  {
+    key: 1,
+    query:
+      "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1",
+    name: "Is Filevault enabled on macOS devices",
+    description:
+      "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+    resolution:
+      "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+  },
+  {
+    key: 2,
+    query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1",
+    name: "Is Gatekeeper enabled on macOS devices?",
+    description:
+      "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+    resolution:
+      "On the failing device, run the following command in the Terminal app: /usr/sbin / spctl--master- enable",
+  },
+  {
+    key: 3,
+    query: "SELECT 1 FROM bitlocker_info where protection_status: 1",
+    name: "Is disk encryption enabled on Windows devices?",
+    description:
+      "Checks to make sure that device encryption is enabled on Windows devices.",
+    resolution:
+      "Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
+  },
+  {
+    key: 4,
+    query: "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled=0",
+    name: "Is System Integrity Protection (SIP) enabled for macOS devices",
+    description: "Checks to make sure that the SIP is enabled.",
+    resolution:
+      "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+  },
+  {
+    key: 5,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value=0 LIMIT 1",
+    name: "Is automatic login disabled for macOS devices?",
+    description:
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
+    resolution:
+      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65",
+  },
+  {
+    key: 6,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX AND name = 'DisableGuestAccount' AND value=0 LIMIT 1",
+    name: "Are guest users not activated macOS devices?",
+    description:
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+    resolution:
+      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
+  },
+  {
+    key: 7,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal AND name = 'SecureKeyboardEntry' AND value=0 LIMIT 1;",
+    name: "Is secure keyboard entry enabled for macOS devices?",
+    description:
+      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
+    resolution: "",
+  },
+];
+
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
   { value: 3600, label: "Every hour" },
