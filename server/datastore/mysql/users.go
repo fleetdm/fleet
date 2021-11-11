@@ -85,6 +85,12 @@ func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal in
 		return nil, errors.Wrap(err, "load teams")
 	}
 
+	// When SSO is enabled, we can ignore forced password resets
+	// However, we want to leave the db untouched, to cover cases where SSO is toggled
+	if user.SSOEnabled {
+		user.AdminForcedPasswordReset = false
+	}
+
 	return user, nil
 }
 

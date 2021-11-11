@@ -6,7 +6,11 @@
 
 * Add support for [MinIO](https://min.io/) as a file carving backend. Documentation for configuring MinIO as a file carving backend can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#minio). Thank you to Chandra Majumdar and Ben Edwards for adding this capability.
 
-* Add the ability to run a live query and receive results using only the Fleet REST API with a `GET /api/v1/fleet/queries/run` API route. Documentation for this new API route can be found [here on fleetdm.com/docs]().
+* Add support for generating a `.pkg` osquery installer on Linux without dependencies (beyond Docker) with the `fleetctl package` command.
+
+* Improve the performance of vulnerability processing by making the process consume less RAM. Documentation for the vulnerability processing feature can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
+
+* Add the ability to run a live query and receive results using only the Fleet REST API with a `GET /api/v1/fleet/queries/run` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#run-live-query).
 
 * Add ability to see whether a specific host is "Passing" or "Failing" a policy on the **Host details** page. This information is also exposed in the `GET api/v1/fleet/hosts/{id}` API route. In Fleet, a policy is a "yes" or "no" question you can ask of all your hosts.
 
@@ -33,6 +37,10 @@
 * Add ability to connect to Redis with TLS. Documentation for configuring Fleet to use a TLS connection to the Redis server can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-use-tls).
 
 * Add `cluster_read_from_replica` Redis to specify whether or not to prefer readying from a replica when possible. Documentation for this configuration option can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/deploying/configuration#redis-cluster-read-from-replica).
+
+* Improve experience of the Fleet UI by preventing autocomplete in forms.
+
+* Fix a bug in which generating an `.msi` osquery installer on Windows would fail with a permission error.
 
 * Fix a bug in which turning on the host expiry setting did not remove expired hosts from Fleet.
 

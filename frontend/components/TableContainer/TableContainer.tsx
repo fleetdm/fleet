@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { Row, useAsyncDebounce } from "react-table";
 
@@ -61,7 +61,10 @@ interface ITableContainerProps {
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
+  searchQueryColumn?: string;
+  selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  isClientSideFilter?: boolean;
   isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
 }
@@ -110,8 +113,11 @@ const TableContainer = ({
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
+  isClientSideFilter,
   isClientSideSearch,
   highlightOnHover,
+  selectedDropdownFilter,
+  searchQueryColumn,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -120,6 +126,7 @@ const TableContainer = ({
   );
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
+  const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -147,6 +154,10 @@ const TableContainer = ({
   const onPaginationChange = (newPage: number) => {
     setPageIndex(newPage);
     hasPageIndexChangedRef.current = true;
+  };
+
+  const onResultsCountChange = (resultsCount: number) => {
+    setClientFilterCount(resultsCount);
   };
 
   // We use useRef to keep track of the previous searchQuery value. This allows us
@@ -179,15 +190,17 @@ const TableContainer = ({
           ...queryData,
           pageIndex: 0,
         };
-        // searchQuery has changed; we want to debounce calling the handler so the
-        // user can finish typing.
-        if (searchQuery !== prevSearchQuery) {
-          debounceOnQueryChange(updateQueryData);
-        } else {
-          onQueryChange(updateQueryData);
+        if (!isClientSideFilter) {
+          // searchQuery has changed; we want to debounce calling the handler so the
+          // user can finish typing.
+          if (searchQuery !== prevSearchQuery) {
+            debounceOnQueryChange(updateQueryData);
+          } else {
+            onQueryChange(updateQueryData);
+          }
+          setPageIndex(0);
         }
-        setPageIndex(0);
-      } else {
+      } else if (!isClientSideFilter) {
         onQueryChange(queryData);
       }
 
@@ -203,7 +216,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || data.length;
+  const displayCount = filteredCount || clientFilterCount || data.length;
 
   return (
     <div className={wrapperClasses}>
@@ -325,8 +338,13 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
+              onResultsCountChange={onResultsCountChange}
               isClientSidePagination={isClientSidePagination}
+              isClientSideFilter={isClientSideFilter}
               highlightOnHover={highlightOnHover}
+              searchQuery={searchQuery}
+              searchQueryColumn={searchQueryColumn}
+              selectedDropdownFilter={selectedDropdownFilter}
             />
             {!disablePagination && !isClientSidePagination && (
               <Pagination

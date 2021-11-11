@@ -25,6 +25,12 @@ interface ITeamsResponse {
 
 const baseClass = "homepage";
 
+const TAGGED_TEMPLATES = {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
+  },
+};
+
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
   const {
@@ -76,9 +82,14 @@ const Homepage = (): JSX.Element => {
       <div className={`${baseClass}__section one-column`}>
         <InfoCard
           title="Hosts"
-          action={{ type: "link", to: MANAGE_HOSTS, text: "View all hosts" }}
+          action={{
+            type: "link",
+            to:
+              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
+            text: "View all hosts",
+          }}
         >
-          <HostsSummary />
+          <HostsSummary currentTeamId={currentTeam?.id} />
         </InfoCard>
       </div>
       {isPreviewMode && (

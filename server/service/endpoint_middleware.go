@@ -99,7 +99,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 	authUserFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(ctx); ok {
-			if v.User.AdminForcedPasswordReset {
+			if v.User.IsAdminForcedPasswordReset() {
 				return nil, fleet.ErrPasswordResetRequired
 			}
 
@@ -117,7 +117,7 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return nil, err
 		}
 
-		if v.User.AdminForcedPasswordReset {
+		if v.User.IsAdminForcedPasswordReset() {
 			return nil, fleet.ErrPasswordResetRequired
 		}
 
