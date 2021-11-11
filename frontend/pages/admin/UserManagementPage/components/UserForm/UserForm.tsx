@@ -27,7 +27,6 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import teams from "fleet/entities/teams";
 
 const baseClass = "create-user-form";
 
