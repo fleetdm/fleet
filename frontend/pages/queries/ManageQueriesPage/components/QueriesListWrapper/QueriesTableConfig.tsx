@@ -218,6 +218,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       },
       disableHidden: true,
     });
+
     tableHeaders.splice(2, 0, {
       title: "Observer can run",
       Header: (cellProps) => (

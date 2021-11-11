@@ -112,71 +112,67 @@
     }
   }
 
-  .queries-list-wrapper {
-    .data-table__table {
-      table-layout: fixed;
+  @include breakpoint(ltdesktop) {
+    .queries-list-wrapper {
+      .data-table__table {
+        table-layout: fixed;
 
-      .selection__header {
-        text-align: center;
-      }
-
-      thead {
-        th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
-          width: 100px;
-        }
-        th:nth-child(1) {
-          width: 8px;
-        }
-        th:nth-child(2) {
-          width: 200px;
-        }
-        th:nth-child(4) {
-          width: 40px;
-        }
-        @include breakpoint(tablet) {
-          th:nth-child(3),
-          th:nth-child(5),
-          th:nth-child(7) {
-            display: none;
-          }
-        }
-        @include breakpoint(ltdesktop) {
-          th:nth-child(1) {
-            width: 8px;
-          }
-          th:nth-child(3),
-          th:nth-child(5) {
-            display: none;
-          }
-        }
-      }
-
-      tbody {
-        td:nth-child(1) {
+        .selection__header {
           text-align: center;
         }
-        @include breakpoint(tablet) {
-          td:nth-child(3),
-          td:nth-child(5),
-          td:nth-child(7) {
-            display: none;
+
+        thead:not(.active-selection) {
+          th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
+            width: 100px;
+          }
+          th:nth-child(2) {
+            width: 200px;
+          }
+          th:nth-child(4) {
+            width: 40px;
+          }
+          @include breakpoint(tablet) {
+            th:nth-child(3),
+            th:nth-child(5),
+            th:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            th:nth-child(3),
+            th:nth-child(5) {
+              display: none;
+            }
           }
         }
-        @include breakpoint(ltdesktop) {
-          td:nth-child(3),
-          td:nth-child(5) {
-            display: none;
+
+        tbody {
+          td:nth-child(1) {
+            text-align: center;
           }
-        }
-        td {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          .button {
-            display: block;
-            text-align: start;
-            width: 100%;
+          @include breakpoint(tablet) {
+            td:nth-child(3),
+            td:nth-child(5),
+            td:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            td:nth-child(3),
+            td:nth-child(5) {
+              display: none;
+            }
+          }
+          td {
             overflow: hidden;
             text-overflow: ellipsis;
+            .button {
+              display: block;
+              text-align: start;
+              width: 100%;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
           }
         }
       }
