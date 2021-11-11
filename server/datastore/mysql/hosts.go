@@ -772,7 +772,7 @@ func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	}
 	args = append(args, in)
 	sqlb.WriteString(" id NOT IN (?) AND ")
-	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "hosts"))
+	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "h"))
 	sqlb.WriteString(` ORDER BY hst.seen_time DESC LIMIT 10`)
 
 	sql, args, err := sqlx.In(sqlb.String(), args...)
@@ -970,12 +970,12 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 		END AS response,
 		q.description,
 		coalesce(p.resolution, '') as resolution
-	FROM (
+	FROM policies p
+	LEFT JOIN (
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm
-	JOIN policies p ON (p.id=pm.policy_id)
+	) as pm ON (p.id=pm.policy_id)
 	JOIN queries q ON (p.query_id=q.id)`
 
 	var policies []*fleet.HostPolicy

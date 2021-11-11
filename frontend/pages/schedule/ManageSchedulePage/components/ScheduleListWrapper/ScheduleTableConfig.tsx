@@ -171,7 +171,7 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
 
 const enhanceAllScheduledQueryData = (
   all_scheduled_queries: IGlobalScheduledQuery[] | ITeamScheduledQuery[],
-  teamId: number
+  teamId: number | undefined
 ): IAllScheduledQueryTableData[] => {
   return all_scheduled_queries.map(
     (all_scheduled_query: IGlobalScheduledQuery | ITeamScheduledQuery) => {
@@ -204,7 +204,7 @@ const enhanceAllScheduledQueryData = (
 
 const generateDataSet = (
   all_scheduled_queries: IGlobalScheduledQuery[],
-  teamId: number
+  teamId: number | undefined
 ): IAllScheduledQueryTableData[] => {
   return [...enhanceAllScheduledQueryData(all_scheduled_queries, teamId)];
 };

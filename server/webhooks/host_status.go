@@ -34,7 +34,7 @@ func TriggerHostStatusWebhook(
 
 		message := fmt.Sprintf(
 			"More than %.2f%% of your hosts have not checked into Fleet for more than %d days. "+
-				"You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
+				"You've been sent this message because the Host status webhook is enabled in your Fleet instance.",
 			percentUnseen, appConfig.WebhookSettings.HostStatusWebhook.DaysCount,
 		)
 		payload := map[string]interface{}{

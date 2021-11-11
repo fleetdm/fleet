@@ -69,16 +69,18 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft1.Software, host1.HostSoftware.Software)
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
+	// SoftwareByID does not calculate HostCount
+	soft1ByID.HostCount = 1
 	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft2.Software, host2.HostSoftware.Software)
 
 	soft1 = fleet.HostSoftware{
 		Modified: true,
@@ -100,11 +102,11 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft1.Software, host1.HostSoftware.Software)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft2.Software, host2.HostSoftware.Software)
 
 	soft1 = fleet.HostSoftware{
 		Modified: true,
@@ -119,7 +121,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	assert.False(t, host1.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft1.Software, host1.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft1.Software, host1.HostSoftware.Software)
 
 	soft2 = fleet.HostSoftware{
 		Modified: true,
@@ -134,7 +136,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft2.Software, host2.HostSoftware.Software)
 
 	soft2 = fleet.HostSoftware{
 		Modified: true,
@@ -149,7 +151,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 	assert.False(t, host2.HostSoftware.Modified)
-	test.ElementsMatchSkipID(t, soft2.Software, host2.HostSoftware.Software)
+	test.ElementsMatchSkipIDAndHostCount(t, soft2.Software, host2.HostSoftware.Software)
 }
 
 func testSoftwareCPE(t *testing.T, ds *Datastore) {
@@ -452,10 +454,11 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
+		HostCount: 1,
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", HostCount: 1}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", HostCount: 2}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", HostCount: 1}
 
 	t.Run("lists everything", func(t *testing.T) {
 		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
@@ -493,7 +496,12 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Len(t, software, 2)
-		expected := []fleet.Software{foo001, foo003}
+		// Counts differ because we are only counting the hosts in the team
+		foo001WithCount := foo001
+		foo001WithCount.HostCount = 1
+		foo003WithCount := foo003
+		foo003WithCount.HostCount = 1
+		expected := []fleet.Software{foo001WithCount, foo003WithCount}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -513,7 +521,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Len(t, software, 1)
-		expected := []fleet.Software{foo003}
+
+		foo003WithCount := foo003
+		foo003WithCount.HostCount = 1
+		expected := []fleet.Software{foo003WithCount}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -545,5 +556,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.Len(t, software, 1)
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
+	})
+
+	t.Run("can order by host count", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "host_count", OrderDirection: fleet.OrderDescending}})
+		require.NoError(t, err)
+
+		require.Len(t, software, 4)
+		software[0].Name = foo003.Name
+		software[0].Version = foo003.Version
+		software[0].Source = foo003.Source
 	})
 }

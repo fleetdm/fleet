@@ -653,6 +653,8 @@ All the scheduled queries that are configured to run on the host (and their stat
 
 If the scheduled queries haven't run on the host yet, the stats have zero values.
 
+The `host_count` parameter in the software list will always be `1` in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
+
 `GET /api/v1/fleet/hosts/{id}`
 
 #### Parameters
@@ -681,7 +683,8 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "version": "4.5.1",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 1146,
@@ -689,7 +692,8 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "version": "1.30",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       },
       {
         "id": 321,
@@ -698,7 +702,8 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "source": "apps",
         "bundle_identifier": "com.some.app",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 1
       }
     ],
     "id": 1,
@@ -5311,7 +5316,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 2
       },
       {
         "id": 2,
@@ -5319,7 +5325,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "Application (macOS)",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 22
       },
       {
         "id": 3,
@@ -5327,7 +5334,8 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "host_count": 5
       },
       {
         "id": 4,
@@ -5335,8 +5343,9 @@ _Available in Fleet Premium_
         "version": "2.1.11",
         "source": "rpm_packages",
         "generated_cpe": "",
-        "vulnerabilities": null
-      },
+        "vulnerabilities": null,
+        "host_count": 9
+      }
     ]
   }
 }

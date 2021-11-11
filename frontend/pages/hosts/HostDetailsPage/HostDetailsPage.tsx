@@ -312,6 +312,7 @@ const HostDetailsPage = ({
       "memory",
       "cpu_type",
       "os_version",
+      "osquery_version",
       "enroll_secret_name",
       "detail_updated_at",
       "percent_disk_space_available",
@@ -967,6 +968,12 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">OS</span>
               <span className="info-flex__data">{titleData.os_version}</span>
+            </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Osquery</span>
+              <span className="info-flex__data">
+                {titleData.osquery_version}
+              </span>
             </div>
           </div>
         </div>

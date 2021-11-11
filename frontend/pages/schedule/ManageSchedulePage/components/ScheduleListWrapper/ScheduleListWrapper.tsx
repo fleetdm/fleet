@@ -9,6 +9,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { ITeam } from "interfaces/team";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
@@ -19,11 +20,16 @@ import {
   generateDataSet,
 } from "./ScheduleTableConfig";
 // @ts-ignore
-import scheduleSvg from "../../../../../../assets/images/schedule.svg";
+import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
+const TAGGED_TEMPLATES = {
+  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+    return `${teamId ? `/?team_id=${teamId}` : ""}`;
+  },
+};
 interface IScheduleListWrapperProps {
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
   onEditScheduledQueryClick?: (
@@ -31,10 +37,9 @@ interface IScheduleListWrapperProps {
   ) => void;
   allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
-  teamId: number;
   inheritedQueries?: boolean;
-  isTeamMaintainerOrTeamAdmin: boolean;
   isOnGlobalTeam: boolean;
+  selectedTeamData: ITeam | undefined;
 }
 interface IRootState {
   entities: {
@@ -54,52 +59,77 @@ const ScheduleListWrapper = ({
   allScheduledQueriesList,
   toggleScheduleEditorModal,
   onEditScheduledQueryClick,
-  teamId,
   inheritedQueries,
-  isTeamMaintainerOrTeamAdmin,
   isOnGlobalTeam,
+  selectedTeamData,
 }: IScheduleListWrapperProps): JSX.Element => {
   const dispatch = useDispatch();
-  const { MANAGE_PACKS } = paths;
+  const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
+  console.log("selectedTeamData.id", selectedTeamData?.id);
+
   const NoScheduledQueries = () => {
     return (
-      <div className={`${noScheduleClass}`}>
+      <div
+        className={`${noScheduleClass} ${
+          selectedTeamData?.id && "no-team-schedule"
+        }`}
+      >
         <div className={`${noScheduleClass}__inner`}>
           <img src={scheduleSvg} alt="No Schedule" />
           <div className={`${noScheduleClass}__inner-text`}>
-            <h2>You don&apos;t have any queries scheduled.</h2>
             <p>
-              {isOnGlobalTeam &&
-                "Schedule a query, or go to your osquery packs via the 'Advanced' button."}
-              {isTeamMaintainerOrTeamAdmin &&
-                "Schedule a query to run on hosts assigned to this team."}
-              {!isOnGlobalTeam &&
-                !isTeamMaintainerOrTeamAdmin &&
-                "There are no scheduled queries assigned to this team."}
-            </p>
-            {(isOnGlobalTeam || isTeamMaintainerOrTeamAdmin) && (
-              <div className={`${noScheduleClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noScheduleClass}__schedule-button`}
-                  onClick={toggleScheduleEditorModal}
-                >
-                  Schedule a query
-                </Button>
-                {isOnGlobalTeam && (
-                  <Button
-                    variant="inverse"
-                    onClick={handleAdvanced}
-                    className={`${baseClass}__advanced-button`}
-                  >
-                    Advanced
-                  </Button>
+              <b>
+                {selectedTeamData ? (
+                  <>
+                    Schedule queries for all hosts assigned to{" "}
+                    <a
+                      href={
+                        MANAGE_HOSTS +
+                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamData.id)
+                      }
+                    >
+                      {selectedTeamData.name}
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    Schedule queries to run at regular intervals on{" "}
+                    <a href={MANAGE_HOSTS}>all your hosts</a>
+                  </>
                 )}
-              </div>
-            )}
+              </b>
+              {isOnGlobalTeam ? (
+                <>
+                  <b>,</b>
+                  <br /> or go to your osquery packs via the ‘Advanced’ button.{" "}
+                </>
+              ) : (
+                <>
+                  <b>.</b>
+                </>
+              )}
+            </p>
+            <div className={`${noScheduleClass}__-cta-buttons`}>
+              <Button
+                variant="brand"
+                className={`${noScheduleClass}__schedule-button`}
+                onClick={toggleScheduleEditorModal}
+              >
+                Schedule a query
+              </Button>
+              {isOnGlobalTeam && (
+                <Button
+                  variant="inverse"
+                  onClick={handleAdvanced}
+                  className={`${baseClass}__advanced-button`}
+                >
+                  Advanced
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -126,7 +156,7 @@ const ScheduleListWrapper = ({
 
   const tableHeaders = generateTableHeaders(onActionSelection);
   const loadingTableData = useSelector((state: IRootState) => {
-    if (teamId) {
+    if (selectedTeamData?.id) {
       return state.entities.team_scheduled_queries.isLoading;
     }
     return state.entities.global_scheduled_queries.isLoading;
@@ -159,7 +189,7 @@ const ScheduleListWrapper = ({
         <TableContainer
           resultsTitle={"queries"}
           columns={inheritedQueriesTableHeaders}
-          data={generateDataSet(allScheduledQueriesList, teamId)}
+          data={generateDataSet(allScheduledQueriesList, selectedTeamData?.id)}
           isLoading={loadingInheritedQueriesTableData}
           defaultSortHeader={"query"}
           defaultSortDirection={"desc"}
@@ -179,7 +209,7 @@ const ScheduleListWrapper = ({
       <TableContainer
         resultsTitle={"queries"}
         columns={tableHeaders}
-        data={generateDataSet(allScheduledQueriesList, teamId)}
+        data={generateDataSet(allScheduledQueriesList, selectedTeamData?.id)}
         isLoading={loadingTableData}
         defaultSortHeader={"query"}
         defaultSortDirection={"desc"}

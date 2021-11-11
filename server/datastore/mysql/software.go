@@ -215,9 +215,10 @@ var dialect = goqu.Dialect("mysql")
 func listSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) ([]fleet.Software, error) {
-	ds := dialect.From(goqu.I("host_software").As("hs")).SelectDistinct(
+	ds := dialect.From(goqu.I("host_software").As("hs")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		goqu.COUNT(goqu.DISTINCT("hs.host_id")).As("host_count"),
 	).Join(
 		goqu.I("hosts").As("h"),
 		goqu.On(
