@@ -1,15 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-import {
-  INewMembersBody,
-  IRemoveMembersBody,
-  INewTeamSecretBody,
-  IRemoveTeamSecretBody,
-  ITeam,
-} from "interfaces/team";
+import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface ILoadAllTeamsResponse {
   teams: ITeam[];
@@ -19,8 +13,8 @@ interface ILoadTeamResponse {
   team: ITeam;
 }
 
-interface IGetTeamSecretsResponse {
-  secrets: any[]; // TODO: fill this out when API is defined
+interface ITeamEnrollSecretsResponse {
+  secrets: IEnrollSecret[]; // TODO: fill this out when API is defined
 }
 
 interface ITeamSearchOptions {
@@ -96,19 +90,10 @@ export default {
 
     return sendRequest("GET", path);
   },
-  addEnrollSecret: (teamId: number, newEnrollSecrets: any) => {
+  modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, newEnrollSecrets);
-  },
-  removeEnrollSecret: (
-    teamId: number,
-    removeEnrollSecret: IRemoveTeamSecretBody
-  ) => {
-    const { TEAMS_ENROLL_SECRETS } = endpoints;
-    const path = TEAMS_ENROLL_SECRETS(teamId);
-
-    return sendRequest("DELETE", path, removeEnrollSecret);
+    return sendRequest("PATCH", path, { secrets });
   },
 };

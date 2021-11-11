@@ -12,8 +12,8 @@ export default {
   ENABLE_USER: (id: number): string => {
     return `/v1/fleet/users/${id}/enable`;
   },
-  ENROLL_SECRET: "/v1/fleet/spec/enroll_secret",
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
+  GLOBAL_ENROLL_SECRETS: "/v1/fleet/spec/enroll_secret",
   GLOBAL_POLICIES: "/v1/fleet/global/policies",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
   HOSTS: "/v1/fleet/hosts",
@@ -53,17 +53,17 @@ export default {
     return `/v1/fleet/teams/${id}/schedule`;
   },
   TEAMS: "/v1/fleet/teams",
+  TEAMS_AGENT_OPTIONS: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/agent_options`;
+  },
+  TEAMS_ENROLL_SECRETS: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/secrets`;
+  },
   TEAMS_MEMBERS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/hosts`;
-  },
-  TEAMS_ENROLL_SECRETS: (teamId: number): string => {
-    return `/v1/fleet/teams/${teamId}/secrets`;
-  },
-  TEAMS_AGENT_OPTIONS: (teamId: number): string => {
-    return `/v1/fleet/teams/${teamId}/agent_options`;
   },
   UPDATE_USER_ADMIN: (id: number): string => {
     return `/v1/fleet/users/${id}/admin`;
