@@ -9,6 +9,10 @@
     @include size(32px);
   }
 
+  &--xsmall {
+    @include size(16px);
+  }
+
   img {
     &.default {
       display: none;

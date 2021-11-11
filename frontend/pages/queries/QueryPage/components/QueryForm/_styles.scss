@@ -13,6 +13,37 @@
     }
   }
 
+  &__title-bar {
+    display: flex;
+    justify-content: space-between;
+
+    .name-description {
+      flex-grow: 1;
+      margin-right: 24px;
+    }
+
+    .author {
+      flex-shrink: 1;
+      margin-top: 24px;
+      text-align: right;
+      justify-content: right;
+
+      b {
+        text-align: right;
+      }
+
+      img,
+      div {
+        display: flex;
+        align-items: center;
+      }
+
+      span {
+        padding-left: $pad-small;
+      }
+    }
+  }
+
   &__query-name,
   &__query-description {
     width: 100%;
