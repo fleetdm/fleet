@@ -4433,6 +4433,53 @@ None.
 }
 ```
 
+
+### Modify enroll secrets for a team
+
+Replaces all existing team enroll secrets.
+
+`PATCH /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                            |
+| --------- | ------- | ---- | -------------------------------------- |
+| id        | integer | path | **Required**. The team's id.           |
+| secrets   | array   | body | **Required**. A list of enroll secrets |
+
+#### Example
+
+Replace all of a team's existing enroll secrets with a new enroll secret
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+      "created_at": "0001-01-01T00:00:00Z",
+    }
+  ]
+}
+```
+
 ### Create invite
 
 `POST /api/v1/fleet/invites`

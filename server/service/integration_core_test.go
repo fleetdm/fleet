@@ -131,6 +131,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	assert.Equal(t, "http://iii.com", *activities.Activities[0].ActorGravatar)
 	assert.Equal(t, "created_saved_query", activities.Activities[0].Type)
 }
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 

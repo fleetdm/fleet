@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/pkg/errors"
 )
 
@@ -84,9 +85,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 	if payload.Description != nil {
 		team.Description = *payload.Description
-	}
-	if payload.Secrets != nil {
-		team.Secrets = payload.Secrets
 	}
 
 	return svc.ds.SaveTeam(ctx, team)
@@ -244,4 +242,25 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	return svc.ds.TeamEnrollSecrets(ctx, teamID)
+}
+
+func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	if len(secrets) < 1 {
+		return nil, fleet.NewInvalidArgumentError("secrets", "need to define at least one secret for the team")
+	}
+
+	var newSecrets []*fleet.EnrollSecret
+	for _, secret := range secrets {
+		newSecrets = append(newSecrets, &fleet.EnrollSecret{
+			Secret: secret.Secret,
+		})
+	}
+	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
+		return nil, err
+	}
+
+	return newSecrets, nil
 }
