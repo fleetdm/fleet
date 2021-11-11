@@ -68,8 +68,6 @@ const ScheduleListWrapper = ({
 
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
-  console.log("selectedTeamData.id", selectedTeamData?.id);
-
   const NoScheduledQueries = () => {
     return (
       <div
