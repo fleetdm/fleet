@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -6,7 +6,6 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import errors from "interfaces/errors";
 
 interface IAddSecretModal {
   selectedTeam: number;
@@ -27,7 +26,7 @@ const baseClass = "secret-editor-modal";
 const randomSecretGenerator = () => {
   const randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   let result = "";
-  for (var i = 0; i < 32; i++) {
+  for (let i = 0; i < 32; i + 1) {
     result += randomChars.charAt(
       Math.floor(Math.random() * randomChars.length)
     );

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -6,7 +6,6 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
 
-import configAPI from "services/entities/config";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import statusLabelsAPI from "services/entities/statusLabels";
@@ -138,7 +137,6 @@ const ManageHostsPage = ({
     isPremiumTier,
     currentTeam,
     setCurrentTeam,
-    enrollSecret: globalSecret,
   } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -252,18 +250,13 @@ const ManageHostsPage = ({
     }
   );
 
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    error: globalSecretsError,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
-  );
+  const { data: globalSecrets, refetch: refetchGlobalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
 
   // TODO: Revisit this to make the API be called only if there is a currentTeam 11/11 RP SG
   const {
@@ -765,7 +758,7 @@ const ManageHostsPage = ({
       ? teamSecrets || []
       : globalSecrets || [];
 
-    let newSecrets = currentSecrets.filter(
+    const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
 
@@ -823,12 +816,10 @@ const ManageHostsPage = ({
       ? teamSecrets || []
       : globalSecrets || [];
 
-    let newSecrets = currentSecrets.filter(
+    const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
 
-    console.log("selectedSecret should match right before try", selectedSecret);
-    debugger;
     try {
       if (currentTeam?.id) {
         console.log(
@@ -1197,7 +1188,6 @@ const ManageHostsPage = ({
         onDeleteSecret={onDeleteSecret}
         selectedTeam={currentTeam?.id || 0}
         teams={teams || []}
-        isPremiumTier={isPremiumTier as boolean}
         toggleDeleteSecretModal={toggleDeleteSecretModal}
       />
     );
@@ -1221,7 +1211,8 @@ const ManageHostsPage = ({
           isPremiumTier={isPremiumTier as boolean}
           toggleSecretEditorModal={toggleSecretEditorModal}
           toggleDeleteSecretModal={toggleDeleteSecretModal}
-          setSelectedSecret={setSelectedSecret} // wth
+          setSelectedSecret={setSelectedSecret}
+          globalSecrets={globalSecrets}
         />
       </Modal>
     );

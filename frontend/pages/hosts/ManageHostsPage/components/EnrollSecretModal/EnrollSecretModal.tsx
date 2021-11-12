@@ -1,16 +1,10 @@
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
-import { useQuery } from "react-query";
+import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import enrollSecretsAPI from "services/entities/enroll_secret";
 // @ts-ignore
 import EnrollSecretTable from "components/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
-import {
-  IEnrollSecret,
-  IEnrollSecretsResponse,
-} from "interfaces/enroll_secret";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
 
@@ -24,6 +18,7 @@ interface IEnrollSecretModal {
   setSelectedSecret: React.Dispatch<
     React.SetStateAction<IEnrollSecret | undefined>
   >;
+  globalSecrets: IEnrollSecret[] | undefined;
 }
 
 const baseClass = "enroll-secret-modal";
@@ -36,20 +31,8 @@ const EnrollSecretModal = ({
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
   setSelectedSecret,
+  globalSecrets,
 }: IEnrollSecretModal): JSX.Element => {
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    error: globalSecretsError,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
-  );
-
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);

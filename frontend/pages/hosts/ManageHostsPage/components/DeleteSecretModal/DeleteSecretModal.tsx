@@ -2,16 +2,11 @@ import React from "react";
 import { useSelector } from "react-redux";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import EnrollSecretTable from "components/config/EnrollSecretTable";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
-import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
-
 interface IDeleteSecretModal {
   selectedTeam: number;
-  isPremiumTier: boolean;
   teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
@@ -64,7 +59,6 @@ const DeleteSecretModal = ({
           </p>
           <p>You cannot undo this action.</p>
         </div>
-        <div className={`${baseClass}__secret-wrapper`}></div>
         <div className={`${baseClass}__button-wrap`}>
           <Button
             className={`${baseClass}__btn`}
