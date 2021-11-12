@@ -259,7 +259,6 @@ const ManageHostsPage = ({
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
-  // TODO: Revisit this to make the API be called only if there is a currentTeam 11/11 RP SG
   const {
     isLoading: isTeamSecretsLoading,
     data: teamSecrets,
