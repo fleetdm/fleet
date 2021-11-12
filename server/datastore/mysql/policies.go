@@ -138,8 +138,8 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		fmt.Sprintf(`SELECT
        		p.*,
        		q.name as query_name,
-       		(select count(*) from policy_membership_history where policy_id=p.id and passes=true and id in (select max(id) as id from policy_membership_history where policy_id=p.id and passes=true group by host_id, policy_id)) as passing_host_count,
-       		(select count(*) from policy_membership_history where policy_id=p.id and passes=false and id in (select max(id) as id from policy_membership_history where policy_id=p.id and passes=false group by host_id, policy_id)) as failing_host_count
+       		(select count(*) from policy_membership_history where policy_id=p.id and passes=true and id in (select max(id) as id from policy_membership_history where policy_id=p.id group by host_id, policy_id)) as passing_host_count,
+       		(select count(*) from policy_membership_history where policy_id=p.id and passes=false and id in (select max(id) as id from policy_membership_history where policy_id=p.id group by host_id, policy_id)) as failing_host_count
 		FROM policies p JOIN queries q ON (p.query_id=q.id) WHERE %s`, teamWhere), args...,
 	)
 	if err != nil {
