@@ -748,13 +748,15 @@ The `host_count` parameter in the software list will always be `1` in this call,
         "uid": 0,
         "username": "root",
         "type": "",
-        "groupname": "root"
+        "groupname": "root",
+        "shell": "/bin/bash"
       },
       {
         "uid": 1,
         "username": "bin",
         "type": "",
-        "groupname": "bin"
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
       }
     ],
     "labels": [
