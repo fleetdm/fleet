@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -61,7 +62,9 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, err
+		return nil, &badRequestError{
+			message: fmt.Sprintf("policy payload verification: %s", err),
+		}
 	}
 
 	// TODO(lucas): Add activity entry.

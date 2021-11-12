@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -56,7 +57,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, err
+		return nil, &badRequestError{
+			message: fmt.Sprintf("policy payload verification: %s", err),
+		}
 	}
 
 	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
@@ -217,7 +220,9 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, err
+		return nil, &badRequestError{
+			message: fmt.Sprintf("policy payload verification: %s", err),
+		}
 	}
 
 	if p.Name != nil {
