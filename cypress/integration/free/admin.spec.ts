@@ -43,7 +43,10 @@ describe(
       cy.contains("button", /done/i).click();
 
       // See the "Manage" enroll secret” button. A modal appears after the user selects the button
+      // Add, edit, delete all use the same API call
       cy.contains("button", /manage enroll secret/i).click();
+      cy.contains("button", /add secret/i).click();
+      cy.contains("button", /save/i).click();
       cy.contains("button", /done/i).click();
 
       // See and select "add label"

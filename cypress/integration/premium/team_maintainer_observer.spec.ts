@@ -27,11 +27,10 @@ describe(
       // On the Hosts page, they should…
 
       // See hosts
-      // cy.findByText(/generate installer/i).should("not.exist");
-      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
+      cy.findByText(/generate installer/i).should("not.exist");
 
       // See the “Teams” column in the Hosts table
-      // cy.get("thead").contains(/team/i).should("exist");
+      cy.get("thead").contains(/team/i).should("exist");
 
       // Nav restrictions
       cy.findByText(/settings/i).should("not.exist");
@@ -137,12 +136,24 @@ describe(
       // On the hosts page, they should…
 
       // See the “Teams” column in the Hosts table
-      // cy.get("thead").contains(/team/i).should("exist");
-      // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
+      cy.get("thead").contains(/team/i).should("exist");
 
       // See and select the “Generate installer” button
       cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
+
+      // See the "Manage" enroll secret” button on team Oranges only
+      cy.findByText(/all teams/i).should("exist");
+      cy.findByText(/manage enroll secret/i).should("not.exist");
+
+      cy.visit("/hosts/manage/?team_id=1");
+      cy.findAllByText(/apples/i).should("exist");
+      cy.findByText(/manage enroll secret/i).should("not.exist");
+
+      cy.visit("/hosts/manage/?team_id=2");
+      cy.findAllByText(/oranges/i).should("exist");
+      cy.contains("button", /manage enroll secret/i).click();
+      cy.contains("button", /done/i).click();
 
       // On the Host details page, they should…
       // cy.visit("/hosts/1");
