@@ -380,14 +380,14 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 			LEFT JOIN teams t ON (h.team_id = t.id)
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 			LEFT JOIN (
-		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+				select host_id, count(*) from policy_membership_history where passes=false and id in (select max(id) as id from policy_membership_history where host_id=? and passes=false group by host_id, policy_id)				    	
 		    	GROUP BY host_id
 			) as failing_policies ON (h.id=failing_policies.host_id)
 		WHERE h.id = ?
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id)
+	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id, id)
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by id")
 	}
@@ -473,7 +473,7 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		LEFT JOIN (
-		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    select host_id, count(*) from policy_membership_history where passes=false and id in (select max(id) as id from policy_membership_history where passes=false group by host_id, policy_id)				    	
 		    GROUP BY host_id
 		) as failing_policies ON (h.id=failing_policies.host_id)
 		%s
