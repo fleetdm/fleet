@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -26,7 +26,7 @@ const baseClass = "secret-editor-modal";
 const randomSecretGenerator = () => {
   const randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   let result = "";
-  for (let i = 0; i < 32; i + 1) {
+  for (let i = 0; i < 32; i += 1) {
     result += randomChars.charAt(
       Math.floor(Math.random() * randomChars.length)
     );
