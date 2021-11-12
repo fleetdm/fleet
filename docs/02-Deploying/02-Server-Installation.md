@@ -1,4 +1,4 @@
-# Example deployment scenarios
+# Server Installation
 
 - [Fleet on CentOS](#fleet-on-centos)
   - [Setting up a host](#setting-up-a-host)
@@ -18,7 +18,7 @@
   - [Running the Fleet server](#running-the-fleet-server-1)
   - [Running Fleet with systemd](#running-fleet-with-systemd-1)
   - [Installing and running osquery](#installing-and-running-osquery-1)
-- [Deploying Fleet on Kubernetes](#deploying-fleet-on-kubernetes)
+- [Fleet on Kubernetes](#deploying-fleet-on-kubernetes)
   - [Installing infrastructure dependencies](#installing-infrastructure-dependencies)
     - [MySQL](#mysql-2)
     - [Redis](#redis-2)
@@ -27,7 +27,9 @@
     - [Deploying Fleet](#deploying-fleet)
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
-- [Deploying Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
+- [Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
+- [Fleet using Docker](#fleet-on-docker)
+- [Building Fleet from Source](../03-Contributing/01-Building-Fleet.md)
 - [Community projects](#community-projects)
 
 ## Fleet on CentOS
@@ -49,7 +51,7 @@ vagrant ssh
 
 ### Installing Fleet
 
-To [install Fleet](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/01-Installation.md), download, unzip, and move the latest Fleet binary to your desired install location.
+To install Fleet, [download](https://github.com/fleetdm/fleet/releases), unzip, and move the latest Fleet binary to your desired install location.
 
 For example, after downloading:
 ```sh
@@ -159,19 +161,18 @@ The output should look like:
 Migrations completed.
 ```
 
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via:
+Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via (replace SERVER_NAME with your server FQDN):
 
 ```
-openssl genrsa -out /tmp/server.key 4096
-openssl req -new -key /tmp/server.key -out /tmp/server.csr
-openssl x509 -req -days 366 -in /tmp/server.csr -signkey /tmp/server.key -out /tmp/server.cert
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout /tmp/server.key -out /tmp/server.cert -subj "/CN=SERVER_NAME” \
+  -addext "subjectAltName=DNS:SERVER_NAME”
 ```
 
-You should now have three new files in `/tmp`:
+You should now have two new files in `/tmp`:
 
 - `/tmp/server.cert`
 - `/tmp/server.key`
-- `/tmp/server.csr`
 
 Now we are ready to run the server! We do this via `fleet serve`:
 
@@ -241,6 +242,9 @@ sudo /usr/bin/osqueryd \
 
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
 
+---
+
+
 ## Fleet on Ubuntu
 
 In this guide, we're going to install Fleet and all of its application dependencies on an Ubuntu 16.04 LTS server. Once we have Fleet up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
@@ -260,13 +264,12 @@ vagrant ssh
 
 ### Installing Fleet
 
-To install Fleet, run the following:
+To install Fleet, [download the latest release for your platform](https://github.com/fleetdm/fleet/releases) , unzip, and move the latest Fleet binary to your desired install location.
 
-```
-wget https://github.com/fleetdm/fleet/releases/latest/download/fleet.zip
+For example, after downloading:
+```sh
 unzip fleet.zip 'linux/*' -d fleet
-sudo cp fleet/linux/fleet /usr/bin/fleet
-sudo cp fleet/linux/fleetctl /usr/bin/fleetctl
+sudo cp fleet/linux/fleet* /usr/bin/
 ```
 
 ### Installing and configuring dependencies
@@ -308,7 +311,7 @@ To start the Redis server in the background, you can run the following:
 sudo redis-server &
 ```
 
-Note that this isn't a very robust way to run a Redis server. Digital Ocean has written a very nice [community tutorial](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-redis-on-ubuntu-16-04) on installing and running Redis in a more productionalized way.
+Note that this isn't a very robust way to run a Redis server. Digital Ocean has written a very nice [community tutorial](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-redis-on-ubuntu-16-04) on installing and running Redis in production.
 
 ### Running the Fleet server
 
@@ -326,19 +329,18 @@ The output should look like:
 
 `Migrations completed`
 
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via the following steps (note - you will be asked for several bits of information, including name, contact info, and location, in order to generate the certificate):
+Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via (replace SERVER_NAME with your server FQDN):
 
 ```
-openssl genrsa -out /tmp/server.key 4096
-openssl req -new -key /tmp/server.key -out /tmp/server.csr
-openssl x509 -req -days 366 -in /tmp/server.csr -signkey /tmp/server.key -out /tmp/server.cert
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout /tmp/server.key -out /tmp/server.cert -subj "/CN=SERVER_NAME” \
+  -addext "subjectAltName=DNS:SERVER_NAME”
 ```
 
-You should now have three new files in `/tmp`:
+You should now have two new files in `/tmp`:
 
 - `/tmp/server.cert`
 - `/tmp/server.key`
-- `/tmp/server.csr`
 
 Now we are ready to run the server! We do this via `fleet serve`:
 
@@ -358,7 +360,7 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./02-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](./03-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
@@ -412,6 +414,9 @@ sudo /usr/bin/osqueryd \
 ```
 
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
+
+---
+
 
 ## Deploying Fleet on Kubernetes
 
@@ -552,6 +557,7 @@ In this output, you should see an "EXTERNAL-IP" column. If this column says `<pe
 
 Once you have the public IP address for the load balancer, create an A record in your DNS server of choice. You should now be able to browse to your Fleet server from the internet!
 
+---
 
 ## Deploying Fleet on AWS ECS
 
@@ -576,6 +582,16 @@ Running Fleet in ECS consists of two main components the [ECS Service](https://g
 Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/tools/terraform#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229)
 
 Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
+
+---
+
+## Fleet using Docker
+Pull the latest Fleet docker image:
+
+```
+docker pull fleetdm/fleet
+```
+
 
 ---
 
