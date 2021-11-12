@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
@@ -73,7 +74,9 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
     <>
       <span
         data-tip
-        data-for={`${customIdPrefix || "pill"}__${id.toString()}`}
+        data-for={`${customIdPrefix || "pill"}__${
+          id?.toString() || uniqueId()
+        }`}
         data-tip-disable={disable()}
       >
         <span className={pillClassName}>{pillText}</span>
@@ -84,7 +87,7 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
         type="dark"
         effect="solid"
         backgroundColor="#3e4771"
-        id={`${customIdPrefix || "pill"}__${id.toString()}`}
+        id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}
         data-html
       >
         <span
