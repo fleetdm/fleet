@@ -278,7 +278,7 @@ func testPacksApplySpecMissingQueries(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	// Should error due to unkown query
+	// Should error due to unknown query
 	err := ds.ApplyPackSpecs(context.Background(), specs)
 	if assert.NotNil(t, err) {
 		assert.Contains(t, err.Error(), "unknown query 'bar'")

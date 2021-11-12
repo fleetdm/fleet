@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -263,56 +264,86 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
-	sql := `
-SELECT
-	sqs.scheduled_query_id,
-	sqs.average_memory,
-	sqs.denylisted,
-	sqs.executions,
-	sqs.schedule_interval,
-	sqs.last_executed,
-	sqs.output_size,
-	sqs.system_time,
-	sqs.user_time,
-	sqs.wall_time,
-	sq.name AS scheduled_query_name,
-	sq.id AS scheduled_query_id,
-	sq.query_name AS query_name,
-	p.name AS pack_name,
-	p.id as pack_id,
-	q.description
-FROM scheduled_query_stats sqs
-	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
-	JOIN packs p ON (sq.pack_id = p.id)
-	JOIN queries q ON (sq.query_name = q.name)
-WHERE host_id = ? AND p.pack_type IS NULL
-`
-	var stats []fleet.ScheduledQueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, host.ID); err != nil {
-		return errors.Wrap(err, "load pack stats")
+// loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
+// queries that haven't run yet are returned with zero values.
+func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]fleet.PackStats, error) {
+	packs, err := listPacksForHost(ctx, db, hid)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
 	}
-
-	packs := map[uint]fleet.PackStats{}
+	if len(packs) == 0 {
+		return nil, nil
+	}
+	packIDs := make([]uint, len(packs))
+	packTypes := make(map[uint]*string)
+	for i := range packs {
+		packIDs[i] = packs[i].ID
+		packTypes[packs[i].ID] = packs[i].Type
+	}
+	ds := dialect.From(goqu.I("scheduled_queries").As("sq")).Select(
+		goqu.I("sq.name").As("scheduled_query_name"),
+		goqu.I("sq.id").As("scheduled_query_id"),
+		goqu.I("sq.query_name").As("query_name"),
+		goqu.I("q.description").As("description"),
+		goqu.I("p.name").As("pack_name"),
+		goqu.I("p.id").As("pack_id"),
+		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
+		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
+		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
+		goqu.I("sq.interval").As("schedule_interval"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(0)")).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
+		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
+		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
+		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
+	).Join(
+		dialect.From("packs").As("p").Select(
+			goqu.I("id"),
+			goqu.I("name"),
+		).Where(goqu.I("id").In(packIDs)),
+		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
+	).Join(
+		goqu.I("queries").As("q"),
+		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
+	).LeftJoin(
+		goqu.I("scheduled_query_stats").As("sqs"),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+	)
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+	var stats []fleet.ScheduledQueryStats
+	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
+	}
+	packStats := map[uint]fleet.PackStats{}
 	for _, query := range stats {
-		pack := packs[query.PackID]
+		pack := packStats[query.PackID]
 		pack.PackName = query.PackName
 		pack.PackID = query.PackID
+		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
 		pack.QueryStats = append(pack.QueryStats, query)
-		packs[pack.PackID] = pack
+		packStats[pack.PackID] = pack
 	}
-
-	for _, pack := range packs {
-		host.PackStats = append(host.PackStats, pack)
+	var ps []fleet.PackStats
+	for _, pack := range packStats {
+		ps = append(ps, pack)
 	}
+	return ps, nil
+}
 
-	return nil
+func getPackTypeFromDBField(t *string) string {
+	if t == nil {
+		return "pack"
+	}
+	return *t
 }
 
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
-	sql := `SELECT username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	sql := `SELECT username, groupname, uid, user_type, shell FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := sqlx.SelectContext(ctx, db, &host.Users, sql, host.ID); err != nil {
-		return errors.Wrap(err, "load pack stats")
+		return errors.Wrap(err, "load host users")
 	}
 	return nil
 }
@@ -360,9 +391,13 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "get host by id")
 	}
-	if err := loadHostPackStatsDB(ctx, d.reader, host); err != nil {
+
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	if err != nil {
 		return nil, err
 	}
+	host.PackStats = packStats
+
 	if err := loadHostUsersDB(ctx, d.reader, host); err != nil {
 		return nil, err
 	}
@@ -788,9 +823,11 @@ func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, errors.Wrap(err, "get host by identifier")
 	}
 
-	if err := loadHostPackStatsDB(ctx, d.reader, host); err != nil {
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	if err != nil {
 		return nil, err
 	}
+	host.PackStats = packStats
 
 	return host, nil
 }
@@ -848,7 +885,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 	incomingUsers := make(map[string]bool)
 	var insertArgs []interface{}
 	for _, u := range host.Users {
-		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
+		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName, u.Shell)
 		incomingUsers[keyForUser(&u)] = true
 	}
 
@@ -859,9 +896,9 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 		}
 	}
 
-	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {

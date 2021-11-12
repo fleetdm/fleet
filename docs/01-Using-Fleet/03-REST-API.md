@@ -645,7 +645,15 @@ Returns the information of the specified host.
 
 The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
-The host_count parameter in the software list will always be 1 in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
+All the scheduled queries that are configured to run on the host (and their stats) are returned in
+`pack_stats`. The `pack_stats[i].type` field can have the following values:
+1. `"global"`: identifies the global pack.
+2. `"team-$TEAM_ID"`: identifies a team's pack.
+3. `"pack"`: identifies a user created pack.
+
+If the scheduled queries haven't run on the host yet, the stats have zero values.
+
+The `host_count` parameter in the software list will always be `1` in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -3400,7 +3408,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
-> Fleet 4.6.0 (release on 2021-11-18), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.6.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
+> Fleet 4.7.0 (release on 2021-12-08), introduces [breaking changes](https://github.com/fleetdm/fleet/issues/2595) to the `/policies` API routes. Therefore, after upgrading to Fleet 4.7.0, any previous integrations with the `/policies` API routes will no longer work. These changes will not affect any policies created or modified in the Fleet UI.
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -4620,6 +4628,53 @@ None.
 }
 ```
 
+
+### Modify enroll secrets for a team
+
+Replaces all existing team enroll secrets.
+
+`PATCH /api/v1/fleet/teams/{id}/secrets`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                            |
+| --------- | ------- | ---- | -------------------------------------- |
+| id        | integer | path | **Required**. The team's id.           |
+| secrets   | array   | body | **Required**. A list of enroll secrets |
+
+#### Example
+
+Replace all of a team's existing enroll secrets with a new enroll secret
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "n07v32y53c237734m3n201153c237",
+      "created_at": "0001-01-01T00:00:00Z",
+    }
+  ]
+}
+```
+
 ### Create invite
 
 `POST /api/v1/fleet/invites`
@@ -4628,7 +4683,7 @@ None.
 
 | Name        | Type    | In   | Description                                                                                                                                           |
 | ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| admin       | boolean | body | **Required.** Whether or not the invited user will be granted admin privileges.                                                                       |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
@@ -4643,7 +4698,7 @@ None.
   "email": "john_appleseed@example.com",
   "name": "John",
   "sso_enabled": false,
-  "global_role": "admin",
+  "global_role": null,
   "teams": [
     {
       "id": 2,
@@ -4652,7 +4707,7 @@ None.
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -4817,6 +4872,85 @@ Verify the specified invite.
             "reason": "Invite with token <token> was not found in the datastore"
         }
     ]
+}
+```
+
+### Update invite
+
+`PATCH /api/v1/fleet/invites/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                                                                                                           |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| global_role | string  | body | Role the user will be granted. Either a global role is needed, or a team role.                                                                        |
+| email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
+| name        | string  | body | The name of the invited user.                                                                                                           |
+| sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
+| teams       | list    | body | _Available in Fleet Premium_ A list of the teams the user is a member of. Each item includes the team's ID and the user's role in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/invites/123`
+
+##### Request body
+
+```json
+{
+  "email": "john_appleseed@example.com",
+  "name": "John",
+  "sso_enabled": false,
+  "global_role": null,
+  "teams": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invite": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 3,
+    "invited_by": 1,
+    "email": "john_appleseed@example.com",
+    "name": "John",
+    "sso_enabled": false,
+    "teams": [
+      {
+        "id": 10,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Apples",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "observer"
+      },
+      {
+        "id": 14,
+        "created_at": "0001-01-01T00:00:00Z",
+        "name": "Best of the Best Engineering",
+        "description": "",
+        "agent_options": null,
+        "user_count": 0,
+        "host_count": 0,
+        "role": "maintainer"
+      }
+    ]
+  }
 }
 ```
 
@@ -5472,9 +5606,9 @@ _Available in Fleet Premium_
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
