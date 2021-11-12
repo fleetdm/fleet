@@ -51,25 +51,28 @@ export const generateTableHeaders = (): IDataColumn[] => {
       accessor: "version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
-    // {
-    //   title: "Hosts",
-    //   Header: (cellProps) => (
-    //     <HeaderCell
-    //       value={cellProps.column.title}
-    //       isSortedDesc={cellProps.column.isSortedDesc}
-    //     />
-    //   ),
-    //   accessor: "hosts_count",
-    //   Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    // },
+    {
+      title: "Hosts",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "host_count",
+      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
     {
       title: "Actions",
       Header: "",
       disableSortBy: true,
-      accessor: "actions",
-      Cell: () => {
+      accessor: "id",
+      Cell: (cellProps) => {
         return (
-          <Link to={PATHS.MANAGE_HOSTS} className="software-link">
+          <Link
+            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}
+            className="software-link"
+          >
             <img alt="link to hosts filtered by software ID" src={Chevron} />
           </Link>
         );
