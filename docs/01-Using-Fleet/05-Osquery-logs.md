@@ -2,7 +2,7 @@
 
 This document provides instructions for working with each of the following log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../02-Deploying/02-Configuration.md#osquery_status_log_plugin).
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../02-Deploying/02-Configuration.md#osquery-status-log-plugin).
 
 - [Firehose](#firehose)
 - [Snowflake](#snowflake)
@@ -42,7 +42,7 @@ With Fleet configured to send logs to Firehose, you then want to load the data f
 
 If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/tools/terraform), you want to replace the S3 destination with a Splunk destination. Hashicorp provides instructions on how to send Firehose data to Splunk [here in the Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
 
-Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose)
+Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose).
 
 ### Kinesis
 
