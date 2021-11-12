@@ -56,7 +56,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
-		fmt.Sprintf(`SELECT p.*, COALESCE(u.name, '<deleted>') AS author_name,
+		fmt.Sprintf(`SELECT p.*,
+		    COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p
@@ -172,7 +174,9 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		ctx,
 		q,
 		&policies,
-		fmt.Sprintf(`SELECT p.*, COALESCE(u.name, '<deleted>') AS author_name,
+		fmt.Sprintf(`SELECT p.*,
+		    COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
        		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 		FROM policies p

@@ -3442,6 +3442,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "description": "Checks if gatekeeper is enabled on macOS devices",
       "author_id": 42,
       "author_name": "John",
+      "author_email": "john@example.com",
       "resolution": "Resolution steps",
       "passing_host_count": 2000,
       "failing_host_count": 300
@@ -3453,6 +3454,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "author_id": 43,
       "author_name": "Alice",
+      "author_email": "alice@example.com",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3487,6 +3489,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
     "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "passing_host_count": 2000,
     "failing_host_count": 300
@@ -3543,6 +3546,7 @@ An error is returned if both "query" and "query_id" are set on the request.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
     "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "passing_host_count": 0,
     "failing_host_count": 0
@@ -3577,6 +3581,7 @@ Where `query_id` references an existing `query`.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
     "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "passing_host_count": 0,
     "failing_host_count": 0
@@ -3658,6 +3663,7 @@ Where `query_id` references an existing `query`.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 43,
     "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "passing_host_count": 0,
     "failing_host_count": 0
@@ -3707,6 +3713,7 @@ Team policies work the same as policies, but at the team level.
       "description": "Checks if gatekeeper is enabled on macOS devices",
       "author_id": 42,
       "author_name": "John",
+      "author_email": "john@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
       "passing_host_count": 2000,
@@ -3719,6 +3726,7 @@ Team policies work the same as policies, but at the team level.
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "author_id": 43,
       "author_name": "Alice",
+      "author_email": "alice@example.com",
       "team_id": 1,
       "passing_host_count": 2300,
       "failing_host_count": 0
@@ -3755,6 +3763,7 @@ Team policies work the same as policies, but at the team level.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
     "author_name": "John",
+    "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
     "passing_host_count": 0,
@@ -3806,6 +3815,7 @@ Team policies work the same as policies, but at the team level.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
     "author_name": "John",
+    "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
     "passing_host_count": 0,
@@ -3890,6 +3900,7 @@ Team policies work the same as policies, but at the team level.
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 43,
     "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "team_id": 2,
     "passing_host_count": 0,

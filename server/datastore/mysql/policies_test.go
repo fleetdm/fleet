@@ -851,8 +851,12 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	tp, err = ds.Policy(ctx, tp.ID)
 	require.NoError(t, err)
 	assert.Nil(t, tp.AuthorID)
+	assert.Equal(t, "<deleted>", tp.AuthorName)
+	assert.Empty(t, tp.AuthorEmail)
 
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
 	assert.Nil(t, gp.AuthorID)
+	assert.Equal(t, "<deleted>", gp.AuthorName)
+	assert.Empty(t, gp.AuthorEmail)
 }

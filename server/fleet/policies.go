@@ -90,18 +90,18 @@ func (p ModifyPolicyPayload) Verify() error {
 }
 
 // Policy is a fleet's policy query.
-//
-// TODO(lucas): Add AuthorEmail mimicking Query.
 type Policy struct {
 	ID uint `json:"id"`
 	// Name is the name of the policy query.
-	// NOTE(lucas): To not break clients (UI), I'm not changing this to json:"name" (#2595).
+	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"name" yet (#2595).
 	Name        string `json:"query_name" db:"name"`
 	Query       string `json:"query" db:"query"`
 	Description string `json:"description" db:"description"`
 	AuthorID    *uint  `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
-	AuthorName       string  `json:"author_name" db:"author_name"`
+	AuthorName string `json:"author_name" db:"author_name"`
+	// AuthorEmail is retrieved with a join to the users table in the MySQL backend (using AuthorID).
+	AuthorEmail      string  `json:"author_email" db:"author_email"`
 	PassingHostCount uint    `json:"passing_host_count" db:"passing_host_count"`
 	FailingHostCount uint    `json:"failing_host_count" db:"failing_host_count"`
 	TeamID           *uint   `json:"team_id" db:"team_id"`
@@ -123,17 +123,19 @@ const (
 type HostPolicy struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the policy query.
-	// NOTE(lucas): To not break clients (UI), I'm not changing this to json:"name" (#2595).
+	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"name" yet (#2595).
 	Name  string `json:"query_name" db:"name"`
 	Query string `json:"query" db:"query"`
 	// Description is the policy description.
-	// NOTE(lucas): To not break clients (UI), I'm not changing this to json:"description" (#2595).
+	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"description" (#2595).
 	Description string `json:"query_description" db:"description"`
 	AuthorID    *uint  `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
 	AuthorName string `json:"author_name" db:"author_name"`
-	Response   string `json:"response" db:"response"`
-	Resolution string `json:"resolution" db:"resolution"`
+	// AuthorEmail is retrieved with a join to the users table in the MySQL backend (using AuthorID).
+	AuthorEmail string `json:"author_email" db:"author_email"`
+	Response    string `json:"response" db:"response"`
+	Resolution  string `json:"resolution" db:"resolution"`
 
 	TeamIDX uint `json:"-" db:"team_id_x"`
 }

@@ -37,7 +37,8 @@ spec:
   platform: ""
   platform_like: ""
   policies:
-    - author_id: 1
+    - author_email: ""
+      author_id: 1
       author_name: Alice
       id: 1
       query_description: ""
@@ -45,7 +46,8 @@ spec:
       query: select 1 from osquery_info where start_time > 1;
       resolution: ""
       response: passes
-    - author_id: 1
+    - author_email: ""
+      author_id: 1
       author_name: Alice
       id: 2
       query_description: ""

@@ -773,6 +773,9 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description", gpResp.Policy.Description)
 	require.NotNil(t, gpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution", *gpResp.Policy.Resolution)
+	assert.NotNil(t, gpResp.Policy.AuthorID)
+	assert.Equal(t, "Test Name admin1@example.com", gpResp.Policy.AuthorName)
+	assert.Equal(t, "admin1@example.com", gpResp.Policy.AuthorEmail)
 
 	mgpParams := modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -880,6 +883,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description", tpResp.Policy.Description)
 	require.NotNil(t, tpResp.Policy.Resolution)
 	assert.Equal(t, "some team resolution", *tpResp.Policy.Resolution)
+	assert.NotNil(t, tpResp.Policy.AuthorID)
+	assert.Equal(t, "Test Name admin1@example.com", tpResp.Policy.AuthorName)
+	assert.Equal(t, "admin1@example.com", tpResp.Policy.AuthorEmail)
 
 	mtpParams := modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
