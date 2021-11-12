@@ -196,10 +196,14 @@ module.exports = {
                   /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
                   '$1 class="nohighlight"$2$3'
                 )
-                .replace(// Finally, nab the rest, leaving the code language as-is.
+                .replace(//nab the rest, leaving the code language as-is.
                   // $1     $2     $3   $4               $5    $6
                   /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
                   '$1 class="$5"$2$3'
+                )
+                .replace(// Handle "LANG" markers that have been added inside of codeblocks (e.g. nested code blocks)
+                  /\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
+                  ''
                 )
               );
               htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
