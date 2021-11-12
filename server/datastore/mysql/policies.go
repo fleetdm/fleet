@@ -76,7 +76,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 			SET name = ?, query = ?, description = ?, resolution = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution)
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.ID)
 	if err != nil {
 		return errors.Wrap(err, "updating policy")
 	}
@@ -288,10 +288,10 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
 // already exist (a policy is identified by its name and the team it belongs to).
 //
-// NOTE(lucas): Mimicking ApplyQueries, it will update the author_id of the policies that are updated.
+// NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
+// that are updated.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO(lucas): Amend IFNULL hack for team_id.
 		sql := `
 		INSERT INTO policies (
 			name,

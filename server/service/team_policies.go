@@ -49,14 +49,15 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
-	// TODO(lucas): Implement me.
-	// if err := p.ValidateSQL(); err != nil {
-	//	return nil, err
-	// }
+
+	if err := p.Verify(); err != nil {
+		return nil, err
+	}
 
 	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
 	if err != nil {
@@ -215,6 +216,10 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 		return nil, err
 	}
 
+	if err := p.Verify(); err != nil {
+		return nil, err
+	}
+
 	if p.Name != nil {
 		policy.Name = *p.Name
 	}
@@ -228,11 +233,6 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 		policy.Resolution = p.Resolution
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
-
-	// TODO(lucas): Implement me.
-	// if err := policy.ValidateSQL(); err != nil {
-	//	return nil, err
-	// }
 
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {

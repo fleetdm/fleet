@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
@@ -60,13 +59,10 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if !ok {
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
-	if p.QueryID != 0 && p.Query != "" {
-		return nil, ctxerr.New(ctx, "both fields \"queryID\" and \"query\" cannot be set")
+
+	if err := p.Verify(); err != nil {
+		return nil, err
 	}
-	// TODO(lucas): Implement me.
-	// if err := p.ValidateSQL(); err != nil {
-	//	return nil, err
-	// }
 
 	// TODO(lucas): Add activity entry.
 

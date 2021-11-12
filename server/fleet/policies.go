@@ -1,5 +1,9 @@
 package fleet
 
+import (
+	"errors"
+)
+
 // PolicyPayload holds data for policy creation.
 type PolicyPayload struct {
 	// QueryID allows creating a policy from an existing query.
@@ -17,6 +21,47 @@ type PolicyPayload struct {
 	Resolution string
 }
 
+var (
+	errPolicyEmptyName     = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery    = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidQuery  = errors.New("invalid policy query")
+)
+
+// Verify verifies the policy payload is valid.
+func (p PolicyPayload) Verify() error {
+	if p.QueryID != 0 {
+		if p.Query != "" {
+			return errPolicyIDAndQuerySet
+		}
+	} else {
+		if err := verifyPolicyName(p.Name); err != nil {
+			return err
+		}
+		if err := verifyPolicyQuery(p.Query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func verifyPolicyName(name string) error {
+	if name == "" {
+		return errPolicyEmptyName
+	}
+	return nil
+}
+
+func verifyPolicyQuery(query string) error {
+	if query == "" {
+		return errPolicyEmptyQuery
+	}
+	if validateSQLRegexp.MatchString(query) {
+		return errPolicyInvalidQuery
+	}
+	return nil
+}
+
 // ModifyPolicyPayload holds data for policy modification.
 type ModifyPolicyPayload struct {
 	// Name is the name of the policy.
@@ -27,6 +72,21 @@ type ModifyPolicyPayload struct {
 	Description *string `json:"description"`
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution *string `json:"resolution"`
+}
+
+// Verify verifies the policy payload is valid.
+func (p ModifyPolicyPayload) Verify() error {
+	if p.Name != nil {
+		if err := verifyPolicyName(*p.Name); err != nil {
+			return err
+		}
+	}
+	if p.Query != nil {
+		if err := verifyPolicyQuery(*p.Query); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Policy is a fleet's policy query.
