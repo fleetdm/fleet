@@ -41,10 +41,6 @@ const SecretEditorModal = ({
   toggleSecretEditorModal,
   selectedSecret,
 }: IAddSecretModal): JSX.Element => {
-  const globalSecret = useSelector(
-    (state: IRootState) => state.app.enrollSecret
-  );
-
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
@@ -56,7 +52,7 @@ const SecretEditorModal = ({
     }
 
     if (selectedTeam === 0) {
-      return { name: "No team", secrets: globalSecret };
+      return { name: "No team" };
     }
     return teams.find((team) => team.id === selectedTeam);
   };

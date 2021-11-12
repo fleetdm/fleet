@@ -26,17 +26,13 @@ const DeleteSecretModal = ({
   onDeleteSecret,
   toggleDeleteSecretModal,
 }: IDeleteSecretModal): JSX.Element => {
-  const globalSecret = useSelector(
-    (state: IRootState) => state.app.enrollSecret
-  );
-
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
     }
 
     if (selectedTeam === 0) {
-      return { name: "No team", secrets: globalSecret };
+      return { name: "No team" };
     }
     return teams.find((team) => team.id === selectedTeam);
   };
