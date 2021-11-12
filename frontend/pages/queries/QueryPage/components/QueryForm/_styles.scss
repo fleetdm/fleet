@@ -42,6 +42,13 @@
     .name-description {
       flex-grow: 1;
       margin-right: 24px;
+      .query-form__query-name {
+        line-height: 2rem;
+        height: 2rem;
+      }
+      .query-form__query-description {
+        margin: 0.25rem 0 1rem;
+      }
     }
 
     .author {
