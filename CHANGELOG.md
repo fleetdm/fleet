@@ -26,7 +26,7 @@
 
   * Running an "Excessive" query, even infrequently, can have a significant impact on your host’s performance.
 
-* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#feature-flags).
+* Add the ability to see a list of hosts that have a specific software version installed by selecting a software version on a specific host's **Host details** page. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
 
 * Add the ability to see all vulnerable software detected across all your hosts with the `GET /api/v1/fleet/software` API route. Documentation for this new API route can be found [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/rest-api#software).
 
@@ -297,7 +297,7 @@
 
 * Add ability to disable the Users feature in Fleet by setting the new `enable_host_users` key to `true` in the `config` yaml, configuration file. For documentation on using configuration files in yaml syntax, check out the [Using yaml files in Fleet](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/configuration-files#using-yaml-files-in-fleet) documentation.
 
-* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#feature-flags).
+* Improve performance of the Software inventory feature. Software inventory is currently under a feature flag. To enable this feature flag, check out the [feature flag documentation](./docs/02-Deploying/03-Configuration.md#feature-flags).
 
 * Improve performance of inserting `pack_stats` in the database. The `pack_stats` information is used to display "Frequency" and "Last run" information for a specific host's scheduled queries. You can find this information on the **Host details** page.
 
@@ -546,7 +546,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * Improve Fleet performance by batch updating host seen time instead of updating synchronously. This improvement reduces MySQL CPU usage by ~33% with 4,000 simulated hosts and MySQL running in Docker.
 
-* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/02-Configuration.md#software-inventory).
+* Add support for software inventory, introducing a list of installed software items on each host's respective _Host details_ page. This feature is flagged off by default (for now). Check out [the feature flag documentation for instructions on how to turn this feature on](./docs/02-Deploying/03-Configuration.md#software-inventory).
 
 * Add Windows support for `fleetctl` agent autoupdates. The `fleetctl updates` command provides the ability to self-manage an agent update server. Available for Fleet Basic customers.
 
