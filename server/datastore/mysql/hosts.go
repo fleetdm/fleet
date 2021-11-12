@@ -473,7 +473,7 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		LEFT JOIN (
-		    select host_id, count(*) as count from policy_membership_history where passes=false and id in (select max(id) as id from policy_membership_history where passes=false group by host_id, policy_id)				    	
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
 		    GROUP BY host_id
 		) as failing_policies ON (h.id=failing_policies.host_id)
 		%s
