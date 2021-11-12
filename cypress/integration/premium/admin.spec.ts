@@ -41,7 +41,10 @@ describe(
         cy.contains("button", /done/i).click();
 
         // See the "Manage" enroll secret” button. A modal appears after the user selects the button
+        // Add secret tests same API as edit and delete
         cy.contains("button", /manage enroll secret/i).click();
+        cy.contains("button", /add secret/i).click();
+        cy.contains("button", /save/i).click();
         cy.contains("button", /done/i).click();
 
         // On the Host details page, they should…

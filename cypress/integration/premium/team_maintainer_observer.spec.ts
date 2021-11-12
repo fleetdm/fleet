@@ -150,9 +150,12 @@ describe(
       cy.findAllByText(/apples/i).should("exist");
       cy.findByText(/manage enroll secret/i).should("not.exist");
 
+      // Add secret tests same API as edit and delete
       cy.visit("/hosts/manage/?team_id=2");
       cy.findAllByText(/oranges/i).should("exist");
       cy.contains("button", /manage enroll secret/i).click();
+      cy.contains("button", /add secret/i).click();
+      cy.contains("button", /save/i).click();
       cy.contains("button", /done/i).click();
 
       // On the Host details page, they should…
