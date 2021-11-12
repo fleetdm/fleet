@@ -14,7 +14,7 @@ interface ILoadTeamResponse {
 }
 
 interface ITeamEnrollSecretsResponse {
-  secrets: IEnrollSecret[]; // TODO: fill this out when API is defined
+  secrets: IEnrollSecret[];
 }
 
 interface ITeamSearchOptions {
