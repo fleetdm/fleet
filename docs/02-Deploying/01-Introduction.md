@@ -16,7 +16,7 @@ The Fleet application is contains two single static binaries which provide web b
 The `fleet` binary contains:
 - The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
 - The Fleet web interface
-- The Fleet application management [REST API](../02-Using-Fleet/03-REST-API.md)
+- The Fleet application management [REST API](../01-Using-Fleet/03-REST-API.md)
 - The osquery API endpoints
 
 The `fleetctl` binary is the CLI interface which allows management of your deployment, scriptable live queries, and easy integration into your existing logging, alerting, reporting, and management infrastructure.
