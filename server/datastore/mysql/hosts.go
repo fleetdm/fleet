@@ -380,7 +380,7 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 			LEFT JOIN teams t ON (h.team_id = t.id)
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 			LEFT JOIN (
-				select host_id, count(*) from policy_membership_history where passes=false and id in (select max(id) as id from policy_membership_history where host_id=? and passes=false group by host_id, policy_id)				    	
+				select host_id, count(*) as count from policy_membership_history where passes=false and id in (select max(id) as id from policy_membership_history where host_id=? and passes=false group by host_id, policy_id)				    	
 		    	GROUP BY host_id
 			) as failing_policies ON (h.id=failing_policies.host_id)
 		WHERE h.id = ?
