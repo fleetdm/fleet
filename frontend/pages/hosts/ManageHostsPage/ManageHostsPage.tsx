@@ -163,7 +163,6 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [newSecret, setNewSecret] = useState<string | undefined>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
     false
@@ -235,6 +234,7 @@ const ManageHostsPage = ({
     isAnyTeamMaintainer;
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
 
   const {
@@ -255,6 +255,7 @@ const ManageHostsPage = ({
     Error,
     IEnrollSecret[]
   >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: !!canEnrollGlobalHosts,
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
@@ -273,7 +274,7 @@ const ManageHostsPage = ({
       return { secrets: [] };
     },
     {
-      enabled: !!currentTeam?.id,
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -750,8 +751,6 @@ const ManageHostsPage = ({
 
   const onSaveSecret = async (enrollSecretString: string) => {
     const { MANAGE_HOSTS } = PATHS;
-
-    setNewSecret(enrollSecretString);
 
     // Creates new list of secrets removing selected secret and adding new secret
     const currentSecrets = currentTeam
