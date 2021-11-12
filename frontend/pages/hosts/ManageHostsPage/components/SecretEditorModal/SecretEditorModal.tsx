@@ -10,14 +10,10 @@ import errors from "interfaces/errors";
 
 interface IAddSecretModal {
   selectedTeam: number;
-  onReturnToApp: () => void;
-  onSaveSecret: () => void;
+  onSaveSecret: (newEnrollSecret: string) => void;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
   selectedSecret: IEnrollSecret | undefined;
-  setNewEnrollSecretString: React.Dispatch<
-    React.SetStateAction<string | undefined>
-  >;
 }
 
 interface IRootState {
@@ -40,13 +36,11 @@ const randomSecretGenerator = () => {
 };
 
 const SecretEditorModal = ({
-  onReturnToApp, // do we want to return to app or back to previous modal?
   onSaveSecret,
   selectedTeam,
   teams,
   toggleSecretEditorModal,
   selectedSecret,
-  setNewEnrollSecretString,
 }: IAddSecretModal): JSX.Element => {
   const globalSecret = useSelector(
     (state: IRootState) => state.app.enrollSecret
@@ -72,19 +66,15 @@ const SecretEditorModal = ({
     setEnrollSecretString(value);
   };
 
-  console.log("errors", errors);
   const onSaveSecretClick = () => {
-    console.log("clicked Save!");
-    console.log("enrollSecretString.length", enrollSecretString.length);
     if (enrollSecretString.length < 32) {
       setErrors({
         secret: "Secret",
       });
     } else {
       setErrors({});
+      onSaveSecret(enrollSecretString);
     }
-    setNewEnrollSecretString(enrollSecretString);
-    onSaveSecret;
   };
 
   return (

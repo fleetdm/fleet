@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { useQuery } from "react-query";
 import Modal from "components/Modal";
@@ -50,26 +50,6 @@ const EnrollSecretModal = ({
     }
   );
 
-  // TODO: Revisit this to make the API be called only if there is a currentTeam 11/11 RP SG
-  // const {
-  //   isLoading: isTeamSecretsLoading,
-  //   data: teamSecrets,
-  //   error: teamSecretsError,
-  //   refetch: refetchTeamSecrets,
-  // } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-  //   ["team secrets", selectedTeam],
-  //   () => {
-  //     if (selectedTeam) {
-  //       return enrollSecretsAPI.getTeamEnrollSecrets(selectedTeam);
-  //     }
-  //     return { secrets: [] };
-  //   },
-  //   {
-  //     enabled: !!selectedTeam,
-  //     select: (data: IEnrollSecretsResponse) => data.secrets,
-  //   }
-  // );
-
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
@@ -87,7 +67,11 @@ const EnrollSecretModal = ({
   };
 
   return (
-    <Modal onExit={onReturnToApp} title={"Enroll secret"} className={baseClass}>
+    <Modal
+      onExit={onReturnToApp}
+      title={"Manage enroll secrets"}
+      className={baseClass}
+    >
       <div className={baseClass}>
         {renderTeam()?.secrets?.length ? (
           <>

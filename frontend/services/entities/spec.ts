@@ -18,6 +18,6 @@ export default {
   applyEnrollSecretSpec: (spec: IEnrollSecretSpec) => {
     const { GLOBAL_ENROLL_SECRETS } = endpoints;
 
-    return sendRequest("POST", GLOBAL_ENROLL_SECRETS, { spec });
+    return sendRequest("POST", GLOBAL_ENROLL_SECRETS, spec);
   },
 };
