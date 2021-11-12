@@ -37,13 +37,11 @@ You must install the [`golangci-lint`](https://golangci-lint.run/) command to ru
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
 ```
 
-Make sure it is available in your PATH. To execute the basic unit and integration tests, run the following from the root of the repository:
+Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
-
-It is a good idea to run `make test` before submitting a Pull Request.
 
 ### Go unit tests
 
@@ -282,11 +280,15 @@ Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with one user:
+The identity provider is configured with two users:
 
 ```
 Username: sso_user
 Email: sso_user@example.com
+Password: user123#
+
+Username: sso_user2
+Email: sso_user2@example.com
 Password: user123#
 ```
 

@@ -1,0 +1,1 @@
+* Host detail API to return all schedule queries and their stats (with zero values for those that haven't run yet)

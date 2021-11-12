@@ -62,6 +62,7 @@ type HostUser struct {
 	Username  string `json:"username" db:"username"`
 	Type      string `json:"type" db:"user_type"`
 	GroupName string `json:"groupname" db:"groupname"`
+	Shell     string `json:"shell" db:"shell"`
 }
 
 type Host struct {

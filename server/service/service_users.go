@@ -410,7 +410,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	if user.SSOEnabled {
 		return nil, errors.New("password reset for single sign on user not allowed")
 	}
-	if !user.AdminForcedPasswordReset {
+	if !user.IsAdminForcedPasswordReset() {
 		return nil, errors.New("user does not require password reset")
 	}
 

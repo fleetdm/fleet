@@ -865,6 +865,13 @@ func TestDetailQueries(t *testing.T) {
       "uid": "1234",
       "username": "user1",
       "type": "sometype",
+      "groupname": "somegroup",
+	  "shell": "someloginshell"
+    },
+	{
+      "uid": "5678",
+      "username": "user2",
+      "type": "sometype",
       "groupname": "somegroup"
     }
 ],
@@ -929,13 +936,21 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
 	// users
-	require.Len(t, gotHost.Users, 1)
+	require.Len(t, gotHost.Users, 2)
 	assert.Equal(t, fleet.HostUser{
 		Uid:       1234,
 		Username:  "user1",
 		Type:      "sometype",
 		GroupName: "somegroup",
+		Shell:     "someloginshell",
 	}, gotHost.Users[0])
+	assert.Equal(t, fleet.HostUser{
+		Uid:       5678,
+		Username:  "user2",
+		Type:      "sometype",
+		GroupName: "somegroup",
+		Shell:     "",
+	}, gotHost.Users[1])
 
 	// software
 	require.Len(t, gotHost.HostSoftware.Software, 2)
