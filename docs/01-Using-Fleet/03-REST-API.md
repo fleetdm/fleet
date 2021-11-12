@@ -645,7 +645,15 @@ Returns the information of the specified host.
 
 The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
-The host_count parameter in the software list will always be 1 in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
+All the scheduled queries that are configured to run on the host (and their stats) are returned in
+`pack_stats`. The `pack_stats[i].type` field can have the following values:
+1. `"global"`: identifies the global pack.
+2. `"team-$TEAM_ID"`: identifies a team's pack.
+3. `"pack"`: identifies a user created pack.
+
+If the scheduled queries haven't run on the host yet, the stats have zero values.
+
+The `host_count` parameter in the software list will always be `1` in this call, as the view of the software list is within this host. On other APIs, such as `/api/v1/fleet/software` with a broader scope, it counts within that scope.
 
 `GET /api/v1/fleet/hosts/{id}`
 
