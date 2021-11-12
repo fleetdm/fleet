@@ -654,24 +654,39 @@ const HostDetailsPage = ({
   };
 
   const renderPolicies = () => {
+    if (!host?.policies?.length) {
+      return (
+        <div className="section section--policies">
+          <p className="section__header">Policies</p>
+          <div className="results__data">
+            <b>No policies are checked for this host.</b>
+            <p>
+              Expecting to see policies? Try selecting “Refetch” to ask this
+              host to report new vitals.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
     const noResponses: IHostPolicy[] =
-      host?.policies.filter(
+      host?.policies?.filter(
         (policy) => !isValidPolicyResponse(policy.response)
       ) || [];
     const failingResponses: IHostPolicy[] =
-      host?.policies.filter((policy) => policy.response === "fail") || [];
+      host?.policies?.filter((policy) => policy.response === "fail") || [];
 
     return (
       <div className="section section--policies">
         <p className="section__header">Policies</p>
 
-        {host?.policies.length && (
+        {host?.policies?.length && (
           <>
-            {failingResponses.length > 0 && (
+            {failingResponses?.length > 0 && (
               <PolicyFailingCount policyList={host?.policies} />
             )}
-            {noResponses.length > 0 && (
+            {noResponses?.length > 0 && (
               <InfoBanner>
                 <p>
                   This host is not updating the response for some policies.
@@ -1138,7 +1153,7 @@ const HostDetailsPage = ({
             {renderSchedule()}
             {renderPacks()}
           </TabPanel>
-          <TabPanel>{host?.policies && renderPolicies()}</TabPanel>
+          <TabPanel>{renderPolicies()}</TabPanel>
         </Tabs>
       </TabsWrapper>
 
