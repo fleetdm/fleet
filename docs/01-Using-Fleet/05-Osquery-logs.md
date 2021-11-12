@@ -22,21 +22,21 @@ Fleet supports the following logging plugins for osquery logs:
 - [PubSub](#pubsub) - Logs are written to Google Cloud PubSub topics.
 - [Stdout](#stdout) - Logs are written to stdout.
 
-To set the osquery logging plugins, use the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` flags (or [equivalents for environment variables or configuration files](../02-Deploying/02-Configuration.md#options)).
+To set the osquery logging plugins, use the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` flags (or [equivalents for environment variables or configuration files](../02-Deploying/03-Configuration.md#options)).
 
 ### Filesystem
 
 The default logging plugin.
 
 - Plugin name: `filesystem`
-- Flag namespace: [filesystem](../02-Deploying/02-Configuration.md#filesystem)
+- Flag namespace: [filesystem](../02-Deploying/03-Configuration.md#filesystem)
 
 With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. Note that if multiple load-balanced Fleet servers are used, the logs will be load-balanced across those servers (not duplicated).
 
 ### Firehose
 
 - Plugin name: `firehose`
-- Flag namespace: [firehose](../02-Deploying/02-Configuration.md#firehose)
+- Flag namespace: [firehose](../02-Deploying/03-Configuration.md#firehose)
 
 With the Firehose plugin, osquery result and/or status logs are written to [AWS Firehose](https://aws.amazon.com/kinesis/data-firehose/) streams. This is a very good method for aggregating osquery logs into AWS S3 storage.
 
@@ -45,7 +45,7 @@ Note that Firehose logging has limits [discussed in the documentation](https://d
 ### Kinesis
 
 - Plugin name: `kinesis`
-- Flag namespace: [kinesis](../02-Deploying/02-Configuration.md#kinesis)
+- Flag namespace: [kinesis](../02-Deploying/03-Configuration.md#kinesis)
 
 With the Kinesis plugin, osquery result and/or status logs are written to
 [AWS Kinesis](https://aws.amazon.com/kinesis/data-streams) streams.
@@ -58,7 +58,7 @@ output in the Fleet logs and those logs _will not_ be sent to Kinesis.
 ### Lambda
 
 - Plugin name: `lambda`
-- Flag namespace: [lambda](../02-Deploying/02-Configuration.md#lambda)
+- Flag namespace: [lambda](../02-Deploying/03-Configuration.md#lambda)
 
 With the Lambda plugin, osquery result and/or status logs are written to
 [AWS Lambda](https://aws.amazon.com/lambda/) functions.
@@ -79,7 +79,7 @@ Keep this in mind when using Lambda, as you're charged based on the number of re
 ### PubSub
 
 - Plugin name: `pubsub`
-- Flag namespace: [pubsub](../02-Deploying/02-Configuration.md#pubsub)
+- Flag namespace: [pubsub](../02-Deploying/03-Configuration.md#pubsub)
 
 With the PubSub plugin, osquery result and/or status logs are written to [PubSub](https://cloud.google.com/pubsub/) topics.
 
@@ -88,7 +88,7 @@ Note that messages over 10MB will be dropped, with a notification sent to the fl
 ### Stdout
 
 - Plugin name: `stdout`
-- Flag namespace: [stdout](../02-Deploying/02-Configuration.md#stdout)
+- Flag namespace: [stdout](../02-Deploying/03-Configuration.md#stdout)
 
 With the stdout plugin, osquery result and/or status logs are written to stdout
 on the Fleet server. This is typically used for debugging or with a log

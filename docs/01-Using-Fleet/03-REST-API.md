@@ -643,7 +643,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 Returns the information of the specified host.
 
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/03-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
 All the scheduled queries that are configured to run on the host (and their stats) are returned in
 `pack_stats`. The `pack_stats[i].type` field can have the following values:

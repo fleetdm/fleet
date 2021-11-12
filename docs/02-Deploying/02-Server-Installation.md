@@ -192,7 +192,7 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./02-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](./03-Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
