@@ -435,7 +435,14 @@ const DataTable = ({
                 >
                   {row.cells.map((cell: any) => {
                     return (
-                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                      <td
+                        className={
+                          cell.column.id ? `${cell.column.id}__cell` : ""
+                        }
+                        {...cell.getCellProps()}
+                      >
+                        {cell.render("Cell")}
+                      </td>
                     );
                   })}
                 </tr>

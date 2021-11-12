@@ -3,11 +3,12 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import ReactTooltip from "react-tooltip";
-import format from "date-fns/format";
+import formatDistanceToNow from "date-fns/formatDistanceToNow";
 
 import permissionsUtils from "utilities/permissions";
 
 // @ts-ignore
+import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -19,6 +20,7 @@ import PATHS from "router/paths";
 
 import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
+import { addGravatarUrlToResource } from "fleet/helpers";
 
 interface IQueryRow {
   id: string;
@@ -112,9 +114,19 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         />
       ),
       accessor: "author_name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const { author_name, author_email } = cellProps.row.original;
+        const author = author_name === currentUser.name ? "You" : author_name;
+        return (
+          <span>
+            <Avatar
+              user={addGravatarUrlToResource({ email: author_email })}
+              size="xsmall"
+            />
+            {author}
+          </span>
+        );
+      },
       sortType: "caseInsensitive",
     },
     {
@@ -127,7 +139,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       ),
       accessor: "updated_at",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={format(new Date(cellProps.cell.value), "MM/dd/yy")} />
+        <TextCell
+          value={formatDistanceToNow(new Date(cellProps.cell.value), {
+            includeSeconds: true,
+            addSuffix: true,
+          })}
+        />
       ),
     },
   ];

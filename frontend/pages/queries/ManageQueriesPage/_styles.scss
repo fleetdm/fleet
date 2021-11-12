@@ -182,4 +182,15 @@
       }
     }
   }
+  .author_name__cell {
+    img,
+    div,
+    span {
+      display: flex;
+      align-items: center;
+    }
+    div {
+      padding-right: $pad-small;
+    }
+  }
 }
