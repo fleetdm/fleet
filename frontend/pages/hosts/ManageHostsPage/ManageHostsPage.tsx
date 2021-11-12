@@ -285,7 +285,6 @@ const ManageHostsPage = ({
     }
   );
 
-  // TODO: Come back to this in case secrets change, ensure they change here
   const generateInstallerTeam = currentTeam || {
     name: "No team",
     secrets: globalSecrets || null,
@@ -816,7 +815,6 @@ const ManageHostsPage = ({
     }
   };
 
-  // TODO: 10/25 RP Finish and test onDeleteSecret Functionality
   const onDeleteSecret = async () => {
     const { MANAGE_HOSTS } = PATHS;
 
