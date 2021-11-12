@@ -336,7 +336,7 @@ const QueryForm = ({
             {isEditMode ? (
               <InputField
                 id="query-name"
-                type="text"
+                type="textarea"
                 name="query-name"
                 error={errors.name}
                 value={lastEditedQueryName}
@@ -350,7 +350,7 @@ const QueryForm = ({
             {isEditMode && (
               <InputField
                 id="query-description"
-                type="text"
+                type="textarea"
                 name="query-description"
                 value={lastEditedQueryDescription}
                 placeholder="Add description here."
