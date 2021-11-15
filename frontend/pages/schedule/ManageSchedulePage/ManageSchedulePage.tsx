@@ -235,8 +235,8 @@ const ManageSchedulePage = ({
 
   const selectedTeam = isNaN(teamId) ? "global" : teamId;
 
-  const selectedTeamData = allTeamsList.find(
-    (team) => selectedTeam === team.id
+  const selectedTeamData = teams.find(
+    (team: ITeam) => selectedTeam === team.id
   );
 
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
@@ -507,14 +507,8 @@ const ManageSchedulePage = ({
             allScheduledQueriesList,
             allScheduledQueriesError,
             toggleScheduleEditorModal,
-<<<<<<< HEAD
             isOnGlobalTeam || false,
             selectedTeamData
-=======
-            teamId,
-            isTeamMaintainerOrTeamAdmin || false,
-            isOnGlobalTeam || false
->>>>>>> 5d87ba70 (Refactor schedule page to new patterns except global and team scheduled queries API)
           )}
         </div>
         {/* must use ternary for NaN */}
@@ -548,14 +542,8 @@ const ManageSchedulePage = ({
           renderAllTeamsTable(
             allTeamsScheduledQueriesList,
             allTeamsScheduledQueriesError,
-<<<<<<< HEAD
             isOnGlobalTeam || false,
             selectedTeamData
-=======
-            teamId,
-            isTeamMaintainerOrTeamAdmin || false,
-            isOnGlobalTeam || false
->>>>>>> 5d87ba70 (Refactor schedule page to new patterns except global and team scheduled queries API)
           )}
         {showScheduleEditorModal && (
           <ScheduleEditorModal
