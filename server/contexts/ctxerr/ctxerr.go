@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -24,6 +25,31 @@ import (
 type key int
 
 const errHandlerKey key = 0
+
+// Cause returns the root error in err's chain.
+func Cause(err error) error {
+	// Until we use only ctxerr.Wrap, we have a mix of pkg/errors, fmt.Errorf
+	// and eris.Wrap (via ctxerr.Wrap). pkg/errors.Cause looks for a Cause()
+	// method, while eris.Cause looks for the stdlib-compliant Unwrap(). So
+	// implement a custom Cause that checks for both until a root is found.
+
+	var cerr interface {
+		Cause() error
+	}
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			if errors.As(err, &cerr) {
+				uerr = cerr.Cause()
+			} else {
+				break
+			}
+		}
+		err = uerr
+	}
+
+	return err
+}
 
 // NewContext returns a context derived from ctx that contains the provided
 // error handler.
@@ -41,18 +67,29 @@ func New(ctx context.Context, errMsg string) error {
 	return ensureCommonMetadata(ctx, errors.New(errMsg))
 }
 
+// Errorf creates a new error with the formatted message.
+func Errorf(ctx context.Context, fmsg string, args ...interface{}) error {
+	return ensureCommonMetadata(ctx, fmt.Errorf(fmsg, args...))
+}
+
 // Wrap annotates err with the provided message.
-func Wrap(ctx context.Context, err error, msg string) error {
+func Wrap(ctx context.Context, err error, msgs ...string) error {
 	err = ensureCommonMetadata(ctx, err)
+	if len(msgs) == 0 || err == nil {
+		return err
+	}
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
 	// actual error condition to capture the stack trace, others just wrap to
 	// annotate the error.
-	return fmt.Errorf("%s: %w", msg, err)
+	return fmt.Errorf("%s: %w", strings.Join(msgs, " "), err)
 }
 
 // Wrapf annotates err with the provided formatted message.
 func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) error {
 	err = ensureCommonMetadata(ctx, err)
+	if fmsg == "" || err == nil {
+		return err
+	}
 	// do not wrap with eris.Wrap, as we want only the root error closest to the
 	// actual error condition to capture the stack trace, others just wrap to
 	// annotate the error.
@@ -61,11 +98,10 @@ func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) err
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration.
-func Handle(ctx context.Context, err error) error {
+func Handle(ctx context.Context, err error) {
 	if eh := fromContext(ctx); eh != nil {
-		return eh.Store(err)
+		eh.Store(err)
 	}
-	return err
 }
 
 func ensureCommonMetadata(ctx context.Context, err error) error {

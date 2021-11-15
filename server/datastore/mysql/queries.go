@@ -5,15 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
 	tx, err := d.writer.BeginTxx(ctx, nil)
 	if err != nil {
-		return errors.Wrap(err, "begin ApplyQueries transaction")
+		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
 	}
 
 	defer func() {
@@ -48,22 +48,22 @@ func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*
 	`
 	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
-		return errors.Wrap(err, "prepare ApplyQueries insert")
+		return ctxerr.Wrap(ctx, err, "prepare ApplyQueries insert")
 	}
 	defer stmt.Close()
 
 	for _, q := range queries {
 		if q.Name == "" {
-			return errors.New("query name must not be empty")
+			return ctxerr.New(ctx, "query name must not be empty")
 		}
 		_, err := stmt.ExecContext(ctx, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun)
 		if err != nil {
-			return errors.Wrap(err, "exec ApplyQueries insert")
+			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
 		}
 	}
 
 	err = tx.Commit()
-	return errors.Wrap(err, "commit ApplyQueries transaction")
+	return ctxerr.Wrap(ctx, err, "commit ApplyQueries transaction")
 }
 
 func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -76,13 +76,13 @@ func (d *Datastore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	err := sqlx.GetContext(ctx, d.reader, &query, sqlStatement, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, notFound("Query").WithName(name)
+			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
 		}
-		return nil, errors.Wrap(err, "selecting query by name")
+		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
 
 	if err := d.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
-		return nil, errors.Wrap(err, "loading packs for query")
+		return nil, ctxerr.Wrap(ctx, err, "loading packs for query")
 	}
 
 	return &query, nil
@@ -103,9 +103,9 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	result, err := d.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
-		return nil, alreadyExists("Query", 0)
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", 0))
 	} else if err != nil {
-		return nil, errors.Wrap(err, "creating new Query")
+		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
 	}
 
 	id, _ := result.LastInsertId()
@@ -123,14 +123,14 @@ func (d *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 	`
 	result, err := d.writer.ExecContext(ctx, sql, q.Name, q.Description, q.Query, q.AuthorID, q.Saved, q.ObserverCanRun, q.ID)
 	if err != nil {
-		return errors.Wrap(err, "updating query")
+		return ctxerr.Wrap(ctx, err, "updating query")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "rows affected updating query")
+		return ctxerr.Wrap(ctx, err, "rows affected updating query")
 	}
 	if rows == 0 {
-		return notFound("Query").WithID(q.ID)
+		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
 	}
 
 	return nil
@@ -158,11 +158,11 @@ func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	`
 	query := &fleet.Query{}
 	if err := sqlx.GetContext(ctx, d.reader, query, sql, id); err != nil {
-		return nil, errors.Wrap(err, "selecting query")
+		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
 	if err := d.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
-		return nil, errors.Wrap(err, "loading packs for queries")
+		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
 	return query, nil
@@ -194,11 +194,11 @@ func (d *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 	results := []*fleet.Query{}
 
 	if err := sqlx.SelectContext(ctx, d.reader, &results, sql); err != nil {
-		return nil, errors.Wrap(err, "listing queries")
+		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
 	if err := d.loadPacksForQueries(ctx, results); err != nil {
-		return nil, errors.Wrap(err, "loading packs for queries")
+		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
 	return results, nil
@@ -230,7 +230,7 @@ func (d *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Qu
 
 	query, args, err := sqlx.In(sql, names)
 	if err != nil {
-		return errors.Wrap(err, "building query in load packs for queries")
+		return ctxerr.Wrap(ctx, err, "building query in load packs for queries")
 	}
 
 	rows := []struct {
@@ -240,7 +240,7 @@ func (d *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Qu
 
 	err = sqlx.SelectContext(ctx, d.reader, &rows, query, args...)
 	if err != nil {
-		return errors.Wrap(err, "selecting load packs for queries")
+		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}
 
 	for _, row := range rows {

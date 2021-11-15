@@ -197,7 +197,8 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	}(time.Now())
 
 	user, err := svc.ds.UserByEmail(ctx, email)
-	if _, ok := err.(fleet.NotFoundError); ok {
+	var nfe fleet.NotFoundError
+	if errors.As(err, &nfe) {
 		return nil, "", fleet.NewAuthFailedError("user not found")
 	}
 	if err != nil {

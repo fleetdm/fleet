@@ -2,6 +2,8 @@ package s3
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -10,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 const awsRegionHint = "us-east-1"
@@ -46,7 +47,7 @@ func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error
 
 	sess, err := session.NewSession(conf)
 	if err != nil {
-		return nil, errors.Wrap(err, "create S3 client")
+		return nil, fmt.Errorf("create S3 client: %w", err)
 	}
 
 	// Assume role if configured
@@ -56,14 +57,14 @@ func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error
 		conf.Credentials = creds
 		sess, err = session.NewSession(conf)
 		if err != nil {
-			return nil, errors.Wrap(err, "create S3 client")
+			return nil, fmt.Errorf("create S3 client: %w", err)
 		}
 	}
 
 	if len(config.Region) == 0 {
 		region, err := s3manager.GetBucketRegion(context.TODO(), sess, config.Bucket, awsRegionHint)
 		if err != nil {
-			return nil, errors.Wrap(err, "create S3 client")
+			return nil, fmt.Errorf("create S3 client: %w", err)
 		}
 		config.Region = region
 	}

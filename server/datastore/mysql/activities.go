@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 // NewActivity stores an activity item that the user performed
 func (d *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	detailsBytes, err := json.Marshal(details)
 	if err != nil {
-		return errors.Wrap(err, "marshaling activity details")
+		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
 	_, err = d.writer.ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
@@ -24,7 +24,7 @@ func (d *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityT
 		detailsBytes,
 	)
 	if err != nil {
-		return errors.Wrap(err, "new activity")
+		return ctxerr.Wrap(ctx, err, "new activity")
 	}
 	return nil
 }
@@ -39,9 +39,9 @@ func (d *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 
 	err := sqlx.SelectContext(ctx, d.reader, &activities, query)
 	if err == sql.ErrNoRows {
-		return nil, notFound("Activity")
+		return nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
-		return nil, errors.Wrap(err, "select activities")
+		return nil, ctxerr.Wrap(ctx, err, "select activities")
 	}
 
 	return activities, nil

@@ -160,7 +160,8 @@ func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequ
 
 	output, err := k.client.PutRecords(input)
 	if err != nil {
-		if _, ok := err.(awserr.Error); ok {
+		var ae awserr.Error
+		if errors.As(err, &ae) {
 			if try < kinesisMaxRetries {
 				// Retry with backoff
 				return k.putRecords(try+1, records)

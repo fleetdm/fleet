@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 type applyTeamSpecsRequest struct {
@@ -48,7 +48,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
-			if err := errors.Cause(err); err == sql.ErrNoRows {
+			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
 				agentOptions := spec.AgentOptions
 				if agentOptions == nil {
 					agentOptions = config.AgentOptions
