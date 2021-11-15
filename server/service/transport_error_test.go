@@ -1,11 +1,13 @@
 package service
 
 import (
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/stretchr/testify/assert"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 )
 
 type foreignKeyError struct{}
@@ -83,7 +85,7 @@ func TestHandlesErrorsCode(t *testing.T) {
 	for _, tt := range errorTests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			encodeError(nil, tt.err, recorder)
+			encodeError(context.Background(), tt.err, recorder)
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}

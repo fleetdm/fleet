@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
@@ -62,10 +63,12 @@ type existsErrorInterface interface {
 
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
+	ctxerr.Handle(ctx, err)
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
-	err = errors.Cause(err)
+	err = ctxerr.Cause(err)
 
 	switch e := err.(type) {
 	case validationErrorInterface:
@@ -146,7 +149,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(je)
 	default:
-		if fleet.IsForeignKey(errors.Cause(err)) {
+		if fleet.IsForeignKey(ctxerr.Cause(err)) {
 			ve := jsonError{
 				Message: "Validation Failed",
 				Errors:  baseError(err.Error()),
@@ -159,14 +162,16 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		// Get specific status code if it is available from this error type,
 		// defaulting to HTTP 500
 		status := http.StatusInternalServerError
-		if e, ok := err.(kithttp.StatusCoder); ok {
-			status = e.StatusCode()
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) {
+			status = sce.StatusCode()
 		}
 
 		// See header documentation
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After)
-		if e, ok := err.(fleet.ErrWithRetryAfter); ok {
-			w.Header().Add("Retry-After", strconv.Itoa(e.RetryAfter()))
+		var ewra fleet.ErrWithRetryAfter
+		if errors.As(err, &ewra) {
+			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
 		w.WriteHeader(status)

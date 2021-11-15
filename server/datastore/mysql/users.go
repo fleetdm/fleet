@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 var userSearchColumns = []string{"name", "email"}
@@ -16,7 +16,7 @@ var userSearchColumns = []string{"name", "email"}
 // NewUser creates a new user
 func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
 	err := d.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -46,7 +46,7 @@ func (d *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 			user.APIOnly,
 			user.GlobalRole)
 		if err != nil {
-			return errors.Wrap(err, "create new user")
+			return ctxerr.Wrap(ctx, err, "create new user")
 		}
 
 		id, _ := result.LastInsertId()
@@ -75,14 +75,14 @@ func (d *Datastore) findUser(ctx context.Context, searchCol string, searchVal in
 
 	err := sqlx.GetContext(ctx, d.reader, user, sqlStatement, searchVal)
 	if err != nil && err == sql.ErrNoRows {
-		return nil, notFound("User").
-			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal))
+		return nil, ctxerr.Wrap(ctx, notFound("User").
+			WithMessage(fmt.Sprintf("with %s=%v", searchCol, searchVal)))
 	} else if err != nil {
-		return nil, errors.Wrap(err, "find user")
+		return nil, ctxerr.Wrap(ctx, err, "find user")
 	}
 
 	if err := d.loadTeamsForUsers(ctx, []*fleet.User{user}); err != nil {
-		return nil, errors.Wrap(err, "load teams")
+		return nil, ctxerr.Wrap(ctx, err, "load teams")
 	}
 
 	// When SSO is enabled, we can ignore forced password resets
@@ -112,11 +112,11 @@ func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	users := []*fleet.User{}
 
 	if err := sqlx.SelectContext(ctx, d.reader, &users, sqlStatement, params...); err != nil {
-		return nil, errors.Wrap(err, "list users")
+		return nil, ctxerr.Wrap(ctx, err, "list users")
 	}
 
 	if err := d.loadTeamsForUsers(ctx, users); err != nil {
-		return nil, errors.Wrap(err, "load teams")
+		return nil, ctxerr.Wrap(ctx, err, "load teams")
 	}
 
 	return users, nil
@@ -151,7 +151,7 @@ func (d *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 
 func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "validate role")
 	}
 	sqlStatement := `
       UPDATE users SET
@@ -180,14 +180,14 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.GlobalRole,
 		user.ID)
 	if err != nil {
-		return errors.Wrap(err, "save user")
+		return ctxerr.Wrap(ctx, err, "save user")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "rows affected save user")
+		return ctxerr.Wrap(ctx, err, "rows affected save user")
 	}
 	if rows == 0 {
-		return notFound("User").WithID(user.ID)
+		return ctxerr.Wrap(ctx, notFound("User").WithID(user.ID))
 	}
 
 	// REVIEW: Check if teams have been set?
@@ -221,7 +221,7 @@ func (d *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User) 
 	`
 	sql, args, err := sqlx.In(sql, userIDs)
 	if err != nil {
-		return errors.Wrap(err, "sqlx.In loadTeamsForUsers")
+		return ctxerr.Wrap(ctx, err, "sqlx.In loadTeamsForUsers")
 	}
 
 	var rows []struct {
@@ -229,7 +229,7 @@ func (d *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User) 
 		UserID uint `db:"user_id"`
 	}
 	if err := sqlx.SelectContext(ctx, d.reader, &rows, sql, args...); err != nil {
-		return errors.Wrap(err, "get loadTeamsForUsers")
+		return ctxerr.Wrap(ctx, err, "get loadTeamsForUsers")
 	}
 
 	// Map each row to the appropriate user
@@ -248,7 +248,7 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 	// Delete before insert
 	sql := `DELETE FROM user_teams WHERE user_id = ?`
 	if _, err := tx.ExecContext(ctx, sql, user.ID); err != nil {
-		return errors.Wrap(err, "delete existing teams")
+		return ctxerr.Wrap(ctx, err, "delete existing teams")
 	}
 
 	if len(user.Teams) == 0 {
@@ -265,7 +265,7 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 		strings.Repeat(valueStr, len(user.Teams))
 	sql = strings.TrimSuffix(sql, ",")
 	if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
-		return errors.Wrap(err, "insert teams")
+		return ctxerr.Wrap(ctx, err, "insert teams")
 	}
 
 	return nil
