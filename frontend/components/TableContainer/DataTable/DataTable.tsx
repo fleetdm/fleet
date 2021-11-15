@@ -15,6 +15,7 @@ import { useDebouncedCallback } from "use-debounce/lib";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -88,6 +89,7 @@ const DataTable = ({
   onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
+  const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
     return tableColumns;
@@ -351,6 +353,11 @@ const DataTable = ({
     </>
   );
 
+  const tableStyles = classnames({
+    "data-table__table": true,
+    "is-observer": isOnlyObserver,
+  });
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -359,7 +366,7 @@ const DataTable = ({
         </div>
       )}
       <div className={"data-table data-table__wrapper"}>
-        <table className={"data-table__table"}>
+        <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
