@@ -16,7 +16,7 @@
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
-- [What should I do if my computer showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
+- [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -156,7 +156,7 @@ The following are reasons why a host may not be updating a policy's response:
 
 * The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
 
-## What should I do if my computer showing up as an offline host?
+## What should I do if my computer is showing up as an offline host?
 
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
