@@ -160,6 +160,6 @@ The following are reasons why a host may not be updating a policy's response:
 
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
-* Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./02-Adding-hosts.md).
+* Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./04-Adding-hosts.md).
 * Restart the `fleetctl preview` docker containers.
 * Uninstall and reinstall Docker.
