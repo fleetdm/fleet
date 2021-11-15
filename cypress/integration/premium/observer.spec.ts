@@ -21,6 +21,9 @@ describe("Premium tier - Observer user", () => {
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("All hosts");
 
+    // Not see the "Manage enroll secret” button
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
+
     cy.get("thead").within(() => {
       cy.findByText(/team/i).should("exist");
     });
@@ -37,9 +40,8 @@ describe("Premium tier - Observer user", () => {
     cy.contains("button", /delete/i).should("not.exist");
     cy.contains("button", /query/i).click();
     cy.contains("button", /create custom query/i).should("not.exist");
-
-    // Not see the "Manage enroll secret” button
-    cy.contains("button", /manage enroll secret/i).should("not.exist");
+    // See and not select operating system
+    // TODO
 
     // TODO - Fix tests according to improved query experience - MP
     // Query pages: Can see team in select targets dropdown

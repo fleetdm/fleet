@@ -57,6 +57,8 @@ describe(
       cy.contains("button", /delete/i).should("exist");
       cy.contains("button", /query/i).click();
       cy.contains("button", /create custom query/i).should("exist");
+      // See and select operating system
+      // TODO
 
       // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");

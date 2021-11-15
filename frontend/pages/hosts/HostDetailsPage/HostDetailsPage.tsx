@@ -1092,14 +1092,17 @@ const HostDetailsPage = ({
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">OS</span>
               <span className="info-flex__data">
-                {" "}
-                <Button
-                  onClick={() => toggleOSPolicyModal()}
-                  variant="text-link"
-                  className={`${baseClass}__os-policy-button`}
-                >
-                  {titleData.os_version}
-                </Button>
+                {isOnlyObserver ? (
+                  `${titleData.os_version}`
+                ) : (
+                  <Button
+                    onClick={() => toggleOSPolicyModal()}
+                    variant="text-link"
+                    className={`${baseClass}__os-policy-button`}
+                  >
+                    {titleData.os_version}
+                  </Button>
+                )}
               </span>
             </div>
             <div className="info-flex__item info-flex__item--title">

@@ -56,6 +56,8 @@ describe(
         cy.get(".transfer-action-btn").click();
         cy.findByText(/transferred to oranges/i).should("exist");
         cy.findByText(/team/i).next().contains("Oranges");
+        // See and select operating system
+        // TODO
 
         // TODO - Fix tests according to improved query experience - MP
         // On the Queries - new / edit / run page, they should…
