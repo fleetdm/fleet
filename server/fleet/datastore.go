@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -293,6 +294,8 @@ type Datastore interface {
 	// DeleteInvite deletes an invitation.
 	DeleteInvite(ctx context.Context, id uint) error
 
+	UpdateInvite(ctx context.Context, id uint, i *Invite) (*Invite, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
 
@@ -415,11 +418,11 @@ type NotFoundError interface {
 }
 
 func IsNotFound(err error) bool {
-	e, ok := err.(NotFoundError)
-	if !ok {
-		return false
+	var nfe NotFoundError
+	if errors.As(err, &nfe) {
+		return nfe.IsNotFound()
 	}
-	return e.IsNotFound()
+	return false
 }
 
 // AlreadyExistsError is returned when creating a datastore resource that already exists.
@@ -435,11 +438,11 @@ type ForeignKeyError interface {
 }
 
 func IsForeignKey(err error) bool {
-	e, ok := err.(ForeignKeyError)
-	if !ok {
-		return false
+	var fke ForeignKeyError
+	if errors.As(err, &fke) {
+		return fke.IsForeignKey()
 	}
-	return e.IsForeignKey()
+	return false
 }
 
 type OptionalArg func() interface{}

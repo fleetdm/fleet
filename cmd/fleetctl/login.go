@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -70,7 +71,8 @@ Interactively prompts for email and password if not specified in the flags or en
 
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
-				switch err.(type) {
+				root := ctxerr.Cause(err)
+				switch root.(type) {
 				case service.NotSetupErr:
 					return err
 				}

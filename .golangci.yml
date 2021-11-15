@@ -2,6 +2,7 @@ linters:
   disable-all: true
   enable:
     - deadcode
+    - depguard
     - gofmt
     - govet
     - ineffassign
@@ -14,6 +15,12 @@ linters:
     - unused
 
 linters-settings:
+  depguard:
+    list-type: blacklist
+    include-go-root: false
+    packages-with-error-message:
+      - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
+
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: false
@@ -39,3 +46,13 @@ linters-settings:
       - name: superfluous-else
       - name: unreachable-code
       - name: redefines-builtin-id
+
+issues:
+  exclude-rules:
+    - path: server/contexts/ctxerr/[^/]+\.go$
+      linters:
+        - depguard
+    - path: server/errorstore/[^/]+\.go$
+      linters:
+        - depguard
+

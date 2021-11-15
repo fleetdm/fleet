@@ -36,6 +36,7 @@ export interface IQuery {
   saved: boolean;
   author_id: number;
   author_name: string;
+  author_email: string;
   observer_can_run: boolean;
   packs: IPack[];
   stats?: IScheduledQueryStats;

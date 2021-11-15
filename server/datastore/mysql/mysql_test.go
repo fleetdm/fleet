@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -297,21 +297,21 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM app_configs"
+	sql := "SELECT * FROM my_table"
 	opts := fleet.ListOptions{
 		OrderKey: "name",
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -320,25 +320,25 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		PerPage: 10,
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10"
+	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.Page = 2
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10 OFFSET 20"
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
 	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 1000000"
+	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)

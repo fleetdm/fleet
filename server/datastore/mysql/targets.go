@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -51,13 +51,13 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 
 	query, args, err := sqlx.In(sql, now, now, now, now, now, queryHostIDs, queryLabelIDs, queryTeamIDs)
 	if err != nil {
-		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.In CountHostsInTargets")
+		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
 
 	res := fleet.TargetMetrics{}
 	err = sqlx.GetContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
-		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
+		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.Get CountHostsInTargets")
 	}
 
 	return res, nil
@@ -97,13 +97,13 @@ func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilte
 
 	query, args, err := sqlx.In(sql, queryHostIDs, queryLabelIDs, queryTeamIDs)
 	if err != nil {
-		return nil, errors.Wrap(err, "sqlx.In HostIDsInTargets")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In HostIDsInTargets")
 	}
 
 	var res []uint
 	err = sqlx.SelectContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "sqlx.Get HostIDsInTargets")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.Get HostIDsInTargets")
 	}
 	return res, nil
 }

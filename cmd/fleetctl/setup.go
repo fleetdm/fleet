@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -86,7 +87,8 @@ func setupCommand() *cli.Command {
 
 			token, err := fleet.Setup(flEmail, flName, flPassword, flOrgName)
 			if err != nil {
-				switch err.(type) {
+				root := ctxerr.Cause(err)
+				switch root.(type) {
 				case service.SetupAlreadyErr:
 					return err
 				}

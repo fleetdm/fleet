@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -148,11 +149,12 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		var internalErrs string
 		separator := " || "
 		for _, err := range l.Errs {
-			if e, ok := err.(fleet.ErrWithInternal); ok {
+			var ewi fleet.ErrWithInternal
+			if errors.As(err, &ewi) {
 				if internalErrs == "" {
-					internalErrs = e.Internal()
+					internalErrs = ewi.Internal()
 				} else {
-					internalErrs += separator + e.Internal()
+					internalErrs += separator + ewi.Internal()
 				}
 			} else {
 				if errs == "" {

@@ -1,10 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"path/filepath"
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
+	"github.com/skratchdot/open-golang/open"
 	"github.com/urfave/cli/v2"
 )
 
@@ -95,8 +100,12 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "debug",
-				Usage:       "Enable debug logging",
+				Usage:       "Enable debug logging in orbit",
 				Destination: &opt.Debug,
+			},
+			&cli.BoolFlag{
+				Name:  "verbose",
+				Usage: "Log detailed information when building the package",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -114,18 +123,40 @@ func packageCommand() *cli.Command {
 				return errors.New("Windows can only build MSI packages.")
 			}
 
+			var buildFunc func(packaging.Options) (string, error)
 			switch c.String("type") {
 			case "pkg":
-				return packaging.BuildPkg(opt)
+				buildFunc = packaging.BuildPkg
 			case "deb":
-				return packaging.BuildDeb(opt)
+				buildFunc = packaging.BuildDeb
 			case "rpm":
-				return packaging.BuildRPM(opt)
+				buildFunc = packaging.BuildRPM
 			case "msi":
-				return packaging.BuildMSI(opt)
+				buildFunc = packaging.BuildMSI
 			default:
 				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi')")
 			}
+
+			// disable detailed logging unless verbose is set
+			if !c.Bool("verbose") {
+				zlog.Logger = zerolog.Nop()
+			}
+
+			fmt.Println("Generating your osquery installer...")
+			path, err := buildFunc(opt)
+			if err != nil {
+				return err
+			}
+			path, _ = filepath.Abs(path)
+			fmt.Printf(`
+Success! You generated an osquery installer at %s
+
+To add this device to Fleet, double-click to open your installer.
+
+To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
+`, path)
+			open.Start(filepath.Dir(path))
+			return nil
 		},
 	}
 }

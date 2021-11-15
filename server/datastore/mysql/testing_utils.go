@@ -277,16 +277,20 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
 func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
+	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
+		return
+	}
+
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":         true,
-		"app_configs":             true,
 		"migration_status_tables": true,
 		"osquery_options":         true,
 	}
-
 	ctx := context.Background()
 
 	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
