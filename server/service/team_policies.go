@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -67,7 +69,14 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 		return nil, errors.Wrap(err, "creating policy")
 	}
 
-	// TODO(lucas): Add activity entry.
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
+	}
 
 	return policy, nil
 }
@@ -171,8 +180,32 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-
-	return svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 1 {
+		err = svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"id": ids[0]},
+		)
+	} else {
+		err = svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedMutiplePolicy,
+			&map[string]interface{}{"ids": ids},
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -244,7 +277,14 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 		return nil, errors.Wrap(err, "saving policy")
 	}
 
-	// TODO(lucas): Add activity entry.
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedPolicy,
+		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
+	}
 
 	return policy, nil
 }

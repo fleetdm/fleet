@@ -669,18 +669,6 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[1].Resolution)
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
 
-	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:  "",
-			Query: "select 1;",
-		},
-	}))
-	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:  "query4",
-			Query: "",
-		},
-	}))
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{

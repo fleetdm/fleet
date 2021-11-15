@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -314,15 +315,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			team_id = VALUES(team_id)
 		`
 		for _, spec := range specs {
-			if spec.Name == "" {
-				return errors.New("policy name must not be empty")
-			}
-			if spec.Query == "" {
-				return errors.New("policy query must not be empty")
-			}
 			_, err := tx.ExecContext(ctx, sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team)
 			if err != nil {
-				return errors.Wrap(err, "exec ApplyPolicySpecs insert")
+				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
 		}
 		return nil

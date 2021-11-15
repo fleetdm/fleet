@@ -126,11 +126,17 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &activities)
 
-	assert.Len(t, activities.Activities, 1)
-	assert.Equal(t, "Test Name admin1@example.com", activities.Activities[0].ActorFullName)
-	require.NotNil(t, activities.Activities[0].ActorGravatar)
-	assert.Equal(t, "http://iii.com", *activities.Activities[0].ActorGravatar)
-	assert.Equal(t, "created_saved_query", activities.Activities[0].Type)
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	found := false
+	for _, activity := range activities.Activities {
+		if activity.Type == "created_saved_query" {
+			found = true
+			assert.Equal(t, "Test Name admin1@example.com", activity.ActorFullName)
+			require.NotNil(t, activity.ActorGravatar)
+			assert.Equal(t, "http://iii.com", *activity.ActorGravatar)
+		}
+	}
+	require.True(t, found)
 }
 
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {

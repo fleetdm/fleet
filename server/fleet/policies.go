@@ -147,3 +147,13 @@ type PolicySpec struct {
 	Resolution  string `json:"resolution,omitempty"`
 	Team        string `json:"team,omitempty"`
 }
+
+func (p PolicySpec) Verify() error {
+	if err := verifyPolicyName(p.Name); err != nil {
+		return err
+	}
+	if err := verifyPolicyQuery(p.Query); err != nil {
+		return err
+	}
+	return nil
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
@@ -67,9 +69,24 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		}
 	}
 
-	// TODO(lucas): Add activity entry.
+	policy, err := svc.ds.NewGlobalPolicy(ctx, vc.UserID(), p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "storing policy")
+	}
 
-	return svc.ds.NewGlobalPolicy(ctx, vc.UserID(), p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeCreatedPolicy,
+		&map[string]interface{}{
+			"id":   policy.ID,
+			"name": policy.Name,
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
+	}
+
+	return policy, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -164,8 +181,32 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-
-	return svc.ds.DeleteGlobalPolicies(ctx, ids)
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 1 {
+		err = svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedPolicy,
+			&map[string]interface{}{"id": ids[0]},
+		)
+	} else {
+		err = svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedMutiplePolicy,
+			&map[string]interface{}{"ids": ids},
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -223,6 +264,9 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
+		if err := policy.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err, "verifying spec")
+		}
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
@@ -231,9 +275,9 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
 				return err
 			}
-			continue
+		} else {
+			checkGlobalPolicyAuth = true
 		}
-		checkGlobalPolicyAuth = true
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
@@ -245,5 +289,18 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 		return errors.New("user must be authenticated to apply policies")
 	}
 
-	return svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies)
+	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
+		return ctxerr.Wrap(ctx, err, "applying policy specs")
+	}
+
+	err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPolicy,
+		&map[string]interface{}{"specs": policies},
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating spec policy activity")
+	}
+	return nil
 }

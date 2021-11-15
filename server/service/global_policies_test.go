@@ -15,7 +15,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
-		return nil, nil
+		return &fleet.Policy{}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context) ([]*fleet.Policy, error) {
 		return nil, nil
@@ -30,6 +30,9 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		return &fleet.Team{ID: 1}, nil
 	}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
 
