@@ -15,12 +15,6 @@ interface IAddSecretModal {
   selectedSecret: IEnrollSecret | undefined;
 }
 
-interface IRootState {
-  app: {
-    enrollSecret: IEnrollSecret[];
-  };
-}
-
 const baseClass = "secret-editor-modal";
 
 const randomSecretGenerator = () => {

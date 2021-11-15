@@ -51,14 +51,16 @@ const EnrollSecretRow = ({
     return false;
   };
 
-  const onEditSecretClick = () => {
+  const onEditSecretClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
     if (toggleSecretEditorModal && setSelectedSecret) {
       setSelectedSecret(secret);
       toggleSecretEditorModal();
     }
   };
 
-  const onDeleteSecretClick = () => {
+  const onDeleteSecretClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
     if (toggleDeleteSecretModal && setSelectedSecret) {
       setSelectedSecret(secret);
       toggleDeleteSecretModal();

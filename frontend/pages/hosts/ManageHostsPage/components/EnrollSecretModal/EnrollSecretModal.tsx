@@ -11,7 +11,6 @@ import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
 interface IEnrollSecretModal {
   selectedTeam: number;
   onReturnToApp: () => void;
-  isPremiumTier: boolean;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
   toggleDeleteSecretModal: () => void;
@@ -26,7 +25,6 @@ const baseClass = "enroll-secret-modal";
 const EnrollSecretModal = ({
   onReturnToApp,
   selectedTeam,
-  isPremiumTier,
   teams,
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
@@ -63,22 +61,12 @@ const EnrollSecretModal = ({
               :
             </div>
             <div className={`${baseClass}__secret-wrapper`}>
-              {isPremiumTier && (
-                <EnrollSecretTable
-                  secrets={renderTeam()?.secrets}
-                  toggleSecretEditorModal={toggleSecretEditorModal}
-                  toggleDeleteSecretModal={toggleDeleteSecretModal}
-                  setSelectedSecret={setSelectedSecret}
-                />
-              )}
-              {!isPremiumTier && (
-                <EnrollSecretTable
-                  secrets={renderTeam()?.secrets}
-                  toggleSecretEditorModal={toggleSecretEditorModal}
-                  toggleDeleteSecretModal={toggleDeleteSecretModal}
-                  setSelectedSecret={setSelectedSecret}
-                />
-              )}
+              <EnrollSecretTable
+                secrets={renderTeam()?.secrets}
+                toggleSecretEditorModal={toggleSecretEditorModal}
+                toggleDeleteSecretModal={toggleDeleteSecretModal}
+                setSelectedSecret={setSelectedSecret}
+              />
             </div>
           </>
         ) : (

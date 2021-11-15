@@ -772,7 +772,6 @@ const ManageHostsPage = ({
         );
         refetchTeamSecrets();
       } else {
-        console.log("TRY!!! newSecrets", newSecrets);
         await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
         refetchGlobalSecrets();
       }
@@ -830,7 +829,6 @@ const ManageHostsPage = ({
         );
         refetchTeamSecrets();
       } else {
-        console.log("TRY!!! global newSecrets", newSecrets);
         await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
         refetchGlobalSecrets();
       }
@@ -1206,7 +1204,6 @@ const ManageHostsPage = ({
           selectedTeam={currentTeam?.id || 0}
           teams={teams || []}
           onReturnToApp={() => setShowEnrollSecretModal(false)}
-          isPremiumTier={isPremiumTier as boolean}
           toggleSecretEditorModal={toggleSecretEditorModal}
           toggleDeleteSecretModal={toggleDeleteSecretModal}
           setSelectedSecret={setSelectedSecret}
