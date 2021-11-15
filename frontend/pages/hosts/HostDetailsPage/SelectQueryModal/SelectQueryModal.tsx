@@ -91,28 +91,28 @@ const SelectQueryModal = ({
 
   const queriesCount = queriesFiltered.length;
 
-  // const onQueryHostCustom = (host: IHost) => {
-  //   return dispatch(
-  //     push({
-  //       pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
-  //     })
-  //   );
-  // };
+  const onQueryHostCustom = (host: IHost) => {
+    return dispatch(
+      push({
+        pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
+      })
+    );
+  };
 
   // how can I replace dispatch with react router replace?
-  const onQueryHostCustom = (host: IHost) => {
-    const hostIdParam = { host_id: host.id };
+  // const onQueryHostCustom = (host: IHost) => {
+  //   const hostIdParam = { host_id: host.id };
 
-    const routeTemplate = route && route.path ? route.path : "";
+  //   const routeTemplate = route && route.path ? route.path : "";
 
-    const nextLocation = getNextLocationPath({
-      pathPrefix: PATHS.NEW_QUERY,
-      routeTemplate,
-      queryParams: hostIdParam,
-    });
+  //   const nextLocation = getNextLocationPath({
+  //     pathPrefix: PATHS.NEW_QUERY,
+  //     routeTemplate,
+  //     queryParams: hostIdParam,
+  //   });
 
-    router.replace(nextLocation);
-  };
+  //   router.replace(nextLocation);
+  // };
 
   const onQueryHostSaved = (host: IHost, selectedQuery: IQuery) => {
     return dispatch(
