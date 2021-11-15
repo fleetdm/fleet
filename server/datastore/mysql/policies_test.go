@@ -20,7 +20,8 @@ func TestPolicies(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"NewGlobalPolicy", testPoliciesNewGlobalPolicy},
-		{"MembershipView", testPoliciesMembershipView},
+		{"MembershipViewDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(true, t, ds) }},
+		{"MembershipViewNotDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(false, t, ds) }},
 		{"TeamPolicy", testTeamPolicy},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
@@ -77,7 +78,7 @@ func testPoliciesNewGlobalPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteQuery(context.Background(), q.Name))
 }
 
-func testPoliciesMembershipView(t *testing.T, ds *Datastore) {
+func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID:   "1234",
 		DetailUpdatedAt: time.Now(),
@@ -124,14 +125,14 @@ func testPoliciesMembershipView(t *testing.T, ds *Datastore) {
 
 	assert.Equal(t, "query1", p.QueryName)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), deferred))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), deferred))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: nil}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: nil}, time.Now(), deferred))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), deferred))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), deferred))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p2.ID: nil}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p2.ID: nil}, time.Now(), deferred))
 
 	policies, err := ds.ListGlobalPolicies(context.Background())
 	require.NoError(t, err)
@@ -143,8 +144,8 @@ func testPoliciesMembershipView(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), policies[1].PassingHostCount)
 	assert.Equal(t, uint(0), policies[1].FailingHostCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p2.ID: ptr.Bool(false)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), deferred))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p2.ID: ptr.Bool(false)}, time.Now(), deferred))
 
 	policies, err = ds.ListGlobalPolicies(context.Background())
 	require.NoError(t, err)
@@ -291,8 +292,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.Len(t, queries, 1)
 	assert.Equal(t, q.Query, queries[fmt.Sprint(q.ID)])
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(
-		context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now(), false))
 
 	policies, err := ds.ListPoliciesForHost(context.Background(), host1.ID)
 	require.NoError(t, err)
@@ -300,22 +300,28 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 0)
+	require.Len(t, policies, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(
-		context.Background(), host2, map[uint]*bool{gp.ID: nil}, time.Now()))
+	assert.Equal(t, "", policies[0].Response)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: ptr.Bool(true)}, time.Now(), false))
+
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
+	assert.Equal(t, "pass", policies[0].Response)
 
 	// insert a null resolution
 	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (query_id) VALUES (?)`, q.ID)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(
-		context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now(), false))
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 2)
+	require.Len(t, policies, 3)
 
 	assert.Equal(t, "query1 desc", policies[0].QueryDescription)
 	assert.Equal(t, "some gp resolution", policies[0].Resolution)
@@ -357,10 +363,8 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	globalPolicy, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(
-		context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now()))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(
-		context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now()))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 
 	checkPassingCount := func(expectedCount uint) {
 		policies, err := ds.ListTeamPolicies(context.Background(), team1.ID)

@@ -1,0 +1,1 @@
+* Remove the deprecated `app_configs` table, the `app_config_json` table has replaced it.

@@ -14,7 +14,7 @@ type Pack struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description,omitempty"`
 	Platform    string  `json:"platform,omitempty"`
-	Disabled    bool    `json:"disabled,omitempty"`
+	Disabled    bool    `json:"disabled"`
 	Type        *string `json:"type" db:"pack_type"`
 	LabelIDs    []uint  `json:"label_ids"`
 	HostIDs     []uint  `json:"host_ids"`
@@ -81,7 +81,12 @@ type PackTarget struct {
 }
 
 type PackStats struct {
-	PackID     uint                  `json:"pack_id,omitempty"`
-	PackName   string                `json:"pack_name,omitempty"`
+	PackID   uint   `json:"pack_id"`
+	PackName string `json:"pack_name"`
+	// Type indicates the type of the pack:
+	//	- "global" is the type of the global pack.
+	//	- "team-$ID" is returned for team packs.
+	//	- "pack" means it is a user created pack.
+	Type       string                `json:"type"`
 	QueryStats []ScheduledQueryStats `json:"query_stats"`
 }

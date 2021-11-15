@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and GenerateHostStatusStatistics
+	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
+	// with each status must be the same.
 
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
@@ -22,11 +23,12 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
-			COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
+		JOIN host_seen_times hst ON (h.id=hst.host_id)
 		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))) OR team_id IN (?)) AND %s
 `, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
 
@@ -49,13 +51,13 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 
 	query, args, err := sqlx.In(sql, now, now, now, now, now, queryHostIDs, queryLabelIDs, queryTeamIDs)
 	if err != nil {
-		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.In CountHostsInTargets")
+		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
 
 	res := fleet.TargetMetrics{}
 	err = sqlx.GetContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
-		return fleet.TargetMetrics{}, errors.Wrap(err, "sqlx.Get CountHostsInTargets")
+		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.Get CountHostsInTargets")
 	}
 
 	return res, nil
@@ -95,13 +97,13 @@ func (d *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilte
 
 	query, args, err := sqlx.In(sql, queryHostIDs, queryLabelIDs, queryTeamIDs)
 	if err != nil {
-		return nil, errors.Wrap(err, "sqlx.In HostIDsInTargets")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In HostIDsInTargets")
 	}
 
 	var res []uint
 	err = sqlx.SelectContext(ctx, d.reader, &res, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "sqlx.Get HostIDsInTargets")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.Get HostIDsInTargets")
 	}
 	return res, nil
 }

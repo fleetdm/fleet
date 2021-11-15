@@ -16,21 +16,21 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func buildNFPM(opt Options, pkger nfpm.Packager) error {
+func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(tmpDir)
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create root dir")
+		return "", errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create orbit dir")
+		return "", errors.Wrap(err, "create orbit dir")
 	}
 
 	// Initialize autoupdate metadata
@@ -46,27 +46,27 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	}
 
 	if err := InitializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+		return "", errors.Wrap(err, "initialize updates")
 	}
 
 	// Write files
 
 	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write systemd unit")
+		return "", errors.Wrap(err, "write systemd unit")
 	}
 
 	if err := writeEnvFile(opt, filesystemRoot); err != nil {
-		return errors.Wrap(err, "write env file")
+		return "", errors.Wrap(err, "write env file")
 	}
 
 	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
 	if err := writePostInstall(opt, postInstallPath); err != nil {
-		return errors.Wrap(err, "write postinstall script")
+		return "", errors.Wrap(err, "write postinstall script")
 	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return errors.Wrap(err, "write fleet certificate")
+			return "", errors.Wrap(err, "write fleet certificate")
 		}
 	}
 
@@ -98,7 +98,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 	}
 	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
-		return errors.Wrap(err, "glob contents")
+		return "", errors.Wrap(err, "glob contents")
 	}
 	for _, c := range contents {
 		log.Debug().Interface("file", c).Msg("added file")
@@ -128,19 +128,19 @@ func buildNFPM(opt Options, pkger nfpm.Packager) error {
 
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
-		return errors.Wrap(err, "open output file")
+		return "", errors.Wrap(err, "open output file")
 	}
 	defer out.Close()
 
 	if err := pkger.Package(info, out); err != nil {
-		return errors.Wrap(err, "write package")
+		return "", errors.Wrap(err, "write package")
 	}
 	if err := out.Sync(); err != nil {
-		return errors.Wrap(err, "sync output file")
+		return "", errors.Wrap(err, "sync output file")
 	}
 	log.Info().Str("path", filename).Msg("wrote package")
 
-	return nil
+	return filename, nil
 }
 
 func writeSystemdUnit(opt Options, rootPath string) error {

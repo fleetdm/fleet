@@ -83,6 +83,13 @@
           max-width: 140px;
         }
       }
+
+      &.active-selection th {
+        border: 0;
+        .fleet-checkbox {
+          opacity: 0;
+        }
+      }
     }
 
     .Select.is-focused:not(.is-open) > .Select-control {

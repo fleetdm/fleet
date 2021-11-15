@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
@@ -144,7 +145,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			token, err := fleetClient.Setup(email, "Admin", password, "Fleet for osquery")
 			if err != nil {
-				switch errors.Cause(err).(type) {
+				switch ctxerr.Cause(err).(type) {
 				case service.SetupAlreadyErr:
 					// Ignore this error
 				default:

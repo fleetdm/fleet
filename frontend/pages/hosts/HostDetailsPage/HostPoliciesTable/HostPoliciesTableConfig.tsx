@@ -95,20 +95,25 @@ const generatePolicyTableHeaders = (
       disableSortBy: true,
       Cell: (cellProps) => {
         return (
-          <Link
-            to={
-              PATHS.MANAGE_HOSTS +
-              TAGGED_TEMPLATES.hostsByPolicyRoute(
-                cellProps.row.original.id,
-                cellProps.row.original.response === "pass"
-                  ? PolicyResponse.PASSING
-                  : PolicyResponse.FAILING
-              )
-            }
-            className={`policy-link`}
-          >
-            <img alt="link to hosts filtered by policy ID" src={Chevron} />
-          </Link>
+          <>
+            {cellProps.row.original.response && (
+              <Link
+                to={
+                  PATHS.MANAGE_HOSTS +
+                  TAGGED_TEMPLATES.hostsByPolicyRoute(
+                    cellProps.row.original.id,
+                    cellProps.row.original.response === "pass"
+                      ? PolicyResponse.PASSING
+                      : PolicyResponse.FAILING
+                  )
+                }
+                className={`policy-link`}
+              >
+                View all hosts{" "}
+                <img alt="link to hosts filtered by policy ID" src={Chevron} />
+              </Link>
+            )}
+          </>
         );
       },
     },

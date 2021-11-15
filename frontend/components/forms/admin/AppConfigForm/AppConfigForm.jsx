@@ -8,14 +8,14 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import enrollSecretInterface from "interfaces/enroll_secret";
-import EnrollSecretTable from "components/config/EnrollSecretTable";
+import EnrollSecretTable from "components/EnrollSecretTable";
 import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import YamlAce from "components/YamlAce";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const authMethodOptions = [
@@ -250,7 +250,7 @@ class AppConfigForm extends Component {
     }
 
     const json = {
-      message:
+      text:
         "More than X% of your hosts have not checked into Fleet for more than Y days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
       data: {
         unseen_hosts: 1,

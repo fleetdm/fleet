@@ -87,4 +87,10 @@
     width: 196px;
     text-align: center;
   }
+
+  tbody {
+    .highlight-on-hover:hover {
+      background-color: $ui-off-white;
+    }
+  }
 }

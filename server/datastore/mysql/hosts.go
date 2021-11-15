@@ -3,15 +3,17 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
@@ -31,10 +33,9 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		os_version,
 		uptime,
 		memory,
-		seen_time,
 		team_id
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.writer.ExecContext(
 		ctx,
@@ -51,15 +52,35 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		host.OSVersion,
 		host.Uptime,
 		host.Memory,
-		host.SeenTime,
 		host.TeamID,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "new host")
+		return nil, ctxerr.Wrap(ctx, err, "new host")
 	}
 	id, _ := result.LastInsertId()
 	host.ID = uint(id)
+
+	_, err = d.writer.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`, host.ID, host.SeenTime)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new host seen time")
+	}
+
 	return host, nil
+}
+
+func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
+	errCh := make(chan error, 1)
+	defer close(errCh)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case d.writeCh <- itemToWrite{
+		ctx:   ctx,
+		errCh: errCh,
+		item:  host,
+	}:
+		return <-errCh
+	}
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
@@ -90,7 +111,6 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			platform_like = ?,
 			code_name = ?,
 			cpu_logical_cores = ?,
-			seen_time = ?,
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
@@ -127,7 +147,6 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			host.PlatformLike,
 			host.CodeName,
 			host.CPULogicalCores,
-			host.SeenTime,
 			host.DistributedInterval,
 			host.ConfigTLSRefresh,
 			host.LoggerTLSPeriod,
@@ -140,7 +159,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			host.ID,
 		)
 		if err != nil {
-			return errors.Wrapf(err, "save host with id %d", host.ID)
+			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
 		}
 
 		// Save host pack stats only if it is non-nil. Empty stats should be
@@ -153,26 +172,26 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 
 		ac, err := d.AppConfig(ctx)
 		if err != nil {
-			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
+			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
 		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
 		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host software")
+				return ctxerr.Wrap(ctx, err, "failed to save host software")
 			}
 		}
 
 		if host.Modified {
 			if host.Additional != nil {
 				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-					return errors.Wrap(err, "failed to save host additional")
+					return ctxerr.Wrap(ctx, err, "failed to save host additional")
 				}
 			}
 
 			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
 				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return errors.Wrap(err, "failed to save host users")
+					return ctxerr.Wrap(ctx, err, "failed to save host users")
 				}
 			}
 		}
@@ -240,61 +259,91 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 				wall_time = VALUES(wall_time)
 		`, values)
 	if _, err := db.ExecContext(ctx, sql, args...); err != nil {
-		return errors.Wrap(err, "insert pack stats")
+		return ctxerr.Wrap(ctx, err, "insert pack stats")
 	}
 	return nil
 }
 
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
-	sql := `
-SELECT
-	sqs.scheduled_query_id,
-	sqs.average_memory,
-	sqs.denylisted,
-	sqs.executions,
-	sqs.schedule_interval,
-	sqs.last_executed,
-	sqs.output_size,
-	sqs.system_time,
-	sqs.user_time,
-	sqs.wall_time,
-	sq.name AS scheduled_query_name,
-	sq.id AS scheduled_query_id,
-	sq.query_name AS query_name,
-	p.name AS pack_name,
-	p.id as pack_id,
-	q.description
-FROM scheduled_query_stats sqs
-	JOIN scheduled_queries sq ON (sqs.scheduled_query_id = sq.id)
-	JOIN packs p ON (sq.pack_id = p.id)
-	JOIN queries q ON (sq.query_name = q.name)
-WHERE host_id = ? AND p.pack_type IS NULL
-`
-	var stats []fleet.ScheduledQueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, host.ID); err != nil {
-		return errors.Wrap(err, "load pack stats")
+// loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
+// queries that haven't run yet are returned with zero values.
+func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]fleet.PackStats, error) {
+	packs, err := listPacksForHost(ctx, db, hid)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
 	}
-
-	packs := map[uint]fleet.PackStats{}
+	if len(packs) == 0 {
+		return nil, nil
+	}
+	packIDs := make([]uint, len(packs))
+	packTypes := make(map[uint]*string)
+	for i := range packs {
+		packIDs[i] = packs[i].ID
+		packTypes[packs[i].ID] = packs[i].Type
+	}
+	ds := dialect.From(goqu.I("scheduled_queries").As("sq")).Select(
+		goqu.I("sq.name").As("scheduled_query_name"),
+		goqu.I("sq.id").As("scheduled_query_id"),
+		goqu.I("sq.query_name").As("query_name"),
+		goqu.I("q.description").As("description"),
+		goqu.I("p.name").As("pack_name"),
+		goqu.I("p.id").As("pack_id"),
+		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
+		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
+		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
+		goqu.I("sq.interval").As("schedule_interval"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(0)")).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
+		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
+		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
+		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
+	).Join(
+		dialect.From("packs").As("p").Select(
+			goqu.I("id"),
+			goqu.I("name"),
+		).Where(goqu.I("id").In(packIDs)),
+		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
+	).Join(
+		goqu.I("queries").As("q"),
+		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
+	).LeftJoin(
+		goqu.I("scheduled_query_stats").As("sqs"),
+		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+	)
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+	var stats []fleet.ScheduledQueryStats
+	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
+	}
+	packStats := map[uint]fleet.PackStats{}
 	for _, query := range stats {
-		pack := packs[query.PackID]
+		pack := packStats[query.PackID]
 		pack.PackName = query.PackName
 		pack.PackID = query.PackID
+		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
 		pack.QueryStats = append(pack.QueryStats, query)
-		packs[pack.PackID] = pack
+		packStats[pack.PackID] = pack
 	}
-
-	for _, pack := range packs {
-		host.PackStats = append(host.PackStats, pack)
+	var ps []fleet.PackStats
+	for _, pack := range packStats {
+		ps = append(ps, pack)
 	}
+	return ps, nil
+}
 
-	return nil
+func getPackTypeFromDBField(t *string) string {
+	if t == nil {
+		return "pack"
+	}
+	return *t
 }
 
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
-	sql := `SELECT username, groupname, uid, user_type FROM host_users WHERE host_id = ? and removed_at IS NULL`
+	sql := `SELECT username, groupname, uid, user_type, shell FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := sqlx.SelectContext(ctx, db, &host.Users, sql, host.ID); err != nil {
-		return errors.Wrap(err, "load pack stats")
+		return ctxerr.Wrap(ctx, err, "load host users")
 	}
 	return nil
 }
@@ -302,21 +351,34 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.deleteEntity(ctx, hostsTable, hid)
 	if err != nil {
-		return errors.Wrapf(err, "deleting host with id %d", hid)
+		return ctxerr.Wrapf(ctx, err, "deleting host with id %d", hid)
 	}
+
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id=?`, hid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
+	}
+
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id=?`, hid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
+	}
+
 	return nil
 }
 
 func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
-		SELECT 
-		       h.*, 
-		       t.name AS team_name, 
+		SELECT
+		       h.*,
+		       hst.seen_time,
+		       t.name AS team_name,
 		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
 		       coalesce(failing_policies.count, 0) as failing_policies_count,
 		       coalesce(failing_policies.count, 0) as total_issues_count
 		FROM hosts h
 			LEFT JOIN teams t ON (h.team_id = t.id)
+			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 			LEFT JOIN (
 		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
 		    	GROUP BY host_id
@@ -327,11 +389,15 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host by id")
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
-	if err := loadHostPackStatsDB(ctx, d.reader, host); err != nil {
+
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	if err != nil {
 		return nil, err
 	}
+	host.PackStats = packStats
+
 	if err := loadHostUsersDB(ctx, d.reader, host); err != nil {
 		return nil, err
 	}
@@ -351,6 +417,7 @@ func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	sql := `SELECT
 		h.*,
+		hst.seen_time,
 		t.name AS team_name,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
 		coalesce(failing_policies.count, 0) as total_issues_count
@@ -382,7 +449,7 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
+		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
 	return hosts, nil
@@ -402,7 +469,9 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
-	sql += fmt.Sprintf(`FROM hosts h LEFT JOIN teams t ON (h.team_id = t.id)
+	sql += fmt.Sprintf(`FROM hosts h
+		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+		LEFT JOIN teams t ON (h.team_id = t.id)
 		LEFT JOIN (
 		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
 		    GROUP BY host_id
@@ -446,13 +515,13 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, time.Now())
 	case "online":
-		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(hst.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("AND DATE_ADD(h.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) >= ?", fleet.OnlineIntervalBuffer)
+		sql += fmt.Sprintf("AND DATE_ADD(hst.seen_time, INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now(), time.Now())
 	case "mia":
-		sql += "AND DATE_ADD(h.seen_time, INTERVAL 30 DAY) <= ?"
+		sql += "AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
 	}
 	return sql, params
@@ -470,7 +539,7 @@ func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	var count int
 	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
-		return 0, errors.Wrap(err, "count hosts")
+		return 0, ctxerr.Wrap(ctx, err, "count hosts")
 	}
 
 	return count, nil
@@ -483,51 +552,60 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
 	if _, err := d.writer.ExecContext(ctx, sqlStatement, now); err != nil {
-		return errors.Wrap(err, "cleanup incoming hosts")
+		return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 	}
 
 	return nil
 }
 
-func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (online, offline, mia, new uint, e error) {
+func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and CountHostsInTargets
+	// host.Status and CountHostsInTargets - that is, the intervals associated
+	// with each status must be the same.
 
+	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
-				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
-				COALESCE(SUM(CASE WHEN DATE_ADD(seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+				COUNT(*) total,
+				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+				COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
-			FROM hosts WHERE %s
+			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
-		d.whereFilterHostsByTeams(filter, "hosts"),
-	)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, whereClause)
 
-	counts := struct {
-		MIA     uint `db:"mia"`
-		Offline uint `db:"offline"`
-		Online  uint `db:"online"`
-		New     uint `db:"new"`
-	}{}
-	err := sqlx.GetContext(ctx, d.reader, &counts, sqlStatement, now, now, now, now, now)
+	summary := fleet.HostSummary{TeamID: filter.TeamID}
+	err := sqlx.GetContext(ctx, d.reader, &summary, sqlStatement, now, now, now, now, now)
 	if err != nil && err != sql.ErrNoRows {
-		e = errors.Wrap(err, "generating host statistics")
-		return
+		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
 	}
 
-	mia = counts.MIA
-	offline = counts.Offline
-	online = counts.Online
-	new = counts.New
-	return online, offline, mia, new, nil
+	// get the counts per platform, the `h` alias for hosts is required so that
+	// reusing the whereClause is ok.
+	sqlStatement = fmt.Sprintf(`
+			SELECT
+			  COUNT(*) total,
+			  h.platform
+			FROM hosts h
+			WHERE %s
+			GROUP BY h.platform
+		`, whereClause)
+
+	var platforms []*fleet.HostSummaryPlatform
+	err = sqlx.SelectContext(ctx, d.reader, &platforms, sqlStatement)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating host platforms statistics")
+	}
+	summary.Platforms = platforms
+
+	return &summary, nil
 }
 
 // EnrollHost enrolls a host
 func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
-		return nil, fmt.Errorf("missing osquery host identifier")
+		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
 
 	var host fleet.Host
@@ -538,7 +616,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
-			return errors.Wrap(err, "check existing")
+			return ctxerr.Wrap(ctx, err, "check existing")
 
 		case errors.Is(err, sql.ErrNoRows):
 			// Create new host record
@@ -548,24 +626,28 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 					label_updated_at,
 					policy_updated_at,
 					osquery_host_id,
-					seen_time,
 					node_key,
 					team_id
-				) VALUES (?, ?, ?, ?, ?, ?, ?)
+				) VALUES (?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, time.Now().UTC(), nodeKey, teamID)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
-				return errors.Wrap(err, "insert host")
+				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 
 			id, _ = result.LastInsertId()
+
+			_, err = d.writer.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`, id, time.Now().UTC())
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "new host seen time")
+			}
 
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
 			if cooldown > 0 && time.Since(host.LastEnrolledAt) < cooldown {
-				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
+				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 			id = int64(host.ID)
 			// Update existing host record
@@ -578,7 +660,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 			`
 			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID)
 			if err != nil {
-				return errors.Wrap(err, "update host")
+				return ctxerr.Wrap(ctx, err, "update host")
 			}
 		}
 
@@ -587,12 +669,12 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 		`
 		err = sqlx.GetContext(ctx, tx, &host, sqlSelect, id)
 		if err != nil {
-			return errors.Wrap(err, "getting the host to return")
+			return ctxerr.Wrap(ctx, err, "getting the host to return")
 		}
 
 		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
 		if err != nil {
-			return errors.Wrap(err, "insert new host into all hosts label")
+			return ctxerr.Wrap(ctx, err, "insert new host into all hosts label")
 		}
 
 		return nil
@@ -611,9 +693,9 @@ func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	if err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, nodeKey); err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return nil, notFound("Host")
+			return nil, ctxerr.Wrap(ctx, notFound("Host"))
 		default:
-			return nil, errors.New("find host")
+			return nil, ctxerr.Wrap(ctx, err, "find host")
 		}
 	}
 
@@ -621,15 +703,11 @@ func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 }
 
 func (d *Datastore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
-	sqlStatement := `
-		UPDATE hosts SET
-			seen_time = ?
-		WHERE node_key=?
-	`
+	sqlStatement := `UPDATE host_seen_times SET seen_time = ? WHERE host_id=?`
 
-	_, err := d.writer.ExecContext(ctx, sqlStatement, t, host.NodeKey)
+	_, err := d.writer.ExecContext(ctx, sqlStatement, t, host.ID)
 	if err != nil {
-		return errors.Wrap(err, "marking host seen")
+		return ctxerr.Wrap(ctx, err, "marking host seen")
 	}
 
 	host.UpdatedAt = t
@@ -642,23 +720,19 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	}
 
 	if err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query := `
-		UPDATE hosts SET
-			seen_time = ?
-		WHERE id IN (?)
-	`
+		query := `UPDATE host_seen_times SET seen_time = ? WHERE host_id IN (?)`
 		query, args, err := sqlx.In(query, t, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "sqlx in")
+			return ctxerr.Wrap(ctx, err, "sqlx in")
 		}
 		query = tx.Rebind(query)
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec update")
+			return ctxerr.Wrap(ctx, err, "exec update")
 		}
 
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "MarkHostsSeen transaction")
+		return ctxerr.Wrap(ctx, err, "MarkHostsSeen transaction")
 	}
 
 	return nil
@@ -672,7 +746,7 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 //	- An optional list of IDs to omit from the search.
 func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	var sqlb strings.Builder
-	sqlb.WriteString("SELECT * FROM hosts WHERE")
+	sqlb.WriteString("SELECT h.*, hst.seen_time FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE")
 
 	var args []interface{}
 	if len(query) > 0 {
@@ -698,17 +772,17 @@ func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	}
 	args = append(args, in)
 	sqlb.WriteString(" id NOT IN (?) AND ")
-	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "hosts"))
-	sqlb.WriteString(` ORDER BY seen_time DESC LIMIT 10`)
+	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "h"))
+	sqlb.WriteString(` ORDER BY hst.seen_time DESC LIMIT 10`)
 
 	sql, args, err := sqlx.In(sqlb.String(), args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "searching default hosts")
+		return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
 	}
 	sql = d.reader.Rebind(sql)
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "searching hosts")
+		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 	return hosts, nil
 }
@@ -726,12 +800,12 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 
 	sql, args, err := sqlx.In(sqlStatement, hostnames)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query to get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs")
 	}
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, d.reader, &hostIDs, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
 	}
 
 	return hostIDs, nil
@@ -746,12 +820,14 @@ func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*f
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sql, identifier)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host by identifier")
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	if err := loadHostPackStatsDB(ctx, d.reader, host); err != nil {
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	if err != nil {
 		return nil, err
 	}
+	host.PackStats = packStats
 
 	return host, nil
 }
@@ -764,22 +840,22 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership_history 
+		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "add host to team sqlx in")
+			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec AddHostsToTeam delete policy membership history")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership history")
 		}
 
 		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "sqlx.In AddHostsToTeam")
+			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
 
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec AddHostsToTeam")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 		}
 
 		return nil
@@ -793,7 +869,7 @@ func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fl
 		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
 	`
 	if _, err := exec.ExecContext(ctx, sql, host.ID, host.Additional); err != nil {
-		return errors.Wrap(err, "insert additional")
+		return ctxerr.Wrap(ctx, err, "insert additional")
 	}
 
 	return nil
@@ -809,7 +885,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 	incomingUsers := make(map[string]bool)
 	var insertArgs []interface{}
 	for _, u := range host.Users {
-		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName)
+		insertArgs = append(insertArgs, host.ID, u.Uid, u.Username, u.Type, u.GroupName, u.Shell)
 		incomingUsers[keyForUser(&u)] = true
 	}
 
@@ -820,13 +896,13 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 		}
 	}
 
-	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", len(host.Users)), ",")
+	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {
-		return errors.Wrap(err, "insert users")
+		return ctxerr.Wrap(ctx, err, "insert users")
 	}
 
 	if len(removedArgs) == 0 {
@@ -838,7 +914,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 		removedValues,
 	)
 	if _, err := tx.ExecContext(ctx, removedSql, append([]interface{}{host.ID}, removedArgs...)...); err != nil {
-		return errors.Wrap(err, "mark users as removed")
+		return ctxerr.Wrap(ctx, err, "mark users as removed")
 	}
 
 	return nil
@@ -848,15 +924,15 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	var totalCount, unseenCount int
 	err := sqlx.GetContext(ctx, d.reader, &totalCount, "SELECT count(*) FROM hosts")
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "getting total host count")
+		return 0, 0, ctxerr.Wrap(ctx, err, "getting total host count")
 	}
 
 	err = sqlx.GetContext(ctx, d.reader, &unseenCount,
-		"SELECT count(*) FROM hosts WHERE DATEDIFF(CURRENT_DATE, seen_time) >= ?",
+		"SELECT count(*) FROM host_seen_times WHERE DATEDIFF(CURRENT_DATE, seen_time) >= ?",
 		daysCount,
 	)
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "getting unseen host count")
+		return 0, 0, ctxerr.Wrap(ctx, err, "getting unseen host count")
 	}
 
 	return totalCount, unseenCount, nil
@@ -865,7 +941,17 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	_, err := d.deleteEntities(ctx, hostsTable, ids)
 	if err != nil {
-		return errors.Wrap(err, "deleting hosts")
+		return ctxerr.Wrap(ctx, err, "deleting hosts")
+	}
+
+	query, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete host_seen_times query")
+	}
+
+	_, err = d.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 	return nil
 }
@@ -873,28 +959,28 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT 
-		p.id, 
-		p.query_id, 
-		q.name AS query_name, 
+	query := `SELECT
+		p.id,
+		p.query_id,
+		q.name AS query_name,
 		CASE
-			WHEN pm.passes = 1 THEN 'pass' 
-			WHEN pm.passes = 0 THEN 'fail' 
-			ELSE '' 
+			WHEN pm.passes = 1 THEN 'pass'
+			WHEN pm.passes = 0 THEN 'fail'
+			ELSE ''
 		END AS response,
 		q.description,
 		coalesce(p.resolution, '') as resolution
-	FROM (
+	FROM policies p
+	LEFT JOIN (
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm 
-	JOIN policies p ON (p.id=pm.policy_id) 
+	) as pm ON (p.id=pm.policy_id)
 	JOIN queries q ON (p.query_id=q.id)`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
-		return nil, errors.Wrap(err, "get host policies")
+		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil
 }
@@ -902,14 +988,50 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	ac, err := appConfigDB(ctx, d.reader)
 	if err != nil {
-		return errors.Wrap(err, "getting app config")
+		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	if !ac.HostExpirySettings.HostExpiryEnabled {
 		return nil
 	}
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
+
+	// Usual clean up queries used to be like this:
+	// DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
+	// This means a full table scan for hosts, and for big deployments, that's not ideal
+	// so instead, we get the ids one by one and delete things one by one
+	// it might take longer, but it should lock only the row we need
+
+	rows, err := d.writer.QueryContext(
+		ctx,
+		`SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`,
+		ac.HostExpirySettings.HostExpiryWindow,
+	)
 	if err != nil {
-		return errors.Wrap(err, "deleting expired hosts")
+		return ctxerr.Wrap(ctx, err, "getting expired host ids")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id uint
+		err := rows.Scan(&id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning expired host id")
+		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired hosts")
+		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired host software")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
+	}
+
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
 	return nil
 }

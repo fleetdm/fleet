@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 // @ts-ignore
 import Fleet from "fleet";
 import { pull } from "lodash";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";

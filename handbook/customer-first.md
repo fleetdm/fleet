@@ -1,5 +1,4 @@
-
-## Customer succcess
+## Customer experience
 
 ### Next steps after a customer conversation
 After a customer conversation, it can sometimes feel like there are 1001 things to do, but it can be hard to know where to start.  Here are some tips:
@@ -14,5 +13,5 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="mikermcneil">
 

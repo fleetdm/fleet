@@ -120,66 +120,123 @@
         text-align: center;
       }
 
-      thead {
-        th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
-          width: 100px;
-        }
-        th:nth-child(1) {
-          width: 8px;
-        }
-        th:nth-child(2) {
-          width: 200px;
-        }
-        th:nth-child(4) {
-          width: 40px;
-        }
-        @include breakpoint(tablet) {
-          th:nth-child(3),
-          th:nth-child(5),
-          th:nth-child(7) {
-            display: none;
+      &:not(.is-observer) {
+        thead {
+          th:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(4)) {
+            width: 100px;
           }
-        }
-        @include breakpoint(ltdesktop) {
           th:nth-child(1) {
             width: 8px;
           }
-          th:nth-child(3),
-          th:nth-child(5) {
-            display: none;
+          th:nth-child(2) {
+            width: 200px;
+          }
+          th:nth-child(4) {
+            width: 40px;
+          }
+          @include breakpoint(tablet) {
+            th:nth-child(3),
+            th:nth-child(5),
+            th:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            th:nth-child(1) {
+              width: 8px;
+            }
+            th:nth-child(3),
+            th:nth-child(5) {
+              display: none;
+            }
+          }
+        }
+
+        tbody {
+          td:nth-child(1) {
+            text-align: center;
+          }
+          @include breakpoint(tablet) {
+            td:nth-child(3),
+            td:nth-child(5),
+            td:nth-child(7) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            td:nth-child(3),
+            td:nth-child(5) {
+              display: none;
+            }
           }
         }
       }
 
-      tbody {
-        td:nth-child(1) {
-          text-align: center;
-        }
-        @include breakpoint(tablet) {
-          td:nth-child(3),
-          td:nth-child(5),
-          td:nth-child(7) {
-            display: none;
+      &.is-observer {
+        thead {
+          th:not(:nth-child(1)):not(:nth-child(2)) {
+            width: 100px;
+          }
+          th:nth-child(1) {
+            width: 200px;
+          }
+          th:nth-child(2) {
+            width: 40px;
+          }
+          @include breakpoint(tablet) {
+            th:nth-child(3),
+            th:nth-child(5) {
+              display: none;
+            }
+          }
+          @include breakpoint(ltdesktop) {
+            th:nth-child(3) {
+              display: none;
+            }
           }
         }
-        @include breakpoint(ltdesktop) {
-          td:nth-child(3),
-          td:nth-child(5) {
-            display: none;
+
+        tbody {
+          @include breakpoint(tablet) {
+            td:nth-child(3),
+            td:nth-child(5),
+            td:nth-child(6) {
+              display: none;
+            }
           }
-        }
-        td {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          .button {
-            display: block;
-            text-align: start;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
+          @include breakpoint(ltdesktop) {
+            td:nth-child(3),
+            td:nth-child(5) {
+              display: none;
+            }
           }
         }
       }
+    }
+
+    tbody {
+      td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .button {
+          display: block;
+          text-align: start;
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+  }
+  .author_name__cell {
+    img,
+    div,
+    span {
+      display: flex;
+      align-items: center;
+    }
+    div {
+      padding-right: $pad-small;
     }
   }
 }

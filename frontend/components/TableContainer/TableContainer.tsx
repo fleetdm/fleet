@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import classnames from "classnames";
 import { Row, useAsyncDebounce } from "react-table";
 
@@ -61,7 +61,12 @@ interface ITableContainerProps {
   onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
-  clientSidePagination?: boolean;
+  searchQueryColumn?: string;
+  selectedDropdownFilter?: string;
+  isClientSidePagination?: boolean;
+  isClientSideFilter?: boolean;
+  isClientSideSearch?: boolean;
+  highlightOnHover?: boolean;
 }
 
 const baseClass = "table-container";
@@ -107,7 +112,12 @@ const TableContainer = ({
   onSelectSingleRow,
   filteredCount,
   searchToolTipText,
-  clientSidePagination,
+  isClientSidePagination,
+  isClientSideFilter,
+  isClientSideSearch,
+  highlightOnHover,
+  selectedDropdownFilter,
+  searchQueryColumn,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -116,6 +126,7 @@ const TableContainer = ({
   );
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
+  const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -145,6 +156,10 @@ const TableContainer = ({
     hasPageIndexChangedRef.current = true;
   };
 
+  const onResultsCountChange = (resultsCount: number) => {
+    setClientFilterCount(resultsCount);
+  };
+
   // We use useRef to keep track of the previous searchQuery value. This allows us
   // to later compare this the the current value and debounce a change handler.
   const prevSearchQueryRef = useRef(searchQuery);
@@ -170,20 +185,22 @@ const TableContainer = ({
 
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
-      if (!hasPageIndexChangedRef.current) {
+      if (!hasPageIndexChangedRef.current && !isClientSideSearch) {
         const updateQueryData = {
           ...queryData,
           pageIndex: 0,
         };
-        // searchQuery has changed; we want to debounce calling the handler so the
-        // user can finish typing.
-        if (searchQuery !== prevSearchQuery) {
-          debounceOnQueryChange(updateQueryData);
-        } else {
-          onQueryChange(updateQueryData);
+        if (!isClientSideFilter) {
+          // searchQuery has changed; we want to debounce calling the handler so the
+          // user can finish typing.
+          if (searchQuery !== prevSearchQuery) {
+            debounceOnQueryChange(updateQueryData);
+          } else {
+            onQueryChange(updateQueryData);
+          }
+          setPageIndex(0);
         }
-        setPageIndex(0);
-      } else {
+      } else if (!isClientSideFilter) {
         onQueryChange(queryData);
       }
 
@@ -199,7 +216,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || data.length;
+  const displayCount = filteredCount || clientFilterCount || data.length;
 
   return (
     <div className={wrapperClasses}>
@@ -321,9 +338,15 @@ const TableContainer = ({
               onPrimarySelectActionClick={onPrimarySelectActionClick}
               secondarySelectActions={secondarySelectActions}
               onSelectSingleRow={onSelectSingleRow}
-              clientSidePagination={clientSidePagination}
+              onResultsCountChange={onResultsCountChange}
+              isClientSidePagination={isClientSidePagination}
+              isClientSideFilter={isClientSideFilter}
+              highlightOnHover={highlightOnHover}
+              searchQuery={searchQuery}
+              searchQueryColumn={searchQueryColumn}
+              selectedDropdownFilter={selectedDropdownFilter}
             />
-            {!disablePagination && !clientSidePagination && (
+            {!disablePagination && !isClientSidePagination && (
               <Pagination
                 resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}

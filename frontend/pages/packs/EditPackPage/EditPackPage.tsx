@@ -36,6 +36,7 @@ import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 
 interface IEditPacksPageProps {
+  router: any;
   params: Params;
 }
 
@@ -71,6 +72,7 @@ interface IFormData {
 const baseClass = "edit-pack-page";
 
 const EditPacksPage = ({
+  router,
   params: { id: paramsPackId },
 }: IEditPacksPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
@@ -102,13 +104,13 @@ const EditPacksPage = ({
     }
   );
 
-  const { data: storedPack, refetch: refetchStoredPack } = useQuery<
-    IStoredPackResponse,
-    Error,
-    IPack
-  >(["stored pack"], () => packsAPI.load(packId), {
-    select: (data: IStoredPackResponse) => data.pack,
-  });
+  const { data: storedPack } = useQuery<IStoredPackResponse, Error, IPack>(
+    ["stored pack"],
+    () => packsAPI.load(packId),
+    {
+      select: (data: IStoredPackResponse) => data.pack,
+    }
+  );
 
   const {
     data: storedPackQueries,
@@ -226,8 +228,7 @@ const EditPacksPage = ({
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
-        refetchStoredPack();
-        window.scrollTo(0, 0);
+        router.push(PATHS.MANAGE_PACKS);
         dispatch(renderFlash("success", `Successfully updated this pack.`));
       })
       .catch((response) => {

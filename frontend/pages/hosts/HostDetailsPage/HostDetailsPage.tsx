@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
 
@@ -11,7 +13,8 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
-import { IHost } from "interfaces/host";
+import { IHost, IPackStats } from "interfaces/host";
+import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/host_policy";
 import { ILabel } from "interfaces/label";
@@ -23,11 +26,12 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/loaders/Spinner";
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
+import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 
 import {
@@ -150,6 +154,8 @@ const HostDetailsPage = ({
     showRefetchLoadingSpinner,
     setShowRefetchLoadingSpinner,
   ] = useState<boolean>(false);
+  const [packsState, setPacksState] = useState<IPackStats[]>();
+  const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
   const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
@@ -201,8 +207,26 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         setSoftwareState(returnedHost.software);
         setUsersState(returnedHost.users);
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+        if (returnedHost.pack_stats) {
+          const packStatsByType = returnedHost.pack_stats.reduce(
+            (
+              dictionary: { packs: IPackStats[]; schedule: IQueryStats[] },
+              pack: IPackStats
+            ) => {
+              if (pack.type === "pack") {
+                dictionary.packs.push(pack);
+              } else {
+                dictionary.schedule.push(...pack.query_stats);
+              }
+              return dictionary;
+            },
+            { packs: [], schedule: [] }
+          );
+          setPacksState(packStatsByType.packs);
+          setScheduleState(packStatsByType.schedule);
+        }
 
+        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -312,6 +336,7 @@ const HostDetailsPage = ({
       "memory",
       "cpu_type",
       "os_version",
+      "osquery_version",
       "enroll_secret_name",
       "detail_updated_at",
       "percent_disk_space_available",
@@ -537,13 +562,13 @@ const HostDetailsPage = ({
   };
 
   const renderPacks = () => {
-    const pack_stats = host?.pack_stats;
+    const packs = packsState;
     const wrapperClassName = `${baseClass}__pack-table`;
     const tableHeaders = generatePackTableHeaders();
 
     let packsAccordion;
-    if (pack_stats) {
-      packsAccordion = pack_stats.map((pack) => {
+    if (packs) {
+      packsAccordion = packs.map((pack) => {
         return (
           <AccordionItem key={pack.pack_id}>
             <AccordionItemHeading>
@@ -580,41 +605,88 @@ const HostDetailsPage = ({
       });
     }
 
-    return (
+    return !packs || !packs.length ? null : (
       <div className="section section--packs">
         <p className="section__header">Packs</p>
-        {!pack_stats ? (
-          <p className="results__data">
-            No packs with scheduled queries have this host as a target.
-          </p>
+        <Accordion allowMultipleExpanded allowZeroExpanded>
+          {packsAccordion}
+        </Accordion>
+      </div>
+    );
+  };
+
+  const renderSchedule = () => {
+    const schedule = scheduleState;
+    const wrapperClassName = `${baseClass}__pack-table`;
+    const tableHeaders = generatePackTableHeaders();
+
+    return (
+      <div className="section section--packs">
+        <p className="section__header">Schedule</p>
+        {!schedule || !schedule.length ? (
+          <div className="results__data">
+            <b>No queries are scheduled for this host.</b>
+            <p>
+              Expecting to see queries? Try selecting “Refetch” to ask this host
+              to report new vitals.
+            </p>
+          </div>
         ) : (
-          <Accordion allowMultipleExpanded allowZeroExpanded>
-            {packsAccordion}
-          </Accordion>
+          <div className={`${wrapperClassName}`}>
+            <TableContainer
+              columns={tableHeaders}
+              data={generatePackDataSet(schedule)}
+              isLoading={isLoadingHost}
+              onQueryChange={() => null}
+              resultsTitle={"queries"}
+              defaultSortHeader={"scheduled_query_name"}
+              defaultSortDirection={"asc"}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              emptyComponent={() => <></>}
+              disablePagination
+              disableCount
+            />
+          </div>
         )}
       </div>
     );
   };
 
   const renderPolicies = () => {
+    if (!host?.policies?.length) {
+      return (
+        <div className="section section--policies">
+          <p className="section__header">Policies</p>
+          <div className="results__data">
+            <b>No policies are checked for this host.</b>
+            <p>
+              Expecting to see policies? Try selecting “Refetch” to ask this
+              host to report new vitals.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
     const noResponses: IHostPolicy[] =
-      host?.policies.filter(
+      host?.policies?.filter(
         (policy) => !isValidPolicyResponse(policy.response)
       ) || [];
     const failingResponses: IHostPolicy[] =
-      host?.policies.filter((policy) => policy.response === "fail") || [];
+      host?.policies?.filter((policy) => policy.response === "fail") || [];
 
     return (
       <div className="section section--policies">
         <p className="section__header">Policies</p>
 
-        {host?.policies.length && (
+        {host?.policies?.length && (
           <>
-            {failingResponses.length > 0 && (
+            {failingResponses?.length > 0 && (
               <PolicyFailingCount policyList={host?.policies} />
             )}
-            {noResponses.length > 0 && (
+            {noResponses?.length > 0 && (
               <InfoBanner>
                 <p>
                   This host is not updating the response for some policies.
@@ -642,6 +714,7 @@ const HostDetailsPage = ({
               isAllPagesSelected={false}
               disablePagination
               disableCount
+              highlightOnHover
             />
           </>
         )}
@@ -678,7 +751,8 @@ const HostDetailsPage = ({
               searchable
               wideSearch
               filteredCount={usersState.length}
-              clientSidePagination
+              isClientSidePagination
+              isClientSideSearch
             />
           )}
         </div>
@@ -724,7 +798,9 @@ const HostDetailsPage = ({
                 searchable
                 wideSearch
                 filteredCount={softwareState.length}
-                clientSidePagination
+                isClientSidePagination
+                isClientSideSearch
+                highlightOnHover
               />
             )}
           </>
@@ -964,74 +1040,123 @@ const HostDetailsPage = ({
               <span className="info-flex__header">OS</span>
               <span className="info-flex__data">{titleData.os_version}</span>
             </div>
+            <div className="info-flex__item info-flex__item--title">
+              <span className="info-flex__header">Osquery</span>
+              <span className="info-flex__data">
+                {titleData.osquery_version}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-      <div className="section about">
-        <p className="section__header">About this host</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Created at</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Updated at</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostLastSeen, titleData.detail_updated_at)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Uptime</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Hardware model</span>
-            <span className="info-grid__data">{aboutData.hardware_model}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Serial number</span>
-            <span className="info-grid__data">{aboutData.hardware_serial}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">IPv4</span>
-            <span className="info-grid__data">{aboutData.primary_ip}</span>
-          </div>
-          {renderMunkiData()}
-          {renderMDMData()}
-        </div>
-      </div>
-      {host?.policies && renderPolicies()}
-      <div className="section osquery col-50">
-        <p className="section__header">Agent options</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Config TLS refresh</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.config_tls_refresh)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Logger TLS period</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.logger_tls_period)}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Distributed interval</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(secondsToHms, osqueryData.distributed_interval)}
-            </span>
-          </div>
-        </div>
-      </div>
-      {renderLabels()}
-      {renderPacks()}
-      {host?.software && renderSoftware()}
-      {renderUsers()}
+      <TabsWrapper>
+        <Tabs>
+          <TabList>
+            <Tab>Details</Tab>
+            <Tab>Schedule</Tab>
+            <Tab>Policies</Tab>
+          </TabList>
+          <TabPanel>
+            <div className="section about">
+              <p className="section__header">About this host</p>
+              <div className="info-grid">
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Created at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostEnrolled,
+                      aboutData.last_enrolled_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Updated at</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(
+                      humanHostLastSeen,
+                      titleData.detail_updated_at
+                    )}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Uptime</span>
+                  <span className="info-grid__data">
+                    {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Hardware model</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_model}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">Serial number</span>
+                  <span className="info-grid__data">
+                    {aboutData.hardware_serial}
+                  </span>
+                </div>
+                <div className="info-grid__block">
+                  <span className="info-grid__header">IPv4</span>
+                  <span className="info-grid__data">
+                    {aboutData.primary_ip}
+                  </span>
+                </div>
+                {renderMunkiData()}
+                {renderMDMData()}
+              </div>
+            </div>
+            <div className="col-2">
+              <div className="section osquery col-50">
+                <p className="section__header">Agent options</p>
+                <div className="info-grid">
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Config TLS refresh
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.config_tls_refresh
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">Logger TLS period</span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.logger_tls_period
+                      )}
+                    </span>
+                  </div>
+                  <div className="info-grid__block">
+                    <span className="info-grid__header">
+                      Distributed interval
+                    </span>
+                    <span className="info-grid__data">
+                      {wrapFleetHelper(
+                        secondsToHms,
+                        osqueryData.distributed_interval
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {renderLabels()}
+            </div>
+
+            {host?.software && renderSoftware()}
+            {renderUsers()}
+          </TabPanel>
+          <TabPanel>
+            {renderSchedule()}
+            {renderPacks()}
+          </TabPanel>
+          <TabPanel>{renderPolicies()}</TabPanel>
+        </Tabs>
+      </TabsWrapper>
+
       {showDeleteHostModal && renderDeleteHostModal()}
       {showQueryHostModal && (
         <SelectQueryModal

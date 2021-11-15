@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math/rand"
+	"net/url"
+
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -279,15 +281,13 @@ the way that the Fleet server works.
 
 			// Flush seen hosts every second
 			go func() {
-				ticker := time.NewTicker(1 * time.Second)
-				for {
+				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
 					if err := svc.FlushSeenHosts(context.Background()); err != nil {
 						level.Info(logger).Log(
 							"err", err,
 							"msg", "failed to update host seen times",
 						)
 					}
-					<-ticker.C
 				}
 			}()
 
@@ -675,6 +675,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	}
 
 	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+	level.Debug(logger).Log("interval", interval.String())
 	ticker := time.NewTicker(interval)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")

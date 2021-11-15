@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -297,21 +297,21 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM app_configs"
+	sql := "SELECT * FROM my_table"
 	opts := fleet.ListOptions{
 		OrderKey: "name",
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -320,25 +320,25 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		PerPage: 10,
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10"
+	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.Page = 2
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10 OFFSET 20"
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
 	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 1000000"
+	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -475,6 +475,60 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 				},
 			},
 			expected: "hosts.team_id IN (2,3)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				TeamID: ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(3),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(2),
+			},
+			expected: "hosts.team_id = 2",
 		},
 	}
 

@@ -5,7 +5,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import softwareAPI from "services/entities/software";
 import { ISoftware } from "interfaces/software";
 
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 
@@ -98,6 +98,7 @@ const Software = ({
               isAllPagesSelected={false}
               searchable
               disableActionButton
+              isClientSideSearch
             />
           </>
         </Modal>
