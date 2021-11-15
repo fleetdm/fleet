@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -23,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
@@ -581,35 +581,32 @@ func readPidFromFile(destDir string, what string) (int, error) {
 	pidFilePath := path.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
+		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
-	return strconv.Atoi(string(data))
+	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
-func isOrbitAlreadyRunning(destDir string) bool {
-	pid, err := readPidFromFile(destDir, "orbit.pid")
+// processNameMatches returns whether the process running with the given pid matches
+// the executable name (case insensitive).
+//
+// If there's no process running with the given pid then (false, nil) is returned.
+func processNameMatches(pid int, expectedPrefix string) (bool, error) {
+	process, err := ps.FindProcess(pid)
 	if err != nil {
-		// if any error occurs reading the pid file, we assume orbit is not running
-		return false
+		return false, errors.Wrapf(err, "find process: %d", pid)
 	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		// if there are any errors looking for process, we assume orbit is not running
-		return false
+	if process == nil {
+		return false, nil
 	}
-	// otherwise, we found the process, so it's running
-	err = process.Signal(syscall.Signal(0))
-	if err != nil {
-		// Unix will always return a process for the pid, so we try sending a signal to see if it's running
-		return false
-	}
-	return true
+	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
 func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
-	if isOrbitAlreadyRunning(destDir) {
-		fmt.Println("Orbit is already running.")
-		return nil
+	// Stop any current intance of orbit running, otherwise the configured enroll secret
+	// won't match the generated in the preview run.
+	if err := stopOrbit(destDir); err != nil {
+		fmt.Println("Failed to stop an existing instance of orbit running: ", err)
+		return err
 	}
 
 	fmt.Println("Trying to clear orbit and osquery directories...")
@@ -658,22 +655,19 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 }
 
 func stopOrbit(destDir string) error {
-	err := killFromPIDFile(destDir, "osquery.pid")
+	err := killFromPIDFile(destDir, "osquery.pid", "osqueryd")
 	if err != nil {
 		return err
 	}
-	err = killFromPIDFile(destDir, "orbit.pid")
+	err = killFromPIDFile(destDir, "orbit.pid", "orbit")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func killFromPIDFile(destDir string, w string) error {
-	pid, err := readPidFromFile(destDir, w)
-	if err != nil {
-		return errors.Wrap(err, "reading pid")
-	}
+func killFromPIDFile(destDir string, pidFileName string, expectedExecName string) error {
+	pid, err := readPidFromFile(destDir, pidFileName)
 	switch {
 	case err == nil:
 		// OK
@@ -682,8 +676,16 @@ func killFromPIDFile(destDir string, w string) error {
 	default:
 		return errors.Wrapf(err, "reading pid from: %s", destDir)
 	}
-	err = killPID(pid)
+	matches, err := processNameMatches(pid, expectedExecName)
 	if err != nil {
+		return errors.Wrapf(err, "inspecting process %d", pid)
+	}
+	if !matches {
+		// Nothing to do, another process may be running with this pid
+		// (e.g. could happen after a restart).
+		return nil
+	}
+	if err := killPID(pid); err != nil {
 		return errors.Wrapf(err, "killing %d", pid)
 	}
 	return nil
