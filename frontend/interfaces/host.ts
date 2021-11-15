@@ -76,6 +76,13 @@ export interface IMDMData {
   enrollment_url: string;
 }
 
+export interface IPackStats {
+  pack_id: number;
+  pack_name: string;
+  query_stats: IQueryStats[];
+  type: string;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
@@ -110,11 +117,7 @@ export interface IHost {
   config_tls_refresh: number;
   logger_tls_period: number;
   team_id: number;
-  pack_stats: {
-    pack_id: number;
-    pack_name: string;
-    query_stats: IQueryStats[];
-  }[];
+  pack_stats: IPackStats[];
   team_name: string;
   additional: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;

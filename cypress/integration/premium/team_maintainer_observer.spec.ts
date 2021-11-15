@@ -27,7 +27,7 @@ describe(
       // On the Hosts page, they should…
 
       // See hosts
-      // cy.findByText(/kinda empty in here/i).should("not.exist");
+      // cy.findByText(/generate installer/i).should("not.exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
       // See the “Teams” column in the Hosts table
@@ -140,16 +140,8 @@ describe(
       // cy.get("thead").contains(/team/i).should("exist");
       // ^^TODO hosts table is not rendering because we need new forEach script/command for admin to assign team after the host is added
 
-      // See and select the “Add new host” button
-      cy.findByRole("button", { name: /add new host/i }).click();
-
-      // See the “Select a team for this new host” in the Add new host modal. This modal appears after the user selects the “Add new host” button
-      cy.get(".add-host-modal__team-dropdown-wrapper .Select-control").click();
-      cy.get(".Select-menu-outer").within(() => {
-        cy.findByText(/no team/i).should("not.exist");
-        cy.findByText(/apples/i).should("not.exist");
-        cy.findByText(/oranges/i).should("exist");
-      });
+      // See and select the “Generate installer” button
+      cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
 
       // On the Host details page, they should…
@@ -194,11 +186,20 @@ describe(
       // On the Schedule page, they should
       // See Oranges (team they maintain) only, not able to reach packs, able to schedule a query
       cy.visit("/schedule/manage");
-      cy.findByText(/oranges/i).click();
-      cy.findByText(/apples/i).should("not.exist");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findAllByText(/oranges/i).should("exist");
       cy.findByText(/advanced/i).should("not.exist");
       cy.findByRole("button", { name: /schedule a query/i }).click();
-      // TODO: Write e2e test for team maintainer to schedule a query
+      cy.findByText(/select query/i).click();
+      cy.findByText(/detect presence/i).click();
+      cy.get(".schedule-editor-modal__btn-wrap")
+        .contains("button", /schedule/i)
+        .click();
+
+      cy.visit("/schedule/manage");
+
+      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.findByText(/detect presence/i).should("exist");
 
       cy.visit("/hosts/manage");
       cy.contains(".table-container .data-table__table th", "Team").should(

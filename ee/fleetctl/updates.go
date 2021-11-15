@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
@@ -720,7 +721,7 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			// TODO it would be helpful if we could upstream a new error type in
 			// go-tuf and use errors.Is instead of comparing the text of the
 			// error as we do currently.
-			if errors.Cause(err).Error() != decryptionFailedError {
+			if ctxerr.Cause(err).Error() != decryptionFailedError {
 				return err
 			} else if err != nil {
 				if p.getPassphraseFromEnv(role) != nil {

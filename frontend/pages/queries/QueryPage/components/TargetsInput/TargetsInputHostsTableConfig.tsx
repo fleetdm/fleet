@@ -9,6 +9,7 @@ import { IDataColumn } from "interfaces/datatable_config";
 import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import RemoveIcon from "../../../../../../assets/images/icon-action-remove-20x20@2x.png";
 
 interface ITargetHostsTableData {
   hostname: string;
@@ -21,39 +22,23 @@ interface ITargetHostsTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateTableHeaders = (
-  shouldShowSelectionHeader: boolean
-): IDataColumn[] => {
-  const selectionHeader = shouldShowSelectionHeader
+export const generateTableHeaders = (showDelete: boolean): IDataColumn[] => {
+  const deleteHeader = showDelete
     ? [
         {
-          id: "selection",
-          Header: (
-            cellProps: UseRowSelectInstanceProps<ITargetHostsTableData>
-          ): JSX.Element => {
-            const props = cellProps.getToggleAllRowsSelectedProps();
-            const checkboxProps = {
-              value: props.checked,
-              indeterminate: props.indeterminate,
-              onChange: () => cellProps.toggleAllRowsSelected(),
-            };
-            return <Checkbox {...checkboxProps} />;
-          },
-          Cell: (cellProps: Cell): JSX.Element => {
-            const props = cellProps.row.getToggleRowSelectedProps();
-            const checkboxProps = {
-              value: props.checked,
-              onChange: () => cellProps.row.toggleRowSelected(),
-            };
-            return <Checkbox {...checkboxProps} />;
-          },
+          id: "delete",
+          Header: "",
+          Cell: (cellProps: Cell): JSX.Element => (
+            <div>
+              <img alt="Remove" src={RemoveIcon} />
+            </div>
+          ),
           disableHidden: true,
         },
       ]
     : [];
 
   return [
-    ...selectionHeader,
     {
       title: "Hostname",
       Header: "Hostname",
@@ -92,6 +77,7 @@ export const generateTableHeaders = (
       accessor: "osquery_version",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
+    ...deleteHeader,
   ];
 };
 

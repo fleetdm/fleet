@@ -27,6 +27,13 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 }
 
+func (u *User) IsAdminForcedPasswordReset() bool {
+	if u.SSOEnabled {
+		return false
+	}
+	return u.AdminForcedPasswordReset
+}
+
 func (u *User) AuthzType() string {
 	return "user"
 }

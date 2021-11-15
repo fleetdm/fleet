@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -111,7 +112,7 @@ func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
 		// An error is returned if we are already up-to-date. We can ignore that
 		// error.
-		if !client.IsLatestSnapshot(errors.Cause(err)) {
+		if !client.IsLatestSnapshot(ctxerr.Cause(err)) {
 			return errors.Wrap(err, "update metadata")
 		}
 	}

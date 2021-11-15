@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -318,7 +319,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			case fleet.DistributedQueryResult:
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
-				if errors.Cause(err) == sockjs.ErrSessionNotOpen {
+				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
 					// return and stop sending the query if the session was closed
 					// by the client
 					return

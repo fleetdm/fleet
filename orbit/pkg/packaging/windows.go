@@ -19,20 +19,20 @@ import (
 )
 
 // BuildMSI builds a Windows .msi.
-func BuildMSI(opt Options) error {
+func BuildMSI(opt Options) (string, error) {
 	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(tmpDir)
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create root dir")
+		return "", errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filesystemRoot
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create orbit dir")
+		return "", errors.Wrap(err, "create orbit dir")
 	}
 
 	// Initialize autoupdate metadata
@@ -48,23 +48,23 @@ func BuildMSI(opt Options) error {
 	}
 
 	if err := InitializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+		return "", errors.Wrap(err, "initialize updates")
 	}
 
 	// Write files
 
 	if err := writeSecret(opt, orbitRoot); err != nil {
-		return errors.Wrap(err, "write enroll secret")
+		return "", errors.Wrap(err, "write enroll secret")
 	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return errors.Wrap(err, "write fleet certificate")
+			return "", errors.Wrap(err, "write fleet certificate")
 		}
 	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write wix file")
+		return "", errors.Wrap(err, "write wix file")
 	}
 
 	if runtime.GOOS == "windows" {
@@ -73,33 +73,33 @@ func BuildMSI(opt Options) error {
 		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
 		if err != nil {
 			fmt.Println(string(out))
-			return errors.Wrap(err, "icacls")
+			return "", errors.Wrap(err, "icacls")
 		}
 	}
 
 	if err := wix.Heat(tmpDir); err != nil {
-		return errors.Wrap(err, "package root files")
+		return "", errors.Wrap(err, "package root files")
 	}
 
 	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
-		return errors.Wrap(err, "transform heat")
+		return "", errors.Wrap(err, "transform heat")
 	}
 
 	if err := wix.Candle(tmpDir); err != nil {
-		return errors.Wrap(err, "build package")
+		return "", errors.Wrap(err, "build package")
 	}
 
 	if err := wix.Light(tmpDir); err != nil {
-		return errors.Wrap(err, "build package")
+		return "", errors.Wrap(err, "build package")
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
 	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
-		return errors.Wrap(err, "rename msi")
+		return "", errors.Wrap(err, "rename msi")
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
-	return nil
+	return filename, nil
 }
 
 func writeWixFile(opt Options, rootPath string) error {

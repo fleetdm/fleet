@@ -32,7 +32,8 @@ type launcherWrapper struct {
 func (svc *launcherWrapper) RequestEnrollment(ctx context.Context, enrollSecret, hostIdentifier string) (string, bool, error) {
 	nodeKey, err := svc.tls.EnrollAgent(ctx, enrollSecret, hostIdentifier, map[string](map[string]string){})
 	if err != nil {
-		if authErr, ok := err.(nodeInvalidErr); ok {
+		var authErr nodeInvalidErr
+		if errors.As(err, &authErr) {
 			return "", authErr.NodeInvalid(), err
 		}
 		return "", false, err
@@ -148,7 +149,8 @@ func (svc *launcherWrapper) CheckHealth(ctx context.Context) (int32, error) {
 func (svc *launcherWrapper) authenticateHost(ctx context.Context, nodeKey string) (context.Context, bool, error) {
 	node, _, err := svc.tls.AuthenticateHost(ctx, nodeKey)
 	if err != nil {
-		if authErr, ok := err.(nodeInvalidErr); ok {
+		var authErr nodeInvalidErr
+		if errors.As(err, &authErr) {
 			return ctx, authErr.NodeInvalid(), err
 		}
 		return ctx, false, err

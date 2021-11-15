@@ -206,3 +206,36 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 0)
 }
+
+func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
+	t := s.T()
+
+	// Create new team and set initial secret
+	teamName := t.Name() + "secretTeam"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "secretTeam description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "initialSecret"}},
+	}
+
+	s.Do("POST", "/api/v1/fleet/teams", team, http.StatusOK)
+
+	team, err := s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	assert.Equal(t, team.Secrets[0].Secret, "initialSecret")
+
+	// Test replace existing secrets
+	req := json.RawMessage(`{"secrets": [{"secret": "testSecret1"},{"secret": "testSecret2"}]}`)
+	var resp teamEnrollSecretsResponse
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), req, http.StatusOK, &resp)
+	require.Len(t, resp.Secrets, 2)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	assert.Equal(t, "testSecret1", team.Secrets[0].Secret)
+	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
+
+	// Test bad request
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusUnprocessableEntity, &resp)
+}

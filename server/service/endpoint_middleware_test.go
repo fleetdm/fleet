@@ -6,11 +6,13 @@ import (
 	"time"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TODO update this test for new patterns
@@ -248,5 +250,54 @@ func TestAuthenticatedHost(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestAuthenticatedUserMW(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	authenticatedUserTests := []struct {
+		user      *fleet.User
+		shouldErr bool
+	}{
+		{
+			user: &fleet.User{
+				ID:                       32,
+				Name:                     "name",
+				Email:                    "em@il.com",
+				AdminForcedPasswordReset: true,
+				SSOEnabled:               true,
+			},
+			shouldErr: false,
+		},
+		{
+			user: &fleet.User{
+				ID:                       32,
+				Name:                     "name",
+				Email:                    "em@il.com",
+				AdminForcedPasswordReset: true,
+				SSOEnabled:               false,
+			},
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range authenticatedUserTests {
+		t.Run("", func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			nextCalled := false
+			endpoint := authenticatedUser(svc, func(ctx context.Context, request interface{}) (response interface{}, err error) {
+				nextCalled = true
+				return nil, nil
+			})
+			_, err := endpoint(ctx, nil)
+			if tt.shouldErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.True(t, nextCalled)
+			}
+		})
+	}
 }

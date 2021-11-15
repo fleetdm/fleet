@@ -104,3 +104,8 @@ variable "cpu_tracking_target_value" {
   description = "target cpu utilization for target tracking policy (default 60%)"
   default     = 60
 }
+
+variable "fleet_license" {
+  description = "Fleet Premium license key"
+  default = ""
+}

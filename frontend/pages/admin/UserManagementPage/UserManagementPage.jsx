@@ -5,6 +5,7 @@ import { isEqual } from "lodash";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
+import Fleet from "fleet";
 import inviteInterface from "interfaces/invite";
 import configInterface from "interfaces/config";
 import userInterface from "interfaces/user";
@@ -12,9 +13,9 @@ import teamInterface from "interfaces/team";
 import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
 import entityGetter from "redux/utilities/entityGetter";
-import inviteActions from "redux/nodes/entities/invites/actions";
 import { renderFlash } from "redux/nodes/notifications/actions";
 import { updateUser } from "redux/nodes/auth/actions";
+import inviteActions from "redux/nodes/entities/invites/actions";
 import userActions from "redux/nodes/entities/users/actions";
 import teamActions from "redux/nodes/entities/teams/actions";
 
@@ -97,6 +98,16 @@ export class UserManagementPage extends Component {
     }
   }
 
+  // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
+  // `config` will not have been loaded at that point. Accordingly, we need this lifecycle hook so
+  // that `teams` information will be available to the edit user form.
+  componentDidUpdate(prevProps) {
+    const { dispatch, isPremiumTier } = this.props;
+    if (prevProps.isPremiumTier !== isPremiumTier) {
+      isPremiumTier && dispatch(teamActions.loadAll({}));
+    }
+  }
+
   onEditUser = (formData) => {
     const { currentUser, config, dispatch } = this.props;
     const { userEditing } = this.state;
@@ -105,6 +116,30 @@ export class UserManagementPage extends Component {
     const userData = getUser(userEditing.type, userEditing.id);
 
     const updatedAttrs = generateUpdateData(userData, formData);
+    if (userEditing.type === "invite") {
+      // Note: The edit invite action in this if block is occuring outside of Redux (unlike the
+      // other cases below this block). Therefore, we must dispatch the loadAll action to ensure the
+      // Redux store is updated.
+      return Fleet.invites
+        .update(userData, formData)
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully edited ${userEditing?.name}`)
+          );
+          toggleEditUserModal();
+        })
+        .then(() => dispatch(inviteActions.loadAll()))
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not edit ${userEditing?.name}. Please try again.`
+            )
+          );
+          toggleEditUserModal();
+        });
+    }
+
     if (currentUser.id === userEditing.id) {
       return dispatch(updateUser(userData, updatedAttrs))
         .then(() => {

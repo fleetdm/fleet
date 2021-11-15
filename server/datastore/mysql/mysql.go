@@ -4,6 +4,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +27,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -56,6 +57,8 @@ type Datastore struct {
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
+
+	writeCh chan itemToWrite
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -80,7 +83,7 @@ var (
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
 func retryableError(err error) bool {
-	base := errors.Cause(err)
+	base := ctxerr.Cause(err)
 	if b, ok := base.(*mysql.MySQLError); ok {
 		switch b.Number {
 		// Consider lock related errors to be retryable
@@ -97,7 +100,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
 		tx, err := d.writer.BeginTxx(ctx, nil)
 		if err != nil {
-			return errors.Wrap(err, "create transaction")
+			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
 
 		defer func() {
@@ -113,7 +116,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
 				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error()))
+				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
 			}
 
 			if retryableError(err) {
@@ -125,13 +128,13 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		}
 
 		if err := tx.Commit(); err != nil {
-			err = errors.Wrap(err, "commit transaction")
+			err = ctxerr.Wrap(ctx, err, "commit transaction")
 
 			if retryableError(err) {
 				return err
 			}
 
-			return backoff.Permanent(errors.Wrap(err, "commit transaction"))
+			return backoff.Permanent(err)
 		}
 
 		return nil
@@ -146,7 +149,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	tx, err := d.writer.BeginTxx(ctx, nil)
 	if err != nil {
-		return errors.Wrap(err, "create transaction")
+		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
 
 	defer func() {
@@ -161,13 +164,13 @@ func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	if err := fn(tx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return errors.Wrapf(err, "got err '%s' rolling back after err", rbErr.Error())
+			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
 		}
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "commit transaction")
+		return ctxerr.Wrap(ctx, err, "commit transaction")
 	}
 
 	return nil
@@ -191,7 +194,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 	if options.replicaConfig != nil {
 		if err := checkConfig(options.replicaConfig); err != nil {
-			return nil, errors.Wrap(err, "replica")
+			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
@@ -214,9 +217,37 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		clock:             c,
 		config:            config,
 		readReplicaConfig: options.replicaConfig,
+		writeCh:           make(chan itemToWrite),
 	}
 
+	go ds.writeChanLoop()
+
 	return ds, nil
+}
+
+type itemToWrite struct {
+	ctx   context.Context
+	errCh chan error
+	item  interface{}
+}
+
+type hostXUpdatedAt struct {
+	hostID    uint
+	updatedAt time.Time
+	what      string
+}
+
+func (d *Datastore) writeChanLoop() {
+	for item := range d.writeCh {
+		switch actualItem := item.item.(type) {
+		case *fleet.Host:
+			item.errCh <- d.SaveHost(item.ctx, actualItem)
+		case hostXUpdatedAt:
+			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+			_, err := d.writer.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
+		}
+	}
 }
 
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
@@ -269,7 +300,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 		conf.TLSConfig = "custom"
 		err := registerTLS(*conf)
 		if err != nil {
-			return errors.Wrap(err, "register TLS config for mysql")
+			return fmt.Errorf("register TLS config for mysql: %w", err)
 		}
 	}
 	return nil
@@ -290,22 +321,22 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus,
 
 	lastTablesMigration, err := tables.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.Wrap(err, "missing tables migrations")
+		return 0, fmt.Errorf("missing tables migrations: %w", err)
 	}
 
 	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
-		return 0, errors.Wrap(err, "cannot get table migration status")
+		return 0, fmt.Errorf("cannot get table migration status: %w", err)
 	}
 
 	lastDataMigration, err := data.MigrationClient.Migrations.Last()
 	if err != nil {
-		return 0, errors.Wrap(err, "missing data migrations")
+		return 0, fmt.Errorf("missing data migrations: %w", err)
 	}
 
 	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
 	if err != nil {
-		return 0, errors.Wrap(err, "cannot get data migration status")
+		return 0, fmt.Errorf("cannot get data migration status: %w", err)
 	}
 
 	switch {
@@ -428,15 +459,19 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 		return "FALSE"
 	}
 
+	defaultAllowClause := "TRUE"
+	if filter.TeamID != nil {
+		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", hostKey, *filter.TeamID)
+	}
+
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-
 		case fleet.RoleAdmin, fleet.RoleMaintainer:
-			return "TRUE"
+			return defaultAllowClause
 
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
-				return "TRUE"
+				return defaultAllowClause
 			}
 			return "FALSE"
 
@@ -447,15 +482,27 @@ func (d *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey str
 
 	// Collect matching teams
 	var idStrs []string
+	var teamIDSeen bool
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin || team.Role == fleet.RoleMaintainer ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			if filter.TeamID != nil && *filter.TeamID == team.ID {
+				teamIDSeen = true
+			}
 		}
 	}
 
 	if len(idStrs) == 0 {
 		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	if filter.TeamID != nil {
+		if teamIDSeen {
+			// all good, this user has the right to see the requested team
+			return defaultAllowClause
+		}
 		return "FALSE"
 	}
 
@@ -538,7 +585,7 @@ func registerTLS(conf config.MysqlConfig) error {
 		return err
 	}
 	if err := mysql.RegisterTLSConfig(conf.TLSConfig, cfg); err != nil {
-		return errors.Wrap(err, "register mysql tls config")
+		return fmt.Errorf("register mysql tls config: %w", err)
 	}
 	return nil
 }
@@ -567,6 +614,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 // isForeignKeyError checks if the provided error is a MySQL child foreign key
 // error (Error #1452)
 func isChildForeignKeyError(err error) bool {
+	err = ctxerr.Cause(err)
 	mysqlErr, ok := err.(*mysql.MySQLError)
 	if !ok {
 		return false

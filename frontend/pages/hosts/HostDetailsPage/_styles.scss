@@ -244,6 +244,35 @@
     transform: scale(0.5);
   }
 
+  .component__tabs-wrapper {
+    background-color: $ui-off-white;
+    width: 100%;
+
+    .react-tabs__tab {
+      padding: 6px 0px 16px 0px;
+      margin-right: $pad-xxlarge;
+    }
+    .react-tabs__tab--selected {
+      background-color: $ui-off-white;
+    }
+
+    .section {
+      margin-top: $pad-medium;
+    }
+  }
+
+  .col-2 {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .section.osquery {
+    margin-right: $pad-small;
+  }
+  .section.labels {
+    margin-left: $pad-small;
+  }
+
   .about,
   .osquery {
     .info {
@@ -434,12 +463,14 @@
     th:first-child {
       width: 70%;
     }
+
+    .response__header {
+      border-right: none;
+    }
   }
 
   .section--software {
     th {
-      width: 200px;
-
       &:first-child {
         border-right: none;
         width: 16px;
@@ -454,11 +485,28 @@
       &:nth-last-child(2) {
         border-right: 0 !important;
       }
+
+      &.source__header {
+        width: 20%;
+      }
+
+      &.version__header {
+        width: 10%;
+      }
     }
     tr {
       td {
+        position: relative;
         &:first-child {
           padding-right: 0px;
+        }
+        .name-container {
+          .tooltip__tooltip-icon {
+            @include breakpoint(ltdesktop) {
+              position: absolute;
+              right: 0.5rem;
+            }
+          }
         }
       }
 
@@ -501,8 +549,26 @@
   }
 
   .section--users {
+    margin-top: $pad-medium;
+
     .host-details__wrapper {
       overflow: auto;
+    }
+
+    .username__header {
+      width: 80%;
+    }
+
+    .shell__header {
+      width: 20%;
+
+      span {
+        margin-right: $pad-small;
+      }
+
+      .host-users-table__shell-tooltip {
+        font-weight: 400;
+      }
     }
   }
 
@@ -561,7 +627,7 @@
     width: 32px;
     height: 32px;
     border-radius: 4px;
-    transform: scale(0.5) translate(-50%, -60%);
+    transform: scale(0.5) translate(40%, -40%);
   }
 
   .accordion__button[aria-expanded="true"]::after,
@@ -594,6 +660,8 @@
   }
 
   &__pack-table {
+    padding-bottom: 12px;
+
     .table-container__header {
       display: none;
     }
