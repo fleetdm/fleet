@@ -27,11 +27,35 @@ With the following infrastructure, 1,000 hosts successfully communicate with Fle
 <tr><td>MySQL</td><td>5.7.mysql_aurora.2.10.0</td><td>db.t4g.medium</td></tr>
 </table>
 
-<!-- |&#8203;| Version                 |Instance type|
-|-|-|-|
-| Redis            | 5.0.6                   |cache.m5.large|
-| MySQL            | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
- -->
+
+
+|Fleet instances| CPU Units       |RAM             |
+|-------|-------------------------|----------------|
+| 1 Fargate task | 256 CPU Units  |512 MB of memory|
+
+|&#8203;| Version                 |Instance type |
+|-------|-------------------------|--------------|
+| Redis | 5.0.6                   |cache.m5.large|
+| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
+
+
+
+|Fleet instance | CPU Units      |RAM             |
+|----------------|----------------|----------------|
+| 1 Fargate task | 256 CPU Units  |512 MB of memory|
+
+
+|Fleet instances |
+|-|
+|1 Fargate task |
+| 256 CPU Units |
+|512 MB of memory|
+
+|&#8203;| Version                 |Instance type |
+|-------|-------------------------|--------------|
+| Redis | 5.0.6                   |cache.m5.large|
+| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
+
 
 ### 150,000 hosts
 
