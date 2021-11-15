@@ -19,10 +19,10 @@
           </div>
           <div class="d-flex select-mobile">
             <div class="select-mobile-border">
-              <select class="select-purpose mobile font-weight-bold" v-model="selectedPurpose">
-                <option value="all queries" selected>All queries</option>
-                <option value="informational">Informational queries</option>
-                <option value="policies">Policies</option>
+              <select class="select-purpose mobile font-weight-bold" v-model="selectedKind">
+                <option value="all queries" selected >All queries</option>
+                <option value="query">Informational queries</option>
+                <option value="policy">Policies</option>
               </select>
             </div>
           </div>
@@ -46,15 +46,15 @@
                 <p class="d-inline-flex mb-0 pr-1">Show</p>
                 <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{selectedPurpose}}
+                  {{ selectedKind === 'query' ? 'informational' : selectedKind === 'policy' ? 'policies' : 'all queries'}}
                 </button>
                 <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPurpose">
-                  <button class="dropdown-item" type="button" @click="clickSelectPurpose('all queries')">all
-                    queries</button>
                   <button class="dropdown-item" type="button"
-                    @click="clickSelectPurpose('informational')">informational</button>
+                    @click="clickSelectKind('all queries')">all queries</button>
+                    <button class="dropdown-item" type="button"
+                    @click="clickSelectKind('query')">informational</button>
                   <button class="dropdown-item" type="button"
-                    @click="clickSelectPurpose('policies')">policies</button>
+                    @click="clickSelectKind('policy')">policies</button>
                 </div>
               </div>
             </div>
