@@ -70,11 +70,11 @@ allow {
   team_role(subject, object.id) == [admin,maintainer][_]
   action == read
 }
-# or global admins
+# or global admins or global maintainers
 allow {
   object.type == "team"
   object.id != 0
-  subject.global_role == admin
+  subject.global_role == [admin, maintainer][_]
   action == read
 }
 
@@ -169,25 +169,18 @@ allow {
 # Enroll Secrets
 ##
 
-# Admins can read/write all
+# Global admins and maintainers can read/write all
 allow {
 	object.type == "enroll_secret"
-	subject.global_role == admin
+	subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Global maintainers can read all
-allow {
-	object.type == "enroll_secret"
-	subject.global_role == maintainer
-	action == read
-}
-
-# Team admins and maintainers can read for appropriate teams
+# Team admins and maintainers can read/write for appropriate teams
 allow {
 	object.type == "enroll_secret"
 	team_role(subject, object.team_id) == [admin, maintainer][_]
-	action == read
+	action == [read, write][_]
 }
 
 # (Observers are not granted read for enroll secrets)

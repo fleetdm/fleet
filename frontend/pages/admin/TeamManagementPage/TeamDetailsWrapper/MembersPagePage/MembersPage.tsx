@@ -173,6 +173,11 @@ const MembersPage = ({
         dispatch(
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
         );
+        // If user removes self from team,
+        // redirect to home
+        if (currentUser && currentUser.id === removedUsers.users[0].id) {
+          window.location.href = "/";
+        }
       })
       .catch(() =>
         dispatch(
@@ -319,7 +324,18 @@ const MembersPage = ({
       dispatch(userActions.update(userEditing, updatedAttrs))
         .then(() => {
           dispatch(renderFlash("success", `Successfully edited ${userName}.`));
-          fetchUsers(tableQueryData);
+          if (currentUser && userEditing && currentUser.id === userEditing.id) {
+            // If user edits self and removes "admin" role,
+            // redirect to home
+            const currentTeam = formData.teams.filter(
+              (thisTeam) => thisTeam.id === teamId
+            );
+            if (currentTeam && currentTeam[0].role !== "admin") {
+              window.location.href = "/";
+            }
+          } else {
+            fetchUsers(tableQueryData);
+          }
         })
         .catch(() => {
           dispatch(

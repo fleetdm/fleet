@@ -117,7 +117,7 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         const { name, bundle_identifier } = cellProps.row.original;
         if (bundle_identifier) {
           return (
-            <span>
+            <span className="name-container">
               {name}
               <span
                 className={`software-name tooltip__tooltip-icon`}

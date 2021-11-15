@@ -306,6 +306,8 @@ type Service interface {
 	// VerifyInvite verifies that an invite exists and that it matches the invite token.
 	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
 
+	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetService
 
@@ -371,6 +373,8 @@ type Service interface {
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
+	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 

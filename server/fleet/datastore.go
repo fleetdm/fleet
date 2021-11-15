@@ -294,6 +294,8 @@ type Datastore interface {
 	// DeleteInvite deletes an invitation.
 	DeleteInvite(ctx context.Context, id uint) error
 
+	UpdateInvite(ctx context.Context, id uint, i *Invite) (*Invite, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
 

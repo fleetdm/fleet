@@ -43,9 +43,12 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 	var createTests = []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
+		resultingPasswordReset      bool
 	}{
-		{"foobar", "mike@fleet.co", true, false, true},
-		{"foobar", "jason@fleet.co", true, false, false},
+		{"foobar", "mike@fleet.co", true, false, true, false},
+		{"foobar", "jason@fleet.co", true, false, false, false},
+		{"foobar", "jason2@fleet.co", true, true, true, false},
+		{"foobar", "jason3@fleet.co", true, true, false, true},
 	}
 
 	for _, tt := range createTests {
@@ -66,6 +69,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
 	}
 }
 

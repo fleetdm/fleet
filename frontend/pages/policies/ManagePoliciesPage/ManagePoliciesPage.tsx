@@ -332,6 +332,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const showInheritedPoliciesButton =
     !!selectedTeamId && !!globalPolicies?.length && !isGlobalPoliciesError;
 
+  const selectedTeamData = userTeams?.find(
+    (team) => selectedTeamId === team.id
+  );
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -404,11 +408,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
-                selectedTeamId={selectedTeamId}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
                 )}
+                selectedTeamData={selectedTeamData}
               />
             ))}
           {!selectedTeamId &&
@@ -420,11 +424,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 toggleAddPolicyModal={toggleAddPolicyModal}
-                selectedTeamId={selectedTeamId}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
                 )}
+                selectedTeamData={selectedTeamData}
               />
             ))}
         </div>
@@ -461,12 +465,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               onRemovePoliciesClick={noop}
               toggleAddPolicyModal={noop}
               resultsTitle="policies"
-              selectedTeamId={null}
               canAddOrRemovePolicy={canAddOrRemovePolicy(
                 currentUser,
                 selectedTeamId
               )}
               tableType="inheritedPolicies"
+              selectedTeamData={selectedTeamData}
             />
           </div>
         )}

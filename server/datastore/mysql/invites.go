@@ -182,3 +182,28 @@ func (d *Datastore) loadTeamsForInvites(ctx context.Context, invites []*fleet.In
 
 	return nil
 }
+
+func (d *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error) {
+	return i, d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx,
+			`UPDATE invites SET invited_by = ?, email = ?, name = ?, position = ?, sso_enabled = ?, global_role = ? WHERE id = ?`,
+			i.InvitedBy, i.Email, i.Name, i.Position, i.SSOEnabled, i.GlobalRole, id,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating invite")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM invite_teams WHERE invite_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting invite teams")
+		}
+
+		for _, team := range i.Teams {
+			_, err = tx.ExecContext(ctx, `INSERT INTO invite_teams(invite_id, team_id, role) VALUES(?, ?, ?)`, id, team.ID, team.Role)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating invite teams")
+			}
+		}
+		return nil
+	})
+}

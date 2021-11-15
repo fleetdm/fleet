@@ -7,12 +7,28 @@
   box-shadow: 0 2px 0 0 $ui-fleet-blue-15;
   box-sizing: border-box;
 
-  &__section-title {
+  &__section-title-cta {
     display: flex;
     justify-content: space-between;
 
     h2 {
       font-weight: $bold;
+    }
+  }
+
+  &__section-title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    span {
+      background-color: $core-vibrant-blue;
+      color: $core-white;
+      font-size: $xx-small;
+      font-weight: $bold;
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-left: $pad-small;
     }
   }
 

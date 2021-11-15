@@ -25,6 +25,7 @@ func TestInvites(t *testing.T) {
 		{"ByToken", testInvitesByToken},
 		{"ByEmail", testInvitesByEmail},
 		{"Invite", testInvitesInvite},
+		{"Update", testInvitesUpdate},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -211,4 +212,81 @@ func testInvitesInvite(t *testing.T, ds *Datastore) {
 	gotI, err := ds.Invite(context.Background(), admin.ID)
 	require.NoError(t, err)
 	assert.Equal(t, admin.ID, gotI.ID)
+}
+
+func testInvitesUpdate(t *testing.T, ds *Datastore) {
+	for i := 0; i < 3; i++ {
+		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
+		require.NoError(t, err)
+	}
+
+	invite := &fleet.Invite{
+		Email: "user@foo.com",
+		Name:  "user",
+		Token: "some_user",
+		Teams: []fleet.UserTeam{
+			{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+			{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 3}},
+		},
+	}
+
+	sentinelInvite := &fleet.Invite{
+		Email: "user@sentinel.com",
+		Name:  "sentinel",
+		Token: "some_sentinel",
+		Teams: []fleet.UserTeam{
+			{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 1}},
+		},
+	}
+
+	invite, err := ds.NewInvite(context.Background(), invite)
+	require.NoError(t, err)
+	sentinelInvite, err = ds.NewInvite(context.Background(), sentinelInvite)
+	require.NoError(t, err)
+
+	invite.Name = "someothername"
+
+	invite, err = ds.UpdateInvite(context.Background(), invite.ID, invite)
+	require.NoError(t, err)
+
+	verify, err := ds.InviteByEmail(context.Background(), invite.Email)
+	require.NoError(t, err)
+	assert.Equal(t, invite.ID, verify.ID)
+	assert.Equal(t, verify.Name, "someothername")
+
+	invite.Teams = []fleet.UserTeam{
+		{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+		{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+	}
+
+	invite, err = ds.UpdateInvite(context.Background(), invite.ID, invite)
+	require.NoError(t, err)
+
+	verify, err = ds.InviteByEmail(context.Background(), invite.Email)
+	require.NoError(t, err)
+	assert.Equal(t, invite.ID, verify.ID)
+	require.Len(t, verify.Teams, 2)
+	assert.Equal(t, uint(1), invite.Teams[0].ID)
+	assert.Equal(t, uint(2), invite.Teams[1].ID)
+
+	invite.GlobalRole = null.StringFrom(fleet.RoleAdmin)
+	invite.Teams = nil
+
+	invite, err = ds.UpdateInvite(context.Background(), invite.ID, invite)
+	require.NoError(t, err)
+
+	verify, err = ds.InviteByEmail(context.Background(), invite.Email)
+	require.NoError(t, err)
+	assert.Equal(t, invite.ID, verify.ID)
+	assert.Equal(t, null.StringFrom(fleet.RoleAdmin), verify.GlobalRole)
+	assert.Len(t, verify.Teams, 0)
+
+	// Make sure it only updates the specified invite
+	verify, err = ds.InviteByEmail(context.Background(), sentinelInvite.Email)
+	require.NoError(t, err)
+	assert.Equal(t, verify.ID, sentinelInvite.ID)
+	assert.Equal(t, verify.Name, sentinelInvite.Name)
+	require.Len(t, verify.Teams, 1)
+	assert.Equal(t, fleet.RoleAdmin, verify.Teams[0].Role)
+
 }

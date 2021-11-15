@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/guregu/null.v3"
 )
 
 type integrationTestSuite struct {
@@ -131,6 +132,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	assert.Equal(t, "http://iii.com", *activities.Activities[0].ActorGravatar)
 	assert.Equal(t, "created_saved_query", activities.Activities[0].Type)
 }
+
 func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	t := s.T()
 
@@ -337,6 +339,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
+
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count", "order_direction", "desc")
+	assert.Len(t, lsResp.Software, 1)
+	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -629,6 +638,50 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+}
+
+func (s *integrationTestSuite) TestInvites() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	createInviteReq := createInviteRequest{
+		payload: fleet.InvitePayload{
+			Email:      ptr.String("some email"),
+			Name:       ptr.String("some name"),
+			Position:   nil,
+			SSOEnabled: nil,
+			GlobalRole: null.StringFrom(fleet.RoleAdmin),
+			Teams:      nil,
+		},
+	}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/invites", createInviteReq.payload, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+	require.NotZero(t, createInviteResp.Invite.ID)
+
+	updateInviteReq := updateInviteRequest{
+		InvitePayload: fleet.InvitePayload{
+			Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: team.ID},
+					Role: fleet.RoleObserver,
+				},
+			},
+		},
+	}
+	updateInviteResp := updateInviteResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/invites/%d", createInviteResp.Invite.ID), updateInviteReq, http.StatusOK, &updateInviteResp)
+
+	verify, err := s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
+	require.NoError(t, err)
+	require.Equal(t, "", verify.GlobalRole.String)
+	require.Len(t, verify.Teams, 1)
+	assert.Equal(t, team.ID, verify.Teams[0].ID)
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {

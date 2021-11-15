@@ -1,0 +1,3 @@
+* Update UI for host details page
+** Add new tab-based UI for "Details", "Schedule", and "Policies"
+** Add new schedule table to reveal queries from global schedule and teams schedules

@@ -38,8 +38,8 @@ describe("Premium tier - Observer user", () => {
     cy.contains("button", /query/i).click();
     cy.contains("button", /create custom query/i).should("not.exist");
 
-    // Not see the "Show enroll secret” button
-    cy.contains("button", /show enroll secret/i).should("not.exist");
+    // Not see the "Manage enroll secret” button
+    cy.contains("button", /manage enroll secret/i).should("not.exist");
 
     // TODO - Fix tests according to improved query experience - MP
     // Query pages: Can see team in select targets dropdown
