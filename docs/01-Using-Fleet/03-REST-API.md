@@ -621,6 +621,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 ```json
 {
+  "team_id": 1,
   "totals_hosts_count": 2408,
   "platforms": [
     {

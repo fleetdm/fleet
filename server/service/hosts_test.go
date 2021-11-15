@@ -53,6 +53,7 @@ func TestGetHostSummary(t *testing.T) {
 
 	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil)
 	require.NoError(t, err)
+	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
 	require.Equal(t, uint(2), summary.OfflineCount)
 	require.Equal(t, uint(3), summary.MIACount)

@@ -704,11 +704,13 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "linux", resp.Platforms[0].Platform)
 	require.Equal(t, uint(len(hosts)), resp.Platforms[0].HostsCount)
+	require.Nil(t, resp.TeamID)
 
 	// team filter, no host
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host
 	s.DoJSON("GET", "/api/v1/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
@@ -716,4 +718,5 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "linux", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
+	require.Equal(t, team1.ID, *resp.TeamID)
 }
