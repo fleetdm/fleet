@@ -235,9 +235,8 @@ const ManageSchedulePage = ({
 
   const selectedTeam = isNaN(teamId) ? "global" : teamId;
 
-  const selectedTeamData = teams.find(
-    (team: ITeam) => selectedTeam === team.id
-  );
+  const selectedTeamData =
+    teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
 
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
     false
