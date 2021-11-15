@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func (svc *Service) StatusResultStore(ctx context.Context) error {
@@ -22,11 +22,11 @@ func (svc *Service) StatusLiveQuery(ctx context.Context) error {
 
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return errors.Wrap(err, "retrieve app config")
+		return ctxerr.Wrap(ctx, err, "retrieve app config")
 	}
 
 	if cfg.ServerSettings.LiveQueryDisabled {
-		return errors.New("disabled by administrator")
+		return ctxerr.New(ctx, "disabled by administrator")
 	}
 
 	return svc.StatusResultStore(ctx)

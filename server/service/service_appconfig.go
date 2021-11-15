@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/kolide/kit/version"
-	"github.com/pkg/errors"
 )
 
 // mailError is set when an error performing mail operations
@@ -45,7 +45,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	// Set up a default enroll secret
 	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 	if err != nil {
-		return nil, errors.Wrap(err, "generate enroll secret string")
+		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 	}
 	secrets := []*fleet.EnrollSecret{
 		{
@@ -54,7 +54,7 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 	err = svc.ds.ApplyEnrollSecrets(ctx, nil, secrets)
 	if err != nil {
-		return nil, errors.Wrap(err, "save enroll secret")
+		return nil, ctxerr.Wrap(ctx, err, "save enroll secret")
 	}
 
 	return newConfig, nil
@@ -133,7 +133,7 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 
 	for _, s := range spec.Secrets {
 		if s.Secret == "" {
-			return errors.New("enroll secret must not be empty")
+			return ctxerr.New(ctx, "enroll secret must not be empty")
 		}
 	}
 
@@ -257,7 +257,7 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 			},
 		}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
+		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
 	}
 
 	switch conf.Osquery.ResultLogPlugin {
@@ -311,7 +311,7 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 			},
 		}
 	default:
-		return nil, errors.Errorf("unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
+		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
 
 	}
 	return logging, nil
