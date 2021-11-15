@@ -248,11 +248,11 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 }
 
 // Store handles the provided error by storing it into Redis if the handler is
-// still running. In any case, it always returns the error as provided.
+// still running.
 //
 // It waits for a predefined period of time to try to store the error but does
 // so in a goroutine so the call returns immediately.
-func (h *Handler) Store(err error) error {
+func (h *Handler) Store(err error) {
 	exec := func() {
 		if atomic.LoadInt32(&h.running) == 0 {
 			return
@@ -271,7 +271,6 @@ func (h *Handler) Store(err error) error {
 	} else {
 		go exec()
 	}
-	return err
 }
 
 // ServeHTTP implements an http.Handler that flushes the errors stored

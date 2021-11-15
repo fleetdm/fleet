@@ -1,4 +1,5 @@
 import React from "react";
+import { uniqueId } from "lodash";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
@@ -111,7 +112,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       last_run: humanQueryLastRun(query.last_executed),
       performance: [
         performanceIndicator(scheduledQueryPerformance),
-        query.scheduled_query_id,
+        query.scheduled_query_id || uniqueId(),
       ],
       average_memory: query.average_memory,
       denylisted: query.denylisted,

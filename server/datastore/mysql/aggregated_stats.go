@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 // These queries are a bit annoyingly written. The main reason they are this way is that we want rownum sorted. There's
@@ -19,7 +19,7 @@ SELECT
 FROM (
 	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
-		FROM scheduled_query_stats d 
+		FROM scheduled_query_stats d
 		WHERE d.scheduled_query_id=?
 		ORDER BY (d.%s / d.executions) ASC
 	) AS mm
@@ -38,7 +38,7 @@ SELECT
 FROM (
 	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
-		FROM scheduled_query_stats d 
+		FROM scheduled_query_stats d
 		JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
 		WHERE sq.query_id=?
 		ORDER BY (d.%s / d.executions) ASC
@@ -74,7 +74,7 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 		if err == sql.ErrNoRows {
 			return nil
 		}
-		return errors.Wrapf(err, "getting %s p50 for %s %d", time, aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "getting %s p50 for %s %d", time, aggregate, id)
 	}
 	statsMap[time+"_p50"] = p50
 	err = sqlx.GetContext(ctx, tx, &p95, getPercentileQuery(aggregate, time, "0.95"), id, id)
@@ -82,7 +82,7 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 		if err == sql.ErrNoRows {
 			return nil
 		}
-		return errors.Wrapf(err, "getting %s p95 for %s %d", time, aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "getting %s p95 for %s %d", time, aggregate, id)
 	}
 	statsMap[time+"_p95"] = p95
 
@@ -96,7 +96,7 @@ func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) err
 		return calculatePercentiles(ctx, d.writer, statsTypeScheduledQuery, id)
 	})
 	if err != nil {
-		return errors.Wrap(err, "looping through ids")
+		return ctxerr.Wrap(ctx, err, "looping through ids")
 	}
 
 	return nil
@@ -109,7 +109,7 @@ func (d *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 		return calculatePercentiles(ctx, d.writer, statsTypeQuery, id)
 	})
 	if err != nil {
-		return errors.Wrap(err, "looping through ids")
+		return ctxerr.Wrap(ctx, err, "looping through ids")
 	}
 
 	return nil
@@ -130,13 +130,13 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 
 	err := sqlx.GetContext(ctx, tx, &totalExecutions, getTotalExecutionsQuery(aggregate), id)
 	if err != nil {
-		return errors.Wrapf(err, "getting total executions for %s %d", aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "getting total executions for %s %d", aggregate, id)
 	}
 	statsMap["total_executions"] = totalExecutions
 
 	statsJson, err := json.Marshal(statsMap)
 	if err != nil {
-		return errors.Wrap(err, "marshaling stats")
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
 	_, err = tx.ExecContext(ctx,
@@ -144,7 +144,7 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 		id, aggregate, statsJson,
 	)
 	if err != nil {
-		return errors.Wrapf(err, "inserting stats for %s id %d", aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "inserting stats for %s id %d", aggregate, id)
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func walkIdsInTable(
 ) error {
 	rows, err := tx.QueryxContext(ctx, fmt.Sprintf(`SELECT id FROM %s`, table))
 	if err != nil {
-		return errors.Wrapf(err, "querying %s ids", table)
+		return ctxerr.Wrapf(ctx, err, "querying %s ids", table)
 	}
 	defer rows.Close()
 
@@ -175,10 +175,10 @@ func walkIdsInTable(
 		var id uint
 
 		if err := rows.Scan(&id); err != nil {
-			return errors.Wrapf(err, "scanning id for %s", table)
+			return ctxerr.Wrapf(ctx, err, "scanning id for %s", table)
 		}
 		if err := visitFunc(id); err != nil {
-			return errors.Wrapf(err, "running visitFunc for %s", table)
+			return ctxerr.Wrapf(ctx, err, "running visitFunc for %s", table)
 		}
 	}
 	return nil

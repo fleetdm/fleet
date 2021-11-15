@@ -20,21 +20,21 @@ import (
 
 // BuildPkg builds a macOS .pkg. So far this is tested only on macOS but in theory it works with bomutils on
 // Linux.
-func BuildPkg(opt Options) error {
+func BuildPkg(opt Options) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(tmpDir)
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create root dir")
+		return "", errors.Wrap(err, "create root dir")
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "create orbit dir")
+		return "", errors.Wrap(err, "create orbit dir")
 	}
 
 	// Initialize autoupdate metadata
@@ -50,31 +50,31 @@ func BuildPkg(opt Options) error {
 	}
 
 	if err := InitializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+		return "", errors.Wrap(err, "initialize updates")
 	}
 
 	// Write files
 
 	if err := writePackageInfo(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write PackageInfo")
+		return "", errors.Wrap(err, "write PackageInfo")
 	}
 	if err := writeDistribution(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write Distribution")
+		return "", errors.Wrap(err, "write Distribution")
 	}
 	if err := writeScripts(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "write postinstall")
+		return "", errors.Wrap(err, "write postinstall")
 	}
 	if err := writeSecret(opt, orbitRoot); err != nil {
-		return errors.Wrap(err, "write enroll secret")
+		return "", errors.Wrap(err, "write enroll secret")
 	}
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
-			return errors.Wrap(err, "write launchd")
+			return "", errors.Wrap(err, "write launchd")
 		}
 	}
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return errors.Wrap(err, "write fleet certificate")
+			return "", errors.Wrap(err, "write fleet certificate")
 		}
 	}
 
@@ -90,7 +90,7 @@ func BuildPkg(opt Options) error {
 	// Build package
 
 	if err := xarBom(opt, tmpDir); err != nil {
-		return errors.Wrap(err, "build pkg")
+		return "", errors.Wrap(err, "build pkg")
 	}
 
 	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
@@ -98,23 +98,23 @@ func BuildPkg(opt Options) error {
 	if len(opt.SignIdentity) != 0 {
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
 		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
-			return errors.Wrap(err, "productsign")
+			return "", errors.Wrap(err, "productsign")
 		}
 	}
 
 	if opt.Notarize {
 		if err := notarizePkg(generatedPath); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
 	if err := copyFile(generatedPath, filename, constant.DefaultFileMode); err != nil {
-		return errors.Wrap(err, "rename pkg")
+		return "", errors.Wrap(err, "rename pkg")
 	}
 	log.Info().Str("path", filename).Msg("wrote pkg package")
 
-	return nil
+	return filename, nil
 }
 
 func writePackageInfo(opt Options, rootPath string) error {

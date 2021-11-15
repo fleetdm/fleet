@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
@@ -55,14 +55,14 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		host.TeamID,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "new host")
+		return nil, ctxerr.Wrap(ctx, err, "new host")
 	}
 	id, _ := result.LastInsertId()
 	host.ID = uint(id)
 
 	_, err = d.writer.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`, host.ID, host.SeenTime)
 	if err != nil {
-		return nil, errors.Wrap(err, "new host seen time")
+		return nil, ctxerr.Wrap(ctx, err, "new host seen time")
 	}
 
 	return host, nil
@@ -159,7 +159,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			host.ID,
 		)
 		if err != nil {
-			return errors.Wrapf(err, "save host with id %d", host.ID)
+			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
 		}
 
 		// Save host pack stats only if it is non-nil. Empty stats should be
@@ -172,26 +172,26 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 
 		ac, err := d.AppConfig(ctx)
 		if err != nil {
-			return errors.Wrap(err, "failed to get app config to see if we need to update host users and inventory")
+			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
 		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
 		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
-				return errors.Wrap(err, "failed to save host software")
+				return ctxerr.Wrap(ctx, err, "failed to save host software")
 			}
 		}
 
 		if host.Modified {
 			if host.Additional != nil {
 				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-					return errors.Wrap(err, "failed to save host additional")
+					return ctxerr.Wrap(ctx, err, "failed to save host additional")
 				}
 			}
 
 			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
 				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return errors.Wrap(err, "failed to save host users")
+					return ctxerr.Wrap(ctx, err, "failed to save host users")
 				}
 			}
 		}
@@ -259,7 +259,7 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 				wall_time = VALUES(wall_time)
 		`, values)
 	if _, err := db.ExecContext(ctx, sql, args...); err != nil {
-		return errors.Wrap(err, "insert pack stats")
+		return ctxerr.Wrap(ctx, err, "insert pack stats")
 	}
 	return nil
 }
@@ -343,7 +343,7 @@ func getPackTypeFromDBField(t *string) string {
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Host) error {
 	sql := `SELECT username, groupname, uid, user_type, shell FROM host_users WHERE host_id = ? and removed_at IS NULL`
 	if err := sqlx.SelectContext(ctx, db, &host.Users, sql, host.ID); err != nil {
-		return errors.Wrap(err, "load host users")
+		return ctxerr.Wrap(ctx, err, "load host users")
 	}
 	return nil
 }
@@ -351,17 +351,17 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, host *fleet.Ho
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.deleteEntity(ctx, hostsTable, hid)
 	if err != nil {
-		return errors.Wrapf(err, "deleting host with id %d", hid)
+		return ctxerr.Wrapf(ctx, err, "deleting host with id %d", hid)
 	}
 
 	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id=?`, hid)
 	if err != nil {
-		return errors.Wrap(err, "deleting host seen times")
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 
 	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id=?`, hid)
 	if err != nil {
-		return errors.Wrap(err, "deleting host seen times")
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 
 	return nil
@@ -389,7 +389,7 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host by id")
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
 	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
@@ -449,7 +449,7 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, params...); err != nil {
-		return nil, errors.Wrap(err, "list hosts")
+		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
 	return hosts, nil
@@ -539,7 +539,7 @@ func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	var count int
 	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
-		return 0, errors.Wrap(err, "count hosts")
+		return 0, ctxerr.Wrap(ctx, err, "count hosts")
 	}
 
 	return count, nil
@@ -552,7 +552,7 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
 	if _, err := d.writer.ExecContext(ctx, sqlStatement, now); err != nil {
-		return errors.Wrap(err, "cleanup incoming hosts")
+		return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 	}
 
 	return nil
@@ -605,7 +605,7 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 // EnrollHost enrolls a host
 func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
-		return nil, fmt.Errorf("missing osquery host identifier")
+		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
 
 	var host fleet.Host
@@ -616,7 +616,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
-			return errors.Wrap(err, "check existing")
+			return ctxerr.Wrap(ctx, err, "check existing")
 
 		case errors.Is(err, sql.ErrNoRows):
 			// Create new host record
@@ -632,14 +632,14 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
-				return errors.Wrap(err, "insert host")
+				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 
 			id, _ = result.LastInsertId()
 
 			_, err = d.writer.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`, id, time.Now().UTC())
 			if err != nil {
-				return errors.Wrap(err, "new host seen time")
+				return ctxerr.Wrap(ctx, err, "new host seen time")
 			}
 
 		default:
@@ -647,7 +647,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 			// Prior to adding this we saw many hosts (probably VMs) with the
 			// same identifier competing for enrollment and causing perf issues.
 			if cooldown > 0 && time.Since(host.LastEnrolledAt) < cooldown {
-				return backoff.Permanent(fmt.Errorf("host identified by %s enrolling too often", osqueryHostID))
+				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 			id = int64(host.ID)
 			// Update existing host record
@@ -660,7 +660,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 			`
 			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID)
 			if err != nil {
-				return errors.Wrap(err, "update host")
+				return ctxerr.Wrap(ctx, err, "update host")
 			}
 		}
 
@@ -669,12 +669,12 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 		`
 		err = sqlx.GetContext(ctx, tx, &host, sqlSelect, id)
 		if err != nil {
-			return errors.Wrap(err, "getting the host to return")
+			return ctxerr.Wrap(ctx, err, "getting the host to return")
 		}
 
 		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, id)
 		if err != nil {
-			return errors.Wrap(err, "insert new host into all hosts label")
+			return ctxerr.Wrap(ctx, err, "insert new host into all hosts label")
 		}
 
 		return nil
@@ -693,9 +693,9 @@ func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	if err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, nodeKey); err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return nil, notFound("Host")
+			return nil, ctxerr.Wrap(ctx, notFound("Host"))
 		default:
-			return nil, errors.New("find host")
+			return nil, ctxerr.Wrap(ctx, err, "find host")
 		}
 	}
 
@@ -707,7 +707,7 @@ func (d *Datastore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.T
 
 	_, err := d.writer.ExecContext(ctx, sqlStatement, t, host.ID)
 	if err != nil {
-		return errors.Wrap(err, "marking host seen")
+		return ctxerr.Wrap(ctx, err, "marking host seen")
 	}
 
 	host.UpdatedAt = t
@@ -723,16 +723,16 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 		query := `UPDATE host_seen_times SET seen_time = ? WHERE host_id IN (?)`
 		query, args, err := sqlx.In(query, t, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "sqlx in")
+			return ctxerr.Wrap(ctx, err, "sqlx in")
 		}
 		query = tx.Rebind(query)
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec update")
+			return ctxerr.Wrap(ctx, err, "exec update")
 		}
 
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "MarkHostsSeen transaction")
+		return ctxerr.Wrap(ctx, err, "MarkHostsSeen transaction")
 	}
 
 	return nil
@@ -777,12 +777,12 @@ func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 
 	sql, args, err := sqlx.In(sqlb.String(), args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "searching default hosts")
+		return nil, ctxerr.Wrap(ctx, err, "searching default hosts")
 	}
 	sql = d.reader.Rebind(sql)
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, d.reader, &hosts, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "searching hosts")
+		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 	return hosts, nil
 }
@@ -800,12 +800,12 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 
 	sql, args, err := sqlx.In(sqlStatement, hostnames)
 	if err != nil {
-		return nil, errors.Wrap(err, "building query to get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs")
 	}
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, d.reader, &hostIDs, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
 	}
 
 	return hostIDs, nil
@@ -820,7 +820,7 @@ func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*f
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sql, identifier)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host by identifier")
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
 	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
@@ -843,19 +843,19 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "add host to team sqlx in")
+			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec AddHostsToTeam delete policy membership history")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership history")
 		}
 
 		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
-			return errors.Wrap(err, "sqlx.In AddHostsToTeam")
+			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
 
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return errors.Wrap(err, "exec AddHostsToTeam")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 		}
 
 		return nil
@@ -869,7 +869,7 @@ func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, host *fl
 		ON DUPLICATE KEY UPDATE additional = VALUES(additional)
 	`
 	if _, err := exec.ExecContext(ctx, sql, host.ID, host.Additional); err != nil {
-		return errors.Wrap(err, "insert additional")
+		return ctxerr.Wrap(ctx, err, "insert additional")
 	}
 
 	return nil
@@ -902,7 +902,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {
-		return errors.Wrap(err, "insert users")
+		return ctxerr.Wrap(ctx, err, "insert users")
 	}
 
 	if len(removedArgs) == 0 {
@@ -914,7 +914,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 		removedValues,
 	)
 	if _, err := tx.ExecContext(ctx, removedSql, append([]interface{}{host.ID}, removedArgs...)...); err != nil {
-		return errors.Wrap(err, "mark users as removed")
+		return ctxerr.Wrap(ctx, err, "mark users as removed")
 	}
 
 	return nil
@@ -924,7 +924,7 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 	var totalCount, unseenCount int
 	err := sqlx.GetContext(ctx, d.reader, &totalCount, "SELECT count(*) FROM hosts")
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "getting total host count")
+		return 0, 0, ctxerr.Wrap(ctx, err, "getting total host count")
 	}
 
 	err = sqlx.GetContext(ctx, d.reader, &unseenCount,
@@ -932,7 +932,7 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 		daysCount,
 	)
 	if err != nil {
-		return 0, 0, errors.Wrap(err, "getting unseen host count")
+		return 0, 0, ctxerr.Wrap(ctx, err, "getting unseen host count")
 	}
 
 	return totalCount, unseenCount, nil
@@ -941,17 +941,17 @@ func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int)
 func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	_, err := d.deleteEntities(ctx, hostsTable, ids)
 	if err != nil {
-		return errors.Wrap(err, "deleting hosts")
+		return ctxerr.Wrap(ctx, err, "deleting hosts")
 	}
 
 	query, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, ids)
 	if err != nil {
-		return errors.Wrapf(err, "building delete host_seen_times query")
+		return ctxerr.Wrapf(ctx, err, "building delete host_seen_times query")
 	}
 
 	_, err = d.writer.ExecContext(ctx, query, args...)
 	if err != nil {
-		return errors.Wrap(err, "deleting host seen times")
+		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 	return nil
 }
@@ -979,7 +979,7 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
-		return nil, errors.Wrap(err, "get host policies")
+		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil
 }
@@ -987,7 +987,7 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	ac, err := appConfigDB(ctx, d.reader)
 	if err != nil {
-		return errors.Wrap(err, "getting app config")
+		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	if !ac.HostExpirySettings.HostExpiryEnabled {
 		return nil
@@ -1005,7 +1005,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		ac.HostExpirySettings.HostExpiryWindow,
 	)
 	if err != nil {
-		return errors.Wrap(err, "getting expired host ids")
+		return ctxerr.Wrap(ctx, err, "getting expired host ids")
 	}
 	defer rows.Close()
 
@@ -1013,24 +1013,24 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		var id uint
 		err := rows.Scan(&id)
 		if err != nil {
-			return errors.Wrap(err, "scanning expired host id")
+			return ctxerr.Wrap(ctx, err, "scanning expired host id")
 		}
 		_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, id)
 		if err != nil {
-			return errors.Wrap(err, "deleting expired hosts")
+			return ctxerr.Wrap(ctx, err, "deleting expired hosts")
 		}
 		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id = ?`, id)
 		if err != nil {
-			return errors.Wrap(err, "deleting expired host software")
+			return ctxerr.Wrap(ctx, err, "deleting expired host software")
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return errors.Wrap(err, "expired hosts, row err")
+		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
 	}
 
 	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
 	if err != nil {
-		return errors.Wrap(err, "deleting expired host seen times")
+		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
 	return nil
 }

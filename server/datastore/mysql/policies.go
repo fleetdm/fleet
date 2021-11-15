@@ -17,7 +17,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID, queryID uint
 	if queryID != 0 {
 		q, err := ds.Query(ctx, queryID)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching query from id")
+			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
 		name = q.Name
 		query = q.Query
@@ -31,14 +31,13 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID, queryID uint
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, alreadyExists("Policy", name)
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", name))
 	default:
-		return nil, errors.Wrap(err, "inserting new policy")
+		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
-
 	lastIdInt64, err := res.LastInsertId()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting last id after inserting policy")
+		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
 	return policyDB(ctx, ds.writer, uint(lastIdInt64), nil)
 }
@@ -67,7 +66,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		WHERE p.id=? AND %s`, teamWhere),
 		args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting policy")
+		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
 	return &policy, nil
 }
@@ -120,7 +119,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, query, vals...)
 		if err != nil {
-			return errors.Wrapf(err, "insert policy_membership (%v)", vals)
+			return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
 		}
 
 		// if we are deferring host updates, we return at this point and do the change outside of the tx
@@ -130,7 +129,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 
 		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID)
 		if err != nil {
-			return errors.Wrap(err, "updating hosts policy updated at")
+			return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
 		}
 		return nil
 	})
@@ -185,7 +184,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		WHERE %s`, teamWhere), args...,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "listing policies")
+		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
 	return policies, nil
 }
@@ -198,7 +197,7 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 	stmt := `DELETE FROM policies WHERE id IN (?) AND %s`
 	stmt, args, err := sqlx.In(stmt, ids)
 	if err != nil {
-		return nil, errors.Wrap(err, "IN for DELETE FROM policies")
+		return nil, ctxerr.Wrap(ctx, err, "IN for DELETE FROM policies")
 	}
 	stmt = q.Rebind(stmt)
 
@@ -209,7 +208,7 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 	}
 
 	if _, err := q.ExecContext(ctx, fmt.Sprintf(stmt, teamWhere), args...); err != nil {
-		return nil, errors.Wrap(err, "delete policies")
+		return nil, ctxerr.Wrap(ctx, err, "delete policies")
 	}
 	return ids, nil
 }
@@ -226,7 +225,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		`SELECT p.id, p.query FROM policies p WHERE team_id is NULL`,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "selecting policies for host")
+		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
 
 	results := map[string]string{}
@@ -240,7 +239,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 			*host.TeamID,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "selecting policies for host in team")
+			return nil, ctxerr.Wrap(ctx, err, "selecting policies for host in team")
 		}
 	}
 
@@ -269,11 +268,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, authorID, teamID, queryI
 		`INSERT INTO policies (name, query, description, team_id, resolution, author_id) VALUES (?, ?, ?, ?, ?, ?)`,
 		name, query, description, teamID, resolution, authorID)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting new team policy")
+		return nil, ctxerr.Wrap(ctx, err, "inserting new team policy")
 	}
 	lastIdInt64, err := res.LastInsertId()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting last id after inserting policy")
+		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
 	return policyDB(ctx, ds.writer, uint(lastIdInt64), &teamID)
 }
@@ -315,8 +314,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			team_id = VALUES(team_id)
 		`
 		for _, spec := range specs {
-			_, err := tx.ExecContext(ctx, sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team)
-			if err != nil {
+			if _, err := tx.ExecContext(ctx,
+				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team,
+			); err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
 		}

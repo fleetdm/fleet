@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/throttled/throttled/v2"
 )
@@ -467,20 +468,21 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
-	if e, ok := err.(fleet.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "internal", e.Internal())
+	var ewi fleet.ErrWithInternal
+	if errors.As(err, &ewi) {
+		logger = kitlog.With(logger, "internal", ewi.Internal())
 	}
 
-	if e, ok := err.(fleet.ErrWithLogFields); ok {
-		logger = kitlog.With(logger, e.LogFields()...)
+	var ewlf fleet.ErrWithLogFields
+	if errors.As(err, &ewlf) {
+		logger = kitlog.With(logger, ewlf.LogFields()...)
 	}
 
-	switch e := err.(type) {
-	case ratelimit.Error:
-		res := e.Result()
+	var rle ratelimit.Error
+	if errors.As(err, &rle) {
+		res := rle.Result()
 		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
-
-	default:
+	} else {
 		logger.Log("err", err)
 	}
 }

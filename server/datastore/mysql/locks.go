@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 func (d *Datastore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -16,11 +18,11 @@ func (d *Datastore) Lock(ctx context.Context, name string, owner string, expirat
 	for _, lockFunc := range lockObtainers {
 		res, err := lockFunc(ctx, name, owner, expiration)
 		if err != nil {
-			return false, err
+			return false, ctxerr.Wrap(ctx, err, "lock")
 		}
 		rowsAffected, err := res.RowsAffected()
 		if err != nil {
-			return false, err
+			return false, ctxerr.Wrap(ctx, err, "rows affected")
 		}
 		if rowsAffected > 0 {
 			return true, nil

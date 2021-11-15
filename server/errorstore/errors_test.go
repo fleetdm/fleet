@@ -30,11 +30,15 @@ func alwaysCallsAlwaysErrors() error { return alwaysErrors() }
 func alwaysErisErrors() error { return eris.New("always eris errors") }
 
 func alwaysNewError(eh *Handler) error {
-	return eh.Store(eris.New("always new errors"))
+	err := eris.New("always new errors")
+	eh.Store(err)
+	return err
 }
 
 func alwaysNewErrorTwo(eh *Handler) error {
-	return eh.Store(eris.New("always new errors two"))
+	err := eris.New("always new errors two")
+	eh.Store(err)
+	return err
 }
 
 func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
