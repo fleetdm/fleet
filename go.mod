@@ -18,7 +18,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dnaeon/go-vcr/v2 v2.0.1
-	github.com/doug-martin/goqu/v9 v9.18.0 // indirect
+	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c // indirect
@@ -46,7 +46,7 @@ require (
 	github.com/kolide/kit v0.0.0-20180421083548-36eb8dc43916
 	github.com/kolide/launcher v0.0.0-20180427153757-cb412b945cf7
 	github.com/kolide/osquery-go v0.0.0-20200604192029-b019be7063ac
-	github.com/macadmins/osquery-extension v0.0.4 // indirect
+	github.com/macadmins/osquery-extension v0.0.5
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mitchellh/gon v0.2.3
@@ -60,11 +60,11 @@ require (
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
-	github.com/rotisserie/eris v0.5.1 // indirect
+	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.8.0
@@ -72,9 +72,9 @@ require (
 	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
-	github.com/valyala/fasthttp v1.31.0 // indirect
+	github.com/valyala/fasthttp v1.31.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0
