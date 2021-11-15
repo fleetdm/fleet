@@ -120,7 +120,8 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	require.Nil(t, err)
 
 	logString := s.buf.String()
-	assert.Equal(t, `{"err":"decoding JSON: invalid character '}' looking for beginning of value","level":"info","path":"/api/v1/osquery/log"}
+	assert.Contains(t, logString, `{"err":"decoding JSON:`)
+	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/v1/osquery/log"}
 `, logString)
 }
 
