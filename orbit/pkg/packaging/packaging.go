@@ -2,7 +2,6 @@
 package packaging
 
 import (
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -63,33 +62,6 @@ func initializeTempDir() (string, error) {
 	log.Debug().Str("path", tmpDir).Msg("created temp directory")
 
 	return tmpDir, nil
-}
-
-func copyFile(srcPath, dstPath string, perm os.FileMode) error {
-	src, err := os.Open(srcPath)
-	if err != nil {
-		return errors.Wrap(err, "open src for copy")
-	}
-	defer src.Close()
-
-	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
-		return errors.Wrap(err, "create dst dir for copy")
-	}
-
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, perm)
-	if err != nil {
-		return errors.Wrap(err, "open dst for copy")
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return errors.Wrap(err, "copy src to dst")
-	}
-	if err := dst.Sync(); err != nil {
-		return errors.Wrap(err, "sync dst after copy")
-	}
-
-	return nil
 }
 
 func InitializeUpdates(updateOpt update.Options) error {
