@@ -1,8 +1,11 @@
 # Commands to start on workspace startup
 tasks:
-  - init: make deps generate && docker-compose up redis mysql mailhog saml_idp -d
+  - init: make deps generate && docker-compose up -d redis mysql mailhog saml_idp
     command: ./build/fleet serve --dev
 # Ports to expose on workspace startup
 ports:
   - port: 8080
     onOpen: open-preview
+github:
+  prebuilds:
+    addComment: true
