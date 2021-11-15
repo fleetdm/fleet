@@ -765,7 +765,6 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	gpResp0 := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams0, http.StatusBadRequest, &gpResp0)
 	require.Nil(t, gpResp0.Policy)
-	// TODO(lucas): Document that gpResp.Err is not set/used.
 
 	gpParams := globalPolicyRequest{
 		Name:        "TestQuery3",

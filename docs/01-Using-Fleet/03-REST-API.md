@@ -801,25 +801,22 @@ The `host_count` parameter in the software list will always be `1` in this call,
     "policies": [
       {
         "id": 1,
-        "query_id": 2,
-        "query_name": "SomeQuery",
-        "query_description": "this is a query",
+        "name": "SomeQuery",
+        "description": "this is a query",
         "resolution": "fix with these steps...",
         "response": "pass"
       },
       {
         "id": 2,
-        "query_id": 4,
-        "query_name": "SomeQuery2",
-        "query_description": "this is another query",
+        "name": "SomeQuery2",
+        "description": "this is another query",
         "resolution": "fix with these other steps...",
         "response": "fail"
       },
       {
         "id": 3,
-        "query_id": 255,
-        "query_name": "SomeQuery3",
-        "query_description": "",
+        "name": "SomeQuery3",
+        "description": "",
         "resolution": "",
         "response": ""
       }
@@ -3440,7 +3437,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
   "policies": [
     {
       "id": 1,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
       "author_id": 42,
@@ -3452,7 +3449,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     },
     {
       "id": 2,
-      "query_name": "Windows machines with encrypted hard disks",
+      "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "author_id": 43,
@@ -3487,7 +3484,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 {
   "policy": {
     "id": 1,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
@@ -3544,7 +3541,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 {
   "policy": {
     "id": 43,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
@@ -3579,7 +3576,7 @@ Where `query_id` references an existing `query`.
 {
   "policy": {
     "id": 43,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
@@ -3661,7 +3658,7 @@ Where `query_id` references an existing `query`.
 {
   "policy": {
     "id": 42,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 43,
@@ -3711,7 +3708,7 @@ Team policies work the same as policies, but at the team level.
   "policies": [
     {
       "id": 1,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
       "author_id": 42,
@@ -3724,7 +3721,7 @@ Team policies work the same as policies, but at the team level.
     },
     {
       "id": 2,
-      "query_name": "Windows machines with encrypted hard disks",
+      "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "author_id": 43,
@@ -3761,7 +3758,7 @@ Team policies work the same as policies, but at the team level.
 {
   "policy": {
     "id": 43,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
@@ -3813,7 +3810,7 @@ Team policies work the same as policies, but at the team level.
 {
   "policy": {
     "id": 43,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 42,
@@ -3898,7 +3895,7 @@ Team policies work the same as policies, but at the team level.
 {
   "policy": {
     "id": 42,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "author_id": 43,

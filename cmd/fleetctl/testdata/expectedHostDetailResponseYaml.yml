@@ -41,8 +41,8 @@ spec:
       author_id: 1
       author_name: Alice
       id: 1
-      query_description: ""
-      query_name: query1
+      description: ""
+      name: query1
       query: select 1 from osquery_info where start_time > 1;
       resolution: ""
       response: passes
@@ -50,8 +50,8 @@ spec:
       author_id: 1
       author_name: Alice
       id: 2
-      query_description: ""
-      query_name: query2
+      description: ""
+      name: query2
       query: select 1 from osquery_info where start_time > 1;
       resolution: ""
       response: fails
