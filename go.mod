@@ -49,6 +49,7 @@ require (
 	github.com/kolide/osquery-go v0.0.0-20190904034940-a74aa860032d
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
+	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
 	github.com/oklog/run v1.1.0
