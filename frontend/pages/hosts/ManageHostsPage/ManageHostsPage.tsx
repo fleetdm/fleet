@@ -819,10 +819,6 @@ const ManageHostsPage = ({
 
     try {
       if (currentTeam?.id) {
-        console.log(
-          "TRY!!! currentTeam.id and DELETE SECRT",
-          selectedSecret?.secret
-        );
         await enrollSecretsAPI.modifyTeamEnrollSecrets(
           currentTeam.id,
           newSecrets
