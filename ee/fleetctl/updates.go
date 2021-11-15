@@ -637,10 +637,6 @@ func newPassphraseHandler() *passphraseHandler {
 	return &passphraseHandler{cache: make(map[string][]byte)}
 }
 
-func (p *passphraseHandler) clearCache(role string) {
-	delete(p.cache, role)
-}
-
 func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, error) {
 	// Check cache
 	if pass, ok := p.cache[role]; ok {
