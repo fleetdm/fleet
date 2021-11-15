@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -6,6 +6,7 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
 
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import statusLabelsAPI from "services/entities/statusLabels";
 import teamsAPI from "services/entities/teams";
@@ -22,12 +23,16 @@ import hostCountAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { ILabel, ILabelFormData } from "interfaces/label";
-import { IStatusLabels } from "interfaces/status_labels";
-import { ITeam } from "interfaces/team";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
+import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
+import { IStatusLabels } from "interfaces/status_labels";
+import { ITeam } from "interfaces/team";
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import {
@@ -65,6 +70,8 @@ import {
   getNextLocationPath,
 } from "./helpers";
 
+import DeleteSecretModal from "./components/DeleteSecretModal";
+import SecretEditorModal from "./components/SecretEditorModal";
 import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
@@ -130,7 +137,6 @@ const ManageHostsPage = ({
     isPremiumTier,
     currentTeam,
     setCurrentTeam,
-    enrollSecret: globalSecret,
   } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -156,7 +162,14 @@ const ManageHostsPage = ({
 
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
+  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
+    false
+  );
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
+    false
+  );
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
     false
   );
@@ -221,12 +234,8 @@ const ManageHostsPage = ({
     isAnyTeamMaintainer;
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
-
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecret,
-  };
 
   const {
     isLoading: isLabelsLoading,
@@ -241,6 +250,39 @@ const ManageHostsPage = ({
     }
   );
 
+  const { data: globalSecrets, refetch: refetchGlobalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: !!canEnrollGlobalHosts,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
+
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    error: teamSecretsError,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const generateInstallerTeam = currentTeam || {
+    name: "No team",
+    secrets: globalSecrets || null,
+  };
+
   // TODO: add counts to status dropdown
   useQuery<IStatusLabels, Error>(
     ["status labels"],
@@ -252,14 +294,18 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >(["teams"], () => teamsAPI.loadAll(), {
-    enabled: !!isPremiumTier,
-    select: (data: ITeamsResponse) => data.teams,
-  });
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    refetch: refetchTeams,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) => data.teams,
+    }
+  );
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
@@ -277,6 +323,21 @@ const ManageHostsPage = ({
       },
     }
   );
+
+  const toggleDeleteSecretModal = () => {
+    // open and closes delete modal
+    setShowDeleteSecretModal(!showDeleteSecretModal);
+    // open and closes main enroll secret modal
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
+
+  // this is called when we click add or edit
+  const toggleSecretEditorModal = () => {
+    // open and closes add/edit modal
+    setShowSecretEditorModal(!showSecretEditorModal);
+    // open and closes main enroll secret modall
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
 
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
@@ -692,6 +753,108 @@ const ManageHostsPage = ({
     );
   };
 
+  const onSaveSecret = async (enrollSecretString: string) => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // Creates new list of secrets removing selected secret and adding new secret
+    const currentSecrets = currentTeam
+      ? teamSecrets || []
+      : globalSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    if (enrollSecretString) {
+      newSecrets.push({ secret: enrollSecretString });
+    }
+
+    try {
+      if (currentTeam?.id) {
+        await enrollSecretsAPI.modifyTeamEnrollSecrets(
+          currentTeam.id,
+          newSecrets
+        );
+        refetchTeamSecrets();
+      } else {
+        await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
+        refetchGlobalSecrets();
+      }
+      toggleSecretEditorModal();
+      refetchTeams();
+
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(
+        renderFlash(
+          "success",
+          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          `Could not ${
+            selectedSecret ? "edit" : "add"
+          } enroll secret. Please try again.`
+        )
+      );
+    }
+  };
+
+  const onDeleteSecret = async () => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // create new list of secrets removing selected secret
+    const currentSecrets = currentTeam
+      ? teamSecrets || []
+      : globalSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    try {
+      if (currentTeam?.id) {
+        await enrollSecretsAPI.modifyTeamEnrollSecrets(
+          currentTeam.id,
+          newSecrets
+        );
+        refetchTeamSecrets();
+      } else {
+        await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
+        refetchGlobalSecrets();
+      }
+      toggleDeleteSecretModal();
+      refetchTeams();
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not delete enroll secret. Please try again."
+        )
+      );
+    }
+  };
+
   const onEditLabel = async (formData: ILabelFormData) => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
@@ -996,6 +1159,37 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderSecretEditorModal = () => {
+    if (!canEnrollHosts || !showSecretEditorModal) {
+      return null;
+    }
+
+    return (
+      <SecretEditorModal
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        onSaveSecret={onSaveSecret}
+        toggleSecretEditorModal={toggleSecretEditorModal}
+        selectedSecret={selectedSecret}
+      />
+    );
+  };
+
+  const renderDeleteSecretModal = () => {
+    if (!canEnrollHosts || !showDeleteSecretModal) {
+      return null;
+    }
+
+    return (
+      <DeleteSecretModal
+        onDeleteSecret={onDeleteSecret}
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        toggleDeleteSecretModal={toggleDeleteSecretModal}
+      />
+    );
+  };
+
   const renderEnrollSecretModal = () => {
     if (!canEnrollHosts || !showEnrollSecretModal) {
       return null;
@@ -1011,7 +1205,10 @@ const ManageHostsPage = ({
           selectedTeam={currentTeam?.id || 0}
           teams={teams || []}
           onReturnToApp={() => setShowEnrollSecretModal(false)}
-          isPremiumTier={isPremiumTier as boolean}
+          toggleSecretEditorModal={toggleSecretEditorModal}
+          toggleDeleteSecretModal={toggleDeleteSecretModal}
+          setSelectedSecret={setSelectedSecret}
+          globalSecrets={globalSecrets}
         />
       </Modal>
     );
@@ -1359,6 +1556,8 @@ const ManageHostsPage = ({
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
+      {renderDeleteSecretModal()}
+      {renderSecretEditorModal()}
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}
