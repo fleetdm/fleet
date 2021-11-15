@@ -1,0 +1,80 @@
+.targets-input {
+  max-width: 980px;
+  position: relative;
+  
+  &__hosts-search-dropdown {
+    width: 100%;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    z-index: 1;
+    background-color: $core-white;
+    border-radius: 0px 0px 8px 8px;
+    
+    .table-container {
+      min-height: 225px;
+      max-height: 400px;
+      overflow: auto;
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+      border-radius: 0px 0px 8px 8px;
+    }
+    .empty-search,
+    .error-search {
+      padding-top: 72px;
+      padding-bottom: 72px;
+      min-height: 225px;
+      display: flex;
+      justify-content: center;
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+      box-sizing: border-box;
+
+      &__inner {
+        h4 {
+          margin: 0;
+          margin-bottom: 16px;
+          font-size: $small;
+        }
+        p {
+          margin: 0;
+          font-size: $x-small;
+
+          a {
+            color: $core-vibrant-blue;
+            font-weight: 700;
+            text-decoration: none;
+            
+            img {
+              vertical-align: text-bottom;
+              position: relative;
+              top: 1px;
+              left: -3px;
+              transform: scale(0.5);
+            }
+          }
+        }
+      }
+    }
+  }
+  // hack because it's creating unwanted space
+  .table-container {
+    background-color: $core-white;
+
+    &__header {
+      display: none;
+    }
+    .data-table {
+      &__wrapper {
+        margin: 0;
+      }
+    }
+  }
+  &__hosts-selected-table {
+    margin-top: 8px;
+
+    img {
+      transform: scale(0.5);
+      position: relative;
+      top: 2px;
+    }
+  }
+}

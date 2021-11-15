@@ -66,7 +66,7 @@ export const QUERIES_PAGE_STEPS = {
 export const DEFAULT_QUERY = {
   description: "",
   name: "",
-  query: "SELECT * FROM osquery_info",
+  query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
   last_excuted: "",
@@ -77,6 +77,18 @@ export const DEFAULT_QUERY = {
   saved: false,
   author_id: 0,
   packs: [],
+};
+
+export const DEFAULT_POLICY = {
+  id: 0,
+  query_id: 0,
+  query_name: "",
+  query_description: "",
+  query: "SELECT 1 FROM osquery_info WHERE start_time > 1;",
+  team_id: 0,
+  resolution: "",
+  passing_host_count: 0,
+  failing_host_count: 0,
 };
 
 export const DEFAULT_CAMPAIGN = {

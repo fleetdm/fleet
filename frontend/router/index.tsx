@@ -39,6 +39,7 @@ import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
 import PackPageWrapper from "components/packs/PackPageWrapper";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PoliciesPageWrapper from "components/policies/PoliciesPageWrapper";
+import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
 import QueryPageWrapper from "components/queries/QueryPageWrapper";
 import RegistrationPage from "pages/RegistrationPage";
@@ -148,6 +149,10 @@ const routes = (
             </Route>
             <Route path="policies" component={PoliciesPageWrapper}>
               <Route path="manage" component={ManagePoliciesPage} />
+              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                <Route path="new" component={PolicyPage} />
+              </Route>
+              <Route path=":id" component={PolicyPage} />
             </Route>
             <Route path="profile" component={UserSettingsPage} />
           </Route>

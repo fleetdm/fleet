@@ -1,0 +1,153 @@
+.query-results {
+  padding: $pad-xxxlarge $pad-xxlarge;
+  
+  &__text-wrapper {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+
+    span:not(:last-of-type) {
+      margin-bottom: $pad-small;
+    }
+  }
+
+  &__text-online {
+    &:before {
+      background-color: $ui-success;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__text-offline {
+    &:before {
+      background-color: $ui-fleet-black-25;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__text-error {
+    &:before {
+      background-color: $ui-error;
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      height: 8px;
+      margin-right: $pad-small;
+      width: 8px;
+    }
+  }
+
+  &__btn-wrapper {
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
+    display: flex;
+    align-items: center;
+
+    .button {
+      padding: $pad-small $pad-medium;
+
+      &:not(:last-of-type) {
+        margin-right: $pad-small;
+      }
+    }
+  }
+
+  &__export-btn {
+    img {
+      width: 13px;
+      height: 13px;
+      margin-left: 8px;
+      position: relative;
+      top: -2px;
+    }
+  }
+
+  &__results-table-container,
+  &__error-table-container {
+    margin-top: $pad-large;
+  }
+
+  &__results-table-wrapper,
+  &__error-table-wrapper {
+    width: calc(100vw - 80px); // minus padding left and right
+    border: solid 1px $ui-fleet-blue-15;
+    border-radius: 3px;
+    margin-top: $pad-large;
+    box-sizing: border-box;
+    overflow: auto;
+  }
+
+  &__table {
+    background-color: $core-white;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: $x-small;
+    border-collapse: collapse;
+    color: $core-fleet-black;
+  
+    &__filter-icon {
+      color: $ui-fleet-black-25;
+  
+      &--is-active {
+        color: $core-vibrant-blue;
+      }
+    }
+  
+    thead {
+      background-color: $ui-off-white;
+      color: $core-fleet-black;
+      text-align: left;
+      border-bottom: 1px solid $ui-fleet-blue-15;
+  
+      th {
+        padding: 12px $pad-large;
+        min-width: 125px;
+  
+        .form-field {
+          margin-bottom: 0;
+        }
+  
+        span {
+          white-space: nowrap;
+  
+          .fleeticon {
+            margin-right: 5px;
+          }
+        }
+      }
+  
+      .input-field {
+        width: 100%;
+        height: 28px;
+      }
+    }
+  
+    tbody {
+      background-color: $core-white;
+  
+      td {
+        padding: 12px $pad-large;
+        white-space: nowrap;
+      }
+  
+      tr {
+        border-bottom: 1px solid $ui-fleet-blue-15;
+  
+        &:last-child {
+          border-bottom: 0;
+        }
+      }
+    }
+  }
+}

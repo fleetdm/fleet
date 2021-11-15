@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { noop } from "lodash";
@@ -358,13 +359,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           </div>
           {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
             <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="brand"
-                className={`${baseClass}__add-policy-button`}
-                onClick={toggleAddPolicyModal}
+              <Link
+                to={PATHS.NEW_POLICY}
+                className={`${baseClass}__add-policy-link`}
               >
                 Add a policy
-              </Button>
+              </Link>
             </div>
           )}
         </div>
