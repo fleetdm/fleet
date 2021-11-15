@@ -297,7 +297,7 @@ func TestCommit(t *testing.T) {
 
 	initialRoots := getRoots(t, tmpDir)
 
-	commit, _, err := prepareCommitRollback(tmpDir)
+	commit, _, err := startRotatePseudoTx(tmpDir)
 	require.NoError(t, err)
 
 	repo, err := openRepo(tmpDir)
@@ -336,7 +336,7 @@ func TestRollback(t *testing.T) {
 
 	initialRoots := getRoots(t, tmpDir)
 
-	_, rollback, err := prepareCommitRollback(tmpDir)
+	_, rollback, err := startRotatePseudoTx(tmpDir)
 	require.NoError(t, err)
 
 	repo, err := openRepo(tmpDir)
