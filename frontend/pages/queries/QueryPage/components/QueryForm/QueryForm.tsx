@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
+import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
@@ -11,6 +12,7 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
 
+import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -169,6 +171,27 @@ const QueryForm = ({
     }
   };
 
+  const renderAuthor = (): JSX.Element | null => {
+    return storedQuery ? (
+      <>
+        <b>Author</b>
+        <div>
+          <Avatar
+            user={addGravatarUrlToResource({
+              email: storedQuery.author_email,
+            })}
+            size="xsmall"
+          />
+          <span>
+            {storedQuery.author_name === currentUser?.name
+              ? "You"
+              : storedQuery.author_name}
+          </span>
+        </div>
+      </>
+    ) : null;
+  };
+
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showOpenSchemaActionText) {
       return null;
@@ -261,12 +284,17 @@ const QueryForm = ({
 
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name no-hover`}>
-        {lastEditedQueryName}
-      </h1>
-      <p className={`${baseClass}__query-description no-hover`}>
-        {lastEditedQueryDescription}
-      </p>
+      <div className={`${baseClass}__title-bar`}>
+        <div className="name-description">
+          <h1 className={`${baseClass}__query-name no-hover`}>
+            {lastEditedQueryName}
+          </h1>
+          <p className={`${baseClass}__query-description no-hover`}>
+            {lastEditedQueryDescription}
+          </p>
+        </div>
+        <div className="author">{renderAuthor()}</div>
+      </div>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
@@ -303,31 +331,36 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isEditMode ? (
-          <InputField
-            id="query-name"
-            type="text"
-            name="query-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__query-name`}
-            onChange={setLastEditedQueryName}
-          />
-        ) : (
-          <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
-        )}
-        {isEditMode && (
-          <InputField
-            id="query-description"
-            type="text"
-            name="query-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__query-description`}
-            onChange={setLastEditedQueryDescription}
-          />
-        )}
+        <div className={`${baseClass}__title-bar`}>
+          <div className="name-description">
+            {isEditMode ? (
+              <InputField
+                id="query-name"
+                type="textarea"
+                name="query-name"
+                error={errors.name}
+                value={lastEditedQueryName}
+                placeholder="Add name here"
+                inputClassName={`${baseClass}__query-name`}
+                onChange={setLastEditedQueryName}
+              />
+            ) : (
+              <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
+            )}
+            {isEditMode && (
+              <InputField
+                id="query-description"
+                type="textarea"
+                name="query-description"
+                value={lastEditedQueryDescription}
+                placeholder="Add description here."
+                inputClassName={`${baseClass}__query-description`}
+                onChange={setLastEditedQueryDescription}
+              />
+            )}
+          </div>
+          <div className="author">{isEditMode && renderAuthor()}</div>
+        </div>
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}

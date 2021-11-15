@@ -1,12 +1,15 @@
 .avatar {
   @include size(120px);
-  border: solid 1px $ui-fleet-blue-15;
   display: block;
   background-size: cover;
   border-radius: 50%;
 
   &--small {
     @include size(32px);
+  }
+
+  &--xsmall {
+    @include size(16px);
   }
 
   img {

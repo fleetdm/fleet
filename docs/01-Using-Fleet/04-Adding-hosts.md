@@ -9,7 +9,7 @@
 - [Enrolling multiple macOS hosts](#enrolling-multiple-macos-hosts)
 - [Multiple enroll secrets](#multiple-enroll-secrets)
 
-Fleet is powered by the open source osquery tool. To install osquery and connect a host to Fleet, you have three options: 
+Fleet is powered by the open source osquery tool. To install osquery and connect a host to Fleet, you have three options:
 - You can use the `fleetctl package` command to create an osquery installer.
 - You can install the osquery binaries on your hosts via the packages distributed at https://osquery.io/downloads.
 - You can use the [Kolide Osquery Launcher](https://github.com/kolide/launcher).
@@ -50,6 +50,7 @@ To configure an osquery installer to comminucate with a specific Fleet instance,
 |--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
 |--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
 | --debug     |             Enable debug logging (default: `false`) |
+| --verbose   |             Log detailed information when building the package (default: false) |
 | --help, -h    |             show help (default: `false`) |
 
 
@@ -131,7 +132,7 @@ Ensure that paths to files in the flag file are absolute, and not quoted. For ex
 
 Instructions on connecting a single Launcher to Fleet can be found [here in the Launcher documentation](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
-Kolide provides compiled releases of their launcher for all supported platforms. 
+Kolide provides compiled releases of their launcher for all supported platforms.
 Those can be found [here](https://github.com/kolide/launcher/releases), or if you’d like to compile from source, the instructions are [here](https://github.com/kolide/launcher/blob/master/docs/launcher.md#building-the-code).
 
 ## Enrolling multiple macOS hosts
@@ -166,4 +167,4 @@ Multiple enroll secrets can be set to allow different groups of hosts to
 authenticate with Fleet. When a host enrolls, the corresponding enroll secret is
 recorded and can be used to segment hosts.
 
-To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../01-Using-Fleet/02-fleetctl-CLI.md#enroll-secrets) 
+To set the enroll secret, use the `fleetctl` tool to apply an [enroll secret spec](../01-Using-Fleet/02-fleetctl-CLI.md#enroll-secrets)

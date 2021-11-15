@@ -34,6 +34,25 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
 }
 
+// ElementsMatchSkipIDAndHostCount asserts that the elements match, skipping any field with
+// name "ID" or "HostCount".
+func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+	t.Helper()
+
+	opt := cmp.FilterPath(func(p cmp.Path) bool {
+		for _, ps := range p {
+			switch ps := ps.(type) {
+			case cmp.StructField:
+				if ps.Name() == "ID" || ps.Name() == "HostCount" {
+					return true
+				}
+			}
+		}
+		return false
+	}, cmp.Ignore())
+	return ElementsMatchWithOptions(t, listA, listB, []cmp.Option{opt}, msgAndArgs)
+}
+
 // ElementsMatchSkipTimestampsID asserts that the elements match, skipping any field with
 // name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing after DB insertion.
 func ElementsMatchSkipTimestampsID(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {

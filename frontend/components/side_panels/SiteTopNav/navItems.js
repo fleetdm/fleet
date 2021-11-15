@@ -61,6 +61,9 @@ export default (currentUser) => {
     permissionUtils.isAnyTeamAdmin(currentUser) ||
     permissionUtils.isGlobalAdmin(currentUser)
   ) {
+    const userAdminTeams = currentUser.teams.filter(
+      (thisTeam) => thisTeam.role === "admin"
+    );
     const adminNavItems = [
       {
         icon: "settings",
@@ -71,7 +74,7 @@ export default (currentUser) => {
           pathname:
             currentUser.global_role === "admin"
               ? PATHS.ADMIN_SETTINGS
-              : `${PATHS.ADMIN_TEAMS}/${currentUser.teams[0].id}/members`,
+              : `${PATHS.ADMIN_TEAMS}/${userAdminTeams[0].id}/members`,
         },
       },
     ];

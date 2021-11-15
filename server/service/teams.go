@@ -83,3 +83,18 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 
 	return nil
 }
+
+type modifyTeamEnrollSecretsRequest struct {
+	TeamID  uint                 `url:"team_id"`
+	Secrets []fleet.EnrollSecret `json:"secrets"`
+}
+
+func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyTeamEnrollSecretsRequest)
+	secrets, err := svc.ModifyTeamEnrollSecrets(ctx, req.TeamID, req.Secrets)
+	if err != nil {
+		return teamEnrollSecretsResponse{Err: err}, nil
+	}
+
+	return teamEnrollSecretsResponse{Secrets: secrets}, err
+}

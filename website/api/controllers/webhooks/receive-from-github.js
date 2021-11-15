@@ -42,7 +42,8 @@ module.exports = {
       'edwardsb',
       'alphabrevity',
       'eashaw',
-      'drewbakerfdm'
+      'drewbakerfdm',
+      'vercel'
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'rlynnj11';// « Used below
 
@@ -234,7 +235,7 @@ module.exports = {
       }//ﬁ
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'commit_comment' && ['created'].includes(action))||
+      (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
       (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
       (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
     ) {

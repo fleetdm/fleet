@@ -567,7 +567,6 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
-
     router.replace(nextLocation);
   };
 

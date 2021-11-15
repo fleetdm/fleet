@@ -109,7 +109,7 @@ const ManageQueriesPage = (): JSX.Element => {
     {
       // refetchOnMount: false,
       // refetchOnReconnect: false,
-      // refetchOnWindowFocus: false,
+      refetchOnWindowFocus: false,
       select: (data: IFleetQueriesResponse) => data.queries,
     }
   );
