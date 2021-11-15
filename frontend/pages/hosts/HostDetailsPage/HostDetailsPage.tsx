@@ -23,6 +23,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
+import FleetAce from "components/FleetAce";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -70,6 +71,7 @@ import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.pn
 import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
 
 const baseClass = "host-details";
 
@@ -128,6 +130,7 @@ const HostDetailsPage = ({
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
     false
   );
+  const [showOSPolicyModal, setShowOSPolicyModal] = useState<boolean>(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -139,6 +142,10 @@ const HostDetailsPage = ({
     },
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const toggleOSPolicyModal = useCallback(() => {
+    setShowOSPolicyModal(!showOSPolicyModal);
+  }, [showOSPolicyModal, setShowOSPolicyModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -320,6 +327,9 @@ const HostDetailsPage = ({
     ])
   );
 
+  const operatingSystem = host?.os_version;
+  const operatingSystemVersion = host?.os_version;
+
   const aboutData = normalizeEmptyValues(
     pick(host, [
       "seen_time",
@@ -446,6 +456,67 @@ const HostDetailsPage = ({
             onClick={() => setShowDeleteHostModal(false)}
             variant="inverse-alert"
           >
+            Cancel
+          </Button>
+        </div>
+      </>
+    </Modal>
+  );
+
+  const renderOSPolicyModal = () => (
+    <Modal
+      title="Operating system"
+      onExit={() => setShowOSPolicyModal(false)}
+      className={`${baseClass}__modal`}
+    >
+      <>
+        <p>
+          <span className={`${baseClass}__os-modal-title`}>
+            {titleData.os_version}{" "}
+          </span>
+          <span className={`${baseClass}__os-modal-updated`}>
+            Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
+          </span>
+        </p>
+        <p>
+          <span className={`${baseClass}__os-modal-example-title`}>
+            Example policy:
+          </span>{" "}
+          <span
+            className="policy-isexamplesue tooltip__tooltip-icon"
+            data-tip
+            data-for="policy-example"
+            data-tip-disable={false}
+          >
+            <img alt="host issue" src={QuestionIcon} />
+          </span>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="policy-example"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              A policy is a yes or no question
+              <br /> you can ask all your devices.
+            </span>
+          </ReactTooltip>
+          <FleetAce
+            label={`Is ${operatingSystem}, version ${operatingSystemVersion} installed?`}
+            value={`SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || ',' || minor || '.' || patch = '${operatingSystemVersion}';`}
+            name="operating system policy"
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            // handleSubmit={promptSaveQuery}
+            readOnly
+          />
+        </p>
+        <div className={`${baseClass}__modal-buttons`}>
+          <Button onClick={onDestroyHost} variant="brand">
+            Create new policy
+          </Button>
+          <Button onClick={() => setShowOSPolicyModal(false)} variant="inverse">
             Cancel
           </Button>
         </div>
@@ -967,7 +1038,16 @@ const HostDetailsPage = ({
             </div>
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">OS</span>
-              <span className="info-flex__data">{titleData.os_version}</span>
+              <span className="info-flex__data">
+                {" "}
+                <Button
+                  onClick={() => toggleOSPolicyModal()}
+                  variant="text-link"
+                  className={`${baseClass}__os-policy-button`}
+                >
+                  {titleData.os_version}
+                </Button>
+              </span>
             </div>
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Osquery</span>
@@ -1068,6 +1148,7 @@ const HostDetailsPage = ({
           policy={selectedPolicy}
         />
       )}
+      {showOSPolicyModal && renderOSPolicyModal()}
     </div>
   );
 };

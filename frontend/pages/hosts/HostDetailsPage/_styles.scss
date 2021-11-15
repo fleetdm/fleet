@@ -654,4 +654,15 @@
   .software-last-used-muted {
     color: $ui-fleet-black-50;
   }
+
+  &__os-modal-title {
+    font-size: $medium;
+    font-weight: $bold;
+  }
+  &__os-modal-updated {
+    font-style: italic;
+  }
+  &__os-modal-example-title {
+    font-weight: $bold;
+  }
 }
