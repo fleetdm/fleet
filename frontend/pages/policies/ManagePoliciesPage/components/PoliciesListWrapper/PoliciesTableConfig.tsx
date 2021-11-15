@@ -171,7 +171,7 @@ const generateTableHeaders = (options: {
 
 const generateDataSet = memoize((policiesList: IPolicy[] = []): IPolicy[] => {
   policiesList = policiesList.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(a.query_name, b.query_name)
+    sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
   return policiesList;
 });

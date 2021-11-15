@@ -23,7 +23,6 @@ interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
-  toggleAddPolicyModal: () => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
@@ -34,7 +33,6 @@ const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onRemovePoliciesClick,
-  toggleAddPolicyModal,
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
@@ -85,17 +83,6 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
-              <div className={`${noPoliciesClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noPoliciesClass}__add-policy-button`}
-                  onClick={toggleAddPolicyModal}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>

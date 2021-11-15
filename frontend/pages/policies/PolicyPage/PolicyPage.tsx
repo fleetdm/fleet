@@ -7,7 +7,7 @@ import Fleet from "fleet"; // @ts-ignore
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
-import queryAPI from "services/entities/queries"; // @ts-ignore
+import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
@@ -72,14 +72,14 @@ const PolicyPage = ({
     refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
-    () => queryAPI.load(policyIdForEdit as number),
+    () => globalPoliciesAPI.load(policyIdForEdit as number),
     {
       enabled: false,
       refetchOnWindowFocus: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
-        setLastEditedQueryName(returnedQuery.query_name);
-        setLastEditedQueryDescription(returnedQuery.query_description);
+        setLastEditedQueryName(returnedQuery.name);
+        setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
       },
     }
@@ -107,7 +107,7 @@ const PolicyPage = ({
 
   const {
     mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) => queryAPI.create(formData));
+  } = useMutation((formData: IPolicyFormData) => globalPoliciesAPI.create(formData));
 
   useEffect(() => {
     const detectIsFleetQueryRunnable = () => {
@@ -118,8 +118,8 @@ const PolicyPage = ({
 
     detectIsFleetQueryRunnable();
     !!policyIdForEdit && refetchStoredPolicy();
-    setLastEditedQueryName(DEFAULT_POLICY.query_name);
-    setLastEditedQueryDescription(DEFAULT_POLICY.query_description);
+    setLastEditedQueryName(DEFAULT_POLICY.name);
+    setLastEditedQueryDescription(DEFAULT_POLICY.description);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
   }, []);
 

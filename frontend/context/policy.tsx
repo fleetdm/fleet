@@ -23,8 +23,8 @@ type InitialStateType = {
 
 const initialState = {
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
-  lastEditedQueryName: DEFAULT_POLICY.query_name,
-  lastEditedQueryDescription: DEFAULT_POLICY.query_description,
+  lastEditedQueryName: DEFAULT_POLICY.name,
+  lastEditedQueryDescription: DEFAULT_POLICY.description,
   lastEditedQueryBody: DEFAULT_POLICY.query,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,

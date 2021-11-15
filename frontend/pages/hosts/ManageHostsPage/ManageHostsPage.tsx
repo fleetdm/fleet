@@ -912,12 +912,12 @@ const ManageHostsPage = ({
         />
         <div className={`${baseClass}__policies-filter-name-card`}>
           <img src={PolicyIcon} alt="Policy" />
-          {policy?.query_name}
+          {policy?.name}
           <Button
             className={`${baseClass}__clear-policies-filter`}
             onClick={handleClearPoliciesFilter}
             variant={"small-text-icon"}
-            title={policy?.query_name}
+            title={policy?.name}
           >
             <img src={CloseIcon} alt="Remove policy filter" />
           </Button>

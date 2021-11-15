@@ -104,9 +104,11 @@ const PolicyForm = ({
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainerOrTeamAdmin && storedPolicy && currentUser // &&
-    : // storedPolicy.author_id === currentUser.id // TODO bring back when API is working
-      isAnyTeamMaintainerOrTeamAdmin;
+    ? isAnyTeamMaintainerOrTeamAdmin &&
+      storedPolicy &&
+      currentUser &&
+      storedPolicy.author_id === currentUser.id
+    : isAnyTeamMaintainerOrTeamAdmin;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
@@ -156,8 +158,8 @@ const PolicyForm = ({
         setIsSaveModalOpen(true);
       } else {
         onUpdate({
-          query_name: lastEditedQueryName,
-          query_description: lastEditedQueryDescription,
+          name: lastEditedQueryName,
+          description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
         });
 
@@ -167,27 +169,24 @@ const PolicyForm = ({
   };
 
   const renderAuthor = (): JSX.Element | null => {
-    return null;
-
-    // TODO: bring back when API is ready
-    // return storedPolicy ? (
-    //   <>
-    //     <b>Author</b>
-    //     <div>
-    //       <Avatar
-    //         user={addGravatarUrlToResource({
-    //           email: storedPolicy.author_email,
-    //         })}
-    //         size="xsmall"
-    //       />
-    //       <span>
-    //         {storedQuery.author_name === currentUser?.name
-    //           ? "You"
-    //           : storedQuery.author_name}
-    //       </span>
-    //     </div>
-    //   </>
-    // ) : null;
+    return storedPolicy ? (
+      <>
+        <b>Author</b>
+        <div>
+          <Avatar
+            user={addGravatarUrlToResource({
+              email: storedPolicy.author_email,
+            })}
+            size="xsmall"
+          />
+          <span>
+            {storedPolicy.author_name === currentUser?.name
+              ? "You"
+              : storedPolicy.author_name}
+          </span>
+        </div>
+      </>
+    ) : null;
   };
 
   const renderLabelComponent = (): JSX.Element | null => {

@@ -80,15 +80,16 @@ export const DEFAULT_QUERY = {
 };
 
 export const DEFAULT_POLICY = {
-  id: 0,
-  query_id: 0,
-  query_name: "",
-  query_description: "",
-  query: "SELECT 1 FROM osquery_info WHERE start_time > 1;",
-  team_id: 0,
-  resolution: "",
-  passing_host_count: 0,
-  failing_host_count: 0,
+  id: 1,
+  name: "Gatekeeper enabled",
+  query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  description: "Checks if gatekeeper is enabled on macOS devices",
+  author_id: 42,
+  author_name: "John",
+  author_email: "john@example.com",
+  resolution: "Resolution steps",
+  passing_host_count: 2000,
+  failing_host_count: 300,
 };
 
 export const DEFAULT_CAMPAIGN = {

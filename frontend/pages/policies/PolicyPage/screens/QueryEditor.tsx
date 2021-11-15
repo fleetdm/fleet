@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
-import queryAPI from "services/entities/queries";
+import globalPoliciesAPI from "services/entities/global_policies";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -95,7 +95,7 @@ const QueryEditor = ({
     });
 
     try {
-      await queryAPI.update(policyIdForEdit, updatedPolicy);
+      await globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
       dispatch(renderFlash("success", "Policy updated!"));
     } catch (updateError) {
       console.error(updateError);

@@ -4,7 +4,7 @@ import { size } from "lodash";
 import { IPolicyFormData } from "interfaces/policy";
 import { useDeepEffect } from "utilities/hooks";
 
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -54,8 +54,8 @@ const NewPolicyModal = ({
 
     if (valid) {
       onCreatePolicy({
-        query_description: description,
-        query_name: name,
+        description,
+        name,
         query: queryValue,
       });
 
@@ -82,9 +82,8 @@ const NewPolicyModal = ({
           inputClassName={`${baseClass}__policy-save-modal-description`}
           label="Description"
           type="textarea"
-          placeholder="What information does your query reveal?"
+          placeholder="What information does your policy reveal?"
         />
-        <hr />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
         >
