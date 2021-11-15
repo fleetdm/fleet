@@ -4,12 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"math/rand"
-	"net/url"
-
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -185,7 +184,7 @@ the way that the Fleet server works.
 					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"#\n"+
-					"#   To run the serve without performing migrations:\n"+
+					"#   To run the server without performing migrations:\n"+
 					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
 					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
 					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
