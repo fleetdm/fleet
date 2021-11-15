@@ -1780,17 +1780,17 @@ AWS S3 Region. Leave blank to enable region discovery.
 
 #### Upgrades
 
-##### exit_if_migations_missing
+##### allow_missing_migations
 
-If set then `fleet serve` will exit with exit code 1 if some migrations are missing.
+If set then `fleet serve` will run even if there are database migrations missing.
 
 - Default value: `false`
-- Environment variable: `FLEET_UPGRADES_EXIT_IF_MIGRATIONS_MISSING`
+- Environment variable: `FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS`
 - Config file format:
 
   ```
   upgrades:
-	exit_if_migations_missing: true
+    allow_missing_migrations: true
   ```
 
 #### Vulnerabilities

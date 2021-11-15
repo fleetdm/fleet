@@ -1,1 +1,1 @@
-* If `FLEET_UPGRADES_EXIT_IF_MIGRATIONS_MISSING` environment variable is set then `fleet serve` will exit if there are any migrations missing.
+* `fleet serve` exits if there are any migrations missing.

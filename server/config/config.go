@@ -220,7 +220,7 @@ type VulnerabilitiesConfig struct {
 
 // UpgradesConfig defines configs related to fleet server upgrades.
 type UpgradesConfig struct {
-	ExitIfMigrationsMissing bool `json:"exit_if_migrations_missing" yaml:"exit_if_migrations_missing"`
+	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -528,8 +528,8 @@ func (man Manager) addConfigs() {
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 
 	// Upgrades
-	man.addConfigBool("upgrades.exit_if_migrations_missing", false,
-		"Exit serve if migrations are missing.")
+	man.addConfigBool("upgrades.allow_missing_migrations", false,
+		"Allow serve to run even if migrations are missing.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -699,7 +699,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
 		},
 		Upgrades: UpgradesConfig{
-			ExitIfMigrationsMissing: man.getConfigBool("upgrades.exit_if_migrations_missing"),
+			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
 		},
 	}
 }
