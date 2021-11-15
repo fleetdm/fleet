@@ -104,7 +104,7 @@ const PoliciesListWrapper = ({
         })}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
-        defaultSortHeader={"query_name"}
+        defaultSortHeader={"name"}
         defaultSortDirection={"asc"}
         manualSortBy
         showMarkAllPages={false}
