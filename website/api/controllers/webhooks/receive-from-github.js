@@ -43,7 +43,8 @@ module.exports = {
       'alphabrevity',
       'eashaw',
       'drewbakerfdm',
-      'vercel[bot]'
+      'vercel[bot]',
+      'lucasmrod'
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'rlynnj11';// « Used below
 
