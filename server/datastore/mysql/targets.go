@@ -12,7 +12,8 @@ import (
 
 func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with
-	// host.Status and GenerateHostStatusStatistics
+	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
+	// with each status must be the same.
 
 	if len(targets.HostIDs) == 0 && len(targets.LabelIDs) == 0 && len(targets.TeamIDs) == 0 {
 		// No need to query if no targets selected
