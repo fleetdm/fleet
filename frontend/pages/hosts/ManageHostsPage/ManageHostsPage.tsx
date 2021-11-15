@@ -325,12 +325,17 @@ const ManageHostsPage = ({
   );
 
   const toggleDeleteSecretModal = () => {
+    // open and closes delete modal
     setShowDeleteSecretModal(!showDeleteSecretModal);
+    // open and closes main enroll secret modal
     setShowEnrollSecretModal(!showEnrollSecretModal);
   };
 
+  // this is called when we click add or edit
   const toggleSecretEditorModal = () => {
+    // open and closes add/edit modal
     setShowSecretEditorModal(!showSecretEditorModal);
+    // open and closes main enroll secret modall
     setShowEnrollSecretModal(!showEnrollSecretModal);
   };
 
@@ -828,7 +833,7 @@ const ManageHostsPage = ({
         await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
         refetchGlobalSecrets();
       }
-      toggleSecretEditorModal();
+      toggleDeleteSecretModal();
       refetchTeams();
       router.push(
         getNextLocationPath({
