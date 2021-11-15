@@ -4,11 +4,11 @@ package websocket
 
 import (
 	"encoding/json"
-
-	"github.com/igm/sockjs-go/v3/sockjs"
+	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
-	"github.com/pkg/errors"
+	"github.com/igm/sockjs-go/v3/sockjs"
 )
 
 const (
@@ -38,9 +38,12 @@ type Conn struct {
 func (c *Conn) WriteJSON(msg JSONMessage) error {
 	buf, err := json.Marshal(msg)
 	if err != nil {
-		return errors.Wrap(err, "marshalling JSON")
+		return fmt.Errorf("marshalling JSON: %w", err)
 	}
-	return errors.Wrap(c.Send(string(buf)), "sending")
+	if err := c.Send(string(buf)); err != nil {
+		return fmt.Errorf("sending: %w", err)
+	}
+	return nil
 }
 
 // WriteJSONMessage writes the provided data as JSON (using the Message struct),
@@ -66,13 +69,13 @@ func (c *Conn) WriteJSONError(data interface{}) error {
 func (c *Conn) ReadJSONMessage() (*JSONMessage, error) {
 	data, err := c.Recv()
 	if err != nil {
-		return nil, errors.Wrap(err, "reading from websocket")
+		return nil, fmt.Errorf("reading from websocket: %w", err)
 	}
 
 	msg := &JSONMessage{Data: &json.RawMessage{}}
 
 	if err := json.Unmarshal([]byte(data), msg); err != nil {
-		return nil, errors.Wrap(err, "parsing msg json")
+		return nil, fmt.Errorf("parsing msg json: %w", err)
 	}
 
 	if msg.Type == "" {
@@ -94,15 +97,15 @@ type authData struct {
 func (c *Conn) ReadAuthToken() (token.Token, error) {
 	msg, err := c.ReadJSONMessage()
 	if err != nil {
-		return "", errors.Wrap(err, "read auth token")
+		return "", fmt.Errorf("read auth token: %w", err)
 	}
 	if msg.Type != authType {
-		return "", errors.Errorf(`message type not "%s": "%s"`, authType, msg.Type)
+		return "", fmt.Errorf(`message type not "%s": "%s"`, authType, msg.Type)
 	}
 
 	var auth authData
 	if err := json.Unmarshal(*(msg.Data.(*json.RawMessage)), &auth); err != nil {
-		return "", errors.Wrap(err, "unmarshal auth data")
+		return "", fmt.Errorf("unmarshal auth data: %w", err)
 	}
 
 	return auth.Token, nil

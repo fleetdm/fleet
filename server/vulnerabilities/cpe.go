@@ -3,6 +3,7 @@ package vulnerabilities
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,12 +14,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -182,7 +183,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 	var indexedCPEs []IndexedCPEItem
 	err := db.Select(&indexedCPEs, query, args...)
 	if err != nil {
-		return "", errors.Wrapf(err, "getting cpes for: %s", cleanAppName(software.Name))
+		return "", fmt.Errorf("getting cpes for: %s: %w", cleanAppName(software.Name), err)
 	}
 
 	for _, item := range indexedCPEs {
@@ -202,7 +203,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software) (string, error) {
 				deprecatedItem.ID,
 			)
 			if err != nil {
-				return "", errors.Wrap(err, "getting deprecation")
+				return "", fmt.Errorf("getting deprecation: %w", err)
 			}
 			if deprecation.Deprecated {
 				deprecatedItem = deprecation
@@ -227,25 +228,25 @@ func TranslateSoftwareToCPE(
 
 	client := &http.Client{}
 	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
-		return errors.Wrap(err, "sync cpe db")
+		return ctxerr.Wrap(ctx, err, "sync cpe db")
 	}
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {
-		return errors.Wrap(err, "all software iterator")
+		return ctxerr.Wrap(ctx, err, "all software iterator")
 	}
 	defer iterator.Close()
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
-		return errors.Wrap(err, "opening the cpe db")
+		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
 	defer db.Close()
 
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
-			return errors.Wrap(err, "getting value from iterator")
+			return ctxerr.Wrap(ctx, err, "getting value from iterator")
 		}
 		cpe, err := CPEFromSoftware(db, software)
 		if err != nil {
@@ -257,7 +258,7 @@ func TranslateSoftwareToCPE(
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {
-			return errors.Wrap(err, "inserting cpe")
+			return ctxerr.Wrap(ctx, err, "inserting cpe")
 		}
 	}
 
