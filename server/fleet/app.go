@@ -2,10 +2,10 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/pkg/errors"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -164,7 +164,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.Errorf("invalid duration type: %T", value)
+		return fmt.Errorf("invalid duration type: %T", value)
 	}
 }
 
