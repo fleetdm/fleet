@@ -364,7 +364,7 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	// Prepare to roll back in case of error.
 	success := false
-	commit, rollback, err := prepareCommitRollback(repoPath)
+	commit, rollback, err := startRotatePseudoTx(repoPath)
 	if err != nil {
 		return err
 	}
@@ -431,7 +431,9 @@ func updatesRotateFunc(c *cli.Context) error {
 	return nil
 }
 
-func prepareCommitRollback(repoPath string) (commit, rollback func() error, err error) {
+// startRotatePseudoTx starts a "transaction" for the rotation routine, preparing a commit and
+// rollback function for the metadata files that are modified by the rotation process.
+func startRotatePseudoTx(repoPath string) (commit, rollback func() error, err error) {
 	repositoryDir := filepath.Join(repoPath, "repository")
 	if err := createBackups(repositoryDir); err != nil {
 		return nil, nil, errors.Wrap(err, "backup repository")
