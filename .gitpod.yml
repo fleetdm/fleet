@@ -1,7 +1,7 @@
 # Commands to start on workspace startup
 tasks:
   - init: make deps generate
-    command: ./build/fleet server --dev
+    command: ./build/fleet serve --dev
 # Ports to expose on workspace startup
 ports:
   - port: 8080
