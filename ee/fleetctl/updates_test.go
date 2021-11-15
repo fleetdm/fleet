@@ -1,5 +1,5 @@
-//go:build darwin && linux
-// +build darwin,linux
+//go:build darwin || linux
+// +build darwin linux
 
 package eefleetctl
 
@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -130,6 +131,32 @@ func assertVersion(t *testing.T, expected int, versionFunc func() (int, error)) 
 	assert.Equal(t, expected, actual)
 }
 
+// Capture stdout while running the updates roots command
+func getRoots(t *testing.T, tmpDir string) string {
+	t.Helper()
+
+	stdout := os.Stdout
+	defer func() { os.Stdout = stdout }()
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	require.NoError(t, runUpdatesCommand("roots", "--path", tmpDir))
+	require.NoError(t, w.Close())
+
+	out, err := ioutil.ReadAll(r)
+	require.NoError(t, err)
+
+	// Check output
+	var keys []data.Key
+	require.NoError(t, json.Unmarshal(out, &keys))
+	assert.Greater(t, len(keys[0].IDs()), 0)
+	assert.Equal(t, "ed25519", keys[0].Type)
+
+	return string(out)
+}
+
 func TestUpdatesIntegration(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	tmpDir := t.TempDir()
@@ -142,31 +169,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	server := httptest.NewServer(http.FileServer(http.Dir(filepath.Join(tmpDir, "repository"))))
 	defer server.Close()
 
-	// Capture stdout while running the updates roots command
-	getRoots := func() string {
-		stdout := os.Stdout
-		defer func() { os.Stdout = stdout }()
-
-		r, w, err := os.Pipe()
-		require.NoError(t, err)
-		os.Stdout = w
-
-		require.NoError(t, runUpdatesCommand("roots", "--path", tmpDir))
-		require.NoError(t, w.Close())
-
-		out, err := ioutil.ReadAll(r)
-		require.NoError(t, err)
-
-		// Check output
-		var keys []data.Key
-		require.NoError(t, json.Unmarshal(out, &keys))
-		require.Len(t, keys, 1)
-		assert.Greater(t, len(keys[0].IDs()), 0)
-		assert.Equal(t, "ed25519", keys[0].Type)
-
-		return string(out)
-	}
-	roots := getRoots()
+	roots := getRoots(t, tmpDir)
 
 	// Initialize an update client
 	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
@@ -260,7 +263,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	require.NoError(t, runUpdatesCommand("add", "--path", tmpDir, "--target", testPath, "--platform", "windows", "--name", "test", "--version", "1.3.3.7"))
 
 	// Root key should have changed
-	newRoots := getRoots()
+	newRoots := getRoots(t, tmpDir)
 	assert.NotEqual(t, roots, newRoots)
 
 	// Should still be able to retrieve an update after rotations
@@ -272,4 +275,92 @@ func TestUpdatesIntegration(t *testing.T) {
 	require.NoError(t, os.RemoveAll(client.LocalPath("test", "1.3.3.7")))
 	_, err = client.Get("test", "1.3.3.7")
 	require.NoError(t, err)
+
+	// Update client should be able to initialize with new root
+	tmpDir = t.TempDir()
+	localStore, err = filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
+	require.NoError(t, err)
+	client, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	require.NoError(t, err)
+	require.NoError(t, client.UpdateMetadata())
+}
+
+func TestCommit(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	setPassphrases(t)
+
+	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
+
+	initialEntries, err := os.ReadDir(filepath.Join(tmpDir, "repository"))
+	require.NoError(t, err)
+
+	initialRoots := getRoots(t, tmpDir)
+
+	commit, _, err := prepareCommitRollback(tmpDir)
+	require.NoError(t, err)
+
+	repo, err := openRepo(tmpDir)
+	require.NoError(t, err)
+
+	// Make rotations that change repo
+	require.NoError(t, updatesGenKey(repo, "root"))
+	require.NoError(t, repo.Sign("root.json"))
+	require.NoError(t, repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)))
+	require.NoError(t, repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)))
+	require.NoError(t, repo.Commit())
+
+	// Assert directory has changed after commit.
+	require.NoError(t, commit())
+	entries, err := os.ReadDir(filepath.Join(tmpDir, "repository"))
+	require.NoError(t, err)
+	assert.NotEqual(t, initialEntries, entries)
+
+	_, err = os.Stat(filepath.Join(tmpDir, "repository", ".backup"))
+	assert.True(t, os.IsNotExist(err))
+
+	// Roots should have changed.
+	roots := getRoots(t, tmpDir)
+	assert.NotEqual(t, initialRoots, roots)
+}
+
+func TestRollback(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	setPassphrases(t)
+
+	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
+
+	initialEntries, err := os.ReadDir(filepath.Join(tmpDir, "repository"))
+	require.NoError(t, err)
+
+	initialRoots := getRoots(t, tmpDir)
+
+	_, rollback, err := prepareCommitRollback(tmpDir)
+	require.NoError(t, err)
+
+	repo, err := openRepo(tmpDir)
+	require.NoError(t, err)
+
+	// Make rotations that change repo
+	require.NoError(t, updatesGenKey(repo, "root"))
+	require.NoError(t, repo.Sign("root.json"))
+	require.NoError(t, repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)))
+	require.NoError(t, repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)))
+	require.NoError(t, repo.Commit())
+
+	// Assert directory has NOT changed after rollback.
+	require.NoError(t, rollback())
+	entries, err := os.ReadDir(filepath.Join(tmpDir, "repository"))
+	require.NoError(t, err)
+	assert.Equal(t, initialEntries, entries)
+
+	_, err = os.Stat(filepath.Join(tmpDir, "repository", ".backup"))
+	assert.True(t, os.IsNotExist(err))
+
+	// Roots should NOT have changed.
+	repo, err = openRepo(tmpDir)
+	require.NoError(t, err)
+	roots := getRoots(t, tmpDir)
+	assert.Equal(t, initialRoots, roots)
 }

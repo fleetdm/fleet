@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
@@ -41,6 +43,8 @@ const (
 	timestampExpirationDuration = 14 * 24 * time.Hour
 
 	decryptionFailedError = "encrypted: decryption failed"
+
+	backupDirectory = ".backup"
 )
 
 var passHandler = newPassphraseHandler()
@@ -332,16 +336,17 @@ func updatesRotateFunc(c *cli.Context) error {
 	}
 	role := c.Args().Get(0)
 
-	repo, err := openRepo(c.String("path"))
+	repoPath := c.String("path")
+	repo, err := openRepo(repoPath)
 	if err != nil {
 		return err
 	}
-	store, err := openLocalStore(c.String("path"))
+	store, err := openLocalStore(repoPath)
 	if err != nil {
 		return err
 	}
 
-	if err := checkKeys(c.String("path"),
+	if err := checkKeys(repoPath,
 		"root",
 		"targets",
 		"snapshot",
@@ -356,10 +361,24 @@ func updatesRotateFunc(c *cli.Context) error {
 		return errors.Wrap(err, "get keys for role")
 	}
 
-	// Generate new key for role
-	if err := updatesGenKey(repo, role); err != nil {
+	// Prepare to roll back in case of error.
+	success := false
+	commit, rollback, err := prepareCommitRollback(repoPath)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if success {
+			if err := commit(); err != nil {
+				fmt.Println("Warning: failure during commit:", err)
+			}
+		} else {
+			fmt.Println("Rolling back changes.")
+			if err := rollback(); err != nil {
+				fmt.Println("Warning: failure during rollback:", err)
+			}
+		}
+	}()
 
 	// Delete old keys for role
 	for _, key := range keys {
@@ -373,6 +392,14 @@ func updatesRotateFunc(c *cli.Context) error {
 				return errors.Wrap(err, "revoke key")
 			}
 		}
+	}
+
+	// TODO change passphrase for new key:
+	// Waiting on https://github.com/theupdateframework/go-tuf/pull/163
+
+	// Generate new key for role
+	if err := updatesGenKey(repo, role); err != nil {
+		return err
 	}
 
 	// Re-sign the root metadata
@@ -397,6 +424,125 @@ func updatesRotateFunc(c *cli.Context) error {
 	// Commit the changes.
 	if err := repo.Commit(); err != nil {
 		return errors.Wrap(err, "commit repo")
+	}
+
+	success = true
+	return nil
+}
+
+func prepareCommitRollback(repoPath string) (commit, rollback func() error, err error) {
+	repositoryDir := filepath.Join(repoPath, "repository")
+	if err := createBackups(repositoryDir); err != nil {
+		return nil, nil, errors.Wrap(err, "backup repository")
+	}
+	keysDir := filepath.Join(repoPath, "keys")
+	if err := createBackups(keysDir); err != nil {
+		return nil, nil, errors.Wrap(err, "backup keys")
+	}
+
+	commit = func() error {
+		// Remove the backups on successful rotation.
+		if err := os.RemoveAll(filepath.Join(repositoryDir, backupDirectory)); err != nil {
+			return errors.Wrap(err, "remove repository backup directory")
+		}
+		if err := os.RemoveAll(filepath.Join(keysDir, backupDirectory)); err != nil {
+			return errors.Wrap(err, "remove keys backup directory")
+		}
+		return nil
+	}
+
+	rollback = func() error {
+		// Restore the backups on failure.
+		if err := restoreBackups(repositoryDir); err != nil {
+			return errors.Wrap(err, "restore repository backup")
+		}
+		if err := restoreBackups(keysDir); err != nil {
+			return errors.Wrap(err, "restore keys backup ")
+		}
+		return nil
+	}
+
+	return commit, rollback, nil
+}
+
+// createBackups creates backups for metadata and key files during the key rotation process,
+// allowing for rollback if necessary.
+func createBackups(dirPath string) error {
+	// Only *.json files need to be backed up (other files are not modified)
+	backupPath := filepath.Join(dirPath, backupDirectory)
+	if err := os.Mkdir(backupPath, os.ModeDir|0744); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return errors.Wrap(err, "backup directory already exists")
+		}
+		return errors.Wrap(err, "create backup directory")
+	}
+
+	// Copy each of the *.json files into a backup file.
+	files, err := filepath.Glob(filepath.Join(dirPath, "*.json"))
+	if err != nil {
+		return errors.Wrap(err, "glob for backup")
+	}
+	for _, path := range files {
+		if err := file.CopyWithPerms(
+			path,
+			filepath.Join(backupPath, filepath.Base(path)),
+		); err != nil {
+			return errors.Wrap(err, "copy for backup")
+		}
+	}
+
+	return nil
+}
+
+// restoreBackups restores the directory from the backups created by createBackups.
+func restoreBackups(dirPath string) error {
+	backupDir := filepath.Join(dirPath, backupDirectory)
+	info, err := os.Stat(backupDir)
+	if err != nil {
+		return errors.Wrap(err, "stat backup path")
+	}
+	if !info.IsDir() {
+		return errors.Errorf("backup is not directory: %s", backupDir)
+	}
+
+	// Remove files that did not exist at backup time (determined by no corresponding backup).
+	files, err := filepath.Glob(filepath.Join(dirPath, "*.json"))
+	if err != nil {
+		return errors.Wrap(err, "glob for restore")
+	}
+	for _, path := range files {
+		backupPath := filepath.Join(backupDir, filepath.Base(path))
+		exists, err := file.Exists(backupPath)
+		if err != nil {
+			return errors.Wrap(err, "check exists for restore")
+		}
+
+		// File does not exist in the backup, remove it because this implies that the file was added
+		// since the backup was taken.
+		if !exists {
+			if err := os.Remove(path); err != nil {
+				return errors.Wrap(err, "remove for restore")
+			}
+		}
+	}
+
+	// Restore files from backups.
+	backupFiles, err := filepath.Glob(filepath.Join(backupDir, "*.json"))
+	if err != nil {
+		return errors.Wrap(err, "glob for restore")
+	}
+	for _, path := range backupFiles {
+		originalPath := filepath.Join(dirPath, filepath.Base(path))
+
+		// Replace with the backed up file, copying the previous permissions.
+		if err := file.CopyWithPerms(path, originalPath); err != nil {
+			return errors.Wrap(err, "copy for restore")
+		}
+	}
+
+	// Remove the backups now that we are finished with the restore.
+	if err := os.RemoveAll(backupDir); err != nil {
+		return errors.Wrap(err, "remove backup directory")
 	}
 
 	return nil
@@ -486,6 +632,10 @@ type passphraseHandler struct {
 
 func newPassphraseHandler() *passphraseHandler {
 	return &passphraseHandler{cache: make(map[string][]byte)}
+}
+
+func (p *passphraseHandler) clearCache(role string) {
+	delete(p.cache, role)
 }
 
 func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, error) {
