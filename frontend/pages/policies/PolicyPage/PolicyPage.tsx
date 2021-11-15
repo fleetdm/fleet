@@ -107,7 +107,9 @@ const PolicyPage = ({
 
   const {
     mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) => globalPoliciesAPI.create(formData));
+  } = useMutation((formData: IPolicyFormData) =>
+    globalPoliciesAPI.create(formData)
+  );
 
   useEffect(() => {
     const detectIsFleetQueryRunnable = () => {

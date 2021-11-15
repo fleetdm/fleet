@@ -10,7 +10,7 @@ export default {
     if (typeof data === "number") {
       return sendRequest("POST", GLOBAL_POLICIES, { query_id: data });
     }
-    
+
     return sendRequest("POST", GLOBAL_POLICIES, data);
   },
   destroy: (ids: number[]) => {
