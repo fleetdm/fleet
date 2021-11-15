@@ -15,8 +15,8 @@
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
-- [How long are enroll secrets valid?](how-long-are-enroll-secrets-valid)
-- [Should I use multiple enroll secrets?](should-i-use-multiple-enroll-secrets)
+- [How long are enroll secrets valid?](#how-long-are-enroll-secrets-valid)
+- [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 
 ## How do I get support for working with Fleet?
 
