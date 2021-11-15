@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/pkg/errors"
 )
 
 type setupRequest struct {
@@ -43,18 +44,18 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		}
 
 		if req.Admin == nil {
-			return setupResponse{Err: errors.New("setup request must provide admin")}, nil
+			return setupResponse{Err: ctxerr.New(ctx, "setup request must provide admin")}, nil
 		}
 
 		// creating the user should be the last action. If there's a user
 		// present and other errors occur, the setup endpoint closes.
 		adminPayload := *req.Admin
 		if adminPayload.Email == nil || *adminPayload.Email == "" {
-			err := errors.Errorf("admin email cannot be empty")
+			err := fmt.Errorf("admin email cannot be empty")
 			return setupResponse{Err: err}, nil
 		}
 		if adminPayload.Password == nil || *adminPayload.Password == "" {
-			err := errors.Errorf("admin password cannot be empty")
+			err := ctxerr.New(ctx, "admin password cannot be empty")
 			return setupResponse{Err: err}, nil
 		}
 		// Make the user an admin
