@@ -331,7 +331,8 @@
     display: flex;
     flex-direction: row-reverse;
 
-    .button--alert {
+    .button--alert,
+    .button--brand {
       margin-left: 15px;
     }
   }
@@ -663,6 +664,48 @@
     font-style: italic;
   }
   &__os-modal-example-title {
+    font-size: $x-small;
     font-weight: $bold;
+  }
+  &__os-policy {
+    .form-field__label {
+      font-weight: normal;
+    }
+    #os-policy {
+      color: $core-fleet-purple;
+      line-height: 20px;
+      font-size: $x-small;
+      font-family: "SourceCodePro", $monospace;
+      min-height: 55px;
+      padding-right: $pad-xxlarge;
+    }
+  }
+
+  &__os-policy-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 25px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-xxlarge 0 0;
   }
 }

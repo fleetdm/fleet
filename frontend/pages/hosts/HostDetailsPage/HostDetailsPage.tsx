@@ -5,6 +5,8 @@ import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import classnames from "classnames";
 import { isEmpty, pick, reduce } from "lodash";
+// @ts-ignore
+import { stringToClipboard } from "utilities/copy_text";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -23,14 +25,14 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
-import FleetAce from "components/FleetAce";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import SoftwareVulnerabilities from "pages/hosts/HostDetailsPage/SoftwareVulnCount";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner";
-
 import {
   Accordion,
   AccordionItem,
@@ -67,11 +69,12 @@ import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 import { isValidPolicyResponse } from "../ManageHostsPage/helpers";
 
 import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
+import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-action-delete-14x14@2x.png";
-import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
-import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import QueryIcon from "../../../../assets/images/icon-action-query-16x16@2x.png";
 import QuestionIcon from "../../../../assets/images/icon-question-16x16@2x.png";
+import TransferIcon from "../../../../assets/images/icon-action-transfer-16x16@2x.png";
 
 const baseClass = "host-details";
 
@@ -135,23 +138,6 @@ const HostDetailsPage = ({
     null
   );
 
-  const togglePolicyDetailsModal = useCallback(
-    (policy: IHostPolicy) => {
-      setPolicyDetailsModal(!showPolicyDetailsModal);
-      setSelectedPolicy(policy);
-    },
-    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
-  );
-
-  const toggleOSPolicyModal = useCallback(() => {
-    setShowOSPolicyModal(!showOSPolicyModal);
-  }, [showOSPolicyModal, setShowOSPolicyModal]);
-
-  const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(!showPolicyDetailsModal);
-    setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
-
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [
     showRefetchLoadingSpinner,
@@ -161,6 +147,7 @@ const HostDetailsPage = ({
   const [softwareSearchString, setSoftwareSearchString] = useState<string>("");
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState<string>("");
+  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -327,8 +314,15 @@ const HostDetailsPage = ({
     ])
   );
 
-  const operatingSystem = host?.os_version;
-  const operatingSystemVersion = host?.os_version;
+  const operatingSystem = host?.os_version.slice(
+    0,
+    host?.os_version.lastIndexOf(" ")
+  );
+  const operatingSystemVersion = host?.os_version.slice(
+    host?.os_version.lastIndexOf(" ") + 1
+  );
+  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} installed?`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || ',' || minor || '.' || patch = '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -348,6 +342,32 @@ const HostDetailsPage = ({
       "distributed_interval",
     ])
   );
+
+  const togglePolicyDetailsModal = useCallback(
+    (policy: IHostPolicy) => {
+      setPolicyDetailsModal(!showPolicyDetailsModal);
+      setSelectedPolicy(policy);
+    },
+    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+  );
+
+  const toggleOSPolicyModal = useCallback(() => {
+    setShowOSPolicyModal(!showOSPolicyModal);
+  }, [showOSPolicyModal, setShowOSPolicyModal]);
+
+  const onCancelPolicyDetailsModal = useCallback(() => {
+    setPolicyDetailsModal(!showPolicyDetailsModal);
+    setSelectedPolicy(null);
+  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+
+  const onCreateNewPolicy = () => {
+    /* TODO: route to the new policy page with the policy prefilled
+    Steps:
+    - Find Policy path created by Martavis
+    - Build it an optionalargument that takes a string parameter to create policy
+    */
+    // router.push(PATHS.NEW_POLICY(osPolicy));
+  };
 
   const onDestroyHost = async () => {
     if (host) {
@@ -430,6 +450,39 @@ const HostDetailsPage = ({
     setUsersSearchString(searchQuery);
   }, []);
 
+  const renderOsPolicyLabel = () => {
+    const onCopyOsPolicy = (evt: React.MouseEvent) => {
+      evt.preventDefault();
+
+      stringToClipboard(osPolicy)
+        .then(() => setCopyMessage("Copied!"))
+        .catch(() => setCopyMessage("Copy failed"));
+
+      // Clear message after 1 second
+      setTimeout(() => setCopyMessage(""), 1000);
+
+      return false;
+    };
+
+    return (
+      <div>
+        <span className={`${baseClass}__cta`}>{osPolicyLabel}</span>{" "}
+        <span className={`${baseClass}__name`}>
+          <span className="buttons">
+            {copyMessage && <span>{`${copyMessage} `}</span>}
+            <Button
+              variant="unstyled"
+              className={`${baseClass}__os-policy-copy-icon`}
+              onClick={onCopyOsPolicy}
+            >
+              <img src={CopyIcon} alt="copy" />
+            </Button>
+          </span>
+        </span>
+      </div>
+    );
+  };
+
   const renderDeleteHostModal = () => (
     <Modal
       title="Delete host"
@@ -498,22 +551,22 @@ const HostDetailsPage = ({
             id="policy-example"
             data-html
           >
-            <span className={`tooltip__tooltip-text`}>
+            <span className={`${baseClass}__tooltip-text`}>
               A policy is a yes or no question
               <br /> you can ask all your devices.
             </span>
           </ReactTooltip>
-          <FleetAce
-            label={`Is ${operatingSystem}, version ${operatingSystemVersion} installed?`}
-            value={`SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || ',' || minor || '.' || patch = '${operatingSystemVersion}';`}
-            name="operating system policy"
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            // handleSubmit={promptSaveQuery}
-            readOnly
-          />
         </p>
+        <InputField
+          disabled
+          inputWrapperClass={`${baseClass}__os-policy`}
+          name="os-policy"
+          label={renderOsPolicyLabel()}
+          type={"textarea"}
+          value={osPolicy}
+        />
         <div className={`${baseClass}__modal-buttons`}>
-          <Button onClick={onDestroyHost} variant="brand">
+          <Button onClick={onCreateNewPolicy} variant="brand">
             Create new policy
           </Button>
           <Button onClick={() => setShowOSPolicyModal(false)} variant="inverse">
