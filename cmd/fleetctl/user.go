@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -101,21 +101,21 @@ func createUserCommand() *cli.Command {
 				globalRole = ptr.String(fleet.RoleObserver)
 			} else if globalRoleString != "" {
 				if !fleet.ValidGlobalRole(globalRoleString) {
-					return errors.Errorf("'%s' is not a valid team role", globalRoleString)
+					return fmt.Errorf("'%s' is not a valid team role", globalRoleString)
 				}
 				globalRole = ptr.String(globalRoleString)
 			} else {
 				for _, t := range teamStrings {
 					parts := strings.Split(t, ":")
 					if len(parts) != 2 {
-						return errors.Errorf("Unable to parse '%s' as team_id:role", t)
+						return fmt.Errorf("Unable to parse '%s' as team_id:role", t)
 					}
 					teamID, err := strconv.Atoi(parts[0])
 					if err != nil {
-						return errors.Wrap(err, "Unable to parse team_id")
+						return fmt.Errorf("Unable to parse team_id: %w", err)
 					}
 					if !fleet.ValidTeamRole(parts[1]) {
-						return errors.Errorf("'%s' is not a valid team role", parts[1])
+						return fmt.Errorf("'%s' is not a valid team role", parts[1])
 					}
 
 					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
@@ -130,7 +130,7 @@ func createUserCommand() *cli.Command {
 				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
 				if err != nil {
-					return errors.Wrap(err, "Failed to read password")
+					return fmt.Errorf("Failed to read password: %w", err)
 				}
 				if len(passBytes) == 0 {
 					return fmt.Errorf("Password may not be empty.")
@@ -140,7 +140,7 @@ func createUserCommand() *cli.Command {
 				confBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
 				if err != nil {
-					return errors.Wrap(err, "Failed to read confirmation")
+					return fmt.Errorf("Failed to read confirmation: %w", err)
 				}
 
 				if !bytes.Equal(passBytes, confBytes) {
@@ -164,7 +164,7 @@ func createUserCommand() *cli.Command {
 				Teams:                    &teams,
 			})
 			if err != nil {
-				return errors.Wrap(err, "Failed to create user")
+				return fmt.Errorf("Failed to create user: %w", err)
 			}
 
 			return nil
