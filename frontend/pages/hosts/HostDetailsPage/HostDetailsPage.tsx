@@ -1019,7 +1019,7 @@ const HostDetailsPage = ({
                 {titleData.status}
               </span>
             </div>
-            {titleData.issues.total_issues_count > 0 && renderIssues()}
+            {titleData.issues?.total_issues_count > 0 && renderIssues()}
             {isPremiumTier && renderHostTeam()}
             {renderDeviceUser()}
             <div className="info-flex__item info-flex__item--title">
