@@ -47,3 +47,9 @@ linters-settings:
       - name: superfluous-else
       - name: unreachable-code
       - name: redefines-builtin-id
+
+issues:
+  exclude-rules:
+    - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
+      linters:
+        - depguard
