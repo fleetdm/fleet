@@ -36,7 +36,7 @@ func (c *Client) DebugPprof(name string) ([]byte, error) {
 func (c *Client) DebugMigrations() (*fleet.MigrationStatus, error) {
 	response, err := c.AuthenticatedDo("GET", "/debug/migrations", "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "POST /api/v1/fleet/spec/labels")
+		return nil, errors.Wrap(err, "GET /debug/migrations")
 	}
 	defer response.Body.Close()
 
