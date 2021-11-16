@@ -1,0 +1,1 @@
+* New `fleetctl` command `debug migrations` to show missing migrations of a running fleet instance.

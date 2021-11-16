@@ -369,7 +369,7 @@ type Datastore interface {
 	// MigrateData populates built-in data
 	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
-	MigrationStatus(ctx context.Context) (MigrationStatus, error)
+	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 
@@ -403,12 +403,21 @@ type Datastore interface {
 	UpdateQueryAggregatedStats(ctx context.Context) error
 }
 
-type MigrationStatus int
+type MigrationStatus struct {
+	StatusCode   MigrationStatusCode `json:"status_code"`
+	TableVersion int64               `json:"table_version"`
+	DataVersion  int64               `json:"data_version"`
+	MissingTable []int64             `json:"missing_table"`
+	MissingData  []int64             `json:"missing_data"`
+}
+
+type MigrationStatusCode int
 
 const (
-	NoMigrationsCompleted = iota
+	NoMigrationsCompleted MigrationStatusCode = iota
 	SomeMigrationsCompleted
 	AllMigrationsCompleted
+	DatabaseVersionAhead
 )
 
 // NotFoundError is returned when the datastore resource cannot be found.

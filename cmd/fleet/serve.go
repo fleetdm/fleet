@@ -4,12 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"math/rand"
-	"net/url"
-
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -176,17 +175,34 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch migrationStatus {
+			switch migrationStatus.StatusCode {
+			case fleet.AllMigrationsCompleted:
+				// OK
+			case fleet.DatabaseVersionAhead:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Database version: tables=%d, data=%d\n"+
+					"#\n"+
+					"#   Upgrade Fleet server version.\n"+
+					"################################################################################\n",
+					migrationStatus.TableVersion, migrationStatus.DataVersion)
+				os.Exit(1)
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 					"#   errors in Fleet.\n"+
 					"#\n"+
+					"#   Current version: tables=%d, data=%d\n"+
+					"#   Migrations missing: tables=%v, data=%v\n"+
+					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"################################################################################\n",
-					os.Args[0])
-
+					migrationStatus.TableVersion, migrationStatus.DataVersion,
+					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
 			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
@@ -360,7 +376,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this

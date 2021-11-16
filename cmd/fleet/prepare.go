@@ -13,7 +13,7 @@ import (
 )
 
 func createPrepareCmd(configManager config.Manager) *cobra.Command {
-	var prepareCmd = &cobra.Command{
+	prepareCmd := &cobra.Command{
 		Use:   "prepare",
 		Short: "Subcommands for initializing Fleet infrastructure",
 		Long: `
@@ -30,7 +30,7 @@ To setup Fleet infrastructure, use one of the available commands.
 	// Whether to enable developer options
 	dev := false
 
-	var dbCmd = &cobra.Command{
+	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Given correct database configurations, prepare the databases for use",
 		Long:  ``,
@@ -52,22 +52,40 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch status {
+			switch status.StatusCode {
+			case fleet.NoMigrationsCompleted:
+				// OK
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations already completed. Nothing to do.")
 				return
-
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
-					fmt.Printf("################################################################################\n" +
-						"# WARNING:\n" +
-						"#   This will perform Fleet database migrations. Please back up your data before\n" +
-						"#   continuing.\n" +
-						"#\n" +
-						"#   Press Enter to continue, or Control-c to exit.\n" +
-						"################################################################################\n")
+					fmt.Printf("################################################################################\n"+
+						"# WARNING:\n"+
+						"#   This will perform Fleet database migrations. Please back up your data before\n"+
+						"#   continuing.\n"+
+						"#\n"+
+						"#   Current version: tables=%d, data=%d\n"+
+						"#   Migrations missing: tables=%v, data=%v\n"+
+						"#\n"+
+						"#   Press Enter to continue, or Control-c to exit.\n"+
+						"################################################################################\n",
+						status.TableVersion, status.DataVersion,
+						status.MissingTable, status.MissingData)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
+			case fleet.DatabaseVersionAhead:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Database version: tables=%d, data=%d\n"+
+					"#\n"+
+					"#   Upgrade Fleet server version.\n"+
+					"################################################################################\n",
+					status.TableVersion, status.DataVersion)
+				os.Exit(1)
 			}
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
