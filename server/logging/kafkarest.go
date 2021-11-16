@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 const (
@@ -65,12 +65,12 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 
 	output, err := json.Marshal(data)
 	if err != nil {
-		return errors.Wrap(err, "kafka rest marshal")
+		return ctxerr.Wrap(ctx, err, "kafka rest marshal")
 	}
 
 	resp, err := l.post(l.URL, bytes.NewBuffer(output))
 	if err != nil {
-		return errors.Wrap(err, "kafka rest post")
+		return ctxerr.Wrap(ctx, err, "kafka rest post")
 	}
 	defer resp.Body.Close()
 
@@ -80,7 +80,7 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 func checkResponse(resp *http.Response) (err error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return errors.Errorf("Error: %d. %s", resp.StatusCode, string(body))
+		return fmt.Errorf("Error: %d. %s", resp.StatusCode, string(body))
 	}
 
 	return nil
@@ -89,7 +89,7 @@ func checkResponse(resp *http.Response) (err error) {
 func (l *kafkaRESTProducer) checkTopic() (err error) {
 	resp, err := l.client.Get(l.CheckURL)
 	if err != nil {
-		return errors.Wrap(err, "kafka rest topic check")
+		return fmt.Errorf("kafka rest topic check: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -99,7 +99,7 @@ func (l *kafkaRESTProducer) checkTopic() (err error) {
 func (l *kafkaRESTProducer) post(url string, buf *bytes.Buffer) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodPost, url, buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "kafka rest new request")
+		return nil, fmt.Errorf("kafka rest new request: %w", err)
 	}
 
 	now := float64(time.Now().UnixNano()) / float64(time.Second)
