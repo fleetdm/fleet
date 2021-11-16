@@ -160,6 +160,7 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
+	TeamID           *uint                  `json:"team_id,omitempty"`
 	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
 	Platforms        []*HostSummaryPlatform `json:"platforms"`
 	OnlineCount      uint                   `json:"online_count" db:"online"`

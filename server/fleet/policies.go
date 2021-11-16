@@ -93,8 +93,7 @@ func (p ModifyPolicyPayload) Verify() error {
 type Policy struct {
 	ID uint `json:"id"`
 	// Name is the name of the policy query.
-	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"name" yet (#2595).
-	Name        string `json:"query_name" db:"name"`
+	Name        string `json:"name" db:"name"`
 	Query       string `json:"query" db:"query"`
 	Description string `json:"description" db:"description"`
 	AuthorID    *uint  `json:"author_id" db:"author_id"`
@@ -123,12 +122,10 @@ const (
 type HostPolicy struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the policy query.
-	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"name" yet (#2595).
-	Name  string `json:"query_name" db:"name"`
+	Name  string `json:"name" db:"name"`
 	Query string `json:"query" db:"query"`
 	// Description is the policy description.
-	// TODO(lucas): To not break clients (UI), I'm not changing this to json:"description" (#2595).
-	Description string `json:"query_description" db:"description"`
+	Description string `json:"description" db:"description"`
 	AuthorID    *uint  `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
 	AuthorName string `json:"author_name" db:"author_name"`
