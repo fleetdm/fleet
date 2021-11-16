@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -24,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -119,7 +119,7 @@ func main() {
 		if logfile := c.String("log-file"); logfile != "" {
 			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 			if err != nil {
-				return errors.Wrap(err, "open logfile")
+				return fmt.Errorf("open logfile: %w", err)
 			}
 			log.Logger = log.Output(zerolog.MultiLevelWriter(
 				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
@@ -143,16 +143,16 @@ func main() {
 
 			b, err := ioutil.ReadFile(c.String("enroll-secret-path"))
 			if err != nil {
-				return errors.Wrap(err, "read enroll secret file")
+				return fmt.Errorf("read enroll secret file: %w", err)
 			}
 
 			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
-				return errors.Wrap(err, "set enroll secret from file")
+				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize root dir")
+			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
 		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
@@ -212,7 +212,7 @@ func main() {
 
 			return nil
 		}); err != nil {
-			return errors.Wrap(err, "cleanup old files")
+			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
 		var g run.Group
@@ -248,7 +248,7 @@ func main() {
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
-				return errors.Wrap(err, "create TLS proxy")
+				return fmt.Errorf("create TLS proxy: %w", err)
 			}
 
 			g.Add(
@@ -272,7 +272,7 @@ func main() {
 			// Write cert that proxy uses
 			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
-				return errors.Wrap(err, "write server cert")
+				return fmt.Errorf("write server cert: %w", err)
 			}
 
 			// Rewrite URL to the proxy URL. Note the proxy handles any URL
@@ -285,7 +285,7 @@ func main() {
 			// Check and log if there are any errors with TLS connection.
 			pool, err := certificate.LoadPEM(certPath)
 			if err != nil {
-				return errors.Wrap(err, "load certificate")
+				return fmt.Errorf("load certificate: %w", err)
 			}
 			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
 				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
@@ -302,7 +302,7 @@ func main() {
 
 			parsedURL, err := url.Parse(fleetURL)
 			if err != nil {
-				return errors.Wrap(err, "parse URL")
+				return fmt.Errorf("parse URL: %w", err)
 			}
 
 			options = append(options,
@@ -313,7 +313,7 @@ func main() {
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
-					return errors.Wrap(err, "load certificate")
+					return fmt.Errorf("load certificate: %w", err)
 				}
 				if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
 					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
