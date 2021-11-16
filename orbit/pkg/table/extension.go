@@ -34,20 +34,20 @@ func (r *Runner) Execute() error {
 			r.socket,
 			osquery.ServerTimeout(3*time.Second))
 		if err == nil {
+			ticker.Stop()
 			break
 		}
 
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
+			ticker.Stop()
 			return ctx.Err()
 		}
 	}
 
 	var plugins []osquery.OsqueryPlugin
-	for _, t := range platformTables() {
-		plugins = append(plugins, t)
-	}
+	plugins = append(plugins, platformTables()...)
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {
@@ -55,12 +55,11 @@ func (r *Runner) Execute() error {
 	}
 
 	return nil
-
 }
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Msg("interrupt osquery")
+	log.Debug().Msg("interrupt osquery extension")
 	r.cancel()
 
 	r.srv.Shutdown(context.Background())
