@@ -18,17 +18,6 @@ A test is deemed successful when the Fleet server is able to receive and make re
 
 With the following infrastructure, 1,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
-<table>
-<tr><td rowspan="3">**Fleet instances**</td><td colspan="2">1 Fargate Task</td></tr>
-<tr><td colspan="2">256 CPU units</td></tr>
-<tr><td colspan="2">512 MB of memory</td></tr>
-<tr><td></td><th>Version</th><th>Instance type</th></tr>
-<tr><td>Redis</td><td>5.0.6 </td><td>cache.m5.large</td></tr>
-<tr><td>MySQL</td><td>5.7.mysql_aurora.2.10.0</td><td>db.t4g.medium</td></tr>
-</table>
-
-
-
 |Fleet instances| CPU Units       |RAM             |
 |-------|-------------------------|----------------|
 | 1 Fargate task | 256 CPU Units  |512 MB of memory|
@@ -38,37 +27,18 @@ With the following infrastructure, 1,000 hosts successfully communicate with Fle
 | Redis | 5.0.6                   |cache.m5.large|
 | MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
 
+### 150,000 hosts
 
+With the infrastructure listed below, 150,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
-|Fleet instance | CPU Units      |RAM             |
-|----------------|----------------|----------------|
-| 1 Fargate task | 256 CPU Units  |512 MB of memory|
-
-
-|Fleet instances |
-|-|
-|1 Fargate task |
-| 256 CPU Units |
-|512 MB of memory|
+|Fleet instance | CPU Units       |RAM             |
+|-------|-------------------------|----------------|
+| 25 Fargate tasks | 1024 CPU units  |2048 MB of memory|
 
 |&#8203;| Version                 |Instance type |
 |-------|-------------------------|--------------|
 | Redis | 5.0.6                   |cache.m5.large|
 | MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
-
-
-### 150,000 hosts
-
-With the infrastructure listed below, 150,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
-
-<table>
-<tr><td rowspan="3">**Fleet instances**</td><td colspan="2">25 Fargate tasks</td></tr>
-<tr><td colspan="2">1024 CPU units</td></tr>
-<tr><td colspan="2">2048 MB of memory</td></tr>
-<tr><td></td><th>Version</th><th>Instance type</th></tr>
-<tr><td>Redis</td><td>5.0.6 </td><td>cache.m5.large</td></tr>
-<tr><td>MySQL</td><td>5.7.mysql_aurora.2.10.0</td><td>db.r5.4xlarge</td></tr>
-</table>
 
 The above setup auto scaled based on CPU usage. After a while, the task count ended up in 25 instances even while live querying or adding a new label.
 
