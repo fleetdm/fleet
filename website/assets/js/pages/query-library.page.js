@@ -42,8 +42,8 @@ parasails.registerPage('query-library', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickSelectKind(purpose) {
-      this.selectedKind = purpose;
+    clickSelectKind(kind) {
+      this.selectedKind = kind;
     },
 
     clickSelectPlatform(platform) {
