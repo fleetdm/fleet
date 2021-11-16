@@ -447,7 +447,8 @@
 
       table {
         border: 1px solid @border-lt-gray;
-
+        table-layout: fixed;
+        width: 100%;
         border-collapse: collapse;
         font-size: 16px;
         line-height: 24px;
@@ -624,12 +625,7 @@
     // for mobile
     @media (max-width: 576px) {
       padding: 0px 24px;
-      [purpose='content'] {
-        table {
-          table-layout: fixed;
-          width: 100%;
-        }
-      }
+
     }
 
   }
