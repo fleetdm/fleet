@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -51,7 +50,7 @@ func makeSetupEndpoint(svc fleet.Service) endpoint.Endpoint {
 		// present and other errors occur, the setup endpoint closes.
 		adminPayload := *req.Admin
 		if adminPayload.Email == nil || *adminPayload.Email == "" {
-			err := fmt.Errorf("admin email cannot be empty")
+			err := ctxerr.New(ctx, "admin email cannot be empty")
 			return setupResponse{Err: err}, nil
 		}
 		if adminPayload.Password == nil || *adminPayload.Password == "" {
