@@ -3,6 +3,7 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface ILoadAllTeamsResponse {
   teams: ITeam[];
@@ -12,8 +13,8 @@ interface ILoadTeamResponse {
   team: ITeam;
 }
 
-interface IGetTeamSecretsResponse {
-  secrets: any[]; // TODO: fill this out when API is defined
+interface ITeamEnrollSecretsResponse {
+  secrets: IEnrollSecret[];
 }
 
 interface ITeamSearchOptions {
@@ -88,5 +89,11 @@ export default {
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
     return sendRequest("GET", path);
+  },
+  modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    const { TEAMS_ENROLL_SECRETS } = endpoints;
+    const path = TEAMS_ENROLL_SECRETS(teamId);
+
+    return sendRequest("PATCH", path, { secrets });
   },
 };

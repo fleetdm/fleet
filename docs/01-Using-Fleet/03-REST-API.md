@@ -4414,6 +4414,86 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
+### Get enroll secrets
+
+Returns the valid global enroll secrets.
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+                "created_at": "2021-11-12T20:24:57Z"
+            },
+            {
+                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+                "created_at": "2021-11-12T20:24:57Z"
+            }
+        ]
+    }
+}
+```
+
+
+### Modify enroll secrets
+
+Replaces all existing team enroll secrets.
+
+`PATCH /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+None.
+#### Example
+
+Replace all of a team's existing enroll secrets with a new enroll secret.
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+                "created_at": "2021-11-12T20:27:02Z"
+            }
+        ]
+    }
+}
+```
+
 ### Get enroll secret for a team
 
 Returns the valid team enroll secret.

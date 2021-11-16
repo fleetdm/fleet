@@ -40,6 +40,13 @@ describe(
         cy.contains("button", /generate installer/i).click();
         cy.contains("button", /done/i).click();
 
+        // See the "Manage" enroll secret” button. A modal appears after the user selects the button
+        // Add secret tests same API as edit and delete
+        cy.contains("button", /manage enroll secret/i).click();
+        cy.contains("button", /add secret/i).click();
+        cy.contains("button", /save/i).click();
+        cy.contains("button", /done/i).click();
+
         // On the Host details page, they should…
         // See the “Team” information below the hostname
         // Be able to transfer Teams
@@ -95,7 +102,7 @@ describe(
         cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all/i).click();
 
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/run query/i).should("exist");
 
         cy.get(".ace_scroller")

@@ -32,6 +32,11 @@
 
     .info-flex {
       display: flex;
+      flex-wrap: wrap;
+
+      .info-flex__item--title {
+        margin-bottom: 2.5rem;
+      }
 
       &__item {
         font-size: $x-small;
@@ -157,6 +162,7 @@
     flex-direction: row;
     justify-content: space-between;
     margin: 0;
+    padding-bottom: 0;
 
     .hostname-container {
       display: flex;

@@ -1,0 +1,31 @@
+.secret-editor-modal {
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-large 0 0;
+  }
+
+  &__reveal-secret {
+    float: right;
+    text-decoration: none;
+  }
+
+  &__secret-wrapper {
+    position: relative;
+    margin: $pad-medium 0 0 0;
+  }
+
+  pre,
+  code {
+    background-color: $ui-off-white;
+    color: $core-fleet-blue;
+    border: 1px solid $ui-fleet-blue-15;
+    border-radius: 4px;
+    padding: 7px $pad-medium;
+    margin: $pad-large 0 0 44px;
+  }
+
+  &__error {
+    color: $ui-error;
+  }
+}
