@@ -264,9 +264,20 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
+// schQueriesPlatformFromHost converts the platform from a Host.Platform
+// string to a scheduled query platform string.
+func schQueryPlatformFromHost(hostPlatform string) string {
+	switch hostPlatform {
+	case "ubuntu", "rhel", "debian":
+		return "linux"
+	default: // darwin, windows
+		return hostPlatform
+	}
+}
+
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]fleet.PackStats, error) {
+func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
 	packs, err := listPacksForHost(ctx, db, hid)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
@@ -306,8 +317,17 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) 
 		goqu.I("queries").As("q"),
 		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
 	).LeftJoin(
-		goqu.I("scheduled_query_stats").As("sqs"),
+		dialect.From("scheduled_query_stats").As("sqs").Where(
+			goqu.I("host_id").Eq(hid),
+		),
 		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+	).Where(
+		goqu.Or(
+			goqu.I("sq.platform").Eq(""), // schedule query set to run on all hosts.
+			// scheduled_queries.platform can be a comma-separated list of
+			// platforms, e.g. "darwin,windows".
+			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
+		),
 	)
 	sql, args, err := ds.ToSQL()
 	if err != nil {
@@ -392,7 +412,7 @@ func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
-	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID, host.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -823,7 +843,7 @@ func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID, host.Platform)
 	if err != nil {
 		return nil, err
 	}

@@ -204,6 +204,7 @@ func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -325,6 +326,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -477,6 +479,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -2249,6 +2252,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
