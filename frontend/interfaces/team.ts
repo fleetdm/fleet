@@ -44,7 +44,17 @@ interface INewMember {
 export interface INewMembersBody {
   users: INewMember[];
 }
-
 export interface IRemoveMembersBody {
   users: { id: number }[];
+}
+interface INewTeamSecret {
+  team_id: number;
+  secret: string;
+  created_at?: string;
+}
+export interface INewTeamSecretBody {
+  secrets: INewTeamSecret[];
+}
+export interface IRemoveTeamSecretBody {
+  secrets: { secret: string }[];
 }

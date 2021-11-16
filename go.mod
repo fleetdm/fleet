@@ -49,6 +49,7 @@ require (
 	github.com/macadmins/osquery-extension v0.0.5
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.8
+	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
 	github.com/oklog/run v1.1.0
@@ -69,13 +70,13 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.8.0
 	github.com/stretchr/testify v1.7.0
-	github.com/theupdateframework/go-tuf v0.0.0-20201230183259-aee6270feb55
+	github.com/theupdateframework/go-tuf v0.0.0-20210929155205-2707f22b6f31
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
-	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
+	golang.org/x/sys v0.0.0-20211003122950-b1ebd4e1001c
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/grpc v1.38.0
 	gopkg.in/guregu/null.v3 v3.4.0

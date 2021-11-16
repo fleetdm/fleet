@@ -15,6 +15,8 @@
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
+- [How long are enroll secrets valid?](#how-long-are-enroll-secrets-valid)
+- [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 
 ## How do I get support for working with Fleet?
 
@@ -133,3 +135,12 @@ You can deploy MySQL or Maria any way you want. We recommend using managed/hoste
 Duplicate host enrollment is when more than one host enrolls in Fleet using the same identifier (hardware UUID or osquery generated UUID). This can be caused by cloning a VM Image with an already enrolled
 osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
 [host identifiers here](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#osquery_host_identifier).
+
+## How long are enroll secrets valid?
+
+Enroll secrets are valid until you delete them.
+
+## Should I use multiple enroll secrets?
+
+That is up to you! Some organizations have internal goals around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
+Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to auto-enroll hosts.
