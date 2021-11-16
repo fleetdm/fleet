@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -45,7 +46,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -131,7 +131,7 @@ the way that the Fleet server works.
 				"hostname": true,
 			}
 			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-				initFatal(errors.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
+				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
@@ -143,7 +143,7 @@ the way that the Fleet server works.
 
 				if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
 					initFatal(
-						errors.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
+						fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
 						"setting server URL prefix",
 					)
 				}
@@ -750,7 +750,7 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	default:
 		initFatal(
-			errors.Errorf("%s is invalid", profile),
+			fmt.Errorf("%s is invalid", profile),
 			"set TLS profile",
 		)
 	}
