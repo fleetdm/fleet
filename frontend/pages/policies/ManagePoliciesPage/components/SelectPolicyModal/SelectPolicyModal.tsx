@@ -1,6 +1,6 @@
 import React from "react";
-
-import { useDispatch } from "react-redux";
+import { Link } from "react-router";
+import PATHS from "router/paths";
 
 import { DEFAULT_POLICIES } from "utilities/constants";
 
@@ -11,17 +11,14 @@ import { IQuery } from "interfaces/query";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-export interface ISelectQueryModalProps {
-  host: IHost;
+export interface ISelectPolicyModalProps {
   onCancel: () => void;
-  queries: IQuery[] | [];
-  queryErrors: any | null;
-  isOnlyObserver: boolean | undefined;
+  router: any;
 }
 
 const baseClass = "add-policy-modal";
 
-const SelectPolicyModal = ({ onCancel }: ISelectQueryModalProps) => {
+const SelectPolicyModal = ({ onCancel, router }: ISelectPolicyModalProps) => {
   const policiesAvailable = DEFAULT_POLICIES.map((policy) => {
     return (
       <Button
@@ -38,8 +35,12 @@ const SelectPolicyModal = ({ onCancel }: ISelectQueryModalProps) => {
     );
   });
   const onSelectPolicy = (selectedPolicy: IPolicyNew) => {
-    // add policy
-    // close modal
+    const { NEW_QUERY } = PATHS;
+    // TODO: Change to NEW_POLICY after Martavis PR is merged
+    // Make policy auto populate
+    const path = `${NEW_QUERY}?policy=${selectedPolicy}`;
+    router.replace(path);
+    onCancel();
   };
 
   return (
@@ -49,8 +50,15 @@ const SelectPolicyModal = ({ onCancel }: ISelectQueryModalProps) => {
       className={`${baseClass}__modal`}
     >
       <>
-        Choose a policy template to get started or create your own policy.
-        <div>{policiesAvailable}</div>
+        Choose a policy template to get started or{" "}
+        {/* TODO: Change to NEW_POLICY after Martavis PR is merged */}
+        <Link to={PATHS.NEW_QUERY} className={`${baseClass}__back-link`}>
+          create your own policy
+        </Link>
+        .
+        <div className={`${baseClass}__policy-selection`}>
+          {policiesAvailable}
+        </div>
       </>
     </Modal>
   );

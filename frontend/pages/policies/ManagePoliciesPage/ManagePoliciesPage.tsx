@@ -1,3 +1,5 @@
+// TODO: Rebase once Martavis is merged, delete add policy modal, replace with renamed SelectPolicyModal
+
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
@@ -29,6 +31,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import AddPolicyModal from "./components/AddPolicyModal";
+import SelectPolicyModal from "./components/SelectPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 import TeamsDropdown from "./components/TeamsDropdown";
 
@@ -106,6 +109,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     number[] | never[]
   >([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
+  const [showSelectPolicyModal, setShowSelectPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
@@ -165,6 +169,9 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   };
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
+
+  const toggleSelectPolicyModal = () =>
+    setShowSelectPolicyModal(!showSelectPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
@@ -360,6 +367,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
+                className={`${baseClass}__select-policy-button`}
+                onClick={toggleSelectPolicyModal}
+              >
+                Select a policy
+              </Button>
+              <Button
+                variant="brand"
                 className={`${baseClass}__add-policy-button`}
                 onClick={toggleAddPolicyModal}
               >
@@ -407,7 +421,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={teamPolicies}
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
+                toggleAddPolicyModal={toggleSelectPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -423,7 +437,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={globalPolicies}
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
+                toggleAddPolicyModal={toggleSelectPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -473,6 +487,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
+        )}
+        {showSelectPolicyModal && (
+          <SelectPolicyModal
+            onCancel={toggleSelectPolicyModal}
+            router={router}
+          />
         )}
         {showAddPolicyModal && (
           <AddPolicyModal
