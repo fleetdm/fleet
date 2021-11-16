@@ -56,10 +56,7 @@
   }
 
   &__avatar {
-    @include size(120px);
-    border: solid 1px $ui-fleet-blue-15;
     margin: 0 auto;
-    display: block;
   }
 
   &__more-info-detail {

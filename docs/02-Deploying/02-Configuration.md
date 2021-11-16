@@ -1105,6 +1105,20 @@ Whether or not to log the welcome banner.
   	disable_banner: true
   ```
 
+##### logging_error_retention_period
+
+The amount of time to keep an error. Unique instances of errors are stored temporarily to help
+with troubleshooting, this setting controls that duration.
+
+- Default value: 24h
+- Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
+- Config file format:
+
+  ```
+  logging:
+  	error_retention_period: 1h
+  ```
+
 #### Filesystem
 
 ##### filesystem_status_log_file
@@ -1902,6 +1916,21 @@ Then, run
 sudo systemctl daemon-reload
 sudo systemctl restart fleet.service
 ```
+
+## Using a proxy
+
+If you are in an enterprise environment where Fleet is behind a proxy and you would like to be able to retrieve Vulnerability data for [Vulnerability Processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing), it may be necessary to configure the proxy settings. Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+
+For example, to configure the proxy in a systemd service file:
+
+```
+[Service]
+Environment="HTTP_PROXY=http(s)://PROXY_URL:PORT/"
+Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
+Environment="NO_PROXY=localhost,127.0.0.1,::1"
+```
+
+After modifying the configuration you will need to reload and restart the Fleet service, as explained above.
 
 ## Configuring single sign on (SSO)
 

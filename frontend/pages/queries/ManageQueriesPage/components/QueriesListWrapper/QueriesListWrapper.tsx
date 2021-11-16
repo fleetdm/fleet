@@ -21,8 +21,8 @@ interface IQueriesListWrapperProps {
   onRemoveQueryClick: any;
   onCreateQueryClick: () => void;
   searchable: boolean;
-  onSearchChange: (searchString: string) => void;
   customControl?: () => JSX.Element;
+  selectedDropdownFilter: string;
 }
 
 const QueriesListWrapper = ({
@@ -31,14 +31,13 @@ const QueriesListWrapper = ({
   onRemoveQueryClick,
   onCreateQueryClick,
   searchable,
-  onSearchChange,
   customControl,
+  selectedDropdownFilter,
 }: IQueriesListWrapperProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
   const handleSearchChange = ({ searchQuery }: ITableSearchData) => {
-    onSearchChange(searchQuery);
     setSearchString(searchQuery);
   };
 
@@ -106,6 +105,9 @@ const QueriesListWrapper = ({
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoQueriesComponent}
         customControl={customControl}
+        isClientSideFilter
+        searchQueryColumn="name"
+        selectedDropdownFilter={selectedDropdownFilter}
       />
     </div>
   ) : null;

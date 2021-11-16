@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/throttled/throttled/v2"
 )
@@ -96,7 +97,6 @@ type FleetEndpoints struct {
 	HostByIdentifier                      endpoint.Endpoint
 	DeleteHost                            endpoint.Endpoint
 	RefetchHost                           endpoint.Endpoint
-	GetHostSummary                        endpoint.Endpoint
 	AddHostsToTeam                        endpoint.Endpoint
 	AddHostsToTeamByFilter                endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
@@ -198,7 +198,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
 		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
 		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
-		GetHostSummary:                        authenticatedUser(svc, makeGetHostSummaryEndpoint(svc)),
 		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
 		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
 		AddHostsToTeamByFilter:                authenticatedUser(svc, makeAddHostsToTeamByFilterEndpoint(svc)),
@@ -326,7 +325,6 @@ type fleetHandlers struct {
 	HostByIdentifier                      http.Handler
 	DeleteHost                            http.Handler
 	RefetchHost                           http.Handler
-	GetHostSummary                        http.Handler
 	AddHostsToTeam                        http.Handler
 	AddHostsToTeamByFilter                http.Handler
 	SearchTargets                         http.Handler
@@ -434,7 +432,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
 		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
 		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
-		GetHostSummary:                        newServer(e.GetHostSummary, decodeNoParamsRequest),
 		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
 		AddHostsToTeamByFilter:                newServer(e.AddHostsToTeamByFilter, decodeAddHostsToTeamByFilterRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
@@ -471,20 +468,21 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
-	if e, ok := err.(fleet.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "internal", e.Internal())
+	var ewi fleet.ErrWithInternal
+	if errors.As(err, &ewi) {
+		logger = kitlog.With(logger, "internal", ewi.Internal())
 	}
 
-	if e, ok := err.(fleet.ErrWithLogFields); ok {
-		logger = kitlog.With(logger, e.LogFields()...)
+	var ewlf fleet.ErrWithLogFields
+	if errors.As(err, &ewlf) {
+		logger = kitlog.With(logger, ewlf.LogFields()...)
 	}
 
-	switch e := err.(type) {
-	case ratelimit.Error:
-		res := e.Result()
+	var rle ratelimit.Error
+	if errors.As(err, &rle) {
+		res := rle.Result()
 		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
-
-	default:
+	} else {
 		logger.Log("err", err)
 	}
 }
@@ -635,7 +633,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
-	r.Handle("/api/v1/fleet/host_summary", h.GetHostSummary).Methods("GET").Name("get_host_summary")
 	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
 	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 	r.Handle("/api/v1/fleet/hosts/transfer", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
@@ -662,7 +659,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
-
 	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
 	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
 	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
@@ -679,6 +675,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/v1/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	e.POST("/api/v1/fleet/translate", translatorEndpoint, translatorRequest{})
 	e.POST("/api/v1/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
+	e.PATCH("/api/v1/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
 
 	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
 	e.GET("/api/v1/fleet/team/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
@@ -715,12 +712,15 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 
+	e.GET("/api/v1/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
 	e.GET("/api/v1/fleet/hosts", listHostsEndpoint, listHostsRequest{})
 	e.POST("/api/v1/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
 	e.GET("/api/v1/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
 	e.GET("/api/v1/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+
+	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

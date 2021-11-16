@@ -167,6 +167,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if ok {
 		query.AuthorID = ptr.Uint(vc.UserID())
 		query.AuthorName = vc.FullName()
+		query.AuthorEmail = vc.Email()
 	}
 
 	if err := query.ValidateSQL(); err != nil {

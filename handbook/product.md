@@ -1,3 +1,36 @@
+## Product DRIs
+
+Below is a table of [directly responsible individuals (DRIs)](./people.md#directly-resonsible-individuals) for aspects of the Fleet product:
+
+|    Aspect              										| DRI     		|
+| ------------------------------------------------------------- | ------------- |
+| Wireframes (figma)	 										| Noah Talerman	|
+| How the product works 										| Noah Talerman |
+| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
+| REST API interface, REST API docs 							| Luke Heath	|
+| Postman 											| Ben Edwards (transitioning to Luke Heath) 	|
+| Terraform 											| Ben Edwards 	|
+| Customer deployments like acme.fleetdm.com 				| Ben Edwards 	|
+| dogfood.fleetdm.com 											| Ben Edwards  	|
+| Quality of core product UI 									| Luke Heath 	|
+| Quality of tickets after Noah's done with them   				| Luke Heath 	|
+| Quality of core product API 									| Tomás Touceda |
+| Quality of fleetctl (and other tools)							| Tomás Touceda |
+| Final cut of what goes into each release 						| Zach Wasserman|
+| When we cut a release, version numbers, and whether to release| Zach Wasserman|
+| Release notes 												| Noah Talerman |
+| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+
+## Feature flags
+In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
+
+The following highlights should be considered when deciding if feature flags should be leveraged:
+
+- The feature flag must be disabled by default.
+- The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
+- The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+
+Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
 ## Fleet docs
 
@@ -6,6 +39,8 @@ You can link documentation pages to each other using relative paths. For example
 
 However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
 Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+
+When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./02-Configuration.md#osquery-result-log-plugin`.
 
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
@@ -252,6 +287,7 @@ Premium version supported for bug fixes: **Latest version only**
 Premium support for support/troubleshooting: **All versions**
 
 ### Goals
+At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
 
 - Get familiar with and stay abreast of what our community wants and the problems they're having.
 
@@ -360,6 +396,5 @@ We have certain design conventions that we include in Fleet. We will document mo
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 
-
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="noahtalerman">
 

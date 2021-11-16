@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -42,9 +43,12 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 	var createTests = []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
+		resultingPasswordReset      bool
 	}{
-		{"foobar", "mike@fleet.co", true, false, true},
-		{"foobar", "jason@fleet.co", true, false, false},
+		{"foobar", "mike@fleet.co", true, false, true, false},
+		{"foobar", "jason@fleet.co", true, false, false, false},
+		{"foobar", "jason2@fleet.co", true, true, true, false},
+		{"foobar", "jason3@fleet.co", true, true, false, true},
 	}
 
 	for _, tt := range createTests {
@@ -65,6 +69,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
 	}
 }
 
@@ -159,9 +164,9 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleMaintainer}},
 	})
-	require.IsType(t, &fleet.Error{}, err)
-	flErr := err.(*fleet.Error)
-	assert.Equal(t, "Cannot specify both Global Role and Team Roles", flErr.Message)
+	var ferr *fleet.Error
+	require.True(t, errors.As(err, &ferr))
+	assert.Equal(t, "Cannot specify both Global Role and Team Roles", ferr.Message)
 }
 
 func testUsersList(t *testing.T, ds *Datastore) {

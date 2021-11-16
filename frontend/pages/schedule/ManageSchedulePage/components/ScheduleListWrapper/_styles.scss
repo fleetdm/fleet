@@ -1,4 +1,10 @@
 .schedule-list-wrapper {
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
   border-collapse: collapse;
 
   &__wrapper {
@@ -69,7 +75,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: $pad-xxxlarge;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
 
   h1 {
     font-size: $large;
@@ -104,7 +111,8 @@
 
   &__inner {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    align-items: center;
 
     h1 {
       font-size: $small;
@@ -113,8 +121,7 @@
     }
 
     img {
-      width: 176px;
-      margin-right: $pad-xlarge;
+      width: 322px;
     }
 
     p {
@@ -133,11 +140,12 @@
   }
 
   &__inner-text {
-    width: 290px;
+    width: 400px;
+    padding: $pad-xxlarge 0;
   }
 
   &__schedule-button {
-    margin-right: $pad-small;
+    margin-right: $pad-medium;
   }
 
   .query-pagination__pager-wrap {
@@ -154,12 +162,11 @@
       font-size: $x-small;
       margin: 0;
     }
-
-    a {
-      color: $core-vibrant-blue;
-      font-weight: $regular;
-      font-size: $x-small;
-      text-decoration: none;
-    }
   }
+}
+
+.no-team-schedule {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
 }

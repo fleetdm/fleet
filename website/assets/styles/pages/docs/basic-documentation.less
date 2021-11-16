@@ -473,6 +473,47 @@
       ol {
         padding-inline-start: 16px;
       }
+      [purpose='next-steps-buttons'] {
+
+
+        .btn {
+          font-size: 16px;
+          line-height: 25px;
+          padding: 16px 32px;
+        }
+
+        .btn-primary {
+          color: #fff;
+          &:active {
+            background: @core-vibrant-red;
+            border-color: @core-vibrant-red;
+          }
+        }
+        .btn-slack {
+          color: @core-fleet-black;
+          img {
+            display: inline;
+            height: 24px;
+            width: auto;
+            padding-top: 0px;
+            padding-bottom: 0px;
+            margin: 0px;
+          }
+          &:focus {
+            box-shadow: none;
+          }
+        }
+        .btn-outline-secondary {
+          color: @core-fleet-black;
+          border: 1px solid #C5C7D1;
+          &:hover {
+            background: #fff;
+          }
+          &:focus {
+            box-shadow: none;
+          }
+        }
+      }
 
     }
 

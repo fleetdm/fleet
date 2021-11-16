@@ -12,6 +12,8 @@ import { IPolicy } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
+import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
+import FailIcon from "../../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 
 // TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
 
@@ -91,8 +93,13 @@ const generateTableHeaders = (options: {
           ),
         },
         {
-          title: "Passing",
-          Header: "Passing",
+          title: "Yes",
+          Header: () => (
+            <>
+              <img alt="host passing" src={PassIcon} />
+              <span className="header-icon-text">Yes</span>
+            </>
+          ),
           disableSortBy: true,
           accessor: "passing_host_count",
           Cell: (cellProps: ICellProps): JSX.Element => (
@@ -110,8 +117,13 @@ const generateTableHeaders = (options: {
           ),
         },
         {
-          title: "Failing",
-          Header: "Failing",
+          title: "No",
+          Header: () => (
+            <>
+              <img alt="host passing" src={FailIcon} />
+              <span className="header-icon-text">No</span>
+            </>
+          ),
           disableSortBy: true,
           accessor: "failing_host_count",
           Cell: (cellProps: ICellProps): JSX.Element => (

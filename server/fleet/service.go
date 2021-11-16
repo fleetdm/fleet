@@ -238,7 +238,7 @@ type Service interface {
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
 	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
@@ -306,6 +306,8 @@ type Service interface {
 	// VerifyInvite verifies that an invite exists and that it matches the invite token.
 	VerifyInvite(ctx context.Context, token string) (invite *Invite, err error)
 
+	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetService
 
@@ -371,6 +373,8 @@ type Service interface {
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
+	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
 

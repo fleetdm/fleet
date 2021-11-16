@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from "react";
 import classnames from "classnames";
 
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
+
 interface IAvatarUserInterface {
   gravatarURL: string;
 }
 
-interface IAvatarInterface {
+export interface IAvatarInterface {
   className?: string;
   size?: string;
   user: IAvatarUserInterface;
@@ -24,18 +26,17 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
     setIsError(true);
   }, []);
 
-  const isSmall = size !== undefined && size.toLowerCase() === "small";
   const avatarClasses = classnames(baseClass, className, {
-    [`${baseClass}--${size}`]: isSmall,
+    [`${baseClass}--${size?.toLowerCase()}`]: !!size,
   });
   const { gravatarURL } = user;
 
   return (
-    <div className={avatarClasses}>
+    <div>
       <img
         alt={!isLoading && !isError ? "User avatar" : ""}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
-        src={gravatarURL}
+        src={gravatarURL || DEFAULT_GRAVATAR_LINK}
         onError={onError}
         onLoad={onLoad}
       />

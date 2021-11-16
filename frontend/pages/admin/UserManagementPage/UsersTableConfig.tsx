@@ -148,7 +148,7 @@ const generateActionDropdownOptions = (
   let dropdownOptions = [
     {
       label: "Edit",
-      disabled: isInvitePending,
+      disabled: false,
       value: isCurrentUser ? "editMyAccount" : "edit",
     },
     {

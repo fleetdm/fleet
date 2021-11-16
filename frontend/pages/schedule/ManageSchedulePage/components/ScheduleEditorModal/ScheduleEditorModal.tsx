@@ -6,7 +6,7 @@ import Fleet from "fleet";
 import { pull } from "lodash";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore

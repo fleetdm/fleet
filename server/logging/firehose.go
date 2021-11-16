@@ -152,7 +152,8 @@ func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) 
 
 	output, err := f.client.PutRecordBatch(input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
+		var aerr awserr.Error
+		if errors.As(err, &aerr) {
 			if aerr.Code() == firehose.ErrCodeServiceUnavailableException && try < firehoseMaxRetries {
 				// Retry with backoff
 				return f.putRecordBatch(try+1, records)

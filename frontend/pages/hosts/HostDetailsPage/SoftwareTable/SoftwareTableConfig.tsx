@@ -10,7 +10,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import QuestionIcon from "../../../../../assets/images/icon-question-16x16@2x.png";
-import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
+import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -117,7 +117,7 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         const { name, bundle_identifier } = cellProps.row.original;
         if (bundle_identifier) {
           return (
-            <span>
+            <span className="name-container">
               {name}
               <span
                 className={`software-name tooltip__tooltip-icon`}
@@ -210,6 +210,7 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
             }?software_id=${cellProps.row.original.id.toString()}`}
             className={`software-link`}
           >
+            View all hosts{" "}
             <img alt="link to hosts filtered by software ID" src={Chevron} />
           </Link>
         );

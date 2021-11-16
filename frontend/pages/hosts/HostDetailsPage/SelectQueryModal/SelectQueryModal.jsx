@@ -9,7 +9,7 @@ import queryInterface from "interfaces/query";
 import hostInterface from "interfaces/host";
 
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import InputField from "components/forms/fields/InputField";
 
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";

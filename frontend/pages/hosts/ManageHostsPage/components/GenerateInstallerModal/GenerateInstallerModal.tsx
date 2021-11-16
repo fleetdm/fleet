@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 
-import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";

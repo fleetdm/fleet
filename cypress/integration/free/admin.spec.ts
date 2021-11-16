@@ -37,13 +37,16 @@ describe(
         cy.findByText(/settings/i).should("exist");
       });
 
-      // See and select "add new host"
-      cy.findByRole("button", { name: /add new host/i }).click();
+      // See and select "generate installer"
+      cy.findByRole("button", { name: /generate installer/i }).click();
       cy.contains(/team/i).should("not.exist");
       cy.contains("button", /done/i).click();
 
-      // See the “Show enroll secret” button. A modal appears after the user selects the button
-      cy.contains("button", /show enroll secret/i).click();
+      // See the "Manage" enroll secret” button. A modal appears after the user selects the button
+      // Add secret tests same API as edit and delete
+      cy.contains("button", /manage enroll secret/i).click();
+      cy.contains("button", /add secret/i).click();
+      cy.contains("button", /save/i).click();
       cy.contains("button", /done/i).click();
 
       // See and select "add label"

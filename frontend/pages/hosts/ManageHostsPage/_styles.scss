@@ -161,6 +161,10 @@
     margin-bottom: $pad-medium;
   }
 
+  &__labels-active-filter-wrap {
+    margin-bottom: $pad-medium;
+  }
+
   &__policies-filter-block {
     display: flex;
     align-items: center;
@@ -214,7 +218,6 @@
     margin-right: $pad-small;
   }
 
-  .issues__header,
   .host-issue {
     img {
       width: 16px;

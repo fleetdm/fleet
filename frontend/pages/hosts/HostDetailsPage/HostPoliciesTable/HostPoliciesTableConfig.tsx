@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import StatusCell from "components/TableContainer/DataTable/StatusCell";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/host_policy";
 import { PolicyResponse } from "utilities/constants";
@@ -42,9 +42,9 @@ interface IDataColumn {
 
 const getPolicyStatus = (policy: IHostPolicy): string => {
   if (policy.response === "pass") {
-    return "Passing";
+    return "Yes";
   } else if (policy.response === "fail") {
-    return "Failing";
+    return "No";
   }
   return "---";
 };
@@ -85,7 +85,7 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        return <TextCell value={getPolicyStatus(cellProps.row.original)} />;
+        return <StatusCell value={getPolicyStatus(cellProps.row.original)} />;
       },
     },
     {
@@ -95,20 +95,25 @@ const generatePolicyTableHeaders = (
       disableSortBy: true,
       Cell: (cellProps) => {
         return (
-          <Link
-            to={
-              PATHS.MANAGE_HOSTS +
-              TAGGED_TEMPLATES.hostsByPolicyRoute(
-                cellProps.row.original.id,
-                cellProps.row.original.response === "pass"
-                  ? PolicyResponse.PASSING
-                  : PolicyResponse.FAILING
-              )
-            }
-            className={`policy-link`}
-          >
-            <img alt="link to hosts filtered by policy ID" src={Chevron} />
-          </Link>
+          <>
+            {cellProps.row.original.response && (
+              <Link
+                to={
+                  PATHS.MANAGE_HOSTS +
+                  TAGGED_TEMPLATES.hostsByPolicyRoute(
+                    cellProps.row.original.id,
+                    cellProps.row.original.response === "pass"
+                      ? PolicyResponse.PASSING
+                      : PolicyResponse.FAILING
+                  )
+                }
+                className={`policy-link`}
+              >
+                View all hosts{" "}
+                <img alt="link to hosts filtered by policy ID" src={Chevron} />
+              </Link>
+            )}
+          </>
         );
       },
     },

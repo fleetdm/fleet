@@ -144,6 +144,7 @@ const PacksListWrapper = ({
         primarySelectActionButtonText={"Delete"}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={NoPacksComponent}
+        isClientSideSearch
       />
     </div>
   );

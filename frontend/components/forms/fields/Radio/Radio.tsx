@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 const baseClass = "radio";
 
-interface IRadioProps {
+export interface IRadioProps {
   label: string;
   value: string;
   id: string;
