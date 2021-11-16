@@ -301,7 +301,7 @@ At Fleet, our primary quality objectives are *customer service* and *defect redu
 
 - No matter what, folks who post a new comment in Slack or issue in GitHub get a **response** from the individual on-call within 1 business day. The response doesn't need to include an immediate answer.
 
-- The individual on-call is responsible to either schedule a 10 minute call or join the 🧩 Product meeting to ask questions they were unable to answer. If a response is needed quicker, you can always DM Fleet team members in Slack. This way, people get answers within 1 business day.
+- The on-call engineer can discuss any items that require assistance at the end of the daily standup. They are also requested to attend the "Customer experience standup" where they can bring questions and stay abreast of what's happening with our customers.
 
 - If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
