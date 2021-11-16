@@ -48,7 +48,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", errors.Wrap(err, "InitiateSSO getting app config")
 	}
 
-	metadata, err := svc.getMetadata(appConfig)
+	metadata, err := svc.getMetadata(ctx, appConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "InitiateSSO getting metadata")
 	}
@@ -82,9 +82,9 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	return idpURL, nil
 }
 
-func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) {
+func (svc *Service) getMetadata(ctx context.Context, config *fleet.AppConfig) (*sso.Metadata, error) {
 	if config.SSOSettings.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(config.SSOSettings.MetadataURL)
+		metadata, err := sso.GetMetadata(ctx, config.SSOSettings.MetadataURL)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +123,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
-		metadata, err = svc.getMetadata(appConfig)
+		metadata, err = svc.getMetadata(ctx, appConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "get sso metadata")
 		}

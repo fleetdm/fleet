@@ -1,6 +1,7 @@
 package sso
 
 import (
+	"context"
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
@@ -11,12 +12,14 @@ import (
 	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
 
+// NOTE(mna): saml.EntityDescriptor
 type Metadata struct {
 	XMLName          xml.Name         `xml:"urn:oasis:names:tc:SAML:2.0:metadata EntityDescriptor"`
 	EntityID         string           `xml:"entityID,attr"`
 	IDPSSODescriptor IDPSSODescriptor `xml:"IDPSSODescriptor"`
 }
 
+// NOTE(mna): saml.IDPSSODescriptor, saml.SSODescriptor, saml.RoleDescriptor
 type IDPSSODescriptor struct {
 	XMLName             xml.Name              `xml:"urn:oasis:names:tc:SAML:2.0:metadata IDPSSODescriptor"`
 	KeyDescriptors      []KeyDescriptor       `xml:"KeyDescriptor"`
@@ -70,11 +73,11 @@ func ParseMetadata(metadata string) (*Metadata, error) {
 // IDP via a remote URL. metadataURL is the location where the metadata is located
 // and timeout defines how long to wait to get a response form the metadata
 // server.
-func GetMetadata(metadataURL string) (*Metadata, error) {
+func GetMetadata(ctx context.Context, metadataURL string) (*Metadata, error) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
 	if err != nil {
 		return nil, err
 	}

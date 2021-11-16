@@ -15,6 +15,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff/v4 v4.0.0
+	github.com/crewjam/saml v0.4.5 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dnaeon/go-vcr/v2 v2.0.1
