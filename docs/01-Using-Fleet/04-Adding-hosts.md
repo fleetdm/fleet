@@ -153,3 +153,9 @@ Ensure that paths to files in the flag file are absolute, and not quoted. For ex
 --tls_server_certs=C:\Program Files\osquery\fleet.pem
 --enroll_secret_path=C:\Program Files\osquery\secret.txt
 ```
+
+### Migrating from plain osquery to osquery installers
+
+The following is a strategy for migrating plain osquery deployments, with a custom flagfile and osquery extensions, to an osquery installer deployment.
+
+Unlike plain osquery, Fleet's osquery installers support the automatic updating of osquery on your hosts so that you don't have to deploy a new package for every new osquery release.
