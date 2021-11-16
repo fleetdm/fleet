@@ -419,7 +419,7 @@
 
   .section--policies {
     .linkToFilteredHosts__header {
-      width: 0;
+      width: 140px !important;
     }
 
     tr {
@@ -435,6 +435,7 @@
         text-overflow: none;
         img {
           vertical-align: text-top;
+          width: 16px;
         }
       }
 
@@ -442,10 +443,6 @@
         .policy-link {
           visibility: visible;
           text-overflow: none;
-
-          img {
-            width: 16px;
-          }
         }
       }
     }
@@ -480,6 +477,11 @@
       &:first-child {
         border-right: none;
         width: 16px;
+        padding-right: 0px;
+      }
+      &:nth-child(2) {
+        width: 25%;
+        min-width: 100px;
         padding-right: 0px;
       }
       &:last-child {
@@ -679,12 +681,29 @@
         // Width for all columns except the "Query name" column
         // Width calculation adjusts for each row's horizontal padding
         th {
-          width: calc(200px - 27px * 2);
-        }
+          // Width for the "Query name" column
+          &:first-child {
+            width: 40%;
+            min-width: 100px;
+            padding-right: 0px;
+          }
 
-        // Width for the "Query name" column
-        th:nth-child(1) {
-          width: auto !important;
+          &:nth-child(2) {
+            width: 12%;
+            min-width: 70px;
+          }
+
+          &:nth-child(3) {
+            width: 18%;
+            min-width: 90px;
+          }
+
+          &:last-child {
+            width: 30%;
+            min-width: 100px;
+            max-width: 140px;
+            padding-right: 0px;
+          }
         }
       }
 
