@@ -419,7 +419,7 @@
 
   .section--policies {
     .linkToFilteredHosts__header {
-      width: 140px !important;
+      width: 140px;
     }
 
     tr {
@@ -481,7 +481,6 @@
       }
       &:nth-child(2) {
         width: 25%;
-        min-width: 100px;
         padding-right: 0px;
       }
       &:last-child {
@@ -684,24 +683,19 @@
           // Width for the "Query name" column
           &:first-child {
             width: 40%;
-            min-width: 100px;
             padding-right: 0px;
           }
 
           &:nth-child(2) {
             width: 12%;
-            min-width: 70px;
           }
 
           &:nth-child(3) {
             width: 18%;
-            min-width: 90px;
           }
 
           &:last-child {
             width: 30%;
-            min-width: 100px;
-            max-width: 140px;
             padding-right: 0px;
           }
         }
