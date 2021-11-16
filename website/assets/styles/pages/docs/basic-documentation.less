@@ -442,9 +442,8 @@
       }
 
       h2 + h3 {
-        // padding-top: 8px;
+        padding-top: 8px;
       }
-
       table {
         border: 1px solid @border-lt-gray;
         table-layout: fixed;
@@ -468,6 +467,9 @@
           border: 1px solid @border-lt-gray;
           padding: 8px 7px 7px 8px;
         }
+      }
+      h4 + table { // For parameter tables
+        table-layout: auto;
       }
       .note {
         background-color: @core-vibrant-blue-10;
