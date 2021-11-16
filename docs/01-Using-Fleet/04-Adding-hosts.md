@@ -1,35 +1,35 @@
 # Adding hosts
-- [Fleet installer](#fleet-installer)
+- [Osquery installer](#osquery-installer)
 - [Plain osquery](#plain-osquery)
 
 Fleet is powered by the open source osquery tool. To add a host to Fleet, you must install osquery on this host.
 
-The recommended way to install osquery and add your host to Fleet is with a Fleet installer. Fleet provides the tools to generate a Fleet installer with the `fleetctl package` command.
+The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
 To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here fleetdm.com](https://fleetdm.com/get-started)
 
 Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
-## Fleet installer
+## Osquery installer
 
-To create a Fleet installer, you can use the `fleetctl package` command.
+To create an osquery installer, you can use the `fleetctl package` command.
 
-`fleetctl package` can be used to create a Fleet installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+`fleetctl package` can be used to create an osquery installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
 
-The following command creates a Fleet installer, `.pkg` file, which adds macOS hosts to Fleet. This Fleet installer is located in the folder where the `fleetctl package` command is run.
+The following command creates an osquery installer, `.pkg` file, which adds macOS hosts to Fleet. This osquery installer is located in the folder where the `fleetctl package` command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
   >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance you'll need to specify a `--fleet-url` and `--enroll-secret`
 
-When you install the generated Fleet installer on a host, this host will be automatically enrolled in the specified Fleet instance.
+When you install the generated osquery installer on a host, this host will be automatically enrolled in the specified Fleet instance.
 
 ### Adding multiple hosts
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts. 
 
-You can distribute your Fleet installer and add all your hosts to Fleet using your software management tool of choice.
+You can distribute your osquery installer and add all your hosts to Fleet using your software management tool of choice.
 
 ### Automatically adding hosts to a team
 
@@ -41,9 +41,9 @@ You can distribute your Fleet installer and add all your hosts to Fleet using yo
 
 The teams feature in Fleet allows you to place hosts in exclusive groups. With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams.
 
-You can add a host to a team by generating and using a unique Fleet installer for a team or by [manually transferring a host to a team in the Fleet UI](../01-Using-Fleet/10-Teams.md#transfer-hosts-to-a-team).
+You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](../01-Using-Fleet/10-Teams.md#transfer-hosts-to-a-team).
 
-To generate a Fleet installer for a team:
+To generate an osquery installer for a team:
 
 1. First, create a team in Fleet by selecting "Create team" in **Settings > Teams**.
 
@@ -55,14 +55,14 @@ To generate a Fleet installer for a team:
 
 ### Configuration options
 
-The following command-line flags allow you to further configure a Fleet installer to communicate with a specific Fleet instance.
+The following command-line flags allow you to further configure an osquery installer to communicate with a specific Fleet instance.
 
 |Flag | Options|
 |------|--------|
 |  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
 |--enroll-secret |      Enroll secret for authenticating to Fleet server |
 |--fleet-url |          URL (`host:port`) of Fleet server |
-|--fleet-certificate |  Path to server cerificate bundle |
+|--fleet-certificate |  Path to server certificate bundle |
 |--identifier |         Identifier for package product (default: `com.fleetdm.orbit`) |
 |--version |            Version for package product (default: `0.0.3`) |
 | --insecure  |             Disable TLS certificate verification (default: `false`) |
