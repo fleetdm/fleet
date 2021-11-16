@@ -137,7 +137,8 @@
     margin-right: $pad-medium;
   }
 
-  &__button-wrap--save-policy-button:not(:first-child) {
+  &__button-wrap--save-policy-button:not(:first-child),
+  &__run {
     margin-left: $pad-medium;
   }
 

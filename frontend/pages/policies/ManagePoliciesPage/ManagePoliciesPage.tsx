@@ -29,7 +29,6 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
-import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 import TeamsDropdown from "./components/TeamsDropdown";
 

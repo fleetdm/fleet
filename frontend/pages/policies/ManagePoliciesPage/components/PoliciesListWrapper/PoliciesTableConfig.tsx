@@ -75,7 +75,7 @@ const generateTableHeaders = (options: {
           title: "Query",
           Header: "Query",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
             <TextCell value={cellProps.cell.value} />
           ),
@@ -87,7 +87,7 @@ const generateTableHeaders = (options: {
           title: "Query",
           Header: "Query",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
             <TextCell value={cellProps.cell.value} />
           ),
