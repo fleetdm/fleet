@@ -13,7 +13,7 @@ func init() {
 func Up_20211116184029(tx *sql.Tx) error {
 	_, err := tx.Exec("CREATE INDEX policy_membership_history_groupby_idx on policy_membership_history (host_id, policy_id, id)")
 	if err != nil {
-		return errors.Wrap(err, "drop app_configs table")
+		return errors.Wrap(err, "create policy_membership_history_groupby_idx")
 	}
 
 	return nil
