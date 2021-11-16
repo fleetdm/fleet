@@ -4414,7 +4414,7 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
-### Get enroll secrets
+### Get global enroll secrets
 
 Returns the valid global enroll secrets.
 
@@ -4449,31 +4449,34 @@ None.
 }
 ```
 
+### Modify global enroll secrets
 
-### Modify enroll secrets
+Replaces all existing global enroll secrets.
 
-Replaces all existing team enroll secrets.
-
-`PATCH /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
-None.
+| Name      | Type    | In   | Description                                                        |
+| --------- | ------- | ---- | ------------------------------------------------------------------ |
+| spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
 #### Example
 
-Replace all of a team's existing enroll secrets with a new enroll secret.
+Replace all global enroll secrets with a new enroll secret.
 
-`PATCH /api/v1/fleet/teams/2/secrets`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 ##### Request body
 
 ```json
 {
-  "secrets": [
-    {
-      "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+    "spec": {
+        "secrets": [
+            {
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+            }
+        ]
     }
-  ]
 }
 ```
 
@@ -4482,21 +4485,36 @@ Replace all of a team's existing enroll secrets with a new enroll secret.
 `Status: 200`
 
 ```json
+{}
+```
+
+#### Example
+
+Delete all global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
 {
     "spec": {
-        "secrets": [
-            {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
-                "created_at": "2021-11-12T20:27:02Z"
-            }
-        ]
+        "secrets": []
     }
 }
 ```
 
-### Get enroll secret for a team
+##### Default response
 
-Returns the valid team enroll secret.
+`Status: 200`
+
+```json
+{}
+```
+
+### Get enroll secrets for a team
+
+Returns the valid team enroll secrets.
 
 `GET /api/v1/fleet/teams/{id}/secrets`
 
@@ -4568,6 +4586,30 @@ Replace all of a team's existing enroll secrets with a new enroll secret
       "created_at": "0001-01-01T00:00:00Z",
     }
   ]
+}
+```
+
+#### Example
+
+Delete all of a team's existing enroll secrets
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": []
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": null
 }
 ```
 
