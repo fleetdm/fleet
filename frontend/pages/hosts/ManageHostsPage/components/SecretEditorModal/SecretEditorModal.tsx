@@ -52,6 +52,13 @@ const SecretEditorModal = ({
   };
 
   const onSecretChange = (value: string) => {
+    if (value.length < 32) {
+      setErrors({
+        secret: "Secret",
+      });
+    } else {
+      setErrors({});
+    }
     setEnrollSecretString(value);
   };
 
