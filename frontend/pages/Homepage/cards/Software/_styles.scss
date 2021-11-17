@@ -12,4 +12,34 @@
   .data-table__wrapper {
     overflow-x: auto;
   }
+
+  &__empty-software {
+    margin: 0 auto;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
+
+    p {
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
+    }
+
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+      margin-left: $pad-xsmall;
+    }
+  }
+
+  &__empty-software-modal {
+    width: 550px;
+    margin: $pad-large auto;
+  }
 }

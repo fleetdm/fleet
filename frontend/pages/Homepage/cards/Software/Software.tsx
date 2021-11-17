@@ -28,6 +28,56 @@ const PAGE_SIZE = 8;
 const MODAL_PAGE_SIZE = 20;
 const baseClass = "home-software";
 
+const EmptySoftware = (message: string): JSX.Element => {
+  const emptySoftware = (
+    <div className={`${baseClass}__empty-software`}>
+      <h1>
+        No installed software{" "}
+        {message === "vulnerable"
+          ? "with detected vulnerabilities"
+          : "detected"}
+        .
+      </h1>
+      <p>
+        Expecting to see{" "}
+        {message === "vulnerable" && "detected vulnerabilities "}software? Check
+        out the Fleet documentation on{" "}
+        <a
+          href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          how to configure software inventory
+        </a>
+        .
+      </p>
+    </div>
+  );
+
+  switch (message) {
+    case "modal":
+      return (
+        <div className={`${baseClass}__empty-software-modal`}>
+          {emptySoftware}
+        </div>
+      );
+    case "search":
+      return (
+        <div className={`${baseClass}__empty-software-modal`}>
+          <div className={`${baseClass}__empty-software`}>
+            <h1>No software matches the current search criteria.</h1>
+            <p>
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        </div>
+      );
+    default:
+      return emptySoftware;
+  }
+};
+
 const Software = ({
   isModalOpen,
   setIsSoftwareModalOpen,
@@ -113,6 +163,7 @@ const Software = ({
   };
 
   const tableHeaders = generateTableHeaders();
+
   return (
     <div className={baseClass}>
       <TabsWrapper>
@@ -130,7 +181,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={() => <span>No software</span>}
+              emptyComponent={EmptySoftware}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -148,7 +199,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={() => <span>No vulnerable software</span>}
+              emptyComponent={() => EmptySoftware("vulnerable")}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -178,7 +229,11 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software items"}
-              emptyComponent={() => <span>No vulnerable software</span>}
+              emptyComponent={() =>
+                EmptySoftware(
+                  modalSoftwareSearchText === "" ? "modal" : "search"
+                )
+              }
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
