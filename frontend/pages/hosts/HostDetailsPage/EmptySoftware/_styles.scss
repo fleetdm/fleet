@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 80px;
-  margin-bottom: 80px;
+  margin-top: $pad-xxxlarge;
+  margin-bottom: $pad-xxxlarge;
 
   &__inner {
     display: flex;

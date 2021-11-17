@@ -53,10 +53,20 @@
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
 
+      // resize header icons
       img {
         width: 16px;
         height: 16px;
         vertical-align: sub;
+      }
+
+      // do not resize button icons inside headers
+      .button {
+        img {
+          width: initial;
+          height: initial;
+          vertical-align: initial;
+        }
       }
 
       .header-icon-text {
