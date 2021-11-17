@@ -1,6 +1,16 @@
 package sso
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+
+	"github.com/russellhaering/goxmldsig/types"
+)
+
+type KeyDescriptor struct {
+	XMLName xml.Name      `xml:"urn:oasis:names:tc:SAML:2.0:metadata KeyDescriptor"`
+	Use     string        `xml:"use,attr"`
+	KeyInfo types.KeyInfo `xml:"KeyInfo"`
+}
 
 // AuthnRequest contains information needed to request authorization from
 // an IDP
