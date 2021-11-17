@@ -305,9 +305,9 @@ At Fleet, our primary quality objectives are *customer service* and *defect redu
 
 - If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
-- If an appropriate response is outside your scope, please post to `#oncall-chatter`, a confidential Slack channel in the Fleet Slack workspace.
+- If an appropriate response is outside your scope, please post to `#help-oncall`, a confidential Slack channel in the Fleet Slack workspace.
 
-- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in `#oncall-chatter`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
+- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in `#help-oncall`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
 
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 
@@ -330,11 +330,11 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-#### New feature request issues
+#### Feature request
 
-After [requesting more details](#requesting-more-details), please add the milestone associated with the current time we are along the roadmap timeline. For example, if the current date is June 25, 2021, we would add the H1 2021 milestone to the issue.
+If the feature is requested by a customer, the on-call engineer is requested to create a feature request issue and follow up with the customer by linking them to this issue. This way, the customer can add additional comments or feedback to the newly filed feature request issue.
 
-Feature request issues automatically include the "idea" label. The "idea" label provides the signal that this issue is an item the Fleet team would like to discuss at a later date. The time of discussion is indicated by the issue's milestones.
+If the feature is requested by anyone other than a customer (ex. user in #fleet Slack), the on-call engineer is requested to point to the user to the [feature request GitHub issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title=) and kindly ask the user to create a feature request.
 
 #### Closing issues
 
