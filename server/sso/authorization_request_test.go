@@ -16,3 +16,6 @@ func TestRequestCompression(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, expected, compressed)
 }
+
+func TestCreateAuthorizationRequest(t *testing.T) {
+}
