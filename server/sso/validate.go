@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	rtvalidator "github.com/mattermost/xml-roundtrip-validator"
 	"github.com/pkg/errors"
@@ -25,7 +26,7 @@ type Validator interface {
 type validator struct {
 	context  *dsig.ValidationContext
 	clock    *dsig.Clock
-	metadata Metadata
+	metadata *saml.EntityDescriptor
 }
 
 func Clock(clock *dsig.Clock) func(v *validator) {
@@ -36,25 +37,27 @@ func Clock(clock *dsig.Clock) func(v *validator) {
 
 // NewValidator is used to validate the response to an auth request.
 // metadata is from the IDP.
-func NewValidator(metadata Metadata, opts ...func(v *validator)) (Validator, error) {
+func NewValidator(metadata *saml.EntityDescriptor, opts ...func(v *validator)) (Validator, error) {
 	v := validator{
 		metadata: metadata,
 	}
 
 	var idpCertStore dsig.MemoryX509CertificateStore
-	for _, key := range v.metadata.IDPSSODescriptor.KeyDescriptors {
-		if len(key.KeyInfo.X509Data.X509Certificates) == 0 {
-			return nil, errors.New("missing x509 cert")
+	for _, idp := range v.metadata.IDPSSODescriptors {
+		for _, key := range idp.KeyDescriptors {
+			if len(key.KeyInfo.Certificate) == 0 {
+				return nil, errors.New("missing x509 cert")
+			}
+			certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.Certificate))
+			if err != nil {
+				return nil, errors.Wrap(err, "decoding idp x509 cert")
+			}
+			cert, err := x509.ParseCertificate(certData)
+			if err != nil {
+				return nil, errors.Wrap(err, "parsing idp x509 cert")
+			}
+			idpCertStore.Roots = append(idpCertStore.Roots, cert)
 		}
-		certData, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key.KeyInfo.X509Data.X509Certificates[0].Data))
-		if err != nil {
-			return nil, errors.Wrap(err, "decoding idp x509 cert")
-		}
-		cert, err := x509.ParseCertificate(certData)
-		if err != nil {
-			return nil, errors.Wrap(err, "parsing idp x509 cert")
-		}
-		idpCertStore.Roots = append(idpCertStore.Roots, cert)
 	}
 	for _, opt := range opts {
 		opt(&v)

@@ -103,9 +103,11 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 }
 
 func getDestinationURL(settings *Settings) (string, error) {
-	for _, sso := range settings.Metadata.IDPSSODescriptor.SingleSignOnService {
-		if sso.Binding == RedirectBinding {
-			return sso.Location, nil
+	for _, idp := range settings.Metadata.IDPSSODescriptors {
+		for _, sso := range idp.SingleSignOnServices {
+			if sso.Binding == RedirectBinding {
+				return sso.Location, nil
+			}
 		}
 	}
 	return "", errors.New("IDP does not support redirect binding")

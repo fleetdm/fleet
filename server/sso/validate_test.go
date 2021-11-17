@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/samlsp"
 	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testMetadata() Metadata {
-	var metadata Metadata
-	if err := xml.Unmarshal([]byte(`
+func testMetadata() *saml.EntityDescriptor {
+	metadata, err := samlsp.ParseMetadata([]byte(`
 <?xml version="1.0" encoding="UTF-8"?>
   <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://fleet-dev-ed.my.salesforce.com" validUntil="2027-04-29T19:22:40.750Z" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
       <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -30,7 +31,8 @@ func testMetadata() Metadata {
          <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://fleet-dev-ed.my.salesforce.com/idp/endpoint/HttpRedirect"/>
       </md:IDPSSODescriptor>
    </md:EntityDescriptor>
-`), &metadata); err != nil {
+`))
+	if err != nil {
 		panic(err)
 	}
 	return metadata
@@ -124,9 +126,8 @@ func TestVerfiyStaleMessageFails(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func testGoogleMetadata() Metadata {
-	var metadata Metadata
-	if err := xml.Unmarshal([]byte(`
+func testGoogleMetadata() *saml.EntityDescriptor {
+	metadata, err := samlsp.ParseMetadata([]byte(`
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://accounts.google.com/o/saml2?idpid=C0171bstf" validUntil="2022-07-16T20:07:43.000Z">
   <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -157,7 +158,8 @@ QyrBRp8n4UR9PjoeIy0tTCmG0tqu/NackFH4PkamY84Etxe9uH0StmkhID46QTT4Cv2+jqCaklg+
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://accounts.google.com/o/saml2/idp?idpid=C0171bstf"/>
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>
-`), &metadata); err != nil {
+`))
+	if err != nil {
 		panic(err)
 	}
 	return metadata

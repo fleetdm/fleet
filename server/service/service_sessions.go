@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/xml"
+	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -82,24 +83,16 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	return idpURL, nil
 }
 
-func (svc *Service) getMetadata(ctx context.Context, config *fleet.AppConfig) (*sso.Metadata, error) {
+func (svc *Service) getMetadata(ctx context.Context, config *fleet.AppConfig) (*saml.EntityDescriptor, error) {
 	if config.SSOSettings.MetadataURL != "" {
-		metadata, err := sso.GetMetadata(ctx, config.SSOSettings.MetadataURL)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
+		return sso.GetMetadata(ctx, config.SSOSettings.MetadataURL)
 	}
 
 	if config.SSOSettings.Metadata != "" {
-		metadata, err := sso.ParseMetadata(config.SSOSettings.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
+		return sso.ParseMetadata(config.SSOSettings.Metadata)
 	}
 
-	return nil, errors.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
+	return nil, fmt.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
 }
 
 func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SSOSession, error) {
@@ -117,7 +110,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// Load the request metadata if available
 
 	// localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080
-	var metadata *sso.Metadata
+	var metadata *saml.EntityDescriptor
 	var redirectURL string
 
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
@@ -138,14 +131,16 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		if err != nil {
 			return nil, errors.Wrap(err, "remove sso request")
 		}
-		if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
+
+		metadata, err = sso.ParseMetadata(session.Metadata)
+		if err != nil {
 			return nil, errors.Wrap(err, "unmarshal metadata")
 		}
 		redirectURL = session.OriginalURL
 	}
 
 	// Validate response
-	validator, err := sso.NewValidator(*metadata)
+	validator, err := sso.NewValidator(metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "create validator from metadata")
 	}

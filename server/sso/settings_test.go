@@ -49,13 +49,15 @@ func TestParseMetadata(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
-	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)
-	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
-	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
-	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
+	require.Len(t, settings.IDPSSODescriptors, 1)
+	idp := settings.IDPSSODescriptors[0]
+	assert.Len(t, idp.NameIDFormats, 2)
+	require.Len(t, idp.KeyDescriptors, 1)
+	assert.NotEmpty(t, idp.KeyDescriptors[0].KeyInfo.Certificate)
+	require.Len(t, idp.SingleSignOnServices, 2)
 	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
-		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
-	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
+		idp.SingleSignOnServices[0].Location)
+	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", idp.SingleSignOnServices[0].Binding)
 }
 
 func TestGetMetadata(t *testing.T) {
@@ -65,11 +67,13 @@ func TestGetMetadata(t *testing.T) {
 	settings, err := GetMetadata(context.Background(), ts.URL)
 	require.Nil(t, err)
 	assert.Equal(t, "http://www.okta.com/exka4zkf6dxm8pF220h7", settings.EntityID)
-	assert.Len(t, settings.IDPSSODescriptor.NameIDFormats, 2)
-	require.Len(t, settings.IDPSSODescriptor.KeyDescriptors, 1)
-	assert.True(t, settings.IDPSSODescriptor.KeyDescriptors[0].KeyInfo.X509Data.X509Certificates[0].Data != "")
-	require.Len(t, settings.IDPSSODescriptor.SingleSignOnService, 2)
+	require.Len(t, settings.IDPSSODescriptors, 1)
+	idp := settings.IDPSSODescriptors[0]
+	assert.Len(t, idp.NameIDFormats, 2)
+	require.Len(t, idp.KeyDescriptors, 1)
+	assert.NotEmpty(t, idp.KeyDescriptors[0].KeyInfo.Certificate)
+	require.Len(t, idp.SingleSignOnServices, 2)
 	assert.Equal(t, "https://dev-132038.oktapreview.com/app/dev132038_1/exka4zkf6dxm8pF220h7/sso/saml",
-		settings.IDPSSODescriptor.SingleSignOnService[0].Location)
-	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", settings.IDPSSODescriptor.SingleSignOnService[0].Binding)
+		idp.SingleSignOnServices[0].Location)
+	assert.Equal(t, "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST", idp.SingleSignOnServices[0].Binding)
 }

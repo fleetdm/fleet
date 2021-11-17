@@ -3,11 +3,13 @@ package sso
 import (
 	"context"
 	"encoding/xml"
-	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/samlsp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 
 	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
@@ -51,7 +53,7 @@ const (
 )
 
 type Settings struct {
-	Metadata *Metadata
+	Metadata *saml.EntityDescriptor
 	// AssertionConsumerServiceURL is the call back on the service provider which responds
 	// to the IDP
 	AssertionConsumerServiceURL string
@@ -60,44 +62,26 @@ type Settings struct {
 }
 
 // ParseMetadata writes metadata xml to a struct
-func ParseMetadata(metadata string) (*Metadata, error) {
-	var md Metadata
-	err := xml.Unmarshal([]byte(metadata), &md)
-	if err != nil {
-		return nil, err
-	}
-	return &md, nil
+func ParseMetadata(metadata string) (*saml.EntityDescriptor, error) {
+	return samlsp.ParseMetadata([]byte(metadata))
 }
 
 // GetMetadata retrieves information describing how to interact with a particular
 // IDP via a remote URL. metadataURL is the location where the metadata is located
 // and timeout defines how long to wait to get a response form the metadata
 // server.
-func GetMetadata(ctx context.Context, metadataURL string) (*Metadata, error) {
+func GetMetadata(ctx context.Context, metadataURL string) (*saml.EntityDescriptor, error) {
+	parsedURL, err := url.Parse(metadataURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse metadata url")
+	}
+
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
+	entity, err := samlsp.FetchMetadata(ctx, client, *parsedURL)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "fetch IDP metadata")
 	}
-	resp, err := client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("SAML metadata server at %s returned %s", metadataURL, resp.Status)
-	}
-	xmlData, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-	var md Metadata
-	err = xml.Unmarshal(xmlData, &md)
-	if err != nil {
-		return nil, err
-	}
-	return &md, nil
+	return entity, nil
 }
