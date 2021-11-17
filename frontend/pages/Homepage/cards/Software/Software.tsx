@@ -50,25 +50,30 @@ const Software = ({
     softwareAPI.load({
       page: softwarePageIndex,
       perPage: PAGE_SIZE,
-      orderKey: "host_count",
+      orderKey: "host_count,id",
       orderDir: "desc",
-    })
+    }),
+    {
+      enabled: navTabIndex === 0,
+      refetchOnWindowFocus: false,
+    }
   );
 
   const {
     data: vulnerableSoftware,
     isLoading: isLoadingVulnerableSoftware,
   } = useQuery<ISoftware[], Error>(
-    ["vSoftware", vSoftwarePageIndex],
-    () =>
-      softwareAPI.load({
-        page: vSoftwarePageIndex,
-        perPage: PAGE_SIZE,
-        orderKey: "host_count",
-        orderDir: "desc",
-      }),
+    ["vSoftware", vSoftwarePageIndex], () =>
+    softwareAPI.load({
+      page: vSoftwarePageIndex,
+      perPage: PAGE_SIZE,
+      orderKey: "host_count,id",
+      orderDir: "desc",
+      vulnerable: true,
+    }),
     {
-      select: (data: ISoftware[]) => data.filter((s) => s.vulnerabilities),
+      enabled: navTabIndex === 1,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -80,9 +85,13 @@ const Software = ({
       page: modalSoftwarePageIndex,
       perPage: MODAL_PAGE_SIZE,
       query: modalSoftwareSearchText,
-      orderKey: "host_count",
+      orderKey: "host_count,id",
       orderDir: "desc",
-    })
+    }),
+    {
+      enabled: isModalOpen,
+      refetchOnWindowFocus: false,
+    }
   );
 
   // NOTE: this is called once on the initial rendering. The initial render of
