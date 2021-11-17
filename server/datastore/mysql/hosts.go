@@ -323,7 +323,10 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
 	).Where(
 		goqu.Or(
-			goqu.I("sq.platform").Eq(""), // schedule query set to run on all hosts.
+			// sq.platform empty or NULL means the scheduled query is set to
+			// run on all hosts.
+			goqu.I("sq.platform").Eq(""),
+			goqu.I("sq.platform").IsNull(),
 			// scheduled_queries.platform can be a comma-separated list of
 			// platforms, e.g. "darwin,windows".
 			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
