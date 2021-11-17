@@ -155,14 +155,21 @@ const Software = ({
 
   const NoAllSoftware = (isVulnerableTable: boolean) => (
     <div className="no-software">
-      <p>No {isVulnerableTable ? "vulnerable" : "installed"} software detected.</p>
+      <p>
+        No {isVulnerableTable ? "vulnerable" : "installed"} software detected.
+      </p>
       {!isVulnerableTable && (
         <span>
           Expecting to see installed software? Check out the Fleet documentation
           on&nbsp;
-          <a href="https://fleetdm.com/docs/deploying/configuration#software-inventory" target="_blank">
+          <a
+            href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+            target="_blank"
+            rel="noreferrer"
+          >
             how to configure software inventory
-          </a>.
+          </a>
+          .
         </span>
       )}
     </div>
@@ -172,7 +179,8 @@ const Software = ({
     <div className="no-software">
       <p>No software matches the current search criteria. </p>
       <span>
-        Expecting to see software? Try again in a few seconds as the system catches up.
+        Expecting to see software? Try again in a few seconds as the system
+        catches up.
       </span>
     </div>
   );
