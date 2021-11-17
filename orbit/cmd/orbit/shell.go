@@ -80,7 +80,7 @@ var shellCommand = &cli.Command{
 		g.Add(r.Execute, r.Interrupt)
 
 		// Extension tables not yet supported on Windows.
-		ext, _ := table.NewRunner(r.ExtensionSocketPath())
+		ext := table.NewRunner(r.ExtensionSocketPath())
 		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler

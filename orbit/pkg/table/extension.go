@@ -20,9 +20,9 @@ type Runner struct {
 }
 
 // NewRunner creates an extension runner.
-func NewRunner(socket string) (*Runner, error) {
+func NewRunner(socket string) *Runner {
 	r := &Runner{socket: socket}
-	return r, nil
+	return r
 }
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
