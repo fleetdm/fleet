@@ -46,13 +46,15 @@ const Software = ({
   const { data: software, isLoading: isLoadingSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["software", softwarePageIndex], () =>
-    softwareAPI.load({
-      page: softwarePageIndex,
-      perPage: PAGE_SIZE,
-      orderKey: "host_count,id",
-      orderDir: "desc",
-    }),
+  >(
+    ["software", softwarePageIndex],
+    () =>
+      softwareAPI.load({
+        page: softwarePageIndex,
+        perPage: PAGE_SIZE,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+      }),
     {
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
@@ -63,14 +65,15 @@ const Software = ({
     data: vulnerableSoftware,
     isLoading: isLoadingVulnerableSoftware,
   } = useQuery<ISoftware[], Error>(
-    ["vSoftware", vSoftwarePageIndex], () =>
-    softwareAPI.load({
-      page: vSoftwarePageIndex,
-      perPage: PAGE_SIZE,
-      orderKey: "host_count,id",
-      orderDir: "desc",
-      vulnerable: true,
-    }),
+    ["vSoftware", vSoftwarePageIndex],
+    () =>
+      softwareAPI.load({
+        page: vSoftwarePageIndex,
+        perPage: PAGE_SIZE,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+        vulnerable: true,
+      }),
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
@@ -80,14 +83,16 @@ const Software = ({
   const { data: modalSoftware, isLoading: isLoadingModalSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["modalSoftware", modalSoftwarePageIndex, modalSoftwareSearchText], () =>
-    softwareAPI.load({
-      page: modalSoftwarePageIndex,
-      perPage: MODAL_PAGE_SIZE,
-      query: modalSoftwareSearchText,
-      orderKey: "host_count,id",
-      orderDir: "desc",
-    }),
+  >(
+    ["modalSoftware", modalSoftwarePageIndex, modalSoftwareSearchText],
+    () =>
+      softwareAPI.load({
+        page: modalSoftwarePageIndex,
+        perPage: MODAL_PAGE_SIZE,
+        query: modalSoftwareSearchText,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+      }),
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
