@@ -15,8 +15,10 @@
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
-- [How long are enroll secrets valid?](#how-long-are-enroll-secrets-valid)
+- [How long are osquery enroll secrets valid?](#how-long-are-osquery-enroll-secrets-valid)
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
+- [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
+
 
 ## How do I get support for working with Fleet?
 
@@ -136,11 +138,73 @@ Duplicate host enrollment is when more than one host enrolls in Fleet using the 
 osquery client. To resolve the issues, it's advised to configure `--osquery_host_identifier` to `uuid`, and then delete the single host record for that whole set of hosts in the Fleet UI. You can find more information about
 [host identifiers here](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/02-Configuration.md#osquery_host_identifier).
 
-## How long are enroll secrets valid?
+## How long are osquery enroll secrets valid?
 
 Enroll secrets are valid until you delete them.
 
 ## Should I use multiple enroll secrets?
 
 That is up to you! Some organizations have internal goals around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to auto-enroll hosts.
+Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to
+auto-enroll hosts into a specific team (Fleet Premium).
+
+## How can enroll secrets be rotated?
+
+Rotating enroll secrets follows this process:
+
+1) Add a new secret.
+2) Transition existing clients to the new secret. Note that existing clients may not need to be
+   updated, as the enroll secret is not used by already enrolled clients.
+3) Remove the old secret.
+
+To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
+
+Begin by retrieving the existing secret configuration:
+
+```
+$ fleetctl get enroll_secret
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+```
+
+Apply the new configuration with both secrets:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+Now transition clients to using only the new secret. When the transition is completed, remove the
+old secret:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+At this point, the old secret will no longer be accepted for new enrollments and the rotation is
+complete.
+
+A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
+are managed in the team yaml.
