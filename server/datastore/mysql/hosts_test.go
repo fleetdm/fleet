@@ -2558,6 +2558,22 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host1)
+	osqueryHostID2, _ := server.GenerateRandomText(10)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "foo.local.2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "rhel",
+		OsqueryHostID:   osqueryHostID2,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host2)
 
 	// Create global pack (and one scheduled query in it).
 	test.AddAllHostsLabel(t, ds) // the global pack needs the "All Hosts" label.
@@ -2625,6 +2641,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 
 	err = ds.AsyncBatchInsertLabelMembership(context.Background(), [][2]uint{
 		{labels[0].ID, host1.ID},
+		{labels[0].ID, host2.ID},
 	})
 	require.NoError(t, err)
 
@@ -2725,7 +2742,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	// Host should only return scheduled query stats only for the scheduled queries
+	// host should only return scheduled query stats only for the scheduled queries
 	// scheduled to run on "darwin".
 	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
@@ -2739,4 +2756,79 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		return globalStats[i].ScheduledQueryID < globalStats[j].ScheduledQueryID
 	})
 	require.ElementsMatch(t, packStats[0].QueryStats, globalStats)
+
+	// host2 should only return scheduled query stats only for the scheduled queries
+	// scheduled to run on "linux"
+	host2, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	packStats2 := host2.PackStats
+	require.Len(t, packStats2, 1)
+	require.Len(t, packStats2[0].QueryStats, 4)
+	zeroStats := []fleet.ScheduledQueryStats{
+		{
+			ScheduledQueryName: globalSQuery1.Name,
+			ScheduledQueryID:   globalSQuery1.ID,
+			QueryName:          globalQuery.Name,
+			PackName:           globalPack.Name,
+			PackID:             globalPack.ID,
+			AverageMemory:      0,
+			Denylisted:         false,
+			Executions:         0,
+			Interval:           30,
+			LastExecuted:       time.Time{},
+			OutputSize:         0,
+			SystemTime:         0,
+			UserTime:           0,
+			WallTime:           0,
+		},
+		{
+			ScheduledQueryName: globalSQuery3.Name,
+			ScheduledQueryID:   globalSQuery3.ID,
+			QueryName:          globalQuery.Name,
+			PackName:           globalPack.Name,
+			PackID:             globalPack.ID,
+			AverageMemory:      0,
+			Denylisted:         false,
+			Executions:         0,
+			Interval:           30,
+			LastExecuted:       time.Time{},
+			OutputSize:         0,
+			SystemTime:         0,
+			UserTime:           0,
+			WallTime:           0,
+		},
+		{
+			ScheduledQueryName: globalSQuery4.Name,
+			ScheduledQueryID:   globalSQuery4.ID,
+			QueryName:          globalQuery.Name,
+			PackName:           globalPack.Name,
+			PackID:             globalPack.ID,
+			AverageMemory:      0,
+			Denylisted:         false,
+			Executions:         0,
+			Interval:           30,
+			LastExecuted:       time.Time{},
+			OutputSize:         0,
+			SystemTime:         0,
+			UserTime:           0,
+			WallTime:           0,
+		},
+		{
+			ScheduledQueryName: globalSQuery5.Name,
+			ScheduledQueryID:   globalSQuery5.ID,
+			QueryName:          globalQuery.Name,
+			PackName:           globalPack.Name,
+			PackID:             globalPack.ID,
+			AverageMemory:      0,
+			Denylisted:         false,
+			Executions:         0,
+			Interval:           30,
+			LastExecuted:       time.Time{},
+			OutputSize:         0,
+			SystemTime:         0,
+			UserTime:           0,
+			WallTime:           0,
+		},
+	}
+	require.ElementsMatch(t, packStats2[0].QueryStats, zeroStats)
 }
