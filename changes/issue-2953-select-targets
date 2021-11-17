@@ -1,0 +1,1 @@
+* Fix target selector bug in case where different target types have the same numeric id
