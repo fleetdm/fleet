@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -88,7 +89,6 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		return mailError{message: err.Error()}
 	}
 	return nil
-
 }
 
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
@@ -102,9 +102,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	// We apply the config that is incoming to the old one
-	err = json.Unmarshal(p, &appConfig)
-	if err != nil {
-		return nil, err
+	decoder := json.NewDecoder(bytes.NewReader(p))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&appConfig); err != nil {
+		return nil, &badRequestError{message: err.Error()}
 	}
 
 	if appConfig.SMTPSettings.SMTPEnabled || appConfig.SMTPSettings.SMTPConfigured {
