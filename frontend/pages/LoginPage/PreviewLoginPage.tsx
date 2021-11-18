@@ -25,7 +25,7 @@ const PreviewLoginPage = () => {
 
   const onSubmit = debounce((formData: ILoginData) => {
     const { HOME } = paths;
-    const redirectTime = 1500;
+
     return dispatch(loginUser(formData))
       .then((returnedUser: IUser) => {
         setLoginVisible(false);
@@ -33,9 +33,7 @@ const PreviewLoginPage = () => {
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
 
-        setTimeout(() => {
-          return dispatch(push(HOME));
-        }, redirectTime);
+        dispatch(push(HOME));
       })
       .catch(() => false);
   });
