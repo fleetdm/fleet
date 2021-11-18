@@ -1,1 +1,0 @@
-* Add the experimental `enable_async_host_processing` configuration option to optimize setups with large number of hosts.

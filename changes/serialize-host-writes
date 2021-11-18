@@ -1,1 +1,0 @@
-- Serialize host updates to keep concurrency under control when configured.
