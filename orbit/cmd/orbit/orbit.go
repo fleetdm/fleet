@@ -232,12 +232,6 @@ func main() {
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
-		// Provide the flagfile to osquery if it exists.
-		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
-		if exists, err := file.Exists(flagfilePath); err == nil && exists {
-			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
-		}
-
 		fleetURL := c.String("fleet-url")
 		if !strings.HasPrefix(fleetURL, "http") {
 			fleetURL = "https://" + fleetURL
@@ -350,7 +344,17 @@ func main() {
 			)
 		}
 
-		// Handle additional args after --
+		// Provide the flagfile to osquery if it exists. This comes after the other flags set by
+		// Orbit so that users can override those flags. Note this means users may unintentionally
+		// break things by overriding Orbit flags in incompatible ways. That's the price to pay for
+		// flexibility.
+		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
+		if exists, err := file.Exists(flagfilePath); err == nil && exists {
+			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
+		}
+
+		// Handle additional args after '--' in the command line. These are added last and should
+		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
 		// Create an osquery runner with the provided options
