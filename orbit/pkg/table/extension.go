@@ -5,6 +5,10 @@ import (
 	"time"
 
 	"github.com/kolide/osquery-go"
+	"github.com/kolide/osquery-go/plugin/table"
+	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
+	"github.com/macadmins/osquery-extension/tables/fileline"
+	"github.com/macadmins/osquery-extension/tables/puppet"
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,9 +20,9 @@ type Runner struct {
 }
 
 // NewRunner creates an extension runner.
-func NewRunner(socket string) (*Runner, error) {
+func NewRunner(socket string) *Runner {
 	r := &Runner{socket: socket}
-	return r, nil
+	return r
 }
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
@@ -46,7 +50,13 @@ func (r *Runner) Execute() error {
 		}
 	}
 
-	var plugins []osquery.OsqueryPlugin
+	plugins := []osquery.OsqueryPlugin{
+		table.NewPlugin("puppet_info", puppet.PuppetInfoColumns(), puppet.PuppetInfoGenerate),
+		table.NewPlugin("puppet_logs", puppet.PuppetLogsColumns(), puppet.PuppetLogsGenerate),
+		table.NewPlugin("puppet_state", puppet.PuppetStateColumns(), puppet.PuppetStateGenerate),
+		table.NewPlugin("google_chrome_profiles", chromeuserprofiles.GoogleChromeProfilesColumns(), chromeuserprofiles.GoogleChromeProfilesGenerate),
+		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
+	}
 	plugins = append(plugins, platformTables()...)
 	r.srv.RegisterPlugin(plugins...)
 

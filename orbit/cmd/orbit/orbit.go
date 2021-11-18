@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -351,10 +350,8 @@ func main() {
 		g.Add(r.Execute, r.Interrupt)
 
 		// Extension tables not yet supported on Windows.
-		if runtime.GOOS != "windows" {
-			ext, _ := table.NewRunner("/var/lib/orbit/osquery.em")
-			g.Add(ext.Execute, ext.Interrupt)
-		}
+		ext := table.NewRunner(r.ExtensionSocketPath())
+		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
