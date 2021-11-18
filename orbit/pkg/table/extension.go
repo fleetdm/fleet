@@ -72,5 +72,7 @@ func (r *Runner) Interrupt(err error) {
 	log.Debug().Msg("interrupt osquery extension")
 	r.cancel()
 
-	r.srv.Shutdown(context.Background())
+	if r.srv != nil {
+		r.srv.Shutdown(context.Background())
+	}
 }

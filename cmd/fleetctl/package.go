@@ -98,6 +98,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Root key JSON metadata for update server (from fleetctl updates roots)",
 				Destination: &opt.UpdateRoots,
 			},
+			&cli.StringFlag{
+				Name:        "osquery-flagfile",
+				Usage:       "Flagfile to package and provide to osquery",
+				Destination: &opt.OsqueryFlagfile,
+			},
 			&cli.BoolFlag{
 				Name:        "debug",
 				Usage:       "Enable debug logging in orbit",

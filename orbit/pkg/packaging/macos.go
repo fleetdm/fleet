@@ -68,6 +68,9 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeSecret(opt, orbitRoot); err != nil {
 		return "", errors.Wrap(err, "write enroll secret")
 	}
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write flagfile")
+	}
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return "", errors.Wrap(err, "write launchd")
