@@ -203,38 +203,6 @@ const Software = ({
     }
   };
 
-  const NoAllSoftware = (isVulnerableTable: boolean) => (
-    <div className="no-software">
-      <p>
-        No {isVulnerableTable ? "vulnerable" : "installed"} software detected.
-      </p>
-      {!isVulnerableTable && (
-        <span>
-          Expecting to see installed software? Check out the Fleet documentation
-          on&nbsp;
-          <a
-            href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
-            target="_blank"
-            rel="noreferrer"
-          >
-            how to configure software inventory
-          </a>
-          .
-        </span>
-      )}
-    </div>
-  );
-
-  const NoSoftwareFromSearch = () => (
-    <div className="no-software">
-      <p>No software matches the current search criteria. </p>
-      <span>
-        Expecting to see software? Try again in a few seconds as the system
-        catches up.
-      </span>
-    </div>
-  );
-
   const renderStatusDropdown = () => {
     return (
       <Dropdown
@@ -266,7 +234,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={NoAllSoftware}
+              emptyComponent={EmptySoftware}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -284,7 +252,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={() => NoAllSoftware(true)}
+              emptyComponent={() => EmptySoftware("vulnerable")}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -314,7 +282,11 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software items"}
-              emptyComponent={NoSoftwareFromSearch}
+              emptyComponent={() =>
+                EmptySoftware(
+                  modalSoftwareSearchText === "" ? "modal" : "search"
+                )
+              }
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
