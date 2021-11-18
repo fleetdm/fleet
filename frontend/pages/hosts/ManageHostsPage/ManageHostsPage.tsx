@@ -792,7 +792,7 @@ const ManageHostsPage = ({
         refetchGlobalSecrets();
       }
       toggleSecretEditorModal();
-      refetchTeams();
+      isPremiumTier && refetchTeams();
 
       router.push(
         getNextLocationPath({
