@@ -252,7 +252,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	// Cleanup doesn't remove stats that are ok
 	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
 
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -268,7 +268,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// And we don't see it in the host
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -285,7 +285,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 }

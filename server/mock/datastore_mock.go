@@ -1123,7 +1123,7 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	return s.DeleteHostFunc(ctx, hid)
 }
 
-func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
+func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
 	return s.HostFunc(ctx, id)
 }

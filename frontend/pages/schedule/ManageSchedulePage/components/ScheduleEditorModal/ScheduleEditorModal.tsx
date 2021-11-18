@@ -270,9 +270,9 @@ const ScheduleEditorModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              how configure a different log destination.&nbsp;
-              <FleetIcon name="external-link" />
+              how configure a different log destination
             </a>
+            .
           </p>
         </InfoBanner>
         <div>

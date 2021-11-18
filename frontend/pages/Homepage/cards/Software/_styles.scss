@@ -12,9 +12,19 @@
   .data-table__wrapper {
     overflow-x: auto;
   }
-
+  .form-field--dropdown {
+    margin: 0;
+  }
+  .component__tabs-wrapper .table-container__header {
+    display: none;
+  }
+  &__software-modal {
+    .data-table__wrapper {
+      margin-top: $pad-large;
+    }
+  }
   &__empty-software {
-    margin: 0 auto;
+    margin: $pad-large auto 0;
 
     h1 {
       font-size: $small;
@@ -37,9 +47,38 @@
       margin-left: $pad-xsmall;
     }
   }
-
   &__empty-software-modal {
     width: 550px;
     margin: $pad-large auto;
+  }
+  &__status_dropdown {
+    width: 219px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
+
+      &::before {
+        display: inline-block;
+        position: absolute;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-filter-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 26px;
+        left: 2px;
+      }
+    }
+    .Select-value-label {
+      padding-left: $pad-large;
+      font-size: $small !important;
+    }
   }
 }
