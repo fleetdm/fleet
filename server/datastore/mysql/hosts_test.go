@@ -1828,6 +1828,7 @@ func printReadsInTest(test func(t *testing.T, ds *Datastore)) func(t *testing.T,
 func getReads(t *testing.T, ds *Datastore) int {
 	rows, err := ds.writer.Query("show engine innodb status")
 	require.NoError(t, err)
+	defer rows.Close()
 	for rows.Next() {
 		type_, name, status := "", "", ""
 		require.NoError(t, rows.Scan(&type_, &name, &status))
