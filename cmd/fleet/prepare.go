@@ -65,26 +65,24 @@ To setup Fleet infrastructure, use one of the available commands.
 						"#   This will perform Fleet database migrations. Please back up your data before\n"+
 						"#   continuing.\n"+
 						"#\n"+
-						"#   Current version: tables=%d, data=%d\n"+
-						"#   Migrations missing: tables=%v, data=%v\n"+
+						"#   Missing migrations: tables=%v, data=%v.\n"+
 						"#\n"+
 						"#   Press Enter to continue, or Control-c to exit.\n"+
 						"################################################################################\n",
-						status.TableVersion, status.DataVersion,
 						status.MissingTable, status.MissingData)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
-			case fleet.DatabaseVersionAhead:
+			case fleet.UnknownMigrations:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
 					"#   running an older version of Fleet on a newer migrated database.\n"+
 					"#\n"+
-					"#   Database version: tables=%d, data=%d\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
 					"#\n"+
 					"#   Upgrade Fleet server version.\n"+
 					"################################################################################\n",
-					status.TableVersion, status.DataVersion)
+					status.UnknownTable, status.UnknownData)
 				os.Exit(1)
 			}
 

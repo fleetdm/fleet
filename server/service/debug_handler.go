@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/pprof"
 
@@ -65,6 +66,7 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		fmt.Printf("%s\n", string(b))
 		rw.Write(b)
 	})
 

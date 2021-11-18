@@ -479,16 +479,13 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 					"Fleet server must be run with \"prepare db\" to perform the migrations.")
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations up-to-date.")
-			case fleet.DatabaseVersionAhead:
-				// Currently shouldn't happen, because fleet serve won't be running if this is the case.
-				fmt.Printf("Database version is ahead of server version: tables=%d, data=%d.\n",
-					migrationStatus.TableVersion, migrationStatus.DataVersion)
+			case fleet.UnknownMigrations:
+				// Shouldn't happen, because fleet serve won't be running if this is the case.
+				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
 			case fleet.SomeMigrationsCompleted:
-				fmt.Printf("Missing migrations detected:\n"+
-					"  - Current version: tables=%d, data=%d\n"+
-					"  - Migrations missing: tables=%v, data=%v\n"+
+				fmt.Printf("Missing migrations detected: tables=%v, data=%v\n"+
 					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
-					migrationStatus.TableVersion, migrationStatus.DataVersion,
 					migrationStatus.MissingTable, migrationStatus.MissingData)
 			}
 			return nil

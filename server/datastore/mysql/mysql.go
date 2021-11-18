@@ -315,72 +315,120 @@ func (d *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
+type migrationRecord struct {
+	VersionID int64 `db:"version_id"`
+	IsApplied bool  `db:"is_applied"`
+}
+
+// loadMigrations manually loads the applied migrations in ascending
+// order (goose doesn't provide such functionality).
+//
+// TODO(lucas): Propose goose to export a LoadMigrations method.
+func (d *Datastore) loadMigrations(
+	ctx context.Context,
+) (tableRecs []migrationRecord, dataRecs []migrationRecord, err error) {
+	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
+	if err := sqlx.SelectContext(ctx, d.reader, &tableRecs,
+		"SELECT version_id, is_applied FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 ORDER BY id ASC",
+	); err != nil {
+		return nil, nil, err
+	}
+	if err := sqlx.SelectContext(ctx, d.reader, &dataRecs,
+		"SELECT version_id, is_applied FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 ORDER BY id ASC",
+	); err != nil {
+		return nil, nil, err
+	}
+	return tableRecs, dataRecs, nil
+}
+
 func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	lastTablesMigration, err := tables.MigrationClient.Migrations.Last()
+	appliedTable, appliedData, err := d.loadMigrations(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("missing tables migrations: %w", err)
+		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
-	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get table migration status: %w", err)
-	}
-	lastDataMigration, err := data.MigrationClient.Migrations.Last()
-	if err != nil {
-		return nil, fmt.Errorf("missing data migrations: %w", err)
-	}
-	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get data migration status: %w", err)
-	}
-	// The following assumes there cannot be migrations missing on "table"
-	// and database being ahead on "data" (and vice-versa).
-	switch {
-	case currentDataVersion == 0 && currentTablesVersion == 0:
+	if len(appliedTable) == 0 && len(appliedData) == 0 {
 		return &fleet.MigrationStatus{
-			StatusCode:   fleet.NoMigrationsCompleted,
-			TableVersion: currentTablesVersion,
-			DataVersion:  currentDataVersion,
-			MissingTable: getMissing(tables.MigrationClient.Migrations, currentTablesVersion),
-			MissingData:  getMissing(data.MigrationClient.Migrations, currentDataVersion),
-		}, nil
-	case currentTablesVersion == lastTablesMigration.Version &&
-		currentDataVersion == lastDataMigration.Version:
-		return &fleet.MigrationStatus{
-			StatusCode:   fleet.AllMigrationsCompleted,
-			TableVersion: currentTablesVersion,
-			DataVersion:  currentDataVersion,
-		}, nil
-	case currentTablesVersion > lastTablesMigration.Version ||
-		currentDataVersion > lastDataMigration.Version:
-		return &fleet.MigrationStatus{
-			StatusCode:   fleet.DatabaseVersionAhead,
-			TableVersion: currentTablesVersion,
-			DataVersion:  currentDataVersion,
-		}, nil
-	default:
-		// currentTablesVersion < lastTablesMigration.Version ||
-		// currentDataVersion < lastDataMigration.Version
-		return &fleet.MigrationStatus{
-			StatusCode:   fleet.SomeMigrationsCompleted,
-			TableVersion: currentTablesVersion,
-			DataVersion:  currentDataVersion,
-			MissingTable: getMissing(tables.MigrationClient.Migrations, currentTablesVersion),
-			MissingData:  getMissing(data.MigrationClient.Migrations, currentDataVersion),
+			StatusCode: fleet.NoMigrationsCompleted,
 		}, nil
 	}
+
+	knownTable := tables.MigrationClient.Migrations
+	mtvs := getVersionsFromMigrations(knownTable)
+	atvs := getVersionsFromRecords(appliedTable)
+	missingTable, unknownTable, equalTable := compareVersions(mtvs, atvs)
+
+	knownData := data.MigrationClient.Migrations
+	mdvs := getVersionsFromMigrations(knownData)
+	advs := getVersionsFromRecords(appliedData)
+	missingData, unknownData, equalData := compareVersions(mdvs, advs)
+
+	if equalData && equalTable {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.AllMigrationsCompleted,
+		}, nil
+	}
+
+	// The following code assumes there cannot be migrations missing on
+	// "table" and database being ahead on "data" (and vice-versa).
+	if len(unknownTable) > 0 || len(unknownData) > 0 {
+		return &fleet.MigrationStatus{
+			StatusCode:   fleet.UnknownMigrations,
+			UnknownTable: unknownTable,
+			UnknownData:  unknownData,
+		}, nil
+	}
+
+	// len(missingTable) > 0 || len(missingData) > 0
+	return &fleet.MigrationStatus{
+		StatusCode:   fleet.SomeMigrationsCompleted,
+		MissingTable: missingTable,
+		MissingData:  missingData,
+	}, nil
 }
 
-func getMissing(migrations goose.Migrations, current int64) []int64 {
-	var missing []int64
-	for _, migration := range migrations {
-		if migration.Version > current {
-			missing = append(missing, migration.Version)
+// We assume that migrations could be applied out of order.
+func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bool) {
+	v1s := make(map[int64]struct{})
+	for _, m := range v1 {
+		v1s[m] = struct{}{}
+	}
+	v2s := make(map[int64]struct{})
+	for _, m := range v2 {
+		v2s[m] = struct{}{}
+	}
+	for _, m := range v1 {
+		if _, ok := v2s[m]; !ok {
+			missing = append(missing, m)
 		}
 	}
-	return missing
+	for _, m := range v2 {
+		if _, ok := v1s[m]; !ok {
+			unknown = append(unknown, m)
+		}
+	}
+	if len(missing) == 0 && len(unknown) == 0 {
+		return nil, nil, true
+	}
+	return missing, unknown, false
+}
+
+func getVersionsFromRecords(migrations []migrationRecord) []int64 {
+	versions := make([]int64, len(migrations))
+	for i := range migrations {
+		versions[i] = migrations[i].VersionID
+	}
+	return versions
+}
+
+func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
+	versions := make([]int64, len(migrations))
+	for i := range migrations {
+		versions[i] = migrations[i].Version
+	}
+	return versions
 }
 
 // HealthCheck returns an error if the MySQL backend is not healthy.

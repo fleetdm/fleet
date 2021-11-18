@@ -404,11 +404,25 @@ type Datastore interface {
 }
 
 type MigrationStatus struct {
-	StatusCode   MigrationStatusCode `json:"status_code"`
-	TableVersion int64               `json:"table_version"`
-	DataVersion  int64               `json:"data_version"`
-	MissingTable []int64             `json:"missing_table"`
-	MissingData  []int64             `json:"missing_data"`
+	// StatusCode holds the code for that migration status.
+	//
+	// If StatusCode is NoMigrationsCompleted or AllMigrationsCompleted
+	// then all other fields are empty.
+	//
+	// If StatusCode is SomeMigrationsCompleted, then missing migrations
+	// are available in MissingTable and MissingData.
+	//
+	// If StatusCode is UnknownMigrations, then unknown migrations
+	// are available in UnknownTable and UnknownData.
+	StatusCode MigrationStatusCode `json:"status_code"`
+	// MissingTable holds the missing table migrations.
+	MissingTable []int64 `json:"missing_table"`
+	// MissingTable holds the missing data migrations.
+	MissingData []int64 `json:"missing_data"`
+	// UnknownTable holds unknown applied table migrations.
+	UnknownTable []int64 `json:"unknown_table"`
+	// UnknownTable holds unknown applied data migrations.
+	UnknownData []int64 `json:"unknown_data"`
 }
 
 type MigrationStatusCode int
@@ -417,7 +431,7 @@ const (
 	NoMigrationsCompleted MigrationStatusCode = iota
 	SomeMigrationsCompleted
 	AllMigrationsCompleted
-	DatabaseVersionAhead
+	UnknownMigrations
 )
 
 // NotFoundError is returned when the datastore resource cannot be found.

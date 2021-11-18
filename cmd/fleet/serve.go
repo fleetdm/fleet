@@ -178,17 +178,17 @@ the way that the Fleet server works.
 			switch migrationStatus.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// OK
-			case fleet.DatabaseVersionAhead:
+			case fleet.UnknownMigrations:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
 					"#   running an older version of Fleet on a newer migrated database.\n"+
 					"#\n"+
-					"#   Database version: tables=%d, data=%d\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
 					"#\n"+
 					"#   Upgrade Fleet server version.\n"+
 					"################################################################################\n",
-					migrationStatus.TableVersion, migrationStatus.DataVersion)
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
 				os.Exit(1)
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
@@ -196,12 +196,10 @@ the way that the Fleet server works.
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 					"#   errors in Fleet.\n"+
 					"#\n"+
-					"#   Current version: tables=%d, data=%d\n"+
-					"#   Migrations missing: tables=%v, data=%v\n"+
+					"#   Missing migrations: tables=%v, data=%v.\n"+
 					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"################################################################################\n",
-					migrationStatus.TableVersion, migrationStatus.DataVersion,
 					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
 			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
