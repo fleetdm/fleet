@@ -116,8 +116,8 @@ Assuming that you are deploying your enroll secret in the file `/etc/osquery/enr
 sudo osqueryd \
  --enroll_secret_path=/etc/osquery/enroll_secret \
  --tls_server_certs=/etc/osquery/fleet.crt \
- --tls_hostname=fleet.acme.net \
- --host_identifier=instance \
+ --tls_hostname=fleet.example.com \
+ --host_identifier=uuid \
  --enroll_tls_endpoint=/api/v1/osquery/enroll \
  --config_plugin=tls \
  --config_tls_endpoint=/api/v1/osquery/config \
@@ -156,6 +156,34 @@ Ensure that paths to files in the flag file are absolute, and not quoted. For ex
 
 ### Migrating from plain osquery to osquery installer
 
-The following is a strategy for migrating a plain osquery deployment, with a custom flagfile and osquery extensions, to an osquery installer deployment.
+The following is a strategy for migrating a plain osquery deployment. Unlike plain osquery, Fleet's
+osquery installer supports the automatic updating of osquery on your hosts so that you don't have to
+deploy a new package for every new osquery release.
 
-Unlike plain osquery, Fleet's osquery installer supports the automatic updating of osquery on your hosts so that you don't have to deploy a new package for every new osquery release.
+#### Generate installer
+
+```
+fleetctl package --type [pkg|msi|deb|rpm] --fleet-url [fleet-hostname:port] --enroll-secret [secret]
+```
+
+If you currently ship a certificate (`fleet.pem`), also include this in the generated package with
+`--fleet-certificate [/path/to/fleet.pem]`.
+
+Fleet automatically manages most of the osquery flags to connect to the Fleet server. There's no
+need to set any of the flags mentioned above in [Launching osqueryd](#launching-osqueryd). To
+include other osquery flags, provide a flagfile when packaging with `--osquery-flagfile
+[/path/to/osquery.flags]`.
+
+Test the installers on each platform before initiating the migration.
+
+#### Migrate
+
+Using your standard deployment tooling (Chef, Puppet, etc.), install the generated package. At this
+time, [uninstall the existing
+osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
+
+If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setting for Fleet's
+[osquery_host_identifier](../02-Deploying/02-Configuration.md#osquery-host-identifier)), the new
+installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
+entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
+expiration functionality configured in the application settings (UI or fleetctl).
