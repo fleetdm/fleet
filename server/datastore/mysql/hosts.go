@@ -390,27 +390,35 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	return nil
 }
 
-func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
-	sqlStatement := `
+func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	policiesColumns := `,
+		       coalesce(failing_policies.count, 0) as failing_policies_count,
+		       coalesce(failing_policies.count, 0) as total_issues_count`
+	policiesJoin := `
+			JOIN (
+		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
+			) failing_policies`
+	args := []interface{}{id, id}
+	if skipLoadingExtras {
+		policiesColumns = ""
+		policiesJoin = ""
+		args = []interface{}{id}
+	}
+	sqlStatement := fmt.Sprintf(`
 		SELECT
 		       h.*,
 		       hst.seen_time,
 		       t.name AS team_name,
-		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
-		       coalesce(failing_policies.count, 0) as failing_policies_count,
-		       coalesce(failing_policies.count, 0) as total_issues_count
+		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+				%s
 		FROM hosts h
 			LEFT JOIN teams t ON (h.team_id = t.id)
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			LEFT JOIN (
-		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
-		    	GROUP BY host_id
-			) as failing_policies ON (h.id=failing_policies.host_id)
+			%s
 		WHERE h.id = ?
-		LIMIT 1
-	`
+		LIMIT 1`, policiesColumns, policiesJoin)
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id)
+	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
