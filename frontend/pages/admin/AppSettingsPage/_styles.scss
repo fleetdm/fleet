@@ -15,10 +15,6 @@
     margin: 0 0 15px;
     padding: 0 0 $pad-small;
   }
-  a {
-    text-decoration: none;
-    cursor: pointer;
-  }
 
   .fleeticon {
     margin: 0 20px;
@@ -55,6 +51,7 @@
     a {
       color: $core-fleet-black;
       text-decoration: none;
+      cursor: pointer;
 
       &:hover {
         color: $core-vibrant-blue;

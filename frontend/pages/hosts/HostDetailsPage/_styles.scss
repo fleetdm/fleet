@@ -8,6 +8,13 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   .header {
     flex: 100%;
     display: flex;
@@ -423,13 +430,6 @@
     }
 
     tr {
-      a {
-        font-size: $x-small;
-        color: $core-vibrant-blue;
-        font-weight: $bold;
-        text-decoration: none;
-      }
-
       .policy-link {
         visibility: hidden;
         text-overflow: none;
@@ -456,10 +456,6 @@
       p {
         font-size: 0.875rem;
         margin: 0;
-      }
-      a {
-        text-decoration: none;
-        font-weight: bold;
       }
     }
 
@@ -515,13 +511,6 @@
             }
           }
         }
-      }
-
-      a {
-        font-size: $x-small;
-        color: $core-vibrant-blue;
-        font-weight: $bold;
-        text-decoration: none;
       }
 
       .software-link {
