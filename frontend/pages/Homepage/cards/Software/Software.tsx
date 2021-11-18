@@ -7,7 +7,8 @@ import { ISoftware } from "interfaces/software";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
-import TableContainer from "components/TableContainer";
+import TableContainer from "components/TableContainer"; // @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import { generateTableHeaders } from "./SoftwareTableConfig";
 
@@ -24,9 +25,75 @@ interface ISoftwareCardProps {
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
 
+const VULNERABLE_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All sofware installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+];
+
 const PAGE_SIZE = 8;
 const MODAL_PAGE_SIZE = 20;
 const baseClass = "home-software";
+
+const EmptySoftware = (message: string): JSX.Element => {
+  const emptySoftware = (
+    <div className={`${baseClass}__empty-software`}>
+      <h1>
+        No installed software{" "}
+        {message === "vulnerable"
+          ? "with detected vulnerabilities"
+          : "detected"}
+        .
+      </h1>
+      <p>
+        Expecting to see{" "}
+        {message === "vulnerable" && "detected vulnerabilities "}software? Check
+        out the Fleet documentation on{" "}
+        <a
+          href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          how to configure software inventory
+        </a>
+        .
+      </p>
+    </div>
+  );
+
+  switch (message) {
+    case "modal":
+      return (
+        <div className={`${baseClass}__empty-software-modal`}>
+          {emptySoftware}
+        </div>
+      );
+    case "search":
+      return (
+        <div className={`${baseClass}__empty-software-modal`}>
+          <div className={`${baseClass}__empty-software`}>
+            <h1>No software matches the current search criteria.</h1>
+            <p>
+              Expecting to see software? Try again in a few seconds as the
+              system catches up.
+            </p>
+          </div>
+        </div>
+      );
+    default:
+      return emptySoftware;
+  }
+};
 
 const Software = ({
   isModalOpen,
@@ -41,18 +108,28 @@ const Software = ({
     modalSoftwareSearchText,
     setModalSoftwareSearchText,
   ] = useState<string>("");
+  const [
+    isModalSoftwareVulnerable,
+    setIsModalSoftwareVulnerable,
+  ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
   const { data: software, isLoading: isLoadingSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["software", softwarePageIndex], () =>
-    softwareAPI.load({
-      page: softwarePageIndex,
-      perPage: PAGE_SIZE,
-      orderKey: "host_count",
-      orderDir: "desc",
-    })
+  >(
+    ["software", softwarePageIndex],
+    () =>
+      softwareAPI.load({
+        page: softwarePageIndex,
+        perPage: PAGE_SIZE,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+      }),
+    {
+      enabled: navTabIndex === 0,
+      refetchOnWindowFocus: false,
+    }
   );
 
   const {
@@ -64,25 +141,39 @@ const Software = ({
       softwareAPI.load({
         page: vSoftwarePageIndex,
         perPage: PAGE_SIZE,
-        orderKey: "host_count",
+        orderKey: "host_count,id",
         orderDir: "desc",
+        vulnerable: true,
       }),
     {
-      select: (data: ISoftware[]) => data.filter((s) => s.vulnerabilities),
+      enabled: navTabIndex === 1,
+      refetchOnWindowFocus: false,
     }
   );
 
   const { data: modalSoftware, isLoading: isLoadingModalSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["modalSoftware", modalSoftwarePageIndex, modalSoftwareSearchText], () =>
-    softwareAPI.load({
-      page: modalSoftwarePageIndex,
-      perPage: MODAL_PAGE_SIZE,
-      query: modalSoftwareSearchText,
-      orderKey: "host_count",
-      orderDir: "desc",
-    })
+  >(
+    [
+      "modalSoftware",
+      modalSoftwarePageIndex,
+      modalSoftwareSearchText,
+      isModalSoftwareVulnerable,
+    ],
+    () =>
+      softwareAPI.load({
+        page: modalSoftwarePageIndex,
+        perPage: MODAL_PAGE_SIZE,
+        query: modalSoftwareSearchText,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+        vulnerable: isModalSoftwareVulnerable,
+      }),
+    {
+      enabled: isModalOpen,
+      refetchOnWindowFocus: false,
+    }
   );
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -112,7 +203,52 @@ const Software = ({
     }
   };
 
+  const NoAllSoftware = (isVulnerableTable: boolean) => (
+    <div className="no-software">
+      <p>
+        No {isVulnerableTable ? "vulnerable" : "installed"} software detected.
+      </p>
+      {!isVulnerableTable && (
+        <span>
+          Expecting to see installed software? Check out the Fleet documentation
+          on&nbsp;
+          <a
+            href="https://fleetdm.com/docs/deploying/configuration#software-inventory"
+            target="_blank"
+            rel="noreferrer"
+          >
+            how to configure software inventory
+          </a>
+          .
+        </span>
+      )}
+    </div>
+  );
+
+  const NoSoftwareFromSearch = () => (
+    <div className="no-software">
+      <p>No software matches the current search criteria. </p>
+      <span>
+        Expecting to see software? Try again in a few seconds as the system
+        catches up.
+      </span>
+    </div>
+  );
+
+  const renderStatusDropdown = () => {
+    return (
+      <Dropdown
+        value={isModalSoftwareVulnerable}
+        className={`${baseClass}__status_dropdown`}
+        options={VULNERABLE_OPTIONS}
+        searchable={false}
+        onChange={(value: boolean) => setIsModalSoftwareVulnerable(value)}
+      />
+    );
+  };
+
   const tableHeaders = generateTableHeaders();
+
   return (
     <div className={baseClass}>
       <TabsWrapper>
@@ -130,7 +266,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={() => <span>No software</span>}
+              emptyComponent={NoAllSoftware}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -148,7 +284,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software"}
-              emptyComponent={() => <span>No vulnerable software</span>}
+              emptyComponent={() => NoAllSoftware(true)}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableCount
@@ -178,7 +314,7 @@ const Software = ({
               defaultSortDirection={"desc"}
               hideActionButton
               resultsTitle={"software items"}
-              emptyComponent={() => <span>No vulnerable software</span>}
+              emptyComponent={NoSoftwareFromSearch}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
@@ -186,6 +322,7 @@ const Software = ({
               disableActionButton
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
+              customControl={renderStatusDropdown}
             />
           </>
         </Modal>

@@ -1,9 +1,10 @@
 .agent-options {
   font-size: $x-small;
+
   a {
     color: $core-vibrant-blue;
     font-size: $x-small;
-    font-weight: 700;
+    font-weight: $bold;
     text-decoration: none;
   }
   .icon {

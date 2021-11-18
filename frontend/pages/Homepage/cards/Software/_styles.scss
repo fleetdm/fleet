@@ -12,4 +12,49 @@
   .data-table__wrapper {
     overflow-x: auto;
   }
+  .form-field--dropdown {
+    margin: 0;
+  }
+  .component__tabs-wrapper .table-container__header {
+    display: none;
+  }
+  .no-software {
+    margin-top: $pad-large;
+    font-size: $small;
+
+    p {
+      margin-top: 0;
+      font-weight: $bold;
+    }
+  }
+  &__status_dropdown {
+    width: 219px;
+
+    .Select-menu-outer {
+      width: 364px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
+
+      &::before {
+        display: inline-block;
+        position: absolute;
+        padding: 5px 0 0 0; // centers spin
+        content: url(../assets/images/icon-filter-black-16x16@2x.png);
+        transform: scale(0.5);
+        height: 26px;
+        left: 2px;
+      }
+    }
+    .Select-value-label {
+      padding-left: $pad-large;
+      font-size: $small !important;
+    }
+  }
 }
