@@ -94,6 +94,7 @@ func TestHosts(t *testing.T) {
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
+		{"HostsReadsLessRows", testHostsReadsLessRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1843,6 +1844,55 @@ func getReads(t *testing.T, ds *Datastore) int {
 		return read
 	}
 	return 0
+}
+
+func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+
+	prevRead := getReads(t, ds)
+	h1WithExtras, err := ds.Host(context.Background(), h1.ID, false)
+	require.NoError(t, err)
+	newRead := getReads(t, ds)
+	withExtraRowReads := newRead - prevRead
+
+	prevRead = getReads(t, ds)
+	h1WithoutExtras, err := ds.Host(context.Background(), h1.ID, true)
+	require.NoError(t, err)
+	newRead = getReads(t, ds)
+	withoutExtraRowReads := newRead - prevRead
+
+	t.Log("withExtraRowReads", withExtraRowReads)
+	t.Log("withoutExtraRowReads", withoutExtraRowReads)
+	assert.Less(t, withoutExtraRowReads, withExtraRowReads)
+
+	assert.Equal(t, h1WithExtras.ID, h1WithoutExtras.ID)
+	assert.Equal(t, h1WithExtras.OsqueryHostID, h1WithoutExtras.OsqueryHostID)
+	assert.Equal(t, h1WithExtras.NodeKey, h1WithoutExtras.NodeKey)
+	assert.Equal(t, h1WithExtras.UUID, h1WithoutExtras.UUID)
+	assert.Equal(t, h1WithExtras.Hostname, h1WithoutExtras.Hostname)
 }
 
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
