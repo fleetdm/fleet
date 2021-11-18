@@ -1,3 +1,5 @@
+## Fleet 4.6.0 (Nov 19, 2021)
+
 * Fleet Premium: Add ability to filter aggregate host data such as platforms (macOS, Windows, and Linux) and status (online, offline, and new) the **Home** page. The aggregate host data is also available in the [`GET /host_summary API route`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-summary).
 
 * Fleet Premium: Add ability to move pending invited users between teams.
