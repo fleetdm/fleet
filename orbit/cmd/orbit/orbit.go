@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
 	"github.com/pkg/errors"
@@ -231,6 +232,12 @@ func main() {
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
+		// Provide the flagfile to osquery if it exists.
+		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
+		if exists, err := file.Exists(flagfilePath); err == nil && exists {
+			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
+		}
+
 		fleetURL := c.String("fleet-url")
 		if !strings.HasPrefix(fleetURL, "http") {
 			fleetURL = "https://" + fleetURL
@@ -238,9 +245,10 @@ func main() {
 
 		enrollSecret := c.String("enroll-secret")
 		if enrollSecret != "" {
+			const enrollSecretEnvName = "ENROLL_SECRET"
 			options = append(options,
-				osquery.WithEnv([]string{"ENROLL_SECRET=" + enrollSecret}),
-				osquery.WithFlags([]string{"--enroll_secret_env=ENROLL_SECRET"}),
+				osquery.WithEnv([]string{enrollSecretEnvName, enrollSecret}),
+				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
 		}
 
@@ -319,7 +327,7 @@ func main() {
 				}
 
 				options = append(options,
-					osquery.WithFlags([]string{"--tls_server_certs=" + certPath}),
+					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
 				// Check and log if there are any errors with TLS connection.
