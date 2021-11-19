@@ -26,6 +26,10 @@
 
 * Add a "Shell" column to the "Users" table on the **Host details** page so users can now be filtered to see only those who have logged in.
 
+* Package osquery's `certs.pem` in `fleetctl package` to improve TLS compatibility.
+
+* Add support for packaging an osquery flagfile with `fleetctl package --osquery-flagfile`
+
 * Clarify that a policy in Fleet is a yes or no question you can ask about your hosts by replacing "Passing" and "Failing" text with "Yes" and "No" respectively on the **Policies** page and **Host details** page.
 
 * Add ability to see the original author of a query on the **Query** page.
