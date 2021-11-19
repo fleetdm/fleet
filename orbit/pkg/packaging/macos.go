@@ -112,7 +112,7 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
+	filename := "fleet-osquery.pkg"
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", errors.Wrap(err, "rename pkg")
 	}

@@ -111,12 +111,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Build package
 
 	info := &nfpm.Info{
-		Name:        "orbit-osquery",
+		Name:        "fleet-osquery",
 		Version:     opt.Version,
-		Description: "Orbit osquery -- runtime and autoupdater by Fleet",
+		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
-		Homepage:    "https://github.com/fleetdm/orbit",
+		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
 			EmptyFolders: []string{
