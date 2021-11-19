@@ -79,9 +79,9 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
         return (
           <>
             <span
-              className={`software-vuln tooltip__tooltip-icon`}
+              className={`vulnerabilities tooltip__tooltip-icon`}
               data-tip
-              data-for={`software-vuln__${cellProps.row.original.id.toString()}`}
+              data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
               data-tip-disable={false}
             >
               <img alt="software vulnerabilities" src={IssueIcon} />
@@ -91,10 +91,10 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
               type="dark"
               effect="solid"
               backgroundColor="#3e4771"
-              id={`software-vuln__${cellProps.row.original.id.toString()}`}
+              id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
               data-html
             >
-              <span className={`tooltip__tooltip-text`}>
+              <span className={`vulnerabilities tooltip__tooltip-text`}>
                 {vulnerabilities.length === 1
                   ? "1 vulnerability detected"
                   : `${vulnerabilities.length} vulnerabilities detected`}
@@ -135,7 +135,7 @@ const generateSoftwareTableHeaders = (): IDataColumn[] => {
                 id={`software-name__${cellProps.row.original.id.toString()}`}
                 data-html
               >
-                <span className={`tooltip__tooltip-text`}>
+                <span className={`software-name tooltip__tooltip-text`}>
                   <b>Bundle identifier: </b>
                   <br />
                   {bundle_identifier}

@@ -703,7 +703,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// any existing host additional info.
 	for query := range results {
 		if strings.HasPrefix(query, hostDetailQueryPrefix) {
-			fullHost, err := svc.ds.Host(ctx, host.ID)
+			fullHost, err := svc.ds.Host(ctx, host.ID, true)
 			if err != nil {
 				// leave this error return here, we don't want to drop host additionals
 				// if we can't get a host, everything is lost

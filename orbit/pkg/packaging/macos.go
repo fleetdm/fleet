@@ -68,6 +68,13 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeSecret(opt, orbitRoot); err != nil {
 		return "", errors.Wrap(err, "write enroll secret")
 	}
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write flagfile")
+	}
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return "", errors.Wrap(err, "write launchd")
@@ -109,7 +116,7 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
+	filename := "fleet-osquery.pkg"
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", errors.Wrap(err, "rename pkg")
 	}

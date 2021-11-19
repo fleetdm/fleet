@@ -563,8 +563,26 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		require.Len(t, software, 4)
-		software[0].Name = foo003.Name
-		software[0].Version = foo003.Version
-		software[0].Source = foo003.Source
+		assert.Equal(t, software[0].Name, foo003.Name)
+		assert.Equal(t, software[0].Version, foo003.Version)
+		assert.Equal(t, software[0].Source, foo003.Source)
+	})
+
+	t.Run("can order by host count and id", func(t *testing.T) {
+		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "host_count, id", OrderDirection: fleet.OrderDescending}})
+		require.NoError(t, err)
+
+		require.Len(t, software, 4)
+		assert.Equal(t, software[0].Name, foo003.Name)
+		assert.Equal(t, software[0].Version, foo003.Version)
+		assert.Equal(t, software[0].Source, foo003.Source)
+
+		// when all host counts are equal
+		assert.Equal(t, 1, software[1].HostCount)
+		assert.Equal(t, 1, software[2].HostCount)
+		assert.Equal(t, 1, software[3].HostCount)
+		// it's ordered by id, descending
+		assert.Less(t, software[2].ID, software[1].ID)
+		assert.Less(t, software[3].ID, software[2].ID)
 	})
 }

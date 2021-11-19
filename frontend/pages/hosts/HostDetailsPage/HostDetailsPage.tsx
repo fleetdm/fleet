@@ -690,15 +690,15 @@ const HostDetailsPage = ({
               <InfoBanner>
                 <p>
                   This host is not updating the response for some policies.
-                  Check&nbsp;
+                  Check out the Fleet documentation on&nbsp;
                   <a
                     href="https://fleetdm.com/docs/using-fleet/faq#why-my-host-is-not-updating-a-policys-response"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    out the Fleet documentation on why the response might not be
-                    updating.
+                    why the response might not be updating
                   </a>
+                  .
                 </p>
               </InfoBanner>
             )}
@@ -1019,7 +1019,7 @@ const HostDetailsPage = ({
                 {titleData.status}
               </span>
             </div>
-            {titleData.issues.total_issues_count > 0 && renderIssues()}
+            {titleData.issues?.total_issues_count > 0 && renderIssues()}
             {isPremiumTier && renderHostTeam()}
             {renderDeviceUser()}
             <div className="info-flex__item info-flex__item--title">

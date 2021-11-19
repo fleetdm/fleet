@@ -128,11 +128,16 @@ type agent struct {
 	Stats          *Stats
 	SoftwareCount  int
 	NodeKeyManager *nodeKeyManager
+	policyPassProb float64
 
 	strings map[string]string
 }
 
-func newAgent(serverAddress, enrollSecret string, templates *template.Template, configInterval, queryInterval time.Duration, softwareCount int) *agent {
+func newAgent(
+	serverAddress, enrollSecret string, templates *template.Template,
+	configInterval, queryInterval time.Duration, softwareCount int,
+	policyPassProb float64,
+) *agent {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	transport.DisableCompression = true
@@ -146,8 +151,9 @@ func newAgent(serverAddress, enrollSecret string, templates *template.Template, 
 		FastClient: fasthttp.Client{
 			TLSConfig: &tls.Config{InsecureSkipVerify: true},
 		},
-		SoftwareCount: softwareCount,
-		strings:       make(map[string]string),
+		SoftwareCount:  softwareCount,
+		strings:        make(map[string]string),
+		policyPassProb: policyPassProb,
 	}
 }
 
@@ -336,15 +342,29 @@ var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
 }
 
+func (a *agent) runPolicy(query string) []map[string]string {
+	if rand.Float64() <= a.policyPassProb {
+		return []map[string]string{
+			{"1": "1"},
+		}
+	}
+	return nil
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
 		Statuses: make(map[string]fleet.OsqueryStatus),
 	}
 	r.NodeKey = a.NodeKey
+	const hostPolicyQueryPrefix = "fleet_policy_query_"
 	for name := range queries {
 		r.Results[name] = defaultQueryResult
 		r.Statuses[name] = fleet.StatusOK
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			r.Results[name] = a.runPolicy(queries[name])
+			continue
+		}
 		if t := a.Templates.Lookup(name); t == nil {
 			continue
 		}
@@ -393,6 +413,7 @@ func main() {
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	softwareCount := flag.Int("software_count", 10, "Number of installed applications reported to fleet")
+	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1].")
 
 	flag.Parse()
 
@@ -417,7 +438,7 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		a := newAgent(*serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *softwareCount)
+		a := newAgent(*serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *softwareCount, *policyPassProb)
 		a.Stats = stats
 		a.NodeKeyManager = nodeKeyManager
 		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)

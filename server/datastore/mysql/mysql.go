@@ -470,14 +470,19 @@ func sanitizeColumn(col string) string {
 // NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
 func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	if opts.OrderKey != "" {
-		var orderedExp exp.OrderedExpression
-		ident := goqu.I(sanitizeColumn(opts.OrderKey))
-		if opts.OrderDirection == fleet.OrderDescending {
-			orderedExp = ident.Desc()
-		} else {
-			orderedExp = ident.Asc()
+		ordersKeys := strings.Split(opts.OrderKey, ",")
+		var orderedExps []exp.OrderedExpression
+		for _, key := range ordersKeys {
+			var orderedExp exp.OrderedExpression
+			ident := goqu.I(sanitizeColumn(key))
+			if opts.OrderDirection == fleet.OrderDescending {
+				orderedExp = ident.Desc()
+			} else {
+				orderedExp = ident.Asc()
+			}
+			orderedExps = append(orderedExps, orderedExp)
 		}
-		ds = ds.Order(orderedExp)
+		ds = ds.Order(orderedExps...)
 	}
 
 	perPage := opts.PerPage
