@@ -61,6 +61,10 @@ func BuildMSI(opt Options) (string, error) {
 		return "", errors.Wrap(err, "write flagfile")
 	}
 
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
 			return "", errors.Wrap(err, "write fleet certificate")

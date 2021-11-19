@@ -63,6 +63,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", errors.Wrap(err, "write flagfile")
 	}
 
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
 	if err := writePostInstall(opt, postInstallPath); err != nil {
 		return "", errors.Wrap(err, "write postinstall script")

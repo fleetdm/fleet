@@ -71,6 +71,10 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
 		return "", errors.Wrap(err, "write flagfile")
 	}
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return "", errors.Wrap(err, "write launchd")

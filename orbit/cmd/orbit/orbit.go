@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -324,12 +323,15 @@ func main() {
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				// Check and log if there are any errors with TLS connection.
-				pool, err := x509.SystemCertPool()
-				if err != nil {
-					log.Info().Err(err).Msg("Failed to retrieve system cert pool. Cannot validate Fleet server connection.")
-				} else if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail. Provide certificate with --fleet-certificate.")
+				certPath := filepath.Join(opt.RootDirectory, "certs.pem")
+				if exists, err := file.Exists(certPath); err == nil && exists {
+					_, err = certificate.LoadPEM(certPath)
+					if err != nil {
+						return errors.Wrap(err, "load certs.pem")
+					}
+					options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+				} else {
+					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
 		}

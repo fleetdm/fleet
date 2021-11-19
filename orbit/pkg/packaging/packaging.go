@@ -2,6 +2,7 @@
 package packaging
 
 import (
+	_ "embed"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -124,6 +125,21 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 
 	if err := file.Copy(opt.OsqueryFlagfile, dstPath, constant.DefaultFileMode); err != nil {
 		return errors.Wrap(err, "copy flagfile")
+	}
+
+	return nil
+}
+
+// Embed the certs file that osquery uses so that we can drop it into our installation packages.
+// This file copied from https://raw.githubusercontent.com/osquery/osquery/master/tools/deployment/certs.pem
+//go:embed certs.pem
+var osqueryCerts []byte
+
+func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, "certs.pem")
+
+	if err := ioutil.WriteFile(dstPath, osqueryCerts, 0644); err != nil {
+		return errors.Wrap(err, "write file")
 	}
 
 	return nil
