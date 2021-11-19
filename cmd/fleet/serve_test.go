@@ -37,7 +37,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier: "ident",
 			FleetVersion:        "1.2.3",
@@ -50,7 +50,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","numHostsEnrolled":999}`, requestBody)
@@ -70,7 +70,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
@@ -79,7 +79,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, called)
@@ -99,7 +99,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL)
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.False(t, called)
 }

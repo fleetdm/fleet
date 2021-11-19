@@ -145,7 +145,7 @@ type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error)
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -279,7 +279,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -1125,7 +1125,7 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(ctx, id)
+	return s.HostFunc(ctx, id, skipLoadingExtras)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -1458,9 +1458,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, license)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
