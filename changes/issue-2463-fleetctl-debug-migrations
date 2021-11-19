@@ -1,1 +1,2 @@
 * New `fleetctl` command `debug migrations` to show missing migrations of a running fleet instance.
+* `fleet serve` and `fleet prepare db` will fail if there are unknown migrations (possibly an old version of fleet running against a newer database).

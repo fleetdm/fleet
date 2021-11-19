@@ -484,7 +484,7 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
 					migrationStatus.UnknownTable, migrationStatus.UnknownData)
 			case fleet.SomeMigrationsCompleted:
-				fmt.Printf("Missing migrations detected: tables=%v, data=%v\n"+
+				fmt.Printf("Missing migrations detected: tables=%v, data=%v.\n"+
 					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData)
 			}

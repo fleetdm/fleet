@@ -341,6 +341,10 @@ func (d *Datastore) loadMigrations(
 	return tableRecs, dataRecs, nil
 }
 
+// MigrationStatus will return the current status of the migrations
+// comparing the known migrations in code and the applied migrations in the database.
+//
+// It assumes some deployments may perform migrations out of order.
 func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
@@ -389,7 +393,8 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	}, nil
 }
 
-// We assume that migrations could be applied out of order.
+// compareVersions returns any missing or extra elements in v2 with respect to v1
+// (v1 or v2 need not be ordered).
 func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bool) {
 	v1s := make(map[int64]struct{})
 	for _, m := range v1 {
