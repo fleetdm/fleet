@@ -288,10 +288,19 @@ class AppConfigForm extends Component {
       return null;
     }
 
-    const json = {
-      anonymous_identifier: "wmTH972f06USpahr41LHpgLKAhgZL",
-      fleet_version: "x.x.x",
-      hosts_enrolled_count: 12345,
+    const stats = {
+      anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
+      fleetVersion: "x.x.x",
+      licenseTier: "free",
+      numHostsEnrolled: 12345,
+      numUsers: 12,
+      numTeams: 3,
+      numPolicies: 5,
+      numLabels: 20,
+      softwareInventoryEnabled: true,
+      vulnDetectionEnabled: true,
+      systemUsersEnabled: true,
+      hostStatusWebhookEnabled: true,
     };
 
     return (
@@ -301,7 +310,7 @@ class AppConfigForm extends Component {
         className={`${baseClass}__usage-stats-preview-modal`}
       >
         <p>An example JSON payload sent to Fleet Device Management Inc.</p>
-        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+        <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(stats) }} />
         <div className="flex-end">
           <Button type="button" onClick={toggleUsageStatsPreviewModal}>
             Done
