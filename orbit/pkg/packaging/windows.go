@@ -101,7 +101,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", errors.Wrap(err, "build package")
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
+	filename := "fleet-osquery.msi"
 	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
 		return "", errors.Wrap(err, "rename msi")
 	}
