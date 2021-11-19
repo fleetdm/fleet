@@ -327,6 +327,9 @@ type migrationRecord struct {
 func (d *Datastore) loadMigrations(
 	ctx context.Context,
 ) (tableRecs []migrationRecord, dataRecs []migrationRecord, err error) {
+	// We need to run this to trigger the creation of the migration status tables.
+	tables.MigrationClient.GetDBVersion(d.writer.DB)
+	data.MigrationClient.GetDBVersion(d.writer.DB)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, d.reader, &tableRecs,
 		"SELECT version_id, is_applied FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 ORDER BY id ASC",
