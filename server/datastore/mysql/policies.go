@@ -282,3 +282,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.Policy
 		return nil
 	})
 }
+
+func amountPoliciesDB(db sqlx.Queryer) (int, error) {
+	var amount int
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
