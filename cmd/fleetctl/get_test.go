@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -310,12 +309,8 @@ func TestGetHosts(t *testing.T) {
 			name:       "get hosts --json",
 			goldenFile: "expectedListHostsJson.json",
 			scanner: func(s string) []string {
-				var parts []string
-				scanner := bufio.NewScanner(bytes.NewBufferString(s))
-				for scanner.Scan() {
-					parts = append(parts, scanner.Text())
-				}
-				return parts
+				parts := strings.Split(s, "}\n{")
+				return []string{parts[0] + "}", "{" + parts[1]}
 			},
 			args:       []string{"get", "hosts", "--json"},
 			prettifier: jsonPrettify,
