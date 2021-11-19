@@ -2,6 +2,7 @@
 package packaging
 
 import (
+	_ "embed"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -44,6 +46,8 @@ type Options struct {
 	UpdateURL string
 	// UpdateRoots is the root JSON metadata for update server (TUF repository).
 	UpdateRoots string
+	// OsqueryFlagfile is the (optional) path to a flagfile to provide to osquery.
+	OsqueryFlagfile string
 	// Debug determines whether to enable debug logging for the agent.
 	Debug bool
 }
@@ -101,6 +105,40 @@ func writeSecret(opt Options, orbitRoot string) error {
 	}
 
 	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0600); err != nil {
+		return errors.Wrap(err, "write file")
+	}
+
+	return nil
+}
+
+func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, "osquery.flags")
+
+	if opt.OsqueryFlagfile == "" {
+		// Write empty flagfile
+		if err := os.WriteFile(dstPath, []byte(""), constant.DefaultFileMode); err != nil {
+			return errors.Wrap(err, "write empty flagfile")
+		}
+
+		return nil
+	}
+
+	if err := file.Copy(opt.OsqueryFlagfile, dstPath, constant.DefaultFileMode); err != nil {
+		return errors.Wrap(err, "copy flagfile")
+	}
+
+	return nil
+}
+
+// Embed the certs file that osquery uses so that we can drop it into our installation packages.
+// This file copied from https://raw.githubusercontent.com/osquery/osquery/master/tools/deployment/certs.pem
+//go:embed certs.pem
+var osqueryCerts []byte
+
+func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
+	dstPath := filepath.Join(orbitRoot, "certs.pem")
+
+	if err := ioutil.WriteFile(dstPath, osqueryCerts, 0644); err != nil {
 		return errors.Wrap(err, "write file")
 	}
 

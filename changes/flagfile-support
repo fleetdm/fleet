@@ -1,0 +1,1 @@
+* Add support for packaging an osquery flagfile with `fleetctl package --osquery-flagfile`
