@@ -6,7 +6,7 @@ parasails.registerPage('query-library', {
     inputTextValue: '',
     inputTimers: {},
     searchString: '', // The user input string to be searched against the query library
-    selectedPurpose: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "information", "detection")
+    selectedKind: 'all queries', // Initially set to all, the user may select a different option to filter queries by purpose (e.g., "all queries", "informational", "policies")
     selectedPlatform: 'all platforms', // Initially set to all, the user may select a different option to filter queries by platform (e.g., "all platforms", "macOS", "Windows", "Linux")
   },
 
@@ -15,7 +15,7 @@ parasails.registerPage('query-library', {
       return this.queries.filter(
         (query) =>
           this._isIncluded(query.platforms, this.selectedPlatform) &&
-          this._isIncluded(query.purpose, this.selectedPurpose)
+          this._isIncluded(query.kind, this.selectedKind)
       );
     },
 
@@ -42,8 +42,8 @@ parasails.registerPage('query-library', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickSelectPurpose(purpose) {
-      this.selectedPurpose = purpose;
+    clickSelectKind(kind) {
+      this.selectedKind = kind;
     },
 
     clickSelectPlatform(platform) {
