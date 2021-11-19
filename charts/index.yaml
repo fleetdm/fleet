@@ -2,8 +2,23 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v1
+    appVersion: v4.6.0
+    created: "2021-11-19T04:00:55.106549044Z"
+    description: A Helm chart for Fleet
+    digest: 74837469ca0d56f3bee6241009a65bd6e3e0871fef984fdf24ab0ce231992ed1
+    home: https://github.com/fleetdm/fleet
+    keywords:
+    - fleet
+    - osquery
+    name: fleet
+    sources:
+    - https://github.com/fleetdm/fleet.git
+    urls:
+    - https://fleetdm.github.io/fleet/charts/fleet-v4.6.0.tgz
+    version: v4.6.0
+  - apiVersion: v1
     appVersion: v4.5.1
-    created: "2021-11-11T01:18:01.555446956Z"
+    created: "2021-11-19T04:00:55.105455159Z"
     description: A Helm chart for Fleet
     digest: 6d769e7eadb1786dab8e8afbdd335bcfe1381672bc87390848676299d889673c
     home: https://github.com/fleetdm/fleet
@@ -18,7 +33,7 @@ entries:
     version: v4.5.1
   - apiVersion: v1
     appVersion: v4.5.0
-    created: "2021-11-11T01:18:01.554379246Z"
+    created: "2021-11-19T04:00:55.104350273Z"
     description: A Helm chart for Fleet
     digest: a35d954fb0ab25fc9a26ef4c2e1490d5b8b6d5e5ae6679afdbaf75a05a2b048c
     home: https://github.com/fleetdm/fleet
@@ -33,7 +48,7 @@ entries:
     version: v4.5.0
   - apiVersion: v1
     appVersion: v4.4.3
-    created: "2021-11-11T01:18:01.553347536Z"
+    created: "2021-11-19T04:00:55.10327719Z"
     description: A Helm chart for Fleet
     digest: da21b7e8a5af6399af0a8be14e831fd067c4b6ef8b0118f84b8b4f8f29c41494
     home: https://github.com/fleetdm/fleet
@@ -48,7 +63,7 @@ entries:
     version: v4.4.3
   - apiVersion: v1
     appVersion: v4.4.2
-    created: "2021-11-11T01:18:01.552297225Z"
+    created: "2021-11-19T04:00:55.102013293Z"
     description: A Helm chart for Fleet
     digest: 6ec224c2ea857326d8498409e879ed1943b582a2a85cbeb96494ff70c93bc4cd
     home: https://github.com/fleetdm/fleet
@@ -63,7 +78,7 @@ entries:
     version: v4.4.2
   - apiVersion: v1
     appVersion: v4.4.1
-    created: "2021-11-11T01:18:01.551262915Z"
+    created: "2021-11-19T04:00:55.09978312Z"
     description: A Helm chart for Fleet
     digest: d4e07cd52304d0f1ce887ff8843b231db0fbf3a474f0b12629f24370b0f85fcc
     home: https://github.com/fleetdm/fleet
@@ -78,7 +93,7 @@ entries:
     version: v4.4.1
   - apiVersion: v1
     appVersion: v4.4.0
-    created: "2021-11-11T01:18:01.550173905Z"
+    created: "2021-11-19T04:00:55.09797418Z"
     description: A Helm chart for Fleet
     digest: c72f4d3b088195cf09247cbee0da545ce8903275d82ecf801caf50e9c4d6f7aa
     home: https://github.com/fleetdm/fleet
@@ -93,7 +108,7 @@ entries:
     version: v4.4.0
   - apiVersion: v1
     appVersion: v4.3.2
-    created: "2021-11-11T01:18:01.549098994Z"
+    created: "2021-11-19T04:00:55.096858394Z"
     description: A Helm chart for Fleet
     digest: 4b7c770616ff52688eaea2b979c6df518e6aaabe7c627be74a04a2a552883868
     home: https://github.com/fleetdm/fleet
@@ -108,7 +123,7 @@ entries:
     version: v4.3.2
   - apiVersion: v1
     appVersion: v4.3.1
-    created: "2021-11-11T01:18:01.548031884Z"
+    created: "2021-11-19T04:00:55.095749508Z"
     description: A Helm chart for Fleet
     digest: 0c01a1cb4ca07bbebe77bc2985cc409dffb343bb12631c71032c6b9477abee77
     home: https://github.com/fleetdm/fleet
@@ -123,7 +138,7 @@ entries:
     version: v4.3.1
   - apiVersion: v1
     appVersion: v4.3.0
-    created: "2021-11-11T01:18:01.547003574Z"
+    created: "2021-11-19T04:00:55.094655423Z"
     description: A Helm chart for Fleet
     digest: 65519bb5d2dd5b1b5950fdedd2b01157233385ec849978c8420b2f292aced49f
     home: https://github.com/fleetdm/fleet
@@ -138,7 +153,7 @@ entries:
     version: v4.3.0
   - apiVersion: v1
     appVersion: v4.2.4
-    created: "2021-11-11T01:18:01.545951664Z"
+    created: "2021-11-19T04:00:55.093473832Z"
     description: A Helm chart for Fleet
     digest: 77ad990623c58c53ef16109a7154a5c4993e8e30e268bf7837175192c590f191
     home: https://github.com/fleetdm/fleet
@@ -153,7 +168,7 @@ entries:
     version: v4.2.4
   - apiVersion: v1
     appVersion: v4.2.3
-    created: "2021-11-11T01:18:01.544773552Z"
+    created: "2021-11-19T04:00:55.092357545Z"
     description: A Helm chart for Fleet
     digest: 06bf1c0ed4be9f88156e26cee0476638d3322a736ea1783f46752b540ce9896d
     home: https://github.com/fleetdm/fleet
@@ -168,7 +183,7 @@ entries:
     version: v4.2.3
   - apiVersion: v1
     appVersion: v4.2.2
-    created: "2021-11-11T01:18:01.542914434Z"
+    created: "2021-11-19T04:00:55.091232858Z"
     description: A Helm chart for Fleet
     digest: 413e42ac901013604099680404f1ea66ffe9f9eb61ec6d627249c87cf17834cc
     home: https://github.com/fleetdm/fleet
@@ -183,7 +198,7 @@ entries:
     version: v4.2.2
   - apiVersion: v1
     appVersion: v4.2.1
-    created: "2021-11-11T01:18:01.540859714Z"
+    created: "2021-11-19T04:00:55.090100971Z"
     description: A Helm chart for Fleet
     digest: 53efe4ebf5037b3ec898d205fcd52197ab3917fd0557ac53ab94e44005103b7f
     home: https://github.com/fleetdm/fleet
@@ -198,7 +213,7 @@ entries:
     version: v4.2.1
   - apiVersion: v1
     appVersion: v4.2.0
-    created: "2021-11-11T01:18:01.539756604Z"
+    created: "2021-11-19T04:00:55.088980384Z"
     description: A Helm chart for Fleet
     digest: a79c5ff7f51cce8fb783d4f133ca7d9b8a13afaa00a30e1dd8687bf592b066cc
     home: https://github.com/fleetdm/fleet
@@ -213,7 +228,7 @@ entries:
     version: v4.2.0
   - apiVersion: v1
     appVersion: v4.1.0
-    created: "2021-11-11T01:18:01.538645893Z"
+    created: "2021-11-19T04:00:55.087879799Z"
     description: A Helm chart for Fleet
     digest: 153a557d6e028de20737b5c926e5b83cfa13062e4a1e181fbcfcca7a45d7da82
     home: https://github.com/fleetdm/fleet
@@ -228,7 +243,7 @@ entries:
     version: v4.1.0
   - apiVersion: v1
     appVersion: v4.0.1
-    created: "2021-11-11T01:18:01.537551382Z"
+    created: "2021-11-19T04:00:55.086801415Z"
     description: A Helm chart for Fleet
     digest: 658d14ec23500f8a51b4223a2cb3c1c237290a53d4d96ea538f0f6ab2d668aff
     home: https://github.com/fleetdm/fleet
@@ -243,7 +258,7 @@ entries:
     version: v4.0.1
   - apiVersion: v1
     appVersion: v4.0.0
-    created: "2021-11-11T01:18:01.536466472Z"
+    created: "2021-11-19T04:00:55.08570263Z"
     description: A Helm chart for Fleet
     digest: 2fdfa130b9129d91b66cf8d8555f3aee2dac2b555109fba47014163a9dfa9693
     home: https://github.com/fleetdm/fleet
@@ -258,7 +273,7 @@ entries:
     version: v4.0.0
   - apiVersion: v1
     appVersion: 3.13.0
-    created: "2021-11-11T01:18:01.534390452Z"
+    created: "2021-11-19T04:00:55.082002744Z"
     description: A Helm chart for Fleet
     digest: 267e5d03f072d7dd9e28bc195eaa0efc1338e7eb067e7ee2e9f4dcd9f74437e5
     home: https://github.com/fleetdm/fleet
@@ -273,7 +288,7 @@ entries:
     version: 3.13.0
   - apiVersion: v1
     appVersion: 3.12.0
-    created: "2021-11-11T01:18:01.533335941Z"
+    created: "2021-11-19T04:00:55.080261709Z"
     description: A Helm chart for Fleet
     digest: e6cf7bf7b0937a38b5421b50dfeb915fbcd1e352e8bd38f3a276fc4dedd3c466
     home: https://github.com/fleetdm/fleet
@@ -288,7 +303,7 @@ entries:
     version: 3.12.0
   - apiVersion: v1
     appVersion: 3.11.0
-    created: "2021-11-11T01:18:01.532270731Z"
+    created: "2021-11-19T04:00:55.079158624Z"
     description: A Helm chart for Fleet
     digest: 739e2764437c1ca87314128c094277154d539c75c9d566b94cba874493b9d50d
     home: https://github.com/fleetdm/fleet
@@ -303,7 +318,7 @@ entries:
     version: 3.11.0
   - apiVersion: v1
     appVersion: 3.10.1
-    created: "2021-11-11T01:18:01.531227121Z"
+    created: "2021-11-19T04:00:55.078065639Z"
     description: A Helm chart for Fleet
     digest: 5ecd45f5b975d29194a27cb81c5c2edb14831d9a618f73907c002d25a6e5e634
     home: https://github.com/fleetdm/fleet
@@ -318,7 +333,7 @@ entries:
     version: 3.10.1
   - apiVersion: v1
     appVersion: 3.10.0
-    created: "2021-11-11T01:18:01.53015491Z"
+    created: "2021-11-19T04:00:55.076931152Z"
     description: A Helm chart for Fleet
     digest: 743341bcd5b93270e40295214bb73ba43f7820cf509dc091f4d18d97c17b2641
     home: https://github.com/fleetdm/fleet
@@ -333,7 +348,7 @@ entries:
     version: 3.10.0
   - apiVersion: v1
     appVersion: 3.9.0
-    created: "2021-11-11T01:18:01.535406161Z"
+    created: "2021-11-19T04:00:55.083903591Z"
     description: A Helm chart for Fleet
     digest: 911937bbb967a7b6478eae890553ecba88f18f2d53f8a33fb39f6dda206ff84f
     home: https://github.com/fleetdm/fleet
@@ -346,4 +361,4 @@ entries:
     urls:
     - https://fleetdm.github.io/fleet/charts/fleet-3.9.0.tgz
     version: 3.9.0
-generated: "2021-11-11T01:18:01.528480194Z"
+generated: "2021-11-19T04:00:55.075564046Z"
