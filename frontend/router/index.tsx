@@ -16,6 +16,7 @@ import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
+import AccessRoutes from "components/AccessRoutes";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthAnyAdminRoutes from "components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
@@ -103,22 +104,27 @@ const routes = (
                 <Route path="options" component={AgentOptionsPage} />
               </Route>
             </Route>
-            <Route path="hosts">
-              <Route path="manage" component={ManageHostsPage} />
-              <Route
-                path="manage/labels/:label_id"
-                component={ManageHostsPage}
-              />
-              <Route path="manage/:active_label" component={ManageHostsPage} />
-              <Route
-                path="manage/labels/:label_id/:active_label"
-                component={ManageHostsPage}
-              />
-              <Route
-                path="manage/:active_label/labels/:label_id"
-                component={ManageHostsPage}
-              />
-              <Route path=":host_id" component={HostDetailsPage} />
+            <Route component={AccessRoutes}>
+              <Route path="hosts">
+                <Route path="manage" component={ManageHostsPage} />
+                <Route
+                  path="manage/labels/:label_id"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/:active_label"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/labels/:label_id/:active_label"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/:active_label/labels/:label_id"
+                  component={ManageHostsPage}
+                />
+                <Route path=":host_id" component={HostDetailsPage} />
+              </Route>
             </Route>
             <Route component={AuthGlobalAdminMaintainerRoutes}>
               <Route path="packs" component={PackPageWrapper}>
@@ -139,15 +145,17 @@ const routes = (
                 />
               </Route>
             </Route>
-            <Route path="queries" component={QueryPageWrapper}>
-              <Route path="manage" component={ManageQueriesPage} />
-              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-                <Route path="new" component={QueryPage} />
+            <Route component={AccessRoutes}>
+              <Route path="queries" component={QueryPageWrapper}>
+                <Route path="manage" component={ManageQueriesPage} />
+                <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                  <Route path="new" component={QueryPage} />
+                </Route>
+                <Route path=":id" component={QueryPage} />
               </Route>
-              <Route path=":id" component={QueryPage} />
-            </Route>
-            <Route path="policies" component={PoliciesPageWrapper}>
-              <Route path="manage" component={ManagePoliciesPage} />
+              <Route path="policies" component={PoliciesPageWrapper}>
+                <Route path="manage" component={ManagePoliciesPage} />
+              </Route>
             </Route>
             <Route path="profile" component={UserSettingsPage} />
           </Route>
