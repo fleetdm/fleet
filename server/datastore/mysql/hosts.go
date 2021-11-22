@@ -990,11 +990,9 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT
-		p.id,
-		p.name,
-		p.query,
-		p.description,
+	query := `SELECT p.*,
+		COALESCE(u.name, '<deleted>') AS author_name,
+		COALESCE(u.email, '') AS author_email,
 		CASE
 			WHEN pm.passes = 1 THEN 'pass'
 			WHEN pm.passes = 0 THEN 'fail'
@@ -1006,7 +1004,8 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm ON (p.id=pm.policy_id)`
+	) as pm ON (p.id=pm.policy_id)
+	LEFT JOIN users u ON p.author_id = u.id`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {

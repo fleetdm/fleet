@@ -130,11 +130,14 @@ type HostPolicy struct {
 	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
 	AuthorName string `json:"author_name" db:"author_name"`
 	// AuthorEmail is retrieved with a join to the users table in the MySQL backend (using AuthorID).
-	AuthorEmail string `json:"author_email" db:"author_email"`
-	Response    string `json:"response" db:"response"`
-	Resolution  string `json:"resolution" db:"resolution"`
+	AuthorEmail string  `json:"author_email" db:"author_email"`
+	Response    string  `json:"response" db:"response"`
+	TeamID      *uint   `json:"team_id" db:"team_id"`
+	Resolution  *string `json:"resolution" db:"resolution"`
 
 	TeamIDX uint `json:"-" db:"team_id_x"`
+
+	UpdateCreateTimestamps
 }
 
 type PolicySpec struct {
