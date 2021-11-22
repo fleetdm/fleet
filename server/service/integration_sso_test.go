@@ -1,12 +1,20 @@
 package service
 
 import (
+	"bytes"
+	"compress/flate"
+	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -60,7 +68,30 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	var resIni initiateSSOResponse
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
-	t.Log(resIni.URL)
+
+	parsed, err := url.Parse(resIni.URL)
+	require.NoError(t, err)
+	q := parsed.Query()
+	encoded := q.Get("SAMLRequest")
+	assert.NotEmpty(t, encoded)
+	authReq := inflate(t, encoded)
+	assert.Equal(t, "https://samltest.id/saml/idp", authReq.Issuer.Url)
+	assert.Equal(t, "Fleet", authReq.ProviderName)
+	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
+}
+
+func inflate(t *testing.T, s string) *sso.AuthnRequest {
+	t.Helper()
+
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+
+	r := flate.NewReader(bytes.NewReader(decoded))
+	defer r.Close()
+
+	var req sso.AuthnRequest
+	require.NoError(t, xml.NewDecoder(r).Decode(&req))
+	return &req
 }
 
 const (
