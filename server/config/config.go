@@ -218,6 +218,11 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 }
 
+// UpgradesConfig defines configs related to fleet server upgrades.
+type UpgradesConfig struct {
+	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -241,6 +246,7 @@ type FleetConfig struct {
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
+	Upgrades         UpgradesConfig
 }
 
 type TLS struct {
@@ -520,6 +526,10 @@ func (man Manager) addConfigs() {
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
+
+	// Upgrades
+	man.addConfigBool("upgrades.allow_missing_migrations", false,
+		"Allow serve to run even if migrations are missing.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -687,6 +697,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
+		},
+		Upgrades: UpgradesConfig{
+			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
 		},
 	}
 }
