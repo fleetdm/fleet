@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // DebugPprof calls the /debug/pprof/ endpoints.
@@ -28,4 +30,13 @@ func (c *Client) DebugPprof(name string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func (c *Client) DebugMigrations() (*fleet.MigrationStatus, error) {
+	var migrationStatus fleet.MigrationStatus
+	err := c.authenticatedRequest(nil, "GET", "/debug/migrations", &migrationStatus)
+	if err != nil {
+		return nil, err
+	}
+	return &migrationStatus, nil
 }

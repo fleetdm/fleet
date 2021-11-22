@@ -18,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -38,6 +39,7 @@ func debugCommand() *cli.Command {
 			debugTraceCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
+			debugMigrations(),
 		},
 	}
 }
@@ -441,6 +443,50 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			}
 			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
 
+			return nil
+		},
+	}
+}
+
+func debugMigrations() *cli.Command {
+	return &cli.Command{
+		Name:  "migrations",
+		Usage: "Run a check of database migrations",
+		Description: `Run a check for database migrations on the fleet server.
+
+It returns the list of migrations that are missing.
+Such migrations can be applied via "fleet prepare db" before running "fleet serve".
+`,
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+			migrationStatus, err := client.DebugMigrations()
+			if err != nil {
+				return err
+			}
+			switch migrationStatus.StatusCode {
+			case fleet.NoMigrationsCompleted:
+				// Currently shouldn't happen, because this command requires authentication, and therefore
+				// requires the sessions table. Leaving this here in case we remove authentication from this endpoint.
+				fmt.Println("Your Fleet database is not initialized. Fleet cannot start up.\n" +
+					"Fleet server must be run with \"prepare db\" to perform the migrations.")
+			case fleet.AllMigrationsCompleted:
+				fmt.Println("Migrations up-to-date.")
+			case fleet.UnknownMigrations:
+				// Shouldn't happen, because fleet serve won't be running if this is the case.
+				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+			case fleet.SomeMigrationsCompleted:
+				fmt.Printf("Missing migrations detected: tables=%v, data=%v.\n"+
+					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
+					migrationStatus.MissingTable, migrationStatus.MissingData)
+			}
 			return nil
 		},
 	}
