@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/pkg/errors"
 	"github.com/throttled/throttled/v2"
 )
 
@@ -42,10 +42,10 @@ func (m *Middleware) Limit(quota throttled.RateQuota) endpoint.Middleware {
 		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
 			limited, result, err := limiter.RateLimit(funcName, 1)
 			if err != nil {
-				return nil, errors.Wrap(err, "check rate limit")
+				return nil, ctxerr.Wrap(ctx, err, "check rate limit")
 			}
 			if limited {
-				return nil, &ratelimitError{result: result}
+				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
 			}
 
 			return next(ctx, req)

@@ -23,7 +23,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/rotisserie/eris"
+	"github.com/rotisserie/eris" //nolint:depguard
 )
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and
@@ -52,6 +52,13 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 		ttl:    ttl,
 	}
 	runHandler(ctx, eh)
+
+	// Clear out any records that exist.
+	// Temporary mitigation for #3065.
+	if _, err := eh.Flush(); err != nil {
+		level.Error(eh.logger).Log("err", err, "msg", "failed to flush redis errors")
+	}
+
 	return eh
 }
 
@@ -217,6 +224,12 @@ func (h *Handler) handleErrors(ctx context.Context) {
 }
 
 func (h *Handler) storeError(ctx context.Context, err error) {
+	// Skip storing errors due to SCAN issues with Redis (see #3065).
+	// if true here because otherwise we get linting errors for unreachable code.
+	if true {
+		return
+	}
+
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")

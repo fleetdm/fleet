@@ -52,23 +52,38 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch status {
+			switch status.StatusCode {
 			case fleet.NoMigrationsCompleted:
-				// OK, from scratch.
+				// OK
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations already completed. Nothing to do.")
 				return
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
-					fmt.Printf("################################################################################\n" +
-						"# WARNING:\n" +
-						"#   This will perform Fleet database migrations. Please back up your data before\n" +
-						"#   continuing.\n" +
-						"#\n" +
-						"#   Press Enter to continue, or Control-c to exit.\n" +
-						"################################################################################\n")
+					fmt.Printf("################################################################################\n"+
+						"# WARNING:\n"+
+						"#   This will perform Fleet database migrations. Please back up your data before\n"+
+						"#   continuing.\n"+
+						"#\n"+
+						"#   Missing migrations: tables=%v, data=%v.\n"+
+						"#\n"+
+						"#   Press Enter to continue, or Control-c to exit.\n"+
+						"################################################################################\n",
+						status.MissingTable, status.MissingData)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
+			case fleet.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
+					"#\n"+
+					"#   Upgrade Fleet server version.\n"+
+					"################################################################################\n",
+					status.UnknownTable, status.UnknownData)
+				os.Exit(1)
 			}
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {

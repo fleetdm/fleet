@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)
@@ -24,13 +24,13 @@ func parseTag(tag string) (string, bool, error) {
 	parts := strings.Split(tag, ",")
 	switch len(parts) {
 	case 0:
-		return "", false, errors.Errorf("Error parsing %s: too few parts", tag)
+		return "", false, fmt.Errorf("Error parsing %s: too few parts", tag)
 	case 1:
 		return tag, false, nil
 	case 2:
 		return parts[0], parts[1] == "optional", nil
 	default:
-		return "", false, errors.Errorf("Error parsing %s: too many parts", tag)
+		return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
 	}
 }
 
@@ -153,7 +153,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					if optional {
 						continue
 					}
-					return nil, errors.Errorf("Param %s is required", f.Name)
+					return nil, fmt.Errorf("Param %s is required", f.Name)
 				}
 				if field.Kind() == reflect.Ptr {
 					// create the new instance of whatever it is
@@ -166,7 +166,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Uint:
 					queryValUint, err := strconv.Atoi(queryVal)
 					if err != nil {
-						return nil, errors.Wrap(err, "parsing uint from query")
+						return nil, fmt.Errorf("parsing uint from query: %w", err)
 					}
 					field.SetUint(uint64(queryValUint))
 				case reflect.Bool:
@@ -189,12 +189,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, errors.Wrap(err, "parsing uint from query")
+							return nil, fmt.Errorf("parsing uint from query: %w", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
 				default:
-					return nil, errors.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
+					return nil, fmt.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
 				}
 			}
 		}

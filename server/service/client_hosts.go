@@ -7,19 +7,18 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 // GetHosts retrieves the list of all Hosts
 func (c *Client) GetHosts(query string) ([]HostResponse, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts", query, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/fleet/hosts")
+		return nil, fmt.Errorf("GET /api/v1/fleet/hosts: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get hosts received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -28,10 +27,10 @@ func (c *Client) GetHosts(query string) ([]HostResponse, error) {
 	var responseBody listHostsResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode list hosts response")
+		return nil, fmt.Errorf("decode list hosts response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("list hosts: %s", responseBody.Err)
+		return nil, fmt.Errorf("list hosts: %s", responseBody.Err)
 	}
 
 	return responseBody.Hosts, nil
@@ -42,12 +41,12 @@ func (c *Client) GetHosts(query string) ([]HostResponse, error) {
 func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/hosts/identifier/"+identifier, "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/fleet/hosts/identifier")
+		return nil, fmt.Errorf("GET /api/v1/fleet/hosts/identifier: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get host by identifier received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -56,10 +55,10 @@ func (c *Client) HostByIdentifier(identifier string) (*HostDetailResponse, error
 	var responseBody getHostResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode host response")
+		return nil, fmt.Errorf("decode host response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get host by identifier: %s", responseBody.Err)
+		return nil, fmt.Errorf("get host by identifier: %s", responseBody.Err)
 	}
 
 	return responseBody.Host, nil
@@ -71,7 +70,7 @@ func (c *Client) DeleteHost(id uint) error {
 	path := fmt.Sprintf("/api/v1/fleet/hosts/%d", id)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
-		return errors.Wrapf(err, "%s %s", verb, path)
+		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
 
@@ -80,7 +79,7 @@ func (c *Client) DeleteHost(id uint) error {
 		return notFoundErr{}
 	}
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"delete host received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -90,11 +89,11 @@ func (c *Client) DeleteHost(id uint) error {
 	var responseBody deleteHostResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return errors.Wrap(err, "decode delete host response")
+		return fmt.Errorf("decode delete host response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return errors.Errorf("delete host: %s", responseBody.Err)
+		return fmt.Errorf("delete host: %s", responseBody.Err)
 	}
 
 	return nil

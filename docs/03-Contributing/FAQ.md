@@ -6,6 +6,11 @@
 - [How do I connect to the Mailhog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server)
 - [Adding hosts for testing](#adding-hosts-for-testing)
 
+
+## Enrolling in multiple Fleet servers
+
+It is not currently possible to enroll your device with more than one Fleet server.  Multiple install roots is useful for development of Fleet itself, but complex to maintain.  While this has some value for Fleet contributors, there is currently no active effort to add and maintain support for multiple enrollments from the same device.
+
 ## Make errors
 
 ### `dep: command not found`

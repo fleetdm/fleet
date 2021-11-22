@@ -1,10 +1,10 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // CreateUser creates a new user, skipping the invitation process.

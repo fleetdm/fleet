@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.5.1 # Version of Fleet to deploy
+imageTag: v4.6.1 # Version of Fleet to deploy
 createIngress: true # Whether or not to automatically create an Ingress
 ingressAnnotations: {} # Additional annotation to add to the Ingress
 podAnnotations: {} # Additional annotations to add to the Fleet pod

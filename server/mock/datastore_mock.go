@@ -301,7 +301,7 @@ type MigrateTablesFunc func(ctx context.Context) error
 
 type MigrateDataFunc func(ctx context.Context) error
 
-type MigrationStatusFunc func(ctx context.Context) (fleet.MigrationStatus, error)
+type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
 
@@ -1123,7 +1123,7 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	return s.DeleteHostFunc(ctx, hid)
 }
 
-func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
+func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
 	return s.HostFunc(ctx, id)
 }
@@ -1513,7 +1513,7 @@ func (s *DataStore) MigrateData(ctx context.Context) error {
 	return s.MigrateDataFunc(ctx)
 }
 
-func (s *DataStore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
+func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	s.MigrationStatusFuncInvoked = true
 	return s.MigrationStatusFunc(ctx)
 }

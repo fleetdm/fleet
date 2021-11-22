@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -44,7 +45,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -130,7 +130,7 @@ the way that the Fleet server works.
 				"hostname": true,
 			}
 			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-				initFatal(errors.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
+				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
@@ -142,7 +142,7 @@ the way that the Fleet server works.
 
 				if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
 					initFatal(
-						errors.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
+						fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
 						"setting server URL prefix",
 					)
 				}
@@ -175,12 +175,28 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch migrationStatus {
+			switch migrationStatus.StatusCode {
+			case fleet.AllMigrationsCompleted:
+				// OK
+			case fleet.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
+					"#\n"+
+					"#   Upgrade Fleet server version.\n"+
+					"################################################################################\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+				os.Exit(1)
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 					"#   errors in Fleet.\n"+
+					"#\n"+
+					"#   Missing migrations: tables=%v, data=%v.\n"+
 					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
 					"#\n"+
@@ -189,7 +205,7 @@ the way that the Fleet server works.
 					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
 					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 					"################################################################################\n",
-					os.Args[0])
+					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
 				if !config.Upgrades.AllowMissingMigrations {
 					os.Exit(1)
 				}
@@ -366,7 +382,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -756,7 +772,7 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	default:
 		initFatal(
-			errors.Errorf("%s is invalid", profile),
+			fmt.Errorf("%s is invalid", profile),
 			"set TLS profile",
 		)
 	}

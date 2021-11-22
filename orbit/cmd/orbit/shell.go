@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/oklog/run"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -40,7 +41,7 @@ var shellCommand = &cli.Command{
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize root dir")
+			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -72,10 +73,15 @@ var shellCommand = &cli.Command{
 		r, _ := osquery.NewRunner(
 			osquerydPath,
 			osquery.WithShell(),
+			osquery.WithDataPath(c.String("root-dir")),
 			// Handle additional args after --
 			osquery.WithFlags(c.Args().Slice()),
 		)
 		g.Add(r.Execute, r.Interrupt)
+
+		// Extension tables not yet supported on Windows.
+		ext := table.NewRunner(r.ExtensionSocketPath())
+		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())

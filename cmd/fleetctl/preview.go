@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
+	"github.com/mitchellh/go-ps"
 	"github.com/urfave/cli/v2"
 )
 
@@ -75,35 +75,35 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			osqueryBranch := c.String(previewConfigFlagName)
 			fmt.Printf("Downloading dependencies from %s into %s...\n", osqueryBranch, previewDir)
 			if err := downloadFiles(osqueryBranch); err != nil {
-				return errors.Wrap(err, "Error downloading dependencies")
+				return fmt.Errorf("Error downloading dependencies: %w", err)
 			}
 
 			if err := os.Chdir(previewDir); err != nil {
 				return err
 			}
 			if _, err := os.Stat("docker-compose.yml"); err != nil {
-				return errors.Wrap(err, "docker-compose file not found in preview directory")
+				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
 			// Make sure the logs directory is writable, otherwise the Fleet
 			// server errors on startup. This can be a problem when running on
 			// Linux with a non-root user inside the container.
 			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
-				return errors.Wrap(err, "make logs writable")
+				return fmt.Errorf("make logs writable: %w", err)
 			}
 			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0777); err != nil {
-				return errors.Wrap(err, "make vulndb writable")
+				return fmt.Errorf("make vulndb writable: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
-				return errors.Wrap(err, "failed to set Fleet version")
+				return fmt.Errorf("failed to set Fleet version: %w", err)
 			}
 
 			fmt.Println("Pulling Docker dependencies...")
 			out, err := exec.Command("docker-compose", "pull").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose")
+				return errors.New("Failed to run docker-compose")
 			}
 
 			fmt.Println("Starting Docker containers...")
@@ -112,12 +112,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose")
+				return errors.New("Failed to run docker-compose")
 			}
 
 			fmt.Println("Waiting for server to start up...")
 			if err := waitStartup(); err != nil {
-				return errors.Wrap(err, "wait for server startup")
+				return fmt.Errorf("wait for server startup: %w", err)
 			}
 
 			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
@@ -128,7 +128,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose")
+				return errors.New("Failed to run docker-compose")
 			}
 
 			fmt.Println("Initializing server...")
@@ -140,7 +140,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fleetClient, err := service.NewClient(address, true, "", "")
 			if err != nil {
-				return errors.Wrap(err, "Error creating Fleet API client handler")
+				return fmt.Errorf("Error creating Fleet API client handler: %w", err)
 			}
 
 			token, err := fleetClient.Setup(email, "Admin", password, "Fleet for osquery")
@@ -149,7 +149,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				case service.SetupAlreadyErr:
 					// Ignore this error
 				default:
-					return errors.Wrap(err, "Error setting up Fleet")
+					return fmt.Errorf("Error setting up Fleet: %w", err)
 				}
 			}
 
@@ -176,39 +176,39 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			c.Set("context", context)
 
 			if err := writeConfig(configPath, config); err != nil {
-				return errors.Wrap(err, "Error writing fleetctl configuration")
+				return fmt.Errorf("Error writing fleetctl configuration: %w", err)
 			}
 
 			// Create client and get enroll secret
 			client, err := unauthenticatedClientFromCLI(c)
 			if err != nil {
-				return errors.Wrap(err, "Error making fleetctl client")
+				return fmt.Errorf("Error making fleetctl client: %w", err)
 			}
 
 			token, err = client.Login(email, password)
 			if err != nil {
-				return errors.Wrap(err, "fleetctl login failed")
+				return fmt.Errorf("fleetctl login failed: %w", err)
 			}
 
 			if err := setConfigValue(configPath, context, "token", token); err != nil {
-				return errors.Wrap(err, "Error setting token for the current context")
+				return fmt.Errorf("Error setting token for the current context: %w", err)
 			}
 			client.SetToken(token)
 
 			fmt.Println("Loading standard query library...")
 			buf, err := downloadStandardQueryLibrary()
 			if err != nil {
-				return errors.Wrap(err, "failed to download standard query library")
+				return fmt.Errorf("failed to download standard query library: %w", err)
 			}
 
 			specGroup, err := specGroupFromBytes(buf)
 			if err != nil {
-				return errors.Wrap(err, "failed to parse standard query library")
+				return fmt.Errorf("failed to parse standard query library: %w", err)
 			}
 
 			err = client.ApplyQueries(specGroup.Queries)
 			if err != nil {
-				return errors.Wrap(err, "failed to apply standard query library")
+				return fmt.Errorf("failed to apply standard query library: %w", err)
 			}
 
 			// disable anonymous analytics collection and enable software inventory for preview
@@ -216,7 +216,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				"host_settings":   {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
 			}); err != nil {
-				return errors.Wrap(err, "failed to apply updated app config")
+				return fmt.Errorf("failed to apply updated app config: %w", err)
 			}
 
 			fmt.Println("Applying Policies...")
@@ -226,7 +226,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
-				return errors.Wrap(err, "Error retrieving enroll secret")
+				return fmt.Errorf("Error retrieving enroll secret: %w", err)
 			}
 
 			if len(secrets.Secrets) != 1 {
@@ -238,7 +238,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				"server_settings": {"enable_analytics": false},
 			},
 			); err != nil {
-				return errors.Wrap(err, "Error disabling anonymous analytics collection in app config")
+				return fmt.Errorf("Error disabling anonymous analytics collection in app config: %w", err)
 			}
 
 			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
@@ -249,13 +249,13 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			fmt.Println("Downloading Orbit and osqueryd...")
 
 			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
-				return errors.Wrap(err, "downloading orbit and osqueryd")
+				return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 			}
 
 			// Give it a bit of time so the current device is the one with id 1
 			fmt.Println("Waiting for current host to enroll...")
 			if err := waitFirstHost(client); err != nil {
-				return errors.Wrap(err, "wait for current host")
+				return fmt.Errorf("wait for current host: %w", err)
 			}
 
 			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
@@ -272,7 +272,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose")
+				return errors.New("Failed to run docker-compose")
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
@@ -304,22 +304,22 @@ func downloadFiles(branch string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("download got status %d", resp.StatusCode)
+		return fmt.Errorf("download got status %d", resp.StatusCode)
 	}
 
 	zipContents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return errors.Wrap(err, "read download contents")
+		return fmt.Errorf("read download contents: %w", err)
 	}
 
 	zipReader, err := zip.NewReader(bytes.NewReader(zipContents), int64(len(zipContents)))
 	if err != nil {
-		return errors.Wrap(err, "open download contents for unzip")
+		return fmt.Errorf("open download contents for unzip: %w", err)
 	}
 	// zip.NewReader does not need to be closed (and cannot be)
 
 	if err := unzip(zipReader, branch); err != nil {
-		return errors.Wrap(err, "unzip download contents")
+		return fmt.Errorf("unzip download contents: %w", err)
 	}
 
 	return nil
@@ -331,11 +331,11 @@ func downloadStandardQueryLibrary() ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("status: %d", resp.StatusCode)
 	}
 	buf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "read response body")
+		return nil, fmt.Errorf("read response body: %w", err)
 	}
 	return buf, nil
 }
@@ -409,13 +409,13 @@ func waitStartup() error {
 				return err
 			}
 			if resp.StatusCode != http.StatusOK {
-				return errors.Errorf("got status code %d", resp.StatusCode)
+				return fmt.Errorf("got status code %d", resp.StatusCode)
 			}
 			return nil
 		},
 		retryStrategy,
 	); err != nil {
-		return errors.Wrap(err, "checking server health")
+		return fmt.Errorf("checking server health: %w", err)
 	}
 
 	return nil
@@ -439,7 +439,7 @@ func waitFirstHost(client *service.Client) error {
 		},
 		retryStrategy,
 	); err != nil {
-		return errors.Wrap(err, "checking host count")
+		return fmt.Errorf("checking host count: %w", err)
 	}
 
 	return nil
@@ -481,13 +481,13 @@ func previewStopCommand() *cli.Command {
 				return err
 			}
 			if _, err := os.Stat("docker-compose.yml"); err != nil {
-				return errors.Wrap(err, "docker-compose file not found in preview directory")
+				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
 			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose stop for Fleet server and dependencies")
+				return errors.New("Failed to run docker-compose stop for Fleet server and dependencies")
 			}
 
 			cmd := exec.Command("docker-compose", "stop")
@@ -501,11 +501,11 @@ func previewStopCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose stop for simulated hosts")
+				return errors.New("Failed to run docker-compose stop for simulated hosts")
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
-				return errors.Wrap(err, "Failed to stop orbit")
+				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
 			fmt.Println("Fleet preview server and dependencies stopped. Start again with fleetctl preview.")
@@ -534,13 +534,13 @@ func previewResetCommand() *cli.Command {
 				return err
 			}
 			if _, err := os.Stat("docker-compose.yml"); err != nil {
-				return errors.Wrap(err, "docker-compose file not found in preview directory")
+				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
 			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
+				return errors.New("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
 			}
 
 			cmd := exec.Command("docker-compose", "rm", "-sf")
@@ -554,11 +554,11 @@ func previewResetCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.Errorf("Failed to run docker-compose rm -sf for simulated hosts.")
+				return errors.New("Failed to run docker-compose rm -sf for simulated hosts.")
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
-				return errors.Wrap(err, "Failed to stop orbit")
+				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
@@ -581,35 +581,32 @@ func readPidFromFile(destDir string, what string) (int, error) {
 	pidFilePath := path.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
-		return -1, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
+		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
 	}
-	return strconv.Atoi(string(data))
+	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
-func isOrbitAlreadyRunning(destDir string) bool {
-	pid, err := readPidFromFile(destDir, "orbit.pid")
+// processNameMatches returns whether the process running with the given pid matches
+// the executable name (case insensitive).
+//
+// If there's no process running with the given pid then (false, nil) is returned.
+func processNameMatches(pid int, expectedPrefix string) (bool, error) {
+	process, err := ps.FindProcess(pid)
 	if err != nil {
-		// if any error occurs reading the pid file, we assume orbit is not running
-		return false
+		return false, fmt.Errorf("find process: %d: %w", pid, err)
 	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		// if there are any errors looking for process, we assume orbit is not running
-		return false
+	if process == nil {
+		return false, nil
 	}
-	// otherwise, we found the process, so it's running
-	err = process.Signal(syscall.Signal(0))
-	if err != nil {
-		// Unix will always return a process for the pid, so we try sending a signal to see if it's running
-		return false
-	}
-	return true
+	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
 func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
-	if isOrbitAlreadyRunning(destDir) {
-		fmt.Println("Orbit is already running.")
-		return nil
+	// Stop any current intance of orbit running, otherwise the configured enroll secret
+	// won't match the generated in the preview run.
+	if err := stopOrbit(destDir); err != nil {
+		fmt.Println("Failed to stop an existing instance of orbit running: ", err)
+		return err
 	}
 
 	fmt.Println("Trying to clear orbit and osquery directories...")
@@ -629,13 +626,13 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 	case "windows":
 		updateOpt.Platform = "windows"
 	default:
-		return errors.Errorf("unsupported arch: %s", runtime.GOOS)
+		return fmt.Errorf("unsupported arch: %s", runtime.GOOS)
 	}
 	updateOpt.ServerURL = "https://tuf.fleetctl.com"
 	updateOpt.RootDirectory = destDir
 
 	if err := packaging.InitializeUpdates(updateOpt); err != nil {
-		return errors.Wrap(err, "initialize updates")
+		return fmt.Errorf("initialize updates: %w", err)
 	}
 
 	cmd := exec.Command(
@@ -648,43 +645,48 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {
-		return errors.Wrap(err, "starting orbit")
+		return fmt.Errorf("starting orbit: %w", err)
 	}
 	if err := storePidFile(destDir, cmd.Process.Pid); err != nil {
-		return errors.Wrap(err, "saving pid file")
+		return fmt.Errorf("saving pid file: %w", err)
 	}
 
 	return nil
 }
 
 func stopOrbit(destDir string) error {
-	err := killFromPIDFile(destDir, "osquery.pid")
+	err := killFromPIDFile(destDir, "osquery.pid", "osqueryd")
 	if err != nil {
 		return err
 	}
-	err = killFromPIDFile(destDir, "orbit.pid")
+	err = killFromPIDFile(destDir, "orbit.pid", "orbit")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func killFromPIDFile(destDir string, w string) error {
-	pid, err := readPidFromFile(destDir, w)
-	if err != nil {
-		return errors.Wrap(err, "reading pid")
-	}
+func killFromPIDFile(destDir string, pidFileName string, expectedExecName string) error {
+	pid, err := readPidFromFile(destDir, pidFileName)
 	switch {
 	case err == nil:
 		// OK
 	case errors.Is(err, os.ErrNotExist):
 		return nil // we assume it's not running
 	default:
-		return errors.Wrapf(err, "reading pid from: %s", destDir)
+		return fmt.Errorf("reading pid from: %s: %w", destDir, err)
 	}
-	err = killPID(pid)
+	matches, err := processNameMatches(pid, expectedExecName)
 	if err != nil {
-		return errors.Wrapf(err, "killing %d", pid)
+		return fmt.Errorf("inspecting process %d: %w", pid, err)
+	}
+	if !matches {
+		// Nothing to do, another process may be running with this pid
+		// (e.g. could happen after a restart).
+		return nil
+	}
+	if err := killPID(pid); err != nil {
+		return fmt.Errorf("killing %d: %w", pid, err)
 	}
 	return nil
 }
@@ -716,11 +718,11 @@ func loadPolicies(client *service.Client) error {
 	for _, policy := range policies {
 		q, err := client.CreateQuery(policy.name, policy.query, policy.description)
 		if err != nil {
-			return errors.Wrap(err, "creating query")
+			return fmt.Errorf("creating query: %w", err)
 		}
 		err = client.CreatePolicy(q.ID, policy.resolution)
 		if err != nil {
-			return errors.Wrap(err, "creating policy")
+			return fmt.Errorf("creating policy: %w", err)
 		}
 	}
 
@@ -739,7 +741,7 @@ func openBrowser(url string) error {
 	}
 
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "failed to open in browser")
+		return fmt.Errorf("failed to open in browser: %w", err)
 	}
 	return nil
 }

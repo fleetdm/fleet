@@ -2,11 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // ApplyLabels sends the list of Labels to be applied (upserted) to the
@@ -15,12 +15,12 @@ func (c *Client) ApplyLabels(specs []*fleet.LabelSpec) error {
 	req := applyLabelSpecsRequest{Specs: specs}
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/spec/labels", "", req)
 	if err != nil {
-		return errors.Wrap(err, "POST /api/v1/fleet/spec/labels")
+		return fmt.Errorf("POST /api/v1/fleet/spec/labels: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"apply labels received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -30,11 +30,11 @@ func (c *Client) ApplyLabels(specs []*fleet.LabelSpec) error {
 	var responseBody applyLabelSpecsResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return errors.Wrap(err, "decode apply label spec response")
+		return fmt.Errorf("decode apply label spec response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return errors.Errorf("apply label spec: %s", responseBody.Err)
+		return fmt.Errorf("apply label spec: %s", responseBody.Err)
 	}
 
 	return nil
@@ -45,7 +45,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/v1/fleet/spec/labels/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/labels")
+		return nil, fmt.Errorf("GET /api/v1/fleet/spec/labels: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -54,7 +54,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 		return nil, notFoundErr{}
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get label received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -64,11 +64,11 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 	var responseBody getLabelSpecResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode get label spec response")
+		return nil, fmt.Errorf("decode get label spec response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get label spec: %s", responseBody.Err)
+		return nil, fmt.Errorf("get label spec: %s", responseBody.Err)
 	}
 
 	return responseBody.Spec, nil
@@ -78,12 +78,12 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
 	response, err := c.AuthenticatedDo("GET", "/api/v1/fleet/spec/labels", "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/fleet/spec/labels")
+		return nil, fmt.Errorf("GET /api/v1/fleet/spec/labels: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get labels received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -93,11 +93,11 @@ func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
 	var responseBody getLabelSpecsResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode get label spec response")
+		return nil, fmt.Errorf("decode get label spec response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get label spec: %s", responseBody.Err)
+		return nil, fmt.Errorf("get label spec: %s", responseBody.Err)
 	}
 
 	return responseBody.Specs, nil
@@ -108,7 +108,7 @@ func (c *Client) DeleteLabel(name string) error {
 	verb, path := "DELETE", "/api/v1/fleet/labels/"+url.PathEscape(name)
 	response, err := c.AuthenticatedDo(verb, path, "", nil)
 	if err != nil {
-		return errors.Wrapf(err, "%s %s", verb, path)
+		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
 
@@ -117,7 +117,7 @@ func (c *Client) DeleteLabel(name string) error {
 		return notFoundErr{}
 	}
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"delete label received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -127,11 +127,11 @@ func (c *Client) DeleteLabel(name string) error {
 	var responseBody deleteLabelResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return errors.Wrap(err, "decode get label spec response")
+		return fmt.Errorf("decode get label spec response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return errors.Errorf("get label spec: %s", responseBody.Err)
+		return fmt.Errorf("get label spec: %s", responseBody.Err)
 	}
 
 	return nil

@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	kitlog "github.com/go-kit/kit/log"
-	pkgerrors "github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/require"
 )
 

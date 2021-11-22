@@ -5,9 +5,9 @@
   box-sizing: border-box;
   border-radius: 10px;
   overflow: auto;
-  margin-bottom: $pad-large;
   padding: $pad-large;
   padding-bottom: $pad-small;
+  margin: 0px;
 
   p {
     padding-left: $pad-large;
@@ -16,6 +16,7 @@
   a {
     color: $core-vibrant-blue;
     font-weight: $bold;
+    font-size: $x-small;
     text-decoration: none;
   }
 
