@@ -86,25 +86,28 @@ const routes = (
         <Route component={AuthenticatedRoutes}>
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
-          <Route component={CoreLayout}>
-            <IndexRedirect to={"dashboard"} />
-            <Route path="dashboard" component={Homepage} />
-            <Route path="settings" component={AuthAnyAdminRoutes}>
-              <Route component={SettingsWrapper}>
-                <Route component={AuthenticatedAdminRoutes}>
-                  <Route path="organization" component={AdminAppSettingsPage} />
-                  <Route path="users" component={AdminUserManagementPage} />
-                  <Route component={PremiumTierRoutes}>
-                    <Route path="teams" component={AdminTeamManagementPage} />
+          <Route component={AccessRoutes}>
+            <Route component={CoreLayout}>
+              <IndexRedirect to={"dashboard"} />
+              <Route path="dashboard" component={Homepage} />
+              <Route path="settings" component={AuthAnyAdminRoutes}>
+                <Route component={SettingsWrapper}>
+                  <Route component={AuthenticatedAdminRoutes}>
+                    <Route
+                      path="organization"
+                      component={AdminAppSettingsPage}
+                    />
+                    <Route path="users" component={AdminUserManagementPage} />
+                    <Route component={PremiumTierRoutes}>
+                      <Route path="teams" component={AdminTeamManagementPage} />
+                    </Route>
                   </Route>
                 </Route>
+                <Route path="teams/:team_id" component={TeamDetailsWrapper}>
+                  <Route path="members" component={MembersPage} />
+                  <Route path="options" component={AgentOptionsPage} />
+                </Route>
               </Route>
-              <Route path="teams/:team_id" component={TeamDetailsWrapper}>
-                <Route path="members" component={MembersPage} />
-                <Route path="options" component={AgentOptionsPage} />
-              </Route>
-            </Route>
-            <Route component={AccessRoutes}>
               <Route path="hosts">
                 <Route path="manage" component={ManageHostsPage} />
                 <Route
@@ -125,27 +128,25 @@ const routes = (
                 />
                 <Route path=":host_id" component={HostDetailsPage} />
               </Route>
-            </Route>
-            <Route component={AuthGlobalAdminMaintainerRoutes}>
-              <Route path="packs" component={PackPageWrapper}>
-                <Route path="manage" component={ManagePacksPage} />
-                <Route path="new" component={PackComposerPage} />
-                <Route path=":id">
-                  <IndexRoute component={EditPackPage} />
-                  <Route path="edit" component={EditPackPage} />
+              <Route component={AuthGlobalAdminMaintainerRoutes}>
+                <Route path="packs" component={PackPageWrapper}>
+                  <Route path="manage" component={ManagePacksPage} />
+                  <Route path="new" component={PackComposerPage} />
+                  <Route path=":id">
+                    <IndexRoute component={EditPackPage} />
+                    <Route path="edit" component={EditPackPage} />
+                  </Route>
                 </Route>
               </Route>
-            </Route>
-            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="schedule" component={SchedulePageWrapper}>
-                <Route path="manage" component={ManageSchedulePage} />
-                <Route
-                  path="manage/teams/:team_id"
-                  component={ManageSchedulePage}
-                />
+              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                <Route path="schedule" component={SchedulePageWrapper}>
+                  <Route path="manage" component={ManageSchedulePage} />
+                  <Route
+                    path="manage/teams/:team_id"
+                    component={ManageSchedulePage}
+                  />
+                </Route>
               </Route>
-            </Route>
-            <Route component={AccessRoutes}>
               <Route path="queries" component={QueryPageWrapper}>
                 <Route path="manage" component={ManageQueriesPage} />
                 <Route component={AuthAnyMaintainerAnyAdminRoutes}>
@@ -156,8 +157,8 @@ const routes = (
               <Route path="policies" component={PoliciesPageWrapper}>
                 <Route path="manage" component={ManagePoliciesPage} />
               </Route>
+              <Route path="profile" component={UserSettingsPage} />
             </Route>
-            <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>
       </Route>
