@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
@@ -81,10 +80,8 @@ var shellCommand = &cli.Command{
 		g.Add(r.Execute, r.Interrupt)
 
 		// Extension tables not yet supported on Windows.
-		if runtime.GOOS != "windows" {
-			ext, _ := table.NewRunner("/var/lib/orbit/osquery.em")
-			g.Add(ext.Execute, ext.Interrupt)
-		}
+		ext := table.NewRunner(r.ExtensionSocketPath())
+		g.Add(ext.Execute, ext.Interrupt)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())

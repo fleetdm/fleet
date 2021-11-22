@@ -248,8 +248,8 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if len(secrets) < 1 {
-		return nil, fleet.NewInvalidArgumentError("secrets", "need to define at least one secret for the team")
+	if secrets == nil {
+		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
 	}
 
 	var newSecrets []*fleet.EnrollSecret

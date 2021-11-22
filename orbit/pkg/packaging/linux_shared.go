@@ -59,6 +59,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("write env file: %w", err)
 	}
 
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write flagfile: %w", err)
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write certs.pem: %w", err)
+	}
+
 	postInstallPath := filepath.Join(tmpDir, "postinstall.sh")
 	if err := writePostInstall(opt, postInstallPath); err != nil {
 		return "", fmt.Errorf("write postinstall script: %w", err)
@@ -107,12 +115,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Build package
 
 	info := &nfpm.Info{
-		Name:        "orbit-osquery",
+		Name:        "fleet-osquery",
 		Version:     opt.Version,
-		Description: "Orbit osquery -- runtime and autoupdater by Fleet",
+		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
-		Homepage:    "https://github.com/fleetdm/orbit",
+		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
 			EmptyFolders: []string{

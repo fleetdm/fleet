@@ -9,13 +9,13 @@
   - [MySQL](#mysql)
   - [Redis](#redis)
 
-The Fleet application is distributed as a single static binary. This binary serves:
+The Fleet application is distributed as a single static binary (or as a Docker container). This binary serves:
 
 - The Fleet web interface
 - The Fleet application API endpoints
 - The osquery TLS server API endpoints
 
-All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `fleet` binary and it's infrastructure dependencies as illustrated below, refer to the [Configuration](./02-Configuration.md) documentation for information on how to use and configure the Fleet application.
+All of these are served via a built-in HTTP server, so there is no need for complex web server configurations. Once you've installed the `fleet` binary and its infrastructure dependencies as illustrated below, refer to the [Configuration](./02-Configuration.md) documentation for information on how to use and configure the Fleet application.
 
 ## Installing the Fleet binary
 
@@ -68,8 +68,6 @@ Fleet currently has two infrastructure dependencies in addition to the `fleet` w
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker container](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](./02-Configuration.md) document.
 
 Fleet requires at least MySQL version 5.7.
-
-For host expiry configuration, the [event scheduler](https://dev.mysql.com/doc/refman/5.7/en/events-overview.html) must be enabled. This can be enabled via the command line, configuration file, or a user with the required privileges.
 
 ### Redis
 

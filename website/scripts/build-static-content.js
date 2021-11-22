@@ -28,18 +28,19 @@ module.exports = {
         let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
 
-        let queriesWithProblematicRemediations = [];
+        let queriesWithProblematicResolutions = [];
         let queriesWithProblematicContributors = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
+          query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           if (false) {
-          // if ((query.remediation !== undefined && !_.isString(query.remediation)) || (query.purpose !== 'Detection' && _.isString(query.remediation))) {  TODO: maybe bring this back later
-            // console.log(typeof query.remediation);
-            queriesWithProblematicRemediations.push(query);
-          // } else if (query.remediation === undefined) {
-          } else { // « For now set remediation to N/A for all queries until we reinstate checks that are commented out above.  TODO: finish that
-            query.remediation = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
+          // if ((query.resolution !== undefined && !_.isString(query.resolution)) || (query.kind !== 'policy' && _.isString(query.resolution))) { TODO: maybe bring this back later
+            // console.log(typeof query.resolution);
+            queriesWithProblematicResolutions.push(query);
+          // } else if (query.resolution === undefined) {
+          } else { // « For now set resolution to N/A for all queries until we reinstate checks that are commented out above.  TODO: finish that
+            query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
 
           // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
@@ -50,8 +51,8 @@ module.exports = {
           return query;
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
-        if (queriesWithProblematicRemediations.length >= 1) {
-          throw new Error('Failed parsing YAML for query library: The "remediation" of a query should either be absent (undefined) or a single string (not a list of strings).  And "remediation" should only be present when a query\'s purpose is "Detection".  But one or more queries have an invalid "remediation": ' + _.pluck(queriesWithProblematicRemediations, 'slug').sort());
+        if (queriesWithProblematicResolutions.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "resolution" of a query should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a query\'s kind is "policy".  But one or more queries have an invalid "resolution": ' + _.pluck(queriesWithProblematicResolutions, 'slug').sort());
         }//•
         // Assert uniqueness of slugs.
         if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {

@@ -56,6 +56,14 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("write enroll secret: %w", err)
 	}
 
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write flagfile: %w", err)
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write certs.pem: %w", err)
+	}
+
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
 			return "", fmt.Errorf("write fleet certificate: %w", err)
@@ -92,7 +100,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
+	filename := "fleet-osquery.msi"
 	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("rename msi: %w", err)
 	}

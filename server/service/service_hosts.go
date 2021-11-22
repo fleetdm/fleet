@@ -15,7 +15,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, err
 		return nil, err
 	}
 
-	host, err := svc.ds.Host(ctx, id)
+	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -74,7 +74,7 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	host, err := svc.ds.Host(ctx, id)
+	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host for delete")
 	}
@@ -192,7 +192,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	host, err := svc.ds.Host(ctx, id)
+	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find host for refetch")
 	}
