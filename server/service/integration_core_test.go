@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -1110,6 +1111,15 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
+	err = s.ds.RecordPolicyQueryExecutions(
+		context.Background(),
+		host1,
+		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
+		time.Now(),
+		false,
+	)
+	require.NoError(t, err)
+
 	resp := s.Do("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host1.ID), nil, http.StatusOK)
 	b, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -1122,63 +1132,9 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.Nil(t, r.Err)
 	hd := r.Host.HostDetail
 	require.Len(t, hd.Policies, 2)
-	require.NoError(t, comparePolicies(gpResp.Policy, hd.Policies[0]))
-	require.NoError(t, comparePolicies(tpResp.Policy, hd.Policies[1]))
-}
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, hd.Policies[0].PolicyData))
+	require.Equal(t, hd.Policies[0].Response, "pass")
 
-func comparePolicies(policy *fleet.Policy, hostPolicy *fleet.HostPolicy) error {
-	if policy.ID != hostPolicy.ID {
-		return fmt.Errorf("ID mismatch: %d, %d", policy.ID, hostPolicy.ID)
-	}
-	if policy.Name != hostPolicy.Name {
-		return fmt.Errorf("Name mismatch: %s, %s", policy.Name, hostPolicy.Name)
-	}
-	if policy.Description != hostPolicy.Description {
-		return fmt.Errorf("Description mismatch: %s, %s", policy.Description, hostPolicy.Description)
-	}
-	if !checkStrPtr(policy.Resolution, hostPolicy.Resolution) {
-		return fmt.Errorf("Resolution mismatch: %+v, %+v", policy.Resolution, hostPolicy.Resolution)
-	}
-	if !checkUintPtr(policy.AuthorID, hostPolicy.AuthorID) {
-		return fmt.Errorf("AuthorID mismatch: %+v, %+v", policy.AuthorID, hostPolicy.AuthorID)
-	}
-	if policy.Query != hostPolicy.Query {
-		return fmt.Errorf("Query mismatch: %s, %s", policy.Query, hostPolicy.Query)
-	}
-	if policy.AuthorName != hostPolicy.AuthorName {
-		return fmt.Errorf("AuthorName mismatch: %s, %s", policy.AuthorName, hostPolicy.AuthorName)
-	}
-	if policy.AuthorEmail != hostPolicy.AuthorEmail {
-		return fmt.Errorf("AuthorEmail mismatch: %s, %s", policy.AuthorEmail, hostPolicy.AuthorEmail)
-	}
-	if !checkUintPtr(policy.TeamID, hostPolicy.TeamID) {
-		return fmt.Errorf("TeamID mismatch: %+v, %+v", policy.TeamID, hostPolicy.TeamID)
-	}
-	if !policy.CreatedAt.Equal(hostPolicy.CreatedAt) {
-		return fmt.Errorf("CreatedAt mismatch: %s, %s", policy.CreatedAt, hostPolicy.CreatedAt)
-	}
-	if !policy.UpdatedAt.Equal(hostPolicy.UpdatedAt) {
-		return fmt.Errorf("UpdatedAt mismatch: %s, %s", policy.UpdatedAt, hostPolicy.UpdatedAt)
-	}
-	return nil
-}
-
-func checkStrPtr(p1, p2 *string) bool {
-	if p1 == nil {
-		return p2 == nil
-	}
-	if p2 == nil {
-		return false
-	}
-	return *p1 == *p2
-}
-
-func checkUintPtr(p1, p2 *uint) bool {
-	if p1 == nil {
-		return p2 == nil
-	}
-	if p2 == nil {
-		return false
-	}
-	return *p1 == *p2
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
+	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
 }

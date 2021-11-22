@@ -89,8 +89,8 @@ func (p ModifyPolicyPayload) Verify() error {
 	return nil
 }
 
-// Policy is a fleet's policy query.
-type Policy struct {
+// PolicyData holds data of a fleet policy.
+type PolicyData struct {
 	ID uint `json:"id"`
 	// Name is the name of the policy query.
 	Name        string `json:"name" db:"name"`
@@ -111,6 +111,14 @@ type Policy struct {
 	UpdateCreateTimestamps
 }
 
+// Policy is a fleet's policy query.
+type Policy struct {
+	PolicyData
+
+	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
+	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+}
+
 func (p Policy) AuthzType() string {
 	return "policy"
 }
@@ -119,27 +127,18 @@ const (
 	PolicyKind = "policy"
 )
 
+// HostPolicy is a fleet's policy query in the context of a host.
 type HostPolicy struct {
-	ID uint `json:"id" db:"id"`
-	// Name is the name of the policy query.
-	Name  string `json:"name" db:"name"`
-	Query string `json:"query" db:"query"`
-	// Description is the policy description.
-	Description string `json:"description" db:"description"`
-	AuthorID    *uint  `json:"author_id" db:"author_id"`
-	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
-	AuthorName string `json:"author_name" db:"author_name"`
-	// AuthorEmail is retrieved with a join to the users table in the MySQL backend (using AuthorID).
-	AuthorEmail string  `json:"author_email" db:"author_email"`
-	Response    string  `json:"response" db:"response"`
-	TeamID      *uint   `json:"team_id" db:"team_id"`
-	Resolution  *string `json:"resolution" db:"resolution"`
+	PolicyData
 
-	TeamIDX uint `json:"-" db:"team_id_x"`
-
-	UpdateCreateTimestamps
+	// Response can be one of the following values:
+	//	- "pass": if the policy was executed and passed.
+	//	- "fail": if the policy was executed and did not pass.
+	//	- "": if the policy did not run yet.
+	Response string `json:"response" db:"response"`
 }
 
+// PolicySpec is used to hold policy data to apply policy specs.
 type PolicySpec struct {
 	Name        string `json:"name"`
 	Query       string `json:"query"`
@@ -148,6 +147,7 @@ type PolicySpec struct {
 	Team        string `json:"team,omitempty"`
 }
 
+// Verify verifies the policy data is valid.
 func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
 		return err

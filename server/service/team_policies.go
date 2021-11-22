@@ -49,7 +49,11 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.PolicyPayload) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -106,7 +110,11 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +147,11 @@ func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +189,11 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 	if len(ids) == 0 {
@@ -240,7 +256,11 @@ func (svc Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p
 
 func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	// First make sure the user can read the policies.
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: teamID,
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	policy, err := svc.ds.Policy(ctx, id)

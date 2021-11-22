@@ -272,7 +272,11 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 			if err != nil {
 				return errors.Wrap(err, "getting team by name")
 			}
-			if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					TeamID: &team.ID,
+				},
+			}, fleet.ActionWrite); err != nil {
 				return err
 			}
 		} else {
