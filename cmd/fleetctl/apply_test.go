@@ -234,3 +234,42 @@ spec:
 	assert.True(t, savedAppConfig.HostSettings.EnableHostUsers)
 	assert.True(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
 }
+
+func TestApplyAppConfigUnknownFields(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enabled_software_inventory: false # typo, correct config is enable_software_inventory
+`)
+
+	runAppCheckErr(t, []string{"apply", "-f", name},
+		"applying fleet config: apply config received status 400 Bad request: "+
+			"json: unknown field \"enabled_software_inventory\"",
+	)
+	require.Nil(t, savedAppConfig)
+}
