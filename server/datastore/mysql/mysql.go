@@ -315,27 +315,24 @@ func (d *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
-type migrationRecord struct {
-	VersionID int64 `db:"version_id"`
-	IsApplied bool  `db:"is_applied"`
-}
-
 // loadMigrations manually loads the applied migrations in ascending
 // order (goose doesn't provide such functionality).
+//
+// Returns two lists of version IDs (one for "table" and one for "data").
 func (d *Datastore) loadMigrations(
 	ctx context.Context,
-) (tableRecs []migrationRecord, dataRecs []migrationRecord, err error) {
+) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
 	tables.MigrationClient.GetDBVersion(d.writer.DB)
 	data.MigrationClient.GetDBVersion(d.writer.DB)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, d.reader, &tableRecs,
-		"SELECT version_id, is_applied FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 ORDER BY id ASC",
+		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
 	}
 	if err := sqlx.SelectContext(ctx, d.reader, &dataRecs,
-		"SELECT version_id, is_applied FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 ORDER BY id ASC",
+		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
 	}
@@ -361,14 +358,16 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	}
 
 	knownTable := tables.MigrationClient.Migrations
-	mtvs := getVersionsFromMigrations(knownTable)
-	atvs := getVersionsFromRecords(appliedTable)
-	missingTable, unknownTable, equalTable := compareVersions(mtvs, atvs)
+	missingTable, unknownTable, equalTable := compareVersions(
+		getVersionsFromMigrations(knownTable),
+		appliedTable,
+	)
 
 	knownData := data.MigrationClient.Migrations
-	mdvs := getVersionsFromMigrations(knownData)
-	advs := getVersionsFromRecords(appliedData)
-	missingData, unknownData, equalData := compareVersions(mdvs, advs)
+	missingData, unknownData, equalData := compareVersions(
+		getVersionsFromMigrations(knownData),
+		appliedData,
+	)
 
 	if equalData && equalTable {
 		return &fleet.MigrationStatus{
@@ -419,14 +418,6 @@ func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bo
 		return nil, nil, true
 	}
 	return missing, unknown, false
-}
-
-func getVersionsFromRecords(migrations []migrationRecord) []int64 {
-	versions := make([]int64, len(migrations))
-	for i := range migrations {
-		versions[i] = migrations[i].VersionID
-	}
-	return versions
 }
 
 func getVersionsFromMigrations(migrations goose.Migrations) []int64 {

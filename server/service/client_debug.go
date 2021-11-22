@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -34,23 +33,10 @@ func (c *Client) DebugPprof(name string) ([]byte, error) {
 }
 
 func (c *Client) DebugMigrations() (*fleet.MigrationStatus, error) {
-	response, err := c.AuthenticatedDo("GET", "/debug/migrations", "", nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "GET /debug/migrations")
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
-			"debug migrations received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
 	var migrationStatus fleet.MigrationStatus
-	err = json.NewDecoder(response.Body).Decode(&migrationStatus)
+	err := c.authenticatedRequest(nil, "GET", "/debug/migrations", &migrationStatus)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode debug migrations response")
+		return nil, err
 	}
 	return &migrationStatus, nil
 }
