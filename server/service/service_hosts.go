@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
@@ -17,7 +17,7 @@ func (svc Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, err
 
 	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host")
+		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 
 	// Authorize again with team loaded now that we have team_id
@@ -35,7 +35,7 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fl
 
 	host, err := svc.ds.HostByIdentifier(ctx, identifier)
 	if err != nil {
-		return nil, errors.Wrap(err, "get host by identifier")
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
 	// Authorize again with team loaded now that we have team_id
@@ -48,22 +48,22 @@ func (svc Service) HostByIdentifier(ctx context.Context, identifier string) (*fl
 
 func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet.HostDetail, error) {
 	if err := svc.ds.LoadHostSoftware(ctx, host); err != nil {
-		return nil, errors.Wrap(err, "load host software")
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "get labels for host")
+		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
 	}
 
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "get packs for host")
+		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
 	policies, err := svc.ds.ListPoliciesForHost(ctx, host.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "get policies for host")
+		return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 	}
 
 	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
@@ -76,7 +76,7 @@ func (svc Service) DeleteHost(ctx context.Context, id uint) error {
 
 	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
-		return errors.Wrap(err, "get host for delete")
+		return ctxerr.Wrap(ctx, err, "get host for delete")
 	}
 
 	// Authorize again with team loaded now that we have team_id
@@ -194,7 +194,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 
 	host, err := svc.ds.Host(ctx, id, false)
 	if err != nil {
-		return errors.Wrap(err, "find host for refetch")
+		return ctxerr.Wrap(ctx, err, "find host for refetch")
 	}
 
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
@@ -203,7 +203,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 
 	host.RefetchRequested = true
 	if err := svc.ds.SaveHost(ctx, host); err != nil {
-		return errors.Wrap(err, "save host")
+		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
 	return nil

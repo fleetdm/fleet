@@ -2,10 +2,10 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // Setup attempts to setup the current Fleet instance. If setup is successful,
@@ -25,7 +25,7 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 
 	response, err := c.Do("POST", "/api/v1/setup", "", params)
 	if err != nil {
-		return "", errors.Wrap(err, "POST /api/v1/setup")
+		return "", fmt.Errorf("POST /api/v1/setup: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -35,7 +35,7 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 		return "", setupAlreadyErr{}
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf(
+		return "", fmt.Errorf(
 			"setup received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -43,17 +43,17 @@ func (c *Client) Setup(email, name, password, org string) (string, error) {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf("setup got HTTP %d, expected 200", response.StatusCode)
+		return "", fmt.Errorf("setup got HTTP %d, expected 200", response.StatusCode)
 	}
 
 	var responseBody setupResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return "", errors.Wrap(err, "decode setup response")
+		return "", fmt.Errorf("decode setup response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return "", errors.Errorf("setup: %s", responseBody.Err)
+		return "", fmt.Errorf("setup: %s", responseBody.Err)
 	}
 
 	return *responseBody.Token, nil

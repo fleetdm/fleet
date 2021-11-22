@@ -2,11 +2,10 @@ package sso
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/pkg/errors"
 
 	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
@@ -84,7 +83,7 @@ func GetMetadata(metadataURL string) (*Metadata, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("SAML metadata server at %s returned %s", metadataURL, resp.Status)
+		return nil, fmt.Errorf("SAML metadata server at %s returned %s", metadataURL, resp.Status)
 	}
 	xmlData, err := ioutil.ReadAll(resp.Body)
 

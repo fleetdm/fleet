@@ -3,12 +3,13 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 type pubSubLogWriter struct {
@@ -28,7 +29,7 @@ func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, 
 
 	client, err := pubsub.NewClient(ctx, projectId)
 	if err != nil {
-		return nil, errors.Wrap(err, "create pubsub client")
+		return nil, fmt.Errorf("create pubsub client: %w", err)
 	}
 
 	topic := client.Topic(topicName)
@@ -62,7 +63,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 	for i, log := range logs {
 		data, err := log.MarshalJSON()
 		if err != nil {
-			return errors.Wrap(err, "marshal message into JSON")
+			return ctxerr.Wrap(ctx, err, "marshal message into JSON")
 		}
 
 		attributes := make(map[string]string)
@@ -71,7 +72,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			var unmarshaled PubSubAttributes
 
 			if err := json.Unmarshal(log, &unmarshaled); err != nil {
-				return errors.Wrap(err, "unmarshalling log message JSON")
+				return ctxerr.Wrap(ctx, err, "unmarshalling log message JSON")
 			}
 			attributes["name"] = unmarshaled.Name
 			attributes["timestamp"] = time.Unix(unmarshaled.UnixTime, 0).Format(time.RFC3339)
@@ -101,7 +102,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 	for _, result := range results {
 		_, err := result.Get(ctx)
 		if err != nil {
-			return errors.Wrap(err, "pubsub publish")
+			return ctxerr.Wrap(ctx, err, "pubsub publish")
 		}
 	}
 

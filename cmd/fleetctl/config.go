@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -75,12 +75,12 @@ func readConfig(fp string) (configFile, error) {
 	}
 
 	if err := yaml.Unmarshal(b, &c); err != nil {
-		return c, errors.Wrap(err, "unmarshal config")
+		return c, fmt.Errorf("unmarshal config: %w", err)
 	}
 
 	if c.Contexts == nil {
 		c.Contexts = map[string]Context{
-			"default": Context{},
+			"default": {},
 		}
 	}
 	return c, nil
@@ -97,12 +97,12 @@ func writeConfig(fp string, c configFile) error {
 
 func getConfigValue(configPath, context, key string) (interface{}, error) {
 	if err := makeConfigIfNotExists(configPath); err != nil {
-		return nil, errors.Wrapf(err, "error verifying that config exists at %s", configPath)
+		return nil, fmt.Errorf("error verifying that config exists at %s: %w", configPath, err)
 	}
 
 	config, err := readConfig(configPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading config at %s", configPath)
+		return nil, fmt.Errorf("error reading config at %s: %w", configPath, err)
 	}
 
 	currentContext, ok := config.Contexts[context]
@@ -134,12 +134,12 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 
 func setConfigValue(configPath, context, key, value string) error {
 	if err := makeConfigIfNotExists(configPath); err != nil {
-		return errors.Wrapf(err, "error verifying that config exists at %s", configPath)
+		return fmt.Errorf("error verifying that config exists at %s: %w", configPath, err)
 	}
 
 	config, err := readConfig(configPath)
 	if err != nil {
-		return errors.Wrapf(err, "error reading config at %s", configPath)
+		return fmt.Errorf("error reading config at %s: %w", configPath, err)
 	}
 
 	currentContext, ok := config.Contexts[context]
@@ -160,7 +160,7 @@ func setConfigValue(configPath, context, key, value string) error {
 	case "tls-skip-verify":
 		boolValue, err := strconv.ParseBool(value)
 		if err != nil {
-			return errors.Wrapf(err, "error parsing %q as bool", value)
+			return fmt.Errorf("error parsing %q as bool: %w", value, err)
 		}
 		currentContext.TLSSkipVerify = boolValue
 	case "url-prefix":
@@ -172,7 +172,7 @@ func setConfigValue(configPath, context, key, value string) error {
 	config.Contexts[context] = currentContext
 
 	if err := writeConfig(configPath, config); err != nil {
-		return errors.Wrap(err, "error saving config file")
+		return fmt.Errorf("error saving config file: %w", err)
 	}
 
 	return nil
@@ -244,7 +244,7 @@ func configSetCommand() *cli.Command {
 			if flAddress != "" {
 				set = true
 				if err := setConfigValue(configPath, context, "address", flAddress); err != nil {
-					return errors.Wrap(err, "error setting address")
+					return fmt.Errorf("error setting address: %w", err)
 				}
 				fmt.Printf("[+] Set the address config key to %q in the %q context\n", flAddress, c.String("context"))
 			}
@@ -252,7 +252,7 @@ func configSetCommand() *cli.Command {
 			if flEmail != "" {
 				set = true
 				if err := setConfigValue(configPath, context, "email", flEmail); err != nil {
-					return errors.Wrap(err, "error setting email")
+					return fmt.Errorf("error setting email: %w", err)
 				}
 				fmt.Printf("[+] Set the email config key to %q in the %q context\n", flEmail, c.String("context"))
 			}
@@ -260,7 +260,7 @@ func configSetCommand() *cli.Command {
 			if flToken != "" {
 				set = true
 				if err := setConfigValue(configPath, context, "token", flToken); err != nil {
-					return errors.Wrap(err, "error setting token")
+					return fmt.Errorf("error setting token: %w", err)
 				}
 				fmt.Printf("[+] Set the token config key to %q in the %q context\n", flToken, c.String("context"))
 			}
@@ -268,7 +268,7 @@ func configSetCommand() *cli.Command {
 			if flTLSSkipVerify {
 				set = true
 				if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
-					return errors.Wrap(err, "error setting tls-skip-verify")
+					return fmt.Errorf("error setting tls-skip-verify: %w", err)
 				}
 				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
 			}
@@ -276,7 +276,7 @@ func configSetCommand() *cli.Command {
 			if flRootCA != "" {
 				set = true
 				if err := setConfigValue(configPath, context, "rootca", flRootCA); err != nil {
-					return errors.Wrap(err, "error setting rootca")
+					return fmt.Errorf("error setting rootca: %w", err)
 				}
 				fmt.Printf("[+] Set the rootca config key to %q in the %q context\n", flRootCA, c.String("context"))
 			}
@@ -284,7 +284,7 @@ func configSetCommand() *cli.Command {
 			if flURLPrefix != "" {
 				set = true
 				if err := setConfigValue(configPath, context, "url-prefix", flURLPrefix); err != nil {
-					return errors.Wrap(err, "error setting URL Prefix")
+					return fmt.Errorf("error setting URL Prefix: %w", err)
 				}
 				fmt.Printf("[+] Set the url-prefix config key to %q in the %q context\n", flURLPrefix, c.String("context"))
 			}
@@ -325,7 +325,7 @@ func configGetCommand() *cli.Command {
 
 			value, err := getConfigValue(configPath, context, key)
 			if err != nil {
-				return errors.Wrap(err, "error getting config value")
+				return fmt.Errorf("error getting config value: %w", err)
 			}
 
 			fmt.Printf("  %s.%s => %s\n", c.String("context"), key, value)

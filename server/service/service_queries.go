@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 func queryFromSpec(spec *fleet.QuerySpec) *fleet.Query {
@@ -34,7 +34,7 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return errors.New("user must be authenticated to apply queries")
+		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
 
 	queries := []*fleet.Query{}
@@ -50,7 +50,7 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 
 	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
 	if err != nil {
-		return errors.Wrap(err, "applying queries")
+		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
 	return svc.ds.NewActivity(
@@ -68,7 +68,7 @@ func (svc Service) GetQuerySpecs(ctx context.Context) ([]*fleet.QuerySpec, error
 
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting queries")
+		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}
 
 	specs := []*fleet.QuerySpec{}
@@ -281,7 +281,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
-		return errors.Wrap(err, "lookup query by ID")
+		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
 
 	// Then we make sure they can modify them
@@ -290,7 +290,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	}
 
 	if err := svc.ds.DeleteQuery(ctx, query.Name); err != nil {
-		return errors.Wrap(err, "delete query")
+		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
 	return svc.ds.NewActivity(
@@ -310,7 +310,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
-			return 0, errors.Wrap(err, "lookup query by ID")
+			return 0, ctxerr.Wrap(ctx, err, "lookup query by ID")
 		}
 
 		// Then we make sure they can modify them

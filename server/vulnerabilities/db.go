@@ -3,7 +3,6 @@ package vulnerabilities
 import (
 	"errors"
 	"fmt"
-
 	"os"
 	"strings"
 

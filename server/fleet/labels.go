@@ -1,9 +1,8 @@
 package fleet
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // ModifyLabelPayload is used to change editable fields for a Label
@@ -37,7 +36,7 @@ func (t LabelType) MarshalJSON() ([]byte, error) {
 	case LabelTypeBuiltIn:
 		return []byte(`"builtin"`), nil
 	default:
-		return nil, errors.Errorf("invalid LabelType: %d", t)
+		return nil, fmt.Errorf("invalid LabelType: %d", t)
 	}
 }
 
@@ -48,7 +47,7 @@ func (t *LabelType) UnmarshalJSON(b []byte) error {
 	case `"builtin"`, "1":
 		*t = LabelTypeBuiltIn
 	default:
-		return errors.Errorf("invalid LabelType: %s", string(b))
+		return fmt.Errorf("invalid LabelType: %s", string(b))
 	}
 	return nil
 }
@@ -71,7 +70,7 @@ func (t LabelMembershipType) MarshalJSON() ([]byte, error) {
 	case LabelMembershipTypeManual:
 		return []byte(`"manual"`), nil
 	default:
-		return nil, errors.Errorf("invalid LabelMembershipType: %d", t)
+		return nil, fmt.Errorf("invalid LabelMembershipType: %d", t)
 	}
 }
 
@@ -82,7 +81,7 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 	case `"manual"`:
 		*t = LabelMembershipTypeManual
 	default:
-		return errors.Errorf("invalid LabelMembershipType: %s", string(b))
+		return fmt.Errorf("invalid LabelMembershipType: %s", string(b))
 	}
 	return nil
 }
