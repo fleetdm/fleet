@@ -61,11 +61,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 	if acLastErr != nil {
 		return nil, acLastErr
 	} else if ac == nil {
-		ac, err := ds.Datastore.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return ac, nil
+		return ds.Datastore.AppConfig(ctx)
 	}
 
 	return ac, nil
