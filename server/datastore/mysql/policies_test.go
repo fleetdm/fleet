@@ -457,7 +457,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	host1, err = ds.Host(context.Background(), host1.ID)
+	host1, err = ds.Host(context.Background(), host1.ID, false)
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -559,7 +559,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	host1, err = ds.Host(context.Background(), host1.ID)
+	host1, err = ds.Host(context.Background(), host1.ID, false)
 	require.NoError(t, err)
 
 	tq, err := ds.NewQuery(context.Background(), &fleet.Query{

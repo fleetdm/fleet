@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -67,6 +68,13 @@ func BuildPkg(opt Options) (string, error) {
 	if err := writeSecret(opt, orbitRoot); err != nil {
 		return "", errors.Wrap(err, "write enroll secret")
 	}
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write flagfile")
+	}
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
 			return "", errors.Wrap(err, "write launchd")
@@ -79,7 +87,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	// TODO gate behind a flag and allow copying a local orbit
-	// if err := copyFile(
+	// if err := file.Copy(
 	// 	"./orbit",
 	// 	filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
 	// 	0755,
@@ -108,8 +116,8 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s_amd64.pkg", opt.Version)
-	if err := copyFile(generatedPath, filename, constant.DefaultFileMode); err != nil {
+	filename := "fleet-osquery.pkg"
+	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", errors.Wrap(err, "rename pkg")
 	}
 	log.Info().Str("path", filename).Msg("wrote pkg package")
@@ -197,7 +205,7 @@ func writeCertificate(opt Options, orbitRoot string) error {
 	// Fleet TLS certificate
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
-	if err := copyFile(opt.FleetCertificate, dstPath, 0644); err != nil {
+	if err := file.Copy(opt.FleetCertificate, dstPath, 0644); err != nil {
 		return errors.Wrap(err, "write orbit")
 	}
 

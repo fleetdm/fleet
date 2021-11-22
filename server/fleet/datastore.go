@@ -178,7 +178,7 @@ type Datastore interface {
 	SaveHost(ctx context.Context, host *Host) error
 	SerialSaveHost(ctx context.Context, host *Host) error
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint) (*Host, error)
+	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.

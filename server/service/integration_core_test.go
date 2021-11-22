@@ -347,7 +347,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count", "order_direction", "desc")
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count,id", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
@@ -454,11 +454,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
@@ -491,11 +491,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.Error(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
@@ -513,11 +513,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	_, err := s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})

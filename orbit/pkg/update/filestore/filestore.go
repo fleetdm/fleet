@@ -26,12 +26,17 @@ func New(filename string) (client.LocalStore, error) {
 	return store, nil
 }
 
+func (s *fileStore) maybeInit() error {
+	if s.metadata == nil {
+		return s.readData()
+	}
+	return nil
+}
+
 // SetMeta stores the provided metadata.
 func (s *fileStore) SetMeta(name string, meta json.RawMessage) error {
-	if s.metadata == nil {
-		if err := s.readData(); err != nil {
-			return err
-		}
+	if err := s.maybeInit(); err != nil {
+		return err
 	}
 
 	s.metadata[name] = meta
@@ -44,13 +49,24 @@ func (s *fileStore) SetMeta(name string, meta json.RawMessage) error {
 
 // GetMeta returns all of the saved metadata.
 func (s *fileStore) GetMeta() (map[string]json.RawMessage, error) {
-	if s.metadata == nil {
-		if err := s.readData(); err != nil {
-			return nil, err
-		}
+	if err := s.maybeInit(); err != nil {
+		return nil, err
 	}
 
 	return s.metadata, nil
+}
+
+func (s *fileStore) DeleteMeta(name string) error {
+	if err := s.maybeInit(); err != nil {
+		return err
+	}
+
+	delete(s.metadata, name)
+	if err := s.writeData(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *fileStore) readData() error {

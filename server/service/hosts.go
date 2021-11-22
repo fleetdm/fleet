@@ -195,7 +195,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 
 func (svc Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
-		host, err := svc.ds.Host(ctx, id)
+		host, err := svc.ds.Host(ctx, id, false)
 		if err != nil {
 			return errors.Wrap(err, "get host for delete")
 		}

@@ -9,7 +9,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <Product
     Id="C2C2437D-0562-465E-A0BB-2C4484025BD6"
-    Name="Orbit osquery"
+    Name="Fleet osquery"
     Language="1033"
     Version="{{.Version}}"
     Manufacturer="Fleet Device Management (fleetdm.com)"
@@ -17,8 +17,8 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <Package
       Id="*"
-      Keywords='orbit osquery'
-      Description="Orbit osquery"
+      Keywords='Fleet osquery'
+      Description="Fleet osquery"
       InstallerVersion="500"
       Compressed="yes"
       InstallScope="perMachine"
@@ -47,7 +47,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
                 <ServiceInstall
-                  Name="Orbit osquery"
+                  Name="Fleet osquery"
                   Account="NT AUTHORITY\SYSTEM"
                   ErrorControl="ignore"
                   Start="auto"
@@ -64,7 +64,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 </ServiceInstall>
                 <ServiceControl
                   Id="StartOrbitService"
-                  Name="Orbit osquery"
+                  Name="Fleet osquery"
                   Start="install"
                   Stop="both"
                   Remove="uninstall"
@@ -76,7 +76,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       </Directory>
     </Directory>
 
-    <Feature Id="Orbit" Title="Orbit osquery" Level="1" Display="hidden">
+    <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
       <ComponentRef Id="C_ORBITBIN" />
       <ComponentRef Id="C_ORBITROOT" />

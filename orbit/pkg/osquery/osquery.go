@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -15,12 +16,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	extensionSocketName        = "orbit-osquery.em"
+	windowsExtensionSocketPath = `\\.\pipe\orbit-osquery-extension`
+)
+
 // Runner is a specialized runner for osquery. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 type Runner struct {
-	proc   *process.Process
-	cmd    *exec.Cmd
-	cancel func()
+	proc     *process.Process
+	cmd      *exec.Cmd
+	dataPath string
+	cancel   func()
 }
 
 // NewRunner creates a new osquery runner given the provided functional options.
@@ -72,6 +79,8 @@ func WithShell() func(*Runner) error {
 
 func WithDataPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
+		r.dataPath = path
+
 		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
 			return errors.Wrap(err, "initialize osquery data path")
 		}
@@ -79,7 +88,7 @@ func WithDataPath(path string) func(*Runner) error {
 		r.cmd.Args = append(r.cmd.Args,
 			"--pidfile="+filepath.Join(path, "osquery.pid"),
 			"--database_path="+filepath.Join(path, "osquery.db"),
-			"--extensions_socket="+filepath.Join(path, "osquery.em"),
+			"--extensions_socket="+r.ExtensionSocketPath(),
 		)
 		return nil
 	}
@@ -123,4 +132,12 @@ func (r *Runner) Execute() error {
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Msg("interrupt osquery")
 	r.cancel()
+}
+
+func (r *Runner) ExtensionSocketPath() string {
+	if runtime.GOOS == "windows" {
+		return windowsExtensionSocketPath
+	}
+
+	return filepath.Join(r.dataPath, extensionSocketName)
 }

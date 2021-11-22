@@ -149,25 +149,19 @@ const Homepage = (): JSX.Element => {
           </InfoCard>
         </div>
       )}
-      {!isPreviewMode && !currentTeam && (
-        <div className={`${baseClass}__section one-column`}>
-          <InfoCard title="Activity">
-            <ActivityFeed />
-          </InfoCard>
-        </div>
-      )}
-      {/* TODO: Re-add this commented out section once the /software API is running */}
-      {/* <div className={`
+      <div
+        className={`
         ${baseClass}__section 
-        ${currentTeam ? 'one' : 'two'}-column
-      `}>
+        ${currentTeam ? "one" : "two"}-column
+      `}
+      >
         {!currentTeam && (
-          <InfoCard 
+          <InfoCard
             title="Software"
-            action={{ 
-              type: button, 
-              text: "View all software", 
-              onClick: () => setIsSoftwareModalOpen(true)
+            action={{
+              type: "button",
+              text: "View all software",
+              onClick: () => setIsSoftwareModalOpen(true),
             }}
           >
             <Software
@@ -176,10 +170,12 @@ const Homepage = (): JSX.Element => {
             />
           </InfoCard>
         )}
-        <InfoCard title="Activity">
-          <ActivityFeed />
-        </InfoCard>
-      </div> */}
+        {!isPreviewMode && !currentTeam && (
+          <InfoCard title="Activity">
+            <ActivityFeed />
+          </InfoCard>
+        )}
+      </div>
     </div>
   );
 };

@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -56,6 +57,14 @@ func BuildMSI(opt Options) (string, error) {
 		return "", errors.Wrap(err, "write enroll secret")
 	}
 
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write flagfile")
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", errors.Wrap(err, "write certs.pem")
+	}
+
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
 			return "", errors.Wrap(err, "write fleet certificate")
@@ -92,8 +101,8 @@ func BuildMSI(opt Options) (string, error) {
 		return "", errors.Wrap(err, "build package")
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
-	if err := copyFile(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
+	filename := "fleet-osquery.msi"
+	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
 		return "", errors.Wrap(err, "rename msi")
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")

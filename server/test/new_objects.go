@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,6 +109,7 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 		PolicyUpdatedAt: now,
 		SeenTime:        now,
 		OsqueryHostID:   osqueryHostID,
+		Platform:        "darwin",
 	})
 
 	require.NoError(t, err)
@@ -144,6 +146,7 @@ func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint
 		Interval: interval,
 		Snapshot: &snapshot,
 		Removed:  &removed,
+		Platform: ptr.String("darwin"),
 	})
 	require.NoError(t, err)
 	require.NotZero(t, sq.ID)

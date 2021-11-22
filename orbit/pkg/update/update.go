@@ -60,6 +60,14 @@ type Options struct {
 // New creates a new updater given the provided options. All the necessary
 // directories are initialized.
 func New(opt Options) (*Updater, error) {
+	if opt.LocalStore == nil {
+		return nil, errors.New("opt.LocalStore must be non-nil")
+	}
+
+	if opt.Platform == "" {
+		opt.Platform = constant.PlatformName
+	}
+
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
@@ -229,7 +237,8 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	// always fail if the binary doesn't match the platform, so there's not
 	// really anything we can check.
 	if u.opt.Platform == constant.PlatformName {
-		out, err := exec.Command(tmp.Name(), "--version").CombinedOutput()
+		// Note that this would fail for any binary that returns nonzero for --help.
+		out, err := exec.Command(tmp.Name(), "--help").CombinedOutput()
 		if err != nil {
 			return errors.Wrapf(err, "exec new version: %s", string(out))
 		}

@@ -237,6 +237,11 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	assert.Equal(t, "testSecret1", team.Secrets[0].Secret)
 	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
 
-	// Test bad request
-	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusUnprocessableEntity, &resp)
+	// Test delete all enroll secrets
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusOK, &resp)
+	require.Len(t, resp.Secrets, 0)
+
+	// Test bad requests
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
 }

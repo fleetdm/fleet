@@ -28,4 +28,11 @@ func TestBadgerStore(t *testing.T) {
 	res, err := store.GetMeta()
 	require.NoError(t, err)
 	assert.Equal(t, expected, res)
+
+	for k := range expected {
+		require.NoError(t, store.DeleteMeta(k))
+	}
+	res, err = store.GetMeta()
+	require.NoError(t, err)
+	assert.Len(t, res, 0)
 }
