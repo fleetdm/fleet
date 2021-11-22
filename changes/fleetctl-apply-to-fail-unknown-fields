@@ -1,1 +1,0 @@
-* Make `fleetctl apply` fail if there's an unknown field.
