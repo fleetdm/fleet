@@ -322,12 +322,10 @@ type migrationRecord struct {
 
 // loadMigrations manually loads the applied migrations in ascending
 // order (goose doesn't provide such functionality).
-//
-// TODO(lucas): Propose goose to export a LoadMigrations method.
 func (d *Datastore) loadMigrations(
 	ctx context.Context,
 ) (tableRecs []migrationRecord, dataRecs []migrationRecord, err error) {
-	// We need to run this to trigger the creation of the migration status tables.
+	// We need to run the following to trigger the creation of the migration status tables.
 	tables.MigrationClient.GetDBVersion(d.writer.DB)
 	data.MigrationClient.GetDBVersion(d.writer.DB)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.

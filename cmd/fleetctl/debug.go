@@ -452,7 +452,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 func debugMigrations() *cli.Command {
 	return &cli.Command{
 		Name:  "migrations",
-		Usage: "Run a check of migrations",
+		Usage: "Run a check of database migrations",
 		Description: `Run a check for database migrations on the fleet server.
 
 It returns the list of migrations that are missing.

@@ -404,7 +404,7 @@ type Datastore interface {
 }
 
 type MigrationStatus struct {
-	// StatusCode holds the code for that migration status.
+	// StatusCode holds the code for the migration status.
 	//
 	// If StatusCode is NoMigrationsCompleted or AllMigrationsCompleted
 	// then all other fields are empty.
@@ -428,9 +428,13 @@ type MigrationStatus struct {
 type MigrationStatusCode int
 
 const (
+	// NoMigrationsCompleted indicates the database has no migrations installed.
 	NoMigrationsCompleted MigrationStatusCode = iota
+	// SomeMigrationsCompleted indicates some (not all) migrations are missing.
 	SomeMigrationsCompleted
+	// AllMigrationsCompleted means all migrations have been installed successfully.
 	AllMigrationsCompleted
+	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
 
