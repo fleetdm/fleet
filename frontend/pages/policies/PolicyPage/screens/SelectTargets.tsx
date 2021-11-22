@@ -12,7 +12,7 @@ import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 
 // @ts-ignore
-import TargetsInput from "pages/policies/PolicyPage/components/TargetsInput";
+import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";

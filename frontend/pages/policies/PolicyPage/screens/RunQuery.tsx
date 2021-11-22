@@ -15,8 +15,7 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 
-// import { useLastEditedQueryInfo } from "../helpers";
-import QueryResults from "../components/QueryResults";
+import QueryResults from "components/QueryResults";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;

@@ -12,6 +12,7 @@ import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
+import PolicyProvider from "context/policy";
 import { AppContext } from "context/app";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
@@ -85,9 +86,11 @@ const App = ({ children }: IAppProps) => {
     <QueryClientProvider client={queryClient}>
       <TableProvider>
         <QueryProvider>
-          <FleetErrorBoundary>
-            <div className={wrapperStyles}>{children}</div>
-          </FleetErrorBoundary>
+          <PolicyProvider>
+            <FleetErrorBoundary>
+              <div className={wrapperStyles}>{children}</div>
+            </FleetErrorBoundary>
+          </PolicyProvider>
         </QueryProvider>
       </TableProvider>
     </QueryClientProvider>

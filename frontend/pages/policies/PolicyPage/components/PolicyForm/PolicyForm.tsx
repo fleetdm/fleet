@@ -24,6 +24,7 @@ import CompatibleIcon from "../../../../../../assets/images/icon-compatible-gree
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
 
@@ -69,8 +70,10 @@ const PolicyForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
 
-  // Note: The QueryContext values should always be used for any mutable policy data such as query name
+  // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
     lastEditedQueryName,
@@ -165,6 +168,9 @@ const PolicyForm = ({
 
         setErrors({});
       }
+
+      setIsEditingName(false);
+      setIsEditingDescription(false);
     }
   };
 
@@ -279,6 +285,71 @@ const PolicyForm = ({
     );
   };
 
+  const renderName = () => {
+    if (isEditMode) {
+      if (isEditingName) {
+        return (
+          <InputField
+            id="policy-name"
+            type="textarea"
+            name="policy-name"
+            error={errors.name}
+            value={lastEditedQueryName}
+            placeholder="Add name here"
+            inputClassName={`${baseClass}__policy-name`}
+            onChange={setLastEditedQueryName}
+            inputOptions={{
+              autoFocus: true
+            }}
+          />
+        );
+      }
+      
+      return (
+        <h1 role="button" className={`${baseClass}__policy-name`} onClick={() => setIsEditingName(true)}>
+          {lastEditedQueryName}
+          <img alt="Edit name" src={PencilIcon} />
+        </h1>
+      );
+    }
+  
+    return (
+      <h1 className={`${baseClass}__policy-name no-hover`}>
+        New policy
+      </h1>
+    );
+  };
+
+  const renderDescription = () => {
+    if (isEditMode) {
+      if (isEditingDescription) {
+        return (
+          <InputField
+            id="policy-description"
+            type="textarea"
+            name="policy-description"
+            value={lastEditedQueryDescription}
+            placeholder="Add description here."
+            inputClassName={`${baseClass}__policy-description`}
+            onChange={setLastEditedQueryDescription}
+            inputOptions={{
+              autoFocus: true
+            }}
+          />
+        );
+      }
+      
+      return (
+        <span role="button" className={`${baseClass}__policy-description`} onClick={() => setIsEditingDescription(true)}>
+          {lastEditedQueryDescription}
+          <img alt="Edit description" src={PencilIcon} />
+        </span>
+      );
+    }
+  
+    return null;
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -317,33 +388,8 @@ const PolicyForm = ({
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
-            {isEditMode ? (
-              <InputField
-                id="query-name"
-                type="textarea"
-                name="query-name"
-                error={errors.name}
-                value={lastEditedQueryName}
-                placeholder="Add name here"
-                inputClassName={`${baseClass}__policy-name`}
-                onChange={setLastEditedQueryName}
-              />
-            ) : (
-              <h1 className={`${baseClass}__policy-name no-hover`}>
-                New query
-              </h1>
-            )}
-            {isEditMode && (
-              <InputField
-                id="query-description"
-                type="textarea"
-                name="query-description"
-                value={lastEditedQueryDescription}
-                placeholder="Add description here."
-                inputClassName={`${baseClass}__policy-description`}
-                onChange={setLastEditedQueryDescription}
-              />
-            )}
+            {renderName()}
+            {renderDescription()}
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
@@ -366,59 +412,47 @@ const PolicyForm = ({
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
         >
           {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
-            <>
-              {isEditMode && (
+            <div className="query-form__button-wrap--save-policy-button">
+              <div
+                data-tip
+                data-for="save-query-button"
+                data-tip-disable={
+                  !(
+                    isAnyTeamMaintainerOrTeamAdmin &&
+                    !hasTeamMaintainerPermissions
+                  )
+                }
+              >
                 <Button
                   className={`${baseClass}__save`}
-                  variant="text-link"
-                  onClick={promptSaveQuery(true)}
-                  disabled={false}
-                >
-                  Save as new
-                </Button>
-              )}
-              <div className="query-form__button-wrap--save-policy-button">
-                <div
-                  data-tip
-                  data-for="save-query-button"
-                  data-tip-disable={
-                    !(
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    )
+                  variant="brand"
+                  onClick={promptSaveQuery()}
+                  disabled={
+                    isAnyTeamMaintainerOrTeamAdmin &&
+                    !hasTeamMaintainerPermissions
                   }
                 >
-                  <Button
-                    className={`${baseClass}__save`}
-                    variant="brand"
-                    onClick={promptSaveQuery()}
-                    disabled={
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    }
-                  >
-                    Save
-                  </Button>
-                </div>{" "}
-                <ReactTooltip
-                  className={`save-policy-button-tooltip`}
-                  place="bottom"
-                  type="dark"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="save-query-button"
-                  data-html
+                  Save
+                </Button>
+              </div>{" "}
+              <ReactTooltip
+                className={`save-policy-button-tooltip`}
+                place="bottom"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="save-query-button"
+                data-html
+              >
+                <div
+                  className={`tooltip`}
+                  style={{ width: "152px", textAlign: "center" }}
                 >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    You can only save changes to a query if you are the author.
-                  </div>
-                </ReactTooltip>
-              </div>
-            </>
-          )}
+                  You can only save changes to a query if you are the author.
+                </div>
+              </ReactTooltip>
+            </div>
+        )}
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"

@@ -112,8 +112,8 @@ const PoliciesListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemovePoliciesClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoPolicies}
         onQueryChange={noop}
         disableCount={tableType === "inheritedPolicies"}

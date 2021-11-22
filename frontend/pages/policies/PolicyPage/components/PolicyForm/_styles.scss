@@ -43,11 +43,22 @@
       flex-grow: 1;
       margin-right: 24px;
       .policy-form__policy-name {
+        margin-top: $pad-large;
         line-height: 2rem;
         height: 2rem;
+        cursor: pointer;
       }
-      .policy-form__policy-description {
+      .policy-form__policy-description:not(textarea) {
         margin: 0.25rem 0 1rem;
+        cursor: pointer;
+      }
+      textarea.policy-form__policy-description {
+        margin-top: 0.8125rem;
+      }
+      img {
+        transform: scale(0.5);
+        position: relative;
+        top: 6px;
       }
     }
 

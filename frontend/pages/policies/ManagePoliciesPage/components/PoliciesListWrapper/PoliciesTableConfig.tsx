@@ -77,7 +77,10 @@ const generateTableHeaders = (options: {
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
       ];
@@ -89,7 +92,10 @@ const generateTableHeaders = (options: {
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
         {

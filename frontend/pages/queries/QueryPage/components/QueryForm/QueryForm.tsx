@@ -24,6 +24,7 @@ import CompatibleIcon from "../../../../../../assets/images/icon-compatible-gree
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -69,6 +70,8 @@ const QueryForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -282,6 +285,71 @@ const QueryForm = ({
     );
   };
 
+  const renderName = () => {
+    if (isEditMode) {
+      if (isEditingName) {
+        return (
+          <InputField
+            id="query-name"
+            type="textarea"
+            name="query-name"
+            error={errors.name}
+            value={lastEditedQueryName}
+            placeholder="Add name here"
+            inputClassName={`${baseClass}__query-name`}
+            onChange={setLastEditedQueryName}
+            inputOptions={{
+              autoFocus: true
+            }}
+          />
+        );
+      }
+      
+      return (
+        <h1 role="button" className={`${baseClass}__query-name`} onClick={() => setIsEditingName(true)}>
+          {lastEditedQueryName}
+          <img alt="Edit name" src={PencilIcon} />
+        </h1>
+      );
+    }
+  
+    return (
+      <h1 className={`${baseClass}__query-name no-hover`}>
+        New query
+      </h1>
+    );
+  };
+
+  const renderDescription = () => {
+    if (isEditMode) {
+      if (isEditingDescription) {
+        return (
+          <InputField
+            id="query-description"
+            type="textarea"
+            name="query-description"
+            value={lastEditedQueryDescription}
+            placeholder="Add description here."
+            inputClassName={`${baseClass}__query-description`}
+            onChange={setLastEditedQueryDescription}
+            inputOptions={{
+              autoFocus: true
+            }}
+          />
+        );
+      }
+      
+      return (
+        <span role="button" className={`${baseClass}__query-description`} onClick={() => setIsEditingDescription(true)}>
+          {lastEditedQueryDescription}
+          <img alt="Edit description" src={PencilIcon} />
+        </span>
+      );
+    }
+  
+    return null;
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -333,31 +401,8 @@ const QueryForm = ({
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
-            {isEditMode ? (
-              <InputField
-                id="query-name"
-                type="textarea"
-                name="query-name"
-                error={errors.name}
-                value={lastEditedQueryName}
-                placeholder="Add name here"
-                inputClassName={`${baseClass}__query-name`}
-                onChange={setLastEditedQueryName}
-              />
-            ) : (
-              <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
-            )}
-            {isEditMode && (
-              <InputField
-                id="query-description"
-                type="textarea"
-                name="query-description"
-                value={lastEditedQueryDescription}
-                placeholder="Add description here."
-                inputClassName={`${baseClass}__query-description`}
-                onChange={setLastEditedQueryDescription}
-              />
-            )}
+            {renderName()}
+            {renderDescription()}
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
