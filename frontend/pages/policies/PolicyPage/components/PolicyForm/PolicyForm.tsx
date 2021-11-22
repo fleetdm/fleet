@@ -71,7 +71,9 @@ const PolicyForm = ({
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
+    false
+  );
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -299,25 +301,30 @@ const PolicyForm = ({
             inputClassName={`${baseClass}__policy-name`}
             onChange={setLastEditedQueryName}
             inputOptions={{
-              autoFocus: true
+              autoFocus: true,
             }}
           />
         );
       }
-      
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to H1 - this is needed to avoid
+      // using a real button
       return (
-        <h1 role="button" className={`${baseClass}__policy-name`} onClick={() => setIsEditingName(true)}>
+        <h1
+          role="button"
+          className={`${baseClass}__policy-name`}
+          onClick={() => setIsEditingName(true)}
+        >
           {lastEditedQueryName}
           <img alt="Edit name" src={PencilIcon} />
         </h1>
       );
+      /* eslint-enable */
     }
-  
-    return (
-      <h1 className={`${baseClass}__policy-name no-hover`}>
-        New policy
-      </h1>
-    );
+
+    return <h1 className={`${baseClass}__policy-name no-hover`}>New policy</h1>;
   };
 
   const renderDescription = () => {
@@ -333,20 +340,29 @@ const PolicyForm = ({
             inputClassName={`${baseClass}__policy-description`}
             onChange={setLastEditedQueryDescription}
             inputOptions={{
-              autoFocus: true
+              autoFocus: true,
             }}
           />
         );
       }
-      
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to span - this is needed to avoid
+      // using a real button
       return (
-        <span role="button" className={`${baseClass}__policy-description`} onClick={() => setIsEditingDescription(true)}>
+        <span
+        role="button"
+        className={`${baseClass}__policy-description`}
+        onClick={() => setIsEditingDescription(true)}
+        >
           {lastEditedQueryDescription}
           <img alt="Edit description" src={PencilIcon} />
         </span>
       );
+      /* eslint-enable */
     }
-  
+
     return null;
   };
 
@@ -452,7 +468,7 @@ const PolicyForm = ({
                 </div>
               </ReactTooltip>
             </div>
-        )}
+          )}
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
