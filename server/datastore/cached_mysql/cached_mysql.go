@@ -2,64 +2,40 @@ package cached_mysql
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	redigo "github.com/gomodule/redigo/redis"
 )
 
 type cachedMysql struct {
 	fleet.Datastore
 
-	redisPool fleet.RedisPool
+	mu        sync.Mutex
+	ac        *fleet.AppConfig
+	acLastErr error
 }
 
-const (
-	CacheKeyAppConfig = "cache:AppConfig"
-)
+func New(ctx context.Context, ds fleet.Datastore) fleet.Datastore {
+	cds := &cachedMysql{Datastore: ds}
+	go cds.refresher(ctx)
 
-func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
-	return &cachedMysql{
-		Datastore: ds,
-		redisPool: redisPool,
-	}
+	return cds
 }
 
-func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
-	conn := redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get())
-	defer conn.Close()
-
-	b, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("marshaling object to cache in redis: %w", err)
+func (ds *cachedMysql) refresher(ctx context.Context) {
+	for {
+		select {
+		case <-time.Tick(1 * time.Second):
+			ac, err := ds.Datastore.AppConfig(ctx)
+			ds.mu.Lock()
+			ds.ac = ac
+			ds.acLastErr = err
+			ds.mu.Unlock()
+		case <-ctx.Done():
+			return
+		}
 	}
-
-	if _, err := conn.Do("SET", key, b, "EX", (24 * time.Hour).Seconds()); err != nil {
-		return fmt.Errorf("caching object in redis: %w", err)
-	}
-
-	return nil
-}
-
-func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := redis.ReadOnlyConn(ds.redisPool,
-		redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get()))
-	defer conn.Close()
-
-	data, err := redigo.Bytes(conn.Do("GET", key))
-	if err != nil {
-		return fmt.Errorf("getting value from cache: %w", err)
-	}
-
-	err = json.Unmarshal(data, v)
-	if err != nil {
-		return fmt.Errorf("unmarshaling object from cache: %w", err)
-	}
-
-	return nil
 }
 
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -68,28 +44,31 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 		return nil, err
 	}
 
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.mu.Lock()
+	ds.ac = ac
+	ds.acLastErr = nil
+	ds.mu.Unlock()
 
-	return ac, err
+	return ac, nil
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	ac := &fleet.AppConfig{}
-	ac.ApplyDefaults()
+	ds.mu.Lock()
+	ac := ds.ac
+	acLastErr := ds.acLastErr
+	ds.mu.Unlock()
 
-	err := ds.getFromRedis(CacheKeyAppConfig, ac)
-	if err == nil {
+	if acLastErr != nil {
+		return nil, acLastErr
+	} else if ac == nil {
+		ac, err := ds.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
 		return ac, nil
 	}
 
-	ac, err = ds.Datastore.AppConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
-
-	return ac, err
+	return ac, nil
 }
 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
@@ -98,5 +77,10 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return err
 	}
 
-	return ds.storeInRedis(CacheKeyAppConfig, info)
+	ds.mu.Lock()
+	ds.ac = info
+	ds.acLastErr = nil
+	ds.mu.Unlock()
+
+	return nil
 }
