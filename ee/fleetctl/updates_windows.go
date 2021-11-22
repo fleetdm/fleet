@@ -3,7 +3,11 @@
 
 package eefleetctl
 
-import "github.com/urfave/cli/v2"
+import (
+	"errors"
+
+	"github.com/urfave/cli/v2"
+)
 
 func UpdatesCommand() *cli.Command {
 	// Update management is disabled on Windows because file permissions need to be very particular

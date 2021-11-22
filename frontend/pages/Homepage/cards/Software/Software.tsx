@@ -7,7 +7,8 @@ import { ISoftware } from "interfaces/software";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
-import TableContainer from "components/TableContainer";
+import TableContainer from "components/TableContainer"; // @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import { generateTableHeaders } from "./SoftwareTableConfig";
 
@@ -23,6 +24,22 @@ interface ISoftwareCardProps {
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
+
+const VULNERABLE_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All sofware installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+];
 
 const PAGE_SIZE = 8;
 const MODAL_PAGE_SIZE = 20;
@@ -91,18 +108,28 @@ const Software = ({
     modalSoftwareSearchText,
     setModalSoftwareSearchText,
   ] = useState<string>("");
+  const [
+    isModalSoftwareVulnerable,
+    setIsModalSoftwareVulnerable,
+  ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
   const { data: software, isLoading: isLoadingSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["software", softwarePageIndex], () =>
-    softwareAPI.load({
-      page: softwarePageIndex,
-      perPage: PAGE_SIZE,
-      orderKey: "host_count",
-      orderDir: "desc",
-    })
+  >(
+    ["software", softwarePageIndex],
+    () =>
+      softwareAPI.load({
+        page: softwarePageIndex,
+        perPage: PAGE_SIZE,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+      }),
+    {
+      enabled: navTabIndex === 0,
+      refetchOnWindowFocus: false,
+    }
   );
 
   const {
@@ -114,25 +141,39 @@ const Software = ({
       softwareAPI.load({
         page: vSoftwarePageIndex,
         perPage: PAGE_SIZE,
-        orderKey: "host_count",
+        orderKey: "host_count,id",
         orderDir: "desc",
+        vulnerable: true,
       }),
     {
-      select: (data: ISoftware[]) => data.filter((s) => s.vulnerabilities),
+      enabled: navTabIndex === 1,
+      refetchOnWindowFocus: false,
     }
   );
 
   const { data: modalSoftware, isLoading: isLoadingModalSoftware } = useQuery<
     ISoftware[],
     Error
-  >(["modalSoftware", modalSoftwarePageIndex, modalSoftwareSearchText], () =>
-    softwareAPI.load({
-      page: modalSoftwarePageIndex,
-      perPage: MODAL_PAGE_SIZE,
-      query: modalSoftwareSearchText,
-      orderKey: "host_count",
-      orderDir: "desc",
-    })
+  >(
+    [
+      "modalSoftware",
+      modalSoftwarePageIndex,
+      modalSoftwareSearchText,
+      isModalSoftwareVulnerable,
+    ],
+    () =>
+      softwareAPI.load({
+        page: modalSoftwarePageIndex,
+        perPage: MODAL_PAGE_SIZE,
+        query: modalSoftwareSearchText,
+        orderKey: "host_count,id",
+        orderDir: "desc",
+        vulnerable: isModalSoftwareVulnerable,
+      }),
+    {
+      enabled: isModalOpen,
+      refetchOnWindowFocus: false,
+    }
   );
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -160,6 +201,18 @@ const Software = ({
     if (pageIndex !== modalSoftwarePageIndex) {
       setModalSoftwarePageIndex(pageIndex);
     }
+  };
+
+  const renderStatusDropdown = () => {
+    return (
+      <Dropdown
+        value={isModalSoftwareVulnerable}
+        className={`${baseClass}__status_dropdown`}
+        options={VULNERABLE_OPTIONS}
+        searchable={false}
+        onChange={(value: boolean) => setIsModalSoftwareVulnerable(value)}
+      />
+    );
   };
 
   const tableHeaders = generateTableHeaders();
@@ -241,6 +294,7 @@ const Software = ({
               disableActionButton
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
+              customControl={renderStatusDropdown}
             />
           </>
         </Modal>

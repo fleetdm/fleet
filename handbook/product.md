@@ -262,9 +262,9 @@ This section outlines the customer and community support process at Fleet.
 
 The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
 
-The individual on-call is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
+The on-call engineer is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
 
-The daily standup meeting at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
+The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
 
@@ -273,6 +273,17 @@ The daily standup meeting at Fleet provides time to discuss highlights and answe
 3. What should we remember next time?
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
+
+### Goals
+At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
+
+- Get familiar with and stay abreast of what our community wants and the problems they're having.
+
+- Make people feel heard and understood.  
+
+- Celebrate contributions. 
+
+- Triage bugs, identify community feature requests, community pull requests and community questions.
 
 ### Version support
 
@@ -286,28 +297,15 @@ Premium version supported for bug fixes: **Latest version only**
 
 Premium support for support/troubleshooting: **All versions**
 
-### Goals
-At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
-
-- Get familiar with and stay abreast of what our community wants and the problems they're having.
-
-- Make people feel heard and understood.  
-
-- Celebrate contributions. 
-
-- Triage bugs, identify community feature requests, community pull requests and community questions.
-
 ### How?
 
-- No matter what, folks who post a new comment in Slack or issue in GitHub get a **response** from the individual on-call within 1 business day. The response doesn't need to include an immediate answer.
+- No matter what, folks who post a new comment in Slack or issue in GitHub get a **response** from the on-call engineer within 1 business day. The response doesn't need to include an immediate answer.
 
 - The on-call engineer can discuss any items that require assistance at the end of the daily standup. They are also requested to attend the "Customer experience standup" where they can bring questions and stay abreast of what's happening with our customers.
 
 - If you do not understand the question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
 
-- If an appropriate response is outside your scope, please post to `#oncall-chatter`, a confidential Slack channel in the Fleet Slack workspace.
-
-- If the comment appears to be a feature request in a customer channel, please post a link to the customer's comment in `#oncall-chatter`. This way, an individual on the Product team can collect relevant information and file a GitHub issue.
+- If an appropriate response is outside your scope, please post to `#help-oncall`, a confidential Slack channel in the Fleet Slack workspace.
 
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 
@@ -330,11 +328,11 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-#### New feature request issues
+#### Feature requests
 
-After [requesting more details](#requesting-more-details), please add the milestone associated with the current time we are along the roadmap timeline. For example, if the current date is June 25, 2021, we would add the H1 2021 milestone to the issue.
+If the feature is requested by a customer, the on-call engineer is requested to create a feature request issue and follow up with the customer by linking them to this issue. This way, the customer can add additional comments or feedback to the newly filed feature request issue.
 
-Feature request issues automatically include the "idea" label. The "idea" label provides the signal that this issue is an item the Fleet team would like to discuss at a later date. The time of discussion is indicated by the issue's milestones.
+If the feature is requested by anyone other than a customer (ex. user in #fleet Slack), the on-call engineer is requested to point to the user to the [feature request GitHub issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title=) and kindly ask the user to create a feature request.
 
 #### Closing issues
 
@@ -347,7 +345,7 @@ To provide another way of tracking status without closing issues altogether, con
 
 ### Sources
 
-There are four sources that the individual on-call should monitor for activity:
+There are four sources that the on-call engineer should monitor for activity:
 
 1. Customer Slack channels - Found under the "Connections" section in Slack. These channels are usually titled "at-insert-customer-name-here"
 

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -165,7 +165,7 @@ func (svc Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Polic
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
-				return errors.Wrap(err, "getting team by name")
+				return ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
 				return err

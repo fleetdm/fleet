@@ -85,6 +85,7 @@ import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
+import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 interface IManageHostsProps {
@@ -164,6 +165,10 @@ const ManageHostsPage = ({
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
   const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
+  const [
+    showNoEnrollSecretBanner,
+    setShowNoEnrollSecretBanner,
+  ] = useState<boolean>(true);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
     false
   );
@@ -250,14 +255,18 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: globalSecrets, refetch: refetchGlobalSecrets } = useQuery<
-    IEnrollSecretsResponse,
-    Error,
-    IEnrollSecret[]
-  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
-    enabled: !!canEnrollGlobalHosts,
-    select: (data: IEnrollSecretsResponse) => data.secrets,
-  });
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
+    {
+      enabled: !!canEnrollGlobalHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
 
   const {
     isLoading: isTeamSecretsLoading,
@@ -445,6 +454,7 @@ const ManageHostsPage = ({
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
+    setShowNoEnrollSecretBanner(true);
 
     // set selected label
     const slugToFind =
@@ -479,6 +489,7 @@ const ManageHostsPage = ({
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
+    setShowNoEnrollSecretBanner(true);
 
     // set selected label
     const slugToFind =
@@ -781,7 +792,7 @@ const ManageHostsPage = ({
         refetchGlobalSecrets();
       }
       toggleSecretEditorModal();
-      refetchTeams();
+      isPremiumTier && refetchTeams();
 
       router.push(
         getNextLocationPath({
@@ -1515,6 +1526,41 @@ const ManageHostsPage = ({
 
   const selectedTeam = currentTeam?.id || 0;
 
+  const renderNoEnrollSecretBanner = () => {
+    const noTeamEnrollSecrets =
+      currentTeam &&
+      !!currentTeam?.id &&
+      !isTeamSecretsLoading &&
+      !teamSecrets?.length;
+    const noGlobalEnrollSecrets =
+      (!isPremiumTier ||
+        (isPremiumTier && !currentTeam?.id && !isLoadingTeams)) &&
+      !isGlobalSecretsLoading &&
+      !globalSecrets?.length;
+    return ((canEnrollHosts && noTeamEnrollSecrets) ||
+      (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
+      showNoEnrollSecretBanner ? (
+      <div className={`${baseClass}__no-enroll-secret-banner`}>
+        <div>
+          <span>
+            You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
+            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+          </span>
+        </div>
+        <div className={`dismiss-banner-button`}>
+          <button
+            className="button button--unstyled"
+            onClick={() =>
+              setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
+            }
+          >
+            <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+          </button>
+        </div>
+      </div>
+    ) : null;
+  };
+
   return (
     <div className="has-sidebar">
       {renderForm()}
@@ -1551,7 +1597,10 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          {renderSoftwareVulnerabilities()}
+          <div className={`${baseClass}__info-banners`}>
+            {renderNoEnrollSecretBanner()}
+            {renderSoftwareVulnerabilities()}
+          </div>
           {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
         </div>
       )}

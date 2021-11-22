@@ -144,7 +144,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	}, baseTime, deferred)
 	assert.Nil(t, err)
 
-	host, err = db.Host(context.Background(), host.ID)
+	host, err = db.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 

@@ -5,15 +5,17 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
+	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 // SSOSettings returns a subset of the Single Sign-On settings as configured in
@@ -28,7 +30,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "SessionSSOSettings getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "SessionSSOSettings getting app config")
 	}
 
 	settings := &fleet.SessionSSOSettings{
@@ -53,12 +55,12 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "InitiateSSO getting app config")
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting app config")
 	}
 
 	metadata, err := svc.getMetadata(appConfig)
 	if err != nil {
-		return "", errors.Wrap(err, "InitiateSSO getting metadata")
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
@@ -76,7 +78,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	if entityID == "" {
 		u, err := url.Parse(serverURL)
 		if err != nil {
-			return "", errors.Wrap(err, "parse server url")
+			return "", ctxerr.Wrap(ctx, err, "parse server url")
 		}
 		issuer = u.Hostname()
 	} else {
@@ -85,7 +87,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
 	if err != nil {
-		return "", errors.Wrap(err, "InitiateSSO creating authorization")
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
 	}
 
 	return idpURL, nil
@@ -108,7 +110,7 @@ func (svc *Service) getMetadata(config *fleet.AppConfig) (*sso.Metadata, error) 
 		return metadata, nil
 	}
 
-	return nil, errors.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
+	return nil, fmt.Errorf("missing metadata for idp %s", config.SSOSettings.IDPName)
 }
 
 func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SSOSession, error) {
@@ -120,7 +122,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "get config for sso")
+		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
 	// Load the request metadata if available
@@ -134,21 +136,21 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		// configured to do so.
 		metadata, err = svc.getMetadata(appConfig)
 		if err != nil {
-			return nil, errors.Wrap(err, "get sso metadata")
+			return nil, ctxerr.Wrap(ctx, err, "get sso metadata")
 		}
 		redirectURL = "/"
 	} else {
 		session, err := svc.ssoSessionStore.Get(auth.RequestID())
 		if err != nil {
-			return nil, errors.Wrap(err, "sso request invalid")
+			return nil, ctxerr.Wrap(ctx, err, "sso request invalid")
 		}
 		// Remove session to so that is can't be reused before it expires.
 		err = svc.ssoSessionStore.Expire(auth.RequestID())
 		if err != nil {
-			return nil, errors.Wrap(err, "remove sso request")
+			return nil, ctxerr.Wrap(ctx, err, "remove sso request")
 		}
 		if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-			return nil, errors.Wrap(err, "unmarshal metadata")
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal metadata")
 		}
 		redirectURL = session.OriginalURL
 	}
@@ -156,31 +158,31 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// Validate response
 	validator, err := sso.NewValidator(*metadata)
 	if err != nil {
-		return nil, errors.Wrap(err, "create validator from metadata")
+		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
 	}
 	// make sure the response hasn't been tampered with
 	auth, err = validator.ValidateSignature(auth)
 	if err != nil {
-		return nil, errors.Wrap(err, "signature validation failed")
+		return nil, ctxerr.Wrap(ctx, err, "signature validation failed")
 	}
 	// make sure the response isn't stale
 	err = validator.ValidateResponse(auth)
 	if err != nil {
-		return nil, errors.Wrap(err, "response validation failed")
+		return nil, ctxerr.Wrap(ctx, err, "response validation failed")
 	}
 
 	// Get and log in user
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
-		return nil, errors.Wrap(err, "find user in sso callback")
+		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
-		return nil, errors.New("user not configured to use sso")
+		return nil, ctxerr.New(ctx, "user not configured to use sso")
 	}
 	token, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "make session in sso callback")
+		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
 	}
 	result := &fleet.SSOSession{
 		Token:       token,
@@ -248,7 +250,7 @@ func (svc *Service) makeSession(ctx context.Context, id uint) (string, error) {
 
 	_, err = svc.ds.NewSession(ctx, session)
 	if err != nil {
-		return "", errors.Wrap(err, "creating new session")
+		return "", ctxerr.Wrap(ctx, err, "creating new session")
 	}
 
 	return sessionKey, nil
@@ -366,7 +368,7 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 	if sessionDuration != 0 && time.Since(session.AccessedAt) >= sessionDuration {
 		err := svc.ds.DestroySession(ctx, session)
 		if err != nil {
-			return errors.Wrap(err, "destroying session")
+			return ctxerr.Wrap(ctx, err, "destroying session")
 		}
 		return fleet.NewAuthRequiredError("expired session")
 	}

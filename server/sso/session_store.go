@@ -3,12 +3,12 @@ package sso
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 )
 
 // Session stores state for the lifetime of a single sign on session

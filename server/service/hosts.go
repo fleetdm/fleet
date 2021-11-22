@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -195,9 +195,9 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 
 func (svc Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
-		host, err := svc.ds.Host(ctx, id)
+		host, err := svc.ds.Host(ctx, id, false)
 		if err != nil {
-			return errors.Wrap(err, "get host for delete")
+			return ctxerr.Wrap(ctx, err, "get host for delete")
 		}
 
 		// Authorize again with team loaded now that we have team_id
