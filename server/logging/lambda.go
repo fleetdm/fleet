@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -12,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -43,7 +43,7 @@ func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName strin
 
 	sess, err := session.NewSession(conf)
 	if err != nil {
-		return nil, errors.Wrap(err, "create Lambda client")
+		return nil, fmt.Errorf("create Lambda client: %w", err)
 	}
 
 	if stsAssumeRoleArn != "" {
@@ -53,7 +53,7 @@ func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName strin
 		sess, err = session.NewSession(conf)
 
 		if err != nil {
-			return nil, errors.Wrap(err, "create Lambda client")
+			return nil, fmt.Errorf("create Lambda client: %w", err)
 		}
 	}
 	client := lambda.New(sess)
@@ -64,7 +64,7 @@ func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName strin
 		logger:       logger,
 	}
 	if err := f.validateFunction(); err != nil {
-		return nil, errors.Wrap(err, "validate lambda")
+		return nil, fmt.Errorf("validate lambda: %w", err)
 	}
 	return f, nil
 }
@@ -77,10 +77,10 @@ func (f *lambdaLogWriter) validateFunction() error {
 		},
 	)
 	if err != nil {
-		return errors.Wrapf(err, "dry run %s", f.functionName)
+		return fmt.Errorf("dry run %s: %w", f.functionName, err)
 	}
 	if out.FunctionError != nil {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"dry run %s function error: %s",
 			f.functionName,
 			*out.FunctionError,
@@ -111,10 +111,10 @@ func (f *lambdaLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			},
 		)
 		if err != nil {
-			return errors.Wrapf(err, "run %s", f.functionName)
+			return fmt.Errorf("run %s: %w", f.functionName, err)
 		}
 		if out.FunctionError != nil {
-			return errors.Errorf(
+			return fmt.Errorf(
 				"run %s function error: %s",
 				f.functionName,
 				*out.FunctionError,

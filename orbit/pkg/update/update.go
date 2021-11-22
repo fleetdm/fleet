@@ -4,6 +4,8 @@ package update
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
@@ -76,23 +77,23 @@ func New(opt Options) (*Updater, error) {
 
 	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, nil, httpClient)
 	if err != nil {
-		return nil, errors.Wrap(err, "init remote store")
+		return nil, fmt.Errorf("init remote store: %w", err)
 	}
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
 	var rootKeys []*data.Key
 	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-		return nil, errors.Wrap(err, "unmarshal root keys")
+		return nil, fmt.Errorf("unmarshal root keys: %w", err)
 	}
 
 	meta, err := opt.LocalStore.GetMeta()
 	if err != nil || meta["root.json"] == nil {
 		var rootKeys []*data.Key
 		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-			return nil, errors.Wrap(err, "unmarshal root keys")
+			return nil, fmt.Errorf("unmarshal root keys: %w", err)
 		}
 		if err := tufClient.Init(rootKeys, 1); err != nil {
-			return nil, errors.Wrap(err, "init tuf client")
+			return nil, fmt.Errorf("init tuf client: %w", err)
 		}
 	}
 
@@ -113,7 +114,7 @@ func (u *Updater) UpdateMetadata() error {
 		// An error is returned if we are already up-to-date. We can ignore that
 		// error.
 		if !client.IsLatestSnapshot(ctxerr.Cause(err)) {
-			return errors.Wrap(err, "update metadata")
+			return fmt.Errorf("update metadata: %w", err)
 		}
 	}
 	return nil
@@ -132,7 +133,7 @@ func (u *Updater) LocalPath(target, channel string) string {
 func (u *Updater) Lookup(target, channel string) (*data.TargetFileMeta, error) {
 	t, err := u.client.Target(u.RepoPath(target, channel))
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup %s@%s", target, channel)
+		return nil, fmt.Errorf("lookup %s@%s: %w", target, channel, err)
 	}
 
 	return &t, nil
@@ -142,7 +143,7 @@ func (u *Updater) Lookup(target, channel string) (*data.TargetFileMeta, error) {
 func (u *Updater) Targets() (data.TargetFiles, error) {
 	targets, err := u.client.Targets()
 	if err != nil {
-		return nil, errors.Wrapf(err, "get targets")
+		return nil, fmt.Errorf("get targets: %w", err)
 	}
 
 	return targets, nil
@@ -166,7 +167,7 @@ func (u *Updater) Get(target, channel string) (string, error) {
 		return localPath, u.Download(repoPath, localPath)
 	}
 	if !stat.Mode().IsRegular() {
-		return "", errors.Errorf("expected %s to be regular file", localPath)
+		return "", fmt.Errorf("expected %s to be regular file", localPath)
 	}
 
 	meta, err := u.Lookup(target, channel)
@@ -190,7 +191,7 @@ func (u *Updater) Download(repoPath, localPath string) error {
 	staging := filepath.Join(u.opt.RootDirectory, stagingDir)
 
 	if err := secure.MkdirAll(staging, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "initialize download dir")
+		return fmt.Errorf("initialize download dir: %w", err)
 	}
 
 	// Additional chmod only necessary on Windows, effectively a no-op on other
@@ -205,18 +206,18 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		constant.DefaultExecutableMode,
 	)
 	if err != nil {
-		return errors.Wrap(err, "open temp file for download")
+		return fmt.Errorf("open temp file for download: %w", err)
 	}
 	defer func() {
 		tmp.Close()
 		os.Remove(tmp.Name())
 	}()
 	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
-		return errors.Wrap(err, "chmod download")
+		return fmt.Errorf("chmod download: %w", err)
 	}
 
 	if err := secure.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "initialize download dir")
+		return fmt.Errorf("initialize download dir: %w", err)
 	}
 
 	// Additional chmod only necessary on Windows, effectively a no-op on other
@@ -227,10 +228,10 @@ func (u *Updater) Download(repoPath, localPath string) error {
 
 	// The go-tuf client handles checking of max size and hash.
 	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
-		return errors.Wrapf(err, "download target %s", repoPath)
+		return fmt.Errorf("download target %s: %w", repoPath, err)
 	}
 	if err := tmp.Close(); err != nil {
-		return errors.Wrap(err, "close tmp file")
+		return fmt.Errorf("close tmp file: %w", err)
 	}
 
 	// Attempt to exec the new binary only if the platform matches. This will
@@ -240,19 +241,19 @@ func (u *Updater) Download(repoPath, localPath string) error {
 		// Note that this would fail for any binary that returns nonzero for --help.
 		out, err := exec.Command(tmp.Name(), "--help").CombinedOutput()
 		if err != nil {
-			return errors.Wrapf(err, "exec new version: %s", string(out))
+			return fmt.Errorf("exec new version: %s: %w", string(out), err)
 		}
 	}
 
 	if constant.PlatformName == "windows" {
 		// Remove old file first
 		if err := os.Rename(localPath, localPath+".old"); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return errors.Wrap(err, "rename old")
+			return fmt.Errorf("rename old: %w", err)
 		}
 	}
 
 	if err := os.Rename(tmp.Name(), localPath); err != nil {
-		return errors.Wrap(err, "move download")
+		return fmt.Errorf("move download: %w", err)
 	}
 
 	return nil
@@ -268,7 +269,7 @@ func (u *Updater) initializeDirectories() error {
 	} {
 		err := secure.MkdirAll(dir, constant.DefaultDirMode)
 		if err != nil {
-			return errors.Wrap(err, "initialize directories")
+			return fmt.Errorf("initialize directories: %w", err)
 		}
 	}
 

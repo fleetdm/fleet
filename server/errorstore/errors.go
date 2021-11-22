@@ -23,7 +23,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/rotisserie/eris"
+	"github.com/rotisserie/eris" //nolint:depguard
 )
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and

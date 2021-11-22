@@ -10,16 +10,16 @@ package launcher
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"github.com/go-kit/kit/log"
-	"github.com/kolide/osquery-go/plugin/distributed"
-	"github.com/kolide/osquery-go/plugin/logger"
-	"github.com/pkg/errors"
-
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/go-kit/kit/log"
+	"github.com/kolide/osquery-go/plugin/distributed"
+	"github.com/kolide/osquery-go/plugin/logger"
 )
 
 // launcherWrapper wraps the TLS interface.
@@ -49,7 +49,7 @@ func (svc *launcherWrapper) RequestConfig(ctx context.Context, nodeKey string) (
 
 	config, err := svc.tls.GetClientConfig(newCtx)
 	if err != nil {
-		return "", false, errors.Wrap(err, "get config for launcher")
+		return "", false, ctxerr.Wrap(ctx, err, "get config for launcher")
 	}
 
 	if options, ok := config["options"].(map[string]interface{}); ok {
@@ -61,7 +61,7 @@ func (svc *launcherWrapper) RequestConfig(ctx context.Context, nodeKey string) (
 
 	configJSON, err := json.Marshal(config)
 	if err != nil {
-		return "", false, errors.Wrap(err, "encoding config for launcher")
+		return "", false, ctxerr.Wrap(ctx, err, "encoding config for launcher")
 	}
 
 	return string(configJSON), false, nil
@@ -75,7 +75,7 @@ func (svc *launcherWrapper) RequestQueries(ctx context.Context, nodeKey string) 
 
 	queryMap, accelerate, err := svc.tls.GetDistributedQueries(newCtx)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "get queries for launcher")
+		return nil, false, ctxerr.Wrap(ctx, err, "get queries for launcher")
 	}
 
 	result := &distributed.GetQueriesResult{
@@ -89,7 +89,7 @@ func (svc *launcherWrapper) RequestQueries(ctx context.Context, nodeKey string) 
 func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, logType logger.LogType, logs []string) (string, string, bool, error) {
 	newCtx, invalid, err := svc.authenticateHost(ctx, nodeKey)
 	if err != nil {
-		return "", "", invalid, errors.Wrap(err, "authenticate launcher")
+		return "", "", invalid, ctxerr.Wrap(ctx, err, "authenticate launcher")
 	}
 
 	switch logType {
@@ -99,14 +99,14 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 			statuses = append(statuses, []byte(log))
 		}
 		err = svc.tls.SubmitStatusLogs(newCtx, statuses)
-		return "", "", false, errors.Wrap(err, "submit status logs from launcher")
+		return "", "", false, ctxerr.Wrap(ctx, err, "submit status logs from launcher")
 	case logger.LogTypeSnapshot, logger.LogTypeString:
 		var results []json.RawMessage
 		for _, log := range logs {
 			results = append(results, []byte(log))
 		}
 		err = svc.tls.SubmitResultLogs(newCtx, results)
-		return "", "", false, errors.Wrap(err, "submit result logs from launcher")
+		return "", "", false, ctxerr.Wrap(ctx, err, "submit result logs from launcher")
 	default:
 		// We have a logTypeAgent which is not there in the osquery-go enum.
 		// See https://github.com/kolide/launcher/issues/183
@@ -131,7 +131,7 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 	// TODO can Launcher expose the error messages?
 	messages := make(map[string]string)
 	err = svc.tls.SubmitDistributedQueryResults(newCtx, osqueryResults, statuses, messages)
-	return "", "", false, errors.Wrap(err, "submit launcher results")
+	return "", "", false, ctxerr.Wrap(ctx, err, "submit launcher results")
 }
 
 func (svc *launcherWrapper) CheckHealth(ctx context.Context) (int32, error) {

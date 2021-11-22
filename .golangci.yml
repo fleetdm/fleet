@@ -20,6 +20,7 @@ linters-settings:
     include-go-root: false
     packages-with-error-message:
       - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
+      - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
@@ -49,10 +50,6 @@ linters-settings:
 
 issues:
   exclude-rules:
-    - path: server/contexts/ctxerr/[^/]+\.go$
+    - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
       linters:
         - depguard
-    - path: server/errorstore/[^/]+\.go$
-      linters:
-        - depguard
-

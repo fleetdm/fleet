@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -256,7 +256,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 		rootCertPool = x509.NewCertPool()
 		pem, err := ioutil.ReadFile(t.TLSCA)
 		if err != nil {
-			return nil, errors.Wrap(err, "read server-ca pem")
+			return nil, fmt.Errorf("read server-ca pem: %w", err)
 		}
 		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 			return nil, errors.New("failed to append PEM.")
@@ -270,7 +270,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 		clientCert := make([]tls.Certificate, 0, 1)
 		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "load client cert and key")
+			return nil, fmt.Errorf("load client cert and key: %w", err)
 		}
 		clientCert = append(clientCert, certs)
 		cfg.Certificates = clientCert

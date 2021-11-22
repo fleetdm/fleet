@@ -8,14 +8,14 @@ package insecure
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -88,14 +88,14 @@ type TLSProxy struct {
 func NewTLSProxy(targetURL string) (*TLSProxy, error) {
 	cert, err := tls.X509KeyPair([]byte(ServerCert), []byte(serverKey))
 	if err != nil {
-		return nil, errors.Wrap(err, "load keypair")
+		return nil, fmt.Errorf("load keypair: %w", err)
 	}
 	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
 
 	// Assign any available port
 	listener, err := tls.Listen("tcp", "localhost:0", cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "bind localhost")
+		return nil, fmt.Errorf("bind localhost: %w", err)
 	}
 
 	addr, ok := listener.Addr().(*net.TCPAddr)
@@ -105,7 +105,7 @@ func NewTLSProxy(targetURL string) (*TLSProxy, error) {
 
 	handler, err := newProxyHandler(targetURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "make proxy handler")
+		return nil, fmt.Errorf("make proxy handler: %w", err)
 	}
 
 	proxy := &TLSProxy{
@@ -124,17 +124,12 @@ func (p *TLSProxy) InsecureServeTLS() error {
 	}
 
 	err := p.server.Serve(p.listener)
-	return errors.Wrap(err, "servetls returned")
+	return fmt.Errorf("servetls returned: %w", err)
 }
 
 // Close the server and associated listener. The server may not be reused after
 // calling Close().
 func (p *TLSProxy) Close() error {
-	// err := p.listener.Close()
-	// if err != nil {
-	// 	return errors.Wrap(err, "close listener")
-	// }
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return p.server.Shutdown(ctx)
@@ -143,7 +138,7 @@ func (p *TLSProxy) Close() error {
 func newProxyHandler(targetURL string) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(targetURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "parse target url")
+		return nil, fmt.Errorf("parse target url: %w", err)
 	}
 
 	reverseProxy := &httputil.ReverseProxy{
