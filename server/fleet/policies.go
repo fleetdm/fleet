@@ -91,21 +91,29 @@ func (p ModifyPolicyPayload) Verify() error {
 
 // PolicyData holds data of a fleet policy.
 type PolicyData struct {
+	// ID is the unique ID of a policy.
 	ID uint `json:"id"`
 	// Name is the name of the policy query.
-	Name        string `json:"name" db:"name"`
-	Query       string `json:"query" db:"query"`
+	Name string `json:"name" db:"name"`
+	// Query is the actual query to run on the osquery agents.
+	Query string `json:"query" db:"query"`
+	// Description describes the policy.
 	Description string `json:"description" db:"description"`
-	AuthorID    *uint  `json:"author_id" db:"author_id"`
+	// AuthorID is the ID of the author of the policy.
+	//
+	// AuthorID is nil if the author is deleted from the system
+	AuthorID *uint `json:"author_id" db:"author_id"`
 	// AuthorName is retrieved with a join to the users table in the MySQL backend (using AuthorID).
 	AuthorName string `json:"author_name" db:"author_name"`
 	// AuthorEmail is retrieved with a join to the users table in the MySQL backend (using AuthorID).
-	AuthorEmail      string  `json:"author_email" db:"author_email"`
-	PassingHostCount uint    `json:"passing_host_count" db:"passing_host_count"`
-	FailingHostCount uint    `json:"failing_host_count" db:"failing_host_count"`
-	TeamID           *uint   `json:"team_id" db:"team_id"`
-	Resolution       *string `json:"resolution,omitempty" db:"resolution"`
+	AuthorEmail string `json:"author_email" db:"author_email"`
+	// TeamID is the ID of the team the policy belongs to.
+	// If TeamID is nil, then this is a global policy.
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 
+	// TeamIDX is a virtual column used to enforce uniqueness of policy names on teams.
 	TeamIDX uint `json:"-" db:"team_id_x"`
 
 	UpdateCreateTimestamps
@@ -115,7 +123,9 @@ type PolicyData struct {
 type Policy struct {
 	PolicyData
 
+	// PassingHostCount is the number of hosts this policy passes on.
 	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
+	// FailingHostCount is the number of hosts this policy fails on.
 	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
 }
 

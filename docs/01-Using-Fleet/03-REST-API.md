@@ -3518,6 +3518,8 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 
+Either `query` or `query_id` must be provided.
+
 #### Example Add Policy
 
 `POST /api/v1/fleet/global/policies`
@@ -3774,6 +3776,8 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
+The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
+
 `POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
@@ -3786,6 +3790,8 @@ Team policies work the same as policies, but at the team level.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+
+Either `query` or `query_id` must be provided.
 
 #### Example
 

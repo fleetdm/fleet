@@ -796,9 +796,11 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.SavePolicy(ctx, &fleet.Policy{
-		ID:    99999999,
-		Name:  "non-existent query",
-		Query: "select 1;",
+		PolicyData: fleet.PolicyData{
+			ID:    99999999,
+			Name:  "non-existent query",
+			Query: "select 1;",
+		},
 	})
 	require.Error(t, err)
 	var nfe *notFoundError

@@ -38,16 +38,19 @@ func constraintsForTable(tx *sql.Tx, table string, referencedTables map[string]s
 	query := `SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND CONSTRAINT_NAME <> 'PRIMARY'`
 	rows, err := tx.Query(query, table) //nolint
 	if err != nil {
-		return nil, errors.Wrap(err, "getting fk for scheduled_query_stats")
+		return nil, errors.Wrapf(err, "getting fk for %s", table)
 	}
 	for rows.Next() {
 		var constraintName string
-		var referencedTable string
+		var referencedTable sql.NullString
 		err := rows.Scan(&constraintName, &referencedTable)
 		if err != nil {
-			return nil, errors.Wrap(err, "scanning fk for scheduled_query_stats")
+			return nil, errors.Wrapf(err, "scanning fk for %s", table)
 		}
-		if _, ok := referencedTables[referencedTable]; ok {
+		if !referencedTable.Valid {
+			continue
+		}
+		if _, ok := referencedTables[referencedTable.String]; ok {
 			constraints = append(constraints, constraintName)
 		}
 	}
