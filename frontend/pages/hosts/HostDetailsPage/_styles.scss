@@ -480,7 +480,7 @@
         padding-right: 0px;
       }
       &:last-child {
-        width: 200px;
+        width: 150px;
         padding: 0px;
         overflow: none;
       }
@@ -491,10 +491,6 @@
 
       &.source__header {
         width: 20%;
-      }
-
-      &.version__header {
-        width: 10%;
       }
     }
     tr {
