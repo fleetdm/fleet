@@ -104,8 +104,6 @@ const Software = ({
   const [modalSoftwarePageIndex, setModalSoftwarePageIndex] = useState<number>(
     0
   );
-  const [software, setSoftware] = useState<ISoftware[]>();
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
     modalSoftwareSearchText,
     setModalSoftwareSearchText,
@@ -116,24 +114,22 @@ const Software = ({
   ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
-  useQuery<ISoftware[], Error>(
+  const { data: software, isLoading: isLoadingSoftware } = useQuery<
+    ISoftware[],
+    Error
+  >(
     ["software", softwarePageIndex],
-    () => {
-      setIsLoadingSoftware(true);
-      return softwareAPI.load({
+    () =>
+      softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "host_count,id",
         orderDir: "desc",
-      });
-    },
+      }),
     {
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
-      onSuccess: (softwareResponse) => {
-        setSoftware(softwareResponse);
-        setIsLoadingSoftware(false);
-      },
+      keepPreviousData: true,
     }
   );
 
@@ -153,6 +149,7 @@ const Software = ({
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -178,6 +175,7 @@ const Software = ({
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
