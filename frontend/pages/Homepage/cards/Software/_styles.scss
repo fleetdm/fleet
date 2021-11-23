@@ -87,16 +87,19 @@
 
       thead {
         .name__header {
-          width: 60%;
+          width: 70%;
         }
         .version__header {
-          width: 40%;
+          width: 30%;
+          border-right: 0; // Remove this when hosts column returns
+          padding-right: 0; // Remove this when hosts column returns
         }
-        .host_count__header {
-          border-right: 0;
-          padding-right: 0;
-          width: 60px;
-        }
+        // Commented out until hosts column returns
+        // .host_count__header {
+        //   border-right: 0;
+        //   padding-right: 0;
+        //   width: 60px;
+        // }
         .id__header {
           padding: 0;
           border-left: 0;
