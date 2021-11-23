@@ -15,9 +15,7 @@ import (
 
 func TestCachedAppConfig(t *testing.T) {
 	mockedDS := new(mock.Store)
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	ds := New(ctx, mockedDS)
+	ds := New(mockedDS)
 
 	var appConfigSet *fleet.AppConfig
 	mockedDS.NewAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {

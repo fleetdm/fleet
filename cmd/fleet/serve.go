@@ -252,10 +252,7 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
-
-			ds = cached_mysql.New(ctx, ds)
+			ds = cached_mysql.New(ds)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
@@ -374,6 +371,8 @@ the way that the Fleet server works.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()

@@ -55,6 +55,7 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/client_model v0.2.0 // indirect

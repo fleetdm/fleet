@@ -2,39 +2,27 @@ package cached_mysql
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/patrickmn/go-cache"
 )
 
 type cachedMysql struct {
 	fleet.Datastore
 
-	mu        sync.Mutex
-	ac        *fleet.AppConfig
-	acLastErr error
+	c *cache.Cache
 }
 
-func New(ctx context.Context, ds fleet.Datastore) fleet.Datastore {
-	cds := &cachedMysql{Datastore: ds}
-	go cds.refresher(ctx)
+const (
+	AppConfigKey               = "AppConfig"
+	DefaultAppConfigExpiration = 1 * time.Second
+)
 
-	return cds
-}
-
-func (ds *cachedMysql) refresher(ctx context.Context) {
-	for {
-		select {
-		case <-time.Tick(1 * time.Second):
-			ac, err := ds.Datastore.AppConfig(ctx)
-			ds.mu.Lock()
-			ds.ac = ac
-			ds.acLastErr = err
-			ds.mu.Unlock()
-		case <-ctx.Done():
-			return
-		}
+func New(ds fleet.Datastore) fleet.Datastore {
+	return &cachedMysql{
+		Datastore: ds,
+		c:         cache.New(5*time.Minute, 10*time.Minute),
 	}
 }
 
@@ -44,25 +32,24 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 		return nil, err
 	}
 
-	ds.mu.Lock()
-	ds.ac = ac
-	ds.acLastErr = nil
-	ds.mu.Unlock()
+	ds.c.Set(AppConfigKey, ac, DefaultAppConfigExpiration)
 
 	return ac, nil
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	ds.mu.Lock()
-	ac := ds.ac
-	acLastErr := ds.acLastErr
-	ds.mu.Unlock()
-
-	if acLastErr != nil {
-		return nil, acLastErr
-	} else if ac == nil {
-		return ds.Datastore.AppConfig(ctx)
+	cachedAc, found := ds.c.Get(AppConfigKey)
+	if found {
+		copyAc := *cachedAc.(*fleet.AppConfig)
+		return &copyAc, nil
 	}
+
+	ac, err := ds.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(AppConfigKey, ac, DefaultAppConfigExpiration)
 
 	return ac, nil
 }
@@ -73,10 +60,7 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return err
 	}
 
-	ds.mu.Lock()
-	ds.ac = info
-	ds.acLastErr = nil
-	ds.mu.Unlock()
+	ds.c.Set(AppConfigKey, info, DefaultAppConfigExpiration)
 
 	return nil
 }
