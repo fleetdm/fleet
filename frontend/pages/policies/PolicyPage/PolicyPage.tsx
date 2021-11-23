@@ -85,7 +85,7 @@ const PolicyPage = ({
     }
   );
 
-  // if URL is like `/queries/1?host_ids=22`, add the host
+  // if URL is like `/policies/1?host_ids=22`, add the host
   // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
