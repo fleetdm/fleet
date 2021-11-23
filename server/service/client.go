@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -70,14 +71,10 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		}
 	}
 
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: insecureSkipVerify,
-				RootCAs:            rootCAPool,
-			},
-		},
-	}
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSConfig(&tls.Config{
+		InsecureSkipVerify: insecureSkipVerify,
+		RootCAs:            rootCAPool,
+	}))
 
 	client := &Client{
 		addr:               addr,
