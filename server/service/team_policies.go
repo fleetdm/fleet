@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -67,21 +66,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 			message: fmt.Sprintf("policy payload verification: %s", err),
 		}
 	}
-
 	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
-
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
-	}
-
 	return policy, nil
 }
 
@@ -203,24 +191,6 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	if err != nil {
 		return nil, err
 	}
-	if len(ids) == 1 {
-		err = svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"id": ids[0]},
-		)
-	} else {
-		err = svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedMutiplePolicy,
-			&map[string]interface{}{"ids": ids},
-		)
-	}
-	if err != nil {
-		return nil, err
-	}
 	return ids, nil
 }
 
@@ -295,15 +265,6 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
-	}
-
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedPolicy,
-		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
 	}
 
 	return policy, nil
