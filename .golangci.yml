@@ -26,6 +26,9 @@ linters-settings:
   gocritic:
     enabled-checks:
       - ruleguard
+    settings:
+      ruleguard:
+        rules: "tools/ci/rules.go"
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default

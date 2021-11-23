@@ -40,6 +40,7 @@ func NewClient(opts ...ClientOpt) *http.Client {
 		opt(&co)
 	}
 
+	//nolint:gocritic
 	cli := &http.Client{
 		Timeout: co.timeout,
 	}
