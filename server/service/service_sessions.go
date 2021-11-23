@@ -18,6 +18,9 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+// SSOSettings returns a subset of the Single Sign-On settings as configured in
+// the app config. Those can be exposed e.g. via the response to an HTTP request,
+// and as such should not contain sensitive information.
 func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings, error) {
 	// skipauth: Basic SSO settings are available to unauthenticated users (so
 	// that they have the necessary information to initiate SSO).
@@ -38,6 +41,11 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	return settings, nil
 }
 
+// InitiateSSO initiates a Single Sign-On flow for a request to visit the
+// protected URL identified by redirectURL. It returns the URL of the identity
+// provider to make a request to to proceed with the authentication via that
+// external service, and stores ephemeral session state to validate the
+// callback from the identity provider to finalize the SSO flow.
 func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
@@ -76,6 +84,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	} else {
 		issuer = entityID
 	}
+
 	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
