@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/pprof"
 
@@ -43,7 +44,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -52,6 +53,19 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 	r.Handle("/debug/errors", eh)
 	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		pprof.Index(rw, req)
+	})
+	r.HandleFunc("/debug/migrations", func(rw http.ResponseWriter, r *http.Request) {
+		status, err := ds.MigrationStatus(r.Context())
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		b, err := json.Marshal(&status)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rw.Write(b)
 	})
 
 	mw := &debugAuthenticationMiddleware{

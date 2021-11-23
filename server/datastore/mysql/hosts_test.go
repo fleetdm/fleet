@@ -1832,6 +1832,7 @@ func getReads(t *testing.T, ds *Datastore) int {
 	rows, err := ds.writer.Query("show engine innodb status")
 	require.NoError(t, err)
 	defer rows.Close()
+	r := 0
 	for rows.Next() {
 		type_, name, status := "", "", ""
 		require.NoError(t, rows.Scan(&type_, &name, &status))
@@ -1843,9 +1844,11 @@ func getReads(t *testing.T, ds *Datastore) int {
 		require.Len(t, parts, 4)
 		read, err := strconv.Atoi(parts[len(parts)-1])
 		require.NoError(t, err)
-		return read
+		r = read
+		break
 	}
-	return 0
+	require.NoError(t, rows.Err())
+	return r
 }
 
 func testHostsReadsLessRows(t *testing.T, ds *Datastore) {

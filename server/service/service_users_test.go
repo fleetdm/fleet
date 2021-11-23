@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -122,9 +123,10 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -167,9 +169,10 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }

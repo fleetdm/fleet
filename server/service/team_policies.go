@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -10,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 
 	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating policy")
+		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
 
 	if err := svc.ds.NewActivity(
@@ -294,7 +294,7 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {
-		return nil, errors.Wrap(err, "saving policy")
+		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
 
 	if err := svc.ds.NewActivity(

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -77,7 +77,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	// by the session ID and request ID
 	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
 	if err != nil {
-		return errors.Wrap(err, "find carve by session_id")
+		return ctxerr.Wrap(ctx, err, "find carve by session_id")
 	}
 
 	if payload.RequestId != carve.RequestId {
@@ -99,7 +99,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	}
 
 	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
-		return errors.Wrap(err, "save block data")
+		return ctxerr.Wrap(ctx, err, "save block data")
 	}
 
 	return nil
@@ -128,7 +128,7 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 
 	metadata, err := svc.carveStore.Carve(ctx, carveId)
 	if err != nil {
-		return nil, errors.Wrap(err, "get carve by name")
+		return nil, ctxerr.Wrap(ctx, err, "get carve by name")
 	}
 
 	if metadata.Expired {
@@ -141,7 +141,7 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 
 	data, err := svc.carveStore.GetBlock(ctx, metadata, blockId)
 	if err != nil {
-		return nil, errors.Wrapf(err, "get block %d", blockId)
+		return nil, ctxerr.Wrapf(ctx, err, "get block %d", blockId)
 	}
 
 	return data, nil

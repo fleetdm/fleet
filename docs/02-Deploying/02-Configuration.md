@@ -1778,6 +1778,21 @@ AWS S3 Region. Leave blank to enable region discovery.
   	region: us-east-1
   ```
 
+#### Upgrades
+
+##### allow_missing_migations
+
+If set then `fleet serve` will run even if there are database migrations missing.
+
+- Default value: `false`
+- Environment variable: `FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS`
+- Config file format:
+
+  ```
+  upgrades:
+    allow_missing_migrations: true
+  ```
+
 #### Vulnerabilities
 
 ##### databases_path

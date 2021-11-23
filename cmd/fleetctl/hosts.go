@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -218,6 +218,11 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 }
 
+// UpgradesConfig defines configs related to fleet server upgrades.
+type UpgradesConfig struct {
+	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -241,6 +246,7 @@ type FleetConfig struct {
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
+	Upgrades         UpgradesConfig
 }
 
 type TLS struct {
@@ -256,7 +262,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 		rootCertPool = x509.NewCertPool()
 		pem, err := ioutil.ReadFile(t.TLSCA)
 		if err != nil {
-			return nil, errors.Wrap(err, "read server-ca pem")
+			return nil, fmt.Errorf("read server-ca pem: %w", err)
 		}
 		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 			return nil, errors.New("failed to append PEM.")
@@ -270,7 +276,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 		clientCert := make([]tls.Certificate, 0, 1)
 		certs, err := tls.LoadX509KeyPair(t.TLSCert, t.TLSKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "load client cert and key")
+			return nil, fmt.Errorf("load client cert and key: %w", err)
 		}
 		clientCert = append(clientCert, certs)
 		cfg.Certificates = clientCert
@@ -520,6 +526,10 @@ func (man Manager) addConfigs() {
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
+
+	// Upgrades
+	man.addConfigBool("upgrades.allow_missing_migrations", false,
+		"Allow serve to run even if migrations are missing.")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -687,6 +697,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
+		},
+		Upgrades: UpgradesConfig{
+			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
 		},
 	}
 }

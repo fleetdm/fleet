@@ -373,7 +373,7 @@ type Datastore interface {
 	// MigrateData populates built-in data
 	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
-	MigrationStatus(ctx context.Context) (MigrationStatus, error)
+	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 
@@ -407,12 +407,39 @@ type Datastore interface {
 	UpdateQueryAggregatedStats(ctx context.Context) error
 }
 
-type MigrationStatus int
+type MigrationStatus struct {
+	// StatusCode holds the code for the migration status.
+	//
+	// If StatusCode is NoMigrationsCompleted or AllMigrationsCompleted
+	// then all other fields are empty.
+	//
+	// If StatusCode is SomeMigrationsCompleted, then missing migrations
+	// are available in MissingTable and MissingData.
+	//
+	// If StatusCode is UnknownMigrations, then unknown migrations
+	// are available in UnknownTable and UnknownData.
+	StatusCode MigrationStatusCode `json:"status_code"`
+	// MissingTable holds the missing table migrations.
+	MissingTable []int64 `json:"missing_table"`
+	// MissingTable holds the missing data migrations.
+	MissingData []int64 `json:"missing_data"`
+	// UnknownTable holds unknown applied table migrations.
+	UnknownTable []int64 `json:"unknown_table"`
+	// UnknownTable holds unknown applied data migrations.
+	UnknownData []int64 `json:"unknown_data"`
+}
+
+type MigrationStatusCode int
 
 const (
-	NoMigrationsCompleted = iota
+	// NoMigrationsCompleted indicates the database has no migrations installed.
+	NoMigrationsCompleted MigrationStatusCode = iota
+	// SomeMigrationsCompleted indicates some (not all) migrations are missing.
 	SomeMigrationsCompleted
+	// AllMigrationsCompleted means all migrations have been installed successfully.
 	AllMigrationsCompleted
+	// UnknownMigrations means some unidentified migrations were detected on the database.
+	UnknownMigrations
 )
 
 // NotFoundError is returned when the datastore resource cannot be found.
