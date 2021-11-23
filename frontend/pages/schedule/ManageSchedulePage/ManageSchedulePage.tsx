@@ -26,6 +26,7 @@ import paths from "router/paths";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import TeamsDropdown from "components/TeamsDropdown";
 import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
@@ -125,7 +126,6 @@ interface ITeamOptions {
 
 const ManageSchedulePage = ({
   params: { team_id },
-  location,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
@@ -133,17 +133,23 @@ const ManageSchedulePage = ({
 
   const {
     currentUser,
+    currentTeam,
     isOnGlobalTeam,
+    isFreeTier,
     isPremiumTier,
     isAnyTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
 
-  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
-    enabled: !!isPremiumTier,
-    select: (data) => data.teams,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: teams, isLoading: isLoadingTeams } = useQuery(
+    ["teams"],
+    () => teamsAPI.loadAll({}),
+    {
+      enabled: !!isPremiumTier,
+      select: (data) => data.teams,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const { data: fleetQueries } = useQuery(
     ["fleetQueries"],
@@ -162,7 +168,7 @@ const ManageSchedulePage = ({
     return !!permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, teamId);
   })();
 
-  const onChangeSelectedTeam = (selectedTeamId: number) => {
+  const handleTeamSelect = (selectedTeamId: number) => {
     if (isNaN(selectedTeamId)) {
       dispatch(push(MANAGE_SCHEDULE));
     } else {
@@ -179,7 +185,7 @@ const ManageSchedulePage = ({
       });
       if (adminOrMaintainerTeam) {
         teamId = adminOrMaintainerTeam.id;
-        onChangeSelectedTeam(teamId);
+        handleTeamSelect(teamId);
       }
     }
   };
@@ -265,55 +271,6 @@ const ManageSchedulePage = ({
   const toggleRemoveScheduledQueryModal = useCallback(() => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
-
-  const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
-    const teamOptions: ITeamOptions[] = [];
-
-    if (isAnyTeamMaintainerOrTeamAdmin && currentUser) {
-      currentUser.teams.forEach((team) => {
-        if (team.role === "admin" || team.role === "maintainer") {
-          teamOptions.push({
-            disabled: false,
-            label: team.name,
-            value: team.id,
-          });
-        }
-      });
-    } else if (isOnGlobalTeam && teams) {
-      teamOptions.push({
-        disabled: false,
-        label: "All teams",
-        value: "global",
-      });
-
-      teams.forEach((team: ITeam) => {
-        teamOptions.push({
-          disabled: false,
-          label: team.name,
-          value: team.id,
-        });
-      });
-    }
-
-    return teamOptions;
-  };
-
-  const renderTitleOrDropdown = (): JSX.Element => {
-    const dropDownOptions = generateTeamOptionsDropdownItems();
-    return dropDownOptions.length === 1 ? (
-      <h1>{dropDownOptions[0].label}</h1>
-    ) : (
-      <Dropdown
-        value={selectedTeam}
-        className={`${baseClass}__team-dropdown`}
-        options={dropDownOptions}
-        searchable={false}
-        onChange={(newSelectedValue: number) =>
-          onChangeSelectedTeam(newSelectedValue)
-        }
-      />
-    );
-  };
 
   const onRemoveScheduledQueryClick = (
     selectedTableQueryIds: number[]
@@ -430,15 +387,6 @@ const ManageSchedulePage = ({
     [dispatch, teamId, toggleScheduleEditorModal]
   );
 
-  if (selectedTeam === "global" && isTeamMaintainerOrTeamAdmin) {
-    const teamMaintainerTeams = generateTeamOptionsDropdownItems();
-    if (teamMaintainerTeams.length) {
-      dispatch(
-        push(MANAGE_TEAM_SCHEDULE(Number(teamMaintainerTeams[0].value)))
-      );
-    }
-  }
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
@@ -459,7 +407,20 @@ const ManageSchedulePage = ({
               </div>
             ) : (
               <div>
-                {renderTitleOrDropdown()}
+                {isPremiumTier ? (
+                  <TeamsDropdown
+                    currentTeamId={currentTeam?.id || 0}
+                    isLoading={isLoadingTeams}
+                    teams={teams || []}
+                    onChange={(newSelectedValue: number) =>
+                      handleTeamSelect(newSelectedValue)
+                    }
+                  />
+                ) : (
+                  <h1 className={`${baseClass}__title`}>
+                    <span>Policies</span>
+                  </h1>
+                )}
                 <div className={`${baseClass}__description`}>
                   {isNaN(teamId) ? (
                     <p>
