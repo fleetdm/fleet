@@ -339,13 +339,11 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
-	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count,id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "name,id", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
-	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
