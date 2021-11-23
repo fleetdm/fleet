@@ -516,3 +516,13 @@ spec:
   query: select * from shimcache
   purpose: Informational
   contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get running docker containers
+  platforms: macOS, Linux
+  description: Returns the running Docker containers.
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  contributors: DominusKelvin
