@@ -1,4 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
+import { QueryPlatform } from "interfaces/query";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -77,6 +78,7 @@ export const DEFAULT_QUERY = {
   saved: false,
   author_id: 0,
   packs: [],
+  platform: "darwin,windows,linux" as QueryPlatform,
 };
 
 export const DEFAULT_CAMPAIGN = {

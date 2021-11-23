@@ -19,11 +19,22 @@ export default PropTypes.shape({
   packs: PropTypes.arrayOf(packInterface),
   stats: scheduledQueryStatsInterface,
 });
+
+export type QueryPlatform =
+  | "darwin"
+  | "windows"
+  | "linux"
+  | "darwin,windows,linux"
+  | "darwin,windows"
+  | "darwin,linux"
+  | "windows,linux";
+
 export interface IQueryFormData {
   description?: string | number | boolean | any[] | undefined;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
   observer_can_run?: string | number | boolean | any[] | undefined;
+  platform?: QueryPlatform | null;
 }
 
 export interface IQuery {
@@ -39,6 +50,7 @@ export interface IQuery {
   author_email: string;
   observer_can_run: boolean;
   packs: IPack[];
+  platform?: QueryPlatform | null;
   stats?: IScheduledQueryStats;
 }
 

@@ -55,6 +55,7 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryPlatform,
   } = useContext(QueryContext);
 
   useEffect(() => {
@@ -94,6 +95,7 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
+      lastEditedQueryPlatform,
     });
 
     try {

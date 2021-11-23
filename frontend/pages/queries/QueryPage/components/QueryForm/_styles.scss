@@ -181,8 +181,30 @@
 
     img {
       height: 16px;
-      width: auto;
+      width: 16px;
       padding-left: $pad-xsmall;
+      padding-right: 7px;
+    }
+
+    button {
+      img {
+        padding: 0px;
+      }
+    }
+
+    form,
+    label {
+      display: inline-flex;
+    }
+
+    label {
+      font-weight: $regular;
+      margin-right: 12px;
+    }
+
+    .form-field {
+      display: flex;
+      margin-top: 0px;
     }
 
     .tooltip {

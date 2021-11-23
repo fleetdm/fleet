@@ -53,6 +53,7 @@ const QueryPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
+    setLastEditedQueryPlatform,
   } = useContext(QueryContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
@@ -83,6 +84,7 @@ const QueryPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+        setLastEditedQueryPlatform(returnedQuery.platform);
       },
     }
   );
@@ -119,11 +121,17 @@ const QueryPage = ({
     };
 
     detectIsFleetQueryRunnable();
+
+    // TODO: Find a better way to handle the intial page load. Setting default
+    // values for last edited query here causes issues on page refreshes
+    // for components like QueryForm
     !!queryIdForEdit && refetchStoredQuery();
     setLastEditedQueryName(DEFAULT_QUERY.name);
     setLastEditedQueryDescription(DEFAULT_QUERY.description);
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
+    setLastEditedQueryPlatform(DEFAULT_QUERY.platform); // TODO: Why do we need to set default
+    // query like this when there is an existing query?
   }, []);
 
   useEffect(() => {
