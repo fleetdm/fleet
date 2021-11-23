@@ -35,22 +35,21 @@ func Up_20210818151827(tx *sql.Tx) error {
 
 func constraintsForTable(tx *sql.Tx, table string, referencedTables map[string]struct{}) ([]string, error) {
 	var constraints []string
-	query := `SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND CONSTRAINT_NAME <> 'PRIMARY'`
+	query := `SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME 
+		FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+		WHERE TABLE_NAME = ? AND CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME <> 'PRIMARY'`
 	rows, err := tx.Query(query, table) //nolint
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting fk for %s", table)
 	}
 	for rows.Next() {
 		var constraintName string
-		var referencedTable sql.NullString
+		var referencedTable string
 		err := rows.Scan(&constraintName, &referencedTable)
 		if err != nil {
 			return nil, errors.Wrapf(err, "scanning fk for %s", table)
 		}
-		if !referencedTable.Valid {
-			continue
-		}
-		if _, ok := referencedTables[referencedTable.String]; ok {
+		if _, ok := referencedTables[referencedTable]; ok {
 			constraints = append(constraints, constraintName)
 		}
 	}
