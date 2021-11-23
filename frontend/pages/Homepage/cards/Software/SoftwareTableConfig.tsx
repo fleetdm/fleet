@@ -52,17 +52,6 @@ export const generateTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Hosts",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "host_count",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
       title: "Actions",
       Header: "",
       disableSortBy: true,
