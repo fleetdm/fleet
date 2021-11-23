@@ -45,14 +45,6 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return globalPolicyResponse{Policy: resp}, nil
 }
 
-type NewPolicyArgs struct {
-	QueryID     uint
-	Query       string
-	Name        string
-	Description string
-	Resolution  string
-}
-
 func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err

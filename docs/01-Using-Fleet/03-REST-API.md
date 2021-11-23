@@ -802,6 +802,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 1,
         "name": "SomeQuery",
+        "query": "select * from foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "response": "pass"
@@ -809,6 +810,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 2,
         "name": "SomeQuery2",
+        "query": "select * from bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "response": "fail"
@@ -816,6 +818,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 3,
         "name": "SomeQuery3",
+        "query": "select * from baz;",
         "description": "",
         "resolution": "",
         "response": ""
