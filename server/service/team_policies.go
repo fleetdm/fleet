@@ -2,15 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +18,7 @@ import (
 
 type teamPolicyRequest struct {
 	TeamID      uint   `url:"team_id"`
-	QueryID     uint   `json:"query_id"`
+	QueryID     *uint  `json:"query_id"`
 	Query       string `json:"query"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -49,7 +48,11 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.PolicyPayload) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -63,21 +66,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 			message: fmt.Sprintf("policy payload verification: %s", err),
 		}
 	}
-
-	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
+	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating policy")
+		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
-
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
-	}
-
 	return policy, nil
 }
 
@@ -106,7 +98,11 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +135,11 @@ func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -177,31 +177,17 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	ids, err := svc.ds.DeleteTeamPolicies(ctx, teamID, ids)
-	if err != nil {
-		return nil, err
-	}
-	if len(ids) == 1 {
-		err = svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"id": ids[0]},
-		)
-	} else {
-		err = svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedMutiplePolicy,
-			&map[string]interface{}{"ids": ids},
-		)
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +226,11 @@ func (svc Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p
 
 func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	// First make sure the user can read the policies.
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: teamID,
+		},
+	}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	policy, err := svc.ds.Policy(ctx, id)
@@ -274,16 +264,7 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 
 	err = svc.ds.SavePolicy(ctx, policy)
 	if err != nil {
-		return nil, errors.Wrap(err, "saving policy")
-	}
-
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedPolicy,
-		&map[string]interface{}{"id": policy.ID, "name": policy.Name},
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating policy activity")
+		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
 
 	return policy, nil

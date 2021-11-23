@@ -1,6 +1,6 @@
 package service
 
-func (c *Client) CreatePolicy(queryID uint, resolution string) error {
+func (c *Client) CreatePolicy(queryID *uint, resolution string) error {
 	req := globalPolicyRequest{
 		QueryID:    queryID,
 		Resolution: resolution,

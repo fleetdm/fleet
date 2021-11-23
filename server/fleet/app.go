@@ -2,10 +2,10 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/pkg/errors"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -164,7 +164,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.Errorf("invalid duration type: %T", value)
+		return fmt.Errorf("invalid duration type: %T", value)
 	}
 }
 
@@ -250,7 +250,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering
+	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`

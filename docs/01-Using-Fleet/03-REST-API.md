@@ -802,6 +802,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 1,
         "name": "SomeQuery",
+        "query": "select * from foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "response": "pass"
@@ -809,6 +810,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 2,
         "name": "SomeQuery2",
+        "query": "select * from bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "response": "fail"
@@ -816,6 +818,7 @@ The `host_count` parameter in the software list will always be `1` in this call,
       {
         "id": 3,
         "name": "SomeQuery3",
+        "query": "select * from baz;",
         "description": "",
         "resolution": "",
         "response": ""
@@ -3518,6 +3521,8 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 
+Either `query` or `query_id` must be provided.
+
 #### Example Add Policy
 
 `POST /api/v1/fleet/global/policies`
@@ -3774,6 +3779,8 @@ Team policies work the same as policies, but at the team level.
 
 ### Add team policy
 
+The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
+
 `POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
@@ -3786,6 +3793,8 @@ Team policies work the same as policies, but at the team level.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+
+Either `query` or `query_id` must be provided.
 
 #### Example
 
@@ -4609,9 +4618,107 @@ Modifies the Fleet's configuration with the supplied information.
 }
 ```
 
-### Get enroll secret for a team
+### Get global enroll secrets
 
-Returns the valid team enroll secret.
+Returns the valid global enroll secrets.
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/spec/enroll_secret`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "vhPzPOnCMOMoqSrLxKxzSADyqncayacB",
+                "created_at": "2021-11-12T20:24:57Z"
+            },
+            {
+                "secret": "jZpexWGiXmXaFAKdrdttFHdJBqEnqlVF",
+                "created_at": "2021-11-12T20:24:57Z"
+            }
+        ]
+    }
+}
+```
+
+### Modify global enroll secrets
+
+Replaces all existing global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                        |
+| --------- | ------- | ---- | ------------------------------------------------------------------ |
+| spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+#### Example
+
+Replace all global enroll secrets with a new enroll secret.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
+{
+    "spec": {
+        "secrets": [
+            {
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+            }
+        ]
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+#### Example
+
+Delete all global enroll secrets.
+
+`POST /api/v1/fleet/spec/enroll_secret`
+
+##### Request body
+
+```json
+{
+    "spec": {
+        "secrets": []
+    }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Get enroll secrets for a team
+
+Returns the valid team enroll secrets.
 
 `GET /api/v1/fleet/teams/{id}/secrets`
 
@@ -4683,6 +4790,30 @@ Replace all of a team's existing enroll secrets with a new enroll secret
       "created_at": "0001-01-01T00:00:00Z",
     }
   ]
+}
+```
+
+#### Example
+
+Delete all of a team's existing enroll secrets
+
+`PATCH /api/v1/fleet/teams/2/secrets`
+
+##### Request body
+
+```json
+{
+  "secrets": []
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "secrets": null
 }
 ```
 

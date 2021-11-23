@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -347,7 +349,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	assert.Equal(t, 1, lsResp.Software[0].HostCount)
 
-	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count", "order_direction", "desc")
+	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "host_count,id", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
@@ -379,7 +381,10 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	})
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{QueryID: qr.ID, Resolution: "some global resolution"}
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
@@ -454,11 +459,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
@@ -491,11 +496,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.Error(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
@@ -513,11 +518,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	_, err := s.ds.Host(context.Background(), hosts[0].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
@@ -641,7 +646,9 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
+	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
@@ -759,7 +766,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
 	gpParams0 := globalPolicyRequest{
-		QueryID: qr.ID,
+		QueryID: &qr.ID,
 		Query:   "select * from osquery;",
 	}
 	gpResp0 := globalPolicyResponse{}
@@ -995,14 +1002,14 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	for _, tc := range []struct {
 		tname      string
 		testUpdate bool
-		queryID    uint
+		queryID    *uint
 		name       string
 		query      string
 	}{
 		{
 			tname:      "set both QueryID and Query",
 			testUpdate: false,
-			queryID:    1,
+			queryID:    ptr.Uint(1),
 			name:       "Some name",
 			query:      "select * from osquery;",
 		},
@@ -1035,7 +1042,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
 			require.Nil(t, tpResp.Policy)
 
-			testUpdate := tc.queryID == 0
+			testUpdate := tc.queryID == nil
 
 			if testUpdate {
 				tpReq := modifyTeamPolicyRequest{
@@ -1071,4 +1078,68 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 		})
 	}
+}
+
+func (s *integrationTestSuite) TestHostDetailsPolicies() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+	host1 := hosts[0]
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "HostDetailsPolicies-Team",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{
+		Name:        "HostDetailsPolicies-Team",
+		Query:       "select * from osquery;",
+		Description: "Some description",
+		Resolution:  "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	require.NotEmpty(t, gpResp.Policy.ID)
+
+	tpParams := teamPolicyRequest{
+		Name:        "HostDetailsPolicies-Team",
+		Query:       "select * from osquery;",
+		Description: "Some description",
+		Resolution:  "some team resolution",
+	}
+	tpResp := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
+	require.NotNil(t, tpResp.Policy)
+	require.NotEmpty(t, tpResp.Policy.ID)
+
+	err = s.ds.RecordPolicyQueryExecutions(
+		context.Background(),
+		host1,
+		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
+		time.Now(),
+		false,
+	)
+	require.NoError(t, err)
+
+	resp := s.Do("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host1.ID), nil, http.StatusOK)
+	b, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	var r struct {
+		Host *HostDetailResponse `json:"host"`
+		Err  error               `json:"error,omitempty"`
+	}
+	err = json.Unmarshal(b, &r)
+	require.NoError(t, err)
+	require.Nil(t, r.Err)
+	hd := r.Host.HostDetail
+	require.Len(t, hd.Policies, 2)
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, hd.Policies[0].PolicyData))
+	require.Equal(t, hd.Policies[0].Response, "pass")
+
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
+	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
 }

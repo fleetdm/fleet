@@ -264,9 +264,20 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
+// schQueriesPlatformFromHost converts the platform from a Host.Platform
+// string to a scheduled query platform string.
+func schQueryPlatformFromHost(hostPlatform string) string {
+	switch hostPlatform {
+	case "ubuntu", "rhel", "debian":
+		return "linux"
+	default: // darwin, windows
+		return hostPlatform
+	}
+}
+
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]fleet.PackStats, error) {
+func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
 	packs, err := listPacksForHost(ctx, db, hid)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
@@ -306,8 +317,20 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint) 
 		goqu.I("queries").As("q"),
 		goqu.On(goqu.I("sq.query_name").Eq(goqu.I("q.name"))),
 	).LeftJoin(
-		goqu.I("scheduled_query_stats").As("sqs"),
+		dialect.From("scheduled_query_stats").As("sqs").Where(
+			goqu.I("host_id").Eq(hid),
+		),
 		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.id"))),
+	).Where(
+		goqu.Or(
+			// sq.platform empty or NULL means the scheduled query is set to
+			// run on all hosts.
+			goqu.I("sq.platform").Eq(""),
+			goqu.I("sq.platform").IsNull(),
+			// scheduled_queries.platform can be a comma-separated list of
+			// platforms, e.g. "darwin,windows".
+			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
+		),
 	)
 	sql, args, err := ds.ToSQL()
 	if err != nil {
@@ -367,32 +390,40 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	return nil
 }
 
-func (d *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
-	sqlStatement := `
+func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	policiesColumns := `,
+		       coalesce(failing_policies.count, 0) as failing_policies_count,
+		       coalesce(failing_policies.count, 0) as total_issues_count`
+	policiesJoin := `
+			JOIN (
+		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
+			) failing_policies`
+	args := []interface{}{id, id}
+	if skipLoadingExtras {
+		policiesColumns = ""
+		policiesJoin = ""
+		args = []interface{}{id}
+	}
+	sqlStatement := fmt.Sprintf(`
 		SELECT
 		       h.*,
 		       hst.seen_time,
 		       t.name AS team_name,
-		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional,
-		       coalesce(failing_policies.count, 0) as failing_policies_count,
-		       coalesce(failing_policies.count, 0) as total_issues_count
+		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
+				%s
 		FROM hosts h
 			LEFT JOIN teams t ON (h.team_id = t.id)
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			LEFT JOIN (
-		    	SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
-		    	GROUP BY host_id
-			) as failing_policies ON (h.id=failing_policies.host_id)
+			%s
 		WHERE h.id = ?
-		LIMIT 1
-	`
+		LIMIT 1`, policiesColumns, policiesJoin)
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, id)
+	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
-	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID, host.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -823,7 +854,7 @@ func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID)
+	packStats, err := loadHostPackStatsDB(ctx, d.reader, host.ID, host.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -959,11 +990,9 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT
-		p.id,
-		p.name,
-		p.query,
-		p.description,
+	query := `SELECT p.*,
+		COALESCE(u.name, '<deleted>') AS author_name,
+		COALESCE(u.email, '') AS author_email,
 		CASE
 			WHEN pm.passes = 1 THEN 'pass'
 			WHEN pm.passes = 0 THEN 'fail'
@@ -975,7 +1004,8 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	    SELECT * FROM policy_membership_history WHERE id IN (
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
-	) as pm ON (p.id=pm.policy_id)`
+	) as pm ON (p.id=pm.policy_id)
+	LEFT JOIN users u ON p.author_id = u.id`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {

@@ -10,28 +10,27 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
-func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
-	if queryID != 0 {
-		q, err := ds.Query(ctx, queryID)
+func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	if args.QueryID != nil {
+		q, err := ds.Query(ctx, *args.QueryID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
-		name = q.Name
-		query = q.Query
-		description = q.Description
+		args.Name = q.Name
+		args.Query = q.Query
+		args.Description = q.Description
 	}
 	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, resolution, author_id) VALUES (?, ?, ?, ?, ?)`,
-		name, query, description, resolution, authorID,
+		args.Name, args.Query, args.Description, args.Resolution, authorID,
 	)
 	switch {
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", name))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
@@ -80,14 +79,14 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	`
 	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.ID)
 	if err != nil {
-		return errors.Wrap(err, "updating policy")
+		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "rows affected updating policy")
+		return ctxerr.Wrap(ctx, err, "rows affected updating policy")
 	}
 	if rows == 0 {
-		return notFound("Policy").WithID(p.ID)
+		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 	return nil
 }
@@ -254,19 +253,19 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	return results, nil
 }
 
-func (ds *Datastore) NewTeamPolicy(ctx context.Context, authorID, teamID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
-	if queryID != 0 {
-		q, err := ds.Query(ctx, queryID)
+func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	if args.QueryID != nil {
+		q, err := ds.Query(ctx, *args.QueryID)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching query from id")
+			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
-		name = q.Name
-		query = q.Query
-		description = q.Description
+		args.Name = q.Name
+		args.Query = q.Query
+		args.Description = q.Description
 	}
 	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, team_id, resolution, author_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		name, query, description, teamID, resolution, authorID)
+		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting new team policy")
 	}

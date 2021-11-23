@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"io/ioutil"
 	"net/http"
@@ -27,14 +28,14 @@ func TestCertificateChain(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.Nil(t, err)
 
-	conn, err := connectTLS(u)
+	conn, err := connectTLS(context.Background(), u)
 	require.Nil(t, err)
 
 	have, want := len(conn.ConnectionState().PeerCertificates), len(cert.Certificate)
 	require.Equal(t, have, want)
 
 	original, _ := ioutil.ReadFile(certFile)
-	returned, err := chain(conn.ConnectionState(), "")
+	returned, err := chain(context.Background(), conn.ConnectionState(), "")
 	require.Nil(t, err)
 	require.Equal(t, returned, original)
 }

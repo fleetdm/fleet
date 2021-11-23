@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io/ioutil"
@@ -266,20 +264,32 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
 			{
-				ID:         1,
-				Name:       "query1",
-				Query:      defaultPolicyQuery,
-				Response:   "passes",
-				AuthorID:   ptr.Uint(1),
-				AuthorName: "Alice",
+				PolicyData: fleet.PolicyData{
+					ID:          1,
+					Name:        "query1",
+					Query:       defaultPolicyQuery,
+					Description: "Some description",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  ptr.String("Some resolution"),
+					TeamID:      ptr.Uint(1),
+				},
+				Response: "passes",
 			},
 			{
-				ID:         2,
-				Name:       "query2",
-				Query:      defaultPolicyQuery,
-				Response:   "fails",
-				AuthorID:   ptr.Uint(1),
-				AuthorName: "Alice",
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "query2",
+					Query:       defaultPolicyQuery,
+					Description: "",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  nil,
+					TeamID:      nil,
+				},
+				Response: "fails",
 			},
 		}, nil
 	}
@@ -293,53 +303,63 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+--------+
 `
 
+	jsonPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := json.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := json.MarshalIndent(i, "", "  ")
+		require.NoError(t, err)
+		return string(indented)
+	}
+	yamlPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := yaml.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := yaml.Marshal(i)
+		require.NoError(t, err)
+		return string(indented)
+	}
 	tests := []struct {
-		name        string
-		goldenFile  string
-		unmarshaler func(data []byte, v interface{}) error
-		scanner     func(s string) []string
-		args        []string
+		name       string
+		goldenFile string
+		scanner    func(s string) []string
+		prettifier func(t *testing.T, v string) string
+		args       []string
 	}{
 		{
-			name:        "get hosts --json",
-			goldenFile:  "expectedListHostsJson.json",
-			unmarshaler: json.Unmarshal,
+			name:       "get hosts --json",
+			goldenFile: "expectedListHostsJson.json",
 			scanner: func(s string) []string {
-				var parts []string
-				scanner := bufio.NewScanner(bytes.NewBufferString(s))
-				for scanner.Scan() {
-					parts = append(parts, scanner.Text())
-				}
-				return parts
+				parts := strings.Split(s, "}\n{")
+				return []string{parts[0] + "}", "{" + parts[1]}
 			},
-			args: []string{"get", "hosts", "--json"},
+			args:       []string{"get", "hosts", "--json"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --json test_host",
-			goldenFile:  "expectedHostDetailResponseJson.json",
-			unmarshaler: json.Unmarshal,
-			scanner: func(s string) []string {
-				return []string{s}
-			},
-			args: []string{"get", "hosts", "--json", "test_host"},
+			name:       "get hosts --json test_host",
+			goldenFile: "expectedHostDetailResponseJson.json",
+			scanner:    func(s string) []string { return []string{s} },
+			args:       []string{"get", "hosts", "--json", "test_host"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --yaml",
-			goldenFile:  "expectedListHostsYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml",
+			goldenFile: "expectedListHostsYaml.yml",
 			scanner: func(s string) []string {
 				return []string{s}
 			},
-			args: []string{"get", "hosts", "--yaml"},
+			args:       []string{"get", "hosts", "--yaml"},
+			prettifier: yamlPrettify,
 		},
 		{
-			name:        "get hosts --yaml test_host",
-			goldenFile:  "expectedHostDetailResponseYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml test_host",
+			goldenFile: "expectedHostDetailResponseYaml.yml",
 			scanner: func(s string) []string {
 				return splitYaml(s)
 			},
-			args: []string{"get", "hosts", "--yaml", "test_host"},
+			args:       []string{"get", "hosts", "--yaml", "test_host"},
+			prettifier: yamlPrettify,
 		},
 	}
 	for _, tt := range tests {
@@ -347,20 +367,11 @@ func TestGetHosts(t *testing.T) {
 			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			expectedSpecs := make([]specGeneric, len(expectedResults))
-			for i, result := range expectedResults {
-				var got specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &got))
-				expectedSpecs[i] = got
-			}
 			actualResult := tt.scanner(runAppForTest(t, tt.args))
-			actualSpecs := make([]specGeneric, len(actualResult))
-			for i, result := range actualResult {
-				var spec specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
-				actualSpecs[i] = spec
+			require.Equal(t, len(expectedResults), len(actualResult))
+			for i := range expectedResults {
+				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
 			}
-			require.Equal(t, expectedSpecs, actualSpecs, actualResult)
 		})
 	}
 

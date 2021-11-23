@@ -12,8 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,11 +27,11 @@ func BuildMSI(opt Options) (string, error) {
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return "", errors.Wrap(err, "create root dir")
+		return "", fmt.Errorf("create root dir: %w", err)
 	}
 	orbitRoot := filesystemRoot
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return "", errors.Wrap(err, "create orbit dir")
+		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
 	// Initialize autoupdate metadata
@@ -47,23 +47,31 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if err := InitializeUpdates(updateOpt); err != nil {
-		return "", errors.Wrap(err, "initialize updates")
+		return "", fmt.Errorf("initialize updates: %w", err)
 	}
 
 	// Write files
 
 	if err := writeSecret(opt, orbitRoot); err != nil {
-		return "", errors.Wrap(err, "write enroll secret")
+		return "", fmt.Errorf("write enroll secret: %w", err)
+	}
+
+	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write flagfile: %w", err)
+	}
+
+	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write certs.pem: %w", err)
 	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return "", errors.Wrap(err, "write fleet certificate")
+			return "", fmt.Errorf("write fleet certificate: %w", err)
 		}
 	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {
-		return "", errors.Wrap(err, "write wix file")
+		return "", fmt.Errorf("write wix file: %w", err)
 	}
 
 	if runtime.GOOS == "windows" {
@@ -72,29 +80,29 @@ func BuildMSI(opt Options) (string, error) {
 		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
 		if err != nil {
 			fmt.Println(string(out))
-			return "", errors.Wrap(err, "icacls")
+			return "", fmt.Errorf("icacls: %w", err)
 		}
 	}
 
 	if err := wix.Heat(tmpDir); err != nil {
-		return "", errors.Wrap(err, "package root files")
+		return "", fmt.Errorf("package root files: %w", err)
 	}
 
 	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
-		return "", errors.Wrap(err, "transform heat")
+		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
 	if err := wix.Candle(tmpDir); err != nil {
-		return "", errors.Wrap(err, "build package")
+		return "", fmt.Errorf("build package: %w", err)
 	}
 
 	if err := wix.Light(tmpDir); err != nil {
-		return "", errors.Wrap(err, "build package")
+		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := fmt.Sprintf("orbit-osquery_%s.msi", opt.Version)
-	if err := copyFile(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
-		return "", errors.Wrap(err, "rename msi")
+	filename := "fleet-osquery.msi"
+	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("rename msi: %w", err)
 	}
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
@@ -105,16 +113,16 @@ func writeWixFile(opt Options, rootPath string) error {
 	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "main.wxs")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := windowsWixTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0o666); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil

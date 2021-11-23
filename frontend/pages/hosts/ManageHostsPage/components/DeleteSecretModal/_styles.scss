@@ -1,0 +1,15 @@
+.delete-secret-modal {
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-large 0 0;
+  }
+
+  &__btn {
+    margin-left: $pad-large;
+  }
+
+  &__error {
+    color: $ui-error;
+  }
+}

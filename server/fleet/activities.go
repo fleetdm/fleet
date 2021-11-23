@@ -29,16 +29,6 @@ const (
 	ActivityTypeDeletedTeam = "deleted_team"
 	// ActivityTypeLiveQuery is the activity type for live queries
 	ActivityTypeLiveQuery = "live_query"
-	// ActivityTypeCreatedPolicy is the activity type for created policies.
-	ActivityTypeCreatedPolicy = "created_policy"
-	// ActivityTypeEditedPolicy is the activity type for edited policies.
-	ActivityTypeEditedPolicy = "edited_policy"
-	// ActivityTypeDeletedPolicy is the activity type for deleted policies.
-	ActivityTypeDeletedPolicy = "deleted_policy"
-	// ActivityTypeDeletedMultiplePolicy is the activity type for multiple deleted policies.
-	ActivityTypeDeletedMutiplePolicy = "deleted_multiple_policy"
-	// ActivityTypeAppliedSpecPolicy is the activity type for policies spec applied.
-	ActivityTypeAppliedSpecPolicy = "applied_spec_policy"
 )
 
 type Activity struct {

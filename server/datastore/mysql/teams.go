@@ -38,7 +38,6 @@ func (d *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team,
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +171,6 @@ func (d *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 
 		return updateTeamScheduleDB(ctx, tx, team)
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +231,6 @@ func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, ma
 		d.whereFilterTeams(filter, "t"),
 	)
 	sql, params := searchLike(sql, nil, matchQuery, teamSearchColumns...)
-	sql += "\nLIMIT 5"
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, d.reader, &teams, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "search teams")

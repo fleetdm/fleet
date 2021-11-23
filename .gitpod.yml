@@ -1,0 +1,10 @@
+tasks:
+  - init: make deps generate && make build && docker-compose up -d redis mysql mailhog saml_idp && ./build/fleet prepare db --dev
+    command: ./build/fleet serve --dev
+ports:
+  - port: 8080
+    onOpen: open-browser
+    visibility: public
+github:
+  prebuilds:
+    addComment: true

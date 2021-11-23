@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"hash"
 	"io"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf/data"
 )
 
@@ -22,16 +22,16 @@ func CheckFileHash(meta *data.TargetFileMeta, localPath string) error {
 
 	f, err := os.Open(localPath)
 	if err != nil {
-		return errors.Wrap(err, "open file for hash")
+		return fmt.Errorf("open file for hash: %w", err)
 	}
 	defer f.Close()
 
 	if _, err := io.Copy(hashFunc, f); err != nil {
-		return errors.Wrap(err, "read file for hash")
+		return fmt.Errorf("read file for hash: %w", err)
 	}
 
 	if !bytes.Equal(hashVal, hashFunc.Sum(nil)) {
-		return errors.Errorf("hash %s does not match expected: %s", data.HexBytes(hashFunc.Sum(nil)), data.HexBytes(hashVal))
+		return fmt.Errorf("hash %s does not match expected: %s", data.HexBytes(hashFunc.Sum(nil)), data.HexBytes(hashVal))
 	}
 
 	return nil
@@ -55,5 +55,5 @@ func selectHashFunction(meta *data.TargetFileMeta) (hash.Hash, []byte, error) {
 		}
 	}
 
-	return nil, nil, errors.Errorf("no matching hash function found: %v", meta.HashAlgorithms())
+	return nil, nil, fmt.Errorf("no matching hash function found: %v", meta.HashAlgorithms())
 }

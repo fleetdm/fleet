@@ -30,7 +30,7 @@
     border-radius: 4px;
 
     &:focus {
-      border-bottom-color: $ui-error;
+      border-color: $ui-error;
       background-color: $core-white;
       color: $core-fleet-black;
     }

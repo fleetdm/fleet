@@ -1,19 +1,24 @@
+//go:build darwin || linux
+// +build darwin linux
+
 package eefleetctl
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
@@ -39,11 +44,11 @@ const (
 	timestampExpirationDuration = 14 * 24 * time.Hour
 
 	decryptionFailedError = "encrypted: decryption failed"
+
+	backupDirectory = ".backup"
 )
 
-var (
-	passHandler = newPassphraseHandler()
-)
+var passHandler = newPassphraseHandler()
 
 func UpdatesCommand() *cli.Command {
 	return &cli.Command{
@@ -57,6 +62,7 @@ This functionality is licensed under the Fleet EE License. Usage requires a curr
 			updatesRootsCommand(),
 			updatesAddCommand(),
 			updatesTimestampCommand(),
+			updatesRotateCommand(),
 		},
 	}
 }
@@ -85,29 +91,29 @@ func updatesInitFunc(c *cli.Context) error {
 	store := tuf.FileSystemStore(path, passHandler.getPassphrase)
 	meta, err := store.GetMeta()
 	if err != nil {
-		return errors.Wrap(err, "get repo meta")
+		return fmt.Errorf("get repo meta: %w", err)
 	}
 	if len(meta) != 0 {
-		return errors.Errorf("repo already initialized: %s", path)
+		return fmt.Errorf("repo already initialized: %s", path)
 	}
 	// Ensure no existing keys before initializing
 	if _, err := os.Stat(filepath.Join(path, "keys")); !errors.Is(err, os.ErrNotExist) {
 		if err == nil {
-			return errors.Errorf("keys directory already exists: %s", filepath.Join(path, "keys"))
+			return fmt.Errorf("keys directory already exists: %s", filepath.Join(path, "keys"))
 		}
-		return errors.Wrap(err, "failed to check existence of keys directory")
+		return fmt.Errorf("failed to check existence of keys directory: %w", err)
 	}
 
 	repo, err := tuf.NewRepo(store)
 	if err != nil {
-		return errors.Wrap(err, "open repo")
+		return fmt.Errorf("open repo: %w", err)
 	}
 
 	// TODO messaging about using a secure environment
 
 	// Explicitly initialize with consistent snapshots turned off.
 	if err := repo.Init(consistentSnapshots); err != nil {
-		return errors.Wrap(err, "initialize repo")
+		return fmt.Errorf("initialize repo: %w", err)
 	}
 
 	// Generate keys
@@ -120,7 +126,7 @@ func updatesInitFunc(c *cli.Context) error {
 
 	// Sign roots metadata
 	if err := repo.Sign("root.json"); err != nil {
-		return errors.Wrap(err, "sign root metadata")
+		return fmt.Errorf("sign root metadata: %w", err)
 	}
 
 	// Create empty manifests for commit
@@ -129,23 +135,18 @@ func updatesInitFunc(c *cli.Context) error {
 		nil,
 		time.Now().Add(targetsExpirationDuration),
 	); err != nil {
-		return errors.Wrap(err, "initialize targets")
+		return fmt.Errorf("initialize targets: %w", err)
 	}
-	if err := repo.SnapshotWithExpires(
-		tuf.CompressionTypeNone,
-		time.Now().Add(snapshotExpirationDuration),
-	); err != nil {
-		return errors.Wrap(err, "make snapshot")
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+		return fmt.Errorf("make snapshot: %w", err)
 	}
-	if err := repo.TimestampWithExpires(
-		time.Now().Add(timestampExpirationDuration),
-	); err != nil {
-		return errors.Wrap(err, "make timestamp")
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+		return fmt.Errorf("make timestamp: %w", err)
 	}
 
 	// Commit empty manifests
 	if err := repo.Commit(); err != nil {
-		return errors.Wrap(err, "commit repo")
+		return fmt.Errorf("commit repo: %w", err)
 	}
 
 	// TODO messaging about separating keys -- maybe we can help by splitting
@@ -171,11 +172,11 @@ func updatesRootsFunc(c *cli.Context) error {
 
 	keys, err := repo.RootKeys()
 	if err != nil {
-		return errors.Wrap(err, "get root metadata")
+		return fmt.Errorf("get root metadata: %w", err)
 	}
 
 	if err := json.NewEncoder(os.Stdout).Encode(keys); err != nil {
-		return errors.Wrap(err, "encode root metadata")
+		return fmt.Errorf("encode root metadata: %w", err)
 	}
 
 	return nil
@@ -256,7 +257,7 @@ func updatesAddFunc(c *cli.Context) error {
 	}
 	meta, err := json.Marshal(customMetadata{Version: version})
 	if err != nil {
-		return errors.Wrap(err, "marshal custom metadata")
+		return fmt.Errorf("marshal custom metadata: %w", err)
 	}
 
 	if err := repo.AddTargetsWithExpires(
@@ -264,24 +265,19 @@ func updatesAddFunc(c *cli.Context) error {
 		meta,
 		time.Now().Add(targetsExpirationDuration),
 	); err != nil {
-		return errors.Wrap(err, "add targets")
+		return fmt.Errorf("add targets: %w", err)
 	}
 
-	if err := repo.SnapshotWithExpires(
-		tuf.CompressionTypeNone,
-		time.Now().Add(snapshotExpirationDuration),
-	); err != nil {
-		return errors.Wrap(err, "make snapshot")
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+		return fmt.Errorf("make snapshot: %w", err)
 	}
 
-	if err := repo.TimestampWithExpires(
-		time.Now().Add(timestampExpirationDuration),
-	); err != nil {
-		return errors.Wrap(err, "make timestamp")
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+		return fmt.Errorf("make timestamp: %w", err)
 	}
 
 	if err := repo.Commit(); err != nil {
-		return errors.Wrap(err, "commit repo")
+		return fmt.Errorf("commit repo: %w", err)
 	}
 
 	return nil
@@ -311,11 +307,245 @@ func updatesTimestampFunc(c *cli.Context) error {
 	if err := repo.TimestampWithExpires(
 		time.Now().Add(timestampExpirationDuration),
 	); err != nil {
-		return errors.Wrap(err, "make timestamp")
+		return fmt.Errorf("make timestamp: %w", err)
 	}
 
 	if err := repo.Commit(); err != nil {
-		return errors.Wrap(err, "commit repo")
+		return fmt.Errorf("commit repo: %w", err)
+	}
+
+	return nil
+}
+
+func updatesRotateCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "rotate",
+		Usage:     "Rotate signing keys",
+		ArgsUsage: "<role>",
+		Description: `Rotate the signing keys used for updates metadata signing. This should be used when keys are compromised or expiring.
+		
+role must be one of ['root', 'targets', 'timestamp', 'snapshot']
+		`,
+		Flags:  updatesFlags(),
+		Action: updatesRotateFunc,
+	}
+}
+
+func updatesRotateFunc(c *cli.Context) error {
+	if c.NArg() != 1 {
+		return errors.New("role must be provided")
+	}
+	role := c.Args().Get(0)
+
+	repoPath := c.String("path")
+	repo, err := openRepo(repoPath)
+	if err != nil {
+		return err
+	}
+	store, err := openLocalStore(repoPath)
+	if err != nil {
+		return err
+	}
+
+	if err := checkKeys(repoPath,
+		"root",
+		"targets",
+		"snapshot",
+		"timestamp",
+	); err != nil {
+		return err
+	}
+
+	// Get old keys for role
+	keys, err := store.GetSigningKeys(role)
+	if err != nil {
+		return fmt.Errorf("get keys for role: %w", err)
+	}
+
+	// Prepare to roll back in case of error.
+	success := false
+	commit, rollback, err := startRotatePseudoTx(repoPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if success {
+			if err := commit(); err != nil {
+				fmt.Println("Warning: failure during commit:", err)
+			}
+		} else {
+			fmt.Println("Rolling back changes.")
+			if err := rollback(); err != nil {
+				fmt.Println("Warning: failure during rollback:", err)
+			}
+		}
+	}()
+
+	// Delete old keys for role
+	for _, key := range keys {
+		id := key.IDs()[0]
+		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
+		if err != nil {
+			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
+			// tuf.ErrKeyNotFound as these represent keys that are not present in the manifest and
+			// so do not need to be revoked.
+			if !errors.As(err, &tuf.ErrKeyNotFound{}) {
+				return fmt.Errorf("revoke key: %w", err)
+			}
+		}
+	}
+
+	// TODO change passphrase for new key:
+	// Waiting on https://github.com/theupdateframework/go-tuf/pull/163
+
+	// Generate new key for role
+	if err := updatesGenKey(repo, role); err != nil {
+		return err
+	}
+
+	// Re-sign the root metadata
+	if err := repo.Sign("root.json"); err != nil {
+		return fmt.Errorf("sign root.json: %w", err)
+	}
+
+	// Generate new metadata for each role (technically some of these may not need regeneration
+	// depending on which key was rotated, but there should be no harm in generating new ones for each).
+	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(targetsExpirationDuration)); err != nil {
+		return fmt.Errorf("generate targets: %w", err)
+	}
+
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+		return fmt.Errorf("generate snapshot: %w", err)
+	}
+
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+		return fmt.Errorf("generate timestamp: %w", err)
+	}
+
+	// Commit the changes.
+	if err := repo.Commit(); err != nil {
+		return fmt.Errorf("commit repo: %w", err)
+	}
+
+	success = true
+	return nil
+}
+
+// startRotatePseudoTx starts a "transaction" for the rotation routine, preparing a commit and
+// rollback function for the metadata files that are modified by the rotation process.
+func startRotatePseudoTx(repoPath string) (commit, rollback func() error, err error) {
+	repositoryDir := filepath.Join(repoPath, "repository")
+	if err := createBackups(repositoryDir); err != nil {
+		return nil, nil, fmt.Errorf("backup repository: %w", err)
+	}
+	keysDir := filepath.Join(repoPath, "keys")
+	if err := createBackups(keysDir); err != nil {
+		return nil, nil, fmt.Errorf("backup keys: %w", err)
+	}
+
+	commit = func() error {
+		// Remove the backups on successful rotation.
+		if err := os.RemoveAll(filepath.Join(repositoryDir, backupDirectory)); err != nil {
+			return fmt.Errorf("remove repository backup directory: %w", err)
+		}
+		if err := os.RemoveAll(filepath.Join(keysDir, backupDirectory)); err != nil {
+			return fmt.Errorf("remove keys backup directory: %w", err)
+		}
+		return nil
+	}
+
+	rollback = func() error {
+		// Restore the backups on failure.
+		if err := restoreBackups(repositoryDir); err != nil {
+			return fmt.Errorf("restore repository backup: %w", err)
+		}
+		if err := restoreBackups(keysDir); err != nil {
+			return fmt.Errorf("restore keys backup: %w", err)
+		}
+		return nil
+	}
+
+	return commit, rollback, nil
+}
+
+// createBackups creates backups for metadata and key files during the key rotation process,
+// allowing for rollback if necessary.
+func createBackups(dirPath string) error {
+	// Only *.json files need to be backed up (other files are not modified)
+	backupPath := filepath.Join(dirPath, backupDirectory)
+	if err := os.Mkdir(backupPath, os.ModeDir|0744); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return fmt.Errorf("backup directory already exists: %w", err)
+		}
+		return fmt.Errorf("create backup directory: %w", err)
+	}
+
+	// Copy each of the *.json files into a backup file.
+	files, err := filepath.Glob(filepath.Join(dirPath, "*.json"))
+	if err != nil {
+		return fmt.Errorf("glob for backup: %w", err)
+	}
+	for _, path := range files {
+		if err := file.CopyWithPerms(
+			path,
+			filepath.Join(backupPath, filepath.Base(path)),
+		); err != nil {
+			return fmt.Errorf("copy for backup: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// restoreBackups restores the directory from the backups created by createBackups.
+func restoreBackups(dirPath string) error {
+	backupDir := filepath.Join(dirPath, backupDirectory)
+	info, err := os.Stat(backupDir)
+	if err != nil {
+		return fmt.Errorf("stat backup path: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("backup is not directory: %s", backupDir)
+	}
+
+	// Remove files that did not exist at backup time (determined by no corresponding backup).
+	files, err := filepath.Glob(filepath.Join(dirPath, "*.json"))
+	if err != nil {
+		return fmt.Errorf("glob for restore: %w", err)
+	}
+	for _, path := range files {
+		backupPath := filepath.Join(backupDir, filepath.Base(path))
+		exists, err := file.Exists(backupPath)
+		if err != nil {
+			return fmt.Errorf("check exists for restore: %w", err)
+		}
+
+		// File does not exist in the backup, remove it because this implies that the file was added
+		// since the backup was taken.
+		if !exists {
+			if err := os.Remove(path); err != nil {
+				return fmt.Errorf("remove for restore: %w", err)
+			}
+		}
+	}
+
+	// Restore files from backups.
+	backupFiles, err := filepath.Glob(filepath.Join(backupDir, "*.json"))
+	if err != nil {
+		return fmt.Errorf("glob for restore: %w", err)
+	}
+	for _, path := range backupFiles {
+		originalPath := filepath.Join(dirPath, filepath.Base(path))
+
+		// Replace with the backed up file, copying the previous permissions.
+		if err := file.CopyWithPerms(path, originalPath); err != nil {
+			return fmt.Errorf("copy for restore: %w", err)
+		}
+	}
+
+	// Remove the backups now that we are finished with the restore.
+	if err := os.RemoveAll(backupDir); err != nil {
+		return fmt.Errorf("remove backup directory: %w", err)
 	}
 
 	return nil
@@ -336,22 +566,22 @@ func checkKeys(repoPath string, keys ...string) error {
 func copyTarget(srcPath, dstPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return errors.Wrap(err, "open src for copy")
+		return fmt.Errorf("open src for copy: %w", err)
 	}
 	defer src.Close()
 
 	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
-		return errors.Wrap(err, "create dst dir for copy")
+		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
 	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return errors.Wrap(err, "open dst for copy")
+		return fmt.Errorf("open dst for copy: %w", err)
 	}
 	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		return errors.Wrap(err, "copy src to dst")
+		return fmt.Errorf("copy src to dst: %w", err)
 	}
 
 	return nil
@@ -360,30 +590,38 @@ func copyTarget(srcPath, dstPath string) error {
 func updatesGenKey(repo *tuf.Repo, role string) error {
 	keyids, err := repo.GenKeyWithExpires(role, time.Now().Add(keyExpirationDuration))
 	if err != nil {
-		return errors.Wrapf(err, "generate %s key", role)
+		return fmt.Errorf("generate %s key: %w", role, err)
 	}
 
 	if len(keyids) != 1 {
-		return errors.Errorf("expected 1 keyid for %s key: got %d", role, len(keyids))
+		return fmt.Errorf("expected 1 keyid for %s key: got %d", role, len(keyids))
 	}
 	fmt.Printf("Generated %s key with ID: %s\n", role, keyids[0])
 
 	return nil
 }
 
-func openRepo(path string) (*tuf.Repo, error) {
+func openLocalStore(path string) (tuf.LocalStore, error) {
 	store := tuf.FileSystemStore(path, passHandler.getPassphrase)
 	meta, err := store.GetMeta()
 	if err != nil {
-		return nil, errors.Wrap(err, "get repo meta")
+		return nil, fmt.Errorf("get repo meta: %w", err)
 	}
 	if len(meta) == 0 {
-		return nil, errors.Errorf("repo not initialized: %s", path)
+		return nil, fmt.Errorf("repo not initialized: %s", path)
+	}
+	return store, nil
+}
+
+func openRepo(path string) (*tuf.Repo, error) {
+	store, err := openLocalStore(path)
+	if err != nil {
+		return nil, err
 	}
 
 	repo, err := tuf.NewRepo(store)
 	if err != nil {
-		return nil, errors.Wrap(err, "new repo from store")
+		return nil, fmt.Errorf("new repo from store: %w", err)
 	}
 
 	return repo, nil
@@ -448,7 +686,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		passphrase, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
-			return nil, errors.Wrap(err, "read password")
+			return nil, fmt.Errorf("read password: %w", err)
 		}
 
 		if !confirm {
@@ -460,7 +698,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 		confirmation, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
-			return nil, errors.Wrap(err, "read password confirmation")
+			return nil, fmt.Errorf("read password confirmation: %w", err)
 		}
 
 		if bytes.Equal(passphrase, confirmation) {
@@ -487,7 +725,7 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 				if p.getPassphraseFromEnv(role) != nil {
 					// Fatal error if environment variable passphrase is
 					// incorrect
-					return errors.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
+					return fmt.Errorf("%s passphrase from %s is invalid", role, p.passphraseEnvName(role))
 				}
 
 				fmt.Printf("Failed to decrypt %s key. Try again.\n", role)
@@ -495,7 +733,7 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 			}
 			continue
 		} else if len(keys) == 0 {
-			return errors.Errorf("%s key not found", role)
+			return fmt.Errorf("%s key not found", role)
 		} else {
 			return nil
 		}

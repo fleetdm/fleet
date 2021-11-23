@@ -1,7 +1,0 @@
-#!/bin/bash
-
-[[ $3 != "/" ]] && exit 0
-
-/bin/launchctl load /Library/LaunchDaemons/co.kolide.osquery.enroll.plist
-
-exit 0

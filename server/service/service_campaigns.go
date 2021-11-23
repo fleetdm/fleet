@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/go-kit/kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
-	"github.com/pkg/errors"
 )
 
 func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*fleet.DistributedQueryCampaign, error) {
@@ -27,12 +26,12 @@ func (svc Service) NewDistributedQueryCampaignByNames(ctx context.Context, query
 
 	hostIDs, err := svc.ds.HostIDsByName(ctx, filter, hosts)
 	if err != nil {
-		return nil, errors.Wrap(err, "finding host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
 	labelIDs, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
-		return nil, errors.Wrap(err, "finding label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}
@@ -77,7 +76,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		}
 		query, err = svc.ds.NewQuery(ctx, query)
 		if err != nil {
-			return nil, errors.Wrap(err, "new query")
+			return nil, ctxerr.Wrap(ctx, err, "new query")
 		}
 	}
 
@@ -93,7 +92,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 		UserID:  vc.UserID(),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "new campaign")
+		return nil, ctxerr.Wrap(ctx, err, "new campaign")
 	}
 
 	defer func() {
@@ -112,7 +111,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			TargetID:                   hid,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "adding host target")
+			return nil, ctxerr.Wrap(ctx, err, "adding host target")
 		}
 	}
 
@@ -124,7 +123,7 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			TargetID:                   lid,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "adding label target")
+			return nil, ctxerr.Wrap(ctx, err, "adding label target")
 		}
 	}
 
@@ -136,23 +135,23 @@ func (svc Service) NewDistributedQueryCampaign(ctx context.Context, queryString 
 			TargetID:                   tid,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "adding team target")
+			return nil, ctxerr.Wrap(ctx, err, "adding team target")
 		}
 	}
 
 	hostIDs, err := svc.ds.HostIDsInTargets(ctx, filter, targets)
 	if err != nil {
-		return nil, errors.Wrap(err, "get target IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get target IDs")
 	}
 
 	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
 	if err != nil {
-		return nil, errors.Wrap(err, "run query")
+		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
-		return nil, errors.Wrap(err, "counting hosts")
+		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
 	if err := svc.ds.NewActivity(
@@ -266,9 +265,9 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		metrics, err := svc.CountHostsInTargets(ctx, &campaign.QueryID, *targets)
 		if err != nil {
 			if err = conn.WriteJSONError("error retrieving target counts"); err != nil {
-				return errors.Wrap(err, "retrieve target counts, write failed")
+				return ctxerr.Wrap(ctx, err, "retrieve target counts, write failed")
 			}
-			return errors.Wrap(err, "retrieve target counts")
+			return ctxerr.Wrap(ctx, err, "retrieve target counts")
 		}
 
 		totals := targetTotals{
@@ -280,7 +279,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastTotals != totals {
 			lastTotals = totals
 			if err = conn.WriteJSONMessage("totals", totals); err != nil {
-				return errors.Wrap(err, "write totals")
+				return ctxerr.Wrap(ctx, err, "write totals")
 			}
 		}
 
@@ -292,7 +291,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		if lastStatus != status {
 			lastStatus = status
 			if err = conn.WriteJSONMessage("status", status); err != nil {
-				return errors.Wrap(err, "write status")
+				return ctxerr.Wrap(ctx, err, "write status")
 			}
 		}
 

@@ -807,7 +807,7 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `instance` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
@@ -1776,6 +1776,21 @@ AWS S3 Region. Leave blank to enable region discovery.
   ```
   s3:
   	region: us-east-1
+  ```
+
+#### Upgrades
+
+##### allow_missing_migations
+
+If set then `fleet serve` will run even if there are database migrations missing.
+
+- Default value: `false`
+- Environment variable: `FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS`
+- Config file format:
+
+  ```
+  upgrades:
+    allow_missing_migrations: true
   ```
 
 #### Vulnerabilities

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/errorstore"
-	"github.com/rotisserie/eris"
+	"github.com/rotisserie/eris" //nolint:depguard
 )
 
 type key int
