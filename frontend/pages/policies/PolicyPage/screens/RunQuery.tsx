@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
 
 // @ts-ignore
-import { QueryContext } from "context/query";
+import { PolicyContext } from "context/policy";
 import { formatSelectedTargetsForApi } from "fleet/helpers"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions"; // @ts-ignore
 import campaignHelpers from "redux/nodes/entities/campaigns/helpers";
@@ -12,24 +12,23 @@ import debounce from "utilities/debounce"; // @ts-ignore
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants"; // @ts-ignore
 import local from "utilities/local"; // @ts-ignore
 import { ICampaign, ICampaignState } from "interfaces/campaign";
-import { IQuery } from "interfaces/query";
+import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 
-// import { useLastEditedQueryInfo } from "../helpers";
 import QueryResults from "components/QueryResults";
 
 interface IRunQueryProps {
-  storedQuery: IQuery | undefined;
+  storedPolicy: IPolicy | undefined;
   selectedTargets: ITarget[];
-  queryIdForEdit: number | null;
+  policyIdForEdit: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
 }
 
 const RunQuery = ({
-  storedQuery,
+  storedPolicy,
   selectedTargets,
-  queryIdForEdit,
+  policyIdForEdit,
   setSelectedTargets,
   goToQueryEditor,
 }: IRunQueryProps) => {
@@ -39,7 +38,7 @@ const RunQuery = ({
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
-  const { lastEditedQueryBody } = useContext(QueryContext);
+  const { lastEditedQueryBody } = useContext(PolicyContext);
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
@@ -153,10 +152,10 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
+      const isStoredQueryEdited = storedPolicy?.query !== lastEditedQueryBody;
 
       // because we are not using the saved query id if user edits the SQL
-      const queryId = isStoredQueryEdited ? null : queryIdForEdit;
+      const queryId = isStoredQueryEdited ? null : policyIdForEdit;
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
         queryId,
