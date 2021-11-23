@@ -30,6 +30,7 @@ import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
+import PreviewDataModal from "./components/PreviewDataModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 
 const baseClass = "manage-schedule-page";
@@ -242,6 +243,7 @@ const ManageSchedulePage = ({
     false
   );
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
     setShowRemoveScheduledQueryModal,
@@ -256,6 +258,16 @@ const ManageSchedulePage = ({
   const toggleInheritedQueries = () => {
     setShowInheritedQueries(!showInheritedQueries);
   };
+
+  const togglePreviewDataModal = useCallback(() => {
+    setShowPreviewDataModal(!showPreviewDataModal);
+    setShowScheduleEditorModal(!showScheduleEditorModal);
+  }, [
+    showScheduleEditorModal,
+    setShowScheduleEditorModal,
+    setShowPreviewDataModal,
+    showPreviewDataModal,
+  ]);
 
   const toggleScheduleEditorModal = useCallback(() => {
     setSelectedScheduledQuery(undefined); // create modal renders
@@ -551,7 +563,11 @@ const ManageSchedulePage = ({
             allQueries={fleetQueries}
             editQuery={selectedScheduledQuery}
             teamId={teamId}
+            togglePreviewDataModal={togglePreviewDataModal}
           />
+        )}
+        {showPreviewDataModal && (
+          <PreviewDataModal onCancel={togglePreviewDataModal} />
         )}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal

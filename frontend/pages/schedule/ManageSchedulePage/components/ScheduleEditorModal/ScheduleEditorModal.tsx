@@ -46,6 +46,7 @@ interface IScheduleEditorModalProps {
   ) => void;
   editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
   teamId?: number;
+  togglePreviewDataModal: () => void;
 }
 interface INoQueryOption {
   id: number;
@@ -87,6 +88,7 @@ const ScheduleEditorModal = ({
   allQueries,
   editQuery,
   teamId,
+  togglePreviewDataModal,
 }: IScheduleEditorModalProps): JSX.Element => {
   const [loggingConfig, setLoggingConfig] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -324,24 +326,34 @@ const ScheduleEditorModal = ({
             </div>
           )}
         </div>
-
         <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={onFormSubmit}
-            disabled={!selectedQuery && !editQuery}
-          >
-            Schedule
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
+          <div className={`${baseClass}__preview-btn-wrap`}>
+            <Button
+              type="button"
+              variant="inverse"
+              onClick={togglePreviewDataModal}
+            >
+              Preview data
+            </Button>
+          </div>
+          <div className={`${baseClass}__cta-btn-wrap`}>
+            <Button
+              className={`${baseClass}__btn`}
+              onClick={onCancel}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
+            <Button
+              className={`${baseClass}__btn`}
+              type="button"
+              variant="brand"
+              onClick={onFormSubmit}
+              disabled={!selectedQuery && !editQuery}
+            >
+              Schedule
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

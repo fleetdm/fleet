@@ -1,4 +1,4 @@
-.schedule-editor-modal {
+.preview-data-modal {
   &__sandbox-info {
     margin-top: $pad-medium;
 
@@ -25,10 +25,6 @@
 
   &__btn-wrap {
     display: flex;
-    justify-content: space-between;
-  }
-
-  &__cta-btn-wrap {
     flex-direction: row-reverse;
   }
 
@@ -70,5 +66,13 @@
 
   .Select-value-label {
     font-size: $small;
+  }
+
+  .tooltip__tooltip-icon {
+    img {
+      width: 16px;
+      height: 16px;
+      vertical-align: top;
+    }
   }
 }
