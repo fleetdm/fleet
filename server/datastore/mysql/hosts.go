@@ -929,7 +929,13 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) 
+				VALUES %s 
+				ON DUPLICATE KEY UPDATE
+				user_type = VALUES(user_type),
+				groupname = VALUES(groupname),
+				shell = VALUES(shell),
+				removed_at=NULL`,
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {

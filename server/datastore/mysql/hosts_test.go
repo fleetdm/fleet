@@ -1569,7 +1569,8 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 
-	// readd u1
+	// readd u1 but with a different shell
+	u1.Shell = "/some/new/shell"
 	host.Users = []fleet.HostUser{u1, u2}
 	host.Modified = true
 
