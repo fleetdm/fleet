@@ -44,7 +44,6 @@ const VULNERABLE_OPTIONS = [
 const PAGE_SIZE = 8;
 const MODAL_PAGE_SIZE = 20;
 const baseClass = "home-software";
-let loadTimeout: ReturnType<typeof setTimeout>;
 
 const EmptySoftware = (message: string): JSX.Element => {
   const emptySoftware = (
@@ -120,9 +119,7 @@ const Software = ({
   useQuery<ISoftware[], Error>(
     ["software", softwarePageIndex],
     () => {
-      loadTimeout = setTimeout(() => {
-        setIsLoadingSoftware(true);
-      }, 250);
+      setIsLoadingSoftware(true);
       return softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
@@ -134,7 +131,6 @@ const Software = ({
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
       onSuccess: (softwareResponse) => {
-        clearTimeout(loadTimeout);
         setSoftware(softwareResponse);
         setIsLoadingSoftware(false);
       },
