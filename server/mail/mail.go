@@ -4,6 +4,7 @@ package mail
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"html/template"
 	"net"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func NewService() fleet.MailService {
@@ -29,7 +29,7 @@ type sender interface {
 func Test(mailer fleet.MailService, e fleet.Email) error {
 	mailBody, err := getMessageBody(e)
 	if err != nil {
-		return errors.Wrap(err, "failed to get message body")
+		return fmt.Errorf("failed to get message body: %w", err)
 	}
 
 	svc, ok := mailer.(sender)
@@ -39,7 +39,7 @@ func Test(mailer fleet.MailService, e fleet.Email) error {
 
 	err = svc.sendMail(e, mailBody)
 	if err != nil {
-		return errors.Wrap(err, "sending mail")
+		return fmt.Errorf("sending mail: %w", err)
 	}
 
 	return nil
@@ -53,7 +53,7 @@ const (
 func getMessageBody(e fleet.Email) ([]byte, error) {
 	body, err := e.Mailer.Message()
 	if err != nil {
-		return nil, errors.Wrap(err, "get mailer message")
+		return nil, fmt.Errorf("get mailer message: %w", err)
 	}
 	mime := `MIME-version: 1.0;` + "\r\n"
 	content := `Content-Type: text/html; charset="UTF-8";` + "\r\n"
@@ -145,20 +145,20 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 		"%s:%d", e.Config.SMTPSettings.SMTPServer, e.Config.SMTPSettings.SMTPPort)
 	auth, err := smtpAuth(e)
 	if err != nil {
-		return errors.Wrap(err, "failed to get smtp auth")
+		return fmt.Errorf("failed to get smtp auth: %w", err)
 	}
 
 	if e.Config.SMTPSettings.SMTPAuthenticationMethod == fleet.AuthMethodNameCramMD5 {
 		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSettings.SMTPSenderAddress, e.To, msg)
 		if err != nil {
-			return errors.Wrap(err, "failed to send mail. cramd5 auth method")
+			return fmt.Errorf("failed to send mail. cramd5 auth method: %w", err)
 		}
 		return nil
 	}
 
 	client, err := dialTimeout(smtpHost)
 	if err != nil {
-		return errors.Wrap(err, "could not dial smtp host")
+		return fmt.Errorf("could not dial smtp host: %w", err)
 	}
 	defer client.Close()
 
@@ -169,39 +169,39 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 				InsecureSkipVerify: !e.Config.SMTPSettings.SMTPVerifySSLCerts,
 			}
 			if err = client.StartTLS(config); err != nil {
-				return errors.Wrap(err, "startTLS error")
+				return fmt.Errorf("startTLS error: %w", err)
 			}
 		}
 	}
 	if auth != nil {
 		if err = client.Auth(auth); err != nil {
-			return errors.Wrap(err, "client auth error")
+			return fmt.Errorf("client auth error: %w", err)
 		}
 	}
 	if err = client.Mail(e.Config.SMTPSettings.SMTPSenderAddress); err != nil {
-		return errors.Wrap(err, "could not issue mail to provided address")
+		return fmt.Errorf("could not issue mail to provided address: %w", err)
 	}
 	for _, recip := range e.To {
 		if err = client.Rcpt(recip); err != nil {
-			return errors.Wrap(err, "failed to get recipient")
+			return fmt.Errorf("failed to get recipient: %w", err)
 		}
 	}
 	writer, err := client.Data()
 	if err != nil {
-		return errors.Wrap(err, "getting client data")
+		return fmt.Errorf("getting client data: %w", err)
 	}
 
 	_, err = writer.Write(msg)
 	if err != nil {
-		return errors.Wrap(err, "failed to write")
+		return fmt.Errorf("failed to write: %w", err)
 	}
 
 	if err = writer.Close(); err != nil {
-		return errors.Wrap(err, "failed to close writer")
+		return fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	if err := client.Quit(); err != nil {
-		return errors.Wrap(err, "error on client quit")
+		return fmt.Errorf("error on client quit: %w", err)
 	}
 	return nil
 }
@@ -222,11 +222,11 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 
 	conn, err := net.DialTimeout("tcp", addr, 28*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "dialing with timeout")
+		return nil, fmt.Errorf("dialing with timeout: %w", err)
 	}
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, errors.Wrap(err, "split host port")
+		return nil, fmt.Errorf("split host port: %w", err)
 	}
 
 	// Set a deadline to ensure we time out quickly when there is a TCP

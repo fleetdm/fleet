@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 

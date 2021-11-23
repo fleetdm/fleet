@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -88,11 +89,12 @@ func TestHosts(t *testing.T) {
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
 		{"AuthenticateHostLoadsDisk", testAuthenticateHostLoadsDisk},
 		{"HostsListBySoftware", testHostsListBySoftware},
-		{"HostsListFailingPolicies", testHostsListFailingPolicies},
+		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
+		{"HostsReadsLessRows", testHostsReadsLessRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -128,7 +130,7 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, "bar.local", host.Hostname)
 	assert.Equal(t, "192.168.1.1", host.PrimaryIP)
@@ -141,7 +143,7 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	require.NoError(t, saveHostFunc(context.Background(), host))
 	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	require.NotNil(t, host.Additional)
@@ -150,14 +152,14 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	err = saveHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
 	assert.Nil(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
 }
@@ -191,7 +193,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
 }
@@ -298,7 +300,7 @@ func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 
 	require.Len(t, host.PackStats, 2)
@@ -313,7 +315,7 @@ func testHostsSavePackStats(t *testing.T, ds *Datastore) {
 	// Set to nil should not overwrite
 	host.PackStats = nil
 	require.NoError(t, ds.SaveHost(context.Background(), host))
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.PackStats, 2)
 }
@@ -399,7 +401,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 
 	sort.Slice(host.PackStats, func(i, j int) bool {
@@ -459,7 +461,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	gotHost, err := ds.Host(context.Background(), host.ID)
+	gotHost, err := ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 
 	sort.Slice(gotHost.PackStats, func(i, j int) bool {
@@ -544,7 +546,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	}
 
 	// Reload the host and set the scheduled queries stats.
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	host.PackStats = []fleet.PackStats{
 		{PackID: pack1.ID, PackName: pack1.Name, QueryStats: stats1},
@@ -552,7 +554,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 
 	require.Len(t, host.PackStats, 2)
@@ -595,7 +597,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	assert.Nil(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
 }
 
@@ -1146,7 +1148,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), 1)
+		h1Verify, err := ds.Host(context.Background(), 1, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aDayAgo, h1Verify.SeenTime, time.Second)
@@ -1156,7 +1158,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), 1)
+		h1Verify, err := ds.Host(context.Background(), 1, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
@@ -1198,12 +1200,12 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), h1.ID)
+		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
 
-		h2Verify, err := ds.Host(context.Background(), h2.ID)
+		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aDayAgo, h2Verify.SeenTime, time.Second)
@@ -1213,12 +1215,12 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), h1.ID)
+		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aSecondAgo, h1Verify.SeenTime, time.Second)
 
-		h2Verify, err := ds.Host(context.Background(), h2.ID)
+		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
 		assert.Nil(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
@@ -1258,18 +1260,18 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	// Both hosts should still exist because they are new
-	_, err = ds.Host(context.Background(), h1.ID)
+	_, err = ds.Host(context.Background(), h1.ID, false)
 	assert.Nil(t, err)
-	_, err = ds.Host(context.Background(), h2.ID)
+	_, err = ds.Host(context.Background(), h2.ID, false)
 	assert.Nil(t, err)
 
 	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
 	assert.Nil(t, err)
 
 	// Now only the host with details should exist
-	_, err = ds.Host(context.Background(), h1.ID)
+	_, err = ds.Host(context.Background(), h1.ID, false)
 	assert.NotNil(t, err)
-	_, err = ds.Host(context.Background(), h2.ID)
+	_, err = ds.Host(context.Background(), h2.ID, false)
 	assert.Nil(t, err)
 }
 
@@ -1341,7 +1343,7 @@ func testAuthenticateHostLoadsDisk(t *testing.T, ds *Datastore) {
 	h.GigsDiskSpaceAvailable = 1.24
 	h.PercentDiskSpaceAvailable = 42.0
 	require.NoError(t, ds.SaveHost(context.Background(), h))
-	h, err = ds.Host(context.Background(), h.ID)
+	h, err = ds.Host(context.Background(), h.ID, false)
 	require.NoError(t, err)
 
 	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
@@ -1369,7 +1371,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Nil(t, h.Additional)
 
 	// Additional not yet set
-	h, err = ds.Host(context.Background(), h.ID)
+	h, err = ds.Host(context.Background(), h.ID, false)
 	require.NoError(t, err)
 	assert.Nil(t, h.Additional)
 
@@ -1384,7 +1386,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID)
+	h, err = ds.Host(context.Background(), h.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
@@ -1400,7 +1402,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID)
+	h, err = ds.Host(context.Background(), h.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
@@ -1417,7 +1419,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID)
+	h, err = ds.Host(context.Background(), h.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 }
@@ -1472,7 +1474,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	}
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i))
+		host, err := ds.Host(context.Background(), uint(i), false)
 		require.NoError(t, err)
 		assert.Nil(t, host.TeamID)
 	}
@@ -1481,7 +1483,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{3, 4, 5}))
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i))
+		host, err := ds.Host(context.Background(), uint(i), false)
 		require.NoError(t, err)
 		var expectedID *uint
 		switch {
@@ -1497,7 +1499,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{5, 6, 7, 8, 9, 10}))
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i))
+		host, err := ds.Host(context.Background(), uint(i), false)
 		require.NoError(t, err)
 		var expectedID *uint
 		switch {
@@ -1526,7 +1528,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
@@ -1550,7 +1552,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1562,19 +1564,20 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 
-	// readd u1
+	// readd u1 but with a different shell
+	u1.Shell = "/some/new/shell"
 	host.Users = []fleet.HostUser{u1, u2}
 	host.Modified = true
 
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1598,7 +1601,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
@@ -1620,7 +1623,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1632,7 +1635,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.SaveHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
@@ -1814,6 +1817,85 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 }
 
+// This doesn't work when running the whole test suite, but helps inspect individual tests
+func printReadsInTest(test func(t *testing.T, ds *Datastore)) func(t *testing.T, ds *Datastore) {
+	return func(t *testing.T, ds *Datastore) {
+		prevRead := getReads(t, ds)
+		test(t, ds)
+		newRead := getReads(t, ds)
+		t.Log("Rows read in test:", newRead-prevRead)
+	}
+}
+
+func getReads(t *testing.T, ds *Datastore) int {
+	rows, err := ds.writer.Query("show engine innodb status")
+	require.NoError(t, err)
+	defer rows.Close()
+	for rows.Next() {
+		type_, name, status := "", "", ""
+		require.NoError(t, rows.Scan(&type_, &name, &status))
+		assert.Equal(t, type_, "InnoDB")
+		m := regexp.MustCompile(`Number of rows inserted \d+, updated \d+, deleted \d+, read \d+`)
+		rowsStr := m.FindString(status)
+		nums := regexp.MustCompile(`\d+`)
+		parts := nums.FindAllString(rowsStr, -1)
+		require.Len(t, parts, 4)
+		read, err := strconv.Atoi(parts[len(parts)-1])
+		require.NoError(t, err)
+		return read
+	}
+	return 0
+}
+
+func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+
+	prevRead := getReads(t, ds)
+	h1WithExtras, err := ds.Host(context.Background(), h1.ID, false)
+	require.NoError(t, err)
+	newRead := getReads(t, ds)
+	withExtraRowReads := newRead - prevRead
+
+	prevRead = getReads(t, ds)
+	h1WithoutExtras, err := ds.Host(context.Background(), h1.ID, true)
+	require.NoError(t, err)
+	newRead = getReads(t, ds)
+	withoutExtraRowReads := newRead - prevRead
+
+	t.Log("withExtraRowReads", withExtraRowReads)
+	t.Log("withoutExtraRowReads", withoutExtraRowReads)
+	assert.Less(t, withoutExtraRowReads, withExtraRowReads)
+
+	assert.Equal(t, h1WithExtras.ID, h1WithoutExtras.ID)
+	assert.Equal(t, h1WithExtras.OsqueryHostID, h1WithoutExtras.OsqueryHostID)
+	assert.Equal(t, h1WithExtras.NodeKey, h1WithoutExtras.NodeKey)
+	assert.Equal(t, h1WithExtras.UUID, h1WithoutExtras.UUID)
+	assert.Equal(t, h1WithExtras.Hostname, h1WithoutExtras.Hostname)
+}
+
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
 	foundH2 := false
@@ -1829,7 +1911,7 @@ func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fl
 	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
 
-	hostById, err := ds.Host(context.Background(), hid)
+	hostById, err := ds.Host(context.Background(), hid, false)
 	require.NoError(t, err)
 	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
@@ -1880,7 +1962,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 		defer wg.Done()
 
 		for {
-			host1, err := ds.Host(context.Background(), host1.ID)
+			host1, err := ds.Host(context.Background(), host1.ID, false)
 			if err != nil {
 				errCh <- err
 				return
@@ -1935,7 +2017,7 @@ func testHostsSaveTonsOfUsers(t *testing.T, ds *Datastore) {
 		defer wg.Done()
 
 		for {
-			host2, err := ds.Host(context.Background(), host2.ID)
+			host2, err := ds.Host(context.Background(), host2.ID, false)
 			if err != nil {
 				errCh <- err
 				return
@@ -2293,7 +2375,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-user")
 
 	// Even if the scheduled queries didn't run, we get their pack stats (with zero values).
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	packStats := host.PackStats
 	require.Len(t, packStats, 3)
@@ -2393,7 +2475,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		WallTime:           0,
 	}}
 	// Reload the host and set the scheduled queries stats.
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	host.PackStats = []fleet.PackStats{
 		{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: globalPackSQueryStats},
@@ -2401,7 +2483,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.SaveHost(context.Background(), host))
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	packStats = host.PackStats
 	require.Len(t, packStats, 3)
@@ -2509,7 +2591,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 			globalStats: globalStatsHost2,
 		},
 	} {
-		host, err := ds.Host(context.Background(), tc.hostID)
+		host, err := ds.Host(context.Background(), tc.hostID, false)
 		require.NoError(t, err)
 		host.PackStats = []fleet.PackStats{
 			{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: tc.globalStats},
@@ -2531,7 +2613,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 			expectedStats: globalStatsHost2,
 		},
 	} {
-		host, err := ds.Host(context.Background(), tc.host.ID)
+		host, err := ds.Host(context.Background(), tc.host.ID, false)
 		require.NoError(t, err)
 		packStats := host.PackStats
 		require.Len(t, packStats, 1)
@@ -2735,7 +2817,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		UserTime:           183,
 		WallTime:           3,
 	})
-	host, err := ds.Host(context.Background(), host1.ID)
+	host, err := ds.Host(context.Background(), host1.ID, false)
 	require.NoError(t, err)
 	host.PackStats = []fleet.PackStats{
 		{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: stats},
@@ -2744,7 +2826,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 
 	// host should only return scheduled query stats only for the scheduled queries
 	// scheduled to run on "darwin".
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
 	packStats := host.PackStats
 	require.Len(t, packStats, 1)
@@ -2759,7 +2841,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 
 	// host2 should only return scheduled query stats only for the scheduled queries
 	// scheduled to run on "linux"
-	host2, err = ds.Host(context.Background(), host2.ID)
+	host2, err = ds.Host(context.Background(), host2.ID, false)
 	require.NoError(t, err)
 	packStats2 := host2.PackStats
 	require.Len(t, packStats2, 1)

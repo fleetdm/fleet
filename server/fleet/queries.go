@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 )
 
 type QueryPayload struct {
@@ -83,7 +82,7 @@ func LoadQueriesFromYaml(yml string) ([]*Query, error) {
 		var q QueryObject
 		err := yaml.Unmarshal([]byte(s), &q)
 		if err != nil {
-			return nil, errors.Wrap(err, "unmarshal yaml")
+			return nil, fmt.Errorf("unmarshal yaml: %w", err)
 		}
 		queries = append(queries,
 			&Query{Name: q.Spec.Name, Description: q.Spec.Description, Query: q.Spec.Query},
@@ -109,7 +108,7 @@ func WriteQueriesToYaml(queries []*Query) (string, error) {
 		}
 		yml, err := yaml.Marshal(qYaml)
 		if err != nil {
-			return "", errors.Wrap(err, "marshal YAML")
+			return "", fmt.Errorf("marshal YAML: %w", err)
 		}
 		ymlStrings = append(ymlStrings, string(yml))
 	}

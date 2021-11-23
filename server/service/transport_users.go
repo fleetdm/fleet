@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -65,12 +65,12 @@ func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interfac
 func decodeRequirePasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := idFromRequest(r, "id")
 	if err != nil {
-		return nil, errors.Wrap(err, "getting ID from request")
+		return nil, ctxerr.Wrap(ctx, err, "getting ID from request")
 	}
 
 	var req requirePasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 	req.ID = id
 
@@ -80,7 +80,7 @@ func decodeRequirePasswordResetRequest(ctx context.Context, r *http.Request) (in
 func decodePerformRequiredPasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req performRequiredPasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 	return req, nil
 }

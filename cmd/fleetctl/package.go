@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"
@@ -97,6 +97,11 @@ func packageCommand() *cli.Command {
 				Name:        "update-roots",
 				Usage:       "Root key JSON metadata for update server (from fleetctl updates roots)",
 				Destination: &opt.UpdateRoots,
+			},
+			&cli.StringFlag{
+				Name:        "osquery-flagfile",
+				Usage:       "Flagfile to package and provide to osquery",
+				Destination: &opt.OsqueryFlagfile,
 			},
 			&cli.BoolFlag{
 				Name:        "debug",

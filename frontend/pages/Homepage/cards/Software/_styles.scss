@@ -18,14 +18,38 @@
   .component__tabs-wrapper .table-container__header {
     display: none;
   }
-  .no-software {
-    margin-top: $pad-large;
-    font-size: $small;
+  &__software-modal {
+    .data-table__wrapper {
+      margin-top: $pad-large;
+    }
+  }
+  &__empty-software {
+    margin: $pad-large auto 0;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
 
     p {
-      margin-top: 0;
-      font-weight: $bold;
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
     }
+
+    a {
+      color: $core-vibrant-blue;
+      font-size: $x-small;
+      font-weight: $bold;
+      text-decoration: none;
+      margin-left: $pad-xsmall;
+    }
+  }
+  &__empty-software-modal {
+    width: 550px;
+    margin: $pad-large auto;
   }
   &__status_dropdown {
     width: 219px;

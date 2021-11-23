@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -113,12 +114,12 @@ func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
 
 	decoded, err := base64.StdEncoding.DecodeString(samlResponse)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding saml response")
+		return nil, fmt.Errorf("decoding saml response: %w", err)
 	}
 	var saml Response
 	err = xml.NewDecoder(bytes.NewBuffer(decoded)).Decode(&saml)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding response xml")
+		return nil, fmt.Errorf("decoding response xml: %w", err)
 	}
 	authInfo.response = &saml
 	return &authInfo, nil

@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 func SyncCVEData(vulnPath string, config config.FleetConfig) error {
@@ -32,7 +31,7 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	if config.Vulnerabilities.CVEFeedPrefixURL != "" {
 		parsed, err := url.Parse(config.Vulnerabilities.CVEFeedPrefixURL)
 		if err != nil {
-			return errors.Wrap(err, "parsing cve feed url prefix override")
+			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
 		}
 		source.Host = parsed.Host
 		source.Scheme = parsed.Scheme
