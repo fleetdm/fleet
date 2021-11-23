@@ -527,11 +527,10 @@ func TestGetSoftawre(t *testing.T) {
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
-		HostCount: 2,
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", HostCount: 1}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", HostCount: 43}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle", HostCount: 9}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
 	var gotTeamID *uint
 
@@ -558,7 +557,6 @@ apiVersion: "1"
 kind: software
 spec:
 - generated_cpe: somecpe
-  host_count: 2
   id: 0
   name: foo
   source: chrome_extensions
@@ -569,14 +567,12 @@ spec:
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
 - generated_cpe: ""
-  host_count: 1
   id: 0
   name: foo
   source: chrome_extensions
   version: 0.0.2
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
-  host_count: 43
   id: 0
   name: foo
   source: chrome_extensions
@@ -584,14 +580,13 @@ spec:
   vulnerabilities: null
 - bundle_identifier: bundle
   generated_cpe: ""
-  host_count: 9
   id: 0
   name: bar
   source: deb_packages
   version: 0.0.3
   vulnerabilities: null
 `
-	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}],"host_count":2},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null,"host_count":1},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null,"host_count":43},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null,"host_count":9}]}
+	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null,"host_count":1},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null,"host_count":43},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null,"host_count":9}]}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
