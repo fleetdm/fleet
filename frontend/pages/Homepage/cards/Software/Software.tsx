@@ -44,6 +44,7 @@ const VULNERABLE_OPTIONS = [
 const PAGE_SIZE = 8;
 const MODAL_PAGE_SIZE = 20;
 const baseClass = "home-software";
+let loadTimeout: ReturnType<typeof setTimeout>;
 
 const EmptySoftware = (message: string): JSX.Element => {
   const emptySoftware = (
@@ -104,6 +105,8 @@ const Software = ({
   const [modalSoftwarePageIndex, setModalSoftwarePageIndex] = useState<number>(
     0
   );
+  const [software, setSoftware] = useState<ISoftware[]>();
+  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
     modalSoftwareSearchText,
     setModalSoftwareSearchText,
@@ -114,21 +117,27 @@ const Software = ({
   ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
-  const { data: software, isLoading: isLoadingSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(
+  useQuery<ISoftware[], Error>(
     ["software", softwarePageIndex],
-    () =>
-      softwareAPI.load({
+    () => {
+      loadTimeout = setTimeout(() => {
+        setIsLoadingSoftware(true);
+      }, 250);
+      return softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "host_count,id",
         orderDir: "desc",
-      }),
+      });
+    },
     {
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
+      onSuccess: (softwareResponse) => {
+        clearTimeout(loadTimeout);
+        setSoftware(softwareResponse);
+        setIsLoadingSoftware(false);
+      },
     }
   );
 
