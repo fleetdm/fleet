@@ -14,7 +14,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
+	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context) ([]*fleet.Policy, error) {

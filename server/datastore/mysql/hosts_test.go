@@ -1693,7 +1693,9 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
@@ -1787,9 +1789,13 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
 	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
-	p2, err := ds.NewGlobalPolicy(context.Background(), user1.ID, q2.ID, "", "", "", "")
+	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q2.ID,
+	})
 	require.NoError(t, err)
 
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
@@ -1872,7 +1878,9 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	h2 := hosts[1]
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))

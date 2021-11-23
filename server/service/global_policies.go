@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -15,7 +16,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID     uint   `json:"query_id"`
+	QueryID     *uint  `json:"query_id"`
 	Query       string `json:"query"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -57,7 +58,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			message: fmt.Sprintf("policy payload verification: %s", err),
 		}
 	}
-	policy, err := svc.ds.NewGlobalPolicy(ctx, vc.UserID(), p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
+	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
 	}

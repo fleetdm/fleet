@@ -354,7 +354,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, authorID uint, queryID uint, name, query, description, resolution string) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
@@ -380,7 +380,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, authorID uint, teamID uint, queryID uint, name, query, description, resolution string) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)

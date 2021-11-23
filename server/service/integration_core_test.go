@@ -381,7 +381,10 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	})
 	require.NoError(t, err)
 
-	gpParams := globalPolicyRequest{QueryID: qr.ID, Resolution: "some global resolution"}
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
@@ -643,7 +646,9 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, "query1", "select 1", 0, true)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), user1.ID, q.ID, "", "", "", "")
+	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
@@ -761,7 +766,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
 	gpParams0 := globalPolicyRequest{
-		QueryID: qr.ID,
+		QueryID: &qr.ID,
 		Query:   "select * from osquery;",
 	}
 	gpResp0 := globalPolicyResponse{}
@@ -997,14 +1002,14 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	for _, tc := range []struct {
 		tname      string
 		testUpdate bool
-		queryID    uint
+		queryID    *uint
 		name       string
 		query      string
 	}{
 		{
 			tname:      "set both QueryID and Query",
 			testUpdate: false,
-			queryID:    1,
+			queryID:    ptr.Uint(1),
 			name:       "Some name",
 			query:      "select * from osquery;",
 		},
@@ -1037,7 +1042,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
 			require.Nil(t, tpResp.Policy)
 
-			testUpdate := tc.queryID == 0
+			testUpdate := tc.queryID == nil
 
 			if testUpdate {
 				tpReq := modifyTeamPolicyRequest{

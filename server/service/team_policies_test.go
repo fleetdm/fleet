@@ -16,7 +16,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.NewTeamPolicyFunc = func(ctx context.Context, authorID, teamID uint, queryID uint, name, query, description, resolution string) (*fleet.Policy, error) {
+	ds.NewTeamPolicyFunc = func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
 	}
 	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {

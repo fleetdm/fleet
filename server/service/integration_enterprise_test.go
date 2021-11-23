@@ -186,7 +186,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
 
-	tpParams := teamPolicyRequest{QueryID: qr.ID, Resolution: "some team resolution"}
+	tpParams := teamPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some team resolution",
+	}
 	r := teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &r)
 

@@ -5,17 +5,20 @@ import (
 )
 
 // PolicyPayload holds data for policy creation.
+//
+// If QueryID is not nil, then Name, Query and Description are ignored
+// (such fields are fetched from the queries table).
 type PolicyPayload struct {
 	// QueryID allows creating a policy from an existing query.
 	//
 	// Using QueryID is the old way of creating policies.
 	// Use Query, Name and Description instead.
-	QueryID uint
-	// Name is the name of the policy (ignored if QueryID != 0).
+	QueryID *uint
+	// Name is the name of the policy (ignored if QueryID != nil).
 	Name string
-	// Query is the policy query (ignored if QueryID != 0).
+	// Query is the policy query (ignored if QueryID != nil).
 	Query string
-	// Description is the policy description text (ignored if QueryID != 0).
+	// Description is the policy description text (ignored if QueryID != nil).
 	Description string
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution string
@@ -30,7 +33,7 @@ var (
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
-	if p.QueryID != 0 {
+	if p.QueryID != nil {
 		if p.Query != "" {
 			return errPolicyIDAndQuerySet
 		}

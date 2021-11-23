@@ -145,7 +145,7 @@ type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error)
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -283,7 +283,7 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(ctx context.Context, authorID uint, queryID uint, name string, query string, description string, resolution string) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
@@ -307,7 +307,7 @@ type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, erro
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
 
-type NewTeamPolicyFunc func(ctx context.Context, authorID uint, teamID uint, queryID uint, name string, query string, description string, resolution string) (*fleet.Policy, error)
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
@@ -1130,7 +1130,7 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(ctx, id)
+	return s.HostFunc(ctx, id, skipLoadingExtras)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -1473,9 +1473,9 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID uint, queryID uint, name string, query string, description string, resolution string) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(ctx, authorID, queryID, name, query, description, resolution)
+	return s.NewGlobalPolicyFunc(ctx, authorID, args)
 }
 
 func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -1533,9 +1533,9 @@ func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	return s.ListSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) NewTeamPolicy(ctx context.Context, authorID uint, teamID uint, queryID uint, name string, query string, description string, resolution string) (*fleet.Policy, error) {
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
-	return s.NewTeamPolicyFunc(ctx, authorID, teamID, queryID, name, query, description, resolution)
+	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
 func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {

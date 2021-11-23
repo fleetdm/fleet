@@ -18,7 +18,7 @@ import (
 
 type teamPolicyRequest struct {
 	TeamID      uint   `url:"team_id"`
-	QueryID     uint   `json:"query_id"`
+	QueryID     *uint  `json:"query_id"`
 	Query       string `json:"query"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -66,7 +66,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 			message: fmt.Sprintf("policy payload verification: %s", err),
 		}
 	}
-	policy, err := svc.ds.NewTeamPolicy(ctx, vc.UserID(), teamID, p.QueryID, p.Name, p.Query, p.Description, p.Resolution)
+	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
