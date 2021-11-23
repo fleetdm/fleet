@@ -152,14 +152,29 @@ func TestUnwrapAll(t *testing.T) {
 }
 
 func TestErrorHandler(t *testing.T) {
-	// Skipped until error publishing is re-enabled.
-	t.Skip()
-
 	t.Run("works if the error handler is down", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately
 
 		eh := newTestHandler(ctx, nil, kitlog.NewNopLogger(), time.Minute, nil, nil)
+
+		doneCh := make(chan struct{})
+		go func() {
+			eh.Store(pkgErrors.New("test"))
+			close(doneCh)
+		}()
+
+		// should not even block in the call to Store as there is no handler running
+		ticker := time.NewTicker(1 * time.Second)
+		select {
+		case <-doneCh:
+		case <-ticker.C:
+			t.FailNow()
+		}
+	})
+
+	t.Run("works if the error storage is disabled", func(t *testing.T) {
+		eh := newTestHandler(context.Background(), nil, kitlog.NewNopLogger(), -1, nil, nil)
 
 		doneCh := make(chan struct{})
 		go func() {
@@ -306,9 +321,6 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 }
 
 func TestHttpHandler(t *testing.T) {
-	// Skipped until error publishing is re-enabled.
-	t.Skip()
-
 	pool := redistest.SetupRedis(t, false, false, false)
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
