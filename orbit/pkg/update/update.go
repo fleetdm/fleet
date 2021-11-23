@@ -69,7 +69,7 @@ func New(opt Options) (*Updater, error) {
 		opt.Platform = constant.PlatformName
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSConfig(&tls.Config{
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
 	}))
 

@@ -397,7 +397,7 @@ func waitStartup() error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
-	client := fleethttp.NewClient(fleethttp.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}))
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
 
 	if err := backoff.Retry(
 		func() error {

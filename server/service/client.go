@@ -71,7 +71,7 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		}
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSConfig(&tls.Config{
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: insecureSkipVerify,
 		RootCAs:            rootCAPool,
 	}))
