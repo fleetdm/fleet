@@ -65,7 +65,7 @@ func getMessageBody(e fleet.Email) ([]byte, error) {
 
 func (m mailService) SendEmail(e fleet.Email) error {
 	if !e.Config.SMTPSettings.SMTPConfigured {
-		return fmt.Errorf("email not configured")
+		return errors.New("email not configured")
 	}
 	msg, err := getMessageBody(e)
 	if err != nil {

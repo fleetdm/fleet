@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -498,7 +497,7 @@ func TestUserAuth(t *testing.T) {
 		return nil
 	}
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, fmt.Errorf("AA")
+		return nil, errors.New("AA")
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		if id == 999 {

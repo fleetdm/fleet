@@ -90,7 +90,7 @@ func queryCommand() *cli.Command {
 			}
 
 			if flQuery != "" && flQueryName != "" {
-				return fmt.Errorf("--query and --query-name must not be provided together")
+				return errors.New("--query and --query-name must not be provided together")
 			}
 
 			if flQueryName != "" {
@@ -102,7 +102,7 @@ func queryCommand() *cli.Command {
 			}
 
 			if flQuery == "" {
-				return fmt.Errorf("Query must be specified with --query or --query-name")
+				return errors.New("Query must be specified with --query or --query-name")
 			}
 
 			var output outputWriter
