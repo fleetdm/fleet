@@ -51,7 +51,9 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 		logger: logger,
 		ttl:    ttl,
 	}
-	runHandler(ctx, eh)
+	if ttl >= 0 {
+		runHandler(ctx, eh)
+	}
 
 	// Clear out any records that exist.
 	// Temporary mitigation for #3065.
@@ -72,7 +74,10 @@ func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Log
 		testOnStart: onStart,
 		testOnStore: onStore,
 	}
-	runHandler(ctx, eh)
+
+	if ttl >= 0 {
+		runHandler(ctx, eh)
+	}
 	return eh
 }
 
@@ -224,12 +229,6 @@ func (h *Handler) handleErrors(ctx context.Context) {
 }
 
 func (h *Handler) storeError(ctx context.Context, err error) {
-	// Skip storing errors due to SCAN issues with Redis (see #3065).
-	// if true here because otherwise we get linting errors for unreachable code.
-	if true {
-		return
-	}
-
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
@@ -243,11 +242,17 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
-	secs := int(h.ttl.Seconds())
-	if secs <= 0 {
-		secs = 1 // SET EX fails if ttl is <= 0
+	var args redigo.Args
+	args = args.Add(jsonKey, errorJson)
+	if h.ttl > 0 {
+		secs := int(h.ttl.Seconds())
+		if secs <= 0 {
+			secs = 1 // SET EX fails if ttl is <= 0
+		}
+		args = args.Add("EX", secs)
 	}
-	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", secs); err != nil {
+
+	if _, err := conn.Do("SET", args...); err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)

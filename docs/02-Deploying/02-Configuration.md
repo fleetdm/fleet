@@ -1108,7 +1108,8 @@ Whether or not to log the welcome banner.
 ##### logging_error_retention_period
 
 The amount of time to keep an error. Unique instances of errors are stored temporarily to help
-with troubleshooting, this setting controls that duration.
+with troubleshooting, this setting controls that duration. Set to 0 to keep them without expiration,
+and a negative value to disable storage of errors in Redis.
 
 - Default value: 24h
 - Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
