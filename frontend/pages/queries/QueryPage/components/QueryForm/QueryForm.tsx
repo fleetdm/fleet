@@ -311,6 +311,7 @@ const QueryForm = ({
       // eslint complains about the button role
       // applied to H1 - this is needed to avoid
       // using a real button
+      // prettier-ignore
       return (
         <h1
           role="button"
@@ -350,6 +351,7 @@ const QueryForm = ({
       // eslint complains about the button role
       // applied to span - this is needed to avoid
       // using a real button
+      // prettier-ignore
       return (
         <span
           role="button"
