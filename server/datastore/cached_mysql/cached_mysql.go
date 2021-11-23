@@ -15,8 +15,8 @@ type cachedMysql struct {
 }
 
 const (
-	AppConfigKey               = "AppConfig"
-	DefaultAppConfigExpiration = 1 * time.Second
+	appConfigKey               = "AppConfig"
+	defaultAppConfigExpiration = 1 * time.Second
 )
 
 func New(ds fleet.Datastore) fleet.Datastore {
@@ -32,13 +32,13 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 		return nil, err
 	}
 
-	ds.c.Set(AppConfigKey, ac, DefaultAppConfigExpiration)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
 	return ac, nil
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	cachedAc, found := ds.c.Get(AppConfigKey)
+	cachedAc, found := ds.c.Get(appConfigKey)
 	if found {
 		copyAc := *cachedAc.(*fleet.AppConfig)
 		return &copyAc, nil
@@ -49,7 +49,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 		return nil, err
 	}
 
-	ds.c.Set(AppConfigKey, ac, DefaultAppConfigExpiration)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
 	return ac, nil
 }
@@ -60,7 +60,7 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return err
 	}
 
-	ds.c.Set(AppConfigKey, info, DefaultAppConfigExpiration)
+	ds.c.Set(appConfigKey, info, defaultAppConfigExpiration)
 
 	return nil
 }
