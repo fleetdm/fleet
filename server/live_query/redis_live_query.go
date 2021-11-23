@@ -1,4 +1,4 @@
-// package live_query implements an interface for storing and
+// Package live_query implements an interface for storing and
 // retrieving live queries.
 //
 // Design
@@ -7,11 +7,10 @@
 // targeting information. This key has a known prefix, and the data
 // is a bitfield representing _all_ the hosts in fleet.
 //
-// In this model, a live query creation is a few redis writes. While a
-// host checkin needs to scan the keyspace for matching key, and then
-// fetch the bitfield value for their id. While this scan might be
-// expensive, this model fits very well with having a lot of hosts and
-// very few live queries.
+// In this model, a live query creation is a few redis writes. While a host
+// checkin needs to scan the keys stored in a set representing all active live
+// queries, and then fetch the bitfield value for their id.  This model fits
+// very well with having a lot of hosts and very few live queries.
 //
 // A contrasting model, for the case of fewer hosts, but a lot of live
 // queries, is to have a set per host. In this case, the LQ is pushed
@@ -24,18 +23,25 @@
 //
 // Implementation
 //
-// As mentioned in the Design section, there are two keys for each
-// live query: the bitfield and the SQL of the query:
+// As mentioned in the Design section, there are three keys for each
+// live query: the bitfield, the SQL of the query and the set containing
+// the IDs of all active live queries:
 //
 //     livequery:<ID> is the bitfield that indicates the hosts
 //     sql:livequery:<ID> is the SQL of the query.
+//     livequery:active is the set containing the active live query IDs
 //
-// Both have an expiration, and <ID> is the campaign ID of the query.  To make
-// efficient use of Redis Cluster (without impacting standalone Redis), the
-// <ID> is stored in braces (hash tags, e.g. livequery:{1} and
-// sql:livequery:{1}), so that the two keys for the same <ID> are always stored
-// on the same node (as they hash to the same cluster slot). See
-// https://redis.io/topics/cluster-spec#keys-hash-tags for details.
+// Both the bitfield and sql keys have an expiration, and <ID> is the campaign
+// ID of the query.  To make efficient use of Redis Cluster (without impacting
+// standalone Redis), the <ID> is stored in braces (hash tags, e.g.
+// livequery:{1} and sql:livequery:{1}), so that the two keys for the same <ID>
+// are always stored on the same node (as they hash to the same cluster slot).
+// See https://redis.io/topics/cluster-spec#keys-hash-tags for details.
+//
+// It is a noted downside that the active live queries set will necessarily
+// live on a single node in cluster mode (a "hot key"), and that node will see
+// increased activity due to that. Should that become a significant problem, an
+// alternative approach will be required.
 //
 package live_query
 
@@ -100,6 +106,9 @@ func (r *redisLiveQuery) MigrateKeys() error {
 	if err != nil {
 		return err
 	}
+
+	// TODO(mna): using the same scan, migrate keys from pre-set to
+	// use the livequery set.
 
 	// identify which of those keys are in a deprecated format
 	var oldKeys []string
@@ -191,6 +200,8 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 		return fmt.Errorf("set targets: %w", err)
 	}
 
+	// TODO(mna): store name (campaign id) into the livequery set
+
 	return nil
 }
 
@@ -203,6 +214,8 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 		return fmt.Errorf("del query keys: %w", err)
 	}
 
+	// TODO(mna): remove name (campaign id) from the livequery set
+
 	return nil
 }
 
@@ -212,6 +225,9 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("scan active queries: %w", err)
 	}
+
+	// TODO(mna): get the dynamic part of the keys (campaign id) from the livequery set
+	// instead of using ScanKeys
 
 	keysBySlot := redis.SplitKeysBySlot(r.pool, queryKeys...)
 	queries := make(map[string]string)
@@ -252,6 +268,10 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	for _, key := range queryKeys {
 		name := extractTargetKeyName(key)
 
+		// TODO(mna): it is possible the livequery key has expired but is still
+		// in the set - handle this gracefully and collect the keys to remove them
+		// from the set (maybe do this only a percentage of the times).
+
 		targeted, err := redigo.Int(conn.Receive())
 		if err != nil {
 			return fmt.Errorf("receive target: %w", err)
@@ -289,6 +309,11 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	if _, err := conn.Do("SETBIT", targetKey, hostID, 0); err != nil {
 		return fmt.Errorf("setbit query key: %w", err)
 	}
+
+	// TODO(mna): if all bits are now off, meaning that all hosts have completed
+	// this query, remove the query from the set. Or not, this might not be needed
+	// as StopQuery appears to be called every time a campaign is run (see
+	// svc.CompleteCampaign).
 
 	return nil
 }
