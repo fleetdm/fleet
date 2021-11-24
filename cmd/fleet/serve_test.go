@@ -169,7 +169,9 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	defer cancelFunc()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		return true, nil
@@ -205,7 +207,9 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	defer cancelFunc()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		return true, nil
@@ -238,7 +242,9 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 	defer cancelFunc()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		return true, nil
