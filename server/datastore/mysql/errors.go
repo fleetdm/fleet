@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -59,6 +60,9 @@ type existsError struct {
 }
 
 func alreadyExists(kind string, identifier interface{}) error {
+	if s, ok := identifier.(string); ok {
+		identifier = strconv.Quote(s)
+	}
 	return &existsError{
 		Identifier:   identifier,
 		ResourceType: kind,

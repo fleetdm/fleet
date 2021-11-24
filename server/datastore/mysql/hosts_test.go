@@ -1676,6 +1676,7 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1693,7 +1694,9 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	// When policy response is null, we list all hosts that haven't reported at all for the policy, or errored out
@@ -1768,6 +1771,7 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1786,9 +1790,13 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
 	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
-	p2, err := ds.NewGlobalPolicy(context.Background(), q2.ID, "")
+	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q2.ID,
+	})
 	require.NoError(t, err)
 
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
@@ -1831,6 +1839,7 @@ func getReads(t *testing.T, ds *Datastore) int {
 	rows, err := ds.writer.Query("show engine innodb status")
 	require.NoError(t, err)
 	defer rows.Close()
+	r := 0
 	for rows.Next() {
 		type_, name, status := "", "", ""
 		require.NoError(t, rows.Scan(&type_, &name, &status))
@@ -1842,12 +1851,15 @@ func getReads(t *testing.T, ds *Datastore) int {
 		require.Len(t, parts, 4)
 		read, err := strconv.Atoi(parts[len(parts)-1])
 		require.NoError(t, err)
-		return read
+		r = read
+		break
 	}
-	return 0
+	require.NoError(t, rows.Err())
+	return r
 }
 
 func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "alice", "alice-123@example.com", true)
 	var hosts []*fleet.Host
 	for i := 0; i < 10; i++ {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1867,7 +1879,9 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	h2 := hosts[1]
 
 	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
-	p, err := ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))

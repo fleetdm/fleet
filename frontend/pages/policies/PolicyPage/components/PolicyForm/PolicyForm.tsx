@@ -9,8 +9,8 @@ import { addGravatarUrlToResource } from "fleet/helpers";
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
-import { IQuery, IQueryFormData } from "interfaces/query";
+import { PolicyContext } from "context/policy";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
@@ -19,24 +19,24 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import NewQueryModal from "../NewQueryModal";
+import NewPolicyModal from "../NewPolicyModal";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
-const baseClass = "query-form";
+const baseClass = "policy-form";
 
-interface IQueryFormProps {
-  queryIdForEdit: number | null;
+interface IPolicyFormProps {
+  policyIdForEdit: number | null;
   showOpenSchemaActionText: boolean;
-  storedQuery: IQuery | undefined;
-  isStoredQueryLoading: boolean;
-  onCreateQuery: (formData: IQueryFormData) => void;
+  storedPolicy: IPolicy | undefined;
+  isStoredPolicyLoading: boolean;
+  onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
-  onUpdate: (formData: IQueryFormData) => void;
+  onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
 }
@@ -53,19 +53,19 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
-const QueryForm = ({
-  queryIdForEdit,
+const PolicyForm = ({
+  policyIdForEdit,
   showOpenSchemaActionText,
-  storedQuery,
-  isStoredQueryLoading,
-  onCreateQuery,
+  storedPolicy,
+  isStoredPolicyLoading,
+  onCreatePolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryFormProps): JSX.Element => {
-  const isEditMode = !!queryIdForEdit;
+}: IPolicyFormProps): JSX.Element => {
+  const isEditMode = !!policyIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({});
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
@@ -75,18 +75,16 @@ const QueryForm = ({
     false
   );
 
-  // Note: The QueryContext values should always be used for any mutable query data such as query name
-  // The storedQuery prop should only be used to access immutable metadata such as author id
+  // Note: The PolicyContext values should always be used for any mutable policy data such as query name
+  // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
-    lastEditedQueryObserverCanRun,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
-    setLastEditedQueryObserverCanRun,
-  } = useContext(QueryContext);
+  } = useContext(PolicyContext);
 
   const {
     currentUser,
@@ -112,9 +110,9 @@ const QueryForm = ({
 
   const hasTeamMaintainerPermissions = isEditMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
-      storedQuery &&
+      storedPolicy &&
       currentUser &&
-      storedQuery.author_id === currentUser.id
+      storedPolicy.author_id === currentUser.id
     : isAnyTeamMaintainerOrTeamAdmin;
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
@@ -145,7 +143,7 @@ const QueryForm = ({
     if (isEditMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
-        name: "Query name must be present",
+        name: "Policy name must be present",
       });
     }
 
@@ -168,29 +166,31 @@ const QueryForm = ({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
-          observer_can_run: lastEditedQueryObserverCanRun,
         });
 
         setErrors({});
       }
+
+      setIsEditingName(false);
+      setIsEditingDescription(false);
     }
   };
 
   const renderAuthor = (): JSX.Element | null => {
-    return storedQuery ? (
+    return storedPolicy ? (
       <>
         <b>Author</b>
         <div>
           <Avatar
             user={addGravatarUrlToResource({
-              email: storedQuery.author_email,
+              email: storedPolicy.author_email,
             })}
             size="xsmall"
           />
           <span>
-            {storedQuery.author_name === currentUser?.name
+            {storedPolicy.author_name === currentUser?.name
               ? "You"
-              : storedQuery.author_name}
+              : storedPolicy.author_name}
           </span>
         </div>
       </>
@@ -292,13 +292,13 @@ const QueryForm = ({
       if (isEditingName) {
         return (
           <InputField
-            id="query-name"
+            id="policy-name"
             type="textarea"
-            name="query-name"
+            name="policy-name"
             error={errors.name}
             value={lastEditedQueryName}
             placeholder="Add name here"
-            inputClassName={`${baseClass}__query-name`}
+            inputClassName={`${baseClass}__policy-name`}
             onChange={setLastEditedQueryName}
             inputOptions={{
               autoFocus: true,
@@ -315,7 +315,7 @@ const QueryForm = ({
       return (
         <h1
           role="button"
-          className={`${baseClass}__query-name`}
+          className={`${baseClass}__policy-name`}
           onClick={() => setIsEditingName(true)}
         >
           {lastEditedQueryName}
@@ -325,7 +325,7 @@ const QueryForm = ({
       /* eslint-enable */
     }
 
-    return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
+    return <h1 className={`${baseClass}__policy-name no-hover`}>New policy</h1>;
   };
 
   const renderDescription = () => {
@@ -333,12 +333,12 @@ const QueryForm = ({
       if (isEditingDescription) {
         return (
           <InputField
-            id="query-description"
+            id="policy-description"
             type="textarea"
-            name="query-description"
+            name="policy-description"
             value={lastEditedQueryDescription}
             placeholder="Add description here."
-            inputClassName={`${baseClass}__query-description`}
+            inputClassName={`${baseClass}__policy-description`}
             onChange={setLastEditedQueryDescription}
             inputOptions={{
               autoFocus: true,
@@ -354,9 +354,9 @@ const QueryForm = ({
       // prettier-ignore
       return (
         <span
-          role="button"
-          className={`${baseClass}__query-description`}
-          onClick={() => setIsEditingDescription(true)}
+        role="button"
+        className={`${baseClass}__policy-description`}
+        onClick={() => setIsEditingDescription(true)}
         >
           {lastEditedQueryDescription}
           <img alt="Edit description" src={PencilIcon} />
@@ -372,10 +372,10 @@ const QueryForm = ({
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description">
-          <h1 className={`${baseClass}__query-name no-hover`}>
+          <h1 className={`${baseClass}__policy-name no-hover`}>
             {lastEditedQueryName}
           </h1>
-          <p className={`${baseClass}__query-description no-hover`}>
+          <p className={`${baseClass}__policy-description no-hover`}>
             {lastEditedQueryDescription}
           </p>
         </div>
@@ -398,19 +398,6 @@ const QueryForm = ({
         />
       )}
       {renderLiveQueryWarning()}
-      {lastEditedQueryObserverCanRun && (
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
-          >
-            Run query
-          </Button>
-        </div>
-      )}
     </form>
   );
 
@@ -438,80 +425,51 @@ const QueryForm = ({
           handleSubmit={promptSaveQuery}
         />
         {renderPlatformCompatibility()}
-        {isEditMode && (
-          <>
-            <Checkbox
-              value={lastEditedQueryObserverCanRun}
-              onChange={(value: boolean) =>
-                setLastEditedQueryObserverCanRun(value)
-              }
-              wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
-            >
-              Observers can run
-            </Checkbox>
-            <p>
-              Users with the Observer role will be able to run this query on
-              hosts where they have access.
-            </p>
-          </>
-        )}
         {renderLiveQueryWarning()}
         <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
         >
           {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
-            <>
-              {isEditMode && (
+            <div className="query-form__button-wrap--save-policy-button">
+              <div
+                data-tip
+                data-for="save-query-button"
+                data-tip-disable={
+                  !(
+                    isAnyTeamMaintainerOrTeamAdmin &&
+                    !hasTeamMaintainerPermissions
+                  )
+                }
+              >
                 <Button
                   className={`${baseClass}__save`}
-                  variant="text-link"
-                  onClick={promptSaveQuery(true)}
-                  disabled={false}
-                >
-                  Save as new
-                </Button>
-              )}
-              <div className="query-form__button-wrap--save-query-button">
-                <div
-                  data-tip
-                  data-for="save-query-button"
-                  data-tip-disable={
-                    !(
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    )
+                  variant="brand"
+                  onClick={promptSaveQuery()}
+                  disabled={
+                    isAnyTeamMaintainerOrTeamAdmin &&
+                    !hasTeamMaintainerPermissions
                   }
                 >
-                  <Button
-                    className={`${baseClass}__save`}
-                    variant="brand"
-                    onClick={promptSaveQuery()}
-                    disabled={
-                      isAnyTeamMaintainerOrTeamAdmin &&
-                      !hasTeamMaintainerPermissions
-                    }
-                  >
-                    Save
-                  </Button>
-                </div>{" "}
-                <ReactTooltip
-                  className={`save-query-button-tooltip`}
-                  place="bottom"
-                  type="dark"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="save-query-button"
-                  data-html
+                  Save
+                </Button>
+              </div>{" "}
+              <ReactTooltip
+                className={`save-policy-button-tooltip`}
+                place="bottom"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="save-query-button"
+                data-html
+              >
+                <div
+                  className={`tooltip`}
+                  style={{ width: "152px", textAlign: "center" }}
                 >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    You can only save changes to a query if you are the author.
-                  </div>
-                </ReactTooltip>
-              </div>
-            </>
+                  You can only save changes to a query if you are the author.
+                </div>
+              </ReactTooltip>
+            </div>
           )}
           <Button
             className={`${baseClass}__run`}
@@ -523,17 +481,17 @@ const QueryForm = ({
         </div>
       </form>
       {isSaveModalOpen && (
-        <NewQueryModal
+        <NewPolicyModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
-          onCreateQuery={onCreateQuery}
+          onCreatePolicy={onCreatePolicy}
           setIsSaveModalOpen={setIsSaveModalOpen}
         />
       )}
     </>
   );
 
-  if (isStoredQueryLoading) {
+  if (isStoredPolicyLoading) {
     return <Spinner />;
   }
 
@@ -544,4 +502,4 @@ const QueryForm = ({
   return renderForGlobalAdminOrAnyMaintainer;
 };
 
-export default QueryForm;
+export default PolicyForm;

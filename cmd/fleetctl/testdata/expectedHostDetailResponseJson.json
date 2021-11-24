@@ -54,19 +54,30 @@
     "policies":[
       {
         "id":1,
-        "query_id":2,
-        "query_name":"query1",
-        "query_description":"",
+        "query":"select 1 from osquery_info where start_time > 1;",
+        "name":"query1",
+        "description":"Some description",
+        "author_email":"alice@example.com",
+        "author_id":1,
+        "author_name":"Alice",
         "response":"passes",
-        "resolution":""
+        "resolution":"Some resolution",
+        "team_id": 1,
+				"updated_at":"0001-01-01T00:00:00Z",
+				"created_at":"0001-01-01T00:00:00Z"
       },
       {
         "id":2,
-        "query_id":43,
-        "query_name":"query2",
-        "query_description":"",
+        "query":"select 1 from osquery_info where start_time > 1;",
+        "name":"query2",
+        "description":"",
+        "author_email":"alice@example.com",
+        "author_id":1,
+        "author_name":"Alice",
         "response":"fails",
-        "resolution":""
+        "team_id":null,
+				"updated_at":"0001-01-01T00:00:00Z",
+				"created_at":"0001-01-01T00:00:00Z"
       }
     ],
     "status":"mia",

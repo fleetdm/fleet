@@ -693,6 +693,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
 	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+	e.PATCH("/api/v1/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 
 	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
 	e.POST("/api/v1/fleet/team/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
@@ -705,6 +706,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
 	e.GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	e.PATCH("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 
 	e.POST("/api/v1/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
