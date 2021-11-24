@@ -372,6 +372,7 @@ type Datastore interface {
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

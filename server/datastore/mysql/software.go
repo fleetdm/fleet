@@ -215,6 +215,31 @@ var dialect = goqu.Dialect("mysql")
 func listSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) ([]fleet.Software, error) {
+	sql, args, err := selectSoftwareSQL(hostID, opts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+
+	var result []fleet.Software
+	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
+	}
+
+	if opts.SkipLoadingCVEs {
+		return result, nil
+	}
+
+	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
+	}
+	for i := range result {
+		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+	}
+	return result, nil
+}
+
+func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.From(goqu.I("host_software").As("hs")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
@@ -276,26 +301,23 @@ func listSoftwareDB(
 		)
 	}
 
-	sql, args, err := ds.ToSQL()
+	return ds.ToSQL()
+}
+
+func countSoftwareDB(
+	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
+) (int, error) {
+	opts.ListOptions = fleet.ListOptions{
+		MatchQuery: opts.ListOptions.MatchQuery,
+	}
+	sql, args, err := selectSoftwareSQL(hostID, opts)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql build")
+		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	var result []fleet.Software
-	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
-	}
-
-	if opts.SkipLoadingCVEs {
-		return result, nil
-	}
-
-	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
-	}
-	for i := range result {
-		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+	var result int
+	if err := sqlx.GetContext(ctx, q, &result, "select count(*) as count from ("+sql+") s", args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host software")
 	}
 	return result, nil
 }
@@ -448,6 +470,10 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 
 func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	return listSoftwareDB(ctx, d.reader, nil, opt)
+}
+
+func (d *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	return countSoftwareDB(ctx, d.reader, nil, opt)
 }
 
 func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {

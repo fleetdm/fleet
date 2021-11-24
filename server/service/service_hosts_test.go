@@ -78,7 +78,7 @@ func TestRefetchHost(t *testing.T) {
 
 	host := &fleet.Host{ID: 3}
 
-	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -97,7 +97,7 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
-	ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -196,7 +196,7 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}

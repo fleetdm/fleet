@@ -711,6 +711,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
+	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
 
 	e.GET("/api/v1/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
 	e.GET("/api/v1/fleet/hosts", listHostsEndpoint, listHostsRequest{})

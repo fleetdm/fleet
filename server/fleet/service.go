@@ -426,6 +426,7 @@ type Service interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

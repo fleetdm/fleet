@@ -333,12 +333,20 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 2, countResp.Count)
+
 	lsReq := listSoftwareRequest{}
 	lsResp := listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	assert.Equal(t, 1, countResp.Count)
 
 	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "name,id", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)

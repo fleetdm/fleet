@@ -145,7 +145,7 @@ type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error)
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -304,6 +304,8 @@ type MigrateDataFunc func(ctx context.Context) error
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
+
+type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
 
@@ -763,6 +765,9 @@ type DataStore struct {
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
 
+	CountSoftwareFunc        CountSoftwareFunc
+	CountSoftwareFuncInvoked bool
+
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
 
@@ -1125,7 +1130,7 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 
 func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(ctx, id)
+	return s.HostFunc(ctx, id, skipLoadingExtras)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -1521,6 +1526,11 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
 	return s.ListSoftwareFunc(ctx, opt)
+}
+
+func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	s.CountSoftwareFuncInvoked = true
+	return s.CountSoftwareFunc(ctx, opt)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
