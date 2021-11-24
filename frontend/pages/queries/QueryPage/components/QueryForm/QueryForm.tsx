@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { omit, size } from "lodash";
+import { isEmpty, omit, size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
@@ -276,15 +276,13 @@ const QueryForm = ({
   ) => {
     evt.preventDefault();
 
+    const { errors: newErrors } = validateQuerySQL(lastEditedQueryBody);
+
     if (isEditMode && !lastEditedQueryName) {
-      return setErrors({
-        ...errors,
-        name: "Query name must be present",
-      });
+      newErrors.name = "Query name must be present";
     }
 
     // Check that at least one supported platform has been selected
-    console.log("attempting to save query");
     const platform = lastEditedQueryPlatform
       ?.split(",")
       .filter((p) => SUPPORTED_PLATFORMS.includes(p))
@@ -293,10 +291,8 @@ const QueryForm = ({
       console.log(
         "add new error: Please select a platform to save this policy"
       );
-      return setErrors({
-        ...errors,
-        platform: "Please select a platform to save this policy",
-      });
+      newErrors.platform = "Please select a platform to save this policy";
+      !isOverridePlatforms && switchOverridePlatforms();
     }
     const reparsedPlatforms = listCompatiblePlatforms(
       parseSqlTables(lastEditedQueryBody)
@@ -317,18 +313,7 @@ const QueryForm = ({
       );
     }
 
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
-
-    valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
-
-    if (valid) {
+    if (isEmpty(newErrors)) {
       if (!isEditMode || forceNew) {
         setIsSaveModalOpen(true);
       } else {
@@ -342,6 +327,8 @@ const QueryForm = ({
 
         setErrors({});
       }
+    } else {
+      setErrors(newErrors);
     }
   };
 
@@ -409,9 +396,6 @@ const QueryForm = ({
               Linux
             </Checkbox>
           </form>
-          {errors.platform && (
-            <span className="platform">{errors.platform}</span>
-          )}
         </span>
       );
     }
@@ -472,11 +456,10 @@ const QueryForm = ({
             data-html
           >
             <span className={`tooltip__tooltip-text`}>
-              Estimated compatiblity
-              <br />
-              based on the tables used
-              <br />
-              in the query
+              Estimated compatiblity based on the tables <br />
+              used in the query. Edit the compatibility <br />
+              to override the platforms this policy is <br />
+              checked on.
             </span>
           </ReactTooltip>
         </span>
@@ -570,6 +553,7 @@ const QueryForm = ({
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
+        <div className={`${baseClass}__platform-error`}>{errors.platform}</div>
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}

@@ -112,7 +112,7 @@
 
   &__text-editor-wrapper {
     margin: 0;
-    margin-top: $pad-large;
+    // margin-top: $pad-large;
   }
 
   &__query-observer-can-run-wrapper {
@@ -161,6 +161,12 @@
     color: $core-fleet-black;
     display: inline-block;
     font-size: $large;
+  }
+
+  &__platform-error {
+    min-height: 24px;
+    font-size: $small;
+    font-weight: $bold;
   }
 
   &__platform-compatibility {
@@ -212,10 +218,6 @@
 
       img {
         padding: 0px;
-      }
-
-      &__tooltip-text {
-        text-align: center;
       }
     }
 
