@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from "react";
+import { push } from "react-router-redux";
+import { useDispatch } from "react-redux";
 
 import { filter, includes } from "lodash";
 
@@ -15,24 +17,29 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 export interface ISelectQueryModalProps {
-  router: any;
-  params: {
-    host: IHost;
-    onCancel: () => void;
-    queries: IQuery[] | [];
-    queryErrors: any | null;
-    isOnlyObserver: boolean | undefined;
-  };
-  location: any; // no type in react-router v3
+  host: IHost;
+  onCancel: () => void;
+  queries: IQuery[] | [];
+  queryErrors: any | null;
+  isOnlyObserver: boolean | undefined;
 }
+
+const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
 
 const baseClass = "select-query-modal";
 
 const SelectQueryModal = ({
-  router,
-  params: { host, onCancel, queries, queryErrors, isOnlyObserver },
-  location,
+  host,
+  onCancel,
+  queries,
+  queryErrors,
+  isOnlyObserver,
 }: ISelectQueryModalProps) => {
+  const dispatch = useDispatch();
   let queriesAvailableToRun = queries;
 
   const [queriesFilter, setQueriesFilter] = useState("");
@@ -85,17 +92,21 @@ const SelectQueryModal = ({
   const queriesCount = queriesFiltered.length;
 
   const onQueryHostCustom = (host: IHost) => {
-    return router.replace({
-      pathname: PATHS.NEW_QUERY,
-      // query: { host_ids: [host.id] },
-    });
+    return dispatch(
+      push({
+        pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
+      })
+    );
   };
 
   const onQueryHostSaved = (host: IHost, selectedQuery: IQuery) => {
-    return router.replace({
-      pathname: PATHS.EDIT_QUERY(selectedQuery),
-      // query: { host_ids: [host.id] },
-    });
+    return dispatch(
+      push({
+        pathname:
+          PATHS.EDIT_QUERY(selectedQuery) +
+          TAGGED_TEMPLATES.queryByHostRoute(host.id),
+      })
+    );
   };
   const results = (): JSX.Element => {
     if (queryErrors) {

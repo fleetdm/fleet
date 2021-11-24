@@ -55,7 +55,7 @@ import {
   secondsToHms,
 } from "fleet/helpers";
 // @ts-ignore
-import SelectQueryModal from "./SelectQueryModalTsx";
+import SelectQueryModal from "./SelectQueryModal";
 import TransferHostModal from "./TransferHostModal";
 import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 import {
