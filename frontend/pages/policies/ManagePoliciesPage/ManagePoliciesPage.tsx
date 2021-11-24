@@ -1,3 +1,5 @@
+// TODO: Rebase once Martavis is merged, delete add policy modal, replace with renamed SelectPolicyModal
+
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "react-query";
@@ -181,6 +183,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setPolicyTeamId(id);
   };
 
+  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
+
+  const toggleSelectPolicyModal = () =>
+    setShowSelectPolicyModal(!showSelectPolicyModal);
+
   const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
 
@@ -363,8 +370,15 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
-                className={`${baseClass}__add-policy-btn`}
-                onClick={onAddPolicyClick}
+                className={`${baseClass}__select-policy-button`}
+                onClick={toggleSelectPolicyModal}
+              >
+                Select a policy
+              </Button>
+              <Button
+                variant="brand"
+                className={`${baseClass}__add-policy-button`}
+                onClick={toggleAddPolicyModal}
               >
                 Add a policy
               </Button>
@@ -412,6 +426,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={teamPolicies}
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleSelectPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -427,6 +442,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={globalPolicies}
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleSelectPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -475,6 +491,19 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
+        )}
+        {showSelectPolicyModal && (
+          <SelectPolicyModal
+            onCancel={toggleSelectPolicyModal}
+            router={router}
+          />
+        )}
+        {showAddPolicyModal && (
+          <AddPolicyModal
+            onCancel={toggleAddPolicyModal}
+            onSubmit={onAddPolicySubmit}
+            allQueries={fleetQueries}
+          />
         )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
