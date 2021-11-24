@@ -1,24 +1,14 @@
 /* eslint-disable react/prop-types */
 
 import React from "react";
-import { Cell, UseRowSelectInstanceProps } from "react-table";
+import { Cell } from "react-table";
 
 import { IDataColumn } from "interfaces/datatable_config";
 
 // @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
-import RemoveIcon from "../../../../../../assets/images/icon-action-remove-20x20@2x.png";
-
-interface ITargetHostsTableData {
-  hostname: string;
-  status: string;
-  primary_ip: string;
-  primary_mac: string;
-  os_version: string;
-  osquery_version: string;
-}
+import RemoveIcon from "../../../assets/images/icon-action-remove-20x20@2x.png";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties

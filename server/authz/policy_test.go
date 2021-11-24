@@ -474,7 +474,11 @@ func TestAuthorizePolicies(t *testing.T) {
 	t.Parallel()
 
 	policy := &fleet.Policy{}
-	teamPolicy := &fleet.Policy{TeamID: ptr.Uint(1)}
+	teamPolicy := &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(1),
+		},
+	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: policy, action: write, allow: false},
 

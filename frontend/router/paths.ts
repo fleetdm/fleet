@@ -1,5 +1,6 @@
 import { IHost } from "../interfaces/host";
 import { IQuery } from "../interfaces/query";
+import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
 export default {
@@ -17,6 +18,9 @@ export default {
   },
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
+  },
+  EDIT_POLICY: (policy: IPolicy): string => {
+    return `${URL_PREFIX}/policies/${policy.id}`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
@@ -42,6 +46,7 @@ export default {
     return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
+  NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,

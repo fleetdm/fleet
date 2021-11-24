@@ -720,7 +720,7 @@ func loadPolicies(client *service.Client) error {
 		if err != nil {
 			return fmt.Errorf("creating query: %w", err)
 		}
-		err = client.CreatePolicy(q.ID, policy.resolution)
+		err = client.CreatePolicy(&q.ID, policy.resolution)
 		if err != nil {
 			return fmt.Errorf("creating policy: %w", err)
 		}

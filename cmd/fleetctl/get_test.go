@@ -91,7 +91,10 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	var expiredBanner strings.Builder
+	fleet.WriteExpiredLicenseBanner(&expiredBanner)
+	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+
 	testCases := []struct {
 		name                    string
 		license                 *fleet.LicenseInfo
@@ -180,9 +183,9 @@ spec:
 {"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner + "\n" + expectedJson
-				expectedYaml = expiredBanner + "\n" + expectedYaml
-				expectedText = expiredBanner + "\n" + expectedText
+				expectedJson = expiredBanner.String() + expectedJson
+				expectedYaml = expiredBanner.String() + expectedYaml
+				expectedText = expiredBanner.String() + expectedText
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
@@ -244,7 +247,8 @@ func TestGetHosts(t *testing.T) {
 			LastEnrolledAt:  time.Time{},
 			SeenTime:        time.Time{},
 			ComputerName:    "test_host",
-			Hostname:        "test_host"}, nil
+			Hostname:        "test_host",
+		}, nil
 	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -256,19 +260,36 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
+	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
 			{
-				ID:        1,
-				QueryID:   2,
-				QueryName: "query1",
-				Response:  "passes",
+				PolicyData: fleet.PolicyData{
+					ID:          1,
+					Name:        "query1",
+					Query:       defaultPolicyQuery,
+					Description: "Some description",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  ptr.String("Some resolution"),
+					TeamID:      ptr.Uint(1),
+				},
+				Response: "passes",
 			},
 			{
-				ID:        2,
-				QueryID:   43,
-				QueryName: "query2",
-				Response:  "fails",
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "query2",
+					Query:       defaultPolicyQuery,
+					Description: "",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  nil,
+					TeamID:      nil,
+				},
+				Response: "fails",
 			},
 		}, nil
 	}
