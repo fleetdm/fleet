@@ -1013,10 +1013,11 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
 	) as pm ON (p.id=pm.policy_id)
-	JOIN queries q ON (p.query_id=q.id)`
+	JOIN queries q ON (p.query_id=q.id)
+	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid, hid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

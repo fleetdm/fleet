@@ -56,4 +56,4 @@ package-lock.json
 terraform.tfstate*
 
 # generated installers
-orbit-osquery*
+fleet-osquery*
