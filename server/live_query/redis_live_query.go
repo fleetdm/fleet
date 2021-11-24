@@ -58,10 +58,11 @@ import (
 )
 
 const (
-	bitsInByte      = 8
-	queryKeyPrefix  = "livequery:"
-	sqlKeyPrefix    = "sql:"
-	queryExpiration = 7 * 24 * time.Hour
+	bitsInByte       = 8
+	queryKeyPrefix   = "livequery:"
+	sqlKeyPrefix     = "sql:"
+	activeQueriesKey = "livequery:active"
+	queryExpiration  = 7 * 24 * time.Hour
 )
 
 type redisLiveQuery struct {
@@ -69,7 +70,7 @@ type redisLiveQuery struct {
 	pool fleet.RedisPool
 }
 
-// NewRedisQueryResults creats a new Redis implementation of the
+// NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
 func NewRedisLiveQuery(pool fleet.RedisPool) *redisLiveQuery {
 	return &redisLiveQuery{pool: pool}
@@ -176,70 +177,71 @@ func migrateBatchKeys(pool fleet.RedisPool, keys []string) error {
 	return nil
 }
 
+// RunQuery stores the live query information in ephemeral storage for the
+// duration of the query or its TTL. Note that hostIDs *must* be sorted
+// in ascending order.
 func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return errors.New("no hosts targeted")
 	}
 
-	conn := r.pool.Get()
-	defer conn.Close()
-
-	// Map the targeted host IDs to a bitfield. Store targets in one key and SQL
-	// in another.
-	targetKey, sqlKey := generateKeys(name)
-	targets := mapBitfield(hostIDs)
-
-	// Ensure to set SQL first or else we can end up in a weird state in which a
-	// client reads that the query exists but cannot look up the SQL.
-	err := conn.Send("SET", sqlKey, sql, "EX", queryExpiration.Seconds())
-	if err != nil {
-		return fmt.Errorf("set sql: %w", err)
-	}
-	_, err = conn.Do("SET", targetKey, targets, "EX", queryExpiration.Seconds())
-	if err != nil {
-		return fmt.Errorf("set targets: %w", err)
+	// store the sql and targeted hosts information
+	if err := r.storeQueryInfo(name, sql, hostIDs); err != nil {
+		return fmt.Errorf("store query info: %w", err)
 	}
 
-	// TODO(mna): store name (campaign id) into the livequery set
+	// store name (campaign id) into the active live queries set
+	if err := r.storeQueryName(name); err != nil {
+		return fmt.Errorf("store query name: %w", err)
+	}
 
 	return nil
 }
 
 func (r *redisLiveQuery) StopQuery(name string) error {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	targetKey, sqlKey := generateKeys(name)
-	if _, err := conn.Do("DEL", targetKey, sqlKey); err != nil {
-		return fmt.Errorf("del query keys: %w", err)
+	// remove the sql and targeted hosts keys
+	if err := r.removeQueryInfo(name); err != nil {
+		return fmt.Errorf("remove query info: %w", err)
 	}
 
-	// TODO(mna): remove name (campaign id) from the livequery set
+	// remove name (campaign id) from the livequery set
+	if err := r.removeQueryName(name); err != nil {
+		return fmt.Errorf("remove query name: %w", err)
+	}
 
 	return nil
 }
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	queryKeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
+	names, err := r.loadActiveQueryNames()
 	if err != nil {
-		return nil, fmt.Errorf("scan active queries: %w", err)
+		return nil, fmt.Errorf("load active queries: %w", err)
 	}
 
-	// TODO(mna): get the dynamic part of the keys (campaign id) from the livequery set
-	// instead of using ScanKeys
+	// convert the query name (campaign id) to the key name
+	for i, name := range names {
+		tkey, _ := generateKeys(name)
+		names[i] = tkey
+	}
 
-	keysBySlot := redis.SplitKeysBySlot(r.pool, queryKeys...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, names...)
 	queries := make(map[string]string)
+	expired := make(map[string]struct{})
 	for _, qkeys := range keysBySlot {
-		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
+		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries, expired); err != nil {
 			return nil, err
 		}
 	}
+
+	if len(expired) > 0 {
+		// TODO(mna): a certain percentage of the time, clean up the expired queries
+	}
+
 	return queries, nil
 }
 
-func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
+func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string, expiredQueries map[string]struct{}) error {
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -268,10 +270,9 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	for _, key := range queryKeys {
 		name := extractTargetKeyName(key)
 
-		// TODO(mna): it is possible the livequery key has expired but is still
-		// in the set - handle this gracefully and collect the keys to remove them
-		// from the set (maybe do this only a percentage of the times).
-
+		// the result of GETBIT will not fail if the key does not exist, it will
+		// just return 0, so it can't be used to detect if the livequery still
+		// exists.
 		targeted, err := redigo.Int(conn.Receive())
 		if err != nil {
 			return fmt.Errorf("receive target: %w", err)
@@ -282,12 +283,15 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 		// the pipeline.
 		sql, err := redigo.String(conn.Receive())
 		if err != nil {
-			// Not being able to get the sql for a matched query could mean things
-			// have ended up in a weird state. Or it could be that the query was
-			// stopped since we did the key scan. In any case, attempt to clean
-			// up here.
-			_ = r.StopQuery(name)
-			return fmt.Errorf("receive sql: %w", err)
+			if err != redigo.ErrNil {
+				return fmt.Errorf("receive sql: %w", err)
+			}
+
+			// It is possible the livequery key has expired but was still in the set
+			// - handle this gracefully by collecting the keys to remove them from
+			// the set and keep going.
+			expiredQueries[name] = struct{}{}
+			continue
 		}
 
 		if targeted == 0 {
@@ -310,12 +314,73 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 		return fmt.Errorf("setbit query key: %w", err)
 	}
 
-	// TODO(mna): if all bits are now off, meaning that all hosts have completed
-	// this query, remove the query from the set. Or not, this might not be needed
-	// as StopQuery appears to be called every time a campaign is run (see
-	// svc.CompleteCampaign).
+	// NOTE(mna): we could remove the query here if all bits are now off, meaning
+	// that all hosts have completed this query, but the BITCOUNT command can be
+	// costly on large strings and we may have very large ones. This should not be
+	// needed anyway as StopQuery appears to be called every time a campaign is
+	// run (see svc.CompleteCampaign).
 
 	return nil
+}
+
+func (r *redisLiveQuery) storeQueryInfo(name, sql string, hostIDs []uint) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	// Map the targeted host IDs to a bitfield. Store targets in one key and SQL
+	// in another.
+	targetKey, sqlKey := generateKeys(name)
+	targets := mapBitfield(hostIDs)
+
+	// Ensure to set SQL first or else we can end up in a weird state in which a
+	// client reads that the query exists but cannot look up the SQL.
+	err := conn.Send("SET", sqlKey, sql, "EX", queryExpiration.Seconds())
+	if err != nil {
+		return fmt.Errorf("set sql: %w", err)
+	}
+	_, err = conn.Do("SET", targetKey, targets, "EX", queryExpiration.Seconds())
+	if err != nil {
+		return fmt.Errorf("set targets: %w", err)
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) storeQueryName(name string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("SADD", activeQueriesKey, name)
+	return err
+}
+
+func (r *redisLiveQuery) removeQueryInfo(name string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	targetKey, sqlKey := generateKeys(name)
+	if _, err := conn.Do("DEL", targetKey, sqlKey); err != nil {
+		return fmt.Errorf("del query keys: %w", err)
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) removeQueryName(name string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("SREM", activeQueriesKey, name)
+	return err
+}
+
+func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	names, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return nil, err
+	}
+	return names, nil
 }
 
 // mapBitfield takes the given host IDs and maps them into a bitfield compatible
@@ -324,6 +389,20 @@ func mapBitfield(hostIDs []uint) []byte {
 	if len(hostIDs) == 0 {
 		return []byte{}
 	}
+
+	// NOTE(mna): note that this is efficient storage if the host IDs are mostly
+	// sequential and starting from 1, e.g. as in a newly created database. If
+	// there's substantial churn in hosts (e.g. some are coming on and off) or
+	// for some reason the auto_increment had to be bumped (e.g. it increments with
+	// failed inserts, even if there's an "on duplicate" clause), then it could get
+	// quite inefficient. If the id gets, say, to 10M then the bitfield will take
+	// over 1MB, even if there are only 100K hosts - at which point it would
+	// likely become more efficient to store a set of host IDs (without any
+	// redis-internal storage optimization, that would be 100K * 4 bytes =
+	// ~380KB). This large usage of memory would even be true if there was only
+	// one host selected in the query, should that host be one of the high IDs.
+	// Something to keep in mind if at some point we have reports of unexpectedly
+	// large redis memory usage, as that storage is repeated for each live query.
 
 	// As the input IDs are in ascending order, we get two optimizations here:
 	// 1. We can calculate the length of the bitfield necessary by using the
