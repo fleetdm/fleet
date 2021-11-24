@@ -30,7 +30,6 @@ import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
-import PreviewDataModal from "./components/PreviewDataModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 
 const baseClass = "manage-schedule-page";
@@ -261,13 +260,7 @@ const ManageSchedulePage = ({
 
   const togglePreviewDataModal = useCallback(() => {
     setShowPreviewDataModal(!showPreviewDataModal);
-    setShowScheduleEditorModal(!showScheduleEditorModal);
-  }, [
-    showScheduleEditorModal,
-    setShowScheduleEditorModal,
-    setShowPreviewDataModal,
-    showPreviewDataModal,
-  ]);
+  }, [setShowPreviewDataModal, showPreviewDataModal]);
 
   const toggleScheduleEditorModal = useCallback(() => {
     setSelectedScheduledQuery(undefined); // create modal renders
@@ -564,11 +557,12 @@ const ManageSchedulePage = ({
             editQuery={selectedScheduledQuery}
             teamId={teamId}
             togglePreviewDataModal={togglePreviewDataModal}
+            showPreviewDataModal={showPreviewDataModal}
           />
         )}
-        {showPreviewDataModal && (
+        {/* {showPreviewDataModal && (
           <PreviewDataModal onCancel={togglePreviewDataModal} />
-        )}
+        )} */}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}

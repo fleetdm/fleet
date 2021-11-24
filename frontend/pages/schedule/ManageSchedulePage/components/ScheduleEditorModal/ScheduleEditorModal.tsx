@@ -23,6 +23,8 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 
+import PreviewDataModal from "../PreviewDataModal";
+
 const baseClass = "schedule-editor-modal";
 
 interface IFormData {
@@ -47,6 +49,7 @@ interface IScheduleEditorModalProps {
   editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
   teamId?: number;
   togglePreviewDataModal: () => void;
+  showPreviewDataModal: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -89,6 +92,7 @@ const ScheduleEditorModal = ({
   editQuery,
   teamId,
   togglePreviewDataModal,
+  showPreviewDataModal,
 }: IScheduleEditorModalProps): JSX.Element => {
   const [loggingConfig, setLoggingConfig] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -230,6 +234,10 @@ const ScheduleEditorModal = ({
       editQuery
     );
   };
+
+  if (showPreviewDataModal) {
+    return <PreviewDataModal onCancel={togglePreviewDataModal} />;
+  }
 
   return (
     <Modal
