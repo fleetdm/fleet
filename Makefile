@@ -153,7 +153,7 @@ generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors --watch
 
 generate-mock: .prefix
-	go get -u github.com/groob/mockimpl
+	go install github.com/groob/mockimpl@latest
 	go generate github.com/fleetdm/fleet/v4/server/mock
 
 deps: deps-js deps-go
