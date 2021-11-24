@@ -1,4 +1,4 @@
-// TODO: Rebase once Martavis is merged, delete add policy modal, replace with renamed SelectPolicyModal
+// TODO: Rebase once Martavis is merged, delete add policy modal, replace with renamed AddPolicyModal
 
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -34,6 +34,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import TeamsDropdown from "components/TeamsDropdown";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 const baseClass = "manage-policies-page";
@@ -124,6 +125,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
+  // const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
+  const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
@@ -183,10 +186,9 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setPolicyTeamId(id);
   };
 
-  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
+  // const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
-  const toggleSelectPolicyModal = () =>
-    setShowSelectPolicyModal(!showSelectPolicyModal);
+  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
@@ -371,13 +373,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               <Button
                 variant="brand"
                 className={`${baseClass}__select-policy-button`}
-                onClick={toggleSelectPolicyModal}
-              >
-                Select a policy
-              </Button>
-              <Button
-                variant="brand"
-                className={`${baseClass}__add-policy-button`}
                 onClick={toggleAddPolicyModal}
               >
                 Add a policy
@@ -426,7 +421,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={teamPolicies}
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleSelectPolicyModal}
+                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -442,7 +437,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={globalPolicies}
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleSelectPolicyModal}
+                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -492,19 +487,16 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             />
           </div>
         )}
-        {showSelectPolicyModal && (
-          <SelectPolicyModal
-            onCancel={toggleSelectPolicyModal}
-            router={router}
-          />
-        )}
         {showAddPolicyModal && (
+          <AddPolicyModal onCancel={toggleAddPolicyModal} router={router} />
+        )}
+        {/* {showAddPolicyModal && (
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
             onSubmit={onAddPolicySubmit}
             allQueries={fleetQueries}
           />
-        )}
+        )} */}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
             onCancel={toggleRemovePoliciesModal}

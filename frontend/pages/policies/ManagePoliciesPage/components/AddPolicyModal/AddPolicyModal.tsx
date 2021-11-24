@@ -4,28 +4,26 @@ import PATHS from "router/paths";
 
 import { DEFAULT_POLICIES } from "utilities/constants";
 
-import { IHost } from "interfaces/host";
 import { IPolicyNew } from "interfaces/policy";
-import { IQuery } from "interfaces/query";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-export interface ISelectPolicyModalProps {
+export interface IAddPolicyModalProps {
   onCancel: () => void;
   router: any;
 }
 
 const baseClass = "add-policy-modal";
 
-const SelectPolicyModal = ({ onCancel, router }: ISelectPolicyModalProps) => {
+const AddPolicyModal = ({ onCancel, router }: IAddPolicyModalProps) => {
   const policiesAvailable = DEFAULT_POLICIES.map((policy) => {
     return (
       <Button
         key={policy.key}
         variant="unstyled-modal-query"
         className="modal-policy-button"
-        onClick={() => onSelectPolicy(policy)}
+        onClick={() => onAddPolicy(policy)}
       >
         <>
           <span className="info__header">{policy.name}</span>
@@ -34,11 +32,10 @@ const SelectPolicyModal = ({ onCancel, router }: ISelectPolicyModalProps) => {
       </Button>
     );
   });
-  const onSelectPolicy = (selectedPolicy: IPolicyNew) => {
-    const { NEW_QUERY } = PATHS;
-    // TODO: Change to NEW_POLICY after Martavis PR is merged
+  const onAddPolicy = (selectedPolicy: IPolicyNew) => {
+    const { NEW_POLICY } = PATHS;
     // Make policy auto populate
-    const path = `${NEW_QUERY}?policy=${selectedPolicy}`;
+    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
     router.replace(path);
     onCancel();
   };
@@ -51,8 +48,7 @@ const SelectPolicyModal = ({ onCancel, router }: ISelectPolicyModalProps) => {
     >
       <>
         Choose a policy template to get started or{" "}
-        {/* TODO: Change to NEW_POLICY after Martavis PR is merged */}
-        <Link to={PATHS.NEW_QUERY} className={`${baseClass}__back-link`}>
+        <Link to={PATHS.NEW_POLICY} className={`${baseClass}__back-link`}>
           create your own policy
         </Link>
         .
@@ -64,4 +60,4 @@ const SelectPolicyModal = ({ onCancel, router }: ISelectPolicyModalProps) => {
   );
 };
 
-export default SelectPolicyModal;
+export default AddPolicyModal;
