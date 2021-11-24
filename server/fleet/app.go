@@ -397,8 +397,8 @@ type KafkaRESTConfig struct {
 	ProxyHost   string `json:"proxyhost"`
 }
 
-func (ac *AppConfig) Clone() (*AppConfig, error) {
+func (c *AppConfig) Clone() (*AppConfig, error) {
 	newAc := AppConfig{}
-	err := copier.Copy(&newAc, ac)
+	err := copier.Copy(&newAc, c)
 	return &newAc, err
 }
