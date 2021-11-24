@@ -15,6 +15,7 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
 import { IHost, IPackStats } from "interfaces/host";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
@@ -112,6 +113,11 @@ const HostDetailsPage = ({
     isGlobalMaintainer,
     currentUser,
   } = useContext(AppContext);
+  const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+  } = useContext(PolicyContext);
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
@@ -385,14 +391,13 @@ const HostDetailsPage = ({
   }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
 
   const onCreateNewPolicy = () => {
-    /* TODO: route to the new policy page with the policy prefilled
-    Steps:
-    - Build it an optionalargument that takes a string parameter to create policy
-    */
     const { NEW_POLICY } = PATHS;
-    // TODO: Make policy auto populate
-    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
-    router.replace(path);
+    setLastEditedQueryName(osPolicyLabel);
+    setLastEditedQueryDescription(
+      "Returns yes or no for detecting operating system and version"
+    );
+    setLastEditedQueryBody(osPolicy);
+    router.replace(NEW_POLICY);
   };
 
   const onDestroyHost = async () => {
@@ -557,32 +562,30 @@ const HostDetailsPage = ({
             Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
           </span>
         </p>
-        <p>
-          <span className={`${baseClass}__os-modal-example-title`}>
-            Example policy:
-          </span>{" "}
-          <span
-            className="policy-isexamplesue tooltip__tooltip-icon"
-            data-tip
-            data-for="policy-example"
-            data-tip-disable={false}
-          >
-            <img alt="host issue" src={QuestionIcon} />
+        <span className={`${baseClass}__os-modal-example-title`}>
+          Example policy:
+        </span>{" "}
+        <span
+          className="policy-isexamplesue tooltip__tooltip-icon"
+          data-tip
+          data-for="policy-example"
+          data-tip-disable={false}
+        >
+          <img alt="host issue" src={QuestionIcon} />
+        </span>
+        <ReactTooltip
+          place="bottom"
+          type="dark"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id="policy-example"
+          data-html
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            A policy is a yes or no question
+            <br /> you can ask all your devices.
           </span>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id="policy-example"
-            data-html
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              A policy is a yes or no question
-              <br /> you can ask all your devices.
-            </span>
-          </ReactTooltip>
-        </p>
+        </ReactTooltip>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__os-policy`}
