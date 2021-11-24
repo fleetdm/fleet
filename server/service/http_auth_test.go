@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 
@@ -91,7 +92,7 @@ func TestLogin(t *testing.T) {
 		// test logout
 		req, _ := http.NewRequest("POST", server.URL+"/api/v1/fleet/logout", nil)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jsn.Token))
-		client := &http.Client{}
+		client := fleethttp.NewClient()
 		resp, err = client.Do(req)
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
@@ -192,7 +193,7 @@ func TestNoHeaderErrorsDifferently(t *testing.T) {
 	_, _, server := setupAuthTest(t)
 
 	req, _ := http.NewRequest("GET", server.URL+"/api/v1/fleet/users", nil)
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	resp, err := client.Do(req)
 	require.Nil(t, err)
 	defer resp.Body.Close()

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -217,7 +218,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	}
 
 	if onlyAlreadyEnrolled {
-		return fmt.Errorf("not enrolled")
+		return errors.New("not enrolled")
 	}
 
 	var body bytes.Buffer

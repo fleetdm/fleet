@@ -1194,7 +1194,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	}
 
 	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
-		return nil, fmt.Errorf("missing campaign")
+		return nil, errors.New("missing campaign")
 	}
 
 	lq.On("StopQuery", "42").Return(nil)
@@ -1265,7 +1265,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		return campaign, nil
 	}
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
-		return fmt.Errorf("failed save")
+		return errors.New("failed save")
 	}
 
 	host := fleet.Host{ID: 1}
@@ -1303,7 +1303,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(fmt.Errorf("failed"))
+	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -1366,7 +1366,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(fmt.Errorf("fail"))
+	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)

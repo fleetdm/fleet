@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -61,7 +61,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
 	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
-		return nil, fmt.Errorf("ouch!")
+		return nil, errors.New("ouch!")
 	}
 
 	ctx := hostctx.NewContext(context.Background(), host)
@@ -155,7 +155,7 @@ func TestCarveCarveBlockGetCarveError(t *testing.T) {
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
 	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
-		return nil, fmt.Errorf("ouch!")
+		return nil, errors.New("ouch!")
 	}
 
 	payload := fleet.CarveBlockPayload{
@@ -308,7 +308,7 @@ func TestCarveCarveBlockNewBlockError(t *testing.T) {
 		return metadata, nil
 	}
 	ms.NewBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64, data []byte) error {
-		return fmt.Errorf("kaboom!")
+		return errors.New("kaboom!")
 	}
 
 	payload := fleet.CarveBlockPayload{
@@ -434,7 +434,7 @@ func TestCarveGetBlockGetBlockError(t *testing.T) {
 	ms.GetBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
 		assert.Equal(t, metadata.ID, carve.ID)
 		assert.Equal(t, int64(3), blockId)
-		return nil, fmt.Errorf("yow!!")
+		return nil, errors.New("yow!!")
 	}
 
 	// Block requested is greater than max block

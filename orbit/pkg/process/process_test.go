@@ -2,7 +2,7 @@ package process
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -42,7 +42,7 @@ func TestWaitOrKillProcessCompletedError(t *testing.T) {
 	mockProcess := &mockOsProcess{}
 	defer mock.AssertExpectationsForObjects(t, mockCmd, mockProcess)
 	mockCmd.On("OsProcess").Return(mockProcess)
-	mockCmd.On("Wait").After(10 * time.Millisecond).Return(fmt.Errorf("super bad"))
+	mockCmd.On("Wait").After(10 * time.Millisecond).Return(errors.New("super bad"))
 
 	p := newWithMock(mockCmd)
 	err := p.WaitOrKill(context.Background(), 10*time.Millisecond)
@@ -74,7 +74,7 @@ func TestWaitOrKillWaitSignalCompleted(t *testing.T) {
 	defer mock.AssertExpectationsForObjects(t, mockCmd, mockProcess)
 	mockCmd.On("OsProcess").Return(mockProcess)
 	mockCmd.On("Wait").After(10 * time.Millisecond).Return(nil)
-	mockProcess.On("Signal", stopSignal()).Return(fmt.Errorf("os: process already finished"))
+	mockProcess.On("Signal", stopSignal()).Return(errors.New("os: process already finished"))
 
 	p := newWithMock(mockCmd)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -89,7 +89,7 @@ func TestWaitOrKillWaitKilled(t *testing.T) {
 	mockProcess := &mockOsProcess{}
 	defer mock.AssertExpectationsForObjects(t, mockCmd, mockProcess)
 	mockCmd.On("OsProcess").Return(mockProcess)
-	mockCmd.On("Wait").After(10 * time.Millisecond).Return(fmt.Errorf("killed"))
+	mockCmd.On("Wait").After(10 * time.Millisecond).Return(errors.New("killed"))
 	mockProcess.On("Signal", stopSignal()).Return(nil)
 	mockProcess.On("Kill").Return(nil)
 

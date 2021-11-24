@@ -1,0 +1,1 @@
+* Ensure uniformity of http clients across the codebase, so that all use sane defaults and are proxy-aware.
