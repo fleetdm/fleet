@@ -18,6 +18,7 @@ func TestDecodeSuccessfulSalesforceResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, Success, status)
 	assert.Equal(t, "john@kolide.co", auth.UserID())
+	assert.NotEmpty(t, auth.RequestID())
 }
 
 func TestDecodeWithCommentInName(t *testing.T) {
@@ -36,6 +37,7 @@ func TestDecodeWithCommentInName(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, Success, status)
 	assert.Equal(t, "john@kol<!---->ide.co", auth.UserID())
+	assert.NotEmpty(t, auth.RequestID())
 }
 
 func TestDecodeSuccessfulGoogleResponse(t *testing.T) {
@@ -50,5 +52,5 @@ func TestDecodeSuccessfulGoogleResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, Success, status)
 	assert.Equal(t, "john@edilok.net", auth.UserID())
-
+	assert.NotEmpty(t, auth.RequestID())
 }

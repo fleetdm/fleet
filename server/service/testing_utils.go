@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +43,8 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	//}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
+
+	var ssoStore sso.SessionStore
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -49,12 +52,15 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		if opts[0].License != nil {
 			license = opts[0].License
 		}
+		if opts[0].Pool != nil {
+			ssoStore = sso.NewSessionStore(opts[0].Pool)
+		}
 	}
 	task := &async.Task{
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, *license)
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license)
 	if err != nil {
 		panic(err)
 	}
@@ -151,6 +157,7 @@ type TestServerOpts struct {
 	SkipCreateTestUsers bool
 	Rs                  fleet.QueryResultStore
 	Lq                  fleet.LiveQueryStore
+	Pool                fleet.RedisPool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {

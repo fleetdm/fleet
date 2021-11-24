@@ -16,6 +16,7 @@ import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
+import AccessRoutes from "components/AccessRoutes";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthAnyAdminRoutes from "components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
@@ -86,75 +87,83 @@ const routes = (
         <Route component={AuthenticatedRoutes}>
           <Route path="email/change/:token" component={EmailTokenRedirect} />
           <Route path="logout" component={LogoutPage} />
-          <Route component={CoreLayout}>
-            <IndexRedirect to={"dashboard"} />
-            <Route path="dashboard" component={Homepage} />
-            <Route path="settings" component={AuthAnyAdminRoutes}>
-              <Route component={SettingsWrapper}>
-                <Route component={AuthenticatedAdminRoutes}>
-                  <Route path="organization" component={AdminAppSettingsPage} />
-                  <Route path="users" component={AdminUserManagementPage} />
-                  <Route component={PremiumTierRoutes}>
-                    <Route path="teams" component={AdminTeamManagementPage} />
+          <Route component={AccessRoutes}>
+            <Route component={CoreLayout}>
+              <IndexRedirect to={"dashboard"} />
+              <Route path="dashboard" component={Homepage} />
+              <Route path="settings" component={AuthAnyAdminRoutes}>
+                <Route component={SettingsWrapper}>
+                  <Route component={AuthenticatedAdminRoutes}>
+                    <Route
+                      path="organization"
+                      component={AdminAppSettingsPage}
+                    />
+                    <Route path="users" component={AdminUserManagementPage} />
+                    <Route component={PremiumTierRoutes}>
+                      <Route path="teams" component={AdminTeamManagementPage} />
+                    </Route>
+                  </Route>
+                </Route>
+                <Route path="teams/:team_id" component={TeamDetailsWrapper}>
+                  <Route path="members" component={MembersPage} />
+                  <Route path="options" component={AgentOptionsPage} />
+                </Route>
+              </Route>
+              <Route path="hosts">
+                <Route path="manage" component={ManageHostsPage} />
+                <Route
+                  path="manage/labels/:label_id"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/:active_label"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/labels/:label_id/:active_label"
+                  component={ManageHostsPage}
+                />
+                <Route
+                  path="manage/:active_label/labels/:label_id"
+                  component={ManageHostsPage}
+                />
+                <Route path=":host_id" component={HostDetailsPage} />
+              </Route>
+              <Route component={AuthGlobalAdminMaintainerRoutes}>
+                <Route path="packs" component={PackPageWrapper}>
+                  <Route path="manage" component={ManagePacksPage} />
+                  <Route path="new" component={PackComposerPage} />
+                  <Route path=":id">
+                    <IndexRoute component={EditPackPage} />
+                    <Route path="edit" component={EditPackPage} />
                   </Route>
                 </Route>
               </Route>
-              <Route path="teams/:team_id" component={TeamDetailsWrapper}>
-                <Route path="members" component={MembersPage} />
-                <Route path="options" component={AgentOptionsPage} />
-              </Route>
-            </Route>
-            <Route path="hosts">
-              <Route path="manage" component={ManageHostsPage} />
-              <Route
-                path="manage/labels/:label_id"
-                component={ManageHostsPage}
-              />
-              <Route path="manage/:active_label" component={ManageHostsPage} />
-              <Route
-                path="manage/labels/:label_id/:active_label"
-                component={ManageHostsPage}
-              />
-              <Route
-                path="manage/:active_label/labels/:label_id"
-                component={ManageHostsPage}
-              />
-              <Route path=":host_id" component={HostDetailsPage} />
-            </Route>
-            <Route component={AuthGlobalAdminMaintainerRoutes}>
-              <Route path="packs" component={PackPageWrapper}>
-                <Route path="manage" component={ManagePacksPage} />
-                <Route path="new" component={PackComposerPage} />
-                <Route path=":id">
-                  <IndexRoute component={EditPackPage} />
-                  <Route path="edit" component={EditPackPage} />
+              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                <Route path="schedule" component={SchedulePageWrapper}>
+                  <Route path="manage" component={ManageSchedulePage} />
+                  <Route
+                    path="manage/teams/:team_id"
+                    component={ManageSchedulePage}
+                  />
                 </Route>
               </Route>
-            </Route>
-            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="schedule" component={SchedulePageWrapper}>
-                <Route path="manage" component={ManageSchedulePage} />
-                <Route
-                  path="manage/teams/:team_id"
-                  component={ManageSchedulePage}
-                />
+              <Route path="queries" component={QueryPageWrapper}>
+                <Route path="manage" component={ManageQueriesPage} />
+                <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                  <Route path="new" component={QueryPage} />
+                </Route>
+                <Route path=":id" component={QueryPage} />
               </Route>
-            </Route>
-            <Route path="queries" component={QueryPageWrapper}>
-              <Route path="manage" component={ManageQueriesPage} />
-              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-                <Route path="new" component={QueryPage} />
+              <Route path="policies" component={PoliciesPageWrapper}>
+                <Route path="manage" component={ManagePoliciesPage} />
+                <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+                  <Route path="new" component={PolicyPage} />
+                </Route>
+                <Route path=":id" component={PolicyPage} />
               </Route>
-              <Route path=":id" component={QueryPage} />
+              <Route path="profile" component={UserSettingsPage} />
             </Route>
-            <Route path="policies" component={PoliciesPageWrapper}>
-              <Route path="manage" component={ManagePoliciesPage} />
-              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-                <Route path="new" component={PolicyPage} />
-              </Route>
-              <Route path=":id" component={PolicyPage} />
-            </Route>
-            <Route path="profile" component={UserSettingsPage} />
           </Route>
         </Route>
       </Route>
