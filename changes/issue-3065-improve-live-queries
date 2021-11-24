@@ -1,0 +1,1 @@
+* Reduce load on Redis for live queries when many keys exist.
