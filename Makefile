@@ -117,7 +117,7 @@ lint: lint-go lint-js
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema
+test-go: dump-test-schema generate-mock
 	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
 
 analyze-go:
@@ -153,6 +153,7 @@ generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors --watch
 
 generate-mock: .prefix
+	go get -u github.com/groob/mockimpl
 	go generate github.com/fleetdm/fleet/v4/server/mock
 
 deps: deps-js deps-go
