@@ -149,6 +149,10 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 		Resolution:  "query1 other resolution",
 	})
 	require.Error(t, err)
+	var isExist interface {
+		IsExists() bool
+	}
+	require.True(t, errors.As(err, &isExist) && isExist.IsExists())
 	require.Nil(t, p3)
 
 	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policies[0].ID, policies[1].ID})
@@ -376,6 +380,14 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "existing-query-global-1",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
 	prevPolicies, err := ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 
@@ -394,6 +406,31 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Resolution:  "query1 resolution",
 	})
 	require.NoError(t, err)
+
+	// Can't create a team policy with an existing name.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "query1",
+		Query: "select 1;",
+	})
+	require.Error(t, err)
+	var isExist interface {
+		IsExists() bool
+	}
+	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
+	// Can't create a global policy with an existing name.
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "query1",
+		Query: "select 1;",
+	})
+	require.Error(t, err)
+	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
+	// Can't create a team policy with an existing global name.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "existing-query-global-1",
+		Query: "select 1;",
+	})
+	require.Error(t, err)
+	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
 
 	assert.Equal(t, "query1", p.Name)
 	assert.Equal(t, "select 1;", p.Query)
@@ -826,7 +863,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 
-	// Create policy with global name but on a team.
+	// The following will "move" the policy from global to a team.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:        "query1",
@@ -839,6 +876,25 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 3)
+	globalPolicies, err := ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	require.Len(t, globalPolicies, 0)
+
+	// The following will "move" the policy from team to global.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:        "query2",
+			Query:       "select 53;",
+			Description: "query2 desc global",
+			Resolution:  "some resolution global",
+		},
+	}))
+	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 2)
+	globalPolicies, err = ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	require.Len(t, globalPolicies, 1)
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {

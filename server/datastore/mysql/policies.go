@@ -266,8 +266,13 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, team_id, resolution, author_id) VALUES (?, ?, ?, ?, ?, ?)`,
 		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting new team policy")
+	switch {
+	case err == nil:
+		// OK
+	case isDuplicate(err):
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
 	lastIdInt64, err := res.LastInsertId()
 	if err != nil {

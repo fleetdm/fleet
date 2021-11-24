@@ -1095,7 +1095,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NoError(t, err)
 
 	gpParams := globalPolicyRequest{
-		Name:        "HostDetailsPolicies-Team",
+		Name:        "HostDetailsPolicies",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
@@ -1142,4 +1142,9 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 
 	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
 	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
+
+	// Try to create a global policy with an existing name.
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusConflict, &gpResp)
+	// Try to create a team policy with an existing name.
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusConflict, &tpResp)
 }

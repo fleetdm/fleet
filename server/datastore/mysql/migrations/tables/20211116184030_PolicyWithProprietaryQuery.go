@@ -12,18 +12,13 @@ func init() {
 }
 
 func Up_20211116184030(tx *sql.Tx) error {
-	// The VIRTUAL COLUMN is used to enforce the uniqueness of name+team_id for policies.
-	// Using the NULLable team_id in idx_policies_unique_name won't work because MySQL won't enforce
-	// uniqueness on NULL values, e.g. you can still have two rows with (name: "query1",
-	// team_id=NULL).
-	// TODO(lucas): Check availability of the featute in the supported MySQL implementations/versions.
 	if _, err := tx.Exec(`ALTER TABLE policies
 		ADD COLUMN name VARCHAR(255) NOT NULL,
 		ADD COLUMN query mediumtext NOT NULL,
 		ADD COLUMN description mediumtext NOT NULL,
   		ADD COLUMN author_id int(10) unsigned DEFAULT NULL,
-		ADD team_id_x int(10) unsigned GENERATED ALWAYS AS (COALESCE(team_id, 0)) VIRTUAL NOT NULL,
 
+		ADD UNIQUE KEY idx_policies_unique_name (name),
   		ADD KEY idx_policies_author_id (author_id),
   		ADD KEY idx_policies_team_id (team_id),
   		ADD CONSTRAINT policies_queries_ibfk_1 FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE SET NULL
@@ -64,13 +59,6 @@ func Up_20211116184030(tx *sql.Tx) error {
 		if err != nil {
 			return errors.Wrapf(err, "dropping fk %s", constraint)
 		}
-	}
-
-	// We need to add this index after data migration (otherwise it cannot be applied due to empty "name"s).
-	if _, err := tx.Exec(`ALTER TABLE policies
-		ADD UNIQUE KEY idx_policies_unique_name (name, team_id_x)
-	`); err != nil {
-		return errors.Wrap(err, "adding unique key (name, team_id_x) to 'policies'")
 	}
 
 	// Drop index and column "query_id".

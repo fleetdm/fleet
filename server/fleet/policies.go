@@ -116,9 +116,6 @@ type PolicyData struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 
-	// TeamIDX is a virtual column used to enforce uniqueness of policy names on teams.
-	TeamIDX uint `json:"-" db:"team_id_x"`
-
 	UpdateCreateTimestamps
 }
 

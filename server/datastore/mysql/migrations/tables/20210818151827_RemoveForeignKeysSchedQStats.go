@@ -44,12 +44,17 @@ func constraintsForTable(tx *sql.Tx, table string, referencedTables map[string]s
 	}
 	for rows.Next() {
 		var constraintName string
-		var referencedTable string
+		var referencedTable sql.NullString
 		err := rows.Scan(&constraintName, &referencedTable)
 		if err != nil {
 			return nil, errors.Wrapf(err, "scanning fk for %s", table)
 		}
-		if _, ok := referencedTables[referencedTable]; ok {
+		if !referencedTable.Valid {
+			// REFERENCED_TABLE_NAME is NULL if the constraint
+			// is applied to columns of the current table.
+			continue
+		}
+		if _, ok := referencedTables[referencedTable.String]; ok {
 			constraints = append(constraints, constraintName)
 		}
 	}
