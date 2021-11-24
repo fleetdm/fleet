@@ -34,14 +34,13 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 
 	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, nil
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	cachedAc, found := ds.c.Get(appConfigKey)
 	if found {
-		copyAc := *cachedAc.(*fleet.AppConfig)
-		return &copyAc, nil
+		return cachedAc.(*fleet.AppConfig).Clone()
 	}
 
 	ac, err := ds.Datastore.AppConfig(ctx)
@@ -51,7 +50,7 @@ func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) 
 
 	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, nil
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
