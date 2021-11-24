@@ -108,17 +108,21 @@ func (r *redisLiveQuery) MigrateKeys() error {
 		return err
 	}
 
-	// TODO(mna): using the same scan, migrate keys from pre-set to
-	// use the livequery set.
-
-	// identify which of those keys are in a deprecated format
+	// identify which of those keys are in a deprecated format, and keep track
+	// of all the names of active queries to build the set.
 	var oldKeys []string
+	activeNames := make([]string, 0, len(qkeys))
 	for _, key := range qkeys {
+		if key == activeQueriesKey {
+			continue
+		}
+
 		name := extractTargetKeyName(key)
 		if !strings.Contains(key, "{"+name+"}") {
 			// add the corresponding sql key to the list
 			oldKeys = append(oldKeys, key, sqlKeyPrefix+key)
 		}
+		activeNames = append(activeNames, name)
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(r.pool, oldKeys...)
@@ -127,6 +131,12 @@ func (r *redisLiveQuery) MigrateKeys() error {
 			return err
 		}
 	}
+
+	// store the active queries in the set
+	if err := r.storeQueryNames(activeNames...); err != nil {
+		return fmt.Errorf("store query names: %w", err)
+	}
+
 	return nil
 }
 
@@ -191,7 +201,7 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 	}
 
 	// store name (campaign id) into the active live queries set
-	if err := r.storeQueryName(name); err != nil {
+	if err := r.storeQueryNames(name); err != nil {
 		return fmt.Errorf("store query name: %w", err)
 	}
 
@@ -205,7 +215,7 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 	}
 
 	// remove name (campaign id) from the livequery set
-	if err := r.removeQueryName(name); err != nil {
+	if err := r.removeQueryNames(name); err != nil {
 		return fmt.Errorf("remove query name: %w", err)
 	}
 
@@ -235,7 +245,17 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	}
 
 	if len(expired) > 0 {
-		// TODO(mna): a certain percentage of the time, clean up the expired queries
+		// a certain percentage of the time so that we don't overwhelm redis with a
+		// bunch of similar deletion commands at the same time, clean up the
+		// expired queries.
+		if time.Now().UnixNano()%10 == 0 {
+			names := make([]string, 0, len(expired))
+			for k := range expired {
+				names = append(names, k)
+			}
+			// ignore error, best effort removal
+			_ = r.removeQueryNames(names...)
+		}
 	}
 
 	return queries, nil
@@ -316,7 +336,7 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 
 	// NOTE(mna): we could remove the query here if all bits are now off, meaning
 	// that all hosts have completed this query, but the BITCOUNT command can be
-	// costly on large strings and we may have very large ones. This should not be
+	// costly on large strings and we will have quite large ones. This should not be
 	// needed anyway as StopQuery appears to be called every time a campaign is
 	// run (see svc.CompleteCampaign).
 
@@ -345,11 +365,14 @@ func (r *redisLiveQuery) storeQueryInfo(name, sql string, hostIDs []uint) error 
 	return nil
 }
 
-func (r *redisLiveQuery) storeQueryName(name string) error {
+func (r *redisLiveQuery) storeQueryNames(names ...string) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	_, err := conn.Do("SADD", activeQueriesKey, name)
+	var args redigo.Args
+	args = args.Add(activeQueriesKey)
+	args = args.AddFlat(names)
+	_, err := conn.Do("SADD", args...)
 	return err
 }
 
@@ -364,11 +387,14 @@ func (r *redisLiveQuery) removeQueryInfo(name string) error {
 	return nil
 }
 
-func (r *redisLiveQuery) removeQueryName(name string) error {
+func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	_, err := conn.Do("SREM", activeQueriesKey, name)
+	var args redigo.Args
+	args = args.Add(activeQueriesKey)
+	args = args.AddFlat(names)
+	_, err := conn.Do("SREM", args...)
 	return err
 }
 
@@ -399,10 +425,11 @@ func mapBitfield(hostIDs []uint) []byte {
 	// over 1MB, even if there are only 100K hosts - at which point it would
 	// likely become more efficient to store a set of host IDs (without any
 	// redis-internal storage optimization, that would be 100K * 4 bytes =
-	// ~380KB). This large usage of memory would even be true if there was only
-	// one host selected in the query, should that host be one of the high IDs.
-	// Something to keep in mind if at some point we have reports of unexpectedly
-	// large redis memory usage, as that storage is repeated for each live query.
+	// ~380KB). This large bitfield usage of memory would even be true if there
+	// was only one host selected in the query, should that host be one of the
+	// high IDs.  Something to keep in mind if at some point we have reports of
+	// unexpectedly large redis memory usage, as that storage is repeated for
+	// each live query.
 
 	// As the input IDs are in ascending order, we get two optimizations here:
 	// 1. We can calculate the length of the bitfield necessary by using the

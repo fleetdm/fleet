@@ -71,6 +71,10 @@ func TestMigrateKeys(t *testing.T) {
 			}
 
 			for _, k := range keys {
+				if k == activeQueriesKey {
+					continue
+				}
+
 				v, err := redigo.String(conn.Do("GET", k))
 				if err != nil {
 					return err
