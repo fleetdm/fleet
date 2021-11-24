@@ -25,7 +25,9 @@ func Up_20211116184030(tx *sql.Tx) error {
 	`); err != nil {
 		return errors.Wrap(err, "adding new columns to 'policies'")
 	}
-	// Remove duplicate global and team policy queries (references).
+	// Legacy policy functionality allowed creating two policies with the same
+	// referenced query in "queries" (same query_id). The following will
+	// deduplicate such policies.
 	if _, err := tx.Exec(`
         DELETE p1 FROM policies AS p1, policies AS p2
 		WHERE p1.ID < p2.ID
@@ -81,7 +83,7 @@ func Down_20211116184030(tx *sql.Tx) error {
 
 func indexNameByColumnName(tx *sql.Tx, table, column string) (string, error) {
 	const query = `SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS 
-		WHERE TABLE_NAME = ? AND COLUMN_NAME = ?;`
+		WHERE TABLE_NAME = ? AND COLUMN_NAME = ? AND TABLE_SCHEMA = DATABASE();`
 	row := tx.QueryRow(query, table, column)
 	var indexName string
 	err := row.Scan(&indexName)
