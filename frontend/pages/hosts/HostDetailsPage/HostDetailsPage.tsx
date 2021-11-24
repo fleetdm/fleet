@@ -387,10 +387,12 @@ const HostDetailsPage = ({
   const onCreateNewPolicy = () => {
     /* TODO: route to the new policy page with the policy prefilled
     Steps:
-    - Find Policy path created by Martavis
     - Build it an optionalargument that takes a string parameter to create policy
     */
-    // router.push(PATHS.NEW_POLICY(osPolicy));
+    const { NEW_POLICY } = PATHS;
+    // TODO: Make policy auto populate
+    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
+    router.replace(path);
   };
 
   const onDestroyHost = async () => {
