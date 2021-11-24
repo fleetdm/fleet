@@ -624,6 +624,10 @@ func cronVulnerabilities(
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		return
 	}
+	if !appConfig.HostSettings.EnableSoftwareInventory {
+		level.Info(logger).Log("vulnerability scanning", "software inventory not configured")
+		return
+	}
 
 	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
 	if vulnPath == "" {

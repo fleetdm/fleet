@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -610,8 +609,7 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap[key] = query
 	}
 
-	softwareInventory := ac != nil && ac.HostSettings.EnableSoftwareInventory
-	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || softwareInventory {
+	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
