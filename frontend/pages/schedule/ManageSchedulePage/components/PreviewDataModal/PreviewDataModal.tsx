@@ -60,7 +60,7 @@ const PreviewDataModal = ({
           >
             <span className={`software-name tooltip__tooltip-text`}>
               <p>
-                The "snapshot" key includes the query's
+                The &quot;snapshot&quot; key includes the query&apos;s
                 <br />
                 results. These will be unique to your query.
               </p>
