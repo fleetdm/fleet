@@ -18,7 +18,6 @@ func Up_20211116184030(tx *sql.Tx) error {
 		ADD COLUMN description mediumtext NOT NULL,
   		ADD COLUMN author_id int(10) unsigned DEFAULT NULL,
 
-		ADD UNIQUE KEY idx_policies_unique_name (name),
   		ADD KEY idx_policies_author_id (author_id),
   		ADD KEY idx_policies_team_id (team_id),
   		ADD CONSTRAINT policies_queries_ibfk_1 FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE SET NULL
@@ -31,7 +30,7 @@ func Up_20211116184030(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
         DELETE p1 FROM policies AS p1, policies AS p2
 		WHERE p1.ID < p2.ID
-		AND p1.query_id = p2.query_id AND p1.team_id <=> p2.team_id
+		AND p1.query_id = p2.query_id
     `); err != nil {
 		return errors.Wrap(err, "removing duplicates from 'policies'")
 	}
@@ -41,12 +40,20 @@ func Up_20211116184030(tx *sql.Tx) error {
         JOIN queries q
         ON p.query_id = q.id
         SET
-            p.name = q.name,
-            p.query = q.query,
-            p.description = q.description,
+			p.name = q.name,
+			p.query = q.query,
+			p.description = q.description,
 			p.author_id = q.author_id
     `); err != nil {
 		return errors.Wrap(err, "migrating data from 'queries' to 'policies'")
+	}
+
+	// We need to add the unique key after the population of the name field (otherwise
+	// the creation of the unique key fails because of the empty names).
+	if _, err := tx.Exec(
+		`ALTER TABLE policies ADD UNIQUE KEY idx_policies_unique_name (name);`,
+	); err != nil {
+		return errors.Wrap(err, "adding idx_policies_unique_name")
 	}
 
 	// Removing foreign key to the "queries" table.
