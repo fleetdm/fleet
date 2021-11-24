@@ -1,17 +1,13 @@
 import React, { useState, useCallback } from "react";
-import PropTypes from "prop-types";
-import { push } from "react-router-redux";
-import { useDispatch } from "react-redux";
 
 import { filter, includes } from "lodash";
 
 import PATHS from "router/paths";
-import { IError } from "interfaces/error";
 import { IHost } from "interfaces/host";
 import { IQuery } from "interfaces/query";
 
 import Button from "components/buttons/Button";
-import Modal from "components/modals/Modal";
+import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
@@ -19,23 +15,24 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 export interface ISelectQueryModalProps {
-  host: IHost;
-  onCancel: () => void;
-  queries: IQuery[];
-  queryErrors: IError[];
-  isOnlyObserver: boolean;
+  router: any;
+  params: {
+    host: IHost;
+    onCancel: () => void;
+    queries: IQuery[] | [];
+    queryErrors: any | null;
+    isOnlyObserver: boolean | undefined;
+  };
+  location: any; // no type in react-router v3
 }
 
 const baseClass = "select-query-modal";
 
 const SelectQueryModal = ({
-  host,
-  onCancel,
-  queries,
-  queryErrors,
-  isOnlyObserver,
+  router,
+  params: { host, onCancel, queries, queryErrors, isOnlyObserver },
+  location,
 }: ISelectQueryModalProps) => {
-  const dispatch = useDispatch();
   let queriesAvailableToRun = queries;
 
   const [queriesFilter, setQueriesFilter] = useState("");
@@ -76,13 +73,6 @@ const SelectQueryModal = ({
     );
   };
 
-  // old code
-  // const onFilterQueries = (event) => {
-  //   setQueriesFilter(event);
-  //   return false;
-  // };
-
-  // new code
   const onFilterQueries = useCallback(
     (filterString: string): void => {
       setQueriesFilter(filterString);
@@ -94,24 +84,20 @@ const SelectQueryModal = ({
 
   const queriesCount = queriesFiltered.length;
 
-  const onQueryHostCustom = (host) => {
-    return dispatch(
-      push({
-        pathname: PATHS.NEW_QUERY,
-        query: { host_ids: [host.id] },
-      })
-    );
+  const onQueryHostCustom = (host: IHost) => {
+    return router.replace({
+      pathname: PATHS.NEW_QUERY,
+      // query: { host_ids: [host.id] },
+    });
   };
 
-  const onQueryHostSaved = (host, selectedQuery) => {
-    return dispatch(
-      push({
-        pathname: PATHS.EDIT_QUERY(selectedQuery),
-        query: { host_ids: [host.id] },
-      })
-    );
+  const onQueryHostSaved = (host: IHost, selectedQuery: IQuery) => {
+    return router.replace({
+      pathname: PATHS.EDIT_QUERY(selectedQuery),
+      // query: { host_ids: [host.id] },
+    });
   };
-  const results = () => {
+  const results = (): JSX.Element => {
     if (queryErrors) {
       return (
         <div className={`${baseClass}__no-queries`}>
@@ -158,8 +144,10 @@ const SelectQueryModal = ({
             className="modal-query-button"
             onClick={() => onQueryHostSaved(host, query)}
           >
-            <span className="info__header">{query.name}</span>
-            <span className="info__data">{query.description}</span>
+            <>
+              <span className="info__header">{query.name}</span>
+              <span className="info__data">{query.description}</span>
+            </>
           </Button>
         );
       });
@@ -217,7 +205,7 @@ const SelectQueryModal = ({
         </div>
       );
     }
-    return null;
+    return <></>;
   };
 
   return (
@@ -229,14 +217,6 @@ const SelectQueryModal = ({
       {results()}
     </Modal>
   );
-};
-
-SelectQueryModal.propTypes = {
-  host: hostInterface,
-  queries: PropTypes.arrayOf(queryInterface),
-  onCancel: PropTypes.func,
-  queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  isOnlyObserver: PropTypes.bool,
 };
 
 export default SelectQueryModal;
