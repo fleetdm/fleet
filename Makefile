@@ -117,7 +117,7 @@ lint: lint-go lint-js
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema generate-mock
+test-go: dump-test-schema
 	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
 
 analyze-go:
