@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -14,7 +14,7 @@ func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{},
 
 	var req carveBeginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 
 	return req, nil
@@ -25,7 +25,7 @@ func decodeCarveBlockRequest(ctx context.Context, r *http.Request) (interface{},
 
 	var req carveBlockRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 
 	return req, nil
@@ -52,7 +52,7 @@ func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{},
 	case "0", "":
 		copt.Expired = false
 	default:
-		return nil, errors.Errorf("invalid expired value %s", expired)
+		return nil, ctxerr.Errorf(ctx, "invalid expired value %s", expired)
 	}
 	return listCarvesRequest{ListOptions: copt}, nil
 }

@@ -14,8 +14,8 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.NewGlobalPolicyFunc = func(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
-		return nil, nil
+	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+		return &fleet.Policy{}, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context) ([]*fleet.Policy, error) {
 		return nil, nil
@@ -29,11 +29,14 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1}, nil
 	}
-	ds.ApplyPolicySpecsFunc = func(ctx context.Context, specs []*fleet.PolicySpec) error {
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool
@@ -80,7 +83,10 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewGlobalPolicy(ctx, 2, "")
+			_, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
+				Name:  "query1",
+				Query: "select 1;",
+			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ListGlobalPolicies(ctx)
@@ -94,7 +100,8 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 
 			err = svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{
 				{
-					QueryName: "query1",
+					Name:  "query2",
+					Query: "select 1;",
 				},
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)

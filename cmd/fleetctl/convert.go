@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -51,7 +51,7 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 		case string:
 			u64, err := strconv.ParseUint(i, 10, 32)
 			if err != nil {
-				return nil, errors.Wrap(err, "converting interval from string to uint")
+				return nil, fmt.Errorf("converting interval from string to uint: %w", err)
 			}
 			interval = uint(u64)
 		case uint:

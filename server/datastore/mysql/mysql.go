@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -314,42 +315,117 @@ func (d *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(d.writer.DB, "")
 }
 
-func (d *Datastore) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) {
+// loadMigrations manually loads the applied migrations in ascending
+// order (goose doesn't provide such functionality).
+//
+// Returns two lists of version IDs (one for "table" and one for "data").
+func (d *Datastore) loadMigrations(
+	ctx context.Context,
+) (tableRecs []int64, dataRecs []int64, err error) {
+	// We need to run the following to trigger the creation of the migration status tables.
+	tables.MigrationClient.GetDBVersion(d.writer.DB)
+	data.MigrationClient.GetDBVersion(d.writer.DB)
+	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
+	if err := sqlx.SelectContext(ctx, d.reader, &tableRecs,
+		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
+	); err != nil {
+		return nil, nil, err
+	}
+	if err := sqlx.SelectContext(ctx, d.reader, &dataRecs,
+		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
+	); err != nil {
+		return nil, nil, err
+	}
+	return tableRecs, dataRecs, nil
+}
+
+// MigrationStatus will return the current status of the migrations
+// comparing the known migrations in code and the applied migrations in the database.
+//
+// It assumes some deployments may perform migrations out of order.
+func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
-		return 0, errors.New("unexpected nil migrations list")
+		return nil, errors.New("unexpected nil migrations list")
 	}
-
-	lastTablesMigration, err := tables.MigrationClient.Migrations.Last()
+	appliedTable, appliedData, err := d.loadMigrations(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("missing tables migrations: %w", err)
+		return nil, fmt.Errorf("cannot load migrations: %w", err)
+	}
+	if len(appliedTable) == 0 && len(appliedData) == 0 {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.NoMigrationsCompleted,
+		}, nil
 	}
 
-	currentTablesVersion, err := tables.MigrationClient.GetDBVersion(d.writer.DB)
-	if err != nil {
-		return 0, fmt.Errorf("cannot get table migration status: %w", err)
+	knownTable := tables.MigrationClient.Migrations
+	missingTable, unknownTable, equalTable := compareVersions(
+		getVersionsFromMigrations(knownTable),
+		appliedTable,
+	)
+
+	knownData := data.MigrationClient.Migrations
+	missingData, unknownData, equalData := compareVersions(
+		getVersionsFromMigrations(knownData),
+		appliedData,
+	)
+
+	if equalData && equalTable {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.AllMigrationsCompleted,
+		}, nil
 	}
 
-	lastDataMigration, err := data.MigrationClient.Migrations.Last()
-	if err != nil {
-		return 0, fmt.Errorf("missing data migrations: %w", err)
+	// The following code assumes there cannot be migrations missing on
+	// "table" and database being ahead on "data" (and vice-versa).
+	if len(unknownTable) > 0 || len(unknownData) > 0 {
+		return &fleet.MigrationStatus{
+			StatusCode:   fleet.UnknownMigrations,
+			UnknownTable: unknownTable,
+			UnknownData:  unknownData,
+		}, nil
 	}
 
-	currentDataVersion, err := data.MigrationClient.GetDBVersion(d.writer.DB)
-	if err != nil {
-		return 0, fmt.Errorf("cannot get data migration status: %w", err)
+	// len(missingTable) > 0 || len(missingData) > 0
+	return &fleet.MigrationStatus{
+		StatusCode:   fleet.SomeMigrationsCompleted,
+		MissingTable: missingTable,
+		MissingData:  missingData,
+	}, nil
+}
+
+// compareVersions returns any missing or extra elements in v2 with respect to v1
+// (v1 or v2 need not be ordered).
+func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bool) {
+	v1s := make(map[int64]struct{})
+	for _, m := range v1 {
+		v1s[m] = struct{}{}
 	}
-
-	switch {
-	case currentDataVersion == 0 && currentTablesVersion == 0:
-		return fleet.NoMigrationsCompleted, nil
-
-	case currentTablesVersion != lastTablesMigration.Version ||
-		currentDataVersion != lastDataMigration.Version:
-		return fleet.SomeMigrationsCompleted, nil
-
-	default:
-		return fleet.AllMigrationsCompleted, nil
+	v2s := make(map[int64]struct{})
+	for _, m := range v2 {
+		v2s[m] = struct{}{}
 	}
+	for _, m := range v1 {
+		if _, ok := v2s[m]; !ok {
+			missing = append(missing, m)
+		}
+	}
+	for _, m := range v2 {
+		if _, ok := v1s[m]; !ok {
+			unknown = append(unknown, m)
+		}
+	}
+	if len(missing) == 0 && len(unknown) == 0 {
+		return nil, nil, true
+	}
+	return missing, unknown, false
+}
+
+func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
+	versions := make([]int64, len(migrations))
+	for i := range migrations {
+		versions[i] = migrations[i].Version
+	}
+	return versions
 }
 
 // HealthCheck returns an error if the MySQL backend is not healthy.

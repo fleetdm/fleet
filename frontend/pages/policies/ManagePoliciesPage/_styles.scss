@@ -110,6 +110,34 @@
     }
   }
 
+  &__add-policy-link {
+    transition: color 150ms ease-in-out, background 150ms ease-in-out,
+      top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
+    position: relative;
+    color: $core-white;
+    text-decoration: none;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-left: $pad-medium;
+    padding-right: $pad-medium;
+    border-radius: 4px;
+    font-size: $x-small;
+    font-family: "Nunito Sans", sans-serif;
+    font-weight: $bold;
+    display: inline-flex;
+    height: 38px;
+    top: 0;
+    border: 0;
+    cursor: pointer;
+    
+    @include button-variant(
+      $core-vibrant-blue,
+      $core-vibrant-blue-over,
+      $core-vibrant-blue-down
+    );
+  }
+
   &__inherited-policies-button {
     padding-top: $pad-small;
     margin: $pad-large 0 0 0;

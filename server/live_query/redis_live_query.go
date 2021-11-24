@@ -40,6 +40,8 @@
 package live_query
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -47,7 +49,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -183,11 +184,11 @@ func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 	// client reads that the query exists but cannot look up the SQL.
 	err := conn.Send("SET", sqlKey, sql, "EX", queryExpiration.Seconds())
 	if err != nil {
-		return errors.Wrap(err, "set sql")
+		return fmt.Errorf("set sql: %w", err)
 	}
 	_, err = conn.Do("SET", targetKey, targets, "EX", queryExpiration.Seconds())
 	if err != nil {
-		return errors.Wrap(err, "set targets")
+		return fmt.Errorf("set targets: %w", err)
 	}
 
 	return nil
@@ -199,7 +200,7 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 
 	targetKey, sqlKey := generateKeys(name)
 	if _, err := conn.Do("DEL", targetKey, sqlKey); err != nil {
-		return errors.Wrap(err, "del query keys")
+		return fmt.Errorf("del query keys: %w", err)
 	}
 
 	return nil
@@ -209,7 +210,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	// Get keys for active queries
 	queryKeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
 	if err != nil {
-		return nil, errors.Wrap(err, "scan active queries")
+		return nil, fmt.Errorf("scan active queries: %w", err)
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(r.pool, queryKeys...)
@@ -230,7 +231,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	// targets of the query.
 	for _, key := range queryKeys {
 		if err := conn.Send("GETBIT", key, hostID); err != nil {
-			return errors.Wrap(err, "getbit query targets")
+			return fmt.Errorf("getbit query targets: %w", err)
 		}
 
 		// Additionally get SQL even though we don't yet know whether this query
@@ -238,13 +239,13 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 		// roundtrip to the Redis server and likely has little cost due to the
 		// small number of queries and limited size of SQL
 		if err := conn.Send("GET", sqlKeyPrefix+key); err != nil {
-			return errors.Wrap(err, "get query sql")
+			return fmt.Errorf("get query sql: %w", err)
 		}
 	}
 
 	// Flush calls to begin receiving results.
 	if err := conn.Flush(); err != nil {
-		return errors.Wrap(err, "flush pipeline")
+		return fmt.Errorf("flush pipeline: %w", err)
 	}
 
 	// Receive target and SQL in order of pipelined calls.
@@ -253,7 +254,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 
 		targeted, err := redigo.Int(conn.Receive())
 		if err != nil {
-			return errors.Wrap(err, "receive target")
+			return fmt.Errorf("receive target: %w", err)
 		}
 
 		// Be sure to read SQL even if we are not going to include this query.
@@ -266,7 +267,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 			// stopped since we did the key scan. In any case, attempt to clean
 			// up here.
 			_ = r.StopQuery(name)
-			return errors.Wrap(err, "receive sql")
+			return fmt.Errorf("receive sql: %w", err)
 		}
 
 		if targeted == 0 {
@@ -286,7 +287,7 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 
 	// Update the bitfield for this host.
 	if _, err := conn.Do("SETBIT", targetKey, hostID, 0); err != nil {
-		return errors.Wrap(err, "setbit query key")
+		return fmt.Errorf("setbit query key: %w", err)
 	}
 
 	return nil

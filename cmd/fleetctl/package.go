@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"

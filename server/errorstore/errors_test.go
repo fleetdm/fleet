@@ -17,8 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
-	pkgErrors "github.com/pkg/errors"
-	"github.com/rotisserie/eris"
+	pkgErrors "github.com/pkg/errors" //nolint:depguard
+	"github.com/rotisserie/eris"      //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -152,6 +152,9 @@ func TestUnwrapAll(t *testing.T) {
 }
 
 func TestErrorHandler(t *testing.T) {
+	// Skipped until error publishing is re-enabled.
+	t.Skip()
+
 	t.Run("works if the error handler is down", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately
@@ -288,7 +291,6 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       "errorstore\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
     \]
   \}`, wd)), jsonErr)
-
 		} else {
 			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
   "root": \{
@@ -301,10 +303,12 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
   \}`, wd)), jsonErr)
 		}
 	}
-
 }
 
 func TestHttpHandler(t *testing.T) {
+	// Skipped until error publishing is re-enabled.
+	t.Skip()
+
 	pool := redistest.SetupRedis(t, false, false, false)
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()

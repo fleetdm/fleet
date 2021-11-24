@@ -354,29 +354,33 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	// SavePolicy updates some fields of the given policy on the datastore.
+	//
+	// It is also used to update team policies.
+	SavePolicy(ctx context.Context, p *Policy) error
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
 	// MigrateData populates built-in data
 	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
-	MigrationStatus(ctx context.Context) (MigrationStatus, error)
+	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -403,12 +407,39 @@ type Datastore interface {
 	UpdateQueryAggregatedStats(ctx context.Context) error
 }
 
-type MigrationStatus int
+type MigrationStatus struct {
+	// StatusCode holds the code for the migration status.
+	//
+	// If StatusCode is NoMigrationsCompleted or AllMigrationsCompleted
+	// then all other fields are empty.
+	//
+	// If StatusCode is SomeMigrationsCompleted, then missing migrations
+	// are available in MissingTable and MissingData.
+	//
+	// If StatusCode is UnknownMigrations, then unknown migrations
+	// are available in UnknownTable and UnknownData.
+	StatusCode MigrationStatusCode `json:"status_code"`
+	// MissingTable holds the missing table migrations.
+	MissingTable []int64 `json:"missing_table"`
+	// MissingTable holds the missing data migrations.
+	MissingData []int64 `json:"missing_data"`
+	// UnknownTable holds unknown applied table migrations.
+	UnknownTable []int64 `json:"unknown_table"`
+	// UnknownTable holds unknown applied data migrations.
+	UnknownData []int64 `json:"unknown_data"`
+}
+
+type MigrationStatusCode int
 
 const (
-	NoMigrationsCompleted = iota
+	// NoMigrationsCompleted indicates the database has no migrations installed.
+	NoMigrationsCompleted MigrationStatusCode = iota
+	// SomeMigrationsCompleted indicates some (not all) migrations are missing.
 	SomeMigrationsCompleted
+	// AllMigrationsCompleted means all migrations have been installed successfully.
 	AllMigrationsCompleted
+	// UnknownMigrations means some unidentified migrations were detected on the database.
+	UnknownMigrations
 )
 
 // NotFoundError is returned when the datastore resource cannot be found.

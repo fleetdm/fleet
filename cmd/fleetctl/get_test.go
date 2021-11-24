@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,7 +91,10 @@ spec:
 }
 
 func TestGetTeams(t *testing.T) {
-	expiredBanner := "Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about downgrading, please navigate to https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#expired_license and contact us for help."
+	var expiredBanner strings.Builder
+	fleet.WriteExpiredLicenseBanner(&expiredBanner)
+	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+
 	testCases := []struct {
 		name                    string
 		license                 *fleet.LicenseInfo
@@ -181,9 +183,9 @@ spec:
 {"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
-				expectedJson = expiredBanner + "\n" + expectedJson
-				expectedYaml = expiredBanner + "\n" + expectedYaml
-				expectedText = expiredBanner + "\n" + expectedText
+				expectedJson = expiredBanner.String() + expectedJson
+				expectedYaml = expiredBanner.String() + expectedYaml
+				expectedText = expiredBanner.String() + expectedText
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
@@ -245,7 +247,8 @@ func TestGetHosts(t *testing.T) {
 			LastEnrolledAt:  time.Time{},
 			SeenTime:        time.Time{},
 			ComputerName:    "test_host",
-			Hostname:        "test_host"}, nil
+			Hostname:        "test_host",
+		}, nil
 	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -257,19 +260,36 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
+	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
 			{
-				ID:        1,
-				QueryID:   2,
-				QueryName: "query1",
-				Response:  "passes",
+				PolicyData: fleet.PolicyData{
+					ID:          1,
+					Name:        "query1",
+					Query:       defaultPolicyQuery,
+					Description: "Some description",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  ptr.String("Some resolution"),
+					TeamID:      ptr.Uint(1),
+				},
+				Response: "passes",
 			},
 			{
-				ID:        2,
-				QueryID:   43,
-				QueryName: "query2",
-				Response:  "fails",
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "query2",
+					Query:       defaultPolicyQuery,
+					Description: "",
+					AuthorID:    ptr.Uint(1),
+					AuthorName:  "Alice",
+					AuthorEmail: "alice@example.com",
+					Resolution:  nil,
+					TeamID:      nil,
+				},
+				Response: "fails",
 			},
 		}, nil
 	}
@@ -283,53 +303,63 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+--------+
 `
 
+	jsonPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := json.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := json.MarshalIndent(i, "", "  ")
+		require.NoError(t, err)
+		return string(indented)
+	}
+	yamlPrettify := func(t *testing.T, v string) string {
+		var i interface{}
+		err := yaml.Unmarshal([]byte(v), &i)
+		require.NoError(t, err)
+		indented, err := yaml.Marshal(i)
+		require.NoError(t, err)
+		return string(indented)
+	}
 	tests := []struct {
-		name        string
-		goldenFile  string
-		unmarshaler func(data []byte, v interface{}) error
-		scanner     func(s string) []string
-		args        []string
+		name       string
+		goldenFile string
+		scanner    func(s string) []string
+		prettifier func(t *testing.T, v string) string
+		args       []string
 	}{
 		{
-			name:        "get hosts --json",
-			goldenFile:  "expectedListHostsJson.json",
-			unmarshaler: json.Unmarshal,
+			name:       "get hosts --json",
+			goldenFile: "expectedListHostsJson.json",
 			scanner: func(s string) []string {
-				var parts []string
-				scanner := bufio.NewScanner(bytes.NewBufferString(s))
-				for scanner.Scan() {
-					parts = append(parts, scanner.Text())
-				}
-				return parts
+				parts := strings.Split(s, "}\n{")
+				return []string{parts[0] + "}", "{" + parts[1]}
 			},
-			args: []string{"get", "hosts", "--json"},
+			args:       []string{"get", "hosts", "--json"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --json test_host",
-			goldenFile:  "expectedHostDetailResponseJson.json",
-			unmarshaler: json.Unmarshal,
-			scanner: func(s string) []string {
-				return []string{s}
-			},
-			args: []string{"get", "hosts", "--json", "test_host"},
+			name:       "get hosts --json test_host",
+			goldenFile: "expectedHostDetailResponseJson.json",
+			scanner:    func(s string) []string { return []string{s} },
+			args:       []string{"get", "hosts", "--json", "test_host"},
+			prettifier: jsonPrettify,
 		},
 		{
-			name:        "get hosts --yaml",
-			goldenFile:  "expectedListHostsYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml",
+			goldenFile: "expectedListHostsYaml.yml",
 			scanner: func(s string) []string {
 				return []string{s}
 			},
-			args: []string{"get", "hosts", "--yaml"},
+			args:       []string{"get", "hosts", "--yaml"},
+			prettifier: yamlPrettify,
 		},
 		{
-			name:        "get hosts --yaml test_host",
-			goldenFile:  "expectedHostDetailResponseYaml.yml",
-			unmarshaler: yaml.Unmarshal,
+			name:       "get hosts --yaml test_host",
+			goldenFile: "expectedHostDetailResponseYaml.yml",
 			scanner: func(s string) []string {
 				return splitYaml(s)
 			},
-			args: []string{"get", "hosts", "--yaml", "test_host"},
+			args:       []string{"get", "hosts", "--yaml", "test_host"},
+			prettifier: yamlPrettify,
 		},
 	}
 	for _, tt := range tests {
@@ -337,20 +367,11 @@ func TestGetHosts(t *testing.T) {
 			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			expectedSpecs := make([]specGeneric, len(expectedResults))
-			for i, result := range expectedResults {
-				var got specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &got))
-				expectedSpecs[i] = got
-			}
 			actualResult := tt.scanner(runAppForTest(t, tt.args))
-			actualSpecs := make([]specGeneric, len(actualResult))
-			for i, result := range actualResult {
-				var spec specGeneric
-				require.NoError(t, tt.unmarshaler([]byte(result), &spec), result)
-				actualSpecs[i] = spec
+			require.Equal(t, len(expectedResults), len(actualResult))
+			for i := range expectedResults {
+				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
 			}
-			require.Equal(t, expectedSpecs, actualSpecs, actualResult)
 		})
 	}
 
@@ -527,11 +548,10 @@ func TestGetSoftawre(t *testing.T) {
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
-		HostCount: 2,
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", HostCount: 1}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", HostCount: 43}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle", HostCount: 9}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
 	var gotTeamID *uint
 
@@ -558,7 +578,6 @@ apiVersion: "1"
 kind: software
 spec:
 - generated_cpe: somecpe
-  host_count: 2
   id: 0
   name: foo
   source: chrome_extensions
@@ -569,14 +588,12 @@ spec:
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
 - generated_cpe: ""
-  host_count: 1
   id: 0
   name: foo
   source: chrome_extensions
   version: 0.0.2
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
-  host_count: 43
   id: 0
   name: foo
   source: chrome_extensions
@@ -584,14 +601,13 @@ spec:
   vulnerabilities: null
 - bundle_identifier: bundle
   generated_cpe: ""
-  host_count: 9
   id: 0
   name: bar
   source: deb_packages
   version: 0.0.3
   vulnerabilities: null
 `
-	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}],"host_count":2},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null,"host_count":1},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null,"host_count":43},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null,"host_count":9}]}
+	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null}]}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))

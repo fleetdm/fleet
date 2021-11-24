@@ -5,10 +5,11 @@ import (
 	"compress/flate"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
+	"fmt"
+	"io"
 	"net/url"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -28,7 +29,8 @@ type opts struct {
 }
 
 // CreateAuthorizationRequest creates a url suitable for use to satisfy the SAML
-// redirect binding.
+// redirect binding. It returns the URL of the identity provider, configured to
+// initiate the authentication request.
 // See http://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf Section 3.4
 func CreateAuthorizationRequest(settings *Settings, issuer string, options ...func(o *opts)) (string, error) {
 	var optionalParams opts
@@ -40,11 +42,11 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 	}
 	requestID, err := generateSAMLValidID()
 	if err != nil {
-		return "", errors.Wrap(err, "creating auth request id")
+		return "", fmt.Errorf("creating auth request id: %w", err)
 	}
 	destinationURL, err := getDestinationURL(settings)
 	if err != nil {
-		return "", errors.Wrap(err, "creating auth request")
+		return "", fmt.Errorf("creating auth request: %w", err)
 	}
 	request := AuthnRequest{
 		XMLName: xml.Name{
@@ -65,11 +67,13 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 			Url: issuer,
 		},
 	}
+
 	var reader bytes.Buffer
 	err = xml.NewEncoder(&reader).Encode(settings.Metadata)
 	if err != nil {
-		return "", errors.Wrap(err, "encoding metadata creating auth request")
+		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
 	}
+
 	// cache metadata so we can check the signatures on the response we get from the IDP
 	err = settings.SessionStore.create(requestID,
 		settings.OriginalURL,
@@ -77,27 +81,31 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		cacheLifetime,
 	)
 	if err != nil {
-		return "", errors.Wrap(err, "caching cert while creating auth request")
+		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)
 	}
+
 	u, err := url.Parse(destinationURL)
 	if err != nil {
-		return "", errors.Wrap(err, "parsing destination url")
+		return "", fmt.Errorf("parsing destination url: %w", err)
 	}
 	qry := u.Query()
 
 	var writer bytes.Buffer
 	err = xml.NewEncoder(&writer).Encode(request)
 	if err != nil {
-		return "", errors.Wrap(err, "encoding auth request xml")
+		return "", fmt.Errorf("encoding auth request xml: %w", err)
 	}
+
 	authQueryVal, err := deflate(&writer)
 	if err != nil {
-		return "", errors.Wrap(err, "unable to compress auth info")
+		return "", fmt.Errorf("unable to compress auth info: %w", err)
 	}
+
 	qry.Set("SAMLRequest", authQueryVal)
 	if optionalParams.relayState != "" {
 		qry.Set("RelayState", optionalParams.relayState)
 	}
+
 	u.RawQuery = qry.Encode()
 	return u.String(), nil
 }
@@ -118,19 +126,23 @@ func deflate(xmlBuffer *bytes.Buffer) (string, error) {
 	var deflated bytes.Buffer
 	writer, err := flate.NewWriter(&deflated, flate.DefaultCompression)
 	if err != nil {
-		return "", errors.Wrap(err, "create flate writer")
+		return "", fmt.Errorf("create flate writer: %w", err)
 	}
-	n, err := writer.Write(xmlBuffer.Bytes())
-	if n != xmlBuffer.Len() {
+
+	count := xmlBuffer.Len()
+	n, err := io.Copy(writer, xmlBuffer)
+	if err != nil {
+		_ = writer.Close()
+		return "", fmt.Errorf("compressing auth request: %w", err)
+	}
+
+	if int(n) != count {
 		_ = writer.Close()
 		return "", errors.New("incomplete write during compression")
 	}
-	if err != nil {
-		_ = writer.Close()
-		return "", errors.Wrap(err, "compressing auth request")
-	}
+
 	if err := writer.Close(); err != nil {
-		return "", errors.Wrap(err, "close flate writer")
+		return "", fmt.Errorf("close flate writer: %w", err)
 	}
 
 	// Base64

@@ -327,7 +327,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -696,7 +696,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		return nil
 	}
 
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return &host, nil
 	}
 
@@ -908,7 +908,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return &host, nil
 	}
 
@@ -1738,7 +1738,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		assert.Equal(t, ip, host.PrimaryIP)
 		return nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		require.Equal(t, uint(42), id)
 		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
 	}
@@ -1904,7 +1904,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {

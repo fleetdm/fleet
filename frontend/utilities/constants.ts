@@ -67,7 +67,7 @@ export const QUERIES_PAGE_STEPS = {
 export const DEFAULT_QUERY = {
   description: "",
   name: "",
-  query: "SELECT * FROM osquery_info",
+  query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
   last_excuted: "",
@@ -79,6 +79,19 @@ export const DEFAULT_QUERY = {
   author_id: 0,
   packs: [],
   platform: "darwin,windows,linux" as QueryPlatform,
+};
+
+export const DEFAULT_POLICY = {
+  id: 1,
+  name: "Gatekeeper enabled",
+  query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  description: "Checks if gatekeeper is enabled on macOS devices",
+  author_id: 42,
+  author_name: "John",
+  author_email: "john@example.com",
+  resolution: "Resolution steps",
+  passing_host_count: 2000,
+  failing_host_count: 300,
 };
 
 export const DEFAULT_CAMPAIGN = {

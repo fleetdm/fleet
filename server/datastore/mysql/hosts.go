@@ -929,7 +929,13 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) VALUES %s ON DUPLICATE KEY UPDATE removed_at=NULL`,
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) 
+				VALUES %s 
+				ON DUPLICATE KEY UPDATE
+				user_type = VALUES(user_type),
+				groupname = VALUES(groupname),
+				shell = VALUES(shell),
+				removed_at=NULL`,
 		insertValues,
 	)
 	if _, err := tx.ExecContext(ctx, insertSql, insertArgs...); err != nil {
@@ -990,16 +996,14 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT
-		p.id,
-		p.query_id,
-		q.name AS query_name,
+	query := `SELECT p.*,
+		COALESCE(u.name, '<deleted>') AS author_name,
+		COALESCE(u.email, '') AS author_email,
 		CASE
 			WHEN pm.passes = 1 THEN 'pass'
 			WHEN pm.passes = 0 THEN 'fail'
 			ELSE ''
 		END AS response,
-		q.description,
 		coalesce(p.resolution, '') as resolution
 	FROM policies p
 	LEFT JOIN (
@@ -1007,7 +1011,7 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
 	) as pm ON (p.id=pm.policy_id)
-	JOIN queries q ON (p.query_id=q.id)`
+	LEFT JOIN users u ON p.author_id = u.id`
 
 	var policies []*fleet.HostPolicy
 	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {

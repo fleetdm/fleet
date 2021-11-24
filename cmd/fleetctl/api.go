@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -13,7 +14,6 @@ import (
 	"runtime"
 
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,7 +45,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	// Add authentication token
 	t, err := getConfigValue(configPath, context, "token")
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting token from the config")
+		return nil, fmt.Errorf("error getting token from the config: %w", err)
 	}
 
 	if token, ok := t.(string); ok {
@@ -54,13 +54,13 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		}
 		fleet.SetToken(token)
 	} else {
-		return nil, errors.Errorf("token config value was not a string: %+v", t)
+		return nil, fmt.Errorf("token config value was not a string: %+v", t)
 	}
 
 	// Perform a "/me" request to verify the session is valid.
 	response, err := fleet.AuthenticatedDo("GET", "/api/v1/fleet/me", "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to execute session check")
+		return nil, fmt.Errorf("Failed to execute session check: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -70,7 +70,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	case http.StatusUnauthorized:
 		return nil, invalidSessionErr
 	default:
-		return nil, errors.Errorf("session check received status: %d", response.StatusCode)
+		return nil, fmt.Errorf("session check received status: %d", response.StatusCode)
 	}
 
 	return fleet, nil
@@ -104,7 +104,7 @@ func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*serv
 		options...,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating Fleet API client handler")
+		return nil, fmt.Errorf("error creating Fleet API client handler: %w", err)
 	}
 
 	return fleet, nil
@@ -121,7 +121,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 	}
 	baseURL, err := url.Parse(cc.Address)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "parse address")
+		return nil, nil, fmt.Errorf("parse address: %w", err)
 	}
 
 	var rootCA *x509.CertPool
@@ -130,7 +130,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 		// read in the root cert file specified in the context
 		certs, err := ioutil.ReadFile(cc.RootCA)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "reading root CA")
+			return nil, nil, fmt.Errorf("reading root CA: %w", err)
 		}
 
 		// add certs to pool
@@ -161,7 +161,7 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 	var zeroCtx Context
 
 	if err := makeConfigIfNotExists(c.String("config")); err != nil {
-		return zeroCtx, errors.Wrapf(err, "error verifying that config exists at %s", c.String("config"))
+		return zeroCtx, fmt.Errorf("error verifying that config exists at %s: %w", c.String("config"), err)
 	}
 
 	config, err := readConfig(c.String("config"))
