@@ -5,13 +5,13 @@ import { useQuery } from "react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { AppContext } from "context/app";
 import { push } from "react-router-redux";
-import { find } from "lodash";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
 import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
 import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import { toNumber } from "lodash";
 // @ts-ignore
 import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 // @ts-ignore
@@ -25,7 +25,6 @@ import permissionUtils from "utilities/permissions";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import TeamsDropdown from "components/TeamsDropdown";
 import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
@@ -118,12 +117,6 @@ interface IFormData {
   team_id?: number;
 }
 
-interface ITeamOptions {
-  disabled: boolean;
-  label: string;
-  value: string | number;
-}
-
 const ManageSchedulePage = ({
   params: { team_id },
 }: ITeamSchedulesPageProps): JSX.Element => {
@@ -131,14 +124,7 @@ const ManageSchedulePage = ({
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
-  const {
-    currentUser,
-    currentTeam,
-    isOnGlobalTeam,
-    isFreeTier,
-    isPremiumTier,
-    isAnyTeamMaintainerOrTeamAdmin,
-  } = useContext(AppContext);
+  const { currentUser, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery(
     ["teams"],
@@ -409,9 +395,10 @@ const ManageSchedulePage = ({
               <div>
                 {isPremiumTier ? (
                   <TeamsDropdown
-                    currentTeamId={currentTeam?.id || 0}
+                    currentTeamId={toNumber(team_id) || 0}
                     isLoading={isLoadingTeams}
                     teams={teams || []}
+                    hideAllTeamsOption={!isOnGlobalTeam}
                     onChange={(newSelectedValue: number) =>
                       handleTeamSelect(newSelectedValue)
                     }
