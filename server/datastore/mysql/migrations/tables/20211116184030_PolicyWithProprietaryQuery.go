@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -24,16 +25,7 @@ func Up_20211116184030(tx *sql.Tx) error {
 	`); err != nil {
 		return errors.Wrap(err, "adding new columns to 'policies'")
 	}
-	// Legacy policy functionality allowed creating two policies with the same
-	// referenced query in "queries" (same query_id). The following will
-	// deduplicate such policies.
-	if _, err := tx.Exec(`
-        DELETE p1 FROM policies AS p1, policies AS p2
-		WHERE p1.ID < p2.ID
-		AND p1.query_id = p2.query_id
-    `); err != nil {
-		return errors.Wrap(err, "removing duplicates from 'policies'")
-	}
+
 	// Migrate existing referenced policies to be propietary policy queries.
 	if _, err := tx.Exec(`
         UPDATE policies p
@@ -46,6 +38,35 @@ func Up_20211116184030(tx *sql.Tx) error {
 			p.author_id = q.author_id
     `); err != nil {
 		return errors.Wrap(err, "migrating data from 'queries' to 'policies'")
+	}
+
+	// Legacy policy functionality allowed creating two policies with the same
+	// referenced query in "queries" (same query_id). The following will
+	// rename such conflicting policies by appending a " (id)" suffix.
+	var queryIDs []uint
+	txx := sqlx.Tx{Tx: tx}
+	if err := txx.Select(&queryIDs, `
+		SELECT query_id FROM policies
+		GROUP BY query_id
+		HAVING COUNT(*) > 1
+	`); err != nil {
+		return errors.Wrap(err, "getting duplicates from 'policies'")
+	}
+	if len(queryIDs) == 0 {
+		// append 0 to avoid empty args error for `sqlx.In`
+		queryIDs = append(queryIDs, 0)
+	}
+	query, args, err := sqlx.In(`
+        UPDATE policies
+		SET name = CONCAT(name, " (", CONVERT(id, CHAR) ,")")
+		WHERE query_id IN (?)`,
+		queryIDs,
+	)
+	if err != nil {
+		return errors.Wrap(err, "error building query to rename duplicates from 'policies'")
+	}
+	if _, err := txx.Exec(query, args...); err != nil {
+		return errors.Wrap(err, "renaming duplicates from 'policies'")
 	}
 
 	// We need to add the unique key after the population of the name field (otherwise
