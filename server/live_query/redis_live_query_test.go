@@ -38,6 +38,7 @@ func TestMigrateKeys(t *testing.T) {
 		queryKeyPrefix + "{c}":                "c",
 		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
 	}
+	startSet := []string{"c"}
 
 	endKeys := map[string]string{
 		"unrelated":                           "u",
@@ -47,6 +48,7 @@ func TestMigrateKeys(t *testing.T) {
 		queryKeyPrefix + "{c}":                "c",
 		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
 	}
+	endSet := []string{"a", "b", "c"}
 
 	runTest := func(t *testing.T, store *redisLiveQuery) {
 		conn := store.pool.Get()
@@ -59,8 +61,11 @@ func TestMigrateKeys(t *testing.T) {
 			_, err := conn.Do("SET", k, v)
 			require.NoError(t, err)
 		}
+		args := redigo.Args{activeQueriesKey}.AddFlat(startSet)
+		_, err := conn.Do("SADD", args...)
+		require.NoError(t, err)
 
-		err := store.MigrateKeys()
+		err = store.MigrateKeys()
 		require.NoError(t, err)
 
 		got := make(map[string]string)
@@ -86,6 +91,9 @@ func TestMigrateKeys(t *testing.T) {
 		require.NoError(t, err)
 
 		require.EqualValues(t, endKeys, got)
+		setAfter, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+		require.NoError(t, err)
+		require.ElementsMatch(t, endSet, setAfter)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
@@ -100,7 +108,7 @@ func TestMigrateKeys(t *testing.T) {
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
-	pool := redistest.SetupRedis(t, cluster, false, false)
+	pool := redistest.SetupRedis(t, cluster, true, true)
 	return NewRedisLiveQuery(pool)
 }
 

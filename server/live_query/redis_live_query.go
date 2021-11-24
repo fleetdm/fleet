@@ -222,6 +222,9 @@ func (r *redisLiveQuery) StopQuery(name string) error {
 	return nil
 }
 
+// this is a variable so it can be changed in tests
+var cleanupExpiredQueriesModulo int64 = 10
+
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
 	names, err := r.loadActiveQueryNames()
@@ -248,7 +251,7 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 		// a certain percentage of the time so that we don't overwhelm redis with a
 		// bunch of similar deletion commands at the same time, clean up the
 		// expired queries.
-		if time.Now().UnixNano()%10 == 0 {
+		if time.Now().UnixNano()%cleanupExpiredQueriesModulo == 0 {
 			names := make([]string, 0, len(expired))
 			for k := range expired {
 				names = append(names, k)
