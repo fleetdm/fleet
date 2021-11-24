@@ -1146,3 +1146,34 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	// Try to create a team policy with an existing name.
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusConflict, &tpResp)
 }
+
+func (s *integrationTestSuite) TestListActivities() {
+	t := s.T()
+
+	ctx := context.Background()
+	u := s.users["admin1@example.com"]
+	details := make(map[string]interface{})
+
+	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	require.NoError(t, err)
+
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
+	require.NoError(t, err)
+
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
+	require.NoError(t, err)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
+	require.Len(t, listResp.Activities, 2)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[1].Type)
+
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "page", "1")
+	require.Len(t, listResp.Activities, 1)
+	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+
+	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
+	require.Len(t, listResp.Activities, 1)
+	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+}
