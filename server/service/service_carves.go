@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -81,7 +82,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	}
 
 	if payload.RequestId != carve.RequestId {
-		return fmt.Errorf("request_id does not match")
+		return errors.New("request_id does not match")
 	}
 
 	// Request is now authenticated
@@ -132,7 +133,7 @@ func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byt
 	}
 
 	if metadata.Expired {
-		return nil, fmt.Errorf("cannot get block for expired carve")
+		return nil, errors.New("cannot get block for expired carve")
 	}
 
 	if blockId > metadata.MaxBlock {

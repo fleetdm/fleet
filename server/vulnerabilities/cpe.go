@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -226,7 +227,7 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := path.Join(vulnPath, "cpe.sqlite")
 
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	if err := SyncCPEDatabase(client, dbPath, config); err != nil {
 		return ctxerr.Wrap(ctx, err, "sync cpe db")
 	}

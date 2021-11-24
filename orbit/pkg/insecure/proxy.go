@@ -16,6 +16,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
 const (
@@ -150,22 +152,9 @@ func newProxyHandler(targetURL string) (*httputil.ReverseProxy, error) {
 		},
 	}
 	// Adapted from http.DefaultTransport
-	reverseProxy.Transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
+	reverseProxy.Transport = fleethttp.NewTransport(fleethttp.WithTLSConfig(
+		&tls.Config{InsecureSkipVerify: true},
+	))
 
 	return reverseProxy, nil
 }

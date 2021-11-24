@@ -594,7 +594,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
-	checkPolicies := func(policies []*fleet.HostPolicy) {
+	checkGlobaPolicy := func(policies []*fleet.HostPolicy) {
 		assert.Equal(t, "query1", policies[0].Name)
 		assert.Equal(t, "select 1;", policies[0].Query)
 		assert.Equal(t, "query1 desc", policies[0].Description)
@@ -604,24 +604,24 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
 		assert.NotNil(t, policies[0].Resolution)
 		assert.Equal(t, "some gp resolution", *policies[0].Resolution)
-
-		assert.Equal(t, "query2", policies[1].Name)
-		assert.Equal(t, "select 42;", policies[1].Query)
-		assert.Equal(t, "query2 desc", policies[1].Description)
-		require.NotNil(t, policies[1].AuthorID)
-		assert.Equal(t, user1.ID, *policies[1].AuthorID)
-		assert.Equal(t, "Alice", policies[1].AuthorName)
-		assert.Equal(t, "alice@example.com", policies[1].AuthorEmail)
-		assert.NotNil(t, policies[1].Resolution)
-		assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
 	}
-	checkPolicies(policies)
+	checkGlobaPolicy(policies)
+
+	assert.Equal(t, "query2", policies[1].Name)
+	assert.Equal(t, "select 42;", policies[1].Query)
+	assert.Equal(t, "query2 desc", policies[1].Description)
+	require.NotNil(t, policies[1].AuthorID)
+	assert.Equal(t, user1.ID, *policies[1].AuthorID)
+	assert.Equal(t, "Alice", policies[1].AuthorName)
+	assert.Equal(t, "alice@example.com", policies[1].AuthorEmail)
+	assert.NotNil(t, policies[1].Resolution)
+	assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 2)
+	require.Len(t, policies, 1)
 
-	checkPolicies(policies)
+	checkGlobaPolicy(policies)
 
 	assert.Equal(t, "", policies[0].Response)
 
@@ -629,13 +629,13 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 2)
+	require.Len(t, policies, 1)
 
-	checkPolicies(policies)
+	checkGlobaPolicy(policies)
 
 	assert.Equal(t, "pass", policies[0].Response)
 
-	// Manually insert a null resolution.
+	// Manually insert a global policy with null resolution.
 	res, err := ds.writer.ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
@@ -644,14 +644,14 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
 	require.NoError(t, err)
-	require.Len(t, policies, 3)
+	require.Len(t, policies, 2)
 
 	assert.Equal(t, "query1 desc", policies[0].Description)
 	assert.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some gp resolution", *policies[0].Resolution)
 
-	assert.NotNil(t, policies[2].Resolution)
-	assert.Empty(t, *policies[2].Resolution)
+	assert.NotNil(t, policies[1].Resolution)
+	assert.Empty(t, *policies[1].Resolution)
 }
 
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {

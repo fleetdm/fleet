@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
@@ -139,14 +140,10 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 		}
 	}
 
-	cli := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cc.TLSSkipVerify,
-				RootCAs:            rootCA,
-			},
-		},
-	}
+	cli := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: cc.TLSSkipVerify,
+		RootCAs:            rootCA,
+	}))
 	return cli, baseURL, nil
 }
 
