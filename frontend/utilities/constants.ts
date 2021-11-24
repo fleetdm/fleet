@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { QueryPlatform } from "interfaces/query";
+import { IQueryPlatform } from "interfaces/query";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -78,7 +78,7 @@ export const DEFAULT_QUERY = {
   saved: false,
   author_id: 0,
   packs: [],
-  platform: "darwin,windows,linux" as QueryPlatform,
+  platform: "darwin,windows,linux" as IQueryPlatform,
 };
 
 export const DEFAULT_POLICY = {
@@ -92,6 +92,7 @@ export const DEFAULT_POLICY = {
   resolution: "Resolution steps",
   passing_host_count: 2000,
   failing_host_count: 300,
+  platform: "darwin,windows,linux" as IQueryPlatform,
 };
 
 export const DEFAULT_CAMPAIGN = {

@@ -5,6 +5,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_POLICY } from "utilities/constants";
 import { IOsqueryTable } from "interfaces/osquery_table";
+import { IQueryPlatform } from "interfaces/query";
 
 type Props = {
   children: ReactNode;
@@ -15,9 +16,13 @@ type InitialStateType = {
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
+  lastEditedQueryPlatform: IQueryPlatform | null | undefined;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
+  setLastEditedQueryPlatform: (
+    value: IQueryPlatform | null | undefined
+  ) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
@@ -26,9 +31,11 @@ const initialState = {
   lastEditedQueryName: DEFAULT_POLICY.name,
   lastEditedQueryDescription: DEFAULT_POLICY.description,
   lastEditedQueryBody: DEFAULT_POLICY.query,
+  lastEditedQueryPlatform: DEFAULT_POLICY.platform,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
+  setLastEditedQueryPlatform: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -59,6 +66,10 @@ const reducer = (state: any, action: any) => {
           typeof action.lastEditedQueryBody === "undefined"
             ? state.lastEditedQueryBody
             : action.lastEditedQueryBody,
+        lastEditedQueryPlatform:
+          typeof action.lastEditedQueryPlatform === "undefined"
+            ? state.lastEditedQueryPlatform
+            : action.lastEditedQueryPlatform,
       };
     default:
       return state;
@@ -75,6 +86,7 @@ const PolicyProvider = ({ children }: Props) => {
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
+    lastEditedQueryPlatform: state.lastEditedQueryPlatform,
     setLastEditedQueryName: (lastEditedQueryName: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
@@ -91,6 +103,14 @@ const PolicyProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryBody,
+      });
+    },
+    setLastEditedQueryPlatform: (
+      lastEditedQueryPlatform: IQueryPlatform | null | undefined
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryPlatform,
       });
     },
     setSelectedOsqueryTable: (tableName: string) => {

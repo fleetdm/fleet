@@ -14,7 +14,7 @@ import {
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { IQuery, IQueryFormData, QueryPlatform } from "interfaces/query";
+import { IQuery, IQueryFormData, IQueryPlatform } from "interfaces/query";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
@@ -186,7 +186,7 @@ const QueryForm = ({
       isWindowsCompatible && platforms.push("windows");
       isLinuxCompatible && platforms.push("linux");
       console.log("setting new lastEditedQueryPlatform: ", platforms.join(","));
-      setLastEditedQueryPlatform(platforms.join(",") as QueryPlatform);
+      setLastEditedQueryPlatform(platforms.join(",") as IQueryPlatform);
     } else {
       console.log("effect does nothing");
     }
@@ -207,7 +207,7 @@ const QueryForm = ({
       // Filter out any unsupported values that may have been returned by the parser (e.g., freebsd)
       const newPlatformValue = parsedPlatforms
         .filter((p) => SUPPORTED_PLATFORMS.includes(p))
-        .join(",") as QueryPlatform;
+        .join(",") as IQueryPlatform;
       console.log("setting lastEditedQueryPlatform: ", newPlatformValue);
       setLastEditedQueryPlatform(newPlatformValue);
     }
@@ -290,7 +290,7 @@ const QueryForm = ({
     const platform = lastEditedQueryPlatform
       ?.split(",")
       .filter((p) => SUPPORTED_PLATFORMS.includes(p))
-      .join(",") as QueryPlatform;
+      .join(",") as IQueryPlatform;
     if (!platform) {
       console.log(
         "add new error: Please select a platform to save this policy"

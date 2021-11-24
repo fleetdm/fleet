@@ -52,6 +52,7 @@ const PolicyPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
@@ -81,6 +82,7 @@ const PolicyPage = ({
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryPlatform(returnedQuery.platform);
       },
     }
   );
@@ -119,10 +121,17 @@ const PolicyPage = ({
     };
 
     detectIsFleetQueryRunnable();
+
+    // TODO: Find a better way to handle the intial page load. Setting default
+    // values for last edited query here causes issues on page refreshes
+    // for components like PolicyForm. Why do we need to set default
+    // query like this when there is an existing query (ask Martavis)?
+    // NOTE: This issue also exists in the QueryPage flow
     !!policyIdForEdit && refetchStoredPolicy();
     setLastEditedQueryName(DEFAULT_POLICY.name);
     setLastEditedQueryDescription(DEFAULT_POLICY.description);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
+    setLastEditedQueryPlatform(DEFAULT_POLICY.platform);
   }, []);
 
   useEffect(() => {

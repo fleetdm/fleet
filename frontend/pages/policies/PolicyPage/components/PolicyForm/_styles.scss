@@ -16,6 +16,7 @@
   &__title-bar {
     display: flex;
     justify-content: space-between;
+    padding-bottom: $pad-medium;
 
     .form-field {
       margin-bottom: 0px;
@@ -123,7 +124,6 @@
 
   &__text-editor-wrapper {
     margin: 0;
-    margin-top: $pad-large;
   }
 
   &__button-wrap {
@@ -164,6 +164,22 @@
     font-size: $large;
   }
 
+  &__platform-checkbox-wrapper {
+    margin: 0;
+    margin-top: $pad-large;
+
+    & + p {
+      margin: 0;
+      margin-top: $pad-small;
+    }
+  }
+
+  &__platform-error {
+    min-height: 24px;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
   &__platform-compatibility {
     display: flex;
     align-items: center;
@@ -182,8 +198,30 @@
 
     img {
       height: 16px;
-      width: auto;
+      width: 16px;
       padding-left: $pad-xsmall;
+      padding-right: 7px;
+    }
+
+    button {
+      img {
+        padding: 0px;
+      }
+    }
+
+    form,
+    label {
+      display: inline-flex;
+    }
+
+    label {
+      font-weight: $regular;
+      margin-right: 12px;
+    }
+
+    .form-field {
+      display: flex;
+      margin-top: 0px;
     }
 
     .tooltip {
@@ -191,10 +229,6 @@
 
       img {
         padding: 0px;
-      }
-
-      &__tooltip-text {
-        text-align: center;
       }
     }
 

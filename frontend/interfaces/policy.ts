@@ -1,7 +1,10 @@
+import { IQueryPlatform } from "interfaces/query";
+
 export interface IPolicy {
   id: number;
   name: string;
   query: string;
+  platform?: IQueryPlatform | null;
   description: string;
   author_id: number;
   author_name: string;
@@ -16,4 +19,5 @@ export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
+  platform?: IQueryPlatform | null;
 }

@@ -54,6 +54,7 @@ const QueryEditor = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -92,6 +93,7 @@ const QueryEditor = ({
       lastEditedQueryName,
       lastEditedQueryDescription,
       lastEditedQueryBody,
+      lastEditedQueryPlatform,
     });
 
     try {

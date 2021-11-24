@@ -5,7 +5,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { IOsqueryTable } from "interfaces/osquery_table";
-import { QueryPlatform } from "interfaces/query";
+import { IQueryPlatform } from "interfaces/query";
 
 type Props = {
   children: ReactNode;
@@ -17,12 +17,14 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
-  lastEditedQueryPlatform: QueryPlatform | null | undefined;
+  lastEditedQueryPlatform: IQueryPlatform | null | undefined;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
-  setLastEditedQueryPlatform: (value: QueryPlatform | null | undefined) => void;
+  setLastEditedQueryPlatform: (
+    value: IQueryPlatform | null | undefined
+  ) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
@@ -121,7 +123,7 @@ const QueryProvider = ({ children }: Props) => {
       });
     },
     setLastEditedQueryPlatform: (
-      lastEditedQueryPlatform: QueryPlatform | null | undefined
+      lastEditedQueryPlatform: IQueryPlatform | null | undefined
     ) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,

@@ -1,16 +1,20 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { size } from "lodash";
+import { isEmpty, omit, size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
-// @ts-ignore
-import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
+import {
+  listCompatiblePlatforms,
+  parseSqlTables,
+  ParserResult,
+} from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { IQueryPlatform } from "interfaces/query";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
@@ -20,11 +24,12 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
+import CloseIcon from "../../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
+import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 
 const baseClass = "policy-form";
 
@@ -41,8 +46,26 @@ interface IPolicyFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
 }
 
+const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
+  darwin: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+};
+const PLATFORM_DISPLAY_ORDER = ["macOS", "Windows", "Linux"];
+const SUPPORTED_PLATFORMS = ["darwin", "windows", "linux"];
+
+const formatParsedPlatformsForDisplay = (
+  parsedPlatforms: ParserResult[]
+): Array<ParserResult | string> => {
+  // Map platform to display name if specified (e.g., 'darwin' becomes 'macOS'); otherwise preserve
+  // the original value from the parser
+  return parsedPlatforms.map(
+    (string) => PLATFORM_DISPLAY_NAMES[string] || string
+  );
+};
+
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -66,14 +89,8 @@ const PolicyForm = ({
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
   const isEditMode = !!policyIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
-  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
-    false
-  );
+  console.log("rendering QueryForm");
+  console.log("isEditMode: ", isEditMode);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -81,9 +98,11 @@ const PolicyForm = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryPlatform,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const {
@@ -95,18 +114,135 @@ const PolicyForm = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
 
-  const debounceCompatiblePlatforms = useDebouncedCallback(
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
+    false
+  );
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
+
+  const [isOverridePlatforms, setIsOverridePlatforms] = useState<boolean>(
+    isEditMode
+  );
+  const [isDarwinCompatible, setIsDarwinCompatible] = useState<boolean>();
+  const [isWindowsCompatible, setIsWindowsCompatible] = useState<boolean>();
+  const [isLinuxCompatible, setIsLinuxCompatible] = useState<boolean>();
+
+  const [parsedPlatforms, setParsedPlatforms] = useState<ParserResult[]>([]);
+
+  const debounceParsePlatforms = useDebouncedCallback(
     (queryString: string) => {
-      setCompatiblePlatforms(
-        listCompatiblePlatforms(parseSqlTables(queryString))
-      );
+      const newPlatforms = listCompatiblePlatforms(parseSqlTables(queryString));
+      console.log("setting parsedPlatforms: ", newPlatforms);
+      setParsedPlatforms(newPlatforms);
     },
-    300
+    300,
+    { leading: true }
   );
 
+  // Watch for changes to lastEditedQueryPlatform and set checkbox values but only if they have NOT
+  // already been defined. After the storedQuery is loaded, this effect should do nothing. Subsequent
+  // changes to checkbox values are handled elsewhere.
   useEffect(() => {
-    debounceCompatiblePlatforms(lastEditedQueryBody);
+    // TODO: Because QueryPage is not fetching the storedQuery on initial page load before setting
+    // default value for the lastEditedQuery, we can't depend on lastEditedQueryPlatform
+    // when this component initially loads, which causes issues on refresh. This means we have a
+    // potentially circular dependencies with this effect and the effect below.
+    if (isEditMode && storedPolicy) {
+      console.log(
+        "triggered page load jank effect because lastEditedQueryPlatform changed: ",
+        lastEditedQueryPlatform
+      );
+      const areCheckboxesUndefined =
+        isDarwinCompatible ?? isWindowsCompatible ?? isLinuxCompatible ?? true;
+      console.log("areCheckboxesUndefined: ", areCheckboxesUndefined);
+      if (areCheckboxesUndefined) {
+        console.log("setting checkbox values: ", lastEditedQueryPlatform);
+        setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
+        setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
+        setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
+      } else {
+        console.log("effect does nothing");
+      }
+    }
+  }, [lastEditedQueryPlatform]);
+
+  // Watch for changes to override checkbox values and update lastEditedQueryPlatform but only if
+  // checkboxes have already been defined (which should only be the case after storedQuery is loaded)
+  useEffect(() => {
+    console.log(
+      `triggered checkbox change effect; new checkbox values: darwin = ${isDarwinCompatible}, windows = ${isWindowsCompatible}, linux = ${isLinuxCompatible}`
+    );
+    const areCheckboxesUndefined =
+      isDarwinCompatible ?? isWindowsCompatible ?? isLinuxCompatible ?? true;
+    console.log("areCheckboxesUndefined: ", areCheckboxesUndefined);
+    if (!areCheckboxesUndefined) {
+      const platforms = [];
+      isDarwinCompatible && platforms.push("darwin");
+      isWindowsCompatible && platforms.push("windows");
+      isLinuxCompatible && platforms.push("linux");
+      console.log("setting new lastEditedQueryPlatform: ", platforms.join(","));
+      setLastEditedQueryPlatform(platforms.join(",") as IQueryPlatform);
+    } else {
+      console.log("effect does nothing");
+    }
+  }, [isWindowsCompatible, isDarwinCompatible, isLinuxCompatible]);
+
+  useEffect(() => {
+    if (!isOverridePlatforms) {
+      console.log("triggered query body changed effect");
+      debounceParsePlatforms(lastEditedQueryBody);
+    }
   }, [lastEditedQueryBody]);
+
+  // Watch for changes in parsedPlatforms and update lastEditedQueryPlatform if override is not active
+  useEffect(() => {
+    if (!isOverridePlatforms) {
+      console.log("triggered parsedPlatforms changed effect");
+      // Filter out any unsupported values that may have been returned by the parser (e.g., freebsd)
+      const newPlatformValue = parsedPlatforms
+        .filter((p) => SUPPORTED_PLATFORMS.includes(p))
+        .join(",") as IQueryPlatform;
+      console.log("setting lastEditedQueryPlatform: ", newPlatformValue);
+      setLastEditedQueryPlatform(newPlatformValue);
+    }
+  }, [parsedPlatforms]);
+
+  const switchOverridePlatforms = useCallback(() => {
+    const switchToOverride = !isOverridePlatforms;
+    console.log(
+      `switching to ${switchToOverride ? "override" : "parser"} mode`
+    );
+
+    if (switchToOverride) {
+      // Set the checkbox values based on lastEditedQueryPlatform
+      const platforms = lastEditedQueryPlatform?.split(",") || [];
+      setIsDarwinCompatible(platforms.includes("darwin"));
+      setIsWindowsCompatible(platforms.includes("windows"));
+      setIsLinuxCompatible(platforms.includes("linux"));
+    } else {
+      // Parse the lastEditedQueryBody
+      debounceParsePlatforms(lastEditedQueryBody);
+    }
+
+    // Clear any platform errors
+    console.log(
+      `clearing errors.platform; ${
+        errors.platform
+          ? `removing error: ${errors.platform}`
+          : "no errors to remove"
+      }`
+    );
+    errors.platform && setErrors(omit(errors, "platform"));
+
+    setIsOverridePlatforms(switchToOverride);
+  }, [
+    errors,
+    lastEditedQueryBody,
+    lastEditedQueryPlatform,
+    isOverridePlatforms,
+  ]);
 
   const hasTeamMaintainerPermissions = isEditMode
     ? isAnyTeamMaintainerOrTeamAdmin &&
@@ -140,25 +276,44 @@ const PolicyForm = ({
   ) => {
     evt.preventDefault();
 
+    const { errors: newErrors } = validateQuerySQL(lastEditedQueryBody);
+
     if (isEditMode && !lastEditedQueryName) {
-      return setErrors({
-        ...errors,
-        name: "Policy name must be present",
-      });
+      newErrors.name = "Query name must be present";
     }
 
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
+    // Check that at least one supported platform has been selected
+    const platform = lastEditedQueryPlatform
+      ?.split(",")
+      .filter((p) => SUPPORTED_PLATFORMS.includes(p))
+      .join(",") as IQueryPlatform;
+    if (!platform) {
+      console.log(
+        "add new error: Please select a platform to save this policy"
+      );
+      newErrors.platform = "Please select a platform to save this policy";
+      !isOverridePlatforms && switchOverridePlatforms();
+    }
+    const reparsedPlatforms = listCompatiblePlatforms(
+      parseSqlTables(lastEditedQueryBody)
     );
+    console.log(
+      "platform parser is not being re-run prior to save but here is what it would return for the query being saved: ",
+      reparsedPlatforms
+    );
+    const parserErrors: ParserResult[] = [
+      "none",
+      "invalid query syntax",
+      "no tables in query AST",
+    ];
+    if (parserErrors.includes(reparsedPlatforms[0])) {
+      console.log(
+        "saving was allowed to continue despite parser result; isOverridePlatforms: ",
+        isOverridePlatforms
+      );
+    }
 
-    valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
-
-    if (valid) {
+    if (isEmpty(newErrors)) {
       if (!isEditMode || forceNew) {
         setIsSaveModalOpen(true);
       } else {
@@ -166,6 +321,7 @@ const PolicyForm = ({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          platform,
         });
 
         setErrors({});
@@ -173,6 +329,8 @@ const PolicyForm = ({
 
       setIsEditingName(false);
       setIsEditingDescription(false);
+    } else {
+      setErrors(newErrors);
     }
   };
 
@@ -212,30 +370,73 @@ const PolicyForm = ({
     );
   };
 
-  const renderPlatformCompatibility = () => {
-    const displayOrder = ["macOS", "Windows", "Linux"];
+  const renderPlatforms = () => {
+    // Override mode is active so compatibility is based on checkbox values
+    if (isOverridePlatforms) {
+      return (
+        <span>
+          <form>
+            <Checkbox
+              value={isDarwinCompatible}
+              onChange={(value: boolean) => setIsDarwinCompatible(value)}
+              wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+            >
+              macOS
+            </Checkbox>
+            <Checkbox
+              value={isWindowsCompatible}
+              onChange={(value: boolean) => setIsWindowsCompatible(value)}
+              wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+            >
+              Windows
+            </Checkbox>
+            <Checkbox
+              value={isLinuxCompatible}
+              onChange={(value: boolean) => setIsLinuxCompatible(value)}
+              wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+            >
+              Linux
+            </Checkbox>
+          </form>
+        </span>
+      );
+    }
 
-    const displayIncompatibilityText = () => {
-      if (compatiblePlatforms[0] === "Invalid query") {
-        return "No platforms (check your query for a possible syntax error)";
-      } else if (compatiblePlatforms[0] === "None") {
-        return "No platforms (check your query for invalid tables or tables that are supported on different platforms)";
-      }
-    };
+    // Override mode is not active so compatibility is based on parsed values
+    const platforms = formatParsedPlatformsForDisplay(parsedPlatforms);
 
-    const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
-      switch (string) {
-        case "darwin":
-          return "macOS";
-        case "windows":
-          return "Windows";
-        case "linux":
-          return "Linux";
-        default:
-          return string;
-      }
+    if (platforms[0] === "invalid query syntax") {
+      return (
+        <span className="platform">
+          No platforms (check your query for a possible syntax error)
+        </span>
+      );
+    } else if (platforms[0] === "none") {
+      return (
+        <span className="platform">
+          No platforms (check your query for invalid tables or tables that are
+          supported on different platforms)
+        </span>
+      );
+    }
+
+    const isCompatible = (p: string) =>
+      platforms[0] === "all" || platforms.includes(p);
+
+    return PLATFORM_DISPLAY_ORDER.map((platform) => {
+      return (
+        <span key={`platform-compatibility__${platform}`} className="platform">
+          <img
+            alt={isCompatible(platform) ? "compatible" : "incompatible"}
+            src={isCompatible(platform) ? CompatibleIcon : IncompatibleIcon}
+          />
+          {platform}
+        </span>
+      );
     });
+  };
 
+  const renderPlatformCompatibilityBlock = () => {
     return (
       <span className={`${baseClass}__platform-compatibility`}>
         <b>Compatible with:</b>
@@ -257,32 +458,20 @@ const PolicyForm = ({
             data-html
           >
             <span className={`tooltip__tooltip-text`}>
-              Estimated compatiblity
-              <br />
-              based on the tables used
-              <br />
-              in the query
+              Estimated compatiblity based on the tables <br />
+              used in the query. Edit the compatibility <br />
+              to override the platforms this policy is <br />
+              checked on.
             </span>
           </ReactTooltip>
         </span>
-        {displayIncompatibilityText() ||
-          displayOrder.map((platform) => {
-            const isCompatible =
-              displayFormattedPlatforms.includes(platform) ||
-              displayFormattedPlatforms[0] === "No tables in query AST"; // If query has no tables but is still syntatically valid sql, we treat it as compatible with all platforms
-            return (
-              <span
-                key={`platform-compatibility__${platform}`}
-                className="platform"
-              >
-                {platform}{" "}
-                <img
-                  alt={isCompatible ? "compatible" : "incompatible"}
-                  src={isCompatible ? CompatibleIcon : IncompatibleIcon}
-                />
-              </span>
-            );
-          })}
+        {renderPlatforms()}
+        <Button variant="unstyled" onClick={switchOverridePlatforms}>
+          <img
+            alt="edit compatible platforms"
+            src={isOverridePlatforms ? CloseIcon : PencilIcon}
+          />
+        </Button>
       </span>
     );
   };
@@ -411,6 +600,7 @@ const PolicyForm = ({
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
+        <div className={`${baseClass}__platform-error`}>{errors.platform}</div>
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}
@@ -419,12 +609,10 @@ const PolicyForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => {
-            setLastEditedQueryBody(sqlString);
-          }}
+          onChange={(sqlString: string) => setLastEditedQueryBody(sqlString)}
           handleSubmit={promptSaveQuery}
         />
-        {renderPlatformCompatibility()}
+        {renderPlatformCompatibilityBlock()}
         {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
