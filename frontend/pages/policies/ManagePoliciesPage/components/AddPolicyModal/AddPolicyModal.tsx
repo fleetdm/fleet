@@ -17,6 +17,14 @@ export interface IAddPolicyModalProps {
 const baseClass = "add-policy-modal";
 
 const AddPolicyModal = ({ onCancel, router }: IAddPolicyModalProps) => {
+  const onAddPolicy = (selectedPolicy: IPolicyNew) => {
+    const { NEW_POLICY } = PATHS;
+    // TODO: Make policy auto populate
+    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
+    router.replace(path);
+    onCancel();
+  };
+
   const policiesAvailable = DEFAULT_POLICIES.map((policy) => {
     return (
       <Button
@@ -32,13 +40,6 @@ const AddPolicyModal = ({ onCancel, router }: IAddPolicyModalProps) => {
       </Button>
     );
   });
-  const onAddPolicy = (selectedPolicy: IPolicyNew) => {
-    const { NEW_POLICY } = PATHS;
-    // Make policy auto populate
-    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
-    router.replace(path);
-    onCancel();
-  };
 
   return (
     <Modal

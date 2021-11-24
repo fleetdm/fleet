@@ -68,18 +68,6 @@ const SelectQueryModal = ({
     });
   };
 
-  const customQueryButton = () => {
-    return (
-      <Button
-        onClick={() => onQueryHostCustom(host)}
-        variant="brand"
-        className={`${baseClass}__custom-query-button`}
-      >
-        Create custom query
-      </Button>
-    );
-  };
-
   const onFilterQueries = useCallback(
     (filterString: string): void => {
       setQueriesFilter(filterString);
@@ -91,7 +79,7 @@ const SelectQueryModal = ({
 
   const queriesCount = queriesFiltered.length;
 
-  const onQueryHostCustom = (host: IHost) => {
+  const onQueryHostCustom = () => {
     return dispatch(
       push({
         pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
@@ -114,13 +102,25 @@ const SelectQueryModal = ({
   //   router.replace(nextLocation);
   // };
 
-  const onQueryHostSaved = (host: IHost, selectedQuery: IQuery) => {
+  const onQueryHostSaved = (selectedQuery: IQuery) => {
     return dispatch(
       push({
         pathname:
           PATHS.EDIT_QUERY(selectedQuery) +
           TAGGED_TEMPLATES.queryByHostRoute(host.id),
       })
+    );
+  };
+
+  const customQueryButton = () => {
+    return (
+      <Button
+        onClick={() => onQueryHostCustom()}
+        variant="brand"
+        className={`${baseClass}__custom-query-button`}
+      >
+        Create custom query
+      </Button>
     );
   };
 
@@ -169,7 +169,7 @@ const SelectQueryModal = ({
             key={query.id}
             variant="unstyled-modal-query"
             className="modal-query-button"
-            onClick={() => onQueryHostSaved(host, query)}
+            onClick={() => onQueryHostSaved(query)}
           >
             <>
               <span className="info__header">{query.name}</span>

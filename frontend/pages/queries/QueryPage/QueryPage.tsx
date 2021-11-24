@@ -122,9 +122,6 @@ const QueryPage = ({
       });
     };
 
-    console.log("queryIdForEdit with refetchStoredQuery", queryIdForEdit);
-    debugger;
-
     detectIsFleetQueryRunnable();
     !!queryIdForEdit && refetchStoredQuery();
     setLastEditedQueryName(DEFAULT_QUERY.name);
