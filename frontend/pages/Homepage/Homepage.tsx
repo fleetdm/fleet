@@ -1,18 +1,15 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import paths from "router/paths";
-import { Link } from "react-router";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
-import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Button from "components/buttons/Button";
 import InfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -20,7 +17,6 @@ import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
-import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -41,6 +37,7 @@ const Homepage = (): JSX.Element => {
     currentTeam,
     isPremiumTier,
     isPreviewMode,
+    isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
 
@@ -61,6 +58,11 @@ const Homepage = (): JSX.Element => {
   >(["teams"], () => teamsAPI.loadAll(), {
     enabled: !!isPremiumTier,
     select: (data: ITeamsResponse) => data.teams,
+    onSuccess: (responseTeams) => {
+      if (!isOnGlobalTeam) {
+        setCurrentTeam(responseTeams[0]);
+      }
+    },
   });
 
   const handleTeamSelect = (teamId: number) => {
@@ -101,6 +103,7 @@ const Homepage = (): JSX.Element => {
               currentTeamId={currentTeam?.id || 0}
               isLoading={isLoadingTeams}
               teams={teams || []}
+              hideAllTeamsOption={!isOnGlobalTeam}
               onChange={(newSelectedValue: number) =>
                 handleTeamSelect(newSelectedValue)
               }
@@ -155,7 +158,7 @@ const Homepage = (): JSX.Element => {
         ${currentTeam ? "one" : "two"}-column
       `}
       >
-        {!currentTeam && (
+        {!currentTeam && isOnGlobalTeam && (
           <InfoCard
             title="Software"
             action={{
@@ -170,7 +173,7 @@ const Homepage = (): JSX.Element => {
             />
           </InfoCard>
         )}
-        {!isPreviewMode && !currentTeam && (
+        {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
           <InfoCard title="Activity">
             <ActivityFeed />
           </InfoCard>
