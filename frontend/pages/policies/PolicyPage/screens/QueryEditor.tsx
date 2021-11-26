@@ -54,7 +54,7 @@ const QueryEditor = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
-    selectedTeamId,
+    policyTeamId,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -76,8 +76,8 @@ const QueryEditor = ({
     // a team and start over, in which case it might be better to intercept the unauthorized errors
     // and redirect to the manage policies page (unless we have added a means to select a team on
     // the edit/create policy form itself).
-    if (selectedTeamId) {
-      formData.team_id = selectedTeamId;
+    if (policyTeamId) {
+      formData.team_id = policyTeamId;
     }
 
     try {

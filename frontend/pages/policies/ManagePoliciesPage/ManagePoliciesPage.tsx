@@ -68,7 +68,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
-  const { setSelectedTeamId: setPolicyTeamId } = useContext(PolicyContext);
+  const { setPolicyTeamId } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
