@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { isEmpty, omit, size } from "lodash";
+import { isEmpty, isUndefined, omit, size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
@@ -154,8 +154,11 @@ const PolicyForm = ({
         "triggered page load jank effect because lastEditedQueryPlatform changed: ",
         lastEditedQueryPlatform
       );
-      const areCheckboxesUndefined =
-        isDarwinCompatible ?? isWindowsCompatible ?? isLinuxCompatible ?? true;
+      const areCheckboxesUndefined = [
+        isDarwinCompatible,
+        isWindowsCompatible,
+        isLinuxCompatible,
+      ].some((val) => isUndefined(val));
       console.log("areCheckboxesUndefined: ", areCheckboxesUndefined);
       if (areCheckboxesUndefined) {
         console.log("setting checkbox values: ", lastEditedQueryPlatform);
@@ -174,8 +177,11 @@ const PolicyForm = ({
     console.log(
       `triggered checkbox change effect; new checkbox values: darwin = ${isDarwinCompatible}, windows = ${isWindowsCompatible}, linux = ${isLinuxCompatible}`
     );
-    const areCheckboxesUndefined =
-      isDarwinCompatible ?? isWindowsCompatible ?? isLinuxCompatible ?? true;
+    const areCheckboxesUndefined = [
+      isDarwinCompatible,
+      isWindowsCompatible,
+      isLinuxCompatible,
+    ].some((val) => isUndefined(val));
     console.log("areCheckboxesUndefined: ", areCheckboxesUndefined);
     if (!areCheckboxesUndefined) {
       const platforms = [];
@@ -600,7 +606,11 @@ const PolicyForm = ({
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
-        <div className={`${baseClass}__platform-error`}>{errors.platform}</div>
+        {errors.platform && (
+          <div className={`${baseClass}__platform-error`}>
+            {errors.platform}
+          </div>
+        )}
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}

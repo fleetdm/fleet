@@ -16,7 +16,7 @@
   &__title-bar {
     display: flex;
     justify-content: space-between;
-    padding-bottom: $pad-medium;
+    padding-bottom: $pad-large;
 
     .form-field {
       margin-bottom: 0px;
@@ -175,7 +175,6 @@
   }
 
   &__platform-error {
-    min-height: 24px;
     font-size: $small;
     font-weight: $bold;
   }
