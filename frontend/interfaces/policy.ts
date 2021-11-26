@@ -16,4 +16,5 @@ export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
+  team_id?: number;
 }

@@ -12,6 +12,7 @@ type Props = {
 
 type InitialStateType = {
   selectedOsqueryTable: IOsqueryTable;
+  selectedTeamId: number;
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
@@ -19,10 +20,12 @@ type InitialStateType = {
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
+  setSelectedTeamId: (id: number) => void;
 };
 
 const initialState = {
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
+  selectedTeamId: 0,
   lastEditedQueryName: DEFAULT_POLICY.name,
   lastEditedQueryDescription: DEFAULT_POLICY.description,
   lastEditedQueryBody: DEFAULT_POLICY.query,
@@ -30,10 +33,12 @@ const initialState = {
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   setSelectedOsqueryTable: () => null,
+  setSelectedTeamId: () => null,
 };
 
 const actions = {
   SET_SELECTED_OSQUERY_TABLE: "SET_SELECTED_OSQUERY_TABLE",
+  SET_SELECTED_TEAM_ID: "SET_SELECTED_TEAM_ID",
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
 };
 
@@ -43,6 +48,11 @@ const reducer = (state: any, action: any) => {
       return {
         ...state,
         selectedOsqueryTable: find(osqueryTables, { name: action.tableName }),
+      };
+    case actions.SET_SELECTED_TEAM_ID:
+      return {
+        ...state,
+        selectedTeamId: action.id,
       };
     case actions.SET_LAST_EDITED_QUERY_INFO:
       return {
@@ -72,6 +82,7 @@ const PolicyProvider = ({ children }: Props) => {
 
   const value = {
     selectedOsqueryTable: state.selectedOsqueryTable,
+    selectedTeamId: state.selectedTeamId,
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
@@ -95,6 +106,9 @@ const PolicyProvider = ({ children }: Props) => {
     },
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
+    },
+    setSelectedTeamId: (id: number) => {
+      dispatch({ type: actions.SET_SELECTED_TEAM_ID, id });
     },
   };
 

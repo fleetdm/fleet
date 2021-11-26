@@ -8,6 +8,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
 import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
+import teamPoliciesAPI from "services/entities/team_policies"; // @ts-ignore
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
@@ -108,7 +109,9 @@ const PolicyPage = ({
   const {
     mutateAsync: createPolicy,
   } = useMutation((formData: IPolicyFormData) =>
-    globalPoliciesAPI.create(formData)
+    formData.team_id
+      ? teamPoliciesAPI.create(formData)
+      : globalPoliciesAPI.create(formData)
   );
 
   useEffect(() => {

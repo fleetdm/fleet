@@ -13,11 +13,11 @@ export interface INewPolicyModalProps {
   baseClass: string;
   queryValue: string;
   onCreatePolicy: (formData: IPolicyFormData) => void;
-  setIsSaveModalOpen: (isOpen: boolean) => void;
+  setIsNewPolicyModalOpen: (isOpen: boolean) => void;
 }
 
 const validatePolicyName = (name: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
 
   if (!name) {
     errors.name = "Policy name must be present";
@@ -31,11 +31,11 @@ const NewPolicyModal = ({
   baseClass,
   queryValue,
   onCreatePolicy,
-  setIsSaveModalOpen,
-}: INewPolicyModalProps) => {
+  setIsNewPolicyModalOpen,
+}: INewPolicyModalProps): JSX.Element => {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useDeepEffect(() => {
     if (name) {
@@ -43,7 +43,7 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
-  const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validatePolicyName(name);
@@ -59,12 +59,12 @@ const NewPolicyModal = ({
         query: queryValue,
       });
 
-      setIsSaveModalOpen(false);
+      setIsNewPolicyModalOpen(false);
     }
   };
 
   return (
-    <Modal title={"Save policy"} onExit={() => setIsSaveModalOpen(false)}>
+    <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
       <form className={`${baseClass}__save-modal-form`} autoComplete="off">
         <InputField
           name="name"
@@ -89,7 +89,7 @@ const NewPolicyModal = ({
         >
           <Button
             className={`${baseClass}__btn`}
-            onClick={() => setIsSaveModalOpen(false)}
+            onClick={() => setIsNewPolicyModalOpen(false)}
             variant="text-link"
           >
             Cancel
@@ -98,7 +98,7 @@ const NewPolicyModal = ({
             className={`${baseClass}__btn`}
             type="button"
             variant="brand"
-            onClick={handleUpdate}
+            onClick={handleSavePolicy}
           >
             Save policy
           </Button>
