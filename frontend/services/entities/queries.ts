@@ -4,13 +4,7 @@ import endpoints from "fleet/endpoints";
 import { IQueryFormData, IQuery } from "interfaces/query";
 
 export default {
-  create: ({
-    description,
-    name,
-    query,
-    observer_can_run,
-    platform,
-  }: IQueryFormData) => {
+  create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
     const { QUERIES } = endpoints;
 
     return sendRequest("POST", QUERIES, {
@@ -18,7 +12,6 @@ export default {
       name,
       query,
       observer_can_run,
-      platform,
     });
   },
   destroy: (id: string | number) => {
@@ -31,12 +24,7 @@ export default {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
-    return sendRequest("GET", path).then((res) => {
-      console.log("API response: ", res);
-      console.log("appending fake platform for testing: 'linux'");
-      res.query.platform = "linux";
-      return res;
-    });
+    return sendRequest("GET", path);
   },
   loadAll: () => {
     const { QUERIES } = endpoints;

@@ -34,7 +34,6 @@ export interface IQueryFormData {
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
   observer_can_run?: string | number | boolean | any[] | undefined;
-  platform?: IQueryPlatform | null;
 }
 
 export interface IQuery {
@@ -50,7 +49,6 @@ export interface IQuery {
   author_email: string;
   observer_can_run: boolean;
   packs: IPack[];
-  platform?: IQueryPlatform | null;
   stats?: IScheduledQueryStats;
 }
 

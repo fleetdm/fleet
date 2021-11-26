@@ -6,9 +6,9 @@ import { useDebouncedCallback } from "use-debounce/lib";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 import {
+  IParserResult,
   listCompatiblePlatforms,
   parseSqlTables,
-  ParserResult,
 } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
@@ -55,8 +55,8 @@ const PLATFORM_DISPLAY_ORDER = ["macOS", "Windows", "Linux"];
 const SUPPORTED_PLATFORMS = ["darwin", "windows", "linux"];
 
 const formatParsedPlatformsForDisplay = (
-  parsedPlatforms: ParserResult[]
-): Array<ParserResult | string> => {
+  parsedPlatforms: IParserResult[]
+): Array<IParserResult | string> => {
   // Map platform to display name if specified (e.g., 'darwin' becomes 'macOS'); otherwise preserve
   // the original value from the parser
   return parsedPlatforms.map(
@@ -129,7 +129,7 @@ const PolicyForm = ({
   const [isWindowsCompatible, setIsWindowsCompatible] = useState<boolean>();
   const [isLinuxCompatible, setIsLinuxCompatible] = useState<boolean>();
 
-  const [parsedPlatforms, setParsedPlatforms] = useState<ParserResult[]>([]);
+  const [parsedPlatforms, setParsedPlatforms] = useState<IParserResult[]>([]);
 
   const debounceParsePlatforms = useDebouncedCallback(
     (queryString: string) => {
@@ -301,7 +301,7 @@ const PolicyForm = ({
       "platform parser is not being re-run prior to save but here is what it would return for the query being saved: ",
       reparsedPlatforms
     );
-    const parserErrors: ParserResult[] = [
+    const parserErrors: IParserResult[] = [
       "none",
       "invalid query syntax",
       "no tables in query AST",

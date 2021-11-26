@@ -4,24 +4,28 @@ import { intersection } from "lodash";
 // @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
 
-export type OsqueryPlatform = "darwin" | "windows" | "linux" | "freebsd";
+export type IOsqueryPlatform = "darwin" | "windows" | "linux" | "freebsd";
 
-export type ParserResult =
+export type IParserResult =
   | "all"
   | "invalid query syntax"
   | "no tables in query AST"
   | "none"
-  | OsqueryPlatform;
+  | IOsqueryPlatform;
 
-type PlatformDictionay = Record<string, OsqueryPlatform[]>;
+type IPlatformDictionay = Record<string, IOsqueryPlatform[]>;
 
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface ITypedTable {
   name: string;
-  platforms: Array<OsqueryPlatform | string>;
+  platforms: Array<IOsqueryPlatform | string>;
 }
 
-const SUPPORTED_PLATFORMS = ["darwin", "windows", "linux"] as OsqueryPlatform[];
+const SUPPORTED_PLATFORMS = [
+  "darwin",
+  "windows",
+  "linux",
+] as IOsqueryPlatform[];
 
 const typedTables = osqueryTables as ITypedTable[];
 
@@ -33,7 +37,7 @@ const platformsByTableDictionary = typedTables.reduce(
     dictionary[table.name] = platforms;
     return dictionary;
   },
-  {} as PlatformDictionay
+  {} as IPlatformDictionay
 );
 
 // The isNode and visit functionality is informed by https://lihautan.com/manipulating-ast-with-javascript/#traversing-an-ast
@@ -57,8 +61,8 @@ const _visit = (abstractSyntaxTree: any, callback: (node: any) => void) => {
 };
 
 export const listCompatiblePlatforms = (
-  parserResults: ParserResult[]
-): ParserResult[] => {
+  parserResults: IParserResult[]
+): IParserResult[] => {
   if (parserResults[0] === "invalid query syntax") {
     return parserResults;
   }
@@ -73,8 +77,8 @@ export const listCompatiblePlatforms = (
   return compatiblePlatforms.length ? compatiblePlatforms : ["none"];
 };
 
-export const parseSqlTables = (sqlString: string): ParserResult[] => {
-  const results = [] as ParserResult[];
+export const parseSqlTables = (sqlString: string): IParserResult[] => {
+  const results = [] as IParserResult[];
 
   const _callback = (node: any) => {
     if (node) {
