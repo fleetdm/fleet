@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -44,9 +45,7 @@ func NewKafkaRESTWriter(p *KafkaRESTParams) (*kafkaRESTProducer, error) {
 	producer := &kafkaRESTProducer{
 		URL:      fmt.Sprintf(krPublishTopicURL, p.KafkaProxyHost, p.KafkaTopic),
 		CheckURL: fmt.Sprintf(krCheckTopicURL, p.KafkaProxyHost, p.KafkaTopic),
-		client: &http.Client{
-			Timeout: time.Duration(p.KafkaTimeout) * time.Second,
-		},
+		client:   fleethttp.NewClient(fleethttp.WithTimeout(time.Duration(p.KafkaTimeout) * time.Second)),
 	}
 
 	return producer, producer.checkTopic()

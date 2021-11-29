@@ -14,7 +14,7 @@
                 "MYSQL_TEST": 1,
                 "REDIS_TEST": 1
             },
-            "buildFlags": "--tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5'",
             "program": "${fileDirname}"
         },
         {
@@ -27,7 +27,7 @@
                 "MYSQL_TEST": 1,
                 "REDIS_TEST": 1
             },
-            "buildFlags": "--tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5'",
             "program": "${file}"
         },
         {
@@ -35,12 +35,13 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "buildFlags": "--tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/fleet",
             "args": [
                 "serve",
-                "--dev"
+                "--dev",
+                "--logging_debug"
             ]
         },
         {
@@ -48,12 +49,13 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "buildFlags": "--tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/fleet",
             "args": [
                 "serve",
                 "--dev",
+                "--logging_debug",
                 "--dev_license"
             ]
         },

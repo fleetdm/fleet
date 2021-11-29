@@ -43,11 +43,22 @@
       flex-grow: 1;
       margin-right: 24px;
       .query-form__query-name {
+        margin-top: $pad-large;
         line-height: 2rem;
         height: 2rem;
+        cursor: pointer;
       }
-      .query-form__query-description {
+      .query-form__query-description:not(textarea) {
         margin: 0.25rem 0 1rem;
+        cursor: pointer;
+      }
+      textarea.query-form__query-description {
+        margin-top: 0.8125rem;
+      }
+      img {
+        transform: scale(0.5);
+        position: relative;
+        top: 6px;
       }
     }
 

@@ -15,9 +15,9 @@ const RemovePoliciesModal = ({
   onSubmit,
 }: IRemovePoliciesModalProps): JSX.Element => {
   return (
-    <Modal title={"Remove policies"} onExit={onCancel} className={baseClass}>
+    <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
-        Are you sure you want to remove the selected policies?
+        Are you sure you want to delete the selected policies?
         <div className={`${baseClass}__btn-wrap`}>
           <Button
             className={`${baseClass}__btn`}
@@ -25,7 +25,7 @@ const RemovePoliciesModal = ({
             variant="alert"
             onClick={onSubmit}
           >
-            Remove
+            Delete
           </Button>
           <Button
             className={`${baseClass}__btn`}

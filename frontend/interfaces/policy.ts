@@ -1,9 +1,19 @@
 export interface IPolicy {
   id: number;
-  query_id: number;
-  query_name: string;
-  team_id: number;
+  name: string;
+  query: string;
+  description: string;
+  author_id: number;
+  author_name: string;
+  author_email: string;
+  resolution: string;
   passing_host_count: number;
   failing_host_count: number;
-  last_run_time?: string;
+  team_id?: number;
+}
+
+export interface IPolicyFormData {
+  description?: string | number | boolean | any[] | undefined;
+  name?: string | number | boolean | any[] | undefined;
+  query?: string | number | boolean | any[] | undefined;
 }
