@@ -40,7 +40,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
-	github.com/jinzhu/copier v0.3.2 // indirect
+	github.com/jinzhu/copier v0.3.2
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
@@ -56,7 +56,7 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3
 	github.com/prometheus/client_model v0.2.0 // indirect
