@@ -152,6 +152,7 @@ const TeamManagementPage = (): JSX.Element => {
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
       const updatedAttrs = generateUpdateData(teamEditing as ITeam, formData);
+      console.log("updatedAttrs", updatedAttrs);
       // no updates, so no need for a request.
       if (updatedAttrs === null) {
         toggleEditTeamModal();
@@ -162,18 +163,25 @@ const TeamManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("success", `Successfully edited ${formData.name}.`)
             );
+            toggleEditTeamModal();
           })
-          .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${teamEditing.name}. Please try again.`
-              )
-            );
+          .catch((updateError) => {
+            console.error(updateError);
+            if (updateError.errors[0].reason.includes("Duplicate")) {
+              dispatch(
+                renderFlash("error", "A team with this name already exists.")
+              );
+            } else {
+              dispatch(
+                renderFlash(
+                  "error",
+                  `Could not edit ${teamEditing.name}. Please try again.`
+                )
+              );
+            }
           })
           .finally(() => {
             refetchTeams();
-            toggleEditTeamModal();
           });
       }
     },
