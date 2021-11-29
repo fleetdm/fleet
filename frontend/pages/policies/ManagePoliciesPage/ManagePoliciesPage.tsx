@@ -14,6 +14,7 @@ import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
 import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
 
 import fleetQueriesAPI from "services/entities/queries";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -67,6 +68,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
+  const { setPolicyTeamId } = useContext(PolicyContext);
+
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
     isGlobalAdmin ||
@@ -74,12 +77,16 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isTeamMaintainer(user, teamId) ||
     isTeamAdmin(user, teamId);
 
-  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
-    enabled: !!isPremiumTier,
-    select: (data) => data.teams,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: teams } = useQuery<{ teams: ITeam[] }, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll({}),
+    {
+      enabled: !!isPremiumTier,
+      select: (data) => data.teams,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const { data: fleetQueries } = useQuery(
     ["fleetQueries"],
@@ -161,6 +168,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
+    setPolicyTeamId(id);
   };
 
   const toggleRemovePoliciesModal = () =>

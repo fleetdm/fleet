@@ -16,7 +16,6 @@ import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
@@ -42,7 +41,7 @@ interface IPolicyFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -66,8 +65,10 @@ const PolicyForm = ({
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
   const isEditMode = !!policyIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
+    false
+  );
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
@@ -135,7 +136,7 @@ const PolicyForm = ({
     });
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const handleSavePolicy = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -160,7 +161,7 @@ const PolicyForm = ({
 
     if (valid) {
       if (!isEditMode || forceNew) {
-        setIsSaveModalOpen(true);
+        setIsNewPolicyModalOpen(true);
       } else {
         onUpdate({
           name: lastEditedQueryName,
@@ -174,6 +175,8 @@ const PolicyForm = ({
       setIsEditingName(false);
       setIsEditingDescription(false);
     }
+
+    return null;
   };
 
   const renderAuthor = (): JSX.Element | null => {
@@ -221,6 +224,8 @@ const PolicyForm = ({
       } else if (compatiblePlatforms[0] === "None") {
         return "No platforms (check your query for invalid tables or tables that are supported on different platforms)";
       }
+
+      return null;
     };
 
     const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
@@ -422,7 +427,7 @@ const PolicyForm = ({
           onChange={(sqlString: string) => {
             setLastEditedQueryBody(sqlString);
           }}
-          handleSubmit={promptSaveQuery}
+          handleSubmit={handleSavePolicy}
         />
         {renderPlatformCompatibility()}
         {renderLiveQueryWarning()}
@@ -444,7 +449,7 @@ const PolicyForm = ({
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
-                  onClick={promptSaveQuery()}
+                  onClick={handleSavePolicy()}
                   disabled={
                     isAnyTeamMaintainerOrTeamAdmin &&
                     !hasTeamMaintainerPermissions
@@ -480,12 +485,12 @@ const PolicyForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && (
+      {isNewPolicyModalOpen && (
         <NewPolicyModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
-          setIsSaveModalOpen={setIsSaveModalOpen}
+          setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
         />
       )}
     </>
