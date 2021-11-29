@@ -428,12 +428,14 @@ func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 }
 
 func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
-	if opts.After != "" && opts.OrderKey != "" {
+	orderKey := sanitizeColumn(opts.OrderKey)
+
+	if opts.After != "" && orderKey != "" {
 		afterSql := " WHERE "
 		if strings.Contains(strings.ToLower(sql), "where") {
 			afterSql = " AND "
 		}
-		if strings.HasSuffix(opts.OrderKey, "id") {
+		if strings.HasSuffix(orderKey, "id") {
 			i, _ := strconv.Atoi(opts.After)
 			params = append(params, i)
 		} else {
@@ -443,18 +445,17 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "<" // DESC
 		}
-		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, opts.OrderKey, direction)
+		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
 
 		// After existing supersedes Page, so we disable it
 		opts.Page = 0
 	}
 
-	if opts.OrderKey != "" {
+	if orderKey != "" {
 		direction := "ASC"
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
-		orderKey := sanitizeColumn(opts.OrderKey)
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
