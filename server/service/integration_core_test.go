@@ -639,6 +639,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }
 
 func (s *integrationTestSuite) TestInvites() {
