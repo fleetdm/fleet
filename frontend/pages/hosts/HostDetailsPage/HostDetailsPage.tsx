@@ -393,10 +393,10 @@ const HostDetailsPage = ({
 
   const onCreateNewPolicy = () => {
     const { NEW_POLICY } = PATHS;
-    if (host?.team_id) {
-      setPolicyTeamId(host.team_id);
-    }
-    setLastEditedQueryName(osPolicyLabel);
+    host?.team_name
+      ? setLastEditedQueryName(`${osPolicyLabel} (${host.team_name})`)
+      : setLastEditedQueryName(osPolicyLabel);
+    setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
       "Returns yes or no for detecting operating system and version"
     );
