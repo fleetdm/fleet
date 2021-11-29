@@ -1,16 +1,18 @@
 import React, { useState, useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
+import { useQuery } from "react-query";
 
 import { ITeam } from "interfaces/team";
-import teamActions from "redux/nodes/entities/teams/actions";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-import TableContainer from "components/TableContainer";
 
+import teamsAPI from "services/entities/teams";
+
+import TableContainer from "components/TableContainer";
 // @ts-ignore
 import TableDataError from "components/TableDataError";
 import CreateTeamModal from "./components/CreateTeamModal";
@@ -18,21 +20,14 @@ import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
 import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
-import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
+import { generateTableHeaders } from "./TeamTableConfig";
+
+interface ITeamsResponse {
+  teams: ITeam[];
+}
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
-
-// TODO: should probably live close to the store.js file and imported in.
-interface IRootState {
-  entities: {
-    teams: {
-      isLoading: boolean;
-      data: { [id: number]: ITeam };
-      errors: { name: string; reason: string }[];
-    };
-  };
-}
 
 const generateUpdateData = (
   currentTeamData: ITeam,
@@ -53,6 +48,19 @@ const TeamManagementPage = (): JSX.Element => {
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
   const [searchString, setSearchString] = useState<string>("");
+
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    error: loadingTeamsError,
+    refetch: refetchTeams,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      select: (data: ITeamsResponse) => data.teams,
+    }
+  );
 
   const toggleCreateTeamModal = useCallback(() => {
     setShowCreateTeamModal(!showCreateTeamModal);
@@ -79,53 +87,64 @@ const TeamManagementPage = (): JSX.Element => {
     (queryData) => {
       setSearchString(queryData.searchQuery);
       const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(
-        teamActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        })
-      );
+      teamsAPI.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
+      });
     },
     [dispatch, setSearchString]
   );
 
   const onCreateSubmit = useCallback(
     (formData: ICreateTeamFormData) => {
-      dispatch(teamActions.create(formData))
+      dispatch(teamsAPI.create(formData))
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully created ${formData.name}.`)
           );
-          dispatch(teamActions.loadAll({}));
         })
-        .catch(() => {
-          dispatch(
-            renderFlash("error", "Could not create team. Please try again.")
-          );
+        .catch((createError: any) => {
+          console.error(createError);
+          if (createError.base.includes("Duplicate")) {
+            dispatch(
+              renderFlash("error", "A team with this name already exists.")
+            );
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create team. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          refetchTeams();
+          toggleCreateTeamModal();
         });
-      toggleCreateTeamModal();
     },
     [dispatch, toggleCreateTeamModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
-    dispatch(teamActions.destroy(teamEditing?.id))
-      .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully deleted ${teamEditing?.name}.`)
-        );
-        dispatch(teamActions.loadAll({}));
-      })
-      .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Could not delete ${teamEditing?.name}. Please try again.`
-          )
-        );
-      });
-    toggleDeleteTeamModal();
+    if (teamEditing) {
+      dispatch(teamsAPI.destroy(teamEditing.id))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
+          );
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete ${teamEditing.name}. Please try again.`
+            )
+          );
+        })
+        .finally(() => {
+          refetchTeams();
+          toggleDeleteTeamModal();
+        });
+    }
   }, [dispatch, teamEditing, toggleDeleteTeamModal]);
 
   const onEditSubmit = useCallback(
@@ -135,23 +154,27 @@ const TeamManagementPage = (): JSX.Element => {
       if (updatedAttrs === null) {
         toggleEditTeamModal();
         return;
+      } else if (teamEditing) {
+        teamsAPI
+          .update(teamEditing.id, updatedAttrs)
+          .then(() => {
+            dispatch(
+              renderFlash("success", `Successfully edited ${formData.name}.`)
+            );
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${teamEditing.name}. Please try again.`
+              )
+            );
+          })
+          .finally(() => {
+            refetchTeams();
+            toggleEditTeamModal();
+          });
       }
-      dispatch(teamActions.update(teamEditing?.id, updatedAttrs))
-        .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully edited ${formData.name}.`)
-          );
-          dispatch(teamActions.loadAll({}));
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${teamEditing?.name}. Please try again.`
-            )
-          );
-        });
-      toggleEditTeamModal();
     },
     [dispatch, teamEditing, toggleEditTeamModal]
   );
@@ -202,43 +225,31 @@ const TeamManagementPage = (): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders(onActionSelection);
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.teams.isLoading
-  );
-  const teams = useSelector((state: IRootState) =>
-    generateDataSet(state.entities.teams.data)
-  );
-
-  const teamsError = useSelector(
-    (state: IRootState) => state.entities.teams.errors
-  );
-
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
         Create, customize, and remove teams from Fleet.
       </p>
-      {Object.keys(teamsError).length > 0 ? (
+      {loadingTeamsError ? (
         <TableDataError />
       ) : (
         <TableContainer
-          columns={tableHeaders}
+          columns={generateTableHeaders(onActionSelection)}
           data={teams}
-          isLoading={loadingTableData}
+          isLoading={isLoadingTeams}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
           actionButtonText={"Create team"}
           actionButtonVariant={"brand"}
-          hideActionButton={teams.length === 0 && searchString === ""}
+          hideActionButton={teams && teams.length === 0 && searchString === ""}
           onActionButtonClick={toggleCreateTeamModal}
           onQueryChange={onQueryChange}
           resultsTitle={"teams"}
           emptyComponent={NoTeamsComponent}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          searchable={teams.length > 0 && searchString !== ""}
+          searchable={teams && teams.length > 0 && searchString !== ""}
           isClientSideSearch
         />
       )}
