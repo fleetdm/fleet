@@ -44,7 +44,7 @@ const NewQueryModal = ({
     }
   }, [name]);
 
-  const handleUpdate = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleUpdate = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validateQueryName(name);
@@ -65,7 +65,11 @@ const NewQueryModal = ({
 
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
+      <form
+        onSubmit={handleUpdate}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -107,12 +111,7 @@ const NewQueryModal = ({
           >
             Cancel
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={handleUpdate}
-          >
+          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
             Save query
           </Button>
         </div>

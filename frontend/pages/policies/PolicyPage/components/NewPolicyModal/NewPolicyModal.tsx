@@ -54,7 +54,7 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validatePolicyName(name);
@@ -77,7 +77,11 @@ const NewPolicyModal = ({
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
+      <form
+        onSubmit={handleSavePolicy}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -116,7 +120,7 @@ const NewPolicyModal = ({
           </Button>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
             onClick={handleSavePolicy}
           >

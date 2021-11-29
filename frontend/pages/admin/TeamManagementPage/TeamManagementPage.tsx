@@ -234,7 +234,7 @@ const TeamManagementPage = (): JSX.Element => {
       ) : (
         <TableContainer
           columns={generateTableHeaders(onActionSelection)}
-          data={teams}
+          data={teams || []}
           isLoading={isLoadingTeams}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
