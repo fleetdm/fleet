@@ -117,6 +117,7 @@ const HostDetailsPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
@@ -392,6 +393,9 @@ const HostDetailsPage = ({
 
   const onCreateNewPolicy = () => {
     const { NEW_POLICY } = PATHS;
+    if (host?.team_id) {
+      setPolicyTeamId(host.team_id);
+    }
     setLastEditedQueryName(osPolicyLabel);
     setLastEditedQueryDescription(
       "Returns yes or no for detecting operating system and version"
