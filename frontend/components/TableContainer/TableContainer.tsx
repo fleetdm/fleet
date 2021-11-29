@@ -217,7 +217,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || clientFilterCount || data?.length || 0;
+  const displayCount = filteredCount || clientFilterCount || data.length;
 
   return (
     <div className={wrapperClasses}>
@@ -347,7 +347,7 @@ const TableContainer = ({
               searchQueryColumn={searchQueryColumn}
               selectedDropdownFilter={selectedDropdownFilter}
             />
-            {!disablePagination && !isClientSidePagination && data && (
+            {!disablePagination && !isClientSidePagination && (
               <Pagination
                 resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}

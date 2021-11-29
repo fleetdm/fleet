@@ -98,15 +98,17 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (formData: ICreateTeamFormData) => {
-      dispatch(teamsAPI.create(formData))
+      teamsAPI
+        .create(formData)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully created ${formData.name}.`)
           );
+          toggleCreateTeamModal();
         })
         .catch((createError: any) => {
           console.error(createError);
-          if (createError.base.includes("Duplicate")) {
+          if (createError.errors[0].reason.includes("Duplicate")) {
             dispatch(
               renderFlash("error", "A team with this name already exists.")
             );
@@ -118,7 +120,6 @@ const TeamManagementPage = (): JSX.Element => {
         })
         .finally(() => {
           refetchTeams();
-          toggleCreateTeamModal();
         });
     },
     [dispatch, toggleCreateTeamModal]
@@ -126,7 +127,8 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (teamEditing) {
-      dispatch(teamsAPI.destroy(teamEditing.id))
+      teamsAPI
+        .destroy(teamEditing.id)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully deleted ${teamEditing.name}.`)
