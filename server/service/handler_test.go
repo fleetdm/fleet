@@ -1,16 +1,21 @@
 package service
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -269,117 +274,173 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	}
 }
 
-// TODO refactor this test to match new patterns
-// func TestModifyUserPermissions(t *testing.T) {
-// 	var (
-// 		admin, enabled bool
-// 		uid            uint
-// 	)
-// 	ms := new(mock.Store)
-// 	ms.SessionByKeyFunc = func(key string) (*fleet.Session, error) {
-// 		return &fleet.Session{AccessedAt: time.Now(), UserID: uid, ID: 1}, nil
-// 	}
-// 	ms.DestroySessionFunc = func(session *fleet.Session) error {
-// 		return nil
-// 	}
-// 	ms.MarkSessionAccessedFunc = func(session *fleet.Session) error {
-// 		return nil
-// 	}
-// 	ms.UserByIDFunc = func(id uint) (*fleet.User, error) {
-// 		return &fleet.User{ID: id, Enabled: enabled, Admin: admin}, nil
-// 	}
-// 	ms.SaveUserFunc = func(u *fleet.User) error {
-// 		// Return an error so that the endpoint returns
-// 		return errors.New("foo")
-// 	}
+func TestAPIRoutesMetrics(t *testing.T) {
+	ds := new(mock.Store)
 
-// 	svc, err := newTestService(ms, nil, nil)
-// 	assert.Nil(t, err)
-// 	limitStore, _ := memstore.New(0)
+	svc := newTestService(ds, nil, nil)
+	limitStore, _ := memstore.New(0)
+	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+	router := h.(*mux.Router)
+	router.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler())).Name("metrics")
 
-// 	handler := MakeHandler(
-// 		svc,
-// 		config.FleetConfig{},
-// 		log.NewNopLogger(),
-// 		limitStore,
-// 	)
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
 
-// 	testCases := []struct {
-// 		ActingUserID      uint
-// 		ActingUserAdmin   bool
-// 		ActingUserEnabled bool
-// 		TargetUserID      uint
-// 		Authorized        bool
-// 	}{
-// 		// Disabled regular user
-// 		{
-// 			ActingUserID:      1,
-// 			ActingUserAdmin:   false,
-// 			ActingUserEnabled: false,
-// 			TargetUserID:      1,
-// 			Authorized:        false,
-// 		},
-// 		// Enabled regular user acting on self
-// 		{
-// 			ActingUserID:      1,
-// 			ActingUserAdmin:   false,
-// 			ActingUserEnabled: true,
-// 			TargetUserID:      1,
-// 			Authorized:        true,
-// 		},
-// 		// Enabled regular user acting on other
-// 		{
-// 			ActingUserID:      2,
-// 			ActingUserAdmin:   false,
-// 			ActingUserEnabled: true,
-// 			TargetUserID:      1,
-// 			Authorized:        false,
-// 		},
-// 		// Disabled admin user
-// 		{
-// 			ActingUserID:      1,
-// 			ActingUserAdmin:   true,
-// 			ActingUserEnabled: false,
-// 			TargetUserID:      1,
-// 			Authorized:        false,
-// 		},
-// 		// Enabled admin user acting on self
-// 		{
-// 			ActingUserID:      1,
-// 			ActingUserAdmin:   true,
-// 			ActingUserEnabled: true,
-// 			TargetUserID:      1,
-// 			Authorized:        true,
-// 		},
-// 		// Enabled admin user acting on other
-// 		{
-// 			ActingUserID:      2,
-// 			ActingUserAdmin:   true,
-// 			ActingUserEnabled: true,
-// 			TargetUserID:      1,
-// 			Authorized:        true,
-// 		},
-// 	}
+	// collect the route names (and at the same time, the number of routes)
+	routeNames := make(map[string]bool)
+	err := router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		routeNames[route.GetName()] = true
+		return nil
+	})
+	require.NoError(t, err)
 
-// 	for _, tt := range testCases {
-// 		t.Run("", func(t *testing.T) {
-// 			// Set user params
-// 			uid = tt.ActingUserID
-// 			admin, enabled = tt.ActingUserAdmin, tt.ActingUserEnabled
+	rxMetric := regexp.MustCompile(`^([\w_]+)({[^}]+})? (.+)$`)
+	rxHandler := regexp.MustCompile(`handler="([\w_]+)"`)
 
-// 			recorder := httptest.NewRecorder()
-// 			path := fmt.Sprintf("/api/v1/fleet/users/%d", tt.TargetUserID)
-// 			request := httptest.NewRequest("PATCH", path, bytes.NewBufferString("{}"))
-// 			request.Header.Add("Authorization", "Bearer fake_session_token")
+	// expected metric names and their counts
+	metricCounts := map[string]int{
+		"go_gc_duration_seconds":                     0,
+		"go_gc_duration_seconds_sum":                 0,
+		"go_gc_duration_seconds_count":               0,
+		"go_goroutines":                              0,
+		"go_info":                                    0,
+		"go_memstats_alloc_bytes":                    0,
+		"go_memstats_alloc_bytes_total":              0,
+		"go_memstats_buck_hash_sys_bytes":            0,
+		"go_memstats_frees_total":                    0,
+		"go_memstats_gc_cpu_fraction":                0,
+		"go_memstats_gc_sys_bytes":                   0,
+		"go_memstats_heap_alloc_bytes":               0,
+		"go_memstats_heap_idle_bytes":                0,
+		"go_memstats_heap_inuse_bytes":               0,
+		"go_memstats_heap_objects":                   0,
+		"go_memstats_heap_released_bytes":            0,
+		"go_memstats_heap_sys_bytes":                 0,
+		"go_memstats_last_gc_time_seconds":           0,
+		"go_memstats_lookups_total":                  0,
+		"go_memstats_mallocs_total":                  0,
+		"go_memstats_mcache_inuse_bytes":             0,
+		"go_memstats_mcache_sys_bytes":               0,
+		"go_memstats_mspan_inuse_bytes":              0,
+		"go_memstats_mspan_sys_bytes":                0,
+		"go_memstats_next_gc_bytes":                  0,
+		"go_memstats_other_sys_bytes":                0,
+		"go_memstats_stack_inuse_bytes":              0,
+		"go_memstats_stack_sys_bytes":                0,
+		"go_memstats_sys_bytes":                      0,
+		"go_threads":                                 0,
+		"http_request_duration_microseconds":         0,
+		"http_request_duration_microseconds_sum":     0,
+		"http_request_duration_microseconds_count":   0,
+		"http_request_size_bytes":                    0,
+		"http_request_size_bytes_sum":                0,
+		"http_request_size_bytes_count":              0,
+		"http_response_size_bytes":                   0,
+		"http_response_size_bytes_sum":               0,
+		"http_response_size_bytes_count":             0,
+		"process_cpu_seconds_total":                  0,
+		"process_max_fds":                            0,
+		"process_open_fds":                           0,
+		"process_resident_memory_bytes":              0,
+		"process_start_time_seconds":                 0,
+		"process_virtual_memory_bytes":               0,
+		"process_virtual_memory_max_bytes":           0,
+		"promhttp_metric_handler_requests_in_flight": 0,
+		"promhttp_metric_handler_requests_total":     0,
+	}
 
-// 			handler.ServeHTTP(recorder, request)
-// 			if tt.Authorized {
-// 				assert.NotEqual(t, 403, recorder.Code)
-// 			} else {
-// 				assert.Equal(t, 403, recorder.Code)
-// 			}
+	wantCounts := map[string]int{
+		"go_gc_duration_seconds":                     5, // quantiles 0, .25, .5, .75 and 1
+		"go_gc_duration_seconds_sum":                 1,
+		"go_gc_duration_seconds_count":               1,
+		"go_goroutines":                              1,
+		"go_info":                                    1,
+		"go_memstats_alloc_bytes":                    1,
+		"go_memstats_alloc_bytes_total":              1,
+		"go_memstats_buck_hash_sys_bytes":            1,
+		"go_memstats_frees_total":                    1,
+		"go_memstats_gc_cpu_fraction":                1,
+		"go_memstats_gc_sys_bytes":                   1,
+		"go_memstats_heap_alloc_bytes":               1,
+		"go_memstats_heap_idle_bytes":                1,
+		"go_memstats_heap_inuse_bytes":               1,
+		"go_memstats_heap_objects":                   1,
+		"go_memstats_heap_released_bytes":            1,
+		"go_memstats_heap_sys_bytes":                 1,
+		"go_memstats_last_gc_time_seconds":           1,
+		"go_memstats_lookups_total":                  1,
+		"go_memstats_mallocs_total":                  1,
+		"go_memstats_mcache_inuse_bytes":             1,
+		"go_memstats_mcache_sys_bytes":               1,
+		"go_memstats_mspan_inuse_bytes":              1,
+		"go_memstats_mspan_sys_bytes":                1,
+		"go_memstats_next_gc_bytes":                  1,
+		"go_memstats_other_sys_bytes":                1,
+		"go_memstats_stack_inuse_bytes":              1,
+		"go_memstats_stack_sys_bytes":                1,
+		"go_memstats_sys_bytes":                      1,
+		"go_threads":                                 1,
+		"http_request_duration_microseconds":         len(routeNames) * 3, // quantiles .5, .9 and .99
+		"http_request_duration_microseconds_sum":     len(routeNames),
+		"http_request_duration_microseconds_count":   len(routeNames),
+		"http_request_size_bytes":                    len(routeNames) * 3, // quantiles .5, .9 and .99
+		"http_request_size_bytes_sum":                len(routeNames),
+		"http_request_size_bytes_count":              len(routeNames),
+		"http_response_size_bytes":                   len(routeNames) * 3, // quantiles .5, .9 and .99
+		"http_response_size_bytes_sum":               len(routeNames),
+		"http_response_size_bytes_count":             len(routeNames),
+		"process_cpu_seconds_total":                  1,
+		"process_max_fds":                            1,
+		"process_open_fds":                           1,
+		"process_resident_memory_bytes":              1,
+		"process_start_time_seconds":                 1,
+		"process_virtual_memory_bytes":               1,
+		"process_virtual_memory_max_bytes":           1,
+		"promhttp_metric_handler_requests_in_flight": 1,
+		"promhttp_metric_handler_requests_total":     3, // status codes 200, 500, 503
+	}
 
-// 		})
-// 	}
+	s := bufio.NewScanner(rr.Body)
+	for s.Scan() {
+		line := s.Text()
 
-// }
+		// line must be one of those options, which is the prometheus format
+		matches := rxMetric.FindStringSubmatch(line)
+		switch {
+		case strings.HasPrefix(line, "# TYPE "),
+			strings.HasPrefix(line, "# HELP "):
+			// that's fine, metadata about the metric
+
+		case len(matches) > 0:
+			_, ok := metricCounts[matches[1]]
+			require.True(t, ok, "unexpected metric name %s", matches[1])
+			metricCounts[matches[1]]++
+
+			// if there are dimensions or labels associated with the metric, check
+			// if there is a handler name.
+			if len(matches) > 3 {
+				labels := matches[2]
+				if handlerMatches := rxHandler.FindStringSubmatch(labels); len(handlerMatches) > 0 {
+					require.True(t, routeNames[handlerMatches[1]], "unexpected handler route name: %s: %s", matches[1], handlerMatches[1])
+				}
+			}
+
+			// the last capture is the value, which must be parsable as a float
+			val := matches[len(matches)-1]
+			_, err := strconv.ParseFloat(val, 64)
+			require.NoError(t, err, "value must be a valid float: %s", matches[1])
+
+		default:
+			require.Fail(t, "invalid line: %s", line)
+		}
+	}
+	require.NoError(t, s.Err())
+
+	for name, got := range metricCounts {
+		if want, ok := wantCounts[name]; ok {
+			require.Equal(t, want, got, name)
+		}
+	}
+}

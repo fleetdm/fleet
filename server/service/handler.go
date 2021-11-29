@@ -545,7 +545,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	return r
 }
 
-// addMetrics decorates each hander with prometheus instrumentation
+// addMetrics decorates each handler with prometheus instrumentation
 func addMetrics(r *mux.Router) {
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		route.Handler(prometheus.InstrumentHandler(route.GetName(), route.GetHandler()))
