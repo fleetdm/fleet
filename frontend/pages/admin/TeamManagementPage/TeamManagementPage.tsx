@@ -20,7 +20,7 @@ import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
 import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
-import { generateTableHeaders } from "./TeamTableConfig";
+import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -226,6 +226,9 @@ const TeamManagementPage = (): JSX.Element => {
     );
   };
 
+  const tableHeaders = generateTableHeaders(onActionSelection);
+  const tableData = teams ? generateDataSet(teams) : [];
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <p className={`${baseClass}__page-description`}>
@@ -235,8 +238,8 @@ const TeamManagementPage = (): JSX.Element => {
         <TableDataError />
       ) : (
         <TableContainer
-          columns={generateTableHeaders(onActionSelection)}
-          data={teams || []}
+          columns={tableHeaders}
+          data={tableData}
           isLoading={isLoadingTeams}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
