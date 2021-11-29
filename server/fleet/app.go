@@ -259,6 +259,10 @@ type ListOptions struct {
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
 	MatchQuery string `query:"query,optional"`
+
+	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
+	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
+	After string `query:"after,optional"`
 }
 
 type ListQueryOptions struct {
