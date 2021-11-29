@@ -541,103 +541,105 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 
-	if err := addMetrics(r); err != nil {
-		panic(err)
-	}
+	addMetrics(r)
 
 	return r
 }
 
+func InstrumentHandler(name string, handler http.Handler) http.Handler {
+	reg := prometheus.DefaultRegisterer
+
+	reqCnt := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem:   "http",
+			Name:        "requests_total",
+			Help:        "Total number of HTTP requests made.",
+			ConstLabels: prometheus.Labels{"handler": name},
+		},
+		[]string{"method", "code"},
+	)
+	if err := reg.Register(reqCnt); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			reqCnt = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			panic(err)
+		}
+	}
+
+	reqDur := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "request_duration_seconds", // TODO(mna): breaking change, duration is now in seconds, not microseconds
+			Help:        "The HTTP request latencies in seconds.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			// TODO(mna): cannot easily reproduce the quantiles used before, see https://prometheus.io/docs/practices/histograms/#quantiles
+			// Use default buckets?
+		},
+		nil,
+	)
+	if err := reg.Register(reqDur); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			reqDur = are.ExistingCollector.(*prometheus.HistogramVec)
+		} else {
+			panic(err)
+		}
+	}
+
+	// 1KB, 100KB, 1MB, 100MB, 1GB
+	sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
+	resSz := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "response_size_bytes",
+			Help:        "The HTTP response sizes in bytes.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			Buckets:     sizeBuckets,
+		},
+		nil,
+	)
+	if err := reg.Register(resSz); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			resSz = are.ExistingCollector.(*prometheus.HistogramVec)
+		} else {
+			panic(err)
+		}
+	}
+
+	reqSz := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "request_size_bytes",
+			Help:        "The HTTP request sizes in bytes.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			Buckets:     sizeBuckets,
+		},
+		nil,
+	)
+	if err := reg.Register(reqSz); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			reqSz = are.ExistingCollector.(*prometheus.HistogramVec)
+		} else {
+			panic(err)
+		}
+	}
+
+	return promhttp.InstrumentHandlerDuration(reqDur,
+		promhttp.InstrumentHandlerCounter(reqCnt,
+			promhttp.InstrumentHandlerResponseSize(resSz,
+				promhttp.InstrumentHandlerRequestSize(reqSz, handler))))
+}
+
 // addMetrics decorates each handler with prometheus instrumentation
-func addMetrics(r *mux.Router) error {
+func addMetrics(r *mux.Router) {
 	// this setup is to keep prometheus metrics as close as possible to what
 	// the v0.9.3 that we used to use provided via the now-deprecated
 	// InstrumentHandler.
 
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		reg := prometheus.DefaultRegisterer
-
-		reqCnt := prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Subsystem:   "http",
-				Name:        "requests_total",
-				Help:        "Total number of HTTP requests made.",
-				ConstLabels: prometheus.Labels{"handler": route.GetName()},
-			},
-			[]string{"method", "code"},
-		)
-		if err := reg.Register(reqCnt); err != nil {
-			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-				reqCnt = are.ExistingCollector.(*prometheus.CounterVec)
-			} else {
-				return err
-			}
-		}
-
-		reqDur := prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Subsystem:   "http",
-				Name:        "request_duration_seconds", // TODO(mna): breaking change, duration is now in seconds, not microseconds
-				Help:        "The HTTP request latencies in seconds.",
-				ConstLabels: prometheus.Labels{"handler": route.GetName()},
-				// TODO(mna): cannot easily reproduce the quantiles used before, see https://prometheus.io/docs/practices/histograms/#quantiles
-				// Use default buckets?
-			},
-			nil,
-		)
-		if err := reg.Register(reqDur); err != nil {
-			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-				reqDur = are.ExistingCollector.(*prometheus.HistogramVec)
-			} else {
-				return err
-			}
-		}
-
-		// 1KB, 100KB, 1MB, 100MB, 1GB
-		sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
-		resSz := prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Subsystem:   "http",
-				Name:        "response_size_bytes",
-				Help:        "The HTTP response sizes in bytes.",
-				ConstLabels: prometheus.Labels{"handler": route.GetName()},
-				Buckets:     sizeBuckets,
-			},
-			nil,
-		)
-		if err := reg.Register(resSz); err != nil {
-			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-				resSz = are.ExistingCollector.(*prometheus.HistogramVec)
-			} else {
-				return err
-			}
-		}
-
-		reqSz := prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Subsystem:   "http",
-				Name:        "request_size_bytes",
-				Help:        "The HTTP request sizes in bytes.",
-				ConstLabels: prometheus.Labels{"handler": route.GetName()},
-				Buckets:     sizeBuckets,
-			},
-			nil,
-		)
-		if err := reg.Register(reqSz); err != nil {
-			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-				reqSz = are.ExistingCollector.(*prometheus.HistogramVec)
-			} else {
-				return err
-			}
-		}
-
-		route.Handler(promhttp.InstrumentHandlerDuration(reqDur,
-			promhttp.InstrumentHandlerCounter(reqCnt,
-				promhttp.InstrumentHandlerResponseSize(resSz,
-					promhttp.InstrumentHandlerRequestSize(reqSz, route.GetHandler())))))
+		route.Handler(InstrumentHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
-	return r.Walk(walkFn)
+	r.Walk(walkFn)
 }
 
 func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
