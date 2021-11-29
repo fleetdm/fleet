@@ -646,7 +646,8 @@ export const secondsToDhms = (d: number): string => {
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
-export const syntaxHighlight = (json: JSON): string => {
+// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
+export const syntaxHighlight = (json: any): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
