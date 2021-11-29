@@ -560,9 +560,6 @@ const ManageSchedulePage = ({
             showPreviewDataModal={showPreviewDataModal}
           />
         )}
-        {/* {showPreviewDataModal && (
-          <PreviewDataModal onCancel={togglePreviewDataModal} />
-        )} */}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}

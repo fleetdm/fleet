@@ -646,7 +646,7 @@ export const secondsToDhms = (d: number): string => {
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: JSON): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
