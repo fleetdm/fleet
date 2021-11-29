@@ -95,6 +95,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	perPageString := r.URL.Query().Get("per_page")
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
+	afterString := r.URL.Query().Get("after")
 
 	var page int
 	if pageString != "" {
@@ -154,6 +155,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     query,
+		After:          afterString,
 	}, nil
 }
 

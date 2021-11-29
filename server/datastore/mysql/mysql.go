@@ -35,7 +35,7 @@ const (
 )
 
 // Matches all non-word and '-' characters for replacement
-var columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
+var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
@@ -423,6 +423,32 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 }
 
 func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
+	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
+	return sql
+}
+
+func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
+	if opts.After != "" && opts.OrderKey != "" {
+		afterSql := " WHERE "
+		if strings.Contains(strings.ToLower(sql), "where") {
+			afterSql = " AND "
+		}
+		if strings.HasSuffix(opts.OrderKey, "id") {
+			i, _ := strconv.Atoi(opts.After)
+			params = append(params, i)
+		} else {
+			params = append(params, opts.After)
+		}
+		direction := ">" // ASC
+		if opts.OrderDirection == fleet.OrderDescending {
+			direction = "<" // DESC
+		}
+		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, opts.OrderKey, direction)
+
+		// After existing supersedes Page, so we disable it
+		opts.Page = 0
+	}
+
 	if opts.OrderKey != "" {
 		direction := "ASC"
 		if opts.OrderDirection == fleet.OrderDescending {
@@ -447,7 +473,7 @@ func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
 	}
 
-	return sql
+	return sql, params
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE

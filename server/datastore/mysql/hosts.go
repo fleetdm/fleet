@@ -516,8 +516,8 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	return sql, params
 }
 
