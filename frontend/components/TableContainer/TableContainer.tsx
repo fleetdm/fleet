@@ -347,9 +347,9 @@ const TableContainer = ({
               searchQueryColumn={searchQueryColumn}
               selectedDropdownFilter={selectedDropdownFilter}
             />
-            {!disablePagination && !isClientSidePagination && (
+            {!disablePagination && !isClientSidePagination && data && (
               <Pagination
-                resultsOnCurrentPage={data?.length || 0}
+                resultsOnCurrentPage={data.length}
                 currentPage={pageIndex}
                 resultsPerPage={pageSize}
                 onPaginationChange={onPaginationChange}
