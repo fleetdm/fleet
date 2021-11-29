@@ -229,7 +229,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
-		hopt.DisableFailingPolicies = disableFailingPolicies == "1" || disableFailingPolicies == "true"
+		boolVal, err := strconv.ParseBool(disableFailingPolicies)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DisableFailingPolicies = boolVal
 	}
 
 	return hopt, nil
