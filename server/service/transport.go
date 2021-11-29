@@ -229,6 +229,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
+	if disableFailingPolicies != "" {
+		boolVal, err := strconv.ParseBool(disableFailingPolicies)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DisableFailingPolicies = boolVal
+	}
+
 	return hopt, nil
 }
 

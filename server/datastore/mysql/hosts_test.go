@@ -1826,6 +1826,8 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
+
+	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
 }
 
 // This doesn't work when running the whole test suite, but helps inspect individual tests
@@ -1914,7 +1916,11 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 }
 
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	checkHostIssuesWithOpts(t, ds, hosts, filter, hid, fleet.HostListOptions{}, expected)
+}
+
+func checkHostIssuesWithOpts(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+	hosts = listHostsCheckCount(t, ds, filter, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {
@@ -1927,6 +1933,10 @@ func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fl
 	require.True(t, foundH2)
 	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+
+	if opts.DisableFailingPolicies {
+		return
+	}
 
 	hostById, err := ds.Host(context.Background(), hid, false)
 	require.NoError(t, err)
