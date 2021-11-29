@@ -674,7 +674,7 @@ export const syntaxHighlight = (json: JSON): string => {
   /* eslint-enable no-useless-escape */
 };
 
-const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
   teams
     .map((team) => {
       return {

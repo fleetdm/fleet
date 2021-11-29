@@ -8,6 +8,7 @@ import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ITeam } from "interfaces/team";
+import { getSortedTeamOptions } from "fleet/helpers";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import InfoCard from "./components/InfoCard";
@@ -60,7 +61,12 @@ const Homepage = (): JSX.Element => {
     select: (data: ITeamsResponse) => data.teams,
     onSuccess: (responseTeams) => {
       if (!isOnGlobalTeam) {
-        setCurrentTeam(responseTeams[0]);
+        // TODO: Review this after merging the teamsDropdown components. May no longer be needed.
+        const sortedTeams = getSortedTeamOptions(responseTeams);
+        const firstTeamOption = responseTeams.find(
+          (responseTeam) => responseTeam.id === sortedTeams[0].value
+        );
+        setCurrentTeam(firstTeamOption);
       }
     },
   });
