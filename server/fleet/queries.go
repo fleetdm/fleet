@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -51,7 +52,7 @@ var (
 // actually determine whether the query is well formed.
 func (q Query) ValidateSQL() error {
 	if validateSQLRegexp.MatchString(q.Query) {
-		return fmt.Errorf("ATTACH not allowed in queries")
+		return errors.New("ATTACH not allowed in queries")
 	}
 	return nil
 }

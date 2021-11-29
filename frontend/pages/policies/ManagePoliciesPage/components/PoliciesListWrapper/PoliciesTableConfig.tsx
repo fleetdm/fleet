@@ -75,9 +75,12 @@ const generateTableHeaders = (options: {
           title: "Query",
           Header: "Query",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
       ];
@@ -87,9 +90,12 @@ const generateTableHeaders = (options: {
           title: "Query",
           Header: "Query",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
         {
@@ -171,7 +177,7 @@ const generateTableHeaders = (options: {
 
 const generateDataSet = memoize((policiesList: IPolicy[] = []): IPolicy[] => {
   policiesList = policiesList.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(a.query_name, b.query_name)
+    sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
   return policiesList;
 });

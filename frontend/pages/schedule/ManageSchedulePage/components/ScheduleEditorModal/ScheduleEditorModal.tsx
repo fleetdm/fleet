@@ -270,7 +270,7 @@ const ScheduleEditorModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              how configure a different log destination
+              how to configure a different log destination
             </a>
             .
           </p>

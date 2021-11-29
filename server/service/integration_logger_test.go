@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
@@ -115,7 +116,7 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 
 	requestBody := io.NopCloser(bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`)))
 	req, _ := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/log", requestBody)
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	_, err = client.Do(req)
 	require.Nil(t, err)
 

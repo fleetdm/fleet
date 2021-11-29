@@ -23,7 +23,6 @@ interface IPoliciesListWrapperProps {
   policiesList: IPolicy[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
-  toggleAddPolicyModal: () => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
@@ -34,7 +33,6 @@ const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onRemovePoliciesClick,
-  toggleAddPolicyModal,
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
@@ -85,17 +83,6 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
-              <div className={`${noPoliciesClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noPoliciesClass}__add-policy-button`}
-                  onClick={toggleAddPolicyModal}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -117,7 +104,7 @@ const PoliciesListWrapper = ({
         })}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
-        defaultSortHeader={"query_name"}
+        defaultSortHeader={"name"}
         defaultSortDirection={"asc"}
         manualSortBy
         showMarkAllPages={false}
@@ -125,8 +112,8 @@ const PoliciesListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemovePoliciesClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoPolicies}
         onQueryChange={noop}
         disableCount={tableType === "inheritedPolicies"}

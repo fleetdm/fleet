@@ -21,9 +21,6 @@ type Software struct {
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
-
-	// HostCount is the amount of hosts that currently have this software installed
-	HostCount int `json:"host_count" db:"host_count"`
 }
 
 func (Software) AuthzType() string {

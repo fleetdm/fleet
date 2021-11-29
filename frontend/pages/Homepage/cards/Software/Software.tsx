@@ -123,12 +123,13 @@ const Software = ({
       softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
-        orderKey: "host_count,id",
-        orderDir: "desc",
+        orderKey: "name,id",
+        orderDir: "asc",
       }),
     {
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -141,13 +142,14 @@ const Software = ({
       softwareAPI.load({
         page: vSoftwarePageIndex,
         perPage: PAGE_SIZE,
-        orderKey: "host_count,id",
-        orderDir: "desc",
+        orderKey: "name,id",
+        orderDir: "asc",
         vulnerable: true,
       }),
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -166,13 +168,14 @@ const Software = ({
         page: modalSoftwarePageIndex,
         perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
-        orderKey: "host_count,id",
+        orderKey: "id",
         orderDir: "desc",
         vulnerable: isModalSoftwareVulnerable,
       }),
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -230,8 +233,8 @@ const Software = ({
               columns={tableHeaders}
               data={software || []}
               isLoading={isLoadingSoftware}
-              defaultSortHeader={"host_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software"}
               emptyComponent={EmptySoftware}
@@ -248,8 +251,8 @@ const Software = ({
               columns={tableHeaders}
               data={vulnerableSoftware || []}
               isLoading={isLoadingVulnerableSoftware}
-              defaultSortHeader={"host_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software"}
               emptyComponent={() => EmptySoftware("vulnerable")}
@@ -278,8 +281,8 @@ const Software = ({
               columns={tableHeaders}
               data={modalSoftware || []}
               isLoading={isLoadingModalSoftware}
-              defaultSortHeader={"host_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={"name"}
+              defaultSortDirection={"asc"}
               hideActionButton
               resultsTitle={"software items"}
               emptyComponent={() =>
