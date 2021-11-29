@@ -226,35 +226,20 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	// conflicts with it and took precedence - a route conflict. The route's name
 	// is used to name the sub-test for that route.
 	status := 200
-	reSimpleVar, reNumVar := regexp.MustCompile(`\{(\w+)\}`), regexp.MustCompile(`\{\w+:[^\}]+\}`)
 	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
-		name := route.GetName()
-		path, err := route.GetPathTemplate()
-		if err != nil {
-			// all our routes should have paths
-			return fmt.Errorf("%s: %w", name, err)
-		}
-		meths, err := route.GetMethods()
-		if err != nil || len(meths) == 0 {
-			// only route without method is distributed_query_results (websocket)
-			if name != "distributed_query_results" {
-				return fmt.Errorf(name+" "+path+": %w", err)
-			}
-			return nil
-		}
-		path = reSimpleVar.ReplaceAllString(path, "$1")
-		// for now at least, the only times we use regexp-constrained vars is
-		// for numeric arguments.
-		path = reNumVar.ReplaceAllString(path, "1")
-
 		routeStatus := status
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(routeStatus) })
+		_, path, err := mockRouteHandler(route, status)
+		if path == "" || err != nil { // failure or no method set
+			return err
+		}
+
+		meths, _ := route.GetMethods()
 		for _, meth := range meths {
 			cases = append(cases, testCase{
-				name: name,
+				name: route.GetName(),
 				path: path,
 				verb: meth,
-				want: status,
+				want: routeStatus,
 			})
 		}
 
@@ -281,63 +266,96 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	limitStore, _ := memstore.New(0)
 	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)
-	router.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler())).Name("metrics")
 
-	req := httptest.NewRequest("GET", "/metrics", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code)
+	// replace all handlers with mocks, and collect the requests to make to each
+	// route.
+	var reqs []*http.Request
+	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+		verb, path, err := mockRouteHandler(route, http.StatusOK)
+		if path == "" || err != nil { // failure or no method set
+			return err
+		}
+		req := httptest.NewRequest(verb, path, nil)
+		reqs = append(reqs, req)
+		return nil
+	})
+	require.NoError(t, err)
 
-	// collect the route names (and at the same time, the number of routes)
+	// wrap the handlers with the metric handlers
+	addMetrics(router)
+
+	// add the handler that returns the metrics, itself instrumented
+	router.Handle("/metrics", promhttp.Handler()).Name("metrics")
+
+	// collect the route names
 	routeNames := make(map[string]bool)
-	err := router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+	err = router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		routeNames[route.GetName()] = true
 		return nil
 	})
 	require.NoError(t, err)
+
+	// make the requests to each route
+	for _, req := range reqs {
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code)
+	}
+
+	// get the metrics
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
 
 	rxMetric := regexp.MustCompile(`^([\w_]+)({[^}]+})? (.+)$`)
 	rxHandler := regexp.MustCompile(`handler="([\w_]+)"`)
 
 	// expected metric names and their counts
 	metricCounts := map[string]int{
-		"go_gc_duration_seconds":                     0,
-		"go_gc_duration_seconds_sum":                 0,
-		"go_gc_duration_seconds_count":               0,
-		"go_goroutines":                              0,
-		"go_info":                                    0,
-		"go_memstats_alloc_bytes":                    0,
-		"go_memstats_alloc_bytes_total":              0,
-		"go_memstats_buck_hash_sys_bytes":            0,
-		"go_memstats_frees_total":                    0,
-		"go_memstats_gc_cpu_fraction":                0,
-		"go_memstats_gc_sys_bytes":                   0,
-		"go_memstats_heap_alloc_bytes":               0,
-		"go_memstats_heap_idle_bytes":                0,
-		"go_memstats_heap_inuse_bytes":               0,
-		"go_memstats_heap_objects":                   0,
-		"go_memstats_heap_released_bytes":            0,
-		"go_memstats_heap_sys_bytes":                 0,
-		"go_memstats_last_gc_time_seconds":           0,
-		"go_memstats_lookups_total":                  0,
-		"go_memstats_mallocs_total":                  0,
-		"go_memstats_mcache_inuse_bytes":             0,
-		"go_memstats_mcache_sys_bytes":               0,
-		"go_memstats_mspan_inuse_bytes":              0,
-		"go_memstats_mspan_sys_bytes":                0,
-		"go_memstats_next_gc_bytes":                  0,
-		"go_memstats_other_sys_bytes":                0,
-		"go_memstats_stack_inuse_bytes":              0,
-		"go_memstats_stack_sys_bytes":                0,
-		"go_memstats_sys_bytes":                      0,
-		"go_threads":                                 0,
-		"http_request_duration_microseconds":         0,
-		"http_request_duration_microseconds_sum":     0,
-		"http_request_duration_microseconds_count":   0,
-		"http_request_size_bytes":                    0,
-		"http_request_size_bytes_sum":                0,
-		"http_request_size_bytes_count":              0,
-		"http_response_size_bytes":                   0,
+		"go_gc_duration_seconds":           0,
+		"go_gc_duration_seconds_sum":       0,
+		"go_gc_duration_seconds_count":     0,
+		"go_goroutines":                    0,
+		"go_info":                          0,
+		"go_memstats_alloc_bytes":          0,
+		"go_memstats_alloc_bytes_total":    0,
+		"go_memstats_buck_hash_sys_bytes":  0,
+		"go_memstats_frees_total":          0,
+		"go_memstats_gc_cpu_fraction":      0,
+		"go_memstats_gc_sys_bytes":         0,
+		"go_memstats_heap_alloc_bytes":     0,
+		"go_memstats_heap_idle_bytes":      0,
+		"go_memstats_heap_inuse_bytes":     0,
+		"go_memstats_heap_objects":         0,
+		"go_memstats_heap_released_bytes":  0,
+		"go_memstats_heap_sys_bytes":       0,
+		"go_memstats_last_gc_time_seconds": 0,
+		"go_memstats_lookups_total":        0,
+		"go_memstats_mallocs_total":        0,
+		"go_memstats_mcache_inuse_bytes":   0,
+		"go_memstats_mcache_sys_bytes":     0,
+		"go_memstats_mspan_inuse_bytes":    0,
+		"go_memstats_mspan_sys_bytes":      0,
+		"go_memstats_next_gc_bytes":        0,
+		"go_memstats_other_sys_bytes":      0,
+		"go_memstats_stack_inuse_bytes":    0,
+		"go_memstats_stack_sys_bytes":      0,
+		"go_memstats_sys_bytes":            0,
+		"go_threads":                       0,
+		//"http_request_duration_microseconds":         0, // old format
+		//"http_request_duration_microseconds_sum":     0, // old format
+		//"http_request_duration_microseconds_count":   0, // old format
+		"http_request_duration_seconds_bucket": 0,
+		"http_request_duration_seconds_sum":    0,
+		"http_request_duration_seconds_count":  0,
+		//"http_request_size_bytes":                    0, // old format
+		"http_request_size_bytes_bucket": 0,
+		"http_request_size_bytes_sum":    0,
+		"http_request_size_bytes_count":  0,
+		"http_requests_total":            0,
+		//"http_response_size_bytes":                   0, // old format
+		"http_response_size_bytes_bucket":            0,
 		"http_response_size_bytes_sum":               0,
 		"http_response_size_bytes_count":             0,
 		"process_cpu_seconds_total":                  0,
@@ -352,45 +370,48 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	}
 
 	wantCounts := map[string]int{
-		"go_gc_duration_seconds":                     5, // quantiles 0, .25, .5, .75 and 1
-		"go_gc_duration_seconds_sum":                 1,
-		"go_gc_duration_seconds_count":               1,
-		"go_goroutines":                              1,
-		"go_info":                                    1,
-		"go_memstats_alloc_bytes":                    1,
-		"go_memstats_alloc_bytes_total":              1,
-		"go_memstats_buck_hash_sys_bytes":            1,
-		"go_memstats_frees_total":                    1,
-		"go_memstats_gc_cpu_fraction":                1,
-		"go_memstats_gc_sys_bytes":                   1,
-		"go_memstats_heap_alloc_bytes":               1,
-		"go_memstats_heap_idle_bytes":                1,
-		"go_memstats_heap_inuse_bytes":               1,
-		"go_memstats_heap_objects":                   1,
-		"go_memstats_heap_released_bytes":            1,
-		"go_memstats_heap_sys_bytes":                 1,
-		"go_memstats_last_gc_time_seconds":           1,
-		"go_memstats_lookups_total":                  1,
-		"go_memstats_mallocs_total":                  1,
-		"go_memstats_mcache_inuse_bytes":             1,
-		"go_memstats_mcache_sys_bytes":               1,
-		"go_memstats_mspan_inuse_bytes":              1,
-		"go_memstats_mspan_sys_bytes":                1,
-		"go_memstats_next_gc_bytes":                  1,
-		"go_memstats_other_sys_bytes":                1,
-		"go_memstats_stack_inuse_bytes":              1,
-		"go_memstats_stack_sys_bytes":                1,
-		"go_memstats_sys_bytes":                      1,
-		"go_threads":                                 1,
-		"http_request_duration_microseconds":         len(routeNames) * 3, // quantiles .5, .9 and .99
-		"http_request_duration_microseconds_sum":     len(routeNames),
-		"http_request_duration_microseconds_count":   len(routeNames),
-		"http_request_size_bytes":                    len(routeNames) * 3, // quantiles .5, .9 and .99
-		"http_request_size_bytes_sum":                len(routeNames),
-		"http_request_size_bytes_count":              len(routeNames),
-		"http_response_size_bytes":                   len(routeNames) * 3, // quantiles .5, .9 and .99
-		"http_response_size_bytes_sum":               len(routeNames),
-		"http_response_size_bytes_count":             len(routeNames),
+		"go_gc_duration_seconds":           5, // quantiles 0, .25, .5, .75 and 1
+		"go_gc_duration_seconds_sum":       1,
+		"go_gc_duration_seconds_count":     1,
+		"go_goroutines":                    1,
+		"go_info":                          1,
+		"go_memstats_alloc_bytes":          1,
+		"go_memstats_alloc_bytes_total":    1,
+		"go_memstats_buck_hash_sys_bytes":  1,
+		"go_memstats_frees_total":          1,
+		"go_memstats_gc_cpu_fraction":      1,
+		"go_memstats_gc_sys_bytes":         1,
+		"go_memstats_heap_alloc_bytes":     1,
+		"go_memstats_heap_idle_bytes":      1,
+		"go_memstats_heap_inuse_bytes":     1,
+		"go_memstats_heap_objects":         1,
+		"go_memstats_heap_released_bytes":  1,
+		"go_memstats_heap_sys_bytes":       1,
+		"go_memstats_last_gc_time_seconds": 1,
+		"go_memstats_lookups_total":        1,
+		"go_memstats_mallocs_total":        1,
+		"go_memstats_mcache_inuse_bytes":   1,
+		"go_memstats_mcache_sys_bytes":     1,
+		"go_memstats_mspan_inuse_bytes":    1,
+		"go_memstats_mspan_sys_bytes":      1,
+		"go_memstats_next_gc_bytes":        1,
+		"go_memstats_other_sys_bytes":      1,
+		"go_memstats_stack_inuse_bytes":    1,
+		"go_memstats_stack_sys_bytes":      1,
+		"go_memstats_sys_bytes":            1,
+		"go_threads":                       1,
+
+		"http_request_duration_seconds_bucket": len(reqs) * (len(prometheus.DefBuckets) + 1),
+		"http_request_duration_seconds_sum":    len(reqs),
+		"http_request_duration_seconds_count":  len(reqs),
+		"http_request_size_bytes_bucket":       len(reqs) * 6, // size of req size buckets
+		"http_request_size_bytes_sum":          len(reqs),
+		"http_request_size_bytes_count":        len(reqs),
+		"http_requests_total":                  len(reqs),
+		"http_response_size_bytes_bucket":      len(reqs) * 6, // size of res size buckets
+		"http_response_size_bytes_sum":         len(reqs),
+		"http_response_size_bytes_count":       len(reqs),
+
 		"process_cpu_seconds_total":                  1,
 		"process_max_fds":                            1,
 		"process_open_fds":                           1,
@@ -433,14 +454,44 @@ func TestAPIRoutesMetrics(t *testing.T) {
 			require.NoError(t, err, "value must be a valid float: %s", matches[1])
 
 		default:
-			require.Fail(t, "invalid line: %s", line)
+			require.Fail(t, "invalid line", line)
 		}
 	}
 	require.NoError(t, s.Err())
 
 	for name, got := range metricCounts {
-		if want, ok := wantCounts[name]; ok {
-			require.Equal(t, want, got, name)
-		}
+		want, ok := wantCounts[name]
+		require.True(t, ok, "unexpected metric: %s", name)
+		require.Equal(t, want, got, name)
 	}
+}
+
+var reSimpleVar, reNumVar = regexp.MustCompile(`\{(\w+)\}`), regexp.MustCompile(`\{\w+:[^\}]+\}`)
+
+// replaces the handler of route with one that simply responds with the status
+// code. Returns a verb and path that triggers this route or an error.
+func mockRouteHandler(route *mux.Route, status int) (verb, path string, err error) {
+	name := route.GetName()
+	path, err = route.GetPathTemplate()
+	if err != nil {
+		// all our routes should have paths
+		return "", "", fmt.Errorf("%s: %w", name, err)
+	}
+
+	meths, err := route.GetMethods()
+	if err != nil || len(meths) == 0 {
+		// only route without method is distributed_query_results (websocket)
+		if name != "distributed_query_results" {
+			return "", "", fmt.Errorf(name+" "+path+": %w", err)
+		}
+		return "", "", nil
+	}
+
+	path = reSimpleVar.ReplaceAllString(path, "$1")
+	// for now at least, the only times we use regexp-constrained vars is
+	// for numeric arguments.
+	path = reNumVar.ReplaceAllString(path, "1")
+
+	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
+	return meths[0], path, nil
 }
