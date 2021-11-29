@@ -153,7 +153,6 @@ const TeamManagementPage = (): JSX.Element => {
       // no updates, so no need for a request.
       if (updatedAttrs === null) {
         toggleEditTeamModal();
-        return;
       } else if (teamEditing) {
         teamsAPI
           .update(teamEditing.id, updatedAttrs)
