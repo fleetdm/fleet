@@ -61,7 +61,8 @@ const generatePolicyTableHeaders = (
       accessor: "name",
       disableSortBy: true,
       Cell: (cellProps) => {
-        const { query_name } = cellProps.row.original;
+        const { name } = cellProps.row.original;
+        console.log("cellProps", cellProps);
         return (
           <>
             <Button
@@ -71,7 +72,7 @@ const generatePolicyTableHeaders = (
               variant={"text-icon"}
             >
               <>
-                {query_name}
+                {name}
                 <img src={ArrowIcon} alt="View policy details" />
               </>
             </Button>
