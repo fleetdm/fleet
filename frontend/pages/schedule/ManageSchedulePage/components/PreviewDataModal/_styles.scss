@@ -1,7 +1,6 @@
-.add-policy-modal {
+.preview-data-modal {
   &__sandbox-info {
     margin-top: $pad-medium;
-    margin-bottom: $pad-large;
 
     p {
       margin: 0;
@@ -67,5 +66,13 @@
 
   .Select-value-label {
     font-size: $small;
+  }
+
+  .tooltip__tooltip-icon {
+    img {
+      width: 16px;
+      height: 16px;
+      vertical-align: top;
+    }
   }
 }

@@ -242,6 +242,7 @@ const ManageSchedulePage = ({
     false
   );
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
     setShowRemoveScheduledQueryModal,
@@ -256,6 +257,10 @@ const ManageSchedulePage = ({
   const toggleInheritedQueries = () => {
     setShowInheritedQueries(!showInheritedQueries);
   };
+
+  const togglePreviewDataModal = useCallback(() => {
+    setShowPreviewDataModal(!showPreviewDataModal);
+  }, [setShowPreviewDataModal, showPreviewDataModal]);
 
   const toggleScheduleEditorModal = useCallback(() => {
     setSelectedScheduledQuery(undefined); // create modal renders
@@ -551,6 +556,8 @@ const ManageSchedulePage = ({
             allQueries={fleetQueries}
             editQuery={selectedScheduledQuery}
             teamId={teamId}
+            togglePreviewDataModal={togglePreviewDataModal}
+            showPreviewDataModal={showPreviewDataModal}
           />
         )}
         {showRemoveScheduledQueryModal && (

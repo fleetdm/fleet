@@ -2,64 +2,28 @@ package cached_mysql
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	redigo "github.com/gomodule/redigo/redis"
+	"github.com/patrickmn/go-cache"
 )
 
 type cachedMysql struct {
 	fleet.Datastore
 
-	redisPool fleet.RedisPool
+	c *cache.Cache
 }
 
 const (
-	CacheKeyAppConfig = "cache:AppConfig"
+	appConfigKey               = "AppConfig"
+	defaultAppConfigExpiration = 1 * time.Second
 )
 
-func New(ds fleet.Datastore, redisPool fleet.RedisPool) fleet.Datastore {
+func New(ds fleet.Datastore) fleet.Datastore {
 	return &cachedMysql{
 		Datastore: ds,
-		redisPool: redisPool,
+		c:         cache.New(5*time.Minute, 10*time.Minute),
 	}
-}
-
-func (ds *cachedMysql) storeInRedis(key string, v interface{}) error {
-	conn := redis.ConfigureDoer(ds.redisPool, ds.redisPool.Get())
-	defer conn.Close()
-
-	b, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("marshaling object to cache in redis: %w", err)
-	}
-
-	if _, err := conn.Do("SET", key, b, "EX", (24 * time.Hour).Seconds()); err != nil {
-		return fmt.Errorf("caching object in redis: %w", err)
-	}
-
-	return nil
-}
-
-func (ds *cachedMysql) getFromRedis(key string, v interface{}) error {
-	conn := redis.ConfigureDoer(ds.redisPool,
-		redis.ReadOnlyConn(ds.redisPool, ds.redisPool.Get()))
-	defer conn.Close()
-
-	data, err := redigo.Bytes(conn.Do("GET", key))
-	if err != nil {
-		return fmt.Errorf("getting value from cache: %w", err)
-	}
-
-	err = json.Unmarshal(data, v)
-	if err != nil {
-		return fmt.Errorf("unmarshaling object from cache: %w", err)
-	}
-
-	return nil
 }
 
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -68,28 +32,25 @@ func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) 
 		return nil, err
 	}
 
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, err
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	ac := &fleet.AppConfig{}
-	ac.ApplyDefaults()
-
-	err := ds.getFromRedis(CacheKeyAppConfig, ac)
-	if err == nil {
-		return ac, nil
+	cachedAc, found := ds.c.Get(appConfigKey)
+	if found {
+		return cachedAc.(*fleet.AppConfig).Clone()
 	}
 
-	ac, err = ds.Datastore.AppConfig(ctx)
+	ac, err := ds.Datastore.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	err = ds.storeInRedis(CacheKeyAppConfig, ac)
+	ds.c.Set(appConfigKey, ac, defaultAppConfigExpiration)
 
-	return ac, err
+	return ac.Clone()
 }
 
 func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
@@ -98,5 +59,7 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 		return err
 	}
 
-	return ds.storeInRedis(CacheKeyAppConfig, info)
+	ds.c.Set(appConfigKey, info, defaultAppConfigExpiration)
+
+	return nil
 }

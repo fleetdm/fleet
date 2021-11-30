@@ -96,6 +96,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	perPageString := r.URL.Query().Get("per_page")
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
+	afterString := r.URL.Query().Get("after")
 
 	var page int
 	if pageString != "" {
@@ -155,6 +156,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     query,
+		After:          afterString,
 	}, nil
 }
 
@@ -225,6 +227,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		sid := uint(id)
 		hopt.SoftwareIDFilter = &sid
+	}
+
+	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
+	if disableFailingPolicies != "" {
+		boolVal, err := strconv.ParseBool(disableFailingPolicies)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DisableFailingPolicies = boolVal
 	}
 
 	return hopt, nil

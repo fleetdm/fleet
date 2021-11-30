@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
@@ -396,11 +397,7 @@ func waitStartup() error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
 
 	if err := backoff.Retry(
 		func() error {
@@ -720,7 +717,7 @@ func loadPolicies(client *service.Client) error {
 		if err != nil {
 			return fmt.Errorf("creating query: %w", err)
 		}
-		err = client.CreatePolicy(q.ID, policy.resolution)
+		err = client.CreatePolicy(&q.ID, policy.resolution)
 		if err != nil {
 			return fmt.Errorf("creating policy: %w", err)
 		}

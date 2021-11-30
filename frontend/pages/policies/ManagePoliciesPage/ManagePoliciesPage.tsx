@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { noop } from "lodash";
@@ -8,11 +9,12 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import PATHS from "router/paths";
 
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
 import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
 
 import fleetQueriesAPI from "services/entities/queries";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -28,7 +30,6 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
-import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 import TeamsDropdown from "./components/TeamsDropdown";
 
@@ -67,6 +68,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
+  const { setPolicyTeamId } = useContext(PolicyContext);
+
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
     isGlobalAdmin ||
@@ -74,12 +77,16 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isTeamMaintainer(user, teamId) ||
     isTeamAdmin(user, teamId);
 
-  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
-    enabled: !!isPremiumTier,
-    select: (data) => data.teams,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
+  const { data: teams } = useQuery<{ teams: ITeam[] }, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll({}),
+    {
+      enabled: !!isPremiumTier,
+      select: (data) => data.teams,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const { data: fleetQueries } = useQuery(
     ["fleetQueries"],
@@ -92,10 +99,14 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   );
 
   // ===== local state
-  const [globalPolicies, setGlobalPolicies] = useState<IPolicy[] | never[]>([]);
+  const [globalPolicies, setGlobalPolicies] = useState<
+    IPolicyStats[] | never[]
+  >([]);
   const [isLoadingGlobalPolicies, setIsLoadingGlobalPolicies] = useState(true);
   const [isGlobalPoliciesError, setIsGlobalPoliciesError] = useState(false);
-  const [teamPolicies, setTeamPolicies] = useState<IPolicy[] | never[]>([]);
+  const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[] | never[]>(
+    []
+  );
   const [isLoadingTeamPolicies, setIsLoadingTeamPolicies] = useState(true);
   const [isTeamPoliciesError, setIsTeamPoliciesError] = useState(false);
   const [userTeams, setUserTeams] = useState<ITeam[] | never[] | null>(null);
@@ -105,7 +116,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
-  const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
@@ -162,9 +172,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
+    setPolicyTeamId(id);
   };
-
-  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
@@ -206,31 +215,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       toggleRemovePoliciesModal();
       getPolicies(selectedTeamId);
     }
-  };
-
-  const onAddPolicySubmit = async (query_id: number | undefined) => {
-    if (!query_id) {
-      dispatch(renderFlash("error", "Could not add policy. Please try again."));
-
-      return false;
-    }
-
-    try {
-      const request = selectedTeamId
-        ? teamPoliciesAPI.create(selectedTeamId, query_id)
-        : globalPoliciesAPI.create(query_id);
-
-      await request.then(() => {
-        dispatch(renderFlash("success", `Successfully added policy.`));
-      });
-    } catch {
-      dispatch(renderFlash("error", "Could not add policy. Please try again."));
-    } finally {
-      toggleAddPolicyModal();
-      getPolicies(selectedTeamId);
-    }
-
-    return false;
   };
 
   // Sort list of teams the current user has permission to access and set as userTeams.
@@ -358,13 +342,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           </div>
           {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
             <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="brand"
-                className={`${baseClass}__add-policy-button`}
-                onClick={toggleAddPolicyModal}
+              <Link
+                to={PATHS.NEW_POLICY}
+                className={`${baseClass}__add-policy-link`}
               >
                 Add a policy
-              </Button>
+              </Link>
             </div>
           )}
         </div>
@@ -407,7 +390,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={teamPolicies}
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -423,7 +405,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={globalPolicies}
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -463,7 +444,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               isLoading={isLoadingGlobalPolicies}
               policiesList={globalPolicies}
               onRemovePoliciesClick={noop}
-              toggleAddPolicyModal={noop}
               resultsTitle="policies"
               canAddOrRemovePolicy={canAddOrRemovePolicy(
                 currentUser,
@@ -473,13 +453,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
-        )}
-        {showAddPolicyModal && (
-          <AddPolicyModal
-            onCancel={toggleAddPolicyModal}
-            onSubmit={onAddPolicySubmit}
-            allQueries={fleetQueries}
-          />
         )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal

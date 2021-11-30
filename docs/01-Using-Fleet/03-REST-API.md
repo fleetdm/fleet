@@ -474,6 +474,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
@@ -572,6 +573,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -796,25 +798,25 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "policies": [
       {
         "id": 1,
-        "query_id": 2,
-        "query_name": "SomeQuery",
-        "query_description": "this is a query",
+        "name": "SomeQuery",
+        "query": "select * from foo;",
+        "description": "this is a query",
         "resolution": "fix with these steps...",
         "response": "pass"
       },
       {
         "id": 2,
-        "query_id": 4,
-        "query_name": "SomeQuery2",
-        "query_description": "this is another query",
+        "name": "SomeQuery2",
+        "query": "select * from bar;",
+        "description": "this is another query",
         "resolution": "fix with these other steps...",
         "response": "fail"
       },
       {
         "id": 3,
-        "query_id": 255,
-        "query_name": "SomeQuery3",
-        "query_description": "",
+        "name": "SomeQuery3",
+        "query": "select * from baz;",
+        "description": "",
         "resolution": "",
         "response": ""
       }
@@ -3402,6 +3404,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get policy by ID](#get-policy-by-id)
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
+- [Edit policy](#edit-policy)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -3434,16 +3437,24 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
   "policies": [
     {
       "id": 1,
-      "query_id": 2,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
       "resolution": "Resolution steps",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
     {
       "id": 2,
-      "query_id": 3,
-      "query_name": "Primary disk encrypted",
+      "name": "Windows machines with encrypted hard disks",
+      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3473,8 +3484,12 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 {
   "policy": {
     "id": 1,
-    "query_id": 2,
-    "query_name": "Gatekeeper enabled",
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "passing_host_count": 2000,
     "failing_host_count": 300
@@ -3484,16 +3499,64 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Add policy
 
+There are two ways of adding a policy:
+1. by setting "name", "query", "description". This is the preferred way.
+2. (Legacy) re-using the data of an existing query, by setting "query_id". If "query_id" is set,
+then "query" must not be set, and "name" and "description" are ignored.
+
+An error is returned if both "query" and "query_id" are set on the request.
+
 `POST /api/v1/fleet/global/policies`
 
 #### Parameters
 
-| Name       | Type    | In   | Description                           |
-| ---------- | ------- | ---- | ------------------------------------- |
-| query_id   | integer | body | **Required.** The query's ID.         |
-| resolution | string  | body | The resolution steps for the policy.  |
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+| query_id    | integer | body | An existing query's ID (legacy).     |
 
-#### Example
+Either `query` or `query_id` must be provided.
+
+#### Example Add Policy
+
+`POST /api/v1/fleet/global/policies`
+
+#### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
+}
+```
+
+#### Example Legacy Add Policy
 
 `POST /api/v1/fleet/global/policies`
 
@@ -3505,6 +3568,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 }
 ```
 
+Where `query_id` references an existing `query`.
+
 ##### Default response
 
 `Status: 200`
@@ -3512,13 +3577,17 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ```json
 {
   "policy": {
-      "id": 2,
-      "query_id": 2,
-      "query_name": "Primary disk encrypted",
-      "resolution": "Some resolution steps",
-      "passing_host_count": 0,
-      "failing_host_count": 0
-    }
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 
@@ -3554,6 +3623,56 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 }
 ```
 
+### Edit policy
+
+`PATCH /api/v1/fleet/global/policies/{policy_id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| id          | integer | path | The policy's ID.                     |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+
+#### Example Edit Policy
+
+`PATCH /api/v1/fleet/global/policies/42`
+
+##### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 42,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 43,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
+}
+```
+
 ---
 
 ## Team Policies
@@ -3562,6 +3681,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add team policy](#add-team-policy)
 - [Remove team policies](#remove-team-policies)
+- [Edit team policy](#edit-team-policy)
 
 _Available in Fleet Premium_
 
@@ -3585,22 +3705,33 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "policies": [
     {
       "id": 1,
-      "query_id": 2,
-      "query_name": "Gatekeeper enabled",
+      "name": "Gatekeeper enabled",
+      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      "description": "Checks if gatekeeper is enabled on macOS devices",
+      "author_id": 42,
+      "author_name": "John",
+      "author_email": "john@example.com",
+      "team_id": 1,
+      "resolution": "Resolution steps",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 300
     },
     {
       "id": 2,
-      "query_id": 3,
-      "query_name": "Primary disk encrypted",
+      "name": "Windows machines with encrypted hard disks",
+      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+      "description": "Checks if the hard disk is encrypted on Windows devices",
+      "author_id": 43,
+      "author_name": "Alice",
+      "author_email": "alice@example.com",
+      "team_id": 1,
       "passing_host_count": 2300,
-      "failing_host_count": 0,
+      "failing_host_count": 0
     }
   ]
 }
@@ -3619,44 +3750,61 @@ Team policies work the same as policies, but at the team level.
 
 #### Example
 
-`GET /api/v1/fleet/teams/1/policies/1`
+`GET /api/v1/fleet/teams/1/policies/43`
 
 ##### Default response
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
-    "id": 1,
-    "query_id": 2,
-    "query_name": "Gatekeeper enabled",
-    "passing_host_count": 2000,
-    "failing_host_count": 300,
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": 1,
+    "resolution": "Resolution steps",
+    "passing_host_count": 0,
+    "failing_host_count": 0
   }
 }
 ```
 
 ### Add team policy
 
+The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
+
 `POST /api/v1/fleet/teams/{team_id}/policies`
 
 #### Parameters
 
-| Name     | Type    | In   | Description                         |
-| -------- | ------- | ---- | ----------------------------------- |
-| team_id  | integer | url  | Defines what team id to operate on  |
-| query_id | integer | body | **Required.** The query's ID.       |
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| team_id     | integer | url  | Defines what team id to operate on.  |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+| query_id    | integer | body | An existing query's ID (legacy).     |
+
+Either `query` or `query_id` must be provided.
 
 #### Example
 
 `POST /api/v1/fleet/teams/1/policies`
 
-#### Request body
+##### Request body
 
-```
+```json
 {
-  "query_id": 12
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps"
 }
 ```
 
@@ -3664,15 +3812,21 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "policy": {
-      "id": 2,
-      "query_id": 2,
-      "query_name": "Primary disk encrypted",
-      "passing_host_count": 0,
-      "failing_host_count": 0,
-    },
+    "id": 43,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": 1,
+    "resolution": "Resolution steps",
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 
@@ -3691,9 +3845,9 @@ Team policies work the same as policies, but at the team level.
 
 `POST /api/v1/fleet/teams/1/policies/delete`
 
-#### Request body
+##### Request body
 
-```
+```json
 {
   "ids": [ 1 ]
 }
@@ -3703,9 +3857,61 @@ Team policies work the same as policies, but at the team level.
 
 `Status: 200`
 
-```
+```json
 {
   "deleted": 1
+}
+```
+
+### Edit team policy
+
+`PATCH /api/v1/fleet/teams/{team_id}/policies/{policy_id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                          |
+| ----------  | ------- | ---- | ------------------------------------ |
+| team_id     | integer | path | The team's ID.                       |
+| policy_id   | integer | path | The policy's ID.                     |
+| name        | string  | body | The query's name.                    |
+| query       | string  | body | The query in SQL.                    |
+| description | string  | body | The query's description.             |
+| resolution  | string  | body | The resolution steps for the policy. |
+
+#### Example Edit Policy
+
+`PATCH /api/v1/fleet/teams/2/policies/42`
+
+##### Request body
+
+```json
+{
+  "name": "Gatekeeper enabled",
+  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+  "description": "Checks if gatekeeper is enabled on macOS devices",
+  "resolution": "Resolution steps"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policy": {
+    "id": 42,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "author_id": 43,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "resolution": "Resolution steps",
+    "team_id": 2,
+    "passing_host_count": 0,
+    "failing_host_count": 0
+  }
 }
 ```
 

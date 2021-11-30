@@ -25,6 +25,10 @@
 
   &__btn-wrap {
     display: flex;
+    justify-content: space-between;
+  }
+
+  &__cta-btn-wrap {
     flex-direction: row-reverse;
   }
 

@@ -449,10 +449,17 @@ func (d *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	sql := `SELECT
 		h.*,
 		hst.seen_time,
-		t.name AS team_name,
+		t.name AS team_name
+		`
+
+	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
 		coalesce(failing_policies.count, 0) as total_issues_count
-		`
+`
+	if opt.DisableFailingPolicies {
+		failingPoliciesSelect = ""
+	}
+	sql += failingPoliciesSelect
 
 	var params []interface{}
 
@@ -500,24 +507,29 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
+	failingPoliciesJoin := `LEFT JOIN (
+		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
+		    GROUP BY host_id
+		) as failing_policies ON (h.id=failing_policies.host_id)`
+	if opt.DisableFailingPolicies {
+		failingPoliciesJoin = ""
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
-		LEFT JOIN (
-		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes=0
-		    GROUP BY host_id
-		) as failing_policies ON (h.id=failing_policies.host_id)
+		%s
 		%s
 		WHERE TRUE AND %s AND %s
-    `, policyMembershipJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+    `, policyMembershipJoin, failingPoliciesJoin, d.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
 	return sql, params
 }
 
@@ -996,16 +1008,14 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
 	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
 	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
-	query := `SELECT
-		p.id,
-		p.query_id,
-		q.name AS query_name,
+	query := `SELECT p.*,
+		COALESCE(u.name, '<deleted>') AS author_name,
+		COALESCE(u.email, '') AS author_email,
 		CASE
 			WHEN pm.passes = 1 THEN 'pass'
 			WHEN pm.passes = 0 THEN 'fail'
 			ELSE ''
 		END AS response,
-		q.description,
 		coalesce(p.resolution, '') as resolution
 	FROM policies p
 	LEFT JOIN (
@@ -1013,10 +1023,11 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
 	    )
 	) as pm ON (p.id=pm.policy_id)
-	JOIN queries q ON (p.query_id=q.id)`
+	LEFT JOIN users u ON p.author_id = u.id
+	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid, hid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

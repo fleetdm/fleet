@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/rs/zerolog/log"
@@ -69,11 +69,9 @@ func New(opt Options) (*Updater, error) {
 		opt.Platform = constant.PlatformName
 	}
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
-	}
-	httpClient := &http.Client{Transport: transport}
+	}))
 
 	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, nil, httpClient)
 	if err != nil {

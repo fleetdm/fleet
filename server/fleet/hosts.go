@@ -47,6 +47,8 @@ type HostListOptions struct {
 	PolicyResponseFilter *bool
 
 	SoftwareIDFilter *uint
+
+	DisableFailingPolicies bool
 }
 
 func (h HostListOptions) Empty() bool {

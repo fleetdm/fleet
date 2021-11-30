@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
 
@@ -70,9 +71,7 @@ func ParseMetadata(metadata string) (*Metadata, error) {
 // and timeout defines how long to wait to get a response form the metadata
 // server.
 func GetMetadata(metadataURL string) (*Metadata, error) {
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
+	client := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
 		return nil, err
