@@ -5,6 +5,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_POLICY } from "utilities/constants";
 import { IOsqueryTable } from "interfaces/osquery_table";
+import { StringifyOptions } from "querystring";
 
 type Props = {
   children: ReactNode;
@@ -14,12 +15,14 @@ type InitialStateType = {
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
+  lastEditedQueryResolution: string;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
   selectedOsqueryTable: IOsqueryTable;
+  setLastEditedQueryResolution: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
@@ -27,12 +30,14 @@ const initialState = {
   lastEditedQueryName: DEFAULT_POLICY.name,
   lastEditedQueryDescription: DEFAULT_POLICY.description,
   lastEditedQueryBody: DEFAULT_POLICY.query,
+  lastEditedQueryResolution: DEFAULT_POLICY.resolution,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
+  setLastEditedQueryResolution: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -69,6 +74,10 @@ const reducer = (state: any, action: any) => {
           typeof action.lastEditedQueryBody === "undefined"
             ? state.lastEditedQueryBody
             : action.lastEditedQueryBody,
+        lastEditedQueryResolution:
+          typeof action.lastEditedQueryResolution === "undefined"
+            ? state.lastEditedQueryResolution
+            : action.lastEditedQueryResolution,
       };
     default:
       return state;
@@ -84,6 +93,7 @@ const PolicyProvider = ({ children }: Props) => {
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
+    lastEditedQueryResolution: state.lastEditedQueryResolution,
     setLastEditedQueryName: (lastEditedQueryName: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
@@ -107,6 +117,12 @@ const PolicyProvider = ({ children }: Props) => {
       dispatch({ type: actions.SET_POLICY_TEAM_ID, id });
     },
     selectedOsqueryTable: state.selectedOsqueryTable,
+    setLastEditedQueryResolution: (lastEditedQueryResolution: string) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryResolution,
+      });
+    },
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
     },

@@ -56,6 +56,7 @@ const PolicyPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
   } = useContext(PolicyContext);
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
@@ -85,6 +86,7 @@ const PolicyPage = ({
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryResolution(returnedQuery.resolution);
       },
     }
   );
@@ -126,6 +128,11 @@ const PolicyPage = ({
 
     detectIsFleetQueryRunnable();
     !!policyIdForEdit && refetchStoredPolicy();
+    // TODO: IS THIS NEEDED?
+    setLastEditedQueryName(DEFAULT_POLICY.name);
+    setLastEditedQueryDescription(DEFAULT_POLICY.description);
+    setLastEditedQueryBody(DEFAULT_POLICY.query);
+    setLastEditedQueryResolution(DEFAULT_POLICY.resolution);
   }, []);
 
   useEffect(() => {

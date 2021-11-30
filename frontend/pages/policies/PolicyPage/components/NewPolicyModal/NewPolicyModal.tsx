@@ -41,6 +41,7 @@ const NewPolicyModal = ({
   const [description, setDescription] = useState<string>(
     lastEditedQueryDescription || ""
   );
+  const [resolution, setResolution] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useDeepEffect(() => {
@@ -63,6 +64,7 @@ const NewPolicyModal = ({
         description,
         name,
         query: queryValue,
+        resolution,
       });
 
       setIsNewPolicyModalOpen(false);
@@ -87,8 +89,16 @@ const NewPolicyModal = ({
           value={description}
           inputClassName={`${baseClass}__policy-save-modal-description`}
           label="Description"
-          type="textarea"
           placeholder="What information does your policy reveal?"
+        />
+        <InputField
+          name="resolution"
+          onChange={(value: string) => setResolution(value)}
+          value={resolution}
+          inputClassName={`${baseClass}__policy-save-modal-resolution`}
+          label="Resolution"
+          type="textarea"
+          placeholder="What are the steps a divice owner should take to resolve a host that fails this policy?"
         />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
