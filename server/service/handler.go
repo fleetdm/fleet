@@ -561,6 +561,10 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 		return coll
 	}
 
+	// this configuration is to keep prometheus metrics as close as possible to
+	// what the v0.9.3 (that we used to use) provided via the now-deprecated
+	// prometheus.InstrumentHandler.
+
 	reqCnt := registerOrExisting(prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem:   "http",
@@ -574,11 +578,10 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 	reqDur := registerOrExisting(prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem:   "http",
-			Name:        "request_duration_seconds", // TODO(mna): breaking change, duration is now in seconds, not microseconds
+			Name:        "request_duration_seconds",
 			Help:        "The HTTP request latencies in seconds.",
 			ConstLabels: prometheus.Labels{"handler": name},
-			// TODO(mna): cannot easily reproduce the quantiles used before, see https://prometheus.io/docs/practices/histograms/#quantiles
-			// Use default buckets?
+			// Use default buckets, as they are suited for durations.
 		},
 		nil,
 	)).(*prometheus.HistogramVec)
@@ -616,10 +619,6 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 
 // addMetrics decorates each handler with prometheus instrumentation
 func addMetrics(r *mux.Router) {
-	// this setup is to keep prometheus metrics as close as possible to what
-	// the v0.9.3 that we used to use provided via the now-deprecated
-	// InstrumentHandler.
-
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		route.Handler(InstrumentHandler(route.GetName(), route.GetHandler()))
 		return nil
