@@ -1,0 +1,1 @@
+* Update to the latest version of the prometheus Go client library, resulting in some breaking changes in the exported metrics.
