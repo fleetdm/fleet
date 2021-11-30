@@ -56,6 +56,9 @@ describe(
       });
       cy.contains("button", /transfer/i).should("not.exist");
 
+      // See and select operating system
+      // TODO
+
       // Test commented out
       // Pending fix to prevent consistent failing in GitHub
 
