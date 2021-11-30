@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import moment from "moment";
 
 import { IHost } from "interfaces/host";
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import PATHS from "router/paths";
 import StatusCell from "components/TableContainer/DataTable/StatusCell";
 import Button from "components/buttons/Button";
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse } from "utilities/constants";
 
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
