@@ -11,7 +11,7 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 - Post in #g-product with a link to the issue to draw extra attention to the customer request so it is visible ASAP for Fleet's product team.
 - Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
 
-##### Generating a trial license key
+#### Generating a trial license key
 Fleet's self-service license dispenser (coming soon) is the best way to generate trial license keys for Fleet Premium.
 
 In the meantime, to generate a trial license key, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
