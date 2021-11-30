@@ -961,12 +961,12 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 	return nil
 }
 
-func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
+func (d *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
 	var counts struct {
 		Total  int `db:"total"`
 		Unseen int `db:"unseen"`
 	}
-	err := sqlx.GetContext(ctx, d.reader, &counts,
+	err = sqlx.GetContext(ctx, d.reader, &counts,
 		`SELECT
 			COUNT(*) as total,
 			SUM(IF(DATEDIFF(CURRENT_DATE, COALESCE(hst.seen_time, h.created_at)) >= ?, 1, 0)) as unseen
