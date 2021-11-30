@@ -1,1 +1,0 @@
-* Cache app config per fleet instance instead of globally on redis

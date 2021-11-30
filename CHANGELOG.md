@@ -1,7 +1,16 @@
+## Fleet 4.6.2 (Nov 30, 2021)
+
+* Fix a bug in which the "Shell" column of the "Users" table on the **Host details** page would sometimes fail to update.
+
+* Improve performance of the **Home** page by removing total hosts count from the "Software" table.
+
+* Add an `after` parameter to the [`GET /hosts` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) to allow for cursor pagination.
+
+* Add a `disable_failing_policies` parameter to the [`GET /hosts` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) to allow the API request to respond faster if failing policies count information is not needed.
+
 ## Fleet 4.6.1 (Nov 21, 2021)
 
-* Fix a bug (introduced in 4.6.0) in which Fleet used progressively more CPU on Redis, resulting in
-  API and UI slowdowns and inconsistency.
+* Fix a bug (introduced in 4.6.0) in which Fleet used progressively more CPU on Redis, resulting in API and UI slowdowns and inconsistency.
 
 * Make `fleetctl apply` fail when the configuration contains invalid fields.
 
