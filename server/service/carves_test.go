@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,4 +64,123 @@ func TestGetCarve(t *testing.T) {
 	_, err = svc.GetCarve(context.Background(), 1)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+}
+
+func TestCarveGetBlock(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{carveStore: ds, authz: authz.Must()}
+
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  "foobar",
+		MaxBlock:   3,
+	}
+
+	ds.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
+		return metadata, nil
+	}
+	ds.GetBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+		assert.Equal(t, metadata.ID, carve.ID)
+		assert.Equal(t, int64(3), blockId)
+		return []byte("foobar"), nil
+	}
+
+	data, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 3)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("foobar"), data)
+
+	// only global admin can read carves
+	_, err = svc.GetBlock(test.UserContext(test.UserNoRoles), metadata.ID, 2)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+}
+
+func TestCarveGetBlockNotAvailableError(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{carveStore: ds, authz: authz.Must()}
+
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  "foobar",
+		MaxBlock:   3,
+	}
+
+	ds.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
+		return metadata, nil
+	}
+
+	// Block requested is greater than max block
+	_, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 7)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not yet available")
+}
+
+func TestCarveGetBlockGetBlockError(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{carveStore: ds, authz: authz.Must()}
+
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  "foobar",
+		MaxBlock:   3,
+	}
+
+	ds.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
+		return metadata, nil
+	}
+	ds.GetBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64) ([]byte, error) {
+		assert.Equal(t, metadata.ID, carve.ID)
+		assert.Equal(t, int64(3), blockId)
+		return nil, errors.New("yow!!")
+	}
+
+	// GetBlock failed
+	_, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "yow!!")
+}
+
+func TestCarveGetBlockExpired(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{carveStore: ds, authz: authz.Must()}
+
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "carve_request",
+		SessionId:  "foobar",
+		MaxBlock:   3,
+		Expired:    true,
+	}
+
+	ds.CarveFunc = func(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {
+		assert.Equal(t, metadata.ID, carveId)
+		return metadata, nil
+	}
+
+	// carve is expired
+	_, err := svc.GetBlock(test.UserContext(test.UserAdmin), metadata.ID, 3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expired carve")
 }

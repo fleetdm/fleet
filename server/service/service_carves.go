@@ -105,29 +105,3 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	return nil
 }
-
-func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	metadata, err := svc.carveStore.Carve(ctx, carveId)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get carve by name")
-	}
-
-	if metadata.Expired {
-		return nil, errors.New("cannot get block for expired carve")
-	}
-
-	if blockId > metadata.MaxBlock {
-		return nil, fmt.Errorf("block %d not yet available", blockId)
-	}
-
-	data, err := svc.carveStore.GetBlock(ctx, metadata, blockId)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "get block %d", blockId)
-	}
-
-	return data, nil
-}

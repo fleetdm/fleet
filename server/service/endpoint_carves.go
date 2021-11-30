@@ -87,31 +87,3 @@ func makeCarveBlockEndpoint(svc fleet.Service) endpoint.Endpoint {
 		return carveBlockResponse{Success: true}, nil
 	}
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Get Carve Block
-////////////////////////////////////////////////////////////////////////////////
-
-type getCarveBlockRequest struct {
-	ID      int64
-	BlockId int64
-}
-
-type getCarveBlockResponse struct {
-	Data []byte `json:"data"`
-	Err  error  `json:"error,omitempty"`
-}
-
-func (r getCarveBlockResponse) error() error { return r.Err }
-
-func makeGetCarveBlockEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getCarveBlockRequest)
-		data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
-		if err != nil {
-			return getCarveBlockResponse{Err: err}, nil
-		}
-
-		return getCarveBlockResponse{Data: data}, nil
-	}
-}

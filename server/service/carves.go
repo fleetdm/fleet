@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -75,4 +78,56 @@ func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadat
 	}
 
 	return svc.carveStore.Carve(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Carve Block
+////////////////////////////////////////////////////////////////////////////////
+
+type getCarveBlockRequest struct {
+	ID      int64 `url:"id"`
+	BlockId int64 `url:"block_id"`
+}
+
+type getCarveBlockResponse struct {
+	Data []byte `json:"data"`
+	Err  error  `json:"error,omitempty"`
+}
+
+func (r getCarveBlockResponse) error() error { return r.Err }
+
+func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getCarveBlockRequest)
+	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
+	if err != nil {
+		return getCarveBlockResponse{Err: err}, nil
+	}
+
+	return getCarveBlockResponse{Data: data}, nil
+}
+
+func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	metadata, err := svc.carveStore.Carve(ctx, carveId)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get carve by name")
+	}
+
+	if metadata.Expired {
+		return nil, errors.New("cannot get block for expired carve")
+	}
+
+	if blockId > metadata.MaxBlock {
+		return nil, fmt.Errorf("block %d not yet available", blockId)
+	}
+
+	data, err := svc.carveStore.GetBlock(ctx, metadata, blockId)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get block %d", blockId)
+	}
+
+	return data, nil
 }
