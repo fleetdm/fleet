@@ -90,6 +90,8 @@ export const DEFAULT_POLICY = {
   resolution: "Resolution steps",
   passing_host_count: 2000,
   failing_host_count: 300,
+  created_at: "",
+  updated_at: "",
 };
 
 export const DEFAULT_CAMPAIGN = {

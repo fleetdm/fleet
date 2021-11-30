@@ -8,7 +8,7 @@ import { memoize } from "lodash";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
@@ -42,7 +42,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IPolicy;
+    original: IPolicyStats;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
@@ -175,11 +175,13 @@ const generateTableHeaders = (options: {
   }
 };
 
-const generateDataSet = memoize((policiesList: IPolicy[] = []): IPolicy[] => {
-  policiesList = policiesList.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(a.name, b.name)
-  );
-  return policiesList;
-});
+const generateDataSet = memoize(
+  (policiesList: IPolicyStats[] = []): IPolicyStats[] => {
+    policiesList = policiesList.sort((a, b) =>
+      sortUtils.caseInsensitiveAsc(a.name, b.name)
+    );
+    return policiesList;
+  }
+);
 
 export { generateTableHeaders, generateDataSet };

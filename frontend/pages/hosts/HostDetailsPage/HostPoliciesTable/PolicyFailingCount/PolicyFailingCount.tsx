@@ -1,4 +1,4 @@
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";

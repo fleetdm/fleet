@@ -19,7 +19,7 @@ import { PolicyContext } from "context/policy";
 import { IHost, IPackStats } from "interfaces/host";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
