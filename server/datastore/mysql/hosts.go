@@ -698,7 +698,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 				return ctxerr.Wrap(ctx, err, "update host")
 			}
 		}
-		_, err = d.writer.ExecContext(ctx, `
+		_, err = tx.ExecContext(ctx, `
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
 			hostID, time.Now().UTC())
@@ -712,12 +712,10 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting the host to return")
 		}
-
 		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert new host into all hosts label")
 		}
-
 		return nil
 	})
 	if err != nil {
