@@ -546,10 +546,22 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	return r
 }
 
+// InstrumentHandler wraps the provided handler with prometheus metrics
+// middleware and returns the resulting handler that should be mounted for that
+// route.
 func InstrumentHandler(name string, handler http.Handler) http.Handler {
 	reg := prometheus.DefaultRegisterer
+	registerOrExisting := func(coll prometheus.Collector) prometheus.Collector {
+		if err := reg.Register(coll); err != nil {
+			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+				return are.ExistingCollector
+			}
+			panic(err)
+		}
+		return coll
+	}
 
-	reqCnt := prometheus.NewCounterVec(
+	reqCnt := registerOrExisting(prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Subsystem:   "http",
 			Name:        "requests_total",
@@ -557,16 +569,9 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 			ConstLabels: prometheus.Labels{"handler": name},
 		},
 		[]string{"method", "code"},
-	)
-	if err := reg.Register(reqCnt); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			reqCnt = are.ExistingCollector.(*prometheus.CounterVec)
-		} else {
-			panic(err)
-		}
-	}
+	)).(*prometheus.CounterVec)
 
-	reqDur := prometheus.NewHistogramVec(
+	reqDur := registerOrExisting(prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem:   "http",
 			Name:        "request_duration_seconds", // TODO(mna): breaking change, duration is now in seconds, not microseconds
@@ -576,18 +581,12 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 			// Use default buckets?
 		},
 		nil,
-	)
-	if err := reg.Register(reqDur); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			reqDur = are.ExistingCollector.(*prometheus.HistogramVec)
-		} else {
-			panic(err)
-		}
-	}
+	)).(*prometheus.HistogramVec)
 
 	// 1KB, 100KB, 1MB, 100MB, 1GB
 	sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
-	resSz := prometheus.NewHistogramVec(
+
+	resSz := registerOrExisting(prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem:   "http",
 			Name:        "response_size_bytes",
@@ -596,16 +595,9 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 			Buckets:     sizeBuckets,
 		},
 		nil,
-	)
-	if err := reg.Register(resSz); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			resSz = are.ExistingCollector.(*prometheus.HistogramVec)
-		} else {
-			panic(err)
-		}
-	}
+	)).(*prometheus.HistogramVec)
 
-	reqSz := prometheus.NewHistogramVec(
+	reqSz := registerOrExisting(prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Subsystem:   "http",
 			Name:        "request_size_bytes",
@@ -614,14 +606,7 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 			Buckets:     sizeBuckets,
 		},
 		nil,
-	)
-	if err := reg.Register(reqSz); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			reqSz = are.ExistingCollector.(*prometheus.HistogramVec)
-		} else {
-			panic(err)
-		}
-	}
+	)).(*prometheus.HistogramVec)
 
 	return promhttp.InstrumentHandlerDuration(reqDur,
 		promhttp.InstrumentHandlerCounter(reqCnt,
