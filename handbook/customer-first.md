@@ -3,7 +3,7 @@
 ### Next steps after a customer conversation
 After a customer conversation, it can sometimes feel like there are 1001 things to do, but it can be hard to know where to start.  Here are some tips:
 
-##### For customer requests
+#### For customer requests
 - Locate the appropriate issue, or create it if it doesn't already exist.  (To avoid duplication, be creative when searching GitHub for issues- it can often take a couple of tries with different keywords to find an existing issue.)
 - Is the issue clear and easy to understand, with appropriate context?  (Default to public: declassify into public issues in fleetdm/fleet whenever possible)
 - Is there a key date or timeframe that the customer is hoping to meet, please note that in the the issue.
