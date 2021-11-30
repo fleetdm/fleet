@@ -1185,3 +1185,62 @@ func (s *integrationTestSuite) TestListActivities() {
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
 }
+
+func (s *integrationTestSuite) TestListGetCarves() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	c1, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[0].ID,
+		Name:      t.Name() + "_1",
+		SessionId: "ssn1",
+	})
+	require.NoError(t, err)
+	c2, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[1].ID,
+		Name:      t.Name() + "_2",
+		SessionId: "ssn2",
+	})
+	require.NoError(t, err)
+	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[2].ID,
+		Name:      t.Name() + "_3",
+		SessionId: "ssn3",
+	})
+	require.NoError(t, err)
+
+	// make c2 expired
+	c2.Expired = true
+	err = s.ds.UpdateCarve(ctx, c2)
+	require.NoError(t, err)
+
+	var listResp listCarvesResponse
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c3.ID, listResp.Carves[1].ID)
+
+	// include expired
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c2.ID, listResp.Carves[1].ID)
+
+	// empty page
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "page", "3", "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 0)
+
+	// get specific carve
+	var getResp getCarveResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c2.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, c2.ID, getResp.Carve.ID)
+	require.True(t, getResp.Carve.Expired)
+
+	// get non-existing carve
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
+}

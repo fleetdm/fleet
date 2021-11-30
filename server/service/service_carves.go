@@ -106,22 +106,6 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	return nil
 }
 
-func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.carveStore.Carve(ctx, id)
-}
-
-func (svc *Service) ListCarves(ctx context.Context, opt fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.carveStore.ListCarves(ctx, opt)
-}
-
 func (svc *Service) GetBlock(ctx context.Context, carveId, blockId int64) ([]byte, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CarveMetadata{}, fleet.ActionRead); err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func decodeCarveBeginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -29,32 +28,6 @@ func decodeCarveBlockRequest(ctx context.Context, r *http.Request) (interface{},
 	}
 
 	return req, nil
-}
-
-func decodeGetCarveRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return getCarveRequest{ID: int64(id)}, nil
-}
-
-func decodeListCarvesRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	opt, err := listOptionsFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-	copt := fleet.CarveListOptions{ListOptions: opt}
-	expired := r.URL.Query().Get("expired")
-	switch expired {
-	case "1", "true":
-		copt.Expired = true
-	case "0", "":
-		copt.Expired = false
-	default:
-		return nil, ctxerr.Errorf(ctx, "invalid expired value %s", expired)
-	}
-	return listCarvesRequest{ListOptions: copt}, nil
 }
 
 func decodeGetCarveBlockRequest(ctx context.Context, r *http.Request) (interface{}, error) {

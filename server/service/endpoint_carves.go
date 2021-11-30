@@ -89,65 +89,6 @@ func makeCarveBlockEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Carve
-////////////////////////////////////////////////////////////////////////////////
-
-type getCarveRequest struct {
-	ID int64
-}
-
-type getCarveResponse struct {
-	Carve fleet.CarveMetadata `json:"carve"`
-	Err   error               `json:"error,omitempty"`
-}
-
-func (r getCarveResponse) error() error { return r.Err }
-
-func makeGetCarveEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getCarveRequest)
-		carve, err := svc.GetCarve(ctx, req.ID)
-		if err != nil {
-			return getCarveResponse{Err: err}, nil
-		}
-
-		return getCarveResponse{Carve: *carve}, nil
-
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// List Carves
-////////////////////////////////////////////////////////////////////////////////
-
-type listCarvesRequest struct {
-	ListOptions fleet.CarveListOptions
-}
-
-type listCarvesResponse struct {
-	Carves []fleet.CarveMetadata `json:"carves"`
-	Err    error                 `json:"error,omitempty"`
-}
-
-func (r listCarvesResponse) error() error { return r.Err }
-
-func makeListCarvesEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listCarvesRequest)
-		carves, err := svc.ListCarves(ctx, req.ListOptions)
-		if err != nil {
-			return listCarvesResponse{Err: err}, nil
-		}
-
-		resp := listCarvesResponse{}
-		for _, carve := range carves {
-			resp.Carves = append(resp.Carves, *carve)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Get Carve Block
 ////////////////////////////////////////////////////////////////////////////////
 

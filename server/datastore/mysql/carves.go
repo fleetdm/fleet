@@ -167,6 +167,9 @@ func (d *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetad
 
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, carveId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithID(uint(carveId)))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by ID")
 	}
 

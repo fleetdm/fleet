@@ -107,8 +107,6 @@ type FleetEndpoints struct {
 	SSOSettings                           endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
-	ListCarves                            endpoint.Endpoint
-	GetCarve                              endpoint.Endpoint
 	GetCarveBlock                         endpoint.Endpoint
 	Version                               endpoint.Endpoint
 	CreateTeam                            endpoint.Endpoint
@@ -214,8 +212,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
-		ListCarves:                            authenticatedUser(svc, makeListCarvesEndpoint(svc)),
-		GetCarve:                              authenticatedUser(svc, makeGetCarveEndpoint(svc)),
 		GetCarveBlock:                         authenticatedUser(svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
 		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
@@ -333,8 +329,6 @@ type fleetHandlers struct {
 	SettingsSSO                           http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
-	ListCarves                            http.Handler
-	GetCarve                              http.Handler
 	GetCarveBlock                         http.Handler
 	Version                               http.Handler
 	CreateTeam                            http.Handler
@@ -439,8 +433,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
-		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
-		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
 		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
 		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
@@ -642,8 +634,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/carves", h.ListCarves).Methods("GET").Name("list_carves")
-	r.Handle("/api/v1/fleet/carves/{id:[0-9]+}", h.GetCarve).Methods("GET").Name("get_carve")
 	r.Handle("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
 
 	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
@@ -719,6 +709,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	e.GET("/api/v1/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+
+	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
+	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
