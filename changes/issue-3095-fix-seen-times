@@ -1,0 +1,1 @@
+* Fix scan issue with missing (or NULL) `host_seen_times.seen_time` on some hosts.

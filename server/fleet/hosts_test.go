@@ -11,7 +11,7 @@ import (
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
-	var testCases = []struct {
+	testCases := []struct {
 		seenTime            time.Time
 		distributedInterval uint
 		configTLSRefresh    uint
@@ -47,7 +47,6 @@ func TestHostStatus(t *testing.T) {
 			assert.Equal(t, tt.status, h.Status(mockClock.Now()))
 		})
 	}
-
 }
 
 func TestHostIsNew(t *testing.T) {
