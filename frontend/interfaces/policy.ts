@@ -1,3 +1,21 @@
+import PropTypes from "prop-types";
+
+// Legacy PropTypes used on host interface
+export default PropTypes.shape({
+  author_email: PropTypes.string.isRequired,
+  author_id: PropTypes.number.isRequired,
+  author_name: PropTypes.string.isRequired,
+  created_at: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  id: PropTypes.number.isRequired,
+  name: PropTypes.string.isRequired,
+  query: PropTypes.string.isRequired,
+  resoluton: PropTypes.string.isRequired,
+  response: PropTypes.string,
+  team_id: PropTypes.number,
+  updated_at: PropTypes.string.isRequired,
+});
+
 export interface IPolicy {
   id: number;
   name: string;
@@ -20,11 +38,12 @@ export interface IPolicyStats extends IPolicy {
 
 // Used on the host details page and other places where the status of individual hosts are displayed
 export interface IHostPolicy extends IPolicy {
-  response?: "pass" | "fail";
+  response: string;
 }
 
 export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
+  team_id?: number;
 }

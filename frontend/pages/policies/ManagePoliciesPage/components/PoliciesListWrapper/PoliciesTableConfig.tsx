@@ -42,7 +42,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IPolicy;
+    original: IPolicyStats;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };

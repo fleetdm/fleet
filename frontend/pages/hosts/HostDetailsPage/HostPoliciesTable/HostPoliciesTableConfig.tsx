@@ -62,7 +62,6 @@ const generatePolicyTableHeaders = (
       disableSortBy: true,
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
-        console.log("cellProps", cellProps);
         return (
           <>
             <Button
