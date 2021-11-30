@@ -186,6 +186,9 @@ func (d *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*fl
 
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, sessionId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by session ID")
 	}
 
@@ -202,6 +205,9 @@ func (d *Datastore) CarveByName(ctx context.Context, name string) (*fleet.CarveM
 
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, d.reader, &metadata, stmt, name); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithName(name))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by name")
 	}
 
@@ -262,6 +268,9 @@ func (d *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata,
 	`
 	var data []byte
 	if err := sqlx.GetContext(ctx, d.reader, &data, stmt, metadata.ID, blockId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBlock").WithID(uint(blockId)))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select data")
 	}
 

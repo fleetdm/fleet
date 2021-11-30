@@ -1197,6 +1197,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 		HostId:    hosts[0].ID,
 		Name:      t.Name() + "_1",
 		SessionId: "ssn1",
+		MaxBlock:  3,
 	})
 	require.NoError(t, err)
 	c2, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
@@ -1204,6 +1205,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 		HostId:    hosts[1].ID,
 		Name:      t.Name() + "_2",
 		SessionId: "ssn2",
+		MaxBlock:  3,
 	})
 	require.NoError(t, err)
 	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
@@ -1214,10 +1216,11 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	})
 	require.NoError(t, err)
 
-	// make c2 expired
+	// set c1 max block
+	require.NoError(t, s.ds.UpdateCarve(ctx, c1))
+	// make c2 expired, set max block
 	c2.Expired = true
-	err = s.ds.UpdateCarve(ctx, c2)
-	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
 
 	var listResp listCarvesResponse
 	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
@@ -1243,4 +1246,19 @@ func (s *integrationTestSuite) TestListGetCarves() {
 
 	// get non-existing carve
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// get expired carve block
+	var blkResp getCarveBlockResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c2.ID, 1), nil, http.StatusInternalServerError, &blkResp)
+
+	// get valid carve block, but block not inserted yet
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusNotFound, &blkResp)
+
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 1, []byte("block1")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 2, []byte("block2")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 3, []byte("block3")))
+
+	// get valid carve block
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusOK, &blkResp)
+	require.Equal(t, "block1", string(blkResp.Data))
 }
