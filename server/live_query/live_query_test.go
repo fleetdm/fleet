@@ -94,9 +94,7 @@ func testLiveQueryStopQuery(t *testing.T, store fleet.LiveQueryStore) {
 func testLiveQueryExpiredQuery(t *testing.T, store fleet.LiveQueryStore) {
 	oldModulo := cleanupExpiredQueriesModulo
 	cleanupExpiredQueriesModulo = 1 // run the cleanup each time
-	defer func() {
-		cleanupExpiredQueriesModulo = oldModulo
-	}()
+	t.Cleanup(func() { cleanupExpiredQueriesModulo = oldModulo })
 
 	require.NoError(t, store.RunQuery("test", "select 1", []uint{1}))
 
@@ -120,9 +118,7 @@ func testLiveQueryExpiredQuery(t *testing.T, store fleet.LiveQueryStore) {
 func testLiveQueryOnlyExpired(t *testing.T, store fleet.LiveQueryStore) {
 	oldModulo := cleanupExpiredQueriesModulo
 	cleanupExpiredQueriesModulo = 1 // run the cleanup each time
-	defer func() {
-		cleanupExpiredQueriesModulo = oldModulo
-	}()
+	t.Cleanup(func() { cleanupExpiredQueriesModulo = oldModulo })
 
 	// simulate a "test" live query that has expired but is still in the set
 	pool := store.(*redisLiveQuery).pool
