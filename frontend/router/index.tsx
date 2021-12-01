@@ -55,6 +55,7 @@ import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/
 import PATHS from "router/paths";
 import store from "redux/store";
 import AppProvider from "context/app";
+
 interface IAppWrapperProps {
   children: JSX.Element;
 }
