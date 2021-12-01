@@ -270,6 +270,7 @@ func debugArchiveCommand() *cli.Command {
 				"allocs",
 				"block",
 				"cmdline",
+				"errors",
 				"goroutine",
 				"heap",
 				"mutex",
@@ -295,7 +296,20 @@ func debugArchiveCommand() *cli.Command {
 			defer tarwriter.Close()
 
 			for _, profile := range profiles {
-				res, err := fleet.DebugPprof(profile)
+				var res []byte
+
+				switch profile {
+				case "errors":
+					var buf bytes.Buffer
+					err = fleet.DebugErrors(&buf)
+					if err == nil {
+						res = buf.Bytes()
+					}
+
+				default:
+					res, err = fleet.DebugPprof(profile)
+				}
+
 				if err != nil {
 					// Don't fail the entire process on errors. We'll take what
 					// we can get if the servers are in a bad state and not
