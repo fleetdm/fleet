@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -147,7 +146,7 @@ func TestGetNodeKey(t *testing.T) {
 		NodeKey int
 	}
 
-	var getNodeKeyTests = []struct {
+	getNodeKeyTests := []struct {
 		i         interface{}
 		expectKey string
 		shouldErr bool
@@ -206,9 +205,6 @@ func TestAuthenticatedHost(t *testing.T) {
 
 		}
 	}
-	ds.MarkHostSeenFunc = func(ctx context.Context, host *fleet.Host, t time.Time) error {
-		return nil
-	}
 
 	endpoint := authenticatedHost(
 		svc,
@@ -221,7 +217,7 @@ func TestAuthenticatedHost(t *testing.T) {
 		},
 	)
 
-	var authenticatedHostTests = []struct {
+	authenticatedHostTests := []struct {
 		nodeKey   string
 		shouldErr bool
 	}{
@@ -241,7 +237,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 	for _, tt := range authenticatedHostTests {
 		t.Run("", func(t *testing.T) {
-			var r = struct{ NodeKey string }{NodeKey: tt.nodeKey}
+			r := struct{ NodeKey string }{NodeKey: tt.nodeKey}
 			_, err := endpoint(context.Background(), r)
 			if tt.shouldErr {
 				assert.IsType(t, osqueryError{}, err)

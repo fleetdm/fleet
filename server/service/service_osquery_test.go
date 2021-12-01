@@ -1566,9 +1566,6 @@ func (e notFoundError) IsNotFound() bool {
 
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
-	ms.MarkHostSeenFunc = func(context.Context, *fleet.Host, time.Time) error {
-		return nil
-	}
 	ms.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, nil
 	}

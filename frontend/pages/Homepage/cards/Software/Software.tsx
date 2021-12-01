@@ -129,6 +129,7 @@ const Software = ({
     {
       enabled: navTabIndex === 0,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -148,6 +149,7 @@ const Software = ({
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 
@@ -173,6 +175,7 @@ const Software = ({
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
+      keepPreviousData: true,
     }
   );
 

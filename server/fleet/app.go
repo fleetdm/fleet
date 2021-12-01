@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/pkg/errors"
+
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/jinzhu/copier"
 )
 

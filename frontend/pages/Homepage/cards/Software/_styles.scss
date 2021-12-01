@@ -81,4 +81,40 @@
       font-size: $small !important;
     }
   }
+  .data-table-container {
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        .name__header {
+          width: 60%;
+        }
+        .version__header {
+          width: 40%;
+        }
+        .host_count__header {
+          border-right: 0;
+          padding-right: 0;
+          width: 60px;
+        }
+        .id__header {
+          padding: 0;
+          border-left: 0;
+          width: 40px;
+        }
+      }
+
+      tbody {
+        td {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .id__cell {
+          padding: 0;
+          width: 40px;
+        }
+      }
+    }
+  }
 }
