@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { size } from "lodash";
 
 import { IPolicyFormData } from "interfaces/policy";
 import { useDeepEffect } from "utilities/hooks";
-
+import { PolicyContext } from "context/policy";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
@@ -33,8 +33,14 @@ const NewPolicyModal = ({
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
-  const [name, setName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
+  const { lastEditedQueryName, lastEditedQueryDescription } = useContext(
+    PolicyContext
+  );
+
+  const [name, setName] = useState<string>(lastEditedQueryName || "");
+  const [description, setDescription] = useState<string>(
+    lastEditedQueryDescription || ""
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useDeepEffect(() => {

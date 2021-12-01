@@ -1,0 +1,1 @@
+* Increase the grace period for host status to 1 min to prevent flapping of status from hosts

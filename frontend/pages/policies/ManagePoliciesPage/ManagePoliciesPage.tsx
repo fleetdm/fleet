@@ -9,7 +9,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import PATHS from "router/paths";
 
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
@@ -99,10 +99,14 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   );
 
   // ===== local state
-  const [globalPolicies, setGlobalPolicies] = useState<IPolicy[] | never[]>([]);
+  const [globalPolicies, setGlobalPolicies] = useState<
+    IPolicyStats[] | never[]
+  >([]);
   const [isLoadingGlobalPolicies, setIsLoadingGlobalPolicies] = useState(true);
   const [isGlobalPoliciesError, setIsGlobalPoliciesError] = useState(false);
-  const [teamPolicies, setTeamPolicies] = useState<IPolicy[] | never[]>([]);
+  const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[] | never[]>(
+    []
+  );
   const [isLoadingTeamPolicies, setIsLoadingTeamPolicies] = useState(true);
   const [isTeamPoliciesError, setIsTeamPoliciesError] = useState(false);
   const [userTeams, setUserTeams] = useState<ITeam[] | never[] | null>(null);

@@ -50,6 +50,9 @@ const PolicyPage = ({
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryBody,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -123,9 +126,6 @@ const PolicyPage = ({
 
     detectIsFleetQueryRunnable();
     !!policyIdForEdit && refetchStoredPolicy();
-    setLastEditedQueryName(DEFAULT_POLICY.name);
-    setLastEditedQueryDescription(DEFAULT_POLICY.description);
-    setLastEditedQueryBody(DEFAULT_POLICY.query);
   }, []);
 
   useEffect(() => {
