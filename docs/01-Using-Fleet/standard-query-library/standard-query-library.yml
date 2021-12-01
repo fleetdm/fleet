@@ -516,4 +516,3 @@ spec:
   query: select * from shimcache
   purpose: Informational
   contributors: puffyCid
----
