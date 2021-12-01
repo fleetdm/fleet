@@ -6,7 +6,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import Fleet from "fleet"; // @ts-ignore
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
+import { QUERIES_PAGE_STEPS } from "utilities/constants";
 import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
 import teamPoliciesAPI from "services/entities/team_policies"; // @ts-ignore
 import hostAPI from "services/entities/hosts"; // @ts-ignore
@@ -128,7 +128,6 @@ const PolicyPage = ({
 
     detectIsFleetQueryRunnable();
     !!policyIdForEdit && refetchStoredPolicy();
-    setLastEditedQueryBody(DEFAULT_POLICY.query);
   }, []);
 
   useEffect(() => {
