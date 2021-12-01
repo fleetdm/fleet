@@ -61,3 +61,25 @@ func (c *Client) DebugErrors(w io.Writer) error {
 	}
 	return nil
 }
+
+// DebugDBLocks calls the /debug/dblocks endpoint and on success returns its
+// response body data.
+func (c *Client) DebugDBLocks() ([]byte, error) {
+	endpoint := "/debug/dblocks"
+	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
+	if err != nil {
+		return nil, fmt.Errorf("GET %s: %w", endpoint, err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get dblocks received status %d", response.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read dblocks response body: %w", err)
+	}
+
+	return body, nil
+}

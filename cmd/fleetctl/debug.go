@@ -38,6 +38,7 @@ func debugCommand() *cli.Command {
 			debugGoroutineCommand(),
 			debugTraceCommand(),
 			debugErrorsCommand(),
+			debugDBLocksCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
 			debugMigrations(),
@@ -270,6 +271,7 @@ func debugArchiveCommand() *cli.Command {
 				"allocs",
 				"block",
 				"cmdline",
+				"db-locks",
 				"errors",
 				"goroutine",
 				"heap",
@@ -305,6 +307,9 @@ func debugArchiveCommand() *cli.Command {
 					if err == nil {
 						res = buf.Bytes()
 					}
+
+				case "db-locks":
+					res, err = fleet.DebugDBLocks()
 
 				default:
 					res, err = fleet.DebugPprof(profile)
@@ -543,6 +548,43 @@ func debugErrorsCommand() *cli.Command {
 				return fmt.Errorf("write errors to file: %w", err)
 			}
 			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
+
+			return nil
+		},
+	}
+}
+
+func debugDBLocksCommand() *cli.Command {
+	name := "db-locks"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the current database transaction locking information to a file.",
+		UsageText: "Saves transaction locking information with queries that are waiting on or blocking other transactions.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			locks, err := fleet.DebugDBLocks()
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			if err := writeFile(outfile, locks, defaultFileMode); err != nil {
+				return fmt.Errorf("write %s to file: %w", name, err)
+			}
 
 			return nil
 		},
