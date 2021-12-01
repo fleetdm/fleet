@@ -23,12 +23,12 @@ func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFi
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
-			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(hst.seen_time, INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
-			COALESCE(SUM(CASE WHEN DATE_ADD(hst.seen_time, INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
+			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
-		JOIN host_seen_times hst ON (h.id=hst.host_id)
+		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
 		WHERE (id IN (?) OR (id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))) OR team_id IN (?)) AND %s
 `, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, d.whereFilterHostsByTeams(filter, "h"))
 

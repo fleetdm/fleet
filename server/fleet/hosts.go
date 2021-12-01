@@ -29,7 +29,7 @@ const (
 	// OnlineIntervalBuffer is the additional time in seconds to add to the
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
-	OnlineIntervalBuffer = 30
+	OnlineIntervalBuffer = 60
 )
 
 type HostListOptions struct {
