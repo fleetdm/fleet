@@ -128,11 +128,7 @@ const PolicyPage = ({
 
     detectIsFleetQueryRunnable();
     !!policyIdForEdit && refetchStoredPolicy();
-    // TODO: IS THIS NEEDED?
-    setLastEditedQueryName(DEFAULT_POLICY.name);
-    setLastEditedQueryDescription(DEFAULT_POLICY.description);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
-    setLastEditedQueryResolution(DEFAULT_POLICY.resolution);
   }, []);
 
   useEffect(() => {

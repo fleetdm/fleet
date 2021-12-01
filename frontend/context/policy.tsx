@@ -27,10 +27,10 @@ type InitialStateType = {
 };
 
 const initialState = {
-  lastEditedQueryName: DEFAULT_POLICY.name,
+  lastEditedQueryName: "",
   lastEditedQueryDescription: DEFAULT_POLICY.description,
-  lastEditedQueryBody: DEFAULT_POLICY.query,
-  lastEditedQueryResolution: DEFAULT_POLICY.resolution,
+  lastEditedQueryBody: "",
+  lastEditedQueryResolution: "",
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,

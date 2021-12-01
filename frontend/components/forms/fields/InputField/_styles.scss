@@ -10,8 +10,8 @@
   box-sizing: border-box;
   height: 40px;
 
-  ::placeholder {
-    color: $core-fleet-blue;
+  &::placeholder {
+    color: $ui-fleet-black-50;
   }
 
   &:focus {
