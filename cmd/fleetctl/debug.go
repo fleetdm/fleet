@@ -37,6 +37,7 @@ func debugCommand() *cli.Command {
 			debugHeapCommand(),
 			debugGoroutineCommand(),
 			debugTraceCommand(),
+			debugErrorsCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
 			debugMigrations(),
@@ -487,6 +488,48 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData)
 			}
+			return nil
+		},
+	}
+}
+
+func debugErrorsCommand() *cli.Command {
+	name := "errors"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the recorded fleet server errors to a file.",
+		UsageText: "Recording of errors and their retention period is controlled via the --logging_error_retention_period fleet command flag.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			if err := fleet.DebugErrors(f); err != nil {
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return fmt.Errorf("write errors to file: %w", err)
+			}
+			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
+
 			return nil
 		},
 	}
