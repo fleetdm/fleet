@@ -398,6 +398,8 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+	// DBLocks returns the current database transaction lock waits information.
+	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats

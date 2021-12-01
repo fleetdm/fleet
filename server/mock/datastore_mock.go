@@ -167,7 +167,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.H
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
@@ -316,6 +316,8 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
+
+type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
@@ -781,6 +783,9 @@ type DataStore struct {
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
 
+	DBLocksFunc        DBLocksFunc
+	DBLocksFuncInvoked bool
+
 	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
 	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
 
@@ -1178,7 +1183,7 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
@@ -1551,6 +1556,11 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
+	s.DBLocksFuncInvoked = true
+	return s.DBLocksFunc(ctx)
 }
 
 func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {

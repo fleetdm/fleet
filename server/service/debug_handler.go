@@ -67,6 +67,19 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 		}
 		rw.Write(b)
 	})
+	r.HandleFunc("/debug/dblocks", func(rw http.ResponseWriter, r *http.Request) {
+		locks, err := ds.DBLocks(r.Context())
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		b, err := json.Marshal(locks)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		rw.Write(b)
+	})
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,
