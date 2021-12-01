@@ -653,7 +653,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
 			UUID:            fmt.Sprintf("%d", i),
