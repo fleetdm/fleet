@@ -1,8 +1,14 @@
 ## Fleet 4.6.2 (Nov 30, 2021)
 
+* Improve performance of the **Home** page by removing total hosts count from the "Software" table.
+
+* Improve performance of the **Queries** page by adding pagination to the list of queries.
+
 * Fix a bug in which the "Shell" column of the "Users" table on the **Host details** page would sometimes fail to update.
 
-* Improve performance of the **Home** page by removing total hosts count from the "Software" table.
+* Fix a bug in which a host's status could quickly alternate between "Online" and "Offline" by increasing the grace period for host status.
+
+* Fix a bug in which some hosts would have a missing `host_seen_times` entry.
 
 * Add an `after` parameter to the [`GET /hosts` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) to allow for cursor pagination.
 
