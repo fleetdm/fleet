@@ -54,8 +54,8 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
 		})
-		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
+		require.NoError(t, err)
+		require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, seenTime))
 		return h
 	}
 
@@ -228,7 +228,7 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 	expectOffline := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1}
 	expectMIA := fleet.TargetMetrics{TotalHosts: 1, MissingInActionHosts: 1}
 
-	var testCases = []struct {
+	testCases := []struct {
 		seenTime            time.Time
 		distributedInterval uint
 		configTLSRefresh    uint
@@ -257,14 +257,14 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 			// Save interval values
 			h.DistributedInterval = tt.distributedInterval
 			h.ConfigTLSRefresh = tt.configTLSRefresh
-			require.Nil(t, ds.SaveHost(context.Background(), h))
+			require.NoError(t, ds.SaveHost(context.Background(), h))
 
 			// Mark seen
-			require.Nil(t, ds.MarkHostSeen(context.Background(), h, tt.seenTime))
+			require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, tt.seenTime))
 
 			// Verify status
 			metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h.ID}}, mockClock.Now())
-			require.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.metrics, metrics)
 		})
 	}
@@ -382,8 +382,8 @@ func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
 		})
-		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
+		require.NoError(t, err)
+		require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, seenTime))
 		return h
 	}
 
