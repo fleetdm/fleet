@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -745,6 +746,8 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	if len(hostIDs) == 0 {
 		return nil
 	}
+
+	sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
 
 	if err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var insertArgs []interface{}
