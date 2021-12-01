@@ -163,15 +163,9 @@ const PolicyForm = ({
     }
 
     let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
 
     valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
 
     if (valid) {
       if (!isEditMode || forceNew) {
@@ -182,8 +176,6 @@ const PolicyForm = ({
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
         });
-
-        setErrors({});
       }
 
       setIsEditingName(false);
