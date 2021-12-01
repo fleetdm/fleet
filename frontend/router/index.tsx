@@ -92,7 +92,7 @@ const routes = (
               <IndexRedirect to={"dashboard"} />
               <Route path="dashboard" component={Homepage} />
               <Route path="settings" component={AuthAnyAdminRoutes}>
-                <IndexRedirect to={"teams"} />
+                <IndexRedirect to={"/dashboard"} />
                 <Route component={SettingsWrapper}>
                   <Route component={AuthenticatedAdminRoutes}>
                     <Route
