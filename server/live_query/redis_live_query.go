@@ -54,7 +54,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 )
 
 const (
@@ -97,94 +96,6 @@ func extractTargetKeyName(key string) string {
 		name = name[:len(name)-1]
 	}
 	return name
-}
-
-// MigrateKeys migrates keys using a deprecated format to the new format. It
-// should be called at startup and never after that, so for this reason it is
-// not added to the fleet.LiveQueryStore interface.
-func (r *redisLiveQuery) MigrateKeys() error {
-	qkeys, err := redis.ScanKeys(r.pool, queryKeyPrefix+"*", 100)
-	if err != nil {
-		return err
-	}
-
-	// identify which of those keys are in a deprecated format, and keep track
-	// of all the names of active queries to build the set.
-	var oldKeys []string
-	activeNames := make([]string, 0, len(qkeys))
-	for _, key := range qkeys {
-		if key == activeQueriesKey {
-			continue
-		}
-
-		name := extractTargetKeyName(key)
-		if !strings.Contains(key, "{"+name+"}") {
-			// add the corresponding sql key to the list
-			oldKeys = append(oldKeys, key, sqlKeyPrefix+key)
-		}
-		activeNames = append(activeNames, name)
-	}
-
-	keysBySlot := redis.SplitKeysBySlot(r.pool, oldKeys...)
-	for _, keys := range keysBySlot {
-		if err := migrateBatchKeys(r.pool, keys); err != nil {
-			return err
-		}
-	}
-
-	// store the active queries in the set
-	if err := r.storeQueryNames(activeNames...); err != nil {
-		return fmt.Errorf("store query names: %w", err)
-	}
-
-	return nil
-}
-
-func migrateBatchKeys(pool fleet.RedisPool, keys []string) error {
-	readConn := pool.Get()
-	defer readConn.Close()
-
-	writeConn := pool.Get()
-	defer writeConn.Close()
-
-	// use a retry conn so that we follow MOVED redirections in a Redis Cluster,
-	// as we will attempt to write new keys which may not belong to the same
-	// cluster slot.  It returns an error if writeConn is not a redis cluster
-	// connection, in which case we simply continue with the standalone Redis
-	// writeConn.
-	if rc, err := redisc.RetryConn(writeConn, 3, 100*time.Millisecond); err == nil {
-		writeConn = rc
-	}
-
-	// using a straightforward "read one, write one" approach as this is meant to
-	// run at startup, not on a hot path, and we expect a relatively small number
-	// of queries vs hosts (as documented in the design comment at the top).
-	for _, key := range keys {
-		s, err := redigo.String(readConn.Do("GET", key))
-		if err != nil {
-			if err == redigo.ErrNil {
-				// key may have expired since the scan, ignore
-				continue
-			}
-			return err
-		}
-
-		var newKey string
-		if strings.HasPrefix(key, sqlKeyPrefix) {
-			name := extractTargetKeyName(strings.TrimPrefix(key, sqlKeyPrefix))
-			_, newKey = generateKeys(name)
-		} else {
-			name := extractTargetKeyName(key)
-			newKey, _ = generateKeys(name)
-		}
-		if _, err := writeConn.Do("SET", newKey, s, "EX", queryExpiration.Seconds()); err != nil {
-			return err
-		}
-
-		// best-effort deletion of the old key, ignore error
-		readConn.Do("DEL", key)
-	}
-	return nil
 }
 
 // RunQuery stores the live query information in ephemeral storage for the

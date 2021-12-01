@@ -255,12 +255,6 @@ the way that the Fleet server works.
 			ds = cached_mysql.New(ds)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
-			if err := liveQueryStore.MigrateKeys(); err != nil {
-				level.Info(logger).Log(
-					"err", err,
-					"msg", "failed to migrate live query redis keys",
-				)
-			}
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			osqueryLogger, err := logging.New(config, logger)

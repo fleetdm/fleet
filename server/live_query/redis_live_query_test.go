@@ -2,15 +2,10 @@ package live_query
 
 import (
 	"testing"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/test"
-	redigo "github.com/gomodule/redigo/redis"
-	"github.com/mna/redisc"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRedisLiveQuery(t *testing.T) {
@@ -27,84 +22,6 @@ func TestRedisLiveQuery(t *testing.T) {
 			})
 		})
 	}
-}
-
-func TestMigrateKeys(t *testing.T) {
-	startKeys := map[string]string{
-		"unrelated":                           "u",
-		queryKeyPrefix + "a":                  "a",
-		sqlKeyPrefix + queryKeyPrefix + "a":   "sqla",
-		queryKeyPrefix + "b":                  "b",
-		queryKeyPrefix + "{c}":                "c",
-		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
-	}
-	startSet := []string{"c"}
-
-	endKeys := map[string]string{
-		"unrelated":                           "u",
-		queryKeyPrefix + "{a}":                "a",
-		sqlKeyPrefix + queryKeyPrefix + "{a}": "sqla",
-		queryKeyPrefix + "{b}":                "b",
-		queryKeyPrefix + "{c}":                "c",
-		sqlKeyPrefix + queryKeyPrefix + "{c}": "sqlc",
-	}
-	endSet := []string{"a", "b", "c"}
-
-	runTest := func(t *testing.T, store *redisLiveQuery) {
-		conn := store.pool.Get()
-		defer conn.Close()
-		if rc, err := redisc.RetryConn(conn, 3, 100*time.Millisecond); err == nil {
-			conn = rc
-		}
-
-		for k, v := range startKeys {
-			_, err := conn.Do("SET", k, v)
-			require.NoError(t, err)
-		}
-		args := redigo.Args{activeQueriesKey}.AddFlat(startSet)
-		_, err := conn.Do("SADD", args...)
-		require.NoError(t, err)
-
-		err = store.MigrateKeys()
-		require.NoError(t, err)
-
-		got := make(map[string]string)
-		err = redis.EachNode(store.pool, false, func(conn redigo.Conn) error {
-			keys, err := redigo.Strings(conn.Do("KEYS", "*"))
-			if err != nil {
-				return err
-			}
-
-			for _, k := range keys {
-				if k == activeQueriesKey {
-					continue
-				}
-
-				v, err := redigo.String(conn.Do("GET", k))
-				if err != nil {
-					return err
-				}
-				got[k] = v
-			}
-			return nil
-		})
-		require.NoError(t, err)
-
-		require.EqualValues(t, endKeys, got)
-		setAfter, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-		require.NoError(t, err)
-		require.ElementsMatch(t, endSet, setAfter)
-	}
-
-	t.Run("standalone", func(t *testing.T) {
-		store := setupRedisLiveQuery(t, false)
-		runTest(t, store)
-	})
-
-	t.Run("cluster", func(t *testing.T) {
-		store := setupRedisLiveQuery(t, true)
-		runTest(t, store)
-	})
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
