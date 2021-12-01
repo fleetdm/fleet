@@ -353,7 +353,7 @@ const HostDetailsPage = ({
     host?.os_version.lastIndexOf(" ") + 1
   );
   const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || ',' || minor || '.' || patch = '${operatingSystemVersion}';`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch = '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -603,7 +603,7 @@ const HostDetailsPage = ({
             Create new policy
           </Button>
           <Button onClick={() => setShowOSPolicyModal(false)} variant="inverse">
-            Cancel
+            Close
           </Button>
         </div>
       </>
