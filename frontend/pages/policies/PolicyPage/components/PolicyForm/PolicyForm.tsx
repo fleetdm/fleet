@@ -16,7 +16,6 @@ import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
@@ -42,7 +41,7 @@ interface IPolicyFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -66,7 +65,7 @@ const PolicyForm = ({
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
   const isEditMode = !!policyIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -146,11 +145,11 @@ const PolicyForm = ({
     });
   };
 
-  const onChangeQuery = (sqlString: string) => {
+  const onChangePolicy = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const promptSavePolicy = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -426,8 +425,8 @@ const PolicyForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={onChangeQuery}
-          handleSubmit={promptSaveQuery}
+          onChange={onChangePolicy}
+          handleSubmit={promptSavePolicy}
         />
         {renderPlatformCompatibility()}
         {renderLiveQueryWarning()}
@@ -449,7 +448,7 @@ const PolicyForm = ({
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
-                  onClick={promptSaveQuery()}
+                  onClick={promptSavePolicy()}
                   disabled={
                     isAnyTeamMaintainerOrTeamAdmin &&
                     !hasTeamMaintainerPermissions
