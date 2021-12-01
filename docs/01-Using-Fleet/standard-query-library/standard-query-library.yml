@@ -516,3 +516,13 @@ spec:
   query: select * from shimcache
   purpose: Informational
   contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications hogging memory
+  platforms: macOS, Linux, Windows
+  description:
+  query: SELECT * FROM mounts m, disk_encryption d WHERE m.path= "/" AND m.device = d.name AND d.encrypted = 0;
+  purpose: Informational
+  contributors: DominusKelvin
