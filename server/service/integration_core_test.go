@@ -1197,7 +1197,6 @@ func (s *integrationTestSuite) TestListGetCarves() {
 		HostId:    hosts[0].ID,
 		Name:      t.Name() + "_1",
 		SessionId: "ssn1",
-		MaxBlock:  3,
 	})
 	require.NoError(t, err)
 	c2, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
@@ -1205,7 +1204,6 @@ func (s *integrationTestSuite) TestListGetCarves() {
 		HostId:    hosts[1].ID,
 		Name:      t.Name() + "_2",
 		SessionId: "ssn2",
-		MaxBlock:  3,
 	})
 	require.NoError(t, err)
 	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
@@ -1217,9 +1215,11 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.NoError(t, err)
 
 	// set c1 max block
+	c1.MaxBlock = 3
 	require.NoError(t, s.ds.UpdateCarve(ctx, c1))
 	// make c2 expired, set max block
 	c2.Expired = true
+	c2.MaxBlock = 3
 	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
 
 	var listResp listCarvesResponse
