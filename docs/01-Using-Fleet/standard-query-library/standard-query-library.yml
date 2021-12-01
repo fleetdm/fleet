@@ -520,9 +520,19 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: Get running docker containers
+  name: Get Mac and Linux machines with unencrypted primary disks.
   platforms: macOS, Linux
-  description: Returns the running Docker containers.
-  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  description:
+  query: SELECT * FROM mounts m, disk_encryption d WHERE m.path= "/" AND m.device = d.name AND d.encrypted = 0;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Mac and Linux machines with unencrypted primary disks.
+  platforms: macOS, Linux
+  description:
+  query: SELECT * FROM mounts m, disk_encryption d WHERE m.path= "/" AND m.device = d.name AND d.encrypted = 0;
   purpose: Informational
   contributors: DominusKelvin
