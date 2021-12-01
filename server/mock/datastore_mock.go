@@ -153,8 +153,6 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
-
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
@@ -534,9 +532,6 @@ type DataStore struct {
 
 	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
-
-	MarkHostSeenFunc        MarkHostSeenFunc
-	MarkHostSeenFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -1141,11 +1136,6 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	s.AuthenticateHostFuncInvoked = true
 	return s.AuthenticateHostFunc(ctx, nodeKey)
-}
-
-func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
-	s.MarkHostSeenFuncInvoked = true
-	return s.MarkHostSeenFunc(ctx, host, t)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
