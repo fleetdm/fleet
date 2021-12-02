@@ -37,8 +37,10 @@ const NewPolicyModal = ({
     PolicyContext
   );
 
-  const [name, setName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
+  const [name, setName] = useState<string>(lastEditedQueryName);
+  const [description, setDescription] = useState<string>(
+    lastEditedQueryDescription
+  );
   const [resolution, setResolution] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
