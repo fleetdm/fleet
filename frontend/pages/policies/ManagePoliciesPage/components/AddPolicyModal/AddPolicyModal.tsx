@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
-import { DEFAULT_POLICIES } from "utilities/constants";
+import { DEFAULT_POLICY, DEFAULT_POLICIES } from "utilities/constants";
 
 import { IPolicyNew } from "interfaces/policy";
+
+import { PolicyContext } from "context/policy";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -12,17 +14,35 @@ import Modal from "components/Modal";
 export interface IAddPolicyModalProps {
   onCancel: () => void;
   router: any;
+  teamId: number;
+  teamName?: string;
 }
 
 const baseClass = "add-policy-modal";
 
-const AddPolicyModal = ({ onCancel, router }: IAddPolicyModalProps) => {
+const AddPolicyModal = ({
+  onCancel,
+  router,
+  teamId,
+  teamName,
+}: IAddPolicyModalProps) => {
+  const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setPolicyTeamId,
+  } = useContext(PolicyContext);
+
   const onAddPolicy = (selectedPolicy: IPolicyNew) => {
-    const { NEW_POLICY } = PATHS;
-    // TODO: Make policy auto populate
-    const path = `${NEW_POLICY}?policy=${selectedPolicy}`;
-    router.replace(path);
-    onCancel();
+    teamName
+      ? setLastEditedQueryName(`${selectedPolicy.name} (${teamName})`)
+      : setLastEditedQueryName(selectedPolicy.name);
+    setLastEditedQueryDescription(selectedPolicy.description);
+    setLastEditedQueryBody(selectedPolicy.query);
+    setLastEditedQueryResolution(selectedPolicy.resolution);
+    setPolicyTeamId(teamId);
+    router.push(PATHS.NEW_POLICY);
   };
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy) => {

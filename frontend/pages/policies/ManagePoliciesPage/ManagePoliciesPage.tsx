@@ -76,6 +76,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -125,7 +126,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
-  // const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
@@ -186,8 +186,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setPolicyTeamId(id);
   };
 
-  // const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
-
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
@@ -200,7 +198,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
     setLastEditedQueryBody(DEFAULT_POLICY.query);
-    router.push(PATHS.NEW_POLICY);
+    setLastEditedQueryResolution("");
+    toggleAddPolicyModal();
   };
 
   const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
@@ -373,7 +372,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               <Button
                 variant="brand"
                 className={`${baseClass}__select-policy-button`}
-                onClick={toggleAddPolicyModal}
+                onClick={onAddPolicyClick}
               >
                 Add a policy
               </Button>
@@ -488,15 +487,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           </div>
         )}
         {showAddPolicyModal && (
-          <AddPolicyModal onCancel={toggleAddPolicyModal} router={router} />
-        )}
-        {/* {showAddPolicyModal && (
           <AddPolicyModal
             onCancel={toggleAddPolicyModal}
-            onSubmit={onAddPolicySubmit}
-            allQueries={fleetQueries}
+            router={router}
+            teamId={selectedTeamId}
+            teamName={selectedTeamData?.name}
           />
-        )} */}
+        )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
             onCancel={toggleRemovePoliciesModal}

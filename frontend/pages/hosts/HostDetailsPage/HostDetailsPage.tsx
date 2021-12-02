@@ -117,6 +117,7 @@ const HostDetailsPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const canTransferTeam =
@@ -401,6 +402,7 @@ const HostDetailsPage = ({
       "Returns yes or no for detecting operating system and version"
     );
     setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryResolution("");
     router.replace(NEW_POLICY);
   };
 

@@ -33,15 +33,19 @@ const NewPolicyModal = ({
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryDescription } = useContext(
-    PolicyContext
-  );
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryResolution,
+  } = useContext(PolicyContext);
 
   const [name, setName] = useState<string>(lastEditedQueryName);
   const [description, setDescription] = useState<string>(
     lastEditedQueryDescription
   );
-  const [resolution, setResolution] = useState<string>("");
+  const [resolution, setResolution] = useState<string>(
+    lastEditedQueryResolution
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useDeepEffect(() => {
