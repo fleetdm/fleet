@@ -83,6 +83,15 @@
     box-sizing: border-box;
     box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
     border-radius: 16px;
+    &.top-row {
+      min-height: 390px;
+    }
+    &.middle-row {
+      min-height: 290px;
+    }
+    &.bottom-row {
+      min-height: 340px;
+    }
   }
 
   .avatar-frame {
@@ -155,6 +164,9 @@
   @media (max-width: 1200px) {
     .tweets {
       max-width: 390px;
+      &.top-row, .middle-row, .bottom-row  {
+        min-height: auto;
+      }
     }
   }
 
