@@ -221,7 +221,8 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		Query string `db:"query"`
 	}
 	if host.Platform == "" {
-		// We log to help troubleshooting in case this happens.
+		// We log to help troubleshooting in case this happens, as the host
+		// won't be receiving any policies targeted for specific platforms.
 		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
 	}
 	q := dialect.From("policies").Select(
@@ -230,10 +231,6 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	).Where(
 		goqu.And(
 			goqu.Or(
-				// If Host.Platform is empty for some reason,
-				// we'll return/send the policy just in case.
-				// TODO(lucas): Confirm with the team if this is a-ok.
-				goqu.L("? = ''", host.FleetPlatform()),
 				goqu.I("platforms").Eq(""),
 				goqu.L("FIND_IN_SET(?, ?)",
 					host.FleetPlatform(),

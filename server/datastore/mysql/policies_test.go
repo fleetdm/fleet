@@ -645,8 +645,6 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 		{
 			host: host4GlobalEmpty,
 			expectedPolicies: expectedPolicyQueries(
-				policy1GlobalLinuxDarwin,
-				policy2GlobalWindows,
 				policy3GlobalAll,
 			),
 		},
@@ -682,12 +680,8 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 		{
 			host: host4t1Empty,
 			expectedPolicies: expectedPolicyQueries(
-				policy1GlobalLinuxDarwin,
-				policy2GlobalWindows,
 				policy3GlobalAll,
 
-				policy1t1Darwin,
-				policy2t1Windows,
 				policy3t1All,
 			),
 		},
@@ -727,13 +721,8 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 		{
 			host: host4t2Empty,
 			expectedPolicies: expectedPolicyQueries(
-				policy1GlobalLinuxDarwin,
-				policy2GlobalWindows,
 				policy3GlobalAll,
 
-				policy1t2LinuxDarwin,
-				policy2t2Windows,
-				policy3t2All1,
 				policy4t2All2,
 			),
 		},

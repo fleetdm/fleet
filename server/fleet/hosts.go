@@ -220,11 +220,15 @@ func (h *Host) FleetPlatform() string {
 // the generic platforms known by osquery
 // https://osquery.readthedocs.io/en/stable/deployment/configuration/
 // and supported by Fleet.
+//
+// Returns empty string if hostPlatform is unknnown.
 func PlatformFromHost(hostPlatform string) string {
 	switch hostPlatform {
 	case "ubuntu", "rhel", "debian":
 		return "linux"
-	default: // darwin, windows
+	case "darwin", "windows":
 		return hostPlatform
+	default:
+		return ""
 	}
 }
