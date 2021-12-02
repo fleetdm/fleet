@@ -1,18 +1,18 @@
 .homepage {
-  min-height: 0;
-  padding: $pad-xxlarge;
-  width: 100%;
-  flex: 1;
   background-color: $ui-off-white;
-  box-sizing: border-box;
+  flex: 1;
+  .homepage__wrapper {
+    background-color: $ui-off-white;
+  }
 
   h2 {
     font-size: $small;
     font-weight: $regular;
     margin: 0;
   }
-  
+
   &__header-wrap {
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -22,15 +22,17 @@
   &__header {
     display: flex;
     align-items: center;
-    
+
+    .form-field--dropdown {
+      margin-bottom: 0;
+    }
+
     .Select-control {
       background-color: $ui-off-white !important;
     }
   }
 
   &__title {
-    font-size: $large;
-
     .fleeticon {
       color: $core-fleet-blue;
       margin-right: 15px;
@@ -57,7 +59,7 @@
     &.two-column {
       row-gap: $pad-medium;
     }
-    
+
     @media screen and (min-width: 990px) {
       &.two-column {
         grid-template-columns: repeat(2, minmax(0, 1fr));

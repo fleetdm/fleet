@@ -143,7 +143,7 @@ describe(
       cy.findByRole("button", { name: /done/i }).click();
 
       // See the "Manage" enroll secret” button on team Oranges only
-      cy.findByText(/all teams/i).should("exist");
+      cy.findAllByText(/apples/i).should("exist");
       cy.findByText(/manage enroll secret/i).should("not.exist");
 
       cy.visit("/hosts/manage/?team_id=1");
