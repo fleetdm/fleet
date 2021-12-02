@@ -122,6 +122,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
+				case "carve_options":
+					opts, err := carveListOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
 				default:
 					id, err := idFromRequest(r, urlTagValue)
 					if err != nil {
@@ -131,7 +137,11 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 						return nil, err
 					}
-					field.SetUint(uint64(id))
+					if field.Kind() == reflect.Int64 {
+						field.SetInt(int64(id))
+					} else {
+						field.SetUint(uint64(id))
+					}
 				}
 			}
 

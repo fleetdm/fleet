@@ -9,7 +9,7 @@ import { filter, isEmpty, pullAllBy } from "lodash";
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
-import ExternalURLIcon from "../../../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface ITargetsInputProps {
   tabIndex: number;

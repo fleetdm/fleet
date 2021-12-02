@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import hostPolicyInterface, { IHostPolicy } from "./host_policy";
+import hostPolicyInterface, { IHostPolicy } from "./policy";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";

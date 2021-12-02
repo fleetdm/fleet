@@ -54,6 +54,8 @@ describe("Free tier - Observer user", () => {
     cy.contains("button", /delete/i).should("not.exist");
     cy.contains("button", /query/i).click();
     cy.contains("button", /create custom query/i).should("not.exist");
+    // See but not select operating system
+    // TODO
 
     // Queries pages: Observer can or cannot run UI
     cy.visit("/queries/manage");

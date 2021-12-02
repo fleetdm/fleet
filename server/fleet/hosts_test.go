@@ -11,27 +11,27 @@ import (
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
-	var testCases = []struct {
+	testCases := []struct {
 		seenTime            time.Time
 		distributedInterval uint
 		configTLSRefresh    uint
 		status              HostStatus
 	}{
 		{mockClock.Now().Add(-30 * time.Second), 10, 3600, StatusOnline},
-		{mockClock.Now().Add(-45 * time.Second), 10, 3600, StatusOffline},
+		{mockClock.Now().Add(-75 * time.Second), 10, 3600, StatusOffline},
 		{mockClock.Now().Add(-30 * time.Second), 3600, 10, StatusOnline},
-		{mockClock.Now().Add(-45 * time.Second), 3600, 10, StatusOffline},
+		{mockClock.Now().Add(-75 * time.Second), 3600, 10, StatusOffline},
 
-		{mockClock.Now().Add(-70 * time.Second), 60, 60, StatusOnline},
-		{mockClock.Now().Add(-91 * time.Second), 60, 60, StatusOffline},
+		{mockClock.Now().Add(-60 * time.Second), 60, 60, StatusOnline},
+		{mockClock.Now().Add(-121 * time.Second), 60, 60, StatusOffline},
 
 		{mockClock.Now().Add(-1 * time.Second), 10, 10, StatusOnline},
-		{mockClock.Now().Add(-1 * time.Minute), 10, 10, StatusOffline},
+		{mockClock.Now().Add(-2 * time.Minute), 10, 10, StatusOffline},
 		{mockClock.Now().Add(-31 * 24 * time.Hour), 10, 10, StatusMIA},
 
 		// Ensure behavior is reasonable if we don't have the values
 		{mockClock.Now().Add(-1 * time.Second), 0, 0, StatusOnline},
-		{mockClock.Now().Add(-1 * time.Minute), 0, 0, StatusOffline},
+		{mockClock.Now().Add(-2 * time.Minute), 0, 0, StatusOffline},
 		{mockClock.Now().Add(-31 * 24 * time.Hour), 0, 0, StatusMIA},
 	}
 
@@ -47,7 +47,6 @@ func TestHostStatus(t *testing.T) {
 			assert.Equal(t, tt.status, h.Status(mockClock.Now()))
 		})
 	}
-
 }
 
 func TestHostIsNew(t *testing.T) {

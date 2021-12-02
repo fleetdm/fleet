@@ -153,8 +153,6 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
-
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
@@ -169,7 +167,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.H
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
@@ -283,9 +281,11 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type NewGlobalPolicyFunc func(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error)
+type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
+
+type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
@@ -295,7 +295,7 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type ApplyPolicySpecsFunc func(ctx context.Context, specs []*fleet.PolicySpec) error
+type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type MigrateTablesFunc func(ctx context.Context) error
 
@@ -307,7 +307,7 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
-type NewTeamPolicyFunc func(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error)
+type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
 
@@ -537,9 +537,6 @@ type DataStore struct {
 	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
 
-	MarkHostSeenFunc        MarkHostSeenFunc
-	MarkHostSeenFuncInvoked bool
-
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
 
@@ -737,6 +734,9 @@ type DataStore struct {
 
 	PolicyFunc        PolicyFunc
 	PolicyFuncInvoked bool
+
+	SavePolicyFunc        SavePolicyFunc
+	SavePolicyFuncInvoked bool
 
 	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
 	RecordPolicyQueryExecutionsFuncInvoked bool
@@ -1148,11 +1148,6 @@ func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
-	s.MarkHostSeenFuncInvoked = true
-	return s.MarkHostSeenFunc(ctx, host, t)
-}
-
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
@@ -1188,7 +1183,7 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
@@ -1473,14 +1468,19 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*fleet.Policy, error) {
+func (s *DataStore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewGlobalPolicyFuncInvoked = true
-	return s.NewGlobalPolicyFunc(ctx, queryID, resolution)
+	return s.NewGlobalPolicyFunc(ctx, authorID, args)
 }
 
 func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	s.PolicyFuncInvoked = true
 	return s.PolicyFunc(ctx, id)
+}
+
+func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+	s.SavePolicyFuncInvoked = true
+	return s.SavePolicyFunc(ctx, p)
 }
 
 func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
@@ -1503,9 +1503,9 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) ApplyPolicySpecs(ctx context.Context, specs []*fleet.PolicySpec) error {
+func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	s.ApplyPolicySpecsFuncInvoked = true
-	return s.ApplyPolicySpecsFunc(ctx, specs)
+	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
 }
 
 func (s *DataStore) MigrateTables(ctx context.Context) error {
@@ -1533,9 +1533,9 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*fleet.Policy, error) {
+func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	s.NewTeamPolicyFuncInvoked = true
-	return s.NewTeamPolicyFunc(ctx, teamID, queryID, resolution)
+	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
 func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {

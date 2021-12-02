@@ -17,7 +17,7 @@ import InputField from "components/forms/fields/InputField";
 import QueryResultsRow from "components/queries/QueryResultsRow";
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
-import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import DownloadIcon from "../../../assets/images/icon-download-12x12@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
