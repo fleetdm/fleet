@@ -264,17 +264,6 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
-// schQueriesPlatformFromHost converts the platform from a Host.Platform
-// string to a scheduled query platform string.
-func schQueryPlatformFromHost(hostPlatform string) string {
-	switch hostPlatform {
-	case "ubuntu", "rhel", "debian":
-		return "linux"
-	default: // darwin, windows
-		return hostPlatform
-	}
-}
-
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
@@ -329,7 +318,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 			goqu.I("sq.platform").IsNull(),
 			// scheduled_queries.platform can be a comma-separated list of
 			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
+			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 		),
 	)
 	sql, args, err := ds.ToSQL()

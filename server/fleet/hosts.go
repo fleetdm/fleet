@@ -74,24 +74,25 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string        `json:"-" db:"osquery_host_id"`
-	DetailUpdatedAt  time.Time     `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time     `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time     `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
-	LastEnrolledAt   time.Time     `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
-	SeenTime         time.Time     `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
-	RefetchRequested bool          `json:"refetch_requested" db:"refetch_requested"`
-	NodeKey          string        `json:"-" db:"node_key"`
-	Hostname         string        `json:"hostname" db:"hostname"` // there is a fulltext index on this field
-	UUID             string        `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
-	Platform         string        `json:"platform"`
-	OsqueryVersion   string        `json:"osquery_version" db:"osquery_version"`
-	OSVersion        string        `json:"os_version" db:"os_version"`
-	Build            string        `json:"build"`
-	PlatformLike     string        `json:"platform_like" db:"platform_like"`
-	CodeName         string        `json:"code_name" db:"code_name"`
-	Uptime           time.Duration `json:"uptime"`
-	Memory           int64         `json:"memory" sql:"type:bigint" db:"memory"`
+	OsqueryHostID    string    `json:"-" db:"osquery_host_id"`
+	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
+	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
+	SeenTime         time.Time `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
+	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested"`
+	NodeKey          string    `json:"-" db:"node_key"`
+	Hostname         string    `json:"hostname" db:"hostname"` // there is a fulltext index on this field
+	UUID             string    `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
+	// Platform is the host's platform as defined by osquery's os_version.platform.
+	Platform       string        `json:"platform"`
+	OsqueryVersion string        `json:"osquery_version" db:"osquery_version"`
+	OSVersion      string        `json:"os_version" db:"os_version"`
+	Build          string        `json:"build"`
+	PlatformLike   string        `json:"platform_like" db:"platform_like"`
+	CodeName       string        `json:"code_name" db:"code_name"`
+	Uptime         time.Duration `json:"uptime"`
+	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory"`
 	// system_info fields
 	CPUType          string `json:"cpu_type" db:"cpu_type"`
 	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`
@@ -208,4 +209,22 @@ func (h *Host) IsNew(now time.Time) bool {
 		return true
 	}
 	return false
+}
+
+// FleetPlatform returns the host's generic platform as supported by Fleet.
+func (h *Host) FleetPlatform() string {
+	return PlatformFromHost(h.Platform)
+}
+
+// PlatformFromHost converts the given host platform into
+// the generic platforms known by osquery
+// https://osquery.readthedocs.io/en/stable/deployment/configuration/
+// and supported by Fleet.
+func PlatformFromHost(hostPlatform string) string {
+	switch hostPlatform {
+	case "ubuntu", "rhel", "debian":
+		return "linux"
+	default: // darwin, windows
+		return hostPlatform
+	}
 }

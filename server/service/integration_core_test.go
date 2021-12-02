@@ -882,6 +882,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        "darwin",
 		})
 		require.NoError(t, err)
 		hosts[i] = h.ID
@@ -894,6 +895,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
+		Platforms:   "darwin",
 	}
 	tpResp := teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
@@ -1011,6 +1013,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		queryID    *uint
 		name       string
 		query      string
+		platforms  string
 	}{
 		{
 			tname:      "set both QueryID and Query",
@@ -1037,12 +1040,20 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			name:       "Invalid query",
 			query:      "ATTACH 'foo' AS bar;",
 		},
+		{
+			tname:      "Invalid platforms",
+			testUpdate: true,
+			name:       "Some query",
+			query:      "select 42;",
+			platforms:  "linux1",
+		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			tpReq := teamPolicyRequest{
-				QueryID: tc.queryID,
-				Name:    tc.name,
-				Query:   tc.query,
+				QueryID:   tc.queryID,
+				Name:      tc.name,
+				Query:     tc.query,
+				Platforms: tc.platforms,
 			}
 			tpResp := teamPolicyResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
@@ -1053,8 +1064,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				tpReq := modifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:      ptr.String(tc.name),
+						Query:     ptr.String(tc.query),
+						Platforms: ptr.String(tc.platforms),
 					},
 				}
 				tpResp := modifyTeamPolicyResponse{}
@@ -1063,9 +1075,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 
 			gpReq := globalPolicyRequest{
-				QueryID: tc.queryID,
-				Name:    tc.name,
-				Query:   tc.query,
+				QueryID:   tc.queryID,
+				Name:      tc.name,
+				Query:     tc.query,
+				Platforms: tc.platforms,
 			}
 			gpResp := globalPolicyResponse{}
 			s.DoJSON("POST", "/api/v1/fleet/global/policies", gpReq, http.StatusBadRequest, &gpResp)
@@ -1074,8 +1087,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				gpReq := modifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:      ptr.String(tc.name),
+						Query:     ptr.String(tc.query),
+						Platforms: ptr.String(tc.platforms),
 					},
 				}
 				gpResp := modifyGlobalPolicyResponse{}
