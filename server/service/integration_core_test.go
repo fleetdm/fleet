@@ -627,6 +627,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
 
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
+	require.Len(t, resp.Hosts, len(hosts)-2)
+
 	host := hosts[2]
 	host.HostSoftware = fleet.HostSoftware{
 		Modified: true,
@@ -655,6 +658,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -1176,4 +1184,81 @@ func (s *integrationTestSuite) TestListActivities() {
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+}
+
+func (s *integrationTestSuite) TestListGetCarves() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	c1, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[0].ID,
+		Name:      t.Name() + "_1",
+		SessionId: "ssn1",
+	})
+	require.NoError(t, err)
+	c2, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[1].ID,
+		Name:      t.Name() + "_2",
+		SessionId: "ssn2",
+	})
+	require.NoError(t, err)
+	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[2].ID,
+		Name:      t.Name() + "_3",
+		SessionId: "ssn3",
+	})
+	require.NoError(t, err)
+
+	// set c1 max block
+	c1.MaxBlock = 3
+	require.NoError(t, s.ds.UpdateCarve(ctx, c1))
+	// make c2 expired, set max block
+	c2.Expired = true
+	c2.MaxBlock = 3
+	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
+
+	var listResp listCarvesResponse
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c3.ID, listResp.Carves[1].ID)
+
+	// include expired
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c2.ID, listResp.Carves[1].ID)
+
+	// empty page
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "page", "3", "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 0)
+
+	// get specific carve
+	var getResp getCarveResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c2.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, c2.ID, getResp.Carve.ID)
+	require.True(t, getResp.Carve.Expired)
+
+	// get non-existing carve
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// get expired carve block
+	var blkResp getCarveBlockResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c2.ID, 1), nil, http.StatusInternalServerError, &blkResp)
+
+	// get valid carve block, but block not inserted yet
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusNotFound, &blkResp)
+
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 1, []byte("block1")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 2, []byte("block2")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 3, []byte("block3")))
+
+	// get valid carve block
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusOK, &blkResp)
+	require.Equal(t, "block1", string(blkResp.Data))
 }

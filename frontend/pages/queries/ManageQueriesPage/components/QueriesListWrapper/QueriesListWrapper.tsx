@@ -108,6 +108,7 @@ const QueriesListWrapper = ({
         isClientSideFilter
         searchQueryColumn="name"
         selectedDropdownFilter={selectedDropdownFilter}
+        isClientSidePagination
       />
     </div>
   ) : null;

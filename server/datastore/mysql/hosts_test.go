@@ -95,6 +95,7 @@ func TestHosts(t *testing.T) {
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
+		{"HostsNoSeenTime", testHostsNoSeenTime},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -652,7 +653,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
 			UUID:            fmt.Sprintf("%d", i),
@@ -677,6 +678,9 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
 	assert.Equal(t, 10, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new", ListOptions: fleet.ListOptions{OrderKey: "h.id", After: fmt.Sprint(hosts[2].ID)}}, 7)
+	assert.Equal(t, 7, len(hosts))
 }
 
 func testHostsListQuery(t *testing.T, ds *Datastore) {
@@ -1154,7 +1158,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 		assert.WithinDuration(t, aDayAgo, h1Verify.SeenTime, time.Second)
 	}
 
-	err = ds.MarkHostSeen(context.Background(), h1, anHourAgo)
+	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID}, anHourAgo)
 	assert.Nil(t, err)
 
 	{
@@ -1823,6 +1827,8 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
+
+	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
 }
 
 // This doesn't work when running the whole test suite, but helps inspect individual tests
@@ -1911,7 +1917,11 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 }
 
 func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, expected int) {
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	checkHostIssuesWithOpts(t, ds, hosts, filter, hid, fleet.HostListOptions{}, expected)
+}
+
+func checkHostIssuesWithOpts(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+	hosts = listHostsCheckCount(t, ds, filter, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
 	for _, host := range hosts {
@@ -1924,6 +1934,10 @@ func checkHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, filter fl
 	require.True(t, foundH2)
 	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+
+	if opts.DisableFailingPolicies {
+		return
+	}
 
 	hostById, err := ds.Host(context.Background(), hid, false)
 	require.NoError(t, err)
@@ -2927,4 +2941,188 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		},
 	}
 	require.ElementsMatch(t, packStats2[0].QueryStats, zeroStats)
+}
+
+// testHostsNoSeenTime tests all changes around the seen_time issue #3095.
+func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
+	h1, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	removeHostSeenTimes := func(hostID uint) {
+		result, err := ds.writer.Exec("DELETE FROM host_seen_times WHERE host_id = ?", hostID)
+		require.NoError(t, err)
+		rowsAffected, err := result.RowsAffected()
+		require.NoError(t, err)
+		require.EqualValues(t, 1, rowsAffected)
+	}
+	removeHostSeenTimes(h1.ID)
+
+	h1, err = ds.Host(context.Background(), h1.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, h1.CreatedAt, h1.SeenTime)
+
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(context.Background(), teamFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	hostsLen := len(hosts)
+	require.Equal(t, hostsLen, 1)
+	var foundHost *fleet.Host
+	for _, host := range hosts {
+		if host.ID == h1.ID {
+			foundHost = host
+			break
+		}
+	}
+	require.NotNil(t, foundHost)
+	require.Equal(t, foundHost.CreatedAt, foundHost.SeenTime)
+	hostCount, err := ds.CountHosts(context.Background(), teamFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, hostsLen, hostCount)
+
+	labelID := uint(1)
+	l1 := &fleet.LabelSpec{
+		ID:    labelID,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1})
+	require.NoError(t, err)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	listHostsInLabelCheckCount(t, ds, fleet.TeamFilter{
+		User: test.UserAdmin,
+	}, labelID, fleet.HostListOptions{}, 1)
+
+	mockClock := clock.NewMockClock()
+	summary, err := ds.GenerateHostStatusStatistics(context.Background(), teamFilter, mockClock.Now())
+	assert.NoError(t, err)
+	assert.Nil(t, summary.TeamID)
+	assert.Equal(t, uint(1), summary.TotalsHostsCount)
+	assert.Equal(t, uint(1), summary.OnlineCount)
+	assert.Equal(t, uint(0), summary.OfflineCount)
+	assert.Equal(t, uint(0), summary.MIACount)
+	assert.Equal(t, uint(1), summary.NewCount)
+
+	var count []int
+	err = ds.writer.Select(&count, "SELECT COUNT(*) FROM host_seen_times")
+	require.NoError(t, err)
+	require.Len(t, count, 1)
+	require.Zero(t, count[0])
+
+	// Enroll existing host.
+	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	require.NoError(t, err)
+
+	var seenTime1 []time.Time
+	err = ds.writer.Select(&seenTime1, "SELECT seen_time FROM host_seen_times WHERE host_id = ?", h1.ID)
+	require.NoError(t, err)
+	require.Len(t, seenTime1, 1)
+	require.NotZero(t, seenTime1[0])
+
+	time.Sleep(1 * time.Second)
+
+	// Enroll again to trigger an update of host_seen_times.
+	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	require.NoError(t, err)
+
+	var seenTime2 []time.Time
+	err = ds.writer.Select(&seenTime2, "SELECT seen_time FROM host_seen_times WHERE host_id = ?", h1.ID)
+	require.NoError(t, err)
+	require.Len(t, seenTime2, 1)
+	require.NotZero(t, seenTime2[0])
+
+	require.True(t, seenTime2[0].After(seenTime1[0]), "%s vs. %s", seenTime1[0], seenTime2[0])
+
+	removeHostSeenTimes(h1.ID)
+
+	h2, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		Platform:        "windows",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	t1 := time.Now().UTC()
+	// h1 has no host_seen_times entry, h2 does.
+	err = ds.MarkHostsSeen(context.Background(), []uint{h1.ID, h2.ID}, t1)
+	require.NoError(t, err)
+
+	// Reload hosts.
+	h1, err = ds.Host(context.Background(), h1.ID, true)
+	require.NoError(t, err)
+	h2, err = ds.Host(context.Background(), h2.ID, true)
+	require.NoError(t, err)
+
+	// Equal doesn't work, it looks like a time.Time scanned from
+	// the database is different from the original in some fields
+	// (wall and ext).
+	require.WithinDuration(t, t1, h1.SeenTime, time.Second)
+	require.WithinDuration(t, t1, h2.SeenTime, time.Second)
+
+	removeHostSeenTimes(h1.ID)
+
+	foundHosts, err := ds.SearchHosts(context.Background(), teamFilter, "")
+	require.NoError(t, err)
+	require.Len(t, foundHosts, 2)
+	// SearchHosts orders by seen time.
+	require.Equal(t, h2.ID, foundHosts[0].ID)
+	require.WithinDuration(t, t1, foundHosts[0].SeenTime, time.Second)
+	require.Equal(t, h1.ID, foundHosts[1].ID)
+	require.Equal(t, foundHosts[1].SeenTime, foundHosts[1].CreatedAt)
+
+	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, total, 2)
+	require.Equal(t, unseen, 0)
+
+	h3, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:              3,
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		Platform:        "darwin",
+		Hostname:        "host3",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	removeHostSeenTimes(h3.ID)
+
+	err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHosts(context.Background(), teamFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 3)
+
+	err = ds.RecordLabelQueryExecutions(context.Background(), h2, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordLabelQueryExecutions(context.Background(), h3, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	metrics, err := ds.CountHostsInTargets(context.Background(), teamFilter, fleet.HostTargets{
+		LabelIDs: []uint{l1.ID},
+	}, mockClock.Now())
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
+	assert.Equal(t, uint(0), metrics.OfflineHosts)
+	assert.Equal(t, uint(3), metrics.OnlineHosts)
+	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 }

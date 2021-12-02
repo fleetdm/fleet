@@ -1,6 +1,7 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import permissionUtils from "utilities/permissions";
+import { getSortedTeamOptions } from "fleet/helpers";
 
 export default (currentUser) => {
   const logo = [
@@ -67,6 +68,7 @@ export default (currentUser) => {
     const userAdminTeams = currentUser.teams.filter(
       (thisTeam) => thisTeam.role === "admin"
     );
+    const sortedTeams = getSortedTeamOptions(userAdminTeams);
     const adminNavItems = [
       {
         icon: "settings",
@@ -77,7 +79,7 @@ export default (currentUser) => {
           pathname:
             currentUser.global_role === "admin"
               ? PATHS.ADMIN_SETTINGS
-              : `${PATHS.ADMIN_TEAMS}/${userAdminTeams[0].id}/members`,
+              : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`,
         },
       },
     ];
