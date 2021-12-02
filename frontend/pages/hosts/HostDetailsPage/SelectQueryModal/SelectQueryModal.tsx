@@ -1,10 +1,8 @@
 import React, { useState, useCallback } from "react";
-import { push, routerMiddleware } from "react-router-redux";
 import { useDispatch } from "react-redux";
 
 import { filter, includes } from "lodash";
 
-import PATHS from "router/paths";
 import { IHost } from "interfaces/host";
 import { IQuery } from "interfaces/query";
 
@@ -19,6 +17,8 @@ import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 export interface ISelectQueryModalProps {
   host: IHost;
   onCancel: () => void;
+  onQueryHostCustom: () => void;
+  onQueryHostSaved: (selectedQuery: IQuery) => void;
   queries: IQuery[] | [];
   queryErrors: any | null;
   isOnlyObserver: boolean | undefined;
@@ -35,6 +35,8 @@ const baseClass = "select-query-modal";
 const SelectQueryModal = ({
   host,
   onCancel,
+  onQueryHostCustom,
+  onQueryHostSaved,
   queries,
   queryErrors,
   isOnlyObserver,
@@ -78,39 +80,6 @@ const SelectQueryModal = ({
   const queriesFiltered = getQueries();
 
   const queriesCount = queriesFiltered.length;
-
-  const onQueryHostCustom = () => {
-    return dispatch(
-      push({
-        pathname: PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host.id),
-      })
-    );
-  };
-
-  // how can I replace dispatch with react router replace?
-  // const onQueryHostCustom = (host: IHost) => {
-  //   const hostIdParam = { host_id: host.id };
-
-  //   const routeTemplate = route && route.path ? route.path : "";
-
-  //   const nextLocation = getNextLocationPath({
-  //     pathPrefix: PATHS.NEW_QUERY,
-  //     routeTemplate,
-  //     queryParams: hostIdParam,
-  //   });
-
-  //   router.replace(nextLocation);
-  // };
-
-  const onQueryHostSaved = (selectedQuery: IQuery) => {
-    return dispatch(
-      push({
-        pathname:
-          PATHS.EDIT_QUERY(selectedQuery) +
-          TAGGED_TEMPLATES.queryByHostRoute(host.id),
-      })
-    );
-  };
 
   const customQueryButton = () => {
     return (

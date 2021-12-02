@@ -100,6 +100,12 @@ interface IHostResponse {
   host: IHost;
 }
 
+const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 const HostDetailsPage = ({
   router,
   params: { host_id },
@@ -453,6 +459,17 @@ const HostDetailsPage = ({
     }
 
     return router.push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`);
+  };
+
+  const onQueryHostCustom = () => {
+    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+  };
+
+  const onQueryHostSaved = (selectedQuery: IQuery) => {
+    router.push(
+      PATHS.EDIT_QUERY(selectedQuery) +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -1312,6 +1329,8 @@ const HostDetailsPage = ({
           queries={fleetQueries || []}
           queryErrors={fleetQueriesError}
           isOnlyObserver={isOnlyObserver}
+          onQueryHostCustom={onQueryHostCustom}
+          onQueryHostSaved={onQueryHostSaved}
         />
       )}
       {!!host && showTransferHostModal && (
