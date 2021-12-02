@@ -13,38 +13,42 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
-var (
-	// errBadRoute is used for mux errors
-	errBadRoute = errors.New("bad route")
-)
+// errBadRoute is used for mux errors
+var errBadRoute = errors.New("bad route")
 
-func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	// The has to happen first, if an error happens we'll redirect to an error
-	// page and the error will be logged
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		_, err := io.WriteString(w, page.html())
-		return err
-	}
+func encodeResponse(logger kitlog.Logger) kithttp.EncodeResponseFunc {
+	return func(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+		// The has to happen first, if an error happens we'll redirect to an error
+		// page and the error will be logged
+		if page, ok := response.(htmlPage); ok {
+			w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+			_, err := io.WriteString(w, page.html())
+			return err
+		}
 
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.status())
-		if e.status() == http.StatusNoContent {
+		if e, ok := response.(errorer); ok && e.error() != nil {
+			level.Error(logger).Log("request-err", e.error())
+			encodeError(ctx, e.error(), w)
 			return nil
 		}
-	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(response)
+		if e, ok := response.(statuser); ok {
+			w.WriteHeader(e.status())
+			if e.status() == http.StatusNoContent {
+				return nil
+			}
+		}
+
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(response)
+	}
 }
 
 // statuser allows response types to implement a custom

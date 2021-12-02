@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -24,12 +25,12 @@ func TestAPIRoutes(t *testing.T) {
 	r := mux.NewRouter()
 	limitStore, _ := memstore.New(0)
 	ke := MakeFleetServerEndpoints(svc, "", limitStore, kitlog.NewNopLogger())
-	kh := makeKitHandlers(ke, nil)
+	kh := makeKitHandlers(ke, nil, log.NewNopLogger())
 	attachFleetAPIRoutes(r, kh)
 	handler := mux.NewRouter()
 	handler.PathPrefix("/").Handler(r)
 
-	var routes = []struct {
+	routes := []struct {
 		verb string
 		uri  string
 	}{
@@ -144,7 +145,8 @@ func TestAPIRoutes(t *testing.T) {
 		{
 			verb: "PATCH",
 			uri:  "/api/v1/fleet/schedule/1",
-		}, {
+		},
+		{
 			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},

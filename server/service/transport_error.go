@@ -9,6 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 )
@@ -61,7 +63,14 @@ type existsErrorInterface interface {
 	IsExists() bool
 }
 
-// encode error and status header to the client
+// errorEncoder encodes the error on the response.
+func errorEncoder(logger kitlog.Logger) kithttp.ErrorEncoder {
+	return func(ctx context.Context, err error, w http.ResponseWriter) {
+		level.Error(logger).Log("err", err)
+		encodeError(ctx, err, w)
+	}
+}
+
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	ctxerr.Handle(ctx, err)
 

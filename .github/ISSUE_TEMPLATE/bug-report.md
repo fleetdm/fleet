@@ -9,6 +9,8 @@ assignees: ''
 
 **Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
 
+**MySQL server and version**:
+
 **Fleet tier** (Are you using the free (Fleet Free) or paid (Fleet Premium) tier?):
 
 **User role** (Which role are you assigned in Fleet? (Admin, Maintainer, or Observer)):

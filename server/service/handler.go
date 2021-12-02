@@ -339,10 +339,10 @@ type fleetHandlers struct {
 	TeamEnrollSecrets                     http.Handler
 }
 
-func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
+func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption, logger kitlog.Logger) *fleetHandlers {
 	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
 		e = authzcheck.NewMiddleware().AuthzCheck()(e)
-		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
+		return kithttp.NewServer(e, decodeFn, encodeResponse(logger), opts...)
 	}
 	return &fleetHandlers{
 		Login:                                 newServer(e.Login, decodeLoginRequest),
@@ -503,7 +503,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(errorEncoder(logger)),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
@@ -512,7 +512,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	}
 
 	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore, logger)
-	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
+	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions, logger)
 
 	r := mux.NewRouter()
 
@@ -712,7 +712,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 // TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
+	return kithttp.NewServer(e, decodeFn, encodeResponse(kitlog.NewNopLogger()), opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
@@ -724,7 +724,7 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
-			encodeResponse,
+			encodeResponse(logger),
 		))
 		// whitelist osqueryd endpoints
 		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {

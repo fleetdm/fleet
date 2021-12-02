@@ -181,9 +181,15 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	s.DoRawNoAuth("POST", "/api/v1/osquery/enroll", j, http.StatusUnauthorized)
 
 	parts := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
-	require.Len(t, parts, 1)
-	logData := make(map[string]json.RawMessage)
-	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Contains(t, string(logData["err"]), string(`"enroll failed:`))
-	assert.Contains(t, string(logData["err"]), string(`no matching secret found`))
+	require.Len(t, parts, 2) // one debug and one error entry logged
+	for _, part := range parts {
+		logData := make(map[string]json.RawMessage)
+		require.NoError(t, json.Unmarshal([]byte(part), &logData))
+		errStr, ok := logData["err"]
+		if !ok {
+			errStr = logData["request-err"]
+		}
+		assert.Contains(t, string(errStr), string(`"enroll failed:`))
+		assert.Contains(t, string(errStr), string(`no matching secret found`))
+	}
 }
