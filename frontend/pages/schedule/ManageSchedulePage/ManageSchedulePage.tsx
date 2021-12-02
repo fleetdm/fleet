@@ -5,7 +5,6 @@ import { useQuery } from "react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { AppContext } from "context/app";
 import { push } from "react-router-redux";
-import { find } from "lodash";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
@@ -20,12 +19,12 @@ import fleetQueriesAPI from "services/entities/queries";
 import teamsAPI from "services/entities/teams";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import permissionUtils from "utilities/permissions";
+import sortUtils from "utilities/sort";
 
 import paths from "router/paths";
 import Button from "components/buttons/Button";
 // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import TeamsDropdown from "components/TeamsDropdown";
 import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
@@ -117,33 +116,46 @@ interface IFormData {
   team_id?: number;
 }
 
-interface ITeamOptions {
-  disabled: boolean;
-  label: string;
-  value: string | number;
-}
-
 const ManageSchedulePage = ({
   params: { team_id },
-  location,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
-  const {
-    currentUser,
-    isOnGlobalTeam,
-    isPremiumTier,
-    isAnyTeamMaintainerOrTeamAdmin,
-  } = useContext(AppContext);
+  const { currentUser, isOnGlobalTeam, isPremiumTier, isFreeTier } = useContext(
+    AppContext
+  );
 
-  const { data: teams } = useQuery(["teams"], () => teamsAPI.loadAll({}), {
-    enabled: !!isPremiumTier,
-    select: (data) => data.teams,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
+  const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
+    const filteredSortedTeams = allTeams
+      .sort((teamA: ITeam, teamB: ITeam) =>
+        sortUtils.caseInsensitiveAsc(teamA.name, teamB.name)
+      )
+      .filter((team: ITeam) => {
+        const userTeam = userTeams.find(
+          (thisUserTeam) => thisUserTeam.id === team.id
+        );
+        return userTeam?.role !== "observer" ? team : null;
+      });
+
+    return filteredSortedTeams;
+  };
+
+  const { data: teams, isLoading: isLoadingTeams } = useQuery(
+    ["teams"],
+    () => teamsAPI.loadAll({}),
+    {
+      enabled: !!isPremiumTier,
+      select: (data) => {
+        return currentUser?.teams
+          ? filterAndSortTeamOptions(data.teams, currentUser.teams)
+          : data.teams;
+      },
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const { data: fleetQueries } = useQuery(
     ["fleetQueries"],
@@ -155,51 +167,18 @@ const ManageSchedulePage = ({
     }
   );
 
-  let teamId = parseInt(team_id, 10);
+  const teamId = team_id ? parseInt(team_id, 10) : 0;
 
-  // isTeamMaintainerOrTeamAdmin set locally and not in AppContext
-  const isTeamMaintainerOrTeamAdmin = (() => {
-    return !!permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, teamId);
-  })();
-
-  const onChangeSelectedTeam = (selectedTeamId: number) => {
-    if (isNaN(selectedTeamId)) {
-      dispatch(push(MANAGE_SCHEDULE));
-    } else {
+  const handleTeamSelect = (selectedTeamId: number) => {
+    if (selectedTeamId) {
       dispatch(push(MANAGE_TEAM_SCHEDULE(selectedTeamId)));
+    } else {
+      dispatch(push(MANAGE_SCHEDULE));
     }
   };
 
-  const loadFirstMaintainerOrAdminTeam = () => {
-    if (currentUser) {
-      const adminOrMaintainerTeam = currentUser.teams.find((team) => {
-        return team.role === "admin" || team.role === "maintainer"
-          ? team.id
-          : null;
-      });
-      if (adminOrMaintainerTeam) {
-        teamId = adminOrMaintainerTeam.id;
-        onChangeSelectedTeam(teamId);
-      }
-    }
-  };
-
-  if (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin && !teamId) {
-    loadFirstMaintainerOrAdminTeam();
-  }
-
-  if (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin && teamId) {
-    if (currentUser) {
-      const canLoadTeam = currentUser.teams.find((team) => {
-        return (
-          (team.role === "admin" || team.role === "maintainer") &&
-          team.id === teamId
-        );
-      });
-      if (!canLoadTeam) {
-        loadFirstMaintainerOrAdminTeam();
-      }
-    }
+  if (!isOnGlobalTeam && !teamId && teams) {
+    handleTeamSelect(teams[0].id);
   }
 
   // TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
@@ -233,7 +212,7 @@ const ManageSchedulePage = ({
   const inheritedQueryOrQueries =
     allTeamsScheduledQueriesList.length === 1 ? "query" : "queries";
 
-  const selectedTeam = isNaN(teamId) ? "global" : teamId;
+  const selectedTeam = !teamId ? "global" : teamId;
 
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
@@ -270,55 +249,6 @@ const ManageSchedulePage = ({
   const toggleRemoveScheduledQueryModal = useCallback(() => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
-
-  const generateTeamOptionsDropdownItems = (): ITeamOptions[] => {
-    const teamOptions: ITeamOptions[] = [];
-
-    if (isAnyTeamMaintainerOrTeamAdmin && currentUser) {
-      currentUser.teams.forEach((team) => {
-        if (team.role === "admin" || team.role === "maintainer") {
-          teamOptions.push({
-            disabled: false,
-            label: team.name,
-            value: team.id,
-          });
-        }
-      });
-    } else if (isOnGlobalTeam && teams) {
-      teamOptions.push({
-        disabled: false,
-        label: "All teams",
-        value: "global",
-      });
-
-      teams.forEach((team: ITeam) => {
-        teamOptions.push({
-          disabled: false,
-          label: team.name,
-          value: team.id,
-        });
-      });
-    }
-
-    return teamOptions;
-  };
-
-  const renderTitleOrDropdown = (): JSX.Element => {
-    const dropDownOptions = generateTeamOptionsDropdownItems();
-    return dropDownOptions.length === 1 ? (
-      <h1>{dropDownOptions[0].label}</h1>
-    ) : (
-      <Dropdown
-        value={selectedTeam}
-        className={`${baseClass}__team-dropdown`}
-        options={dropDownOptions}
-        searchable={false}
-        onChange={(newSelectedValue: number) =>
-          onChangeSelectedTeam(newSelectedValue)
-        }
-      />
-    );
-  };
 
   const onRemoveScheduledQueryClick = (
     selectedTableQueryIds: number[]
@@ -435,57 +365,33 @@ const ManageSchedulePage = ({
     [dispatch, teamId, toggleScheduleEditorModal]
   );
 
-  if (selectedTeam === "global" && isTeamMaintainerOrTeamAdmin) {
-    const teamMaintainerTeams = generateTeamOptionsDropdownItems();
-    if (teamMaintainerTeams.length) {
-      dispatch(
-        push(MANAGE_TEAM_SCHEDULE(Number(teamMaintainerTeams[0].value)))
-      );
-    }
-  }
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            {!isPremiumTier ? (
-              <div className={`${baseClass}__text`}>
-                <h1 className={`${baseClass}__title`}>
-                  <span>Schedule</span>
-                </h1>
-                <div className={`${baseClass}__description`}>
-                  <p>
-                    Schedule recurring queries for your hosts. Fleet’s query
-                    schedule lets you add queries which are executed at regular
-                    intervals.
-                  </p>
-                </div>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isFreeTier && <h1>Schedule</h1>}
+                {isPremiumTier && teams && teams.length > 1 && (
+                  <TeamsDropdown
+                    selectedTeamId={teamId}
+                    currentUserTeams={teams || []}
+                    onChange={(newSelectedValue: number) =>
+                      handleTeamSelect(newSelectedValue)
+                    }
+                  />
+                )}
+                {isPremiumTier && teams && teams.length === 1 && (
+                  <h1>{teams[0].name}</h1>
+                )}
               </div>
-            ) : (
-              <div>
-                {renderTitleOrDropdown()}
-                <div className={`${baseClass}__description`}>
-                  {isNaN(teamId) ? (
-                    <p>
-                      Schedule queries to run at regular intervals across{" "}
-                      <b>all of your hosts</b>.
-                    </p>
-                  ) : (
-                    <p>
-                      Schedule additional queries for all hosts assigned to this
-                      team.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
-          {/* Hide CTA Buttons if no schedule or schedule error */}
           {allScheduledQueriesList.length !== 0 &&
             allScheduledQueriesError.length !== 0 && (
               <div className={`${baseClass}__action-button-container`}>
-                {!isTeamMaintainerOrTeamAdmin && (
+                {isOnGlobalTeam && (
                   <Button
                     variant="inverse"
                     onClick={handleAdvanced}
@@ -504,16 +410,34 @@ const ManageSchedulePage = ({
               </div>
             )}
         </div>
-        <div>
-          {renderTable(
-            onRemoveScheduledQueryClick,
-            onEditScheduledQueryClick,
-            allScheduledQueriesList,
-            allScheduledQueriesError,
-            toggleScheduleEditorModal,
-            isOnGlobalTeam || false,
-            selectedTeamData
+        <div className={`${baseClass}__description`}>
+          {!isLoadingTeams && (
+            <div>
+              {!teamId ? (
+                <p>
+                  Schedule queries to run at regular intervals across{" "}
+                  <strong>all of your hosts.</strong>
+                </p>
+              ) : (
+                <p>
+                  Schedule queries for{" "}
+                  <strong>all hosts assigned to this team.</strong>
+                </p>
+              )}
+            </div>
           )}
+        </div>
+        <div>
+          {!isLoadingTeams &&
+            renderTable(
+              onRemoveScheduledQueryClick,
+              onEditScheduledQueryClick,
+              allScheduledQueriesList,
+              allScheduledQueriesError,
+              toggleScheduleEditorModal,
+              isOnGlobalTeam || false,
+              selectedTeamData
+            )}
         </div>
         {/* must use ternary for NaN */}
         {teamId && allTeamsScheduledQueriesList.length > 0 ? (
