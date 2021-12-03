@@ -14,6 +14,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -995,7 +996,11 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
+func (d *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens.
+		level.Error(d.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
@@ -1008,10 +1013,11 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	FROM policies p
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
+	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+	AND (p.platforms IS NULL OR p.platforms = "" OR FIND_IN_SET(?, p.platforms) != 0)`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid, hid); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

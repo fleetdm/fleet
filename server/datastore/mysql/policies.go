@@ -220,7 +220,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		ID    string `db:"id"`
 		Query string `db:"query"`
 	}
-	if host.Platform == "" {
+	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
 		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))

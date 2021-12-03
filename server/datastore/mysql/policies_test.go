@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -566,12 +567,26 @@ func newTestPolicy(t *testing.T, ds *Datastore, user *fleet.User, name, platform
 	return tp
 }
 
-func expectedPolicyQueries(policies ...*fleet.Policy) map[string]string {
+type expectedPolicyResults struct {
+	policyQueries map[string]string
+	hostPolicies  []*fleet.HostPolicy
+}
+
+func expectedPolicyQueries(policies ...*fleet.Policy) expectedPolicyResults {
 	queries := make(map[string]string)
 	for _, policy := range policies {
 		queries[strconv.Itoa(int(policy.ID))] = policy.Query
 	}
-	return queries
+	hostPolicies := make([]*fleet.HostPolicy, len(policies))
+	for i := range policies {
+		hostPolicies[i] = &fleet.HostPolicy{
+			PolicyData: policies[i].PolicyData,
+		}
+	}
+	return expectedPolicyResults{
+		policyQueries: queries,
+		hostPolicies:  hostPolicies,
+	}
 }
 
 func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
@@ -619,7 +634,7 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 
 	for _, tc := range []struct {
 		host             *fleet.Host
-		expectedPolicies map[string]string
+		expectedPolicies expectedPolicyResults
 	}{
 		{
 			host: host1GlobalUbuntu,
@@ -728,9 +743,20 @@ func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
 		},
 	} {
 		t.Run(tc.host.Hostname, func(t *testing.T) {
+			// PolicyQueriesForHost is the endpoint used by osquery agents when they check in.
 			queries, err := ds.PolicyQueriesForHost(context.Background(), tc.host)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedPolicies, queries)
+			require.Equal(t, tc.expectedPolicies.policyQueries, queries)
+			// ListPoliciesForHost is the endpoint used by fleet UI/API clients.
+			hostPolicies, err := ds.ListPoliciesForHost(context.Background(), tc.host)
+			require.NoError(t, err)
+			sort.Slice(hostPolicies, func(i, j int) bool {
+				return hostPolicies[i].ID < hostPolicies[j].ID
+			})
+			sort.Slice(tc.expectedPolicies.hostPolicies, func(i, j int) bool {
+				return tc.expectedPolicies.hostPolicies[i].ID < tc.expectedPolicies.hostPolicies[j].ID
+			})
+			require.Equal(t, tc.expectedPolicies.hostPolicies, hostPolicies)
 		})
 	}
 }
@@ -807,7 +833,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now(), false))
 
-	policies, err := ds.ListPoliciesForHost(context.Background(), host1.ID)
+	policies, err := ds.ListPoliciesForHost(context.Background(), host1)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -834,7 +860,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, policies[1].Resolution)
 	assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -844,7 +870,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: ptr.Bool(true)}, time.Now(), false))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -859,7 +885,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now(), false))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
