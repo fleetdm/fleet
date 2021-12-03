@@ -1,5 +1,3 @@
-// TODO: Rebase once Martavis is merged, delete add policy modal, replace with renamed AddPolicyModal
-
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "react-query";

@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
 
 import { filter, includes } from "lodash";
 
@@ -24,16 +23,9 @@ export interface ISelectQueryModalProps {
   isOnlyObserver: boolean | undefined;
 }
 
-const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
-  },
-};
-
 const baseClass = "select-query-modal";
 
 const SelectQueryModal = ({
-  host,
   onCancel,
   onQueryHostCustom,
   onQueryHostSaved,
@@ -41,7 +33,6 @@ const SelectQueryModal = ({
   queryErrors,
   isOnlyObserver,
 }: ISelectQueryModalProps) => {
-  const dispatch = useDispatch();
   let queriesAvailableToRun = queries;
 
   const [queriesFilter, setQueriesFilter] = useState("");

@@ -42,9 +42,6 @@ const QueryPage = ({
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
-  console.log("paramsQueryId", paramsQueryId);
-  console.log("queryIdForEdit QueryPage", queryIdForEdit);
-
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
