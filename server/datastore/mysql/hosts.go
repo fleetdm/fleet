@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -745,6 +746,11 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 	if len(hostIDs) == 0 {
 		return nil
 	}
+
+	// Sort by host id to prevent deadlocks:
+	// https://percona.community/blog/2018/09/24/minimize-mysql-deadlocks-3-steps/
+	// https://dev.mysql.com/doc/refman/5.7/en/innodb-deadlocks-handling.html
+	sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
 
 	if err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var insertArgs []interface{}

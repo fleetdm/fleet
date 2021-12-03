@@ -8,7 +8,6 @@
     align-items: center;
     justify-content: space-between;
     height: 38px;
-    margin-bottom: $pad-small;
   }
 
   &__header {
@@ -130,7 +129,7 @@
     top: 0;
     border: 0;
     cursor: pointer;
-    
+
     @include button-variant(
       $core-vibrant-blue,
       $core-vibrant-blue-over,
