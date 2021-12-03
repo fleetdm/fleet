@@ -1,5 +1,4 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { noop } from "lodash";
@@ -261,7 +260,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     if (userTeams && !userTeams.find((t) => t.id === teamId)) {
       if (isOnGlobalTeam) {
         // For global users, default to zero (i.e. all teams).
-        if (teamId !== 0) {
+        if (teamId === undefined) {
           handleTeamSelect(0);
           return;
         }
