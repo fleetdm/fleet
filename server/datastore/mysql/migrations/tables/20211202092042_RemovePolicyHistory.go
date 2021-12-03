@@ -41,7 +41,7 @@ func Up_20211202092042(tx *sql.Tx) error {
 		from policy_membership_history where id in (
 		    select max(id) as id from policy_membership_history group by policy_id, host_id
 		)`); err != nil {
-		return errors.Wrap(err, "create policy membership table")
+		return errors.Wrap(err, "populate policy membership table")
 	}
 
 	_, err = tx.Exec("DROP TABLE IF EXISTS policy_membership_history")
