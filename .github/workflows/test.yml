@@ -16,6 +16,10 @@ jobs:
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:
+    - name: Install Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
     - name: Install Go
       uses: actions/setup-go@v2
       with:
