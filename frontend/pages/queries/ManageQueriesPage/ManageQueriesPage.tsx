@@ -144,7 +144,7 @@ const ManageQueriesPage = (): JSX.Element => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
     const promises = selectedQueryIds.map((id: number) => {
-      return fleetQueriesAPI.destroy(id);
+      fleetQueriesAPI.destroy(id);
     });
 
     return Promise.all(promises)
