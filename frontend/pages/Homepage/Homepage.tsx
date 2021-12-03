@@ -178,6 +178,7 @@ const Homepage = (): JSX.Element => {
             }}
           >
             <Software
+              currentTeamId={currentTeam?.id}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
             />
