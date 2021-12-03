@@ -44,7 +44,7 @@ const QueryEditor = ({
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryEditorProps) => {
+}: IQueryEditorProps): JSX.Element | null => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
 
