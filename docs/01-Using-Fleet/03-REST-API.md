@@ -5798,3 +5798,33 @@ _Available in Fleet Premium_
   }
 }
 ```
+
+### Count software
+
+`GET /api/v1/fleet/software/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
+}
+```
