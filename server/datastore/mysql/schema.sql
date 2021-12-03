@@ -381,6 +381,7 @@ CREATE TABLE `policies` (
   `query` mediumtext NOT NULL,
   `description` mediumtext NOT NULL,
   `author_id` int(10) unsigned DEFAULT NULL,
+  `platforms` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_unique_name` (`name`),
   KEY `idx_policies_author_id` (`author_id`),
