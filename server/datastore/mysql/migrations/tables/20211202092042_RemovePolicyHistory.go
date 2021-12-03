@@ -11,22 +11,17 @@ func init() {
 }
 
 func Up_20211202092042(tx *sql.Tx) error {
-	_, err := tx.Exec("DROP VIEW policy_membership")
+	_, err := tx.Exec("DROP VIEW IF EXISTS policy_membership")
 	if err != nil {
-		return errors.Wrap(err, "drop table policy_membership_history")
-	}
-
-	_, err = tx.Exec("DROP TABLE policy_membership_history")
-	if err != nil {
-		return errors.Wrap(err, "drop table policy_membership_history")
+		return errors.Wrap(err, "drop view policy_membership")
 	}
 
 	policyMembershipTable := `
 		CREATE TABLE IF NOT EXISTS policy_membership (
-			policy_id INT UNSIGNED,
+			policy_id INT UNSIGNED NOT NULL,
 			host_id int(10) UNSIGNED NOT NULL,
 			passes BOOL DEFAULT NULL,
-			created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+			created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (policy_id,host_id),
 			FOREIGN KEY fk_policy_membership_policy_id (policy_id) REFERENCES policies(id) ON DELETE CASCADE,
@@ -39,6 +34,19 @@ func Up_20211202092042(tx *sql.Tx) error {
 
 	if _, err := tx.Exec(policyMembershipTable); err != nil {
 		return errors.Wrap(err, "create policy membership table")
+	}
+
+	if _, err := tx.Exec(`insert ignore into policy_membership 
+		select policy_id, host_id, passes, created_at, updated_at 
+		from policy_membership_history where id in (
+		    select max(id) as id from policy_membership_history group by policy_id, host_id
+		)`); err != nil {
+		return errors.Wrap(err, "create policy membership table")
+	}
+
+	_, err = tx.Exec("DROP TABLE IF EXISTS policy_membership_history")
+	if err != nil {
+		return errors.Wrap(err, "drop table policy_membership_history")
 	}
 
 	return nil
