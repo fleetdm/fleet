@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -176,8 +175,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
-		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
-		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
+		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return ctxerr.Wrap(ctx, err, "failed to save host software")
 			}
