@@ -520,6 +520,16 @@ spec:
 apiVersion: v1
 kind: query
 spec:
+  name: Get running docker containers
+  platforms: macOS, Linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
   name: Get applications hogging memory
   platforms: macOS, Linux, Windows
   description: Returns top 10 applications or processes hogging memory the most.
