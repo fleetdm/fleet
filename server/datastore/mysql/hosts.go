@@ -881,13 +881,13 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
+		query, args, err := sqlx.In(`DELETE FROM policy_membership
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership history")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership")
 		}
 
 		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
@@ -1007,8 +1007,6 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 }
 
 func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
-	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
-	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
@@ -1019,11 +1017,7 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 		END AS response,
 		coalesce(p.resolution, '') as resolution
 	FROM policies p
-	LEFT JOIN (
-	    SELECT * FROM policy_membership_history WHERE id IN (
-	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
-	    )
-	) as pm ON (p.id=pm.policy_id)
+	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
 	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
 

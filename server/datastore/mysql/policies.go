@@ -110,8 +110,8 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	}
 
 	query := fmt.Sprintf(
-		`INSERT INTO policy_membership_history (updated_at, policy_id, host_id, passes)
-				VALUES %s`,
+		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
+				VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
 		strings.Join(bindvars, ","),
 	)
 
