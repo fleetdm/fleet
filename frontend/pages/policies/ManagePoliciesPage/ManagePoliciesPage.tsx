@@ -9,6 +9,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import PATHS from "router/paths";
 
+import { DEFAULT_POLICY } from "utilities/constants";
 import { IPolicy, IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -68,7 +69,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isPremiumTier,
   } = useContext(AppContext);
 
-  const { setPolicyTeamId } = useContext(PolicyContext);
+  const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setPolicyTeamId,
+  } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
   const canAddOrRemovePolicy = (user: IUser | null, teamId: number | null) =>
@@ -180,6 +186,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
+
+  const onAddPolicyClick = () => {
+    setLastEditedQueryName("");
+    setLastEditedQueryDescription("");
+    setLastEditedQueryBody(DEFAULT_POLICY.query);
+    router.push(PATHS.NEW_POLICY);
+  };
 
   const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
     toggleRemovePoliciesModal();
@@ -348,12 +361,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           </div>
           {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
             <div className={`${baseClass}__action-button-container`}>
-              <Link
-                to={PATHS.NEW_POLICY}
-                className={`${baseClass}__add-policy-link`}
+              <Button
+                variant="brand"
+                className={`${baseClass}__add-policy-btn`}
+                onClick={onAddPolicyClick}
               >
                 Add a policy
-              </Link>
+              </Button>
             </div>
           )}
         </div>
