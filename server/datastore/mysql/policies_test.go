@@ -959,6 +959,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc",
 			Resolution:  "some resolution",
 			Team:        "",
+			Platforms:   "",
 		},
 		{
 			Name:        "query2",
@@ -966,6 +967,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc",
 			Resolution:  "some other resolution",
 			Team:        "team1",
+			Platforms:   "darwin",
 		},
 		{
 			Name:        "query3",
@@ -973,6 +975,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query3 desc",
 			Resolution:  "some other good resolution",
 			Team:        "team1",
+			Platforms:   "windows,linux",
 		},
 	}))
 
@@ -986,6 +989,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[0].AuthorID)
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
+	assert.Equal(t, "", policies[0].Platforms)
 
 	teamPolicies, err := ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
@@ -997,6 +1001,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
+	assert.Equal(t, "darwin", teamPolicies[0].Platforms)
 
 	assert.Equal(t, "query3", teamPolicies[1].Name)
 	assert.Equal(t, "select 3;", teamPolicies[1].Query)
@@ -1005,6 +1010,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *teamPolicies[1].AuthorID)
 	require.NotNil(t, teamPolicies[1].Resolution)
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
+	assert.Equal(t, "windows,linux", teamPolicies[1].Platforms)
 
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -1014,6 +1020,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc",
 			Resolution:  "some resolution",
 			Team:        "",
+			Platforms:   "",
 		},
 		{
 			Name:        "query2",
@@ -1021,6 +1028,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc",
 			Resolution:  "some other resolution",
 			Team:        "team1",
+			Platforms:   "darwin",
 		},
 		{
 			Name:        "query3",
@@ -1028,6 +1036,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query3 desc",
 			Resolution:  "some other good resolution",
 			Team:        "team1",
+			Platforms:   "windows,linux",
 		},
 	}))
 
@@ -1046,6 +1055,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
 			Team:        "",
+			Platforms:   "linux",
 		},
 		{
 			Name:        "query2",
@@ -1053,6 +1063,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
 			Team:        "team1",
+			Platforms:   "windows",
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx)
@@ -1066,6 +1077,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[0].AuthorID)
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
+	assert.Equal(t, "linux", policies[0].Platforms)
 
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
@@ -1079,6 +1091,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team1.ID, *teamPolicies[0].TeamID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
+	assert.Equal(t, "windows", teamPolicies[0].Platforms)
 
 	// The following will "move" the policy from global to a team.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -1088,6 +1101,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc team1",
 			Resolution:  "some resolution team1",
 			Team:        "team1",
+			Platforms:   "linux",
 		},
 	}))
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
@@ -1104,6 +1118,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 53;",
 			Description: "query2 desc global",
 			Resolution:  "some resolution global",
+			Platforms:   "windows",
 		},
 	}))
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
