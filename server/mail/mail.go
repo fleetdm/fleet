@@ -4,7 +4,6 @@ package mail
 import (
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"html/template"
 	"net"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/pkg/errors"
 )
 
 func NewService() fleet.MailService {
