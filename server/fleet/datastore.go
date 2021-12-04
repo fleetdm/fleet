@@ -213,7 +213,7 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
-	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -375,6 +375,7 @@ type Datastore interface {
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

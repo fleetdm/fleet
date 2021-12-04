@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"errors"
+	"strings"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -20,15 +21,20 @@ type PolicyPayload struct {
 	Query string
 	// Description is the policy description text (ignored if QueryID != nil).
 	Description string
-	// Resolution indicate the steps needed to solve a failing policy.
+	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
+	// Platforms is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platforms string
 }
 
 var (
-	errPolicyEmptyName     = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery    = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidQuery  = errors.New("invalid policy query")
+	errPolicyEmptyName       = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery      = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet   = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidQuery    = errors.New("invalid policy query")
+	errPolicyInvalidPlatform = errors.New("invalid policy platform")
 )
 
 // Verify verifies the policy payload is valid.
@@ -44,6 +50,9 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyQuery(p.Query); err != nil {
 			return err
 		}
+	}
+	if err := verifyPolicyPlatforms(p.Platforms); err != nil {
+		return err
 	}
 	return nil
 }
@@ -65,6 +74,21 @@ func verifyPolicyQuery(query string) error {
 	return nil
 }
 
+func verifyPolicyPlatforms(platforms string) error {
+	if platforms == "" {
+		return nil
+	}
+	for _, s := range strings.Split(platforms, ",") {
+		switch strings.TrimSpace(s) {
+		case "windows", "linux", "darwin":
+			// OK
+		default:
+			return errPolicyInvalidPlatform
+		}
+	}
+	return nil
+}
+
 // ModifyPolicyPayload holds data for policy modification.
 type ModifyPolicyPayload struct {
 	// Name is the name of the policy.
@@ -75,6 +99,10 @@ type ModifyPolicyPayload struct {
 	Description *string `json:"description"`
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution *string `json:"resolution"`
+	// Platforms is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platforms *string `json:"platforms"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -86,6 +114,11 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.Query != nil {
 		if err := verifyPolicyQuery(*p.Query); err != nil {
+			return err
+		}
+	}
+	if p.Platforms != nil {
+		if err := verifyPolicyPlatforms(*p.Platforms); err != nil {
 			return err
 		}
 	}
@@ -115,6 +148,10 @@ type PolicyData struct {
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
+	// Platforms is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platforms string `json:"platforms" db:"platforms"`
 
 	UpdateCreateTimestamps
 }
@@ -149,12 +186,23 @@ type HostPolicy struct {
 }
 
 // PolicySpec is used to hold policy data to apply policy specs.
+//
+// Policies are currently identified by name (unique).
 type PolicySpec struct {
-	Name        string `json:"name"`
-	Query       string `json:"query"`
+	// Name is the name of the policy.
+	Name string `json:"name"`
+	// Query is the policy's SQL query.
+	Query string `json:"query"`
+	// Description describes the policy.
 	Description string `json:"description"`
-	Resolution  string `json:"resolution,omitempty"`
-	Team        string `json:"team,omitempty"`
+	// Resolution describes how to solve a failing policy.
+	Resolution string `json:"resolution,omitempty"`
+	// Team is the name of the team.
+	Team string `json:"team,omitempty"`
+	// Platforms is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platforms string `json:"platforms,omitempty"`
 }
 
 // Verify verifies the policy data is valid.
@@ -163,6 +211,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := verifyPolicyQuery(p.Query); err != nil {
+		return err
+	}
+	if err := verifyPolicyPlatforms(p.Platforms); err != nil {
 		return err
 	}
 	return nil

@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +32,7 @@ func TestPolicies(t *testing.T) {
 		{"TeamPolicyLegacy", testTeamPolicyLegacy},
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
+		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
 		{"Save", testPoliciesSave},
@@ -518,6 +523,244 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Equal(t, user1.ID, *team2Policies[0].AuthorID)
 }
 
+func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform string, teamID *uint) *fleet.Host {
+	nodeKey, err := server.GenerateRandomText(32)
+	require.NoError(t, err)
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:   uuid.NewString(),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         nodeKey,
+		UUID:            uuid.NewString(),
+		Hostname:        hostname,
+		Platform:        platform,
+	})
+	require.NoError(t, err)
+	if teamID != nil {
+		err := ds.AddHostsToTeam(context.Background(), teamID, []uint{host.ID})
+		require.NoError(t, err)
+		host, err = ds.Host(context.Background(), host.ID, false)
+		require.NoError(t, err)
+	}
+	return host
+}
+
+func newTestPolicy(t *testing.T, ds *Datastore, user *fleet.User, name, platforms string, teamID *uint) *fleet.Policy {
+	query := fmt.Sprintf("select %s;", name)
+	if teamID == nil {
+		gp, err := ds.NewGlobalPolicy(context.Background(), &user.ID, fleet.PolicyPayload{
+			Name:      name,
+			Query:     query,
+			Platforms: platforms,
+		})
+		require.NoError(t, err)
+		return gp
+	}
+	tp, err := ds.NewTeamPolicy(context.Background(), *teamID, &user.ID, fleet.PolicyPayload{
+		Name:      name,
+		Query:     query,
+		Platforms: platforms,
+	})
+	require.NoError(t, err)
+	return tp
+}
+
+type expectedPolicyResults struct {
+	policyQueries map[string]string
+	hostPolicies  []*fleet.HostPolicy
+}
+
+func expectedPolicyQueries(policies ...*fleet.Policy) expectedPolicyResults {
+	queries := make(map[string]string)
+	for _, policy := range policies {
+		queries[strconv.Itoa(int(policy.ID))] = policy.Query
+	}
+	hostPolicies := make([]*fleet.HostPolicy, len(policies))
+	for i := range policies {
+		hostPolicies[i] = &fleet.HostPolicy{
+			PolicyData: policies[i].PolicyData,
+		}
+	}
+	return expectedPolicyResults{
+		policyQueries: queries,
+		hostPolicies:  hostPolicies,
+	}
+}
+
+func testPolicyQueriesForHostPlatforms(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Global hosts:
+	var global *uint
+	host1GlobalUbuntu := newTestHostWithPlatform(t, ds, "host1_global_ubuntu", "ubuntu", global)
+	host2GlobalDarwin := newTestHostWithPlatform(t, ds, "host2_global_darwin", "darwin", global)
+	host3GlobalWindows := newTestHostWithPlatform(t, ds, "host3_global_windows", "windows", global)
+	host4GlobalEmpty := newTestHostWithPlatform(t, ds, "host4_global_empty_platform", "", global)
+
+	// team1 hosts:
+	host1t1Rhel := newTestHostWithPlatform(t, ds, "host1_team1_ubuntu", "rhel", &team1.ID)
+	host2t1Darwin := newTestHostWithPlatform(t, ds, "host2_team1_darwin", "darwin", &team1.ID)
+	host3t1Windows := newTestHostWithPlatform(t, ds, "host3_team1_windows", "windows", &team1.ID)
+	host4t1Empty := newTestHostWithPlatform(t, ds, "host4_team1_empty_platform", "", &team1.ID)
+
+	// team2 hosts
+	host1t2Debian := newTestHostWithPlatform(t, ds, "host1_team2_ubuntu", "debian", &team2.ID)
+	host2t2Darwin := newTestHostWithPlatform(t, ds, "host2_team2_darwin", "darwin", &team2.ID)
+	host3t2Windows := newTestHostWithPlatform(t, ds, "host3_team2_windows", "windows", &team2.ID)
+	host4t2Empty := newTestHostWithPlatform(t, ds, "host4_team2_empty_platform", "", &team2.ID)
+
+	// Global policies:
+	policy1GlobalLinuxDarwin := newTestPolicy(t, ds, user1, "policy1_global_linux_darwin", "linux,darwin", global)
+	policy2GlobalWindows := newTestPolicy(t, ds, user1, "policy2_global_windows", "windows", global)
+	policy3GlobalAll := newTestPolicy(t, ds, user1, "policy3_global_all", "", global)
+
+	// Team1 policies:
+	policy1t1Darwin := newTestPolicy(t, ds, user1, "policy1_team1_darwin", "darwin", &team1.ID)
+	policy2t1Windows := newTestPolicy(t, ds, user1, "policy2_team1_windows", "windows", &team1.ID)
+	policy3t1All := newTestPolicy(t, ds, user1, "policy3_team1_all", "", &team1.ID)
+
+	// Team2 policies:
+	policy1t2LinuxDarwin := newTestPolicy(t, ds, user1, "policy1_team2_linux_darwin", "linux,darwin", &team2.ID)
+	policy2t2Windows := newTestPolicy(t, ds, user1, "policy2_team2_windows", "windows", &team2.ID)
+	policy3t2All1 := newTestPolicy(t, ds, user1, "policy3_team2_all1", "linux,darwin,windows", &team2.ID)
+	policy4t2All2 := newTestPolicy(t, ds, user1, "policy4_team2_all2", "", &team2.ID)
+
+	for _, tc := range []struct {
+		host             *fleet.Host
+		expectedPolicies expectedPolicyResults
+	}{
+		{
+			host: host1GlobalUbuntu,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+			),
+		},
+		{
+			host: host2GlobalDarwin,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+			),
+		},
+		{
+			host: host3GlobalWindows,
+			expectedPolicies: expectedPolicyQueries(
+				policy2GlobalWindows,
+				policy3GlobalAll,
+			),
+		},
+		{
+			host: host4GlobalEmpty,
+			expectedPolicies: expectedPolicyQueries(
+				policy3GlobalAll,
+			),
+		},
+		{
+			host: host1t1Rhel,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+
+				policy3t1All,
+			),
+		},
+		{
+			host: host2t1Darwin,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+
+				policy3t1All,
+				policy1t1Darwin,
+			),
+		},
+		{
+			host: host3t1Windows,
+			expectedPolicies: expectedPolicyQueries(
+				policy2GlobalWindows,
+				policy3GlobalAll,
+
+				policy3t1All,
+				policy2t1Windows,
+			),
+		},
+		{
+			host: host4t1Empty,
+			expectedPolicies: expectedPolicyQueries(
+				policy3GlobalAll,
+
+				policy3t1All,
+			),
+		},
+		{
+			host: host1t2Debian,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+
+				policy1t2LinuxDarwin,
+				policy3t2All1,
+				policy4t2All2,
+			),
+		},
+		{
+			host: host2t2Darwin,
+			expectedPolicies: expectedPolicyQueries(
+				policy1GlobalLinuxDarwin,
+				policy3GlobalAll,
+
+				policy1t2LinuxDarwin,
+				policy3t2All1,
+				policy4t2All2,
+			),
+		},
+		{
+			host: host3t2Windows,
+			expectedPolicies: expectedPolicyQueries(
+				policy2GlobalWindows,
+				policy3GlobalAll,
+
+				policy2t2Windows,
+				policy3t2All1,
+				policy4t2All2,
+			),
+		},
+		{
+			host: host4t2Empty,
+			expectedPolicies: expectedPolicyQueries(
+				policy3GlobalAll,
+
+				policy4t2All2,
+			),
+		},
+	} {
+		t.Run(tc.host.Hostname, func(t *testing.T) {
+			// PolicyQueriesForHost is the endpoint used by osquery agents when they check in.
+			queries, err := ds.PolicyQueriesForHost(context.Background(), tc.host)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedPolicies.policyQueries, queries)
+			// ListPoliciesForHost is the endpoint used by fleet UI/API clients.
+			hostPolicies, err := ds.ListPoliciesForHost(context.Background(), tc.host)
+			require.NoError(t, err)
+			sort.Slice(hostPolicies, func(i, j int) bool {
+				return hostPolicies[i].ID < hostPolicies[j].ID
+			})
+			sort.Slice(tc.expectedPolicies.hostPolicies, func(i, j int) bool {
+				return tc.expectedPolicies.hostPolicies[i].ID < tc.expectedPolicies.hostPolicies[j].ID
+			})
+			require.Equal(t, tc.expectedPolicies.hostPolicies, hostPolicies)
+		})
+	}
+}
+
 func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -590,7 +833,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now(), false))
 
-	policies, err := ds.ListPoliciesForHost(context.Background(), host1.ID)
+	policies, err := ds.ListPoliciesForHost(context.Background(), host1)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -617,7 +860,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, policies[1].Resolution)
 	assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -627,7 +870,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: ptr.Bool(true)}, time.Now(), false))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
@@ -642,7 +885,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{uint(id): nil}, time.Now(), false))
 
-	policies, err = ds.ListPoliciesForHost(context.Background(), host2.ID)
+	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
@@ -742,6 +985,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc",
 			Resolution:  "some resolution",
 			Team:        "",
+			Platforms:   "",
 		},
 		{
 			Name:        "query2",
@@ -749,6 +993,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc",
 			Resolution:  "some other resolution",
 			Team:        "team1",
+			Platforms:   "darwin",
 		},
 		{
 			Name:        "query3",
@@ -756,6 +1001,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query3 desc",
 			Resolution:  "some other good resolution",
 			Team:        "team1",
+			Platforms:   "windows,linux",
 		},
 	}))
 
@@ -769,6 +1015,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[0].AuthorID)
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
+	assert.Equal(t, "", policies[0].Platforms)
 
 	teamPolicies, err := ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
@@ -780,6 +1027,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
+	assert.Equal(t, "darwin", teamPolicies[0].Platforms)
 
 	assert.Equal(t, "query3", teamPolicies[1].Name)
 	assert.Equal(t, "select 3;", teamPolicies[1].Query)
@@ -788,6 +1036,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *teamPolicies[1].AuthorID)
 	require.NotNil(t, teamPolicies[1].Resolution)
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
+	assert.Equal(t, "windows,linux", teamPolicies[1].Platforms)
 
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -797,6 +1046,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc",
 			Resolution:  "some resolution",
 			Team:        "",
+			Platforms:   "",
 		},
 		{
 			Name:        "query2",
@@ -804,6 +1054,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc",
 			Resolution:  "some other resolution",
 			Team:        "team1",
+			Platforms:   "darwin",
 		},
 		{
 			Name:        "query3",
@@ -811,6 +1062,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query3 desc",
 			Resolution:  "some other good resolution",
 			Team:        "team1",
+			Platforms:   "windows,linux",
 		},
 	}))
 
@@ -829,6 +1081,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
 			Team:        "",
+			Platforms:   "linux",
 		},
 		{
 			Name:        "query2",
@@ -836,6 +1089,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
 			Team:        "team1",
+			Platforms:   "windows",
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx)
@@ -849,6 +1103,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[0].AuthorID)
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
+	assert.Equal(t, "linux", policies[0].Platforms)
 
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
@@ -862,6 +1117,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team1.ID, *teamPolicies[0].TeamID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
+	assert.Equal(t, "windows", teamPolicies[0].Platforms)
 
 	// The following will "move" the policy from global to a team.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -871,6 +1127,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Description: "query1 desc team1",
 			Resolution:  "some resolution team1",
 			Team:        "team1",
+			Platforms:   "linux",
 		},
 	}))
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
@@ -887,6 +1144,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 53;",
 			Description: "query2 desc global",
 			Resolution:  "some resolution global",
+			Platforms:   "windows",
 		},
 	}))
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
