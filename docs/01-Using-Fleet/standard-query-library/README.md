@@ -31,7 +31,7 @@ Want to add your own query?
 
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 
-3. If you want to contribute multiple queries, do open one PR with all the queries in it.
+3. If you want to contribute multiple queries, please open one pull request that includes all your queries.
 
 For instructions on submitting pull requests to Fleet check out [the Committing Changes
 section](../../03-Contributing/04-Committing-Changes.md#committing-changes) in the Contributors
