@@ -2077,13 +2077,3 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs, or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
-
-### Software inventory
-
-Enable by setting the environment variable `FLEET_BETA_SOFTWARE_INVENTORY=1`.
-
-When enabled, Fleet will store a "software inventory" for hosts, updated along with the other host vitals. Note that it will take some time for the data to be available after setting this flag (it will be updated when the host details are next updated, configurable by [--osquery_detail_update_interval](#osquery-detail-update-interval)).
-
-This is currently feature flagged because we would like to evaluate the performance characteristics on larger deployments.
-
-To read more about the software inventory feature, [check out the Fleet 3.11.0 release blog post](https://medium.com/fleetdm/fleet-3-11-0-released-with-software-inventory-25d5a1efe19c).

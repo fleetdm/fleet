@@ -21,6 +21,7 @@ type globalPolicyRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
+	Platforms   string `json:"platforms"`
 }
 
 type globalPolicyResponse struct {
@@ -38,6 +39,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Name:        req.Name,
 		Description: req.Description,
 		Resolution:  req.Resolution,
+		Platforms:   req.Platforms,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
