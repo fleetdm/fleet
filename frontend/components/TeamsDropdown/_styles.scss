@@ -38,10 +38,11 @@
     }
 
     .Select-arrow-zone {
+      height: 32px;
       padding-left: $pad-small;
 
       .Select-arrow {
-        top: 1px !important;
+        top: 2px !important;
         margin-top: 0 !important;
       }
     }
@@ -65,7 +66,7 @@
         right: 0;
         left: 0;
         bottom: 0;
-        top: 0;
+        top: 2px;
 
         &.is-focused {
           border: 0 !important;

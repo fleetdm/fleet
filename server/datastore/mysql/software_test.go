@@ -458,28 +458,19 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
 
 	t.Run("lists everything", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
-		require.NoError(t, err)
-
-		require.Len(t, software, 4)
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{})
 		expected := []fleet.Software{foo001, foo002, foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("limits the results", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, OrderKey: "version"}})
-		require.NoError(t, err)
-
-		require.Len(t, software, 1)
+		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, OrderKey: "version"}})
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}})
-		require.NoError(t, err)
-
-		require.Len(t, software, 1)
+		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}})
 		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -489,10 +480,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "version"}, TeamID: &team1.ID})
-		require.NoError(t, err)
-
-		require.Len(t, software, 2)
+		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "version"}, TeamID: &team1.ID})
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -502,7 +490,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+		software := listSoftwareCheckCount(t, ds, 1, 2, fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				PerPage:  1,
 				Page:     1,
@@ -510,49 +498,33 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			},
 			TeamID: &team1.ID,
 		})
-		require.NoError(t, err)
-
-		require.Len(t, software, 1)
-
 		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{VulnerableOnly: true})
-		require.NoError(t, err)
-
-		require.Len(t, software, 1)
+		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{VulnerableOnly: true})
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
 		// query by name (case insensitive)
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}})
-		require.NoError(t, err)
-		require.Len(t, software, 1)
+		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}})
 		expected := []fleet.Software{bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 		// query by version
-		software, err = ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}})
-		require.NoError(t, err)
-		require.Len(t, software, 2)
+		software = listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}})
 		expected = []fleet.Software{foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 		// query by version (case insensitive)
-		software, err = ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}})
-		require.NoError(t, err)
-		require.Len(t, software, 1)
+		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}})
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("can order by name and id", func(t *testing.T) {
-		software, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}})
-		require.NoError(t, err)
-
-		require.Len(t, software, 4)
+		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}})
 		assert.Equal(t, bar003.Name, software[0].Name)
 		assert.Equal(t, bar003.Version, software[0].Version)
 		assert.Equal(t, bar003.Source, software[0].Source)
@@ -561,4 +533,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		assert.Greater(t, software[2].ID, software[1].ID)
 		assert.Greater(t, software[3].ID, software[2].ID)
 	})
+}
+
+func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions) []fleet.Software {
+	software, err := ds.ListSoftware(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, software, expectedListCount)
+	count, err := ds.CountSoftware(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, expectedFullCount, count)
+	return software
 }

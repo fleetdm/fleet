@@ -1,0 +1,1 @@
+* Remove host_expiry event if it still exists

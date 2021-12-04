@@ -83,9 +83,9 @@ export const DEFAULT_QUERY = {
 
 export const DEFAULT_POLICY = {
   id: 1,
-  name: "Gatekeeper enabled",
-  query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-  description: "Checks if gatekeeper is enabled on macOS devices",
+  name: "Is osquery running?",
+  query: "SELECT 1 FROM osquery_info WHERE start_time > 1;",
+  description: "Checks if the osquery process has started on the host.",
   author_id: 42,
   author_name: "John",
   author_email: "john@example.com",
@@ -93,6 +93,8 @@ export const DEFAULT_POLICY = {
   passing_host_count: 2000,
   failing_host_count: 300,
   platform: "darwin,windows,linux" as IQueryPlatform,
+  created_at: "",
+  updated_at: "",
 };
 
 export const DEFAULT_CAMPAIGN = {

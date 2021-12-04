@@ -474,6 +474,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
+| after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
@@ -572,6 +573,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -800,6 +802,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
+        "platforms": "windows,linux",
         "response": "pass"
       },
       {
@@ -808,6 +811,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
+        "platforms": "darwin",
         "response": "fail"
       },
       {
@@ -816,6 +820,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from baz;",
         "description": "",
         "resolution": "",
+        "platforms": "",
         "response": ""
       }
     ],
@@ -3442,6 +3447,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_name": "John",
       "author_email": "john@example.com",
       "resolution": "Resolution steps",
+      "platforms": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3453,6 +3459,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
+      "resolution": "Resolution steps",
+      "platforms": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3489,6 +3497,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 2000,
     "failing_host_count": 300
   }
@@ -3515,6 +3524,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
 
 Either `query` or `query_id` must be provided.
 
@@ -3529,7 +3539,8 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "platforms": "darwin"
 }
 ```
 
@@ -3548,6 +3559,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3583,6 +3595,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3634,6 +3647,8 @@ Where `query_id` references an existing `query`.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
+| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+
 
 #### Example Edit Policy
 
@@ -3646,7 +3661,8 @@ Where `query_id` references an existing `query`.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "platforms": "darwin"
 }
 ```
 
@@ -3665,6 +3681,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3716,6 +3733,7 @@ Team policies work the same as policies, but at the team level.
       "author_email": "john@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
+      "platforms": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3728,6 +3746,8 @@ Team policies work the same as policies, but at the team level.
       "author_name": "Alice",
       "author_email": "alice@example.com",
       "team_id": 1,
+      "resolution": "Resolution steps",
+      "platforms": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3766,6 +3786,7 @@ Team policies work the same as policies, but at the team level.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3788,6 +3809,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
 
 Either `query` or `query_id` must be provided.
 
@@ -3802,7 +3824,8 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "platforms": "darwin"
 }
 ```
 
@@ -3822,6 +3845,7 @@ Either `query` or `query_id` must be provided.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3875,6 +3899,8 @@ Either `query` or `query_id` must be provided.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
+| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+
 
 #### Example Edit Policy
 
@@ -3887,7 +3913,8 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "plarforms": "darwin"
 }
 ```
 
@@ -3906,6 +3933,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platforms": "darwin",
     "team_id": 2,
     "passing_host_count": 0,
     "failing_host_count": 0
@@ -5794,5 +5822,35 @@ _Available in Fleet Premium_
       }
     ]
   }
+}
+```
+
+### Count software
+
+`GET /api/v1/fleet/software/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
 }
 ```

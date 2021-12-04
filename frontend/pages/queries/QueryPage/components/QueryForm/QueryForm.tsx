@@ -160,6 +160,10 @@ const QueryForm = ({
     });
   };
 
+  const onChangeQuery = (sqlString: string) => {
+    setLastEditedQueryBody(sqlString);
+  };
+
   const promptSaveQuery = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -181,8 +185,6 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
         });
-
-        setErrors({});
       }
     } else {
       setErrors(newErrors);
@@ -439,7 +441,7 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => setLastEditedQueryBody(sqlString)}
+          onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
         />
         {renderPlatformCompatibilityBlock()}

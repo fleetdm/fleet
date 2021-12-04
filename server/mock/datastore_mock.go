@@ -153,8 +153,6 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 
 type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type MarkHostSeenFunc func(ctx context.Context, host *fleet.Host, t time.Time) error
-
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
@@ -169,7 +167,7 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.H
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (int, int, error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
@@ -177,7 +175,7 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
-type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -306,6 +304,8 @@ type MigrateDataFunc func(ctx context.Context) error
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
+
+type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -537,9 +537,6 @@ type DataStore struct {
 	AuthenticateHostFunc        AuthenticateHostFunc
 	AuthenticateHostFuncInvoked bool
 
-	MarkHostSeenFunc        MarkHostSeenFunc
-	MarkHostSeenFuncInvoked bool
-
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
 
@@ -767,6 +764,9 @@ type DataStore struct {
 
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
+
+	CountSoftwareFunc        CountSoftwareFunc
+	CountSoftwareFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1148,11 +1148,6 @@ func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *DataStore) MarkHostSeen(ctx context.Context, host *fleet.Host, t time.Time) error {
-	s.MarkHostSeenFuncInvoked = true
-	return s.MarkHostSeenFunc(ctx, host, t)
-}
-
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
 	s.MarkHostsSeenFuncInvoked = true
 	return s.MarkHostsSeenFunc(ctx, hostIDs, t)
@@ -1188,7 +1183,7 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
 }
@@ -1208,9 +1203,9 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
-	return s.ListPoliciesForHostFunc(ctx, hid)
+	return s.ListPoliciesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -1531,6 +1526,11 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
 	return s.ListSoftwareFunc(ctx, opt)
+}
+
+func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	s.CountSoftwareFuncInvoked = true
+	return s.CountSoftwareFunc(ctx, opt)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
