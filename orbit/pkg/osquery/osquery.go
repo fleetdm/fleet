@@ -3,6 +3,7 @@ package osquery
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/process"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -44,7 +44,7 @@ func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
 	for _, option := range options {
 		err := option(r)
 		if err != nil {
-			return nil, errors.Wrap(err, "apply option")
+			return nil, fmt.Errorf("apply option: %w", err)
 		}
 	}
 
@@ -82,7 +82,7 @@ func WithDataPath(path string) func(*Runner) error {
 		r.dataPath = path
 
 		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize osquery data path")
+			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
@@ -97,7 +97,7 @@ func WithDataPath(path string) func(*Runner) error {
 func WithLogPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
 		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
-			return errors.Wrap(err, "initialize osquery log path")
+			return fmt.Errorf("initialize osquery log path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
@@ -118,11 +118,11 @@ func (r *Runner) Execute() error {
 	r.cancel = cancel
 
 	if err := r.proc.Start(); err != nil {
-		return errors.Wrap(err, "start osqueryd")
+		return fmt.Errorf("start osqueryd: %w", err)
 	}
 
 	if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
-		return errors.Wrap(err, "osqueryd exited with error")
+		return fmt.Errorf("osqueryd exited with error: %w", err)
 	}
 
 	return nil

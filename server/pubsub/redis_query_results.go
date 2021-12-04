@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 )
 
 type redisQueryResults struct {
@@ -45,7 +45,7 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 
 	jsonVal, err := json.Marshal(&result)
 	if err != nil {
-		return errors.Wrap(err, "marshalling JSON for result")
+		return fmt.Errorf("marshalling JSON for result: %w", err)
 	}
 
 	hasSubs, err := redis.PublishHasListeners(r.pool, conn, channelName, string(jsonVal))
@@ -56,7 +56,7 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "PUBLISH failed to channel "+channelName)
+		return fmt.Errorf("PUBLISH failed to channel "+channelName+": %w", err)
 	}
 	if !hasSubs {
 		return noSubscriberError{channelName}
@@ -117,7 +117,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	if err := psc.Subscribe(pubSubName); err != nil {
 		// Explicit conn.Close() here because we can't defer it until in the goroutine
 		_ = conn.Close()
-		return nil, errors.Wrapf(err, "subscribe to channel %s", pubSubName)
+		return nil, ctxerr.Wrapf(ctx, err, "subscribe to channel %s", pubSubName)
 	}
 
 	var wg sync.WaitGroup
@@ -140,7 +140,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 			select {
 			case msg, ok := <-msgChannel:
 				if !ok {
-					writeOrDone(ctx, outChannel, errors.New("unexpected exit in receiveMessages"))
+					writeOrDone(ctx, outChannel, ctxerr.New(ctx, "unexpected exit in receiveMessages"))
 					return
 				}
 
@@ -157,7 +157,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
-					if writeOrDone(ctx, outChannel, errors.Wrap(msg, "read from redis")) {
+					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}
 				}
@@ -184,7 +184,7 @@ func (r *redisQueryResults) HealthCheck() error {
 	defer conn.Close()
 
 	if _, err := conn.Do("PING"); err != nil {
-		return errors.Wrap(err, "reading from redis")
+		return fmt.Errorf("reading from redis: %w", err)
 	}
 	return nil
 }

@@ -646,7 +646,8 @@ export const secondsToDhms = (d: number): string => {
   return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
-export const syntaxHighlight = (json: JSON): string => {
+// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
+export const syntaxHighlight = (json: any): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
@@ -674,7 +675,7 @@ export const syntaxHighlight = (json: JSON): string => {
   /* eslint-enable no-useless-escape */
 };
 
-const getSortedTeamOptions = memoize((teams: ITeam[]) =>
+export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
   teams
     .map((team) => {
       return {
@@ -685,34 +686,6 @@ const getSortedTeamOptions = memoize((teams: ITeam[]) =>
     })
     .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
 );
-
-export const generateTeamFilterDropdownOptions = (
-  teams: ITeam[],
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean,
-  hideAllTeamsOption: boolean
-) => {
-  let currentUserTeams: ITeam[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const allTeamOption = [
-    {
-      disabled: false,
-      label: "All teams",
-      value: 0,
-    },
-  ];
-
-  const sortedCurrentUserTeamOptions = getSortedTeamOptions(currentUserTeams);
-
-  return !hideAllTeamsOption
-    ? allTeamOption.concat(sortedCurrentUserTeamOptions)
-    : sortedCurrentUserTeamOptions;
-};
 
 export const getValidatedTeamId = (
   teams: ITeam[],
@@ -765,6 +738,5 @@ export default {
   setupData,
   frontendFormattedConfig,
   syntaxHighlight,
-  generateTeamFilterDropdownOptions,
   getValidatedTeamId,
 };

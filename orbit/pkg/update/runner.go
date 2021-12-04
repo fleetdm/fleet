@@ -2,11 +2,12 @@ package update
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -42,12 +43,12 @@ func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
 	for target, channel := range opt.Targets {
 		meta, err := client.Lookup(target, channel)
 		if err != nil {
-			return nil, errors.Wrap(err, "initialize update cache")
+			return nil, fmt.Errorf("initialize update cache: %w", err)
 		}
 
 		_, hash, err := selectHashFunction(meta)
 		if err != nil {
-			return nil, errors.Wrap(err, "select hash for cache")
+			return nil, fmt.Errorf("select hash for cache: %w", err)
 		}
 		cache[target] = hash
 	}
@@ -93,26 +94,26 @@ func (r *Runner) updateAction() (bool, error) {
 	if err := r.client.UpdateMetadata(); err != nil {
 		// Consider this a non-fatal error since it will be common to be offline
 		// or otherwise unable to retrieve the metadata.
-		return didUpdate, errors.Wrap(err, "update metadata")
+		return didUpdate, fmt.Errorf("update metadata: %w", err)
 	}
 
 	for target, channel := range r.opt.Targets {
 		meta, err := r.client.Lookup(target, channel)
 		if err != nil {
-			return didUpdate, errors.Wrapf(err, "lookup failed")
+			return didUpdate, fmt.Errorf("lookup failed: %w", err)
 		}
 
 		// Check whether the hash has changed
 		_, hash, err := selectHashFunction(meta)
 		if err != nil {
-			return didUpdate, errors.Wrap(err, "select hash for cache")
+			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
 
 		if !bytes.Equal(r.hashCache[target], hash) {
 			// Update detected
 			log.Info().Str("target", target).Str("channel", channel).Msg("update detected")
 			if err := r.updateTarget(target, channel); err != nil {
-				return didUpdate, errors.Wrapf(err, "update %s@%s", target, channel)
+				return didUpdate, fmt.Errorf("update %s@%s: %w", target, channel, err)
 			}
 			log.Info().Str("target", target).Str("channel", channel).Msg("update completed")
 			didUpdate = true
@@ -127,7 +128,7 @@ func (r *Runner) updateAction() (bool, error) {
 func (r *Runner) updateTarget(target, channel string) error {
 	path, err := r.client.Get(target, channel)
 	if err != nil {
-		return errors.Wrap(err, "get binary")
+		return fmt.Errorf("get binary: %w", err)
 	}
 
 	if target != "orbit" {
@@ -138,10 +139,10 @@ func (r *Runner) updateTarget(target, channel string) error {
 	linkPath := filepath.Join(r.client.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
 	// Rename the old file otherwise overwrite fails
 	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
-		return errors.Wrap(err, "move old symlink current")
+		return fmt.Errorf("move old symlink current: %w", err)
 	}
 	if err := os.Symlink(path, linkPath); err != nil {
-		return errors.Wrap(err, "symlink current")
+		return fmt.Errorf("symlink current: %w", err)
 	}
 
 	return nil

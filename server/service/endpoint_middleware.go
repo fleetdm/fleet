@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -20,7 +20,7 @@ import (
 func logJSON(logger log.Logger, v interface{}, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
-		level.Debug(logger).Log("err", errors.Wrapf(err, "marshaling %s for debug", key))
+		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
 		return
 	}
 	level.Debug(logger).Log(key, string(jsonV))

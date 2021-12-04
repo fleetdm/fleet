@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -122,9 +122,10 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -167,9 +168,10 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -495,7 +497,7 @@ func TestUserAuth(t *testing.T) {
 		return nil
 	}
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, fmt.Errorf("AA")
+		return nil, errors.New("AA")
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		if id == 999 {

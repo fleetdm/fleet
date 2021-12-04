@@ -15,11 +15,13 @@ type Store struct {
 	DataStore
 }
 
-func (m *Store) Drop() error                                                        { return nil }
-func (m *Store) MigrateTables(ctx context.Context) error                            { return nil }
-func (m *Store) MigrateData(ctx context.Context) error                              { return nil }
-func (m *Store) MigrationStatus(ctx context.Context) (fleet.MigrationStatus, error) { return 0, nil }
-func (m *Store) Name() string                                                       { return "mock" }
+func (m *Store) Drop() error                             { return nil }
+func (m *Store) MigrateTables(ctx context.Context) error { return nil }
+func (m *Store) MigrateData(ctx context.Context) error   { return nil }
+func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
+	return &fleet.MigrationStatus{}, nil
+}
+func (m *Store) Name() string { return "mock" }
 
 type mockTransaction struct{}
 

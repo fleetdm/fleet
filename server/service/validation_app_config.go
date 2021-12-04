@@ -4,24 +4,24 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func (mw validationMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
 	existing, err := mw.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching existing app config in validation")
+		return nil, ctxerr.Wrap(ctx, err, "fetching existing app config in validation")
 	}
 	invalid := &fleet.InvalidArgumentError{}
 	var appConfig fleet.AppConfig
 	err = json.Unmarshal(p, &appConfig)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	validateSSOSettings(appConfig, existing, invalid)
 	if invalid.HasErrors() {
-		return nil, invalid
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.ModifyAppConfig(ctx, p)
 }

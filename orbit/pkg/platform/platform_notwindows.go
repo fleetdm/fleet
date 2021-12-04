@@ -4,17 +4,17 @@
 package platform
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/pkg/errors"
 )
 
 // ChmodExecutableDirectory sets the appropriate permissions on an executable
 // file. On POSIX this is a normal chmod call.
 func ChmodExecutableDirectory(path string) error {
 	if err := os.Chmod(path, constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "chmod executable directory")
+		return fmt.Errorf("chmod executable directory: %w", err)
 	}
 	return nil
 }
@@ -23,7 +23,7 @@ func ChmodExecutableDirectory(path string) error {
 // an executable file. On POSIX this is a regular chmod call.
 func ChmodExecutable(path string) error {
 	if err := os.Chmod(path, constant.DefaultExecutableMode); err != nil {
-		return errors.Wrap(err, "chmod executable")
+		return fmt.Errorf("chmod executable: %w", err)
 	}
 	return nil
 }

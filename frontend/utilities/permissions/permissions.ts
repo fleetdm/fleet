@@ -94,6 +94,10 @@ const isOnlyObserver = (user: IUser): boolean => {
   return false;
 };
 
+const isNoAccess = (user: IUser): boolean => {
+  return user.global_role === null && user.teams.length === 0;
+};
+
 export default {
   isFreeTier,
   isPremiumTier,
@@ -109,4 +113,5 @@ export default {
   isTeamAdmin,
   isAnyTeamAdmin,
   isOnlyObserver,
+  isNoAccess,
 };

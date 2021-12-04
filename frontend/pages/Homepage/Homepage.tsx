@@ -1,18 +1,17 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import paths from "router/paths";
-import { Link } from "react-router";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
-import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import { getSortedTeamOptions } from "fleet/helpers";
+import sortUtils from "utilities/sort";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Button from "components/buttons/Button";
 import InfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -20,7 +19,6 @@ import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
-import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -41,6 +39,7 @@ const Homepage = (): JSX.Element => {
     currentTeam,
     isPremiumTier,
     isPreviewMode,
+    isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
 
@@ -60,7 +59,17 @@ const Homepage = (): JSX.Element => {
     ITeam[]
   >(["teams"], () => teamsAPI.loadAll(), {
     enabled: !!isPremiumTier,
-    select: (data: ITeamsResponse) => data.teams,
+    select: (data: ITeamsResponse) =>
+      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+    onSuccess: (responseTeams) => {
+      if (!isOnGlobalTeam) {
+        const sortedTeams = getSortedTeamOptions(responseTeams);
+        const firstTeamOption = responseTeams.find(
+          (responseTeam) => responseTeam.id === sortedTeams[0].value
+        );
+        setCurrentTeam(firstTeamOption);
+      }
+    },
   });
 
   const handleTeamSelect = (teamId: number) => {
@@ -94,68 +103,72 @@ const Homepage = (): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header-wrap`}>
-        <div className={`${baseClass}__header`}>
-          {isPremiumTier ? (
-            <TeamsDropdown
-              currentTeamId={currentTeam?.id || 0}
-              isLoading={isLoadingTeams}
-              teams={teams || []}
-              onChange={(newSelectedValue: number) =>
-                handleTeamSelect(newSelectedValue)
-              }
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header`}>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isPremiumTier && teams && teams.length > 1 && (
+                  <TeamsDropdown
+                    selectedTeamId={currentTeam?.id || 0}
+                    currentUserTeams={teams || []}
+                    onChange={(newSelectedValue: number) =>
+                      handleTeamSelect(newSelectedValue)
+                    }
+                  />
+                )}
+                {isPremiumTier && teams && teams.length === 1 && (
+                  <h1>{teams[0].name}</h1>
+                )}
+                {!isPremiumTier && <h1>{config?.org_name}</h1>}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className={`${baseClass}__section one-column`}>
+          <InfoCard
+            title="Hosts"
+            action={{
+              type: "link",
+              to:
+                MANAGE_HOSTS +
+                TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
+              text: "View all hosts",
+            }}
+            total_host_count={totalCount}
+          >
+            <HostsSummary
+              currentTeamId={currentTeam?.id}
+              macCount={macCount}
+              windowsCount={windowsCount}
             />
-          ) : (
-            <h1 className={`${baseClass}__title`}>
-              <span>{config?.org_name}</span>
-            </h1>
-          )}
+          </InfoCard>
         </div>
-      </div>
-      <div className={`${baseClass}__section one-column`}>
-        <InfoCard
-          title="Hosts"
-          action={{
-            type: "link",
-            to:
-              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
-            text: "View all hosts",
-          }}
-          total_host_count={totalCount}
+        <div className={`${baseClass}__section one-column`}>
+          <InfoCard title="">
+            <HostsStatus
+              onlineCount={onlineCount}
+              offlineCount={offlineCount}
+              newCount={newCount}
+            />
+          </InfoCard>
+        </div>
+        {isPreviewMode && (
+          <div className={`${baseClass}__section two-column`}>
+            <InfoCard title="Welcome to Fleet">
+              <WelcomeHost />
+            </InfoCard>
+            <InfoCard title="Learn how to use Fleet">
+              <LearnFleet />
+            </InfoCard>
+          </div>
+        )}
+        <div
+          className={`
+          ${baseClass}__section 
+          ${currentTeam ? "one" : "two"}-column
+        `}
         >
-          <HostsSummary
-            currentTeamId={currentTeam?.id}
-            macCount={macCount}
-            windowsCount={windowsCount}
-          />
-        </InfoCard>
-      </div>
-      <div className={`${baseClass}__section one-column`}>
-        <InfoCard title="">
-          <HostsStatus
-            onlineCount={onlineCount}
-            offlineCount={offlineCount}
-            newCount={newCount}
-          />
-        </InfoCard>
-      </div>
-      {isPreviewMode && (
-        <div className={`${baseClass}__section two-column`}>
-          <InfoCard title="Welcome to Fleet">
-            <WelcomeHost />
-          </InfoCard>
-          <InfoCard title="Learn how to use Fleet">
-            <LearnFleet />
-          </InfoCard>
-        </div>
-      )}
-      <div
-        className={`
-        ${baseClass}__section 
-        ${currentTeam ? "one" : "two"}-column
-      `}
-      >
-        {!currentTeam && (
           <InfoCard
             title="Software"
             action={{
@@ -169,12 +182,12 @@ const Homepage = (): JSX.Element => {
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
             />
           </InfoCard>
-        )}
-        {!isPreviewMode && !currentTeam && (
-          <InfoCard title="Activity">
-            <ActivityFeed />
-          </InfoCard>
-        )}
+          {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
+            <InfoCard title="Activity">
+              <ActivityFeed />
+            </InfoCard>
+          )}
+        </div>
       </div>
     </div>
   );

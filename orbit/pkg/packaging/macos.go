@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -31,11 +30,11 @@ func BuildPkg(opt Options) (string, error) {
 
 	filesystemRoot := filepath.Join(tmpDir, "root")
 	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
-		return "", errors.Wrap(err, "create root dir")
+		return "", fmt.Errorf("create root dir: %w", err)
 	}
 	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
-		return "", errors.Wrap(err, "create orbit dir")
+		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
 	// Initialize autoupdate metadata
@@ -51,38 +50,38 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if err := InitializeUpdates(updateOpt); err != nil {
-		return "", errors.Wrap(err, "initialize updates")
+		return "", fmt.Errorf("initialize updates: %w", err)
 	}
 
 	// Write files
 
 	if err := writePackageInfo(opt, tmpDir); err != nil {
-		return "", errors.Wrap(err, "write PackageInfo")
+		return "", fmt.Errorf("write PackageInfo: %w", err)
 	}
 	if err := writeDistribution(opt, tmpDir); err != nil {
-		return "", errors.Wrap(err, "write Distribution")
+		return "", fmt.Errorf("write Distribution: %w", err)
 	}
 	if err := writeScripts(opt, tmpDir); err != nil {
-		return "", errors.Wrap(err, "write postinstall")
+		return "", fmt.Errorf("write postinstall: %w", err)
 	}
 	if err := writeSecret(opt, orbitRoot); err != nil {
-		return "", errors.Wrap(err, "write enroll secret")
+		return "", fmt.Errorf("write enroll secret: %w", err)
 	}
 	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
-		return "", errors.Wrap(err, "write flagfile")
+		return "", fmt.Errorf("write flagfile: %w", err)
 	}
 	if err := writeOsqueryCertPEM(opt, orbitRoot); err != nil {
-		return "", errors.Wrap(err, "write certs.pem")
+		return "", fmt.Errorf("write certs.pem: %w", err)
 	}
 
 	if opt.StartService {
 		if err := writeLaunchd(opt, filesystemRoot); err != nil {
-			return "", errors.Wrap(err, "write launchd")
+			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
-			return "", errors.Wrap(err, "write fleet certificate")
+			return "", fmt.Errorf("write fleet certificate: %w", err)
 		}
 	}
 
@@ -98,7 +97,7 @@ func BuildPkg(opt Options) (string, error) {
 	// Build package
 
 	if err := xarBom(opt, tmpDir); err != nil {
-		return "", errors.Wrap(err, "build pkg")
+		return "", fmt.Errorf("build pkg: %w", err)
 	}
 
 	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
@@ -106,7 +105,7 @@ func BuildPkg(opt Options) (string, error) {
 	if len(opt.SignIdentity) != 0 {
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
 		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
-			return "", errors.Wrap(err, "productsign")
+			return "", fmt.Errorf("productsign: %w", err)
 		}
 	}
 
@@ -118,7 +117,7 @@ func BuildPkg(opt Options) (string, error) {
 
 	filename := "fleet-osquery.pkg"
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
-		return "", errors.Wrap(err, "rename pkg")
+		return "", fmt.Errorf("rename pkg: %w", err)
 	}
 	log.Info().Str("path", filename).Msg("wrote pkg package")
 
@@ -129,16 +128,16 @@ func writePackageInfo(opt Options, rootPath string) error {
 	// PackageInfo is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "base.pkg", "PackageInfo")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := macosPackageInfoTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -148,16 +147,16 @@ func writeScripts(opt Options, rootPath string) error {
 	// Postinstall script
 	path := filepath.Join(rootPath, "scripts", "postinstall")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := macosPostinstallTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0744); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -167,16 +166,16 @@ func writeLaunchd(opt Options, rootPath string) error {
 	// launchd is the service mechanism on macOS
 	path := filepath.Join(rootPath, "Library", "LaunchDaemons", "com.fleetdm.orbit.plist")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := macosLaunchdTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0644); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -186,16 +185,16 @@ func writeDistribution(opt Options, rootPath string) error {
 	// Distribution file is metadata for the pkg
 	path := filepath.Join(rootPath, "flat", "Distribution")
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return errors.Wrap(err, "mkdir")
+		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	var contents bytes.Buffer
 	if err := macosDistributionTemplate.Execute(&contents, opt); err != nil {
-		return errors.Wrap(err, "execute template")
+		return fmt.Errorf("execute template: %w", err)
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
-		return errors.Wrap(err, "write file")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil
@@ -206,7 +205,7 @@ func writeCertificate(opt Options, orbitRoot string) error {
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
 	if err := file.Copy(opt.FleetCertificate, dstPath, 0644); err != nil {
-		return errors.Wrap(err, "write orbit")
+		return fmt.Errorf("write orbit: %w", err)
 	}
 
 	return nil
@@ -223,13 +222,13 @@ func xarBom(opt Options, rootPath string) error {
 		filepath.Join(rootPath, "root"),
 		filepath.Join(rootPath, "flat", "base.pkg", "Payload"),
 	); err != nil {
-		return errors.Wrap(err, "cpio Payload")
+		return fmt.Errorf("cpio Payload: %w", err)
 	}
 	if err := cpio(
 		filepath.Join(rootPath, "scripts"),
 		filepath.Join(rootPath, "flat", "base.pkg", "Scripts"),
 	); err != nil {
-		return errors.Wrap(err, "cpio Scripts")
+		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
 	// Make bom
@@ -250,7 +249,7 @@ func xarBom(opt Options, rootPath string) error {
 	cmdMkbom.Stdout = os.Stdout
 	cmdMkbom.Stderr = os.Stderr
 	if err := cmdMkbom.Run(); err != nil {
-		return errors.Wrap(err, "mkbom")
+		return fmt.Errorf("mkbom: %w", err)
 	}
 
 	// List files for xar
@@ -267,7 +266,7 @@ func xarBom(opt Options, rootPath string) error {
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, "iterate files")
+		return fmt.Errorf("iterate files: %w", err)
 	}
 
 	// Make xar
@@ -287,7 +286,7 @@ func xarBom(opt Options, rootPath string) error {
 	cmdXar.Stderr = os.Stderr
 
 	if err := cmdXar.Run(); err != nil {
-		return errors.Wrap(err, "run xar")
+		return fmt.Errorf("run xar: %w", err)
 	}
 
 	return nil
@@ -297,7 +296,7 @@ func cpio(srcPath, dstPath string) error {
 	// This is the compression routine that is expected for pkg files.
 	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
-		return errors.Wrap(err, "open dst")
+		return fmt.Errorf("open dst: %w", err)
 	}
 	defer dst.Close()
 
@@ -310,37 +309,37 @@ func cpio(srcPath, dstPath string) error {
 	// Pipes like this: find | cpio | gzip > dstPath
 	cmdCpio.Stdin, err = cmdFind.StdoutPipe()
 	if err != nil {
-		return errors.Wrap(err, "pipe cpio")
+		return fmt.Errorf("pipe cpio: %w", err)
 	}
 	cmdGzip.Stdin, err = cmdCpio.StdoutPipe()
 	if err != nil {
-		return errors.Wrap(err, "pipe gzip")
+		return fmt.Errorf("pipe gzip: %w", err)
 	}
 	cmdGzip.Stdout = dst
 
 	err = cmdGzip.Start()
 	if err != nil {
-		return errors.Wrap(err, "start gzip")
+		return fmt.Errorf("start gzip: %w", err)
 	}
 	err = cmdCpio.Start()
 	if err != nil {
-		return errors.Wrap(err, "start cpio")
+		return fmt.Errorf("start cpio: %w", err)
 	}
 	err = cmdFind.Run()
 	if err != nil {
-		return errors.Wrap(err, "run find")
+		return fmt.Errorf("run find: %w", err)
 	}
 	err = cmdCpio.Wait()
 	if err != nil {
-		return errors.Wrap(err, "wait cpio")
+		return fmt.Errorf("wait cpio: %w", err)
 	}
 	err = cmdGzip.Wait()
 	if err != nil {
-		return errors.Wrap(err, "wait gzip")
+		return fmt.Errorf("wait gzip: %w", err)
 	}
 	err = dst.Sync()
 	if err != nil {
-		return errors.Wrap(err, "sync dst")
+		return fmt.Errorf("sync dst: %w", err)
 	}
 
 	return nil
@@ -358,11 +357,11 @@ func signPkg(pkgPath, identity string) error {
 	cmdProductsign.Stderr = &outBuf
 	if err := cmdProductsign.Run(); err != nil {
 		fmt.Println(outBuf.String())
-		return errors.Wrap(err, "productsign")
+		return fmt.Errorf("productsign: %w", err)
 	}
 
 	if err := os.Rename(pkgPath+".signed", pkgPath); err != nil {
-		return errors.Wrap(err, "rename signed")
+		return fmt.Errorf("rename signed: %w", err)
 	}
 
 	return nil

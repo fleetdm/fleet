@@ -1,13 +1,14 @@
 package file
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 )
 
 // Copy copies the file from srcPath to dstPath, using the provided permissions.
@@ -16,25 +17,25 @@ import (
 func Copy(srcPath, dstPath string, perm os.FileMode) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return errors.Wrap(err, "open src for copy")
+		return fmt.Errorf("open src for copy: %w", err)
 	}
 	defer src.Close()
 
 	if err := secure.MkdirAll(filepath.Dir(dstPath), os.ModeDir|perm); err != nil {
-		return errors.Wrap(err, "create dst dir for copy")
+		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
 	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
-		return errors.Wrap(err, "open dst for copy")
+		return fmt.Errorf("open dst for copy: %w", err)
 	}
 	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		return errors.Wrap(err, "copy src to dst")
+		return fmt.Errorf("copy src to dst: %w", err)
 	}
 	if err := dst.Sync(); err != nil {
-		return errors.Wrap(err, "sync dst after copy")
+		return fmt.Errorf("sync dst after copy: %w", err)
 	}
 
 	return nil
@@ -46,7 +47,7 @@ func Copy(srcPath, dstPath string, perm os.FileMode) error {
 func CopyWithPerms(srcPath, dstPath string) error {
 	stat, err := os.Stat(srcPath)
 	if err != nil {
-		return errors.Wrap(err, "get permissions for copy")
+		return fmt.Errorf("get permissions for copy: %w", err)
 	}
 
 	return Copy(srcPath, dstPath, stat.Mode().Perm())
@@ -59,7 +60,7 @@ func Exists(path string) (bool, error) {
 		if errors.Is(err, fs.ErrNotExist) {
 			return false, nil
 		}
-		return false, errors.Wrap(err, "check file exists")
+		return false, fmt.Errorf("check file exists: %w", err)
 	}
 
 	return info.Mode().IsRegular(), nil

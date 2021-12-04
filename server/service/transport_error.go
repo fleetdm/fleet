@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
-	"github.com/pkg/errors"
 )
 
 // erroer interface is implemented by response structs to encode business logic errors

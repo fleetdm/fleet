@@ -3,7 +3,8 @@
 package constant
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"golang.org/x/sys/windows"
 )
 
@@ -28,7 +29,7 @@ var (
 func mustSID(identifier string) *windows.SID {
 	sid, err := windows.StringToSid(identifier)
 	if err != nil {
-		panic(errors.Wrap(err, "create sid"))
+		panic(fmt.Errorf("create sid: %w", err))
 	}
 	return sid
 }

@@ -3,6 +3,7 @@
 package service
 
 import (
+	"fmt"
 	"html/template"
 	"sync"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 )
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
@@ -58,7 +58,7 @@ func NewService(
 
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
-		return nil, errors.Wrap(err, "new authorizer")
+		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
 	svc = &Service{

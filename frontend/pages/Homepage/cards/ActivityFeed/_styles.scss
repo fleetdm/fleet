@@ -3,6 +3,12 @@
   display: flex;
   flex-direction: column;
 
+  &__header-wrap {
+    .form-field {
+      margin-bottom: 0;
+    }
+  }
+
   &__block {
     display: flex;
     flex-direction: row;

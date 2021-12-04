@@ -14,23 +14,30 @@ import (
 
 func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
-	defer ds.Close()
+	t.Cleanup(func() {
+		ds.Close()
+	})
 
 	status, err := ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.NoMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.NoMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateTables(context.Background()))
 
 	status, err = ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status.StatusCode)
+	assert.NotEmpty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateData(context.Background()))
 
 	status, err = ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.AllMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
 }
 
 func TestMigrations(t *testing.T) {

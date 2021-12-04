@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import moment from "moment";
 
 import { IHost } from "interfaces/host";
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
@@ -234,7 +234,7 @@ const WelcomeHost = (): JSX.Element => {
                       alt={p.response}
                       src={p.response === policyPass ? IconPassed : IconError}
                     />
-                    {p.query_name}
+                    {p.name}
                   </div>
                   <Button
                     variant="text-icon"
@@ -275,12 +275,12 @@ const WelcomeHost = (): JSX.Element => {
         </div>
         {showPolicyModal && (
           <Modal
-            title={currentPolicyShown?.query_name || ""}
+            title={currentPolicyShown?.name || ""}
             onExit={() => setShowPolicyModal(false)}
             className={`${baseClass}__policy-modal`}
           >
             <>
-              <p>{currentPolicyShown?.query_description}</p>
+              <p>{currentPolicyShown?.description}</p>
               {currentPolicyShown?.resolution && (
                 <p>
                   <b>Resolve:</b> {currentPolicyShown.resolution}

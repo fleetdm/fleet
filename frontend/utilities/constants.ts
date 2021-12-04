@@ -66,7 +66,7 @@ export const QUERIES_PAGE_STEPS = {
 export const DEFAULT_QUERY = {
   description: "",
   name: "",
-  query: "SELECT * FROM osquery_info",
+  query: "SELECT * FROM osquery_info;",
   id: 0,
   interval: 0,
   last_excuted: "",
@@ -77,6 +77,21 @@ export const DEFAULT_QUERY = {
   saved: false,
   author_id: 0,
   packs: [],
+};
+
+export const DEFAULT_POLICY = {
+  id: 1,
+  name: "Is osquery running?",
+  query: "SELECT 1 FROM osquery_info WHERE start_time > 1;",
+  description: "Checks if the osquery process has started on the host.",
+  author_id: 42,
+  author_name: "John",
+  author_email: "john@example.com",
+  resolution: "Resolution steps",
+  passing_host_count: 2000,
+  failing_host_count: 300,
+  created_at: "",
+  updated_at: "",
 };
 
 export const DEFAULT_CAMPAIGN = {
