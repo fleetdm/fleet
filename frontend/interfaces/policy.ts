@@ -48,3 +48,11 @@ export interface IPolicyFormData {
   query?: string | number | boolean | any[] | undefined;
   team_id?: number;
 }
+
+export interface IPolicyNew {
+  id?: number;
+  name: string;
+  description: string;
+  query: string;
+  resolution: string;
+}

@@ -31,6 +31,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import TeamsDropdown from "components/TeamsDropdown";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 const baseClass = "manage-policies-page";
@@ -72,6 +73,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -121,6 +123,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
+  const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
@@ -180,6 +183,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setPolicyTeamId(id);
   };
 
+  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
+
   const toggleRemovePoliciesModal = () =>
     setShowRemovePoliciesModal(!showRemovePoliciesModal);
 
@@ -190,7 +195,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
     setLastEditedQueryBody(DEFAULT_POLICY.query);
-    router.push(PATHS.NEW_POLICY);
+    setLastEditedQueryResolution("");
+    toggleAddPolicyModal();
   };
 
   const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
@@ -362,7 +368,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
-                className={`${baseClass}__add-policy-btn`}
+                className={`${baseClass}__select-policy-button`}
                 onClick={onAddPolicyClick}
               >
                 Add a policy
@@ -411,6 +417,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={teamPolicies}
                 isLoading={isLoadingTeamPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -426,6 +433,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 policiesList={globalPolicies}
                 isLoading={isLoadingGlobalPolicies}
                 onRemovePoliciesClick={onRemovePoliciesClick}
+                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
@@ -474,6 +482,14 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
+        )}
+        {showAddPolicyModal && (
+          <AddPolicyModal
+            onCancel={toggleAddPolicyModal}
+            router={router}
+            teamId={selectedTeamId}
+            teamName={selectedTeamData?.name}
+          />
         )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
