@@ -30,7 +30,7 @@ const RemovePackQueryModal = ({
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}
-            variant="inverse"
+            variant="inverse-alert"
           >
             Cancel
           </Button>

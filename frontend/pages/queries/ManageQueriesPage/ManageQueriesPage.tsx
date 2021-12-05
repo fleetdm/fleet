@@ -145,6 +145,7 @@ const ManageQueriesPage = (): JSX.Element => {
 
     const promises = selectedQueryIds.map((id: number) => {
       fleetQueriesAPI.destroy(id);
+      return null;
     });
 
     return Promise.all(promises)
