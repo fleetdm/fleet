@@ -450,7 +450,7 @@ SELECT
   'python_packages' AS source
 FROM python_packages;
 `,
-	Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+	Platforms:  []string{"linux", "rhel", "ubuntu", "centos", "debian"},
 	IngestFunc: ingestSoftware,
 }
 
