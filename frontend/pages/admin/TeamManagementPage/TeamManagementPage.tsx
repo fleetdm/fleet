@@ -29,18 +29,6 @@ interface ITeamsResponse {
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
 
-const generateUpdateData = (
-  currentTeamData: ITeam,
-  formData: IEditTeamFormData
-): IEditTeamFormData | null => {
-  if (currentTeamData.name !== formData.name) {
-    return {
-      name: formData.name,
-    };
-  }
-  return null;
-};
-
 const TeamManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -151,19 +139,15 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onEditSubmit = useCallback(
     (formData: IEditTeamFormData) => {
-      const updatedAttrs = generateUpdateData(teamEditing as ITeam, formData);
-      console.log("updatedAttrs", updatedAttrs);
-      // no updates, so no need for a request.
-      if (updatedAttrs === null) {
+      if (formData.name === teamEditing?.name) {
         toggleEditTeamModal();
       } else if (teamEditing) {
         teamsAPI
-          .update(teamEditing.id, updatedAttrs)
+          .update(teamEditing.id, formData)
           .then(() => {
             dispatch(
               renderFlash("success", `Successfully edited ${formData.name}.`)
             );
-            toggleEditTeamModal();
           })
           .catch((updateError) => {
             console.error(updateError);
@@ -182,6 +166,7 @@ const TeamManagementPage = (): JSX.Element => {
           })
           .finally(() => {
             refetchTeams();
+            toggleEditTeamModal();
           });
       }
     },

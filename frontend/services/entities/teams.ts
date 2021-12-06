@@ -68,7 +68,7 @@ export default {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
-    return sendRequest("PATCH", path, JSON.stringify(updateParams));
+    return sendRequest("PATCH", path, updateParams);
   },
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
