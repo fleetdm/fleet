@@ -42,7 +42,9 @@
 
     // Models:
     "User": true,
-    "HistoricalUsageSnapshot": true
+    "HistoricalUsageSnapshot": true,
+    "Quote": true,
+    "Order": true,
 
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -117,6 +117,14 @@ a.text-danger:hover, a.text-danger:focus {
       background-color: darken(#6b6cfa, 10%);
       border-color: darken(#6b6cfa, 10%);
     }
+    &:not(:disabled):not(.disabled):active {
+      background-color: darken(#6b6cfa, 10%);
+      border-color: darken(#6b6cfa, 10%);
+    }
+    &:active {
+      background-color: darken(#6b6cfa, 10%);
+      border-color: darken(#6b6cfa, 10%);
+    }
   }
 }
 
@@ -168,6 +176,9 @@ a.text-danger:hover, a.text-danger:focus {
 }
 .form-control.is-invalid:focus {
 	box-shadow: unset;
+}
+.form-control.is-invalid::placeholder {
+  color: #FF5C83;
 }
 .form-control.is-invalid {
 	border: 2px solid #FF5C83;
