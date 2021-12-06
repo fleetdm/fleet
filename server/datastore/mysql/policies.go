@@ -26,7 +26,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	}
 	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, resolution, author_id, platforms) VALUES (?, ?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platforms,
+		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform,
 	)
 	switch {
 	case err == nil:
@@ -79,7 +79,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platforms, p.ID)
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -269,7 +269,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	}
 	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platforms)
+		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform)
 	switch {
 	case err == nil:
 		// OK
@@ -325,7 +325,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		`
 		for _, spec := range specs {
 			if _, err := tx.ExecContext(ctx,
-				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platforms,
+				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
