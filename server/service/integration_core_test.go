@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -546,7 +547,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
-			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "linux",
 		})
@@ -1294,4 +1295,23 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	// get valid carve block
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusOK, &blkResp)
 	require.Equal(t, "block1", string(blkResp.Data))
+}
+
+func (s *integrationTestSuite) TestHostsAddToTeam() {
+	t := s.T()
+
+	//ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	var refetchResp refetchHostResponse
+	// refetch existing
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/refetch", hosts[0].ID), nil, http.StatusOK, &refetchResp)
+	require.NoError(t, refetchResp.Err)
+
+	// refetch unknown
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/refetch", hosts[2].ID+1), nil, http.StatusNotFound, &refetchResp)
+
+	// get by identifier unknown
+	var getResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &getResp)
 }
