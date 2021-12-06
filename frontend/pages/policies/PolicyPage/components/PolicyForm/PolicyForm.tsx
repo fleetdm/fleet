@@ -314,6 +314,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryName}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                var val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -354,6 +360,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryDescription}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                var val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -397,6 +409,12 @@ const PolicyForm = ({
               onChange={setLastEditedQueryResolution}
               inputOptions={{
                 autoFocus: true,
+                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                  // sets cursor to end of inputfield
+                  var val = e.target.value;
+                  e.target.value = "";
+                  e.target.value = val;
+                },
               }}
             />
           </div>
