@@ -85,7 +85,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "/api/v1/fleet/config", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
 		case 2:
-			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/v1/fleet/queries", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
