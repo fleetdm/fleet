@@ -69,7 +69,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		Saved:       true,
 	})
 	require.NoError(t, err)
-	_, err = ds.NewGlobalPolicy(context.Background(), q.ID, "")
+	_, err = ds.NewGlobalPolicy(context.Background(), &q.ID, "")
 	require.NoError(t, err)
 
 	// Create new app config for test
