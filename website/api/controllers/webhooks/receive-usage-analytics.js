@@ -7,19 +7,19 @@ module.exports = {
   description: 'Receive anonymous usage analytics from deployments of Fleet running in production.  (Not fleetctl preview or dev-mode deployments.)',
 
 
-  inputs: {
+   inputs: {
     anonymousIdentifier: { required: true, type: 'string', example: '9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=', description: 'An anonymous identifier telling us which Fleet deployment this is.', },
     fleetVersion: { required: true, type: 'string', example: 'x.x.x' },
-    licenseTier: { required: true, type: 'string', example: 'free' },
+    licenseTier: { type: 'string', isIn: ['free', 'premium', 'unknown'], defaultsTo: 'unknown' },
     numHostsEnrolled: { required: true, type: 'number', min: 0, custom: (num) => Math.floor(num) === num },
-    numUsers: { required: true, type: 'number' },
-    numTeams: { required: true, type: 'number' },
-    numPolicies: { required: true, type: 'number' },
-    numLabels: { required: true, type: 'number' },
-    softwareInventoryEnabled: { required: true, type: 'boolean' },
-    vulnDetectionEnabled: { required: true, type: 'boolean' },
-    systemUsersEnabled: { required: true, type: 'boolean' },
-    hostStatusWebhookEnabled: { required: true, type: 'boolean' },
+    numUsers: { type: 'number', defaultsTo: 0 },
+    numTeams: { type: 'number', defaultsTo: 0 },
+    numPolicies: { type: 'number', defaultsTo: 0 },
+    numLabels: { type: 'number', defaultsTo: 0 },
+    softwareInventoryEnabled: { type: 'boolean', defaultsTo: false },
+    vulnDetectionEnabled: { type: 'boolean', defaultsTo: false },
+    systemUsersEnabled: { type: 'boolean', defaultsTo: false },
+    hostStatusWebhookEnabled: { type: 'boolean', defaultsTo: false },
   },
 
 
@@ -28,33 +28,9 @@ module.exports = {
   },
 
 
-  fn: async function ({
-    anonymousIdentifier,
-    fleetVersion,
-    licenseTier,
-    numHostsEnrolled,
-    numUsers,
-    numTeams,
-    numPolicies,
-    softwareInventoryEnabled,
-    vulnDetectionEnabled,
-    systemUsersEnabled,
-    hostStatusWebhookEnabled,
-  }) {
+  fn: async function (inputs) {
 
-    await HistoricalUsageSnapshot.create({
-      anonymousIdentifier,
-      fleetVersion,
-      licenseTier,
-      numHostsEnrolled,
-      numUsers,
-      numTeams,
-      numPolicies,
-      softwareInventoryEnabled,
-      vulnDetectionEnabled,
-      systemUsersEnabled,
-      hostStatusWebhookEnabled,
-    });
+    await HistoricalUsageSnapshot.create(inputs);
 
   }
 
