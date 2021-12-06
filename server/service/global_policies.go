@@ -39,7 +39,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Name:        req.Name,
 		Description: req.Description,
 		Resolution:  req.Resolution,
-		Platforms:   req.Platforms,
+		Platform:    req.Platforms,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
