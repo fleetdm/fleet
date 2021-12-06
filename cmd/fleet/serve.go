@@ -252,7 +252,7 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			ds = cached_mysql.New(ds, redisPool)
+			ds = cached_mysql.New(ds)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
@@ -622,6 +622,10 @@ func cronVulnerabilities(
 	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
+		return
+	}
+	if !appConfig.HostSettings.EnableSoftwareInventory {
+		level.Info(logger).Log("software inventory", "not configured")
 		return
 	}
 

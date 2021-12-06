@@ -3,7 +3,7 @@ import { noop } from "lodash";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
@@ -20,13 +20,14 @@ const TAGGED_TEMPLATES = {
 };
 
 interface IPoliciesListWrapperProps {
-  policiesList: IPolicy[];
+  policiesList: IPolicyStats[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
+  toggleAddPolicyModal?: () => void;
 }
 
 const PoliciesListWrapper = ({
@@ -37,6 +38,7 @@ const PoliciesListWrapper = ({
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
+  toggleAddPolicyModal,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 

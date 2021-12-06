@@ -4,12 +4,9 @@ import endpoints from "fleet/endpoints";
 import { IPolicyFormData } from "interfaces/policy";
 
 export default {
-  create: (data: number | IPolicyFormData) => {
+  // TODO: How does the frontend need to support legacy policies?
+  create: (data: IPolicyFormData) => {
     const { GLOBAL_POLICIES } = endpoints;
-
-    if (typeof data === "number") {
-      return sendRequest("POST", GLOBAL_POLICIES, { query_id: data });
-    }
 
     return sendRequest("POST", GLOBAL_POLICIES, data);
   },

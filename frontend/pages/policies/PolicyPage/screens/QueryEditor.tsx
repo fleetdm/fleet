@@ -2,9 +2,9 @@ import React, { useContext, useEffect } from "react";
 import { Link } from "react-router";
 import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import { UseMutateAsyncFunction } from "react-query";
 
 import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy"; // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -24,7 +24,7 @@ interface IQueryEditorProps {
   storedPolicyError: any;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
-  createPolicy: UseMutateAsyncFunction<any, unknown, IPolicyFormData, unknown>;
+  createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
@@ -44,7 +44,7 @@ const QueryEditor = ({
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryEditorProps) => {
+}: IQueryEditorProps): JSX.Element | null => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
 
@@ -54,6 +54,7 @@ const QueryEditor = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    policyTeamId,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -67,9 +68,22 @@ const QueryEditor = ({
     }
   }, []);
 
-  const onSavePolicyFormSubmit = debounce(async (formData: IPolicyFormData) => {
+  const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
+    // TODO: The approach taken with selectedTeamId context works in most cases. Howeve, the context
+    // will reset to global if page is refreshed. This will cause bugs where a global policy gets
+    // created when the user intended a team policy. For non-gloabl users, request will fail but the
+    // erorr is opaque and would require them to navigate back to the manage policies page to select
+    // a team and start over, in which case it might be better to intercept the unauthorized errors
+    // and redirect to the manage policies page (unless we have added a means to select a team on
+    // the edit/create policy form itself).
+    if (policyTeamId) {
+      formData.team_id = policyTeamId;
+    }
+
     try {
-      const { policy }: { policy: IPolicy } = await createPolicy(formData);
+      const policy: IPolicy = await createPolicy(formData).then(
+        (data) => data.policy
+      );
       router.push(PATHS.EDIT_POLICY(policy));
       dispatch(renderFlash("success", "Policy created!"));
     } catch (createError) {
@@ -94,8 +108,20 @@ const QueryEditor = ({
       lastEditedQueryBody,
     });
 
+    const updateAPIRequest = () => {
+      // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
+      const team_id = storedPolicy?.team_id;
+
+      return team_id
+        ? teamPoliciesAPI.update(policyIdForEdit, {
+            ...updatedPolicy,
+            team_id,
+          })
+        : globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
+    };
+
     try {
-      await globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
+      await updateAPIRequest();
       dispatch(renderFlash("success", "Policy updated!"));
     } catch (updateError) {
       console.error(updateError);
@@ -114,14 +140,19 @@ const QueryEditor = ({
     return null;
   }
 
+  const backPath = policyTeamId ? `?team_id=${policyTeamId}` : "";
+
   return (
     <div className={`${baseClass}__form body-wrap`}>
-      <Link to={PATHS.MANAGE_POLICIES} className={`${baseClass}__back-link`}>
+      <Link
+        to={`${PATHS.MANAGE_POLICIES}/${backPath}`}
+        className={`${baseClass}__back-link`}
+      >
         <img src={BackChevron} alt="back chevron" id="back-chevron" />
         <span>Back to policies</span>
       </Link>
       <PolicyForm
-        onCreatePolicy={onSavePolicyFormSubmit}
+        onCreatePolicy={onCreatePolicy}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
         onUpdate={onUpdatePolicy}

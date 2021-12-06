@@ -12,7 +12,6 @@ require (
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/aws/aws-sdk-go v1.36.30
 	github.com/beevik/etree v1.1.0
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -28,7 +27,6 @@ require (
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
-	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
@@ -41,6 +39,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
+	github.com/jinzhu/copier v0.3.2
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
@@ -56,12 +55,11 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.24.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
-	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/quasilyte/go-ruleguard/dsl v0.3.10 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
@@ -77,9 +75,10 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fasthttp v1.31.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/mod v0.5.1 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881
-	golang.org/x/tools v0.1.5 // indirect
+	golang.org/x/sys v0.0.0-20211123173158-ef496fb156ab
+	golang.org/x/tools v0.1.7 // indirect
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/guregu/null.v3 v3.4.0

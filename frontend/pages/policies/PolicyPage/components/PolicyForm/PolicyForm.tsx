@@ -16,7 +16,6 @@ import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner"; // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
@@ -42,7 +41,7 @@ interface IPolicyFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: { [key: string]: string } = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
@@ -66,12 +65,17 @@ const PolicyForm = ({
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
   const isEditMode = !!policyIdForEdit;
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
+    false
+  );
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
+    false
+  );
+  const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
 
@@ -81,9 +85,11 @@ const PolicyForm = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryResolution,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
   } = useContext(PolicyContext);
 
   const {
@@ -106,6 +112,15 @@ const PolicyForm = ({
 
   useEffect(() => {
     debounceCompatiblePlatforms(lastEditedQueryBody);
+
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      lastEditedQueryBody
+    );
+    valid = isValidated;
+    setErrors({
+      ...newErrors,
+    });
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -135,7 +150,11 @@ const PolicyForm = ({
     });
   };
 
-  const promptSaveQuery = (forceNew = false) => (
+  const onChangePolicy = (sqlString: string) => {
+    setLastEditedQueryBody(sqlString);
+  };
+
+  const promptSavePolicy = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -148,31 +167,24 @@ const PolicyForm = ({
     }
 
     let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
 
     valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
 
     if (valid) {
       if (!isEditMode || forceNew) {
-        setIsSaveModalOpen(true);
+        setIsNewPolicyModalOpen(true);
       } else {
         onUpdate({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
         });
-
-        setErrors({});
       }
 
       setIsEditingName(false);
       setIsEditingDescription(false);
+      setIsEditingResolution(false);
     }
   };
 
@@ -358,9 +370,62 @@ const PolicyForm = ({
         className={`${baseClass}__policy-description`}
         onClick={() => setIsEditingDescription(true)}
         >
-          {lastEditedQueryDescription}
+          {lastEditedQueryDescription || "Add description here."}
           <img alt="Edit description" src={PencilIcon} />
         </span>
+      );
+      /* eslint-enable */
+    }
+
+    return null;
+  };
+
+  const renderResolution = () => {
+    if (isEditMode) {
+      if (isEditingResolution) {
+        return (
+          <div className={`${baseClass}__policy-resolve`}>
+            {" "}
+            <b>Resolve:</b> <br />
+            <InputField
+              id="policy-resolution"
+              type="textarea"
+              name="policy-resolution"
+              value={lastEditedQueryResolution}
+              placeholder="Add resolution here."
+              inputClassName={`${baseClass}__policy-resolution`}
+              onChange={setLastEditedQueryResolution}
+              inputOptions={{
+                autoFocus: true,
+              }}
+            />
+          </div>
+        );
+      }
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to span - this is needed to avoid
+      // using a real button
+      // prettier-ignore
+      return (
+        <div>
+          <b>Resolve:</b> {" "}
+          <span
+            role="button"
+            className={`${baseClass}__policy-resolution`}
+            onClick={() => setIsEditingResolution(true)}
+          >
+            <img alt="Edit resolution" src={PencilIcon} />
+          </span><br/>
+          <span
+            role="button"
+            className={`${baseClass}__policy-resolution`}
+            onClick={() => setIsEditingResolution(true)}
+          >
+            {lastEditedQueryResolution || "Add resolution here."}
+          </span>
+        </div>
       );
       /* eslint-enable */
     }
@@ -371,7 +436,7 @@ const PolicyForm = ({
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description">
+        <div className="name-description-resolve">
           <h1 className={`${baseClass}__policy-name no-hover`}>
             {lastEditedQueryName}
           </h1>
@@ -405,9 +470,10 @@ const PolicyForm = ({
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
-          <div className="name-description">
+          <div className="name-description-resolve">
             {renderName()}
             {renderDescription()}
+            {renderResolution()}
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
@@ -419,10 +485,8 @@ const PolicyForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => {
-            setLastEditedQueryBody(sqlString);
-          }}
-          handleSubmit={promptSaveQuery}
+          onChange={onChangePolicy}
+          handleSubmit={promptSavePolicy}
         />
         {renderPlatformCompatibility()}
         {renderLiveQueryWarning()}
@@ -444,7 +508,7 @@ const PolicyForm = ({
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
-                  onClick={promptSaveQuery()}
+                  onClick={promptSavePolicy()}
                   disabled={
                     isAnyTeamMaintainerOrTeamAdmin &&
                     !hasTeamMaintainerPermissions
@@ -480,12 +544,12 @@ const PolicyForm = ({
           </Button>
         </div>
       </form>
-      {isSaveModalOpen && (
+      {isNewPolicyModalOpen && (
         <NewPolicyModal
           baseClass={baseClass}
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
-          setIsSaveModalOpen={setIsSaveModalOpen}
+          setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
         />
       )}
     </>

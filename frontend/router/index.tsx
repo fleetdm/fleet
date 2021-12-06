@@ -92,6 +92,7 @@ const routes = (
               <IndexRedirect to={"dashboard"} />
               <Route path="dashboard" component={Homepage} />
               <Route path="settings" component={AuthAnyAdminRoutes}>
+                <IndexRedirect to={"/dashboard"} />
                 <Route component={SettingsWrapper}>
                   <Route component={AuthenticatedAdminRoutes}>
                     <Route
@@ -110,6 +111,7 @@ const routes = (
                 </Route>
               </Route>
               <Route path="hosts">
+                <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManageHostsPage} />
                 <Route
                   path="manage/labels/:label_id"
@@ -131,6 +133,7 @@ const routes = (
               </Route>
               <Route component={AuthGlobalAdminMaintainerRoutes}>
                 <Route path="packs" component={PackPageWrapper}>
+                  <IndexRedirect to={"manage"} />
                   <Route path="manage" component={ManagePacksPage} />
                   <Route path="new" component={PackComposerPage} />
                   <Route path=":id">
@@ -141,6 +144,7 @@ const routes = (
               </Route>
               <Route component={AuthAnyMaintainerAnyAdminRoutes}>
                 <Route path="schedule" component={SchedulePageWrapper}>
+                  <IndexRedirect to={"manage"} />
                   <Route path="manage" component={ManageSchedulePage} />
                   <Route
                     path="manage/teams/:team_id"
@@ -149,6 +153,7 @@ const routes = (
                 </Route>
               </Route>
               <Route path="queries" component={QueryPageWrapper}>
+                <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManageQueriesPage} />
                 <Route component={AuthAnyMaintainerAnyAdminRoutes}>
                   <Route path="new" component={QueryPage} />
@@ -156,6 +161,7 @@ const routes = (
                 <Route path=":id" component={QueryPage} />
               </Route>
               <Route path="policies" component={PoliciesPageWrapper}>
+                <IndexRedirect to={"manage"} />
                 <Route path="manage" component={ManagePoliciesPage} />
                 <Route component={AuthAnyMaintainerAnyAdminRoutes}>
                   <Route path="new" component={PolicyPage} />

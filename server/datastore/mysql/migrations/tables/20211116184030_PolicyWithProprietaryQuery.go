@@ -18,6 +18,7 @@ func Up_20211116184030(tx *sql.Tx) error {
 		ADD COLUMN query mediumtext NOT NULL,
 		ADD COLUMN description mediumtext NOT NULL,
   		ADD COLUMN author_id int(10) unsigned DEFAULT NULL,
+		ADD COLUMN platforms VARCHAR(255) NOT NULL DEFAULT '',
 
   		ADD KEY idx_policies_author_id (author_id),
   		ADD KEY idx_policies_team_id (team_id),
