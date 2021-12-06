@@ -4,9 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -14,25 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestDeleteHost(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-
-	mockClock := clock.NewMockClock()
-	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
-	assert.NotZero(t, host.ID)
-
-	err := svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
-	assert.Nil(t, err)
-
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
-	assert.Nil(t, err)
-	assert.Len(t, hosts, 0)
-}
 
 func TestHostDetails(t *testing.T) {
 	ds := new(mock.Store)

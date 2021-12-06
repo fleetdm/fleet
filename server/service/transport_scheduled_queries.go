@@ -7,12 +7,12 @@ import (
 )
 
 func decodeGetScheduledQueriesInPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req getScheduledQueriesInPackRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
@@ -27,7 +27,7 @@ func decodeScheduleQueryRequest(ctx context.Context, r *http.Request) (interface
 }
 
 func decodeModifyScheduledQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -37,26 +37,26 @@ func decodeModifyScheduledQueryRequest(ctx context.Context, r *http.Request) (in
 		return nil, err
 	}
 
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeDeleteScheduledQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteScheduledQueryRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeGetScheduledQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req getScheduledQueryRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }

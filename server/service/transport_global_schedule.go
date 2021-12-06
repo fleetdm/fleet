@@ -17,7 +17,7 @@ func decodeGetGlobalScheduleRequest(ctx context.Context, r *http.Request) (inter
 }
 
 func decodeModifyGlobalScheduleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -27,17 +27,17 @@ func decodeModifyGlobalScheduleRequest(ctx context.Context, r *http.Request) (in
 		return nil, err
 	}
 
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeDeleteGlobalScheduleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteGlobalScheduleRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 

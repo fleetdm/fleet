@@ -116,32 +116,70 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
+
 				case "host_options":
 					opts, err := hostListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
+
 				case "carve_options":
 					opts, err := carveListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
-				default:
-					id, err := idFromRequest(r, urlTagValue)
-					if err != nil {
-						if err == errBadRoute && optional {
-							continue
-						}
 
-						return nil, err
+				default:
+					switch field.Kind() {
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						v, err := intFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetInt(v)
+
+					case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+						v, err := uintFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetUint(v)
+
+					case reflect.String:
+						v, err := stringFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetString(v)
+
+					default:
+						return nil, fmt.Errorf("unsupported type for field %s for 'url' decoding: %s", urlTagValue, field.Kind())
 					}
-					if field.Kind() == reflect.Int64 {
-						field.SetInt(int64(id))
-					} else {
-						field.SetUint(uint64(id))
-					}
+
+					//id, err := idFromRequest(r, urlTagValue)
+					//if err != nil {
+					//	if err == errBadRoute && optional {
+					//		continue
+					//	}
+
+					//	return nil, err
+					//}
+					//if field.Kind() == reflect.Int64 {
+					//	field.SetInt(int64(id))
+					//} else {
+					//	field.SetUint(uint64(id))
+					//}
 				}
 			}
 

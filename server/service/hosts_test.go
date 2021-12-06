@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -69,6 +71,25 @@ func TestGetHostSummary(t *testing.T) {
 	_, err = svc.GetHostSummary(context.Background(), nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+}
+
+func TestDeleteHost(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc := newTestService(ds, nil, nil)
+
+	mockClock := clock.NewMockClock()
+	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
+	assert.NotZero(t, host.ID)
+
+	err := svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
+	assert.Nil(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
+	assert.Nil(t, err)
+	assert.Len(t, hosts, 0)
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {

@@ -180,10 +180,6 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "DELETE",
 			uri:  "/api/v1/fleet/labels/1",
 		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/hosts/1",
-		},
 	}
 
 	for _, route := range routes {
