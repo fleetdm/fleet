@@ -48,12 +48,28 @@ email status until they click the link in the confirmation email.`
       example: '2$28a8eabna301089103-13948134nad'
     },
 
-    fullName: {
+    firstName: {
       type: 'string',
       required: true,
-      description: 'Full representation of the user\'s name.',
+      description: 'The user\'s first name.',
       maxLength: 120,
-      example: 'Mary Sue van der McHenst'
+      example: 'Mary'
+    },
+
+    lastName: {
+      type: 'string',
+      required: true,
+      description: 'The user\'s last name.',
+      maxLength: 120,
+      example: 'van der McHenst'
+    },
+
+    organization: {
+      type: 'string',
+      required: true,
+      description: 'The organization the user works for.',
+      maxLength: 120,
+      example: 'The Sails Company',
     },
 
     isSuperAdmin: {
@@ -164,7 +180,15 @@ without necessarily having a billing card.`
     //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
     // n/a
+    quote: {
+      model: 'quote',
+      description: 'The quote that was generated when the user signed up for an account'
+    },
 
+    subscription: {
+      model: 'subscription',
+      description: 'The quote that was generated when the user signed up for an account'
+    }
   },
 
 
