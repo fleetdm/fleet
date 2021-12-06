@@ -22,10 +22,3 @@ func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, er
 	return &fleet.MigrationStatus{}, nil
 }
 func (m *Store) Name() string { return "mock" }
-
-type mockTransaction struct{}
-
-func (m *mockTransaction) Commit() error   { return nil }
-func (m *mockTransaction) Rollback() error { return nil }
-
-func (m *Store) Begin() (fleet.Transaction, error) { return &mockTransaction{}, nil }
