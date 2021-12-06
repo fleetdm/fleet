@@ -315,7 +315,6 @@ const Software = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
-              disableCount
               disableActionButton
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}

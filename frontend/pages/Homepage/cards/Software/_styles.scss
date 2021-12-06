@@ -22,6 +22,8 @@
     display: none;
   }
   &__software-modal {
+    width: 780px;
+
     .data-table__wrapper {
       margin-top: $pad-large;
     }
