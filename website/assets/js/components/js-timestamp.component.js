@@ -21,6 +21,7 @@ parasails.registerComponent('jsTimestamp', {
     'at',// « The JS timestamp to format
     'short',// « Whether to shorten the formatted date by not including the time of day (may only be used with timeago, and even then only applicable in certain situations)
     'format',// « one of: 'calendar', 'timeago' (defaults to 'timeago'.  Otherwise, the "calendar" format displays data as US-style calendar dates with a four-character year, separated by dashes.  In other words: "MM-DD-YYYY")
+    'alwaysShowYear',// « (only for 'timeago') Whether to always include the year in the timestamp.
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -116,9 +117,9 @@ parasails.registerComponent('jsTimestamp', {
         // time of day in the formatted timestamp.
         let includeTime = !this.short && timeDifference < 1000*60*60*24*31;
 
-        // If the timestamp is from a different year, we'll include the year
-        // in the formatted timestamp.
-        let includeYear = moment(now).format('YYYY') !== moment(this.at).format('YYYY');
+        // If the timestamp is from a different year, or 'alwaysShowYear' is set to true,
+        // we'll include the year in the formatted timestamp.
+        let includeYear = (moment(now).format('YYYY') !== moment(this.at).format('YYYY') || this.alwaysShowYear);
 
         this.formattedTimestamp = moment(this.at).format('MMMM DD'+(includeYear ? ', YYYY' : '')+(includeTime ? ' [at] h:mma' : ''));
       }

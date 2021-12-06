@@ -18,7 +18,7 @@
           </div>
           <div class="col-6 col-lg-2 pt-3 pt-lg-0">
             <strong>Expires</strong>
-            <p><js-timestamp :at="thisSubscription.nextBillingAt" format="timeago"></js-timestamp></p>
+            <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="timeago"></js-timestamp></p>
           </div>
           <div class="col-12 col-lg-4 pt-3 pt-lg-0">
             <strong>License key</strong>
@@ -70,7 +70,7 @@
             <div class="col">
               <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
               <p>Billed anually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
-              <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" format="timeago"></js-timestamp></p>
+              <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="timeago"></js-timestamp></p>
             </div>
           </div>
           <div class="row">
