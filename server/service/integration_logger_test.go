@@ -184,6 +184,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Contains(t, string(logData["err"]), string(`"enroll failed:`))
-	assert.Contains(t, string(logData["err"]), string(`no matching secret found`))
+	assert.Equal(t, `"error"`, string(logData["level"]))
+	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
+	assert.Contains(t, string(logData["err"]), `no matching secret found`)
 }
