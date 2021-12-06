@@ -216,6 +216,21 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+// HostLinuxOSs are the possible linux values for Host.Platform.
+// TODO(lucas): Osquery could also return `gentoo`, `posix`, `freebsd`.
+var HostLinuxOSs = []string{
+	"linux", "ubuntu", "debian", "rhel", "centos",
+}
+
+func isLinux(hostPlatform string) bool {
+	for _, linuxPlatform := range HostLinuxOSs {
+		if linuxPlatform == hostPlatform {
+			return true
+		}
+	}
+	return false
+}
+
 // PlatformFromHost converts the given host platform into
 // the generic platforms known by osquery
 // https://osquery.readthedocs.io/en/stable/deployment/configuration/
@@ -223,10 +238,10 @@ func (h *Host) FleetPlatform() string {
 //
 // Returns empty string if hostPlatform is unknnown.
 func PlatformFromHost(hostPlatform string) string {
-	switch hostPlatform {
-	case "ubuntu", "rhel", "debian":
+	switch {
+	case isLinux(hostPlatform):
 		return "linux"
-	case "darwin", "windows":
+	case hostPlatform == "darwin", hostPlatform == "windows":
 		return hostPlatform
 	default:
 		return ""
