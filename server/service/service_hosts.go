@@ -105,26 +105,6 @@ func (svc Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []u
 	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
 }
 
-func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt fleet.HostListOptions, lid *uint) error {
-	// This is currently treated as a "team write". If we ever give users
-	// besides global admins permissions to modify team hosts, we will need to
-	// check that the user has permissions for both the source and destination
-	// teams.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
-	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
-	if err != nil {
-		return err
-	}
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	// Apply the team to the selected hosts.
-	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
-}
-
 func (svc Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {

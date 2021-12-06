@@ -30,12 +30,3 @@ func decodeAddHostsToTeamRequest(ctx context.Context, r *http.Request) (interfac
 	}
 	return req, nil
 }
-
-func decodeAddHostsToTeamByFilterRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req addHostsToTeamByFilterRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	return req, nil
-}

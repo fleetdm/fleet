@@ -71,6 +71,68 @@ func TestGetHostSummary(t *testing.T) {
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
+func TestAddHostsToTeamByFilter(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	expectedHostIDs := []uint{1, 2, 4}
+	expectedTeam := (*uint)(nil)
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, id := range expectedHostIDs {
+			hosts = append(hosts, &fleet.Host{ID: id})
+		}
+		return hosts, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		assert.Equal(t, expectedTeam, teamID)
+		assert.Equal(t, expectedHostIDs, hostIDs)
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+}
+
+func TestAddHostsToTeamByFilterLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	expectedHostIDs := []uint{6}
+	expectedTeam := ptr.Uint(1)
+	expectedLabel := ptr.Uint(2)
+
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		assert.Equal(t, *expectedLabel, lid)
+		var hosts []*fleet.Host
+		for _, id := range expectedHostIDs {
+			hosts = append(hosts, &fleet.Host{ID: id})
+		}
+		return hosts, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		assert.Equal(t, expectedHostIDs, hostIDs)
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+}
+
+func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		t.Error("add hosts func should not have been called")
+		return nil
+	}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+}
+
 func TestRefetchHost(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)

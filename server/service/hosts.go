@@ -254,6 +254,61 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.Ho
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Add Hosts to Team by Filter
+////////////////////////////////////////////////////////////////////////////////
+
+type addHostsToTeamByFilterRequest struct {
+	TeamID  *uint `json:"team_id"`
+	Filters struct {
+		MatchQuery string           `json:"query"`
+		Status     fleet.HostStatus `json:"status"`
+		LabelID    *uint            `json:"label_id"`
+	} `json:"filters"`
+}
+
+type addHostsToTeamByFilterResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
+
+func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*addHostsToTeamByFilterRequest)
+	listOpt := fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: req.Filters.MatchQuery,
+		},
+		StatusFilter: req.Filters.Status,
+	}
+	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
+	if err != nil {
+		return addHostsToTeamByFilterResponse{Err: err}, nil
+	}
+
+	return addHostsToTeamByFilterResponse{}, err
+}
+
+func (svc Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt fleet.HostListOptions, lid *uint) error {
+	// This is currently treated as a "team write". If we ever give users
+	// besides global admins permissions to modify team hosts, we will need to
+	// check that the user has permissions for both the source and destination
+	// teams.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	hostIDs, err := svc.hostIDsFromFilters(ctx, opt, lid)
+	if err != nil {
+		return err
+	}
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Apply the team to the selected hosts.
+	return svc.ds.AddHostsToTeam(ctx, teamID, hostIDs)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Refetch Host
 ////////////////////////////////////////////////////////////////////////////////
 
