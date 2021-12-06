@@ -270,7 +270,7 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 //
 // NOTE: #3229 proposes a better fix that uses *time.Time for
 // ScheduledQueryStats.LastExecuted.
-var pastDate = "2001-01-01T00:00:00Z"
+var pastDate = "2000-01-01T00:00:00Z"
 
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
