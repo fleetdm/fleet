@@ -1,5 +1,50 @@
 #login {
+  h1 {
+    font-size: 28px;
+  }
+  a {
+    color: @core-vibrant-blue;
+  }
+  p {
+    font-size: 14px;
+  }
+  [purpose="submit-button"] {
+    border-radius: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: flex;
+    span {
+      display: inline;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 14px;
+      line-height: 20px;
+      align: center;
+      font-weight: 400;
+    }
+  }
+  [purpose="features-list"] {
+   ul {
+     list-style-type: none;
+     padding-inline-start: 0px;
+   }
+   li {
+    padding-bottom: 8px;
+   }
+   img {
+    display: inline;
+    height: 16px;
+    margin-right: 8px;
+   }
 
-  //…
+  }
+
+  input {
+    height: 40px;
+    border-radius: 4px;
+    &:focus {
+      // border-color:
+    }
+  }
 
 }

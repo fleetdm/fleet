@@ -12,11 +12,11 @@ parasails.registerPage('signup', {
 
     // Form rules
     formRules: {
-      fullName: {required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      organization: {required: true},
       emailAddress: {required: true, isEmail: true},
-      password: {required: true},
-      confirmPassword: {required: true, sameAs: 'password'},
-      agreed: {required: true},
+      password: {required: true, minLength: 8},
     },
 
     // Syncing / loading state
@@ -24,9 +24,13 @@ parasails.registerPage('signup', {
 
     // Server error state
     cloudError: '',
-
+    showFullForm: false,
     // Success state when form has been submitted
     cloudSuccess: false,
+    quoteFormData: {},
+    quotedPrice: undefined,
+    showQuote: false,
+    quoteFormRules: {},
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -44,19 +48,24 @@ parasails.registerPage('signup', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    submittedForm: async function() {
-      if(this.isEmailVerificationRequired) {
-        // If email confirmation is enabled, show the success message.
-        this.cloudSuccess = true;
-      }
-      else {
-        // Otherwise, redirect to the logged-in dashboard.
-        // > (Note that we re-enable the syncing state here.  This is on purpose--
-        // > to make sure the spinner stays there until the page navigation finishes.)
-        this.syncing = true;
-        window.location = '/';
-      }
+    clickClearFormFields: async function() {
+      this.cloudError = '';
+      this.formData = {};
+      this.formErrors = {};
+      this.showFullForm = true;
+      await this.forceRender();
     },
+
+
+    submittedSignUpForm: async function() {
+      // If email confirmation is enabled, show the success message.
+      // Otherwise, redirect to the logged-in dashboard.
+      // > (Note that we re-enable the syncing state here.  This is on purpose--
+      // > to make sure the spinner stays there until the page navigation finishes.)
+      this.syncing = true;
+      window.location = '/customers/new-license';
+    }
+
 
   }
 });

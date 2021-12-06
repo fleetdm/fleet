@@ -9,7 +9,15 @@ module.exports = {
 
   inputs: {
 
-    fullName: {
+    firstName: {
+      type: 'string'
+    },
+
+    lastName: {
+      type: 'string'
+    },
+
+    organization: {
       type: 'string'
     },
 
@@ -30,7 +38,7 @@ module.exports = {
   },
 
 
-  fn: async function ({fullName, emailAddress}) {
+  fn: async function ({firstName, lastName, organization, emailAddress}) {
 
     var newEmailAddress = emailAddress;
     if (newEmailAddress !== undefined) {
@@ -75,7 +83,9 @@ module.exports = {
     // Start building the values to set in the db.
     // (We always set the fullName if provided.)
     var valuesToSet = {
-      fullName,
+      firstName,
+      lastName,
+      organization,
     };
 
     switch (desiredEmailEffect) {

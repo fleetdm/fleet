@@ -35,11 +35,26 @@ the account verification message.)`,
       description: 'The unencrypted password to use for the new account.'
     },
 
-    fullName:  {
+    organization: {
       required: true,
       type: 'string',
-      example: 'Frida Kahlo de Rivera',
-      description: 'The user\'s full name.',
+      maxLength: 120,
+      example: 'The Sails company',
+      description: 'The organization the user works for'
+    },
+
+    firstName:  {
+      required: true,
+      type: 'string',
+      example: 'Frida',
+      description: 'The user\'s first name.',
+    },
+
+    lastName:  {
+      required: true,
+      type: 'string',
+      example: 'Rivera',
+      description: 'The user\'s last name.',
     }
 
   },
@@ -53,7 +68,7 @@ the account verification message.)`,
 
     invalid: {
       responseType: 'badRequest',
-      description: 'The provided fullName, password and/or email address are invalid.',
+      description: 'The provided firstName, lastName, organization, password and/or email address are invalid.',
       extendedDescription: 'If this request was sent from a graphical user interface, the request '+
       'parameters should have been validated/coerced _before_ they were sent.'
     },
@@ -66,14 +81,16 @@ the account verification message.)`,
   },
 
 
-  fn: async function ({emailAddress, password, fullName}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
 
     // Build up data for the new user record and save it to the database.
     // (Also use `fetch` to retrieve the new ID so that we can use it below.)
     var newUserRecord = await User.create(_.extend({
-      fullName,
+      firstName,
+      lastName,
+      organization,
       emailAddress: newEmailAddress,
       password: await sails.helpers.passwords.hashPassword(password),
       tosAcceptedByIp: this.req.ip
@@ -105,16 +122,19 @@ the account verification message.)`,
       // Send "confirm account" email
       await sails.helpers.sendTemplateEmail.with({
         to: newEmailAddress,
+        from: sails.config.custom.fromEmailAddress,
+        fromName: sails.config.custom.fromName,
         subject: 'Please confirm your account',
         template: 'email-verify-account',
         templateData: {
-          fullName,
+          firstName,
           token: newUserRecord.emailProofToken
         }
       });
     } else {
       sails.log.info('Skipping new account email verification... (since `verifyEmailAddresses` is disabled)');
     }
+    return newUserRecord;
 
   }
 

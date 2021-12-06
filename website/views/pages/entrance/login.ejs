@@ -1,28 +1,43 @@
 <div id="login" v-cloak>
-  <div class="container-fluid pt-5 pb-5">
-    <h1 class="text-center">Sign in to your account</h1>
-    <div style="max-width: 450px;" class="mx-auto">
-      <hr/>
-      <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
-        <div class="form-group">
-          <input type="email" class="form-control" placeholder="Email address" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
-          <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
-        </div>
-        <div class="form-group">
-          <input type="password" class="form-control" placeholder="Password" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
-          <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
-        </div>
-        <div class="form-group form-check">
-          <input class="form-check-input" type="checkbox" id="remember" name="rememberMe" v-model="formData.rememberMe"/>
-          <label class="form-check-label" for="remember">Remember me</label>
-        </div>
-        <cloud-error v-if="cloudError==='badCombo'">The credentials you entered are not associated with an account. Please check your email and/or password and try again.</cloud-error>
-        <cloud-error v-else-if="cloudError"></cloud-error>
-        <div class="form-group">
-          <ajax-button :syncing="syncing" class="btn-dark btn-lg btn-block">Sign in</ajax-button>
-        </div>
-      </ajax-form>
-      <p class="text-center"><a href="/password/forgot">Forgot your password?</a></p>
+  <div style="max-width: 800px;" class="container-fluid pt-5 pb-5">
+    <h1>Welcome to Fleet Premium</h1>
+    <p>We just need a few details in order to get you a Fleet Premium license key</p>
+    <div class="d-flex flex-row">
+
+      <div class="card card-body order-first" >
+
+        <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <span style="float: right" class="text-right"><a href="/customers/register">Create an account</a></span>
+            <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
+            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
+            <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
+          </div>
+          <cloud-error v-if="cloudError==='badCombo'">Something’s not quite right with your email or password.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
+          <div class="form-group">
+            <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info btn-lg btn-block">Sign in</ajax-button>
+          </div>
+        </ajax-form>
+        <p class="text-center"><a href="/customers/forgot-password">Forgot your password?</a></p>
+      </div>
+
+      <div class="order-last d-none d-md-block ml-auto pl-4" purpose="features-list">
+        <p><strong>Fleet Premium includes:</strong></p>
+        <ul>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple Teams (RBAC)</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">A cool license key</li>
+        </ul>
+      </div>
+
     </div>
   </div>
 </div>
