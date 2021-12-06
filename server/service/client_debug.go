@@ -73,6 +73,9 @@ func (c *Client) DebugDBLocks() ([]byte, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
+		if response.StatusCode == http.StatusInternalServerError {
+			return nil, fmt.Errorf("get dblocks received status %d; note that this is currently only supported for mysql 5.7 and the database user must have PROCESS privilege, see the fleet logs for error details", response.StatusCode)
+		}
 		return nil, fmt.Errorf("get dblocks received status %d", response.StatusCode)
 	}
 
