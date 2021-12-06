@@ -209,11 +209,6 @@ const ManageQueriesPage = (): JSX.Element => {
               <h1 className={`${baseClass}__title`}>
                 <span>Queries</span>
               </h1>
-              <div className={`${baseClass}__description`}>
-                <p>
-                  Manage queries to ask specific questions about your devices.
-                </p>
-              </div>
             </div>
           </div>
           {!isOnlyObserver && !!fleetQueries?.length && (
@@ -227,6 +222,9 @@ const ManageQueriesPage = (): JSX.Element => {
               </Button>
             </div>
           )}
+        </div>
+        <div className={`${baseClass}__description`}>
+          <p>Manage queries to ask specific questions about your devices.</p>
         </div>
         <div>
           {isTableDataLoading && !fleetQueriesError && <Spinner />}

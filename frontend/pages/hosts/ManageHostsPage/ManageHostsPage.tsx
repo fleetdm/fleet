@@ -35,6 +35,7 @@ import { IStatusLabels } from "interfaces/status_labels";
 import { ITeam } from "interfaces/team";
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
+import sortUtils from "utilities/sort";
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
@@ -312,7 +313,13 @@ const ManageHostsPage = ({
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams: ITeam[]) => {
+        if (responseTeams.length === 1) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
     }
   );
 
@@ -1066,9 +1073,8 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      teams={teams || []}
-      isLoading={isLoadingTeams}
-      currentTeamId={
+      currentUserTeams={teams || []}
+      selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
       onChange={(newSelectedValue: number) =>
@@ -1333,7 +1339,16 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          {renderTeamsFilterDropdown()}
+          <div className={`${baseClass}__title`}>
+            {!isPremiumTier && <h1>Hosts</h1>}
+            {isPremiumTier &&
+              teams &&
+              teams.length > 1 &&
+              renderTeamsFilterDropdown()}
+            {isPremiumTier && teams && teams.length === 1 && (
+              <h1>{teams[0].name}</h1>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1597,10 +1612,13 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          <div className={`${baseClass}__info-banners`}>
-            {renderNoEnrollSecretBanner()}
-            {renderSoftwareVulnerabilities()}
-          </div>
+          {renderNoEnrollSecretBanner() ||
+            (renderSoftwareVulnerabilities() && (
+              <div className={`${baseClass}__info-banners`}>
+                {renderNoEnrollSecretBanner()}
+                {renderSoftwareVulnerabilities()}
+              </div>
+            ))}
           {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
         </div>
       )}

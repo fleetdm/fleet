@@ -61,7 +61,7 @@ func (svc Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet
 		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
-	policies, err := svc.ds.ListPoliciesForHost(ctx, host.ID)
+	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 	}

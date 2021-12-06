@@ -725,6 +725,7 @@
   }
 
   &__os-modal-title {
+    padding-right: $pad-medium;
     font-size: $medium;
     font-weight: $bold;
   }
@@ -736,6 +737,8 @@
     font-weight: $bold;
   }
   &__os-policy {
+    padding-top: $pad-medium;
+
     .form-field__label {
       font-weight: normal;
     }

@@ -1,0 +1,1 @@
+* Stop storing policy membership history for the time being to improve performance of policies

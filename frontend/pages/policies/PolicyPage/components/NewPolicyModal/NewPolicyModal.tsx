@@ -33,13 +33,18 @@ const NewPolicyModal = ({
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryDescription } = useContext(
-    PolicyContext
-  );
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryResolution,
+  } = useContext(PolicyContext);
 
-  const [name, setName] = useState<string>(lastEditedQueryName || "");
+  const [name, setName] = useState<string>(lastEditedQueryName);
   const [description, setDescription] = useState<string>(
-    lastEditedQueryDescription || ""
+    lastEditedQueryDescription
+  );
+  const [resolution, setResolution] = useState<string>(
+    lastEditedQueryResolution
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -63,6 +68,7 @@ const NewPolicyModal = ({
         description,
         name,
         query: queryValue,
+        resolution,
       });
 
       setIsNewPolicyModalOpen(false);
@@ -79,7 +85,7 @@ const NewPolicyModal = ({
           error={errors.name}
           inputClassName={`${baseClass}__policy-save-modal-name`}
           label="Name"
-          placeholder="What is your policy called?"
+          placeholder="What yes or no question does your policy ask about your devices?"
         />
         <InputField
           name="description"
@@ -87,8 +93,16 @@ const NewPolicyModal = ({
           value={description}
           inputClassName={`${baseClass}__policy-save-modal-description`}
           label="Description"
+          placeholder="Add a description here"
+        />
+        <InputField
+          name="resolution"
+          onChange={(value: string) => setResolution(value)}
+          value={resolution}
+          inputClassName={`${baseClass}__policy-save-modal-resolution`}
+          label="Resolution"
           type="textarea"
-          placeholder="What information does your policy reveal?"
+          placeholder="What are the steps a device owner should take to resolve a host that fails this policy?"
         />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
@@ -106,7 +120,7 @@ const NewPolicyModal = ({
             variant="brand"
             onClick={handleSavePolicy}
           >
-            Save policy
+            Save
           </Button>
         </div>
       </form>

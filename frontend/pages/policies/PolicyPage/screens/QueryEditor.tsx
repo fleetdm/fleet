@@ -140,9 +140,14 @@ const QueryEditor = ({
     return null;
   }
 
+  const backPath = policyTeamId ? `?team_id=${policyTeamId}` : "";
+
   return (
     <div className={`${baseClass}__form body-wrap`}>
-      <Link to={PATHS.MANAGE_POLICIES} className={`${baseClass}__back-link`}>
+      <Link
+        to={`${PATHS.MANAGE_POLICIES}/${backPath}`}
+        className={`${baseClass}__back-link`}
+      >
         <img src={BackChevron} alt="back chevron" id="back-chevron" />
         <span>Back to policies</span>
       </Link>

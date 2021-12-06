@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +13,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -175,8 +176,7 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
 		}
 
-		softwareInventoryEnabled := os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || ac.HostSettings.EnableSoftwareInventory
-		if host.HostSoftware.Modified && softwareInventoryEnabled && len(host.HostSoftware.Software) > 0 {
+		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
 			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
 				return ctxerr.Wrap(ctx, err, "failed to save host software")
 			}
@@ -264,17 +264,6 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
-// schQueriesPlatformFromHost converts the platform from a Host.Platform
-// string to a scheduled query platform string.
-func schQueryPlatformFromHost(hostPlatform string) string {
-	switch hostPlatform {
-	case "ubuntu", "rhel", "debian":
-		return "linux"
-	default: // darwin, windows
-		return hostPlatform
-	}
-}
-
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
@@ -329,7 +318,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 			goqu.I("sq.platform").IsNull(),
 			// scheduled_queries.platform can be a comma-separated list of
 			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
+			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 		),
 	)
 	sql, args, err := ds.ToSQL()
@@ -746,6 +735,11 @@ func (d *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 		return nil
 	}
 
+	// Sort by host id to prevent deadlocks:
+	// https://percona.community/blog/2018/09/24/minimize-mysql-deadlocks-3-steps/
+	// https://dev.mysql.com/doc/refman/5.7/en/innodb-deadlocks-handling.html
+	sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
+
 	if err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var insertArgs []interface{}
 		for _, hostID := range hostIDs {
@@ -875,13 +869,13 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership_history
+		query, args, err := sqlx.In(`DELETE FROM policy_membership
 					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
 		}
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership history")
+			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership")
 		}
 
 		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
@@ -1000,9 +994,11 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
-	// instead of using policy_membership, we use the same query but with `where host_id=?` in the subquery
-	// if we don't do this, the subquery does a full table scan because the where at the end doesn't affect it
+func (d *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens.
+		level.Error(d.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
@@ -1013,16 +1009,13 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 		END AS response,
 		coalesce(p.resolution, '') as resolution
 	FROM policies p
-	LEFT JOIN (
-	    SELECT * FROM policy_membership_history WHERE id IN (
-	        SELECT max(id) AS id FROM policy_membership_history WHERE host_id=? GROUP BY host_id, policy_id
-	    )
-	) as pm ON (p.id=pm.policy_id)
+	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
+	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+	AND (p.platforms IS NULL OR p.platforms = "" OR FIND_IN_SET(?, p.platforms) != 0)`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid, hid); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

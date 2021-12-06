@@ -175,7 +175,7 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
-type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -304,6 +304,8 @@ type MigrateDataFunc func(ctx context.Context) error
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error)
+
+type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -765,6 +767,9 @@ type DataStore struct {
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
 
+	CountSoftwareFunc        CountSoftwareFunc
+	CountSoftwareFuncInvoked bool
+
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
 
@@ -1203,9 +1208,9 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
-	return s.ListPoliciesForHostFunc(ctx, hid)
+	return s.ListPoliciesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -1526,6 +1531,11 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	s.ListSoftwareFuncInvoked = true
 	return s.ListSoftwareFunc(ctx, opt)
+}
+
+func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	s.CountSoftwareFuncInvoked = true
+	return s.CountSoftwareFunc(ctx, opt)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {

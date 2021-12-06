@@ -241,6 +241,27 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	return hopt, nil
 }
 
+func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.CarveListOptions{}, err
+	}
+
+	copt := fleet.CarveListOptions{ListOptions: opt}
+
+	expired := r.URL.Query().Get("expired")
+	// TODO(mna): allow the same bool encodings as strconv.ParseBool and use it?
+	switch expired {
+	case "1", "true":
+		copt.Expired = true
+	case "0", "":
+		copt.Expired = false
+	default:
+		return copt, ctxerr.Errorf(r.Context(), "invalid expired value %s", expired)
+	}
+	return copt, nil
+}
+
 func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
 	opt, err := listOptionsFromRequest(r)
 	if err != nil {
