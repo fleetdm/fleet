@@ -1,0 +1,78 @@
+<div id="new-license" v-cloak>
+    <div style="max-width: 800px;" class="container-fluid pt-5 pb-5">
+      <h1>Welcome to Fleet Premium</h1>
+      <div class="mx-auto">
+      <p>We just need a few details in order to get you a Fleet Premium license key</p>
+      <div class="d-flex flex-row">
+        <div class="order-first">
+          <div class="card card-body">
+            <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedQuoteForm($event)">
+              <div class="d-flex flex-row">
+                <div class="form-group order-first">
+                  <label for="numberOfHosts"><strong>Total number of devices</strong></label>
+                  <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" v-model.trim="formData.numberOfHosts" v-if="!showBillingForm">
+                  <span class="form-control" v-else>{{formData.numberOfHosts}}<span class="text-danger fa fa-times-circle pl-2" @click="clickResetForm()"></span></span>
+                  <div class="invalid-feedback" v-if="formErrors.numberOfHosts" focus-first>Please enter a number of hosts</div>
+                </div>
+                <div style="color: #515774;"class="order-last text-right pl-4 pt-4 ml-auto">
+                  <p><strong class="pr-1" style="font-size: 18px; color: #192147">$1.00</strong> /month/device
+                  <br>
+                  (Billed annually at $12/device)</p>
+                </div>
+              </div>
+              <cloud-error v-if="cloudError && !showBillingForm"></cloud-error>
+              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!showBillingForm">Continue</ajax-button>
+            </ajax-form>
+            <div class="pt-3 border-top d-flex flex-row" v-if="showBillingForm">
+              <div class="order-first">
+                <strong>Order Total</strong>
+              </div>
+              <div class="ml-auto">
+                <strong>${{quotedPrice}}.00 /year</strong>
+                <p style="margin-block-end: 0px;" class="text-success">Free for 30 days</p>
+              </div>
+            </div>
+          </div>
+          <div class="card card-body mt-3" v-if="showBillingForm">
+            <h3 class="pb-3">Billing information</h3>
+            <ajax-form :handle-submitting="handleSubmittingPayment" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedPaymentForm()">
+            <div class="form-group">
+              <label for="card">Billing Card</label>
+              <stripe-card-element class="mb-3" id="card" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
+              v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
+            </div>
+<!--             <div class="form-group">
+              <label for="country">Country</label>
+              <input class="form-control" id="country" type="text"  :class="[formErrors.country ? 'is-invalid' : '']" v-model.trim="formData.country">
+              <div class="invalid-feedback" v-if="formErrors.country">Please enter the country you are located in.</div>
+            </div> -->
+            <cloud-error v-if="cloudError === 'couldNotSaveBillingInfo'">The billing card provided could not be used. Please use another card or <a href="">contact support</a></cloud-error>
+            <cloud-error v-else-if="cloudError"></cloud-error>
+            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="">Get License key</ajax-button>
+            </ajax-form>
+          </div>
+        </div>
+        <div style="max-width: 280px;" class="order-last d-none d-md-block ml-auto pl-4" purpose="features-list">
+          <p><strong>Fleet Premium includes:</strong></p>
+          <ul>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">A cool license key</li>
+          </ul>
+          <div class="pt-2 d-none" v-if="showBillingForm">
+          <p><strong>FAQ</strong></p>
+          <strong>Will my credit card be charged now?</strong>
+          <p>No, you’ll be charged on <js-timestamp short="true" :at="thirtyDaysFromTodayInMS"></js-timestamp> unless you cancel before then.</p>
+          <strong>Can I cancel at any time?</strong>
+          <p>Yes you can. Please enjoy Fleet Premium with no oblication to buy.</p>
+          <strong>Can I change my details later?</strong>
+          <p>Yes, you can change your details, including payment method and number of devices from your admin panel.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
