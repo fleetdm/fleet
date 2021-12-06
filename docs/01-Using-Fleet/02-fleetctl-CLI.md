@@ -262,7 +262,8 @@ The same is not true if S3 is used as the storage backend. In that scenario, it 
 #### Minio
 
 Configure the following:
-- `FLEET_S3_ENDPOINT_URL=minio_host`
+- `FLEET_S3_ENDPOINT_URL=minio_host:port`
+- `FLEET_S3_BUCKET=minio_bucket_name`
 - `FLEET_S3_SECRET_ACCESS_KEY=your_secret_access_key`
 - `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
@@ -282,8 +283,19 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure carver_block_size is set appropriately
+#### Ensure `carver_block_size` is set appropriately
 
-This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
+`carver_block_size` is an osquery flag that sets the size of each part of a file carve that osquery
+sends to the Fleet server.
+
+When using the MySQL backend (default), this value must be less than the `max_allowed_packet`
+setting in MySQL. If it is too large, MySQL will reject the writes.
+
+When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
+sizes are rejected. Additionally [S3
+limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
+parts to 10,000.
 
 The value must be small enough that HTTP requests do not time out.
+
+Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
