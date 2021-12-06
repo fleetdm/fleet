@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (d *Datastore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -55,4 +56,28 @@ func (d *Datastore) overwriteLockIfExpired(ctx context.Context, name string, own
 func (d *Datastore) Unlock(ctx context.Context, name string, owner string) error {
 	_, err := d.writer.ExecContext(ctx, `DELETE FROM locks WHERE name = ? and owner = ?`, name, owner)
 	return err
+}
+
+func (d *Datastore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
+	stmt := `
+    SELECT
+      r.trx_id              waiting_trx_id,
+      r.trx_mysql_thread_id waiting_thread,
+      r.trx_query           waiting_query,
+      b.trx_id              blocking_trx_id,
+      b.trx_mysql_thread_id blocking_thread,
+      b.trx_query           blocking_query
+    FROM       information_schema.innodb_lock_waits w
+    INNER JOIN information_schema.innodb_trx b
+      ON b.trx_id = w.blocking_trx_id
+    INNER JOIN information_schema.innodb_trx r
+      ON r.trx_id = w.requesting_trx_id`
+
+	var locks []*fleet.DBLock
+	// Even though this is a Read, use the writer as we want the db locks from
+	// the primary database (the read replica should have little to no trx locks).
+	if err := d.writer.SelectContext(ctx, &locks, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select locking information")
+	}
+	return locks, nil
 }

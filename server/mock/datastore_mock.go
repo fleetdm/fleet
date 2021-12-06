@@ -319,6 +319,8 @@ type LockFunc func(ctx context.Context, name string, owner string, expiration ti
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
 
+type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
+
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
@@ -785,6 +787,9 @@ type DataStore struct {
 
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
+
+	DBLocksFunc        DBLocksFunc
+	DBLocksFuncInvoked bool
 
 	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
 	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
@@ -1561,6 +1566,11 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
+	s.DBLocksFuncInvoked = true
+	return s.DBLocksFunc(ctx)
 }
 
 func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {

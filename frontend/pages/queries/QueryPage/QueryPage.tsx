@@ -41,6 +41,7 @@ const QueryPage = ({
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
