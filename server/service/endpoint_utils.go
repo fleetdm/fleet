@@ -214,13 +214,19 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 }
 
 type UserAuthEndpointer struct {
-	svc  fleet.Service
-	opts []kithttp.ServerOption
-	r    *mux.Router
+	svc               fleet.Service
+	opts              []kithttp.ServerOption
+	r                 *mux.Router
+	versions          []string
+	startingAtVersion string
+	endingAtVersion   string
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router) *UserAuthEndpointer {
-	return &UserAuthEndpointer{svc: svc, opts: opts, r: r}
+type endpointerHandler struct {
+}
+
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
 
 func getNameFromPathAndVerb(verb, path string) string {
@@ -243,8 +249,37 @@ func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "DELETE")
 }
 
-func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) *mux.Route {
-	return e.r.Handle(path, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
+func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+	versions := e.versions
+	if e.startingAtVersion != "" {
+		startIndex := -1
+		for i, version := range versions {
+			if version == e.startingAtVersion {
+				startIndex = i
+				break
+			}
+		}
+		if startIndex == -1 {
+			panic("StartAtVersion is not part of the valid versions")
+		}
+		versions = versions[startIndex:]
+	}
+	if e.endingAtVersion != "" {
+		endIndex := -1
+		for i, version := range versions {
+			if version == e.endingAtVersion {
+				endIndex = i
+				break
+			}
+		}
+		if endIndex == -1 {
+			panic("EndAtVersion is not part of the valid versions")
+		}
+		versions = versions[:endIndex+1]
+	}
+
+	versionedPath := strings.Replace(path, "/v1/", fmt.Sprintf("/[%s]/", strings.Join(versions, ",")), 1)
+	e.r.Handle(versionedPath, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
 }
 
 func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
@@ -257,4 +292,12 @@ func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Han
 		makeDecoder(v),
 		e.opts,
 	)
+}
+
+func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: e.svc, opts: e.opts, r: e.r, versions: e.versions, startingAtVersion: version}
+}
+
+func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: e.svc, opts: e.opts, r: e.r, versions: e.versions, endingAtVersion: version}
 }
