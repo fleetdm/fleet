@@ -252,3 +252,48 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint) (*fleet.Ho
 	}
 	return summary, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Refetch Host
+////////////////////////////////////////////////////////////////////////////////
+
+type refetchHostRequest struct {
+	ID uint `url:"id"`
+}
+
+type refetchHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r refetchHostResponse) error() error { return r.Err }
+
+func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*refetchHostRequest)
+	err := svc.RefetchHost(ctx, req.ID)
+	if err != nil {
+		return refetchHostResponse{Err: err}, nil
+	}
+	return refetchHostResponse{}, nil
+}
+
+func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.Host(ctx, id, false)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "find host for refetch")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	host.RefetchRequested = true
+	if err := svc.ds.SaveHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host")
+	}
+
+	return nil
+}

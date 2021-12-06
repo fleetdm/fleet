@@ -8,7 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,4 +69,58 @@ func TestGetHostSummary(t *testing.T) {
 	_, err = svc.GetHostSummary(context.Background(), nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+}
+
+func TestRefetchHost(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{ID: 3}
+
+	ds.HostFunc = func(ctx context.Context, hid uint, skipLoadingExtras bool) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		assert.True(t, host.RefetchRequested)
+		return nil
+	}
+
+	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserAdmin), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserObserver), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserMaintainer), host.ID))
+}
+
+func TestRefetchHostUserInTeams(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
+
+	ds.HostFunc = func(ctx context.Context, hid uint, skipLoadingExtras bool) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		assert.True(t, host.RefetchRequested)
+		return nil
+	}
+
+	maintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 4},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	require.NoError(t, svc.RefetchHost(test.UserContext(maintainer), host.ID))
+
+	observer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 4},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	require.NoError(t, svc.RefetchHost(test.UserContext(observer), host.ID))
 }

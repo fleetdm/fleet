@@ -186,25 +186,3 @@ func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uin
 	opt.PerPage = fleet.PerPageUnlimited
 	return filter, nil
 }
-
-func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
-
-	host, err := svc.ds.Host(ctx, id, false)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find host for refetch")
-	}
-
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return err
-	}
-
-	host.RefetchRequested = true
-	if err := svc.ds.SaveHost(ctx, host); err != nil {
-		return ctxerr.Wrap(ctx, err, "save host")
-	}
-
-	return nil
-}

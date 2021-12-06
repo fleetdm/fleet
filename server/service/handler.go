@@ -96,7 +96,6 @@ type FleetEndpoints struct {
 	GetLabelSpec                          endpoint.Endpoint
 	HostByIdentifier                      endpoint.Endpoint
 	DeleteHost                            endpoint.Endpoint
-	RefetchHost                           endpoint.Endpoint
 	AddHostsToTeam                        endpoint.Endpoint
 	AddHostsToTeamByFilter                endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
@@ -197,7 +196,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
 		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
 		AddHostsToTeamByFilter:                authenticatedUser(svc, makeAddHostsToTeamByFilterEndpoint(svc)),
-		RefetchHost:                           authenticatedUser(svc, makeRefetchHostEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
 		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(svc, makeGetLabelEndpoint(svc)),
@@ -316,7 +314,6 @@ type fleetHandlers struct {
 	GetLabelSpec                          http.Handler
 	HostByIdentifier                      http.Handler
 	DeleteHost                            http.Handler
-	RefetchHost                           http.Handler
 	AddHostsToTeam                        http.Handler
 	AddHostsToTeamByFilter                http.Handler
 	SearchTargets                         http.Handler
@@ -419,7 +416,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
 		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
 		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
-		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
 		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
 		AddHostsToTeamByFilter:                newServer(e.AddHostsToTeamByFilter, decodeAddHostsToTeamByFilterRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
@@ -621,7 +617,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}", h.DeleteHost).Methods("DELETE").Name("delete_host")
 	r.Handle("/api/v1/fleet/hosts/transfer", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
 	r.Handle("/api/v1/fleet/hosts/transfer/filter", h.AddHostsToTeamByFilter).Methods("POST").Name("add_hosts_to_team_by_filter")
-	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/refetch", h.RefetchHost).Methods("POST").Name("refetch_host")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
@@ -708,6 +703,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
 	e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+
+	e.POST("/api/v1/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
