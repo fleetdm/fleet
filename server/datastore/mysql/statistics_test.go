@@ -62,14 +62,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create new global policy for test
-	q, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:        "query1",
-		Description: "query1 desc",
+	_, err = ds.NewGlobalPolicy(context.Background(), ptr.Uint(1), fleet.PolicyPayload{
+		Name:        "testpolicy",
 		Query:       "select 1;",
-		Saved:       true,
+		Description: "test policy desc",
+		Resolution:  "test policy resolution",
 	})
-	require.NoError(t, err)
-	_, err = ds.NewGlobalPolicy(context.Background(), &q.ID, "")
 	require.NoError(t, err)
 
 	// Create new app config for test
