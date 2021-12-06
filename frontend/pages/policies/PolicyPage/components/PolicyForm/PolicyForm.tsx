@@ -316,7 +316,7 @@ const PolicyForm = ({
               autoFocus: true,
               onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
                 // sets cursor to end of inputfield
-                var val = e.target.value;
+                const val = e.target.value;
                 e.target.value = "";
                 e.target.value = val;
               },
@@ -362,7 +362,7 @@ const PolicyForm = ({
               autoFocus: true,
               onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
                 // sets cursor to end of inputfield
-                var val = e.target.value;
+                const val = e.target.value;
                 e.target.value = "";
                 e.target.value = val;
               },
@@ -411,7 +411,7 @@ const PolicyForm = ({
                 autoFocus: true,
                 onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
                   // sets cursor to end of inputfield
-                  var val = e.target.value;
+                  const val = e.target.value;
                   e.target.value = "";
                   e.target.value = val;
                 },
