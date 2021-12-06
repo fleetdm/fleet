@@ -83,7 +83,7 @@ parasails.registerComponent('stripeCardElement', {
       // You can update this section to match your website's theme
       style: {
         base: {
-          lineHeight: '54px',
+          lineHeight: '36px',
           fontSize: '16px',
           color: '#192147',
           iconColor: '#6A67FE',
