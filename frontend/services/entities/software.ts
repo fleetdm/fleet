@@ -9,7 +9,7 @@ interface IGetSoftwareProps {
   orderDir: "asc" | "desc";
   query: string;
   vulnerable: boolean;
-  teamId: boolean;
+  teamId?: number;
 }
 
 interface ISoftwareResponse {

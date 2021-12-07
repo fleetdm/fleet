@@ -21,6 +21,7 @@ interface ITableQueryProps {
 }
 
 interface ISoftwareCardProps {
+  currentTeamId?: number;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
@@ -96,6 +97,7 @@ const EmptySoftware = (message: string): JSX.Element => {
 };
 
 const Software = ({
+  currentTeamId,
   isModalOpen,
   setIsSoftwareModalOpen,
 }: ISoftwareCardProps): JSX.Element => {
@@ -113,69 +115,89 @@ const Software = ({
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
+  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
+  const [
+    isLoadingVulnerableSoftware,
+    setIsLoadingVulnerableSoftware,
+  ] = useState<boolean>(false);
+  const [isLoadingModalSoftware, setIsLoadingModalSoftware] = useState<boolean>(
+    false
+  );
 
-  const { data: software, isLoading: isLoadingSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(
-    ["software", softwarePageIndex],
-    () =>
-      softwareAPI.load({
+  const { data: software } = useQuery<ISoftware[], Error>(
+    ["software", softwarePageIndex, currentTeamId],
+    () => {
+      setIsLoadingSoftware(true);
+      return softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "name,id",
         orderDir: "asc",
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: navTabIndex === 0,
-      refetchOnWindowFocus: false,
+      // If keepPreviousData is enabled,
+      // useQuery no longer returns isLoading when making new calls after load
+      // So we manage our own load states
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingSoftware(false);
+      },
     }
   );
 
-  const {
-    data: vulnerableSoftware,
-    isLoading: isLoadingVulnerableSoftware,
-  } = useQuery<ISoftware[], Error>(
-    ["vSoftware", vSoftwarePageIndex],
-    () =>
-      softwareAPI.load({
+  const { data: vulnerableSoftware } = useQuery<ISoftware[], Error>(
+    ["vSoftware", vSoftwarePageIndex, currentTeamId],
+    () => {
+      setIsLoadingVulnerableSoftware(true);
+      return softwareAPI.load({
         page: vSoftwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "name,id",
         orderDir: "asc",
         vulnerable: true,
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingVulnerableSoftware(false);
+      },
     }
   );
 
-  const { data: modalSoftware, isLoading: isLoadingModalSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(
+  const { data: modalSoftware } = useQuery<ISoftware[], Error>(
     [
       "modalSoftware",
       modalSoftwarePageIndex,
       modalSoftwareSearchText,
       isModalSoftwareVulnerable,
+      currentTeamId,
     ],
-    () =>
-      softwareAPI.load({
+    () => {
+      setIsLoadingModalSoftware(true);
+      return softwareAPI.load({
         page: modalSoftwarePageIndex,
         perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
         orderKey: "id",
         orderDir: "desc",
         vulnerable: isModalSoftwareVulnerable,
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingModalSoftware(false);
+      },
     }
   );
 
