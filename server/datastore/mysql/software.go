@@ -152,8 +152,8 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	var existingId []int64
 	if err := sqlx.SelectContext(ctx, tx,
 		&existingId,
-		`SELECT id FROM software WHERE name = ? AND version = ? AND source = ? AND bundle_identifier = ?`,
-		s.Name, s.Version, s.Source, s.BundleIdentifier,
+		`SELECT id FROM software WHERE name = ? AND version = ? AND source = ?`,
+		s.Name, s.Version, s.Source,
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
