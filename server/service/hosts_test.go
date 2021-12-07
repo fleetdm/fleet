@@ -305,6 +305,8 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+	assert.True(t, ds.ListHostsFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestAddHostsToTeamByFilterLabel(t *testing.T) {
@@ -329,6 +331,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+	assert.True(t, ds.ListHostsInLabelFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
@@ -339,11 +343,12 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return []*fleet.Host{}, nil
 	}
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		t.Error("add hosts func should not have been called")
 		return nil
 	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+	assert.True(t, ds.ListHostsFuncInvoked)
+	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestRefetchHost(t *testing.T) {
@@ -363,6 +368,8 @@ func TestRefetchHost(t *testing.T) {
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserAdmin), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserObserver), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserMaintainer), host.ID))
+	assert.True(t, ds.HostFuncInvoked)
+	assert.True(t, ds.SaveHostFuncInvoked)
 }
 
 func TestRefetchHostUserInTeams(t *testing.T) {
@@ -388,6 +395,9 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 		},
 	}
 	require.NoError(t, svc.RefetchHost(test.UserContext(maintainer), host.ID))
+	assert.True(t, ds.HostFuncInvoked)
+	assert.True(t, ds.SaveHostFuncInvoked)
+	ds.HostFuncInvoked, ds.SaveHostFuncInvoked = false, false
 
 	observer := &fleet.User{
 		Teams: []fleet.UserTeam{
@@ -398,4 +408,6 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 		},
 	}
 	require.NoError(t, svc.RefetchHost(test.UserContext(observer), host.ID))
+	assert.True(t, ds.HostFuncInvoked)
+	assert.True(t, ds.SaveHostFuncInvoked)
 }
