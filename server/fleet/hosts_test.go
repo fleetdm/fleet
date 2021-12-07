@@ -88,11 +88,23 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "rhel",
+			expPlatform: "linux",
+		},
+		{
 			host:        "centos",
 			expPlatform: "linux",
 		},
 		{
-			host:        "rhel",
+			host:        "sles",
+			expPlatform: "linux",
+		},
+		{
+			host:        "kali",
+			expPlatform: "linux",
+		},
+		{
+			host:        "gentoo",
 			expPlatform: "linux",
 		},
 		{

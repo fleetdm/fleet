@@ -217,9 +217,8 @@ func (h *Host) FleetPlatform() string {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
-// TODO(lucas): Osquery could also return `gentoo`, `posix`, `freebsd`.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo",
 }
 
 func isLinux(hostPlatform string) bool {
