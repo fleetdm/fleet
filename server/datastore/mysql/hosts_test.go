@@ -23,6 +23,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var expLastExec = func() time.Time {
+	t, _ := time.Parse(time.RFC3339, pastDate)
+	return t
+}()
+
 var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
 }{
@@ -2447,7 +2452,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 
 		require.Zero(t, tc.packStats.QueryStats[0].AverageMemory)
 		require.Zero(t, tc.packStats.QueryStats[0].Executions)
-		require.Zero(t, tc.packStats.QueryStats[0].LastExecuted)
+		require.Equal(t, expLastExec, tc.packStats.QueryStats[0].LastExecuted)
 		require.Zero(t, tc.packStats.QueryStats[0].OutputSize)
 		require.Zero(t, tc.packStats.QueryStats[0].SystemTime)
 		require.Zero(t, tc.packStats.QueryStats[0].UserTime)
@@ -2496,7 +2501,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		Denylisted:         false,
 		Executions:         0,
 		Interval:           30,
-		LastExecuted:       time.Time{},
+		LastExecuted:       expLastExec,
 		OutputSize:         0,
 		SystemTime:         0,
 		UserTime:           0,
@@ -2885,7 +2890,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			Denylisted:         false,
 			Executions:         0,
 			Interval:           30,
-			LastExecuted:       time.Time{},
+			LastExecuted:       expLastExec,
 			OutputSize:         0,
 			SystemTime:         0,
 			UserTime:           0,
@@ -2901,7 +2906,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			Denylisted:         false,
 			Executions:         0,
 			Interval:           30,
-			LastExecuted:       time.Time{},
+			LastExecuted:       expLastExec,
 			OutputSize:         0,
 			SystemTime:         0,
 			UserTime:           0,
@@ -2917,7 +2922,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			Denylisted:         false,
 			Executions:         0,
 			Interval:           30,
-			LastExecuted:       time.Time{},
+			LastExecuted:       expLastExec,
 			OutputSize:         0,
 			SystemTime:         0,
 			UserTime:           0,
@@ -2933,7 +2938,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			Denylisted:         false,
 			Executions:         0,
 			Interval:           30,
-			LastExecuted:       time.Time{},
+			LastExecuted:       expLastExec,
 			OutputSize:         0,
 			SystemTime:         0,
 			UserTime:           0,
