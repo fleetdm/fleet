@@ -8,7 +8,6 @@ import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ITeam } from "interfaces/team";
-import { getSortedTeamOptions } from "fleet/helpers";
 import sortUtils from "utilities/sort";
 
 import TeamsDropdown from "components/TeamsDropdown";
@@ -38,6 +37,7 @@ const Homepage = (): JSX.Element => {
     config,
     currentTeam,
     isPremiumTier,
+    isFreeTier,
     isPreviewMode,
     isOnGlobalTeam,
     setCurrentTeam,
@@ -53,24 +53,20 @@ const Homepage = (): JSX.Element => {
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >(["teams"], () => teamsAPI.loadAll(), {
-    enabled: !!isPremiumTier,
-    select: (data: ITeamsResponse) =>
-      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
-    onSuccess: (responseTeams) => {
-      if (!isOnGlobalTeam) {
-        const sortedTeams = getSortedTeamOptions(responseTeams);
-        const firstTeamOption = responseTeams.find(
-          (responseTeam) => responseTeam.id === sortedTeams[0].value
-        );
-        setCurrentTeam(firstTeamOption);
-      }
-    },
-  });
+  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams) => {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
+    }
+  );
 
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
@@ -108,19 +104,22 @@ const Homepage = (): JSX.Element => {
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>
-                {isPremiumTier && teams && teams.length > 1 && (
-                  <TeamsDropdown
-                    selectedTeamId={currentTeam?.id || 0}
-                    currentUserTeams={teams || []}
-                    onChange={(newSelectedValue: number) =>
-                      handleTeamSelect(newSelectedValue)
-                    }
-                  />
-                )}
-                {isPremiumTier && teams && teams.length === 1 && (
-                  <h1>{teams[0].name}</h1>
-                )}
-                {!isPremiumTier && <h1>{config?.org_name}</h1>}
+                {isFreeTier && <h1>{config?.org_name}</h1>}
+                {isPremiumTier &&
+                  teams &&
+                  (teams.length > 1 || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      selectedTeamId={currentTeam?.id || 0}
+                      currentUserTeams={teams || []}
+                      onChange={(newSelectedValue: number) =>
+                        handleTeamSelect(newSelectedValue)
+                      }
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  teams &&
+                  teams.length === 1 && <h1>{teams[0].name}</h1>}
               </div>
             </div>
           </div>

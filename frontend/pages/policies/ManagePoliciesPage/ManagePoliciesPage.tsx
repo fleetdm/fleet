@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
-import { noop } from "lodash";
+import { find, noop } from "lodash";
 
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -67,6 +67,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    currentTeam,
+    setCurrentTeam,
   } = useContext(AppContext);
 
   const {
@@ -181,6 +183,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
     setPolicyTeamId(id);
+    const selectedTeam = find(teams, ["id", id]);
+    setCurrentTeam(selectedTeam);
   };
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
@@ -266,7 +270,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     if (userTeams && !userTeams.find((t) => t.id === teamId)) {
       if (isOnGlobalTeam) {
         // For global users, default to zero (i.e. all teams).
-        if (teamId === undefined) {
+        if (teamId === undefined && !currentTeam) {
           handleTeamSelect(0);
           return;
         }
@@ -275,7 +279,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         // If there is no default team, set teamId to null so that getPolicies
         // API request will not be triggered.
         teamId = userTeams[0]?.id || null;
-        if (teamId) {
+        if (!currentTeam && teamId) {
           handleTeamSelect(teamId);
           return;
         }
@@ -284,7 +288,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     // Null case must be distinguished from 0 (which is used as the id for the "All teams" option)
     // so a falsiness check cannot be used here. Null case here allows us to skip API call
     // that would be triggered on a change to selectedTeamId.
-    teamId !== null && setSelectedTeamId(teamId);
+    if (currentTeam) {
+      setSelectedTeamId(currentTeam.id);
+    } else {
+      teamId !== null && setSelectedTeamId(teamId);
+    }
   }, [isOnGlobalTeam, location, userTeams]);
 
   // Watch for selected team changes and call getPolicies to make new policies API request.
@@ -348,8 +356,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 {isFreeTier && <h1>Policies</h1>}
                 {isPremiumTier &&
                   userTeams &&
-                  userTeams.length > 1 &&
-                  selectedTeamId >= 0 && (
+                  (userTeams.length > 1 || isOnGlobalTeam) && (
                     <TeamsDropdown
                       selectedTeamId={selectedTeamId}
                       currentUserTeams={userTeams || []}
@@ -358,9 +365,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                       }
                     />
                   )}
-                {isPremiumTier && userTeams && userTeams.length === 1 && (
-                  <h1>{userTeams[0].name}</h1>
-                )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
               </div>
             </div>
           </div>

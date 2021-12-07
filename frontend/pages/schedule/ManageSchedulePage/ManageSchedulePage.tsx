@@ -5,6 +5,7 @@ import { useQuery } from "react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { AppContext } from "context/app";
 import { push } from "react-router-redux";
+import { find } from "lodash";
 
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
@@ -123,9 +124,14 @@ const ManageSchedulePage = ({
   const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
   const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
 
-  const { currentUser, isOnGlobalTeam, isPremiumTier, isFreeTier } = useContext(
-    AppContext
-  );
+  const {
+    currentUser,
+    isOnGlobalTeam,
+    isPremiumTier,
+    isFreeTier,
+    currentTeam,
+    setCurrentTeam,
+  } = useContext(AppContext);
 
   const filterAndSortTeamOptions = (allTeams: ITeam[], userTeams: ITeam[]) => {
     const filteredSortedTeams = allTeams
@@ -167,31 +173,39 @@ const ManageSchedulePage = ({
     }
   );
 
-  const teamId = team_id ? parseInt(team_id, 10) : 0;
+  let selectedTeamId: number;
 
-  const handleTeamSelect = (selectedTeamId: number) => {
-    if (selectedTeamId) {
-      dispatch(push(MANAGE_TEAM_SCHEDULE(selectedTeamId)));
+  if (currentTeam) {
+    selectedTeamId = currentTeam.id;
+  } else {
+    selectedTeamId = team_id ? parseInt(team_id, 10) : 0;
+  }
+
+  const handleTeamSelect = (teamId: number) => {
+    if (teamId) {
+      dispatch(push(MANAGE_TEAM_SCHEDULE(teamId)));
     } else {
       dispatch(push(MANAGE_SCHEDULE));
     }
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
   };
 
-  if (!isOnGlobalTeam && !teamId && teams) {
+  if (!isOnGlobalTeam && !selectedTeamId && teams) {
     handleTeamSelect(teams[0].id);
   }
 
   // TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
   useEffect(() => {
     dispatch(
-      teamId
-        ? teamScheduledQueryActions.loadAll(teamId)
+      selectedTeamId
+        ? teamScheduledQueryActions.loadAll(selectedTeamId)
         : globalScheduledQueryActions.loadAll()
     );
-  }, [dispatch, teamId]);
+  }, [dispatch, selectedTeamId]);
 
   const allScheduledQueries = useSelector((state: IRootState) => {
-    if (teamId) {
+    if (selectedTeamId) {
       return state.entities.team_scheduled_queries;
     }
     return state.entities.global_scheduled_queries;
@@ -212,7 +226,7 @@ const ManageSchedulePage = ({
   const inheritedQueryOrQueries =
     allTeamsScheduledQueriesList.length === 1 ? "query" : "queries";
 
-  const selectedTeam = !teamId ? "global" : teamId;
+  const selectedTeam = !selectedTeamId ? "global" : selectedTeamId;
 
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
@@ -267,8 +281,8 @@ const ManageSchedulePage = ({
   const onRemoveScheduledQuerySubmit = useCallback(() => {
     const promises = selectedQueryIds.map((id: number) => {
       return dispatch(
-        teamId
-          ? teamScheduledQueryActions.destroy(teamId, id)
+        selectedTeamId
+          ? teamScheduledQueryActions.destroy(selectedTeamId, id)
           : globalScheduledQueryActions.destroy({ id })
       );
     });
@@ -283,8 +297,8 @@ const ManageSchedulePage = ({
         );
         toggleRemoveScheduledQueryModal();
         dispatch(
-          teamId
-            ? teamScheduledQueryActions.loadAll(teamId)
+          selectedTeamId
+            ? teamScheduledQueryActions.loadAll(selectedTeamId)
             : globalScheduledQueryActions.loadAll()
         );
       })
@@ -297,7 +311,12 @@ const ManageSchedulePage = ({
         );
         toggleRemoveScheduledQueryModal();
       });
-  }, [dispatch, teamId, selectedQueryIds, toggleRemoveScheduledQueryModal]);
+  }, [
+    dispatch,
+    selectedTeamId,
+    selectedQueryIds,
+    toggleRemoveScheduledQueryModal,
+  ]);
 
   const onAddScheduledQuerySubmit = useCallback(
     (
@@ -307,7 +326,7 @@ const ManageSchedulePage = ({
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
         dispatch(
-          teamId
+          selectedTeamId
             ? teamScheduledQueryActions.update(editQuery, updatedAttributes)
             : globalScheduledQueryActions.update(editQuery, updatedAttributes)
         )
@@ -319,8 +338,8 @@ const ManageSchedulePage = ({
               )
             );
             dispatch(
-              teamId
-                ? teamScheduledQueryActions.loadAll(teamId)
+              selectedTeamId
+                ? teamScheduledQueryActions.loadAll(selectedTeamId)
                 : globalScheduledQueryActions.loadAll()
             );
           })
@@ -334,7 +353,7 @@ const ManageSchedulePage = ({
           });
       } else {
         dispatch(
-          teamId
+          selectedTeamId
             ? teamScheduledQueryActions.create({ ...formData })
             : globalScheduledQueryActions.create({ ...formData })
         )
@@ -346,8 +365,8 @@ const ManageSchedulePage = ({
               )
             );
             dispatch(
-              teamId
-                ? teamScheduledQueryActions.loadAll(teamId)
+              selectedTeamId
+                ? teamScheduledQueryActions.loadAll(selectedTeamId)
                 : globalScheduledQueryActions.loadAll()
             );
           })
@@ -362,7 +381,7 @@ const ManageSchedulePage = ({
       }
       toggleScheduleEditorModal();
     },
-    [dispatch, teamId, toggleScheduleEditorModal]
+    [dispatch, selectedTeamId, toggleScheduleEditorModal]
   );
 
   return (
@@ -373,18 +392,21 @@ const ManageSchedulePage = ({
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>
                 {isFreeTier && <h1>Schedule</h1>}
-                {isPremiumTier && teams && teams.length > 1 && (
-                  <TeamsDropdown
-                    selectedTeamId={teamId}
-                    currentUserTeams={teams || []}
-                    onChange={(newSelectedValue: number) =>
-                      handleTeamSelect(newSelectedValue)
-                    }
-                  />
-                )}
-                {isPremiumTier && teams && teams.length === 1 && (
-                  <h1>{teams[0].name}</h1>
-                )}
+                {isPremiumTier &&
+                  teams &&
+                  (teams.length > 1 || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      selectedTeamId={selectedTeamId}
+                      currentUserTeams={teams || []}
+                      onChange={(newSelectedValue: number) =>
+                        handleTeamSelect(newSelectedValue)
+                      }
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  teams &&
+                  teams.length === 1 && <h1>{teams[0].name}</h1>}
               </div>
             </div>
           </div>
@@ -413,7 +435,7 @@ const ManageSchedulePage = ({
         <div className={`${baseClass}__description`}>
           {!isLoadingTeams && (
             <div>
-              {!teamId ? (
+              {!selectedTeamId ? (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
                   <strong>all of your hosts.</strong>
@@ -440,7 +462,7 @@ const ManageSchedulePage = ({
             )}
         </div>
         {/* must use ternary for NaN */}
-        {teamId && allTeamsScheduledQueriesList.length > 0 ? (
+        {selectedTeamId && allTeamsScheduledQueriesList.length > 0 ? (
           <>
             <span>
               <Button
@@ -479,7 +501,7 @@ const ManageSchedulePage = ({
             onScheduleSubmit={onAddScheduledQuerySubmit}
             allQueries={fleetQueries}
             editQuery={selectedScheduledQuery}
-            teamId={teamId}
+            teamId={selectedTeamId}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
           />
