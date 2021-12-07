@@ -34,6 +34,36 @@ func TestGetPack(t *testing.T) {
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
+func TestNewPackSavesTargets(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+		return pack, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
+	packPayload := fleet.PackPayload{
+		Name:     ptr.String("foo"),
+		HostIDs:  &[]uint{123},
+		LabelIDs: &[]uint{456},
+		TeamIDs:  &[]uint{789},
+	}
+	pack, err := svc.NewPack(test.UserContext(test.UserAdmin), packPayload)
+	require.NoError(t, err)
+
+	require.Len(t, pack.HostIDs, 1)
+	require.Len(t, pack.LabelIDs, 1)
+	require.Len(t, pack.TeamIDs, 1)
+	assert.Equal(t, uint(123), pack.HostIDs[0])
+	assert.Equal(t, uint(456), pack.LabelIDs[0])
+	assert.Equal(t, uint(789), pack.TeamIDs[0])
+	assert.True(t, ds.NewPackFuncInvoked)
+	assert.True(t, ds.NewActivityFuncInvoked)
+}
+
 func TestPacksWithDS(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 

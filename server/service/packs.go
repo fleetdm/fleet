@@ -8,6 +8,46 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+type packResponse struct {
+	fleet.Pack
+	QueryCount uint `json:"query_count"`
+
+	// All current hosts in the pack. Hosts which are selected explicty and
+	// hosts which are part of a label.
+	TotalHostsCount uint `json:"total_hosts_count"`
+
+	// IDs of hosts which were explicitly selected.
+	HostIDs  []uint `json:"host_ids"`
+	LabelIDs []uint `json:"label_ids"`
+	TeamIDs  []uint `json:"team_ids"`
+}
+
+func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
+	opts := fleet.ListOptions{}
+	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	hostMetrics, err := svc.CountHostsInTargets(
+		ctx,
+		nil,
+		fleet.HostTargets{HostIDs: pack.HostIDs, LabelIDs: pack.LabelIDs, TeamIDs: pack.TeamIDs},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &packResponse{
+		Pack:            pack,
+		QueryCount:      uint(len(queries)),
+		TotalHostsCount: hostMetrics.TotalHosts,
+		HostIDs:         pack.HostIDs,
+		LabelIDs:        pack.LabelIDs,
+		TeamIDs:         pack.TeamIDs,
+	}, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Pack
 ////////////////////////////////////////////////////////////////////////////////
@@ -449,4 +489,44 @@ func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error)
 	}
 
 	return svc.ds.GetPackSpecs(ctx)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Pack Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getPackSpecResponse struct {
+	Spec *fleet.PackSpec `json:"specs,omitempty"`
+	Err  error           `json:"error,omitempty"`
+}
+
+func (r getPackSpecResponse) error() error { return r.Err }
+
+func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getGenericSpecRequest)
+	spec, err := svc.GetPackSpec(ctx, req.Name)
+	if err != nil {
+		return getPackSpecResponse{Err: err}, nil
+	}
+	return getPackSpecResponse{Spec: spec}, nil
+}
+
+func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.GetPackSpec(ctx, name)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List Packs For Host, not exposed via an endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.ListPacksForHost(ctx, hid)
 }

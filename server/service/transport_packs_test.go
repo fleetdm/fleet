@@ -1,14 +1,6 @@
 package service
 
-import (
-	"context"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-)
+// TODO(mna): delete once integration tests are implemented
 
 /*
 func TestDecodeCreatePackRequest(t *testing.T) {
@@ -85,7 +77,6 @@ func TestDecodeDeletePackRequest(t *testing.T) {
 		httptest.NewRequest("DELETE", "/api/v1/fleet/packs/packaday", nil),
 	)
 }
-*/
 
 func TestDecodeGetPackRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -102,3 +93,4 @@ func TestDecodeGetPackRequest(t *testing.T) {
 		httptest.NewRequest("GET", "/api/v1/fleet/packs/1", nil),
 	)
 }
+*/
