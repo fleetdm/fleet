@@ -514,7 +514,7 @@ const PolicyForm = ({
                     !hasTeamMaintainerPermissions
                   }
                 >
-                  Save
+                  <>Save{!isEditMode && " policy"}</>
                 </Button>
               </div>{" "}
               <ReactTooltip
@@ -540,7 +540,7 @@ const PolicyForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Run
           </Button>
         </div>
       </form>
