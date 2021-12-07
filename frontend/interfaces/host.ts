@@ -4,6 +4,7 @@ import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
 import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
+import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 
 export default PropTypes.shape({
@@ -58,6 +59,7 @@ export default PropTypes.shape({
   display_text: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
   policies: PropTypes.arrayOf(hostPolicyInterface),
+  query_results: PropTypes.arrayOf(hostQueryResult),
 });
 
 export interface IDeviceUser {
@@ -81,6 +83,18 @@ export interface IPackStats {
   pack_name: string;
   query_stats: IQueryStats[];
   type: string;
+}
+
+export interface IHostPolicyQuery {
+  id: number;
+  hostname: string;
+  status: string | undefined;
+}
+
+export interface IHostPolicyQueryError {
+  host_hostname: string;
+  osquery_version: string;
+  error: string;
 }
 
 export interface IHost {
@@ -136,4 +150,5 @@ export interface IHost {
   munki?: IMunkiData;
   mdm?: IMDMData;
   policies: IHostPolicy[];
+  query_results?: [];
 }

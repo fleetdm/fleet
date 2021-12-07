@@ -50,9 +50,6 @@ const PolicyPage = ({
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,

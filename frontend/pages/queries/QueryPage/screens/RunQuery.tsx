@@ -16,7 +16,7 @@ import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 // import { useLastEditedQueryInfo } from "../helpers";
-import QueryResults from "components/QueryResults";
+import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
   storedQuery: IQuery | undefined;
