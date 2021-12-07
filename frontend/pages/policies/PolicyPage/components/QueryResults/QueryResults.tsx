@@ -13,6 +13,7 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button"; // @ts-ignore
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
+import InfoBanner from "components/InfoBanner";
 import PolicyQueryListWrapper from "../PolicyQueriesListWrapper/PolicyQueriesListWrapper";
 import PolicyQueriesErrorsListWrapper from "../PolicyQueriesErrorsListWrapper/PolicyQueriesErrorsListWrapper";
 
@@ -147,13 +148,17 @@ const QueryResults = ({
 
     return (
       <div className={`${baseClass}__results-table-container`}>
+        <InfoBanner>
+          Host that responded with results are marked <strong>Yes</strong>.
+          Hosts that responded with no results are maked <strong>No</strong>.
+        </InfoBanner>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
           variant="text-link"
         >
           <>
-            Export results <img alt="" src={DownloadIcon} />
+            Export hosts <img alt="" src={DownloadIcon} />
           </>
         </Button>
         <PolicyQueryListWrapper

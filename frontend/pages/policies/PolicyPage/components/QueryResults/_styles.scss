@@ -1,6 +1,10 @@
 .query-results {
   padding: $pad-xxxlarge $pad-xxlarge;
 
+  .info-banner {
+    margin: 2rem auto 1.25rem;
+  }
+
   &__text-wrapper {
     margin-top: 20px;
     display: flex;
