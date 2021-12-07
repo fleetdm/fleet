@@ -85,8 +85,7 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sqlStatement := `
+	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
@@ -123,82 +122,81 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			percent_disk_space_available = ?
 		WHERE id = ?
 	`
-		_, err := tx.ExecContext(ctx, sqlStatement,
-			host.DetailUpdatedAt,
-			host.LabelUpdatedAt,
-			host.PolicyUpdatedAt,
-			host.NodeKey,
-			host.Hostname,
-			host.UUID,
-			host.Platform,
-			host.OsqueryVersion,
-			host.OSVersion,
-			host.Uptime,
-			host.Memory,
-			host.CPUType,
-			host.CPUSubtype,
-			host.CPUBrand,
-			host.CPUPhysicalCores,
-			host.HardwareVendor,
-			host.HardwareModel,
-			host.HardwareVersion,
-			host.HardwareSerial,
-			host.ComputerName,
-			host.Build,
-			host.PlatformLike,
-			host.CodeName,
-			host.CPULogicalCores,
-			host.DistributedInterval,
-			host.ConfigTLSRefresh,
-			host.LoggerTLSPeriod,
-			host.TeamID,
-			host.PrimaryIP,
-			host.PrimaryMac,
-			host.RefetchRequested,
-			host.GigsDiskSpaceAvailable,
-			host.PercentDiskSpaceAvailable,
-			host.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
-		}
+	_, err := d.writer.ExecContext(ctx, sqlStatement,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
+		host.PolicyUpdatedAt,
+		host.NodeKey,
+		host.Hostname,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.Memory,
+		host.CPUType,
+		host.CPUSubtype,
+		host.CPUBrand,
+		host.CPUPhysicalCores,
+		host.HardwareVendor,
+		host.HardwareModel,
+		host.HardwareVersion,
+		host.HardwareSerial,
+		host.ComputerName,
+		host.Build,
+		host.PlatformLike,
+		host.CodeName,
+		host.CPULogicalCores,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
+		host.TeamID,
+		host.PrimaryIP,
+		host.PrimaryMac,
+		host.RefetchRequested,
+		host.GigsDiskSpaceAvailable,
+		host.PercentDiskSpaceAvailable,
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	}
 
-		// Save host pack stats only if it is non-nil. Empty stats should be
-		// represented by an empty slice.
-		if host.PackStats != nil {
-			if err := saveHostPackStatsDB(ctx, tx, host); err != nil {
-				return err
+	// Save host pack stats only if it is non-nil. Empty stats should be
+	// represented by an empty slice.
+	if host.PackStats != nil {
+		if err := saveHostPackStatsDB(ctx, d.writer, host); err != nil {
+			return err
+		}
+	}
+
+	ac, err := d.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
+	}
+
+	if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
+		if err := saveHostSoftwareDB(ctx, d.writer, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to save host software")
+		}
+	}
+
+	if host.Modified {
+		if host.Additional != nil {
+			if err := saveHostAdditionalDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host additional")
 			}
 		}
 
-		ac, err := d.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
-		}
-
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
-			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
-				return ctxerr.Wrap(ctx, err, "failed to save host software")
+		if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
+			if err := saveHostUsersDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host users")
 			}
 		}
+	}
 
-		if host.Modified {
-			if host.Additional != nil {
-				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host additional")
-				}
-			}
-
-			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
-				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host users")
-				}
-			}
-		}
-
-		host.Modified = false
-		return nil
-	})
+	host.Modified = false
+	return nil
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet.Host) error {

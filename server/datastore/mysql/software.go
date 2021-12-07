@@ -162,7 +162,8 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`REPLACE INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)`,
 		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	)
 	if err != nil {
