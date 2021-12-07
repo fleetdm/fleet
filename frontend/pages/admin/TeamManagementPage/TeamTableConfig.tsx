@@ -117,7 +117,6 @@ const enhanceTeamData = (teams: ITeam[]): ITeamTableData[] => {
 };
 
 const generateDataSet = (teams: ITeam[]): ITeamTableData[] => {
-  console.log("TEAMS", teams);
   return [...enhanceTeamData(teams)];
 };
 
