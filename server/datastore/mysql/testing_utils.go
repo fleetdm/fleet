@@ -51,6 +51,24 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
+func NewDBConnForTests(testName string) (*sqlx.DB, error) {
+	config := config.MysqlConfig{
+		Username: testUsername,
+		Password: testPassword,
+		Database: testName,
+		Address:  testAddress,
+	}
+	options := &dbOptions{
+		maxAttempts: defaultMaxAttempts,
+		logger:      log.NewNopLogger(),
+	}
+	dbWriter, err := newDB(&config, options)
+	if err != nil {
+		return nil, err
+	}
+	return dbWriter, nil
+}
+
 func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
 	t.Helper()
 
