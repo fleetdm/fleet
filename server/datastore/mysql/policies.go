@@ -73,13 +73,16 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 }
 
 // SavePolicy updates some fields of the given policy on the datastore.
+//
+// Currently SavePolicy does not allow updating the team or platform of an existing policy,
+// such functionality will be implemented in #3220.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?
+			SET name = ?, query = ?, description = ?, resolution = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.ID)
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -302,6 +305,9 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 //
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
+//
+// Currently ApplyPolicySpecs does not allow updating the team or platform of an existing policy,
+// such functionality will be implemented in #3220.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sql := `
@@ -319,9 +325,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
-			resolution = VALUES(resolution),
-			team_id = VALUES(team_id),
-			platforms = VALUES(platforms)
+			resolution = VALUES(resolution)
 		`
 		for _, spec := range specs {
 			if _, err := tx.ExecContext(ctx,

@@ -1080,16 +1080,16 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
-			Team:        "",
-			Platform:    "linux",
+			Team:        "", // TODO(lucas): no effect, #3220.
+			Platform:    "", // TODO(lucas): no effect, #3220.
 		},
 		{
 			Name:        "query2",
 			Query:       "select 2 from updated;",
 			Description: "query2 desc updated",
 			Resolution:  "some other resolution updated",
-			Team:        "team1",
-			Platform:    "windows",
+			Team:        "team1",   // TODO(lucas): no effect, #3220.
+			Platform:    "windows", // TODO(lucas): no effect, #3220.
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx)
@@ -1103,7 +1103,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.ID, *policies[0].AuthorID)
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
-	assert.Equal(t, "linux", policies[0].Platform)
+	assert.Equal(t, "", policies[0].Platform)
 
 	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
@@ -1117,42 +1117,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team1.ID, *teamPolicies[0].TeamID)
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
-	assert.Equal(t, "windows", teamPolicies[0].Platform)
-
-	// The following will "move" the policy from global to a team.
-	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:        "query1",
-			Query:       "select 53;",
-			Description: "query1 desc team1",
-			Resolution:  "some resolution team1",
-			Team:        "team1",
-			Platform:    "linux",
-		},
-	}))
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
-	require.NoError(t, err)
-	require.Len(t, teamPolicies, 3)
-	globalPolicies, err := ds.ListGlobalPolicies(ctx)
-	require.NoError(t, err)
-	require.Len(t, globalPolicies, 0)
-
-	// The following will "move" the policy from team to global.
-	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:        "query2",
-			Query:       "select 53;",
-			Description: "query2 desc global",
-			Resolution:  "some resolution global",
-			Platform:    "windows",
-		},
-	}))
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
-	require.NoError(t, err)
-	require.Len(t, teamPolicies, 2)
-	globalPolicies, err = ds.ListGlobalPolicies(ctx)
-	require.NoError(t, err)
-	require.Len(t, globalPolicies, 1)
+	assert.Equal(t, "darwin", teamPolicies[0].Platform)
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
