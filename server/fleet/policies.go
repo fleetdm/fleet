@@ -99,10 +99,6 @@ type ModifyPolicyPayload struct {
 	Description *string `json:"description"`
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution *string `json:"resolution"`
-	// Platform is a comma-separated string to indicate the target platforms.
-	//
-	// Empty string targets all platforms.
-	Platform *string `json:"platform"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -114,11 +110,6 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.Query != nil {
 		if err := verifyPolicyQuery(*p.Query); err != nil {
-			return err
-		}
-	}
-	if p.Platform != nil {
-		if err := verifyPolicyPlatforms(*p.Platform); err != nil {
 			return err
 		}
 	}
