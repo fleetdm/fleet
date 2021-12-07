@@ -60,14 +60,11 @@ type FleetEndpoints struct {
 	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	DeletePackByID                        endpoint.Endpoint
 	GetScheduledQueriesInPack             endpoint.Endpoint
 	ScheduleQuery                         endpoint.Endpoint
 	GetScheduledQuery                     endpoint.Endpoint
 	ModifyScheduledQuery                  endpoint.Endpoint
 	DeleteScheduledQuery                  endpoint.Endpoint
-	ApplyPackSpecs                        endpoint.Endpoint
-	GetPackSpecs                          endpoint.Endpoint
 	GetPackSpec                           endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
 	GetClientConfig                       endpoint.Endpoint
@@ -163,14 +160,11 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
 		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
 		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
 		GetScheduledQuery:                     authenticatedUser(svc, makeGetScheduledQueryEndpoint(svc)),
 		ModifyScheduledQuery:                  authenticatedUser(svc, makeModifyScheduledQueryEndpoint(svc)),
 		DeleteScheduledQuery:                  authenticatedUser(svc, makeDeleteScheduledQueryEndpoint(svc)),
-		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
 		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
 		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
@@ -254,14 +248,11 @@ type fleetHandlers struct {
 	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
-	DeletePackByID                        http.Handler
 	GetScheduledQueriesInPack             http.Handler
 	ScheduleQuery                         http.Handler
 	GetScheduledQuery                     http.Handler
 	ModifyScheduledQuery                  http.Handler
 	DeleteScheduledQuery                  http.Handler
-	ApplyPackSpecs                        http.Handler
-	GetPackSpecs                          http.Handler
 	GetPackSpec                           http.Handler
 	EnrollAgent                           http.Handler
 	GetClientConfig                       http.Handler
@@ -344,14 +335,11 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
 		GetScheduledQueriesInPack:             newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
 		ScheduleQuery:                         newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
 		GetScheduledQuery:                     newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
 		ModifyScheduledQuery:                  newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
 		DeleteScheduledQuery:                  newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
-		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
-		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
 		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
@@ -535,14 +523,11 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/packs/id/{id:[0-9]+}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
 	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
 	r.Handle("/api/v1/fleet/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
 	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
 	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
 	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
-	r.Handle("/api/v1/fleet/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
-	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
 	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
@@ -626,6 +611,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/v1/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
 	e.GET("/api/v1/fleet/packs", listPacksEndpoint, listPacksRequest{})
 	e.DELETE("/api/v1/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
+	e.DELETE("/api/v1/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
+	e.POST("/api/v1/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
+	e.GET("/api/v1/fleet/spec/packs", getPackSpecsEndpoint, nil)
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})

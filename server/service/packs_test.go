@@ -44,6 +44,8 @@ func TestPacksWithDS(t *testing.T) {
 		{"ModifyPack", testPacksModifyPack},
 		{"ListPacks", testPacksListPacks},
 		{"DeletePack", testPacksDeletePack},
+		{"DeletePackByID", testPacksDeletePackByID},
+		{"ApplyPackSpecs", testPacksApplyPackSpecs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -158,6 +160,113 @@ func testPacksDeletePack(t *testing.T, ds *mysql.Datastore) {
 			if err := svc.DeletePack(tt.args.ctx, tt.args.name); (err != nil) != tt.wantErr {
 				t.Errorf("DeletePack() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+func testPacksDeletePackByID(t *testing.T, ds *mysql.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
+	globalPack, err := ds.EnsureGlobalPack(context.Background())
+	require.NoError(t, err)
+
+	type args struct {
+		ctx context.Context
+		id  uint
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "cannot delete global pack",
+			args: args{
+				ctx: test.UserContext(test.UserAdmin),
+				id:  globalPack.ID,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(ds, nil, nil)
+			if err := svc.DeletePackByID(tt.args.ctx, tt.args.id); (err != nil) != tt.wantErr {
+				t.Errorf("DeletePackByID() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
+	test.AddAllHostsLabel(t, ds)
+
+	global, err := ds.EnsureGlobalPack(context.Background())
+	require.NoError(t, err)
+
+	users := createTestUsers(t, ds)
+	user := users["admin1@example.com"]
+
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	teamPack, err := ds.EnsureTeamPack(context.Background(), team1.ID)
+	require.NoError(t, err)
+
+	type args struct {
+		ctx   context.Context
+		specs []*fleet.PackSpec
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []*fleet.PackSpec
+		wantErr bool
+	}{
+		{
+			name: "cannot modify global pack",
+			args: args{
+				ctx: test.UserContext(&user),
+				specs: []*fleet.PackSpec{
+					{Name: global.Name, Description: "bar", Platform: "baz"},
+					{Name: "Foo Pack", Description: "Foo Desc", Platform: "MacOS"},
+					{Name: "Bar Pack", Description: "Bar Desc", Platform: "MacOS"},
+				},
+			},
+			want: []*fleet.PackSpec{
+				{Name: "Foo Pack", Description: "Foo Desc", Platform: "MacOS"},
+				{Name: "Bar Pack", Description: "Bar Desc", Platform: "MacOS"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "cannot modify team pack",
+			args: args{
+				ctx: test.UserContext(&user),
+				specs: []*fleet.PackSpec{
+					{Name: teamPack.Name, Description: "Desc", Platform: "windows"},
+					{Name: "Test", Description: "Test Desc", Platform: "linux"},
+				},
+			},
+			want: []*fleet.PackSpec{
+				{Name: "Test", Description: "Test Desc", Platform: "linux"},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(ds, nil, nil)
+			got, err := svc.ApplyPackSpecs(tt.args.ctx, tt.args.specs)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ApplyPackSpecs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

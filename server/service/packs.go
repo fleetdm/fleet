@@ -309,3 +309,144 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		&map[string]interface{}{"pack_name": name},
 	)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Pack By ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deletePackByIDRequest struct {
+	ID uint `url:"id"`
+}
+
+type deletePackByIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deletePackByIDResponse) error() error { return r.Err }
+
+func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deletePackByIDRequest)
+	err := svc.DeletePackByID(ctx, req.ID)
+	if err != nil {
+		return deletePackByIDResponse{Err: err}, nil
+	}
+	return deletePackByIDResponse{}, nil
+}
+
+func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	pack, err := svc.ds.Pack(ctx, id)
+	if err != nil {
+		return err
+	}
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+	}
+	if err := svc.ds.DeletePack(ctx, pack.Name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": pack.Name},
+	)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Pack Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type applyPackSpecsRequest struct {
+	Specs []*fleet.PackSpec `json:"specs"`
+}
+
+type applyPackSpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyPackSpecsResponse) error() error { return r.Err }
+
+func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*applyPackSpecsRequest)
+	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
+	if err != nil {
+		return applyPackSpecsResponse{Err: err}, nil
+	}
+	return applyPackSpecsResponse{}, nil
+}
+
+func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	packs, err := svc.ds.ListPacks(ctx, fleet.PackListOptions{IncludeSystemPacks: true})
+	if err != nil {
+		return nil, err
+	}
+
+	namePacks := make(map[string]*fleet.Pack, len(packs))
+	for _, pack := range packs {
+		namePacks[pack.Name] = pack
+	}
+
+	var result []*fleet.PackSpec
+
+	// loop over incoming specs filtering out possible edits to Global or Team Packs
+	for _, spec := range specs {
+		// see for known limitations https://github.com/fleetdm/fleet/pull/1558#discussion_r684218301
+		// check to see if incoming spec is already in the list of packs
+		if p, ok := namePacks[spec.Name]; ok {
+			// as long as pack is editable, we'll apply it
+			if p.EditablePackType() {
+				result = append(result, spec)
+			}
+		} else {
+			// incoming spec is new, let's apply it
+			result = append(result, spec)
+		}
+	}
+
+	if err := svc.ds.ApplyPackSpecs(ctx, result); err != nil {
+		return nil, err
+	}
+
+	return result, svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecPack,
+		&map[string]interface{}{},
+	)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Pack Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getPackSpecsResponse struct {
+	Specs []*fleet.PackSpec `json:"specs"`
+	Err   error             `json:"error,omitempty"`
+}
+
+func (r getPackSpecsResponse) error() error { return r.Err }
+
+func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	specs, err := svc.GetPackSpecs(ctx)
+	if err != nil {
+		return getPackSpecsResponse{Err: err}, nil
+	}
+	return getPackSpecsResponse{Specs: specs}, nil
+}
+
+func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.GetPackSpecs(ctx)
+}
