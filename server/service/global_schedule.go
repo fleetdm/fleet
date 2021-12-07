@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,4 +99,80 @@ func (svc *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.Scheduled
 	sq.PackID = gp.ID
 
 	return svc.ScheduleQuery(ctx, sq)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Modify Global Schedule
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyGlobalScheduleRequest struct {
+	ID uint `json:"-" url:"id"`
+	fleet.ScheduledQueryPayload
+}
+
+type modifyGlobalScheduleResponse struct {
+	Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
+	Err       error                 `json:"error,omitempty"`
+}
+
+func (r modifyGlobalScheduleResponse) error() error { return r.Err }
+
+func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyGlobalScheduleRequest)
+
+	sq, err := svc.ModifyGlobalScheduledQueries(ctx, req.ID, req.ScheduledQueryPayload)
+	if err != nil {
+		return modifyGlobalScheduleResponse{Err: err}, nil
+	}
+
+	return modifyGlobalScheduleResponse{
+		Scheduled: sq,
+	}, nil
+}
+
+func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	gp, err := svc.ds.EnsureGlobalPack(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query.PackID = ptr.Uint(gp.ID)
+
+	return svc.ModifyScheduledQuery(ctx, id, query)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Global Schedule
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteGlobalScheduleRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteGlobalScheduleResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteGlobalScheduleResponse) error() error { return r.Err }
+
+func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteGlobalScheduleRequest)
+	err := svc.DeleteGlobalScheduledQueries(ctx, req.ID)
+	if err != nil {
+		return deleteGlobalScheduleResponse{Err: err}, nil
+	}
+
+	return deleteGlobalScheduleResponse{}, nil
+}
+
+func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.DeleteScheduledQuery(ctx, id)
 }
