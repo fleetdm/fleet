@@ -186,7 +186,6 @@ const PolicyPage = ({
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
-      policyIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
