@@ -807,7 +807,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.NotNil(t, gpResp.Policy.AuthorID)
 	assert.Equal(t, "Test Name admin1@example.com", gpResp.Policy.AuthorName)
 	assert.Equal(t, "admin1@example.com", gpResp.Policy.AuthorEmail)
-	assert.Equal(t, "darwin", gpResp.Policy.Platforms)
+	assert.Equal(t, "darwin", gpResp.Policy.Platform)
 
 	mgpParams := modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -815,7 +815,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 			Query:       ptr.String("select * from osquery_info;"),
 			Description: ptr.String("Some description updated"),
 			Resolution:  ptr.String("some global resolution updated"),
-			Platforms:   ptr.String(""),
+			Platform:    ptr.String(""),
 		},
 	}
 	mgpResp := modifyGlobalPolicyResponse{}
@@ -826,7 +826,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", mgpResp.Policy.Description)
 	require.NotNil(t, mgpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
-	assert.Equal(t, "", mgpResp.Policy.Platforms)
+	assert.Equal(t, "", mgpResp.Policy.Platform)
 
 	ggpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
@@ -836,7 +836,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", ggpResp.Policy.Description)
 	require.NotNil(t, ggpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *ggpResp.Policy.Resolution)
-	assert.Equal(t, "", mgpResp.Policy.Platforms)
+	assert.Equal(t, "", mgpResp.Policy.Platform)
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
@@ -846,7 +846,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some global resolution updated", *policiesResponse.Policies[0].Resolution)
-	assert.Equal(t, "", policiesResponse.Policies[0].Platforms)
+	assert.Equal(t, "", policiesResponse.Policies[0].Platform)
 
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -931,7 +931,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 			Query:       ptr.String("select * from osquery_info;"),
 			Description: ptr.String("Some description updated"),
 			Resolution:  ptr.String("some team resolution updated"),
-			Platforms:   ptr.String("darwin,windows"),
+			Platform:    ptr.String("darwin,windows"),
 		},
 	}
 	mtpResp := modifyTeamPolicyResponse{}
@@ -942,7 +942,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", mtpResp.Policy.Description)
 	require.NotNil(t, mtpResp.Policy.Resolution)
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
-	assert.Equal(t, "darwin,windows", mtpResp.Policy.Platforms)
+	assert.Equal(t, "darwin,windows", mtpResp.Policy.Platform)
 
 	gtpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &gtpResp)
@@ -952,7 +952,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", gtpResp.Policy.Description)
 	require.NotNil(t, gtpResp.Policy.Resolution)
 	assert.Equal(t, "some team resolution updated", *gtpResp.Policy.Resolution)
-	assert.Equal(t, "darwin,windows", gtpResp.Policy.Platforms)
+	assert.Equal(t, "darwin,windows", gtpResp.Policy.Platform)
 
 	policiesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
@@ -962,7 +962,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
-	assert.Equal(t, "darwin,windows", policiesResponse.Policies[0].Platforms)
+	assert.Equal(t, "darwin,windows", policiesResponse.Policies[0].Platform)
 
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -1083,9 +1083,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				tpReq := modifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:      ptr.String(tc.name),
-						Query:     ptr.String(tc.query),
-						Platforms: ptr.String(tc.platforms),
+						Name:     ptr.String(tc.name),
+						Query:    ptr.String(tc.query),
+						Platform: ptr.String(tc.platforms),
 					},
 				}
 				tpResp := modifyTeamPolicyResponse{}
@@ -1106,9 +1106,9 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				gpReq := modifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:      ptr.String(tc.name),
-						Query:     ptr.String(tc.query),
-						Platforms: ptr.String(tc.platforms),
+						Name:     ptr.String(tc.name),
+						Query:    ptr.String(tc.query),
+						Platform: ptr.String(tc.platforms),
 					},
 				}
 				gpResp := modifyGlobalPolicyResponse{}

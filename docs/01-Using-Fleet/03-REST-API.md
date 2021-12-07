@@ -802,7 +802,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
-        "platforms": "windows,linux",
+        "platform": "windows,linux",
         "response": "pass"
       },
       {
@@ -811,7 +811,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
-        "platforms": "darwin",
+        "platform": "darwin",
         "response": "fail"
       },
       {
@@ -820,7 +820,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from baz;",
         "description": "",
         "resolution": "",
-        "platforms": "",
+        "platform": "",
         "response": ""
       }
     ],
@@ -3447,7 +3447,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_name": "John",
       "author_email": "john@example.com",
       "resolution": "Resolution steps",
-      "platforms": "darwin",
+      "platform": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3460,7 +3460,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_name": "Alice",
       "author_email": "alice@example.com",
       "resolution": "Resolution steps",
-      "platforms": "windows",
+      "platform": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3497,7 +3497,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 2000,
     "failing_host_count": 300
   }
@@ -3524,7 +3524,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
-| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3540,7 +3540,7 @@ Either `query` or `query_id` must be provided.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
-  "platforms": "darwin"
+  "platform": "darwin"
 }
 ```
 
@@ -3559,7 +3559,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3595,7 +3595,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3647,7 +3647,7 @@ Where `query_id` references an existing `query`.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 
 #### Example Edit Policy
@@ -3662,7 +3662,7 @@ Where `query_id` references an existing `query`.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
-  "platforms": "darwin"
+  "platform": "darwin"
 }
 ```
 
@@ -3681,7 +3681,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3733,7 +3733,7 @@ Team policies work the same as policies, but at the team level.
       "author_email": "john@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
-      "platforms": "darwin",
+      "platform": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3747,7 +3747,7 @@ Team policies work the same as policies, but at the team level.
       "author_email": "alice@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
-      "platforms": "windows",
+      "platform": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3786,7 +3786,7 @@ Team policies work the same as policies, but at the team level.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3809,7 +3809,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
-| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3825,7 +3825,7 @@ Either `query` or `query_id` must be provided.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
-  "platforms": "darwin"
+  "platform": "darwin"
 }
 ```
 
@@ -3845,7 +3845,7 @@ Either `query` or `query_id` must be provided.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3899,7 +3899,7 @@ Either `query` or `query_id` must be provided.
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| platforms   | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 
 #### Example Edit Policy
@@ -3933,7 +3933,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
-    "platforms": "darwin",
+    "platform": "darwin",
     "team_id": 2,
     "passing_host_count": 0,
     "failing_host_count": 0
