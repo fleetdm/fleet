@@ -8,36 +8,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Global Schedule
-////////////////////////////////////////////////////////////////////////////////
-
-type getGlobalScheduleRequest struct {
-	ListOptions fleet.ListOptions
-}
-
-type getGlobalScheduleResponse struct {
-	GlobalSchedule []*fleet.ScheduledQuery `json:"global_schedule"`
-	Err            error                   `json:"error,omitempty"`
-}
-
-func (r getGlobalScheduleResponse) error() error { return r.Err }
-
-func makeGetGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getGlobalScheduleRequest)
-
-		gp, err := svc.GetGlobalScheduledQueries(ctx, req.ListOptions)
-		if err != nil {
-			return getGlobalScheduleResponse{Err: err}, nil
-		}
-
-		return getGlobalScheduleResponse{
-			GlobalSchedule: gp,
-		}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Modify Global Schedule
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -91,46 +61,5 @@ func makeDeleteGlobalScheduleEndpoint(svc fleet.Service) endpoint.Endpoint {
 		}
 
 		return deleteGlobalScheduleResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Global Schedule Query
-////////////////////////////////////////////////////////////////////////////////
-
-type globalScheduleQueryRequest struct {
-	QueryID  uint    `json:"query_id"`
-	Interval uint    `json:"interval"`
-	Snapshot *bool   `json:"snapshot"`
-	Removed  *bool   `json:"removed"`
-	Platform *string `json:"platform"`
-	Version  *string `json:"version"`
-	Shard    *uint   `json:"shard"`
-}
-
-type globalScheduleQueryResponse struct {
-	Scheduled *fleet.ScheduledQuery `json:"scheduled,omitempty"`
-	Err       error                 `json:"error,omitempty"`
-}
-
-func (r globalScheduleQueryResponse) error() error { return r.Err }
-
-func makeGlobalScheduleQueryEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(globalScheduleQueryRequest)
-
-		scheduled, err := svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{
-			QueryID:  req.QueryID,
-			Interval: req.Interval,
-			Snapshot: req.Snapshot,
-			Removed:  req.Removed,
-			Platform: req.Platform,
-			Version:  req.Version,
-			Shard:    req.Shard,
-		})
-		if err != nil {
-			return globalScheduleQueryResponse{Err: err}, nil
-		}
-		return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 	}
 }

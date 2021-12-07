@@ -73,8 +73,6 @@ type FleetEndpoints struct {
 	ApplyPackSpecs                        endpoint.Endpoint
 	GetPackSpecs                          endpoint.Endpoint
 	GetPackSpec                           endpoint.Endpoint
-	GlobalScheduleQuery                   endpoint.Endpoint
-	GetGlobalSchedule                     endpoint.Endpoint
 	ModifyGlobalSchedule                  endpoint.Endpoint
 	DeleteGlobalSchedule                  endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
@@ -184,8 +182,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
 		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
 		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
-		GlobalScheduleQuery:                   authenticatedUser(svc, makeGlobalScheduleQueryEndpoint(svc)),
-		GetGlobalSchedule:                     authenticatedUser(svc, makeGetGlobalScheduleEndpoint(svc)),
 		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
 		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
@@ -283,8 +279,6 @@ type fleetHandlers struct {
 	ApplyPackSpecs                        http.Handler
 	GetPackSpecs                          http.Handler
 	GetPackSpec                           http.Handler
-	GlobalScheduleQuery                   http.Handler
-	GetGlobalSchedule                     http.Handler
 	ModifyGlobalSchedule                  http.Handler
 	DeleteGlobalSchedule                  http.Handler
 	EnrollAgent                           http.Handler
@@ -381,8 +375,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
 		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
 		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
-		GlobalScheduleQuery:                   newServer(e.GlobalScheduleQuery, decodeGlobalScheduleQueryRequest),
-		GetGlobalSchedule:                     newServer(e.GetGlobalSchedule, decodeGetGlobalScheduleRequest),
 		ModifyGlobalSchedule:                  newServer(e.ModifyGlobalSchedule, decodeModifyGlobalScheduleRequest),
 		DeleteGlobalSchedule:                  newServer(e.DeleteGlobalSchedule, decodeDeleteGlobalScheduleRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
@@ -581,8 +573,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
 	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
 
-	r.Handle("/api/v1/fleet/global/schedule", h.GetGlobalSchedule).Methods("GET").Name("set_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule", h.GlobalScheduleQuery).Methods("POST").Name("add_to_global_schedule")
 	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.ModifyGlobalSchedule).Methods("PATCH").Name("modify_global_schedule")
 	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.DeleteGlobalSchedule).Methods("DELETE").Name("delete_global_schedule")
 
@@ -683,6 +673,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	e.GET("/api/v1/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+
+	e.GET("/api/v1/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
+	e.POST("/api/v1/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
 
 	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})

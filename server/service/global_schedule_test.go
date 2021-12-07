@@ -20,6 +20,9 @@ func TestGlobalScheduleAuth(t *testing.T) {
 	ds.EnsureGlobalPackFunc = func(ctx context.Context) (*fleet.Pack, error) {
 		return &fleet.Pack{}, nil
 	}
+	ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+		return sq, nil
+	}
 
 	var testCases = []struct {
 		name            string
@@ -70,6 +73,9 @@ func TestGlobalScheduleAuth(t *testing.T) {
 
 			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query"})
+			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
 }
