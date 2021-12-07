@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -9,9 +8,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
+/*
 func TestDecodeCreatePackRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/packs", func(writer http.ResponseWriter, request *http.Request) {
@@ -70,6 +69,7 @@ func TestDecodeModifyPackRequest(t *testing.T) {
 		httptest.NewRequest("PATCH", "/api/v1/fleet/packs/1", &body),
 	)
 }
+*/
 
 func TestDecodeDeletePackRequest(t *testing.T) {
 	router := mux.NewRouter()
