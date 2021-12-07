@@ -68,40 +68,6 @@ func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSp
 	return svc.ds.GetPackSpec(ctx, name)
 }
 
-func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.ListPacks(ctx, opt)
-}
-
-func (svc *Service) DeletePack(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	pack, _, err := svc.ds.PackByName(ctx, name)
-	if err != nil {
-		return err
-	}
-	// if there is a pack by this name, ensure it is not type Global or Team
-	if pack != nil && !pack.EditablePackType() {
-		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
-	}
-
-	if err := svc.ds.DeletePack(ctx, name); err != nil {
-		return err
-	}
-
-	return svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedPack,
-		&map[string]interface{}{"pack_name": name},
-	)
-}
-
 func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return err

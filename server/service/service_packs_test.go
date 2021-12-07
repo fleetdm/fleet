@@ -13,26 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServiceListPacks(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-
-	queries, err := svc.ListPacks(test.UserContext(test.UserAdmin), fleet.PackListOptions{IncludeSystemPacks: false})
-	assert.Nil(t, err)
-	assert.Len(t, queries, 0)
-
-	_, err = ds.NewPack(context.Background(), &fleet.Pack{
-		Name: "foo",
-	})
-	assert.Nil(t, err)
-
-	queries, err = svc.ListPacks(test.UserContext(test.UserAdmin), fleet.PackListOptions{IncludeSystemPacks: false})
-	assert.Nil(t, err)
-	assert.Len(t, queries, 1)
-}
-
 func TestNewSavesTargets(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
@@ -58,38 +38,6 @@ func TestNewSavesTargets(t *testing.T) {
 	assert.Equal(t, uint(123), pack.HostIDs[0])
 	assert.Equal(t, uint(456), pack.LabelIDs[0])
 	assert.Equal(t, uint(789), pack.TeamIDs[0])
-}
-
-func TestService_ModifyPack_GlobalPack(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-
-	svc := newTestService(ds, nil, nil)
-	test.AddAllHostsLabel(t, ds)
-	users := createTestUsers(t, ds)
-
-	globalPack, err := ds.EnsureGlobalPack(context.Background())
-	require.NoError(t, err)
-
-	labelids := []uint{1, 2, 3}
-	hostids := []uint{4, 5, 6}
-	teamids := []uint{7, 8, 9}
-	packPayload := fleet.PackPayload{
-		Name:        ptr.String("foo"),
-		Description: ptr.String("bar"),
-		LabelIDs:    &labelids,
-		HostIDs:     &hostids,
-		TeamIDs:     &teamids,
-	}
-
-	user := users["admin1@example.com"]
-	pack, _ := svc.ModifyPack(test.UserContext(&user), globalPack.ID, packPayload)
-
-	require.Equal(t, "Global", pack.Name, "name for global pack should not change")
-	require.Equal(t, "Global pack", pack.Description, "description for global pack should not change")
-	require.Len(t, pack.LabelIDs, 1)
-	require.Len(t, pack.HostIDs, 0)
-	require.Len(t, pack.TeamIDs, 0)
 }
 
 func TestService_DeletePackByID_GlobalPack(t *testing.T) {
@@ -216,84 +164,6 @@ func TestService_ApplyPackSpecs(t *testing.T) {
 				return
 			}
 			require.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestService_DeletePack(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer ds.Close()
-	test.AddAllHostsLabel(t, ds)
-
-	gp, err := ds.EnsureGlobalPack(context.Background())
-	require.NoError(t, err)
-
-	users := createTestUsers(t, ds)
-	user := users["admin1@example.com"]
-
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
-
-	type fields struct {
-		ds fleet.Datastore
-	}
-	type args struct {
-		ctx  context.Context
-		name string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "cannot delete global pack",
-			fields: fields{
-				ds: ds,
-			},
-			args: args{
-				ctx:  test.UserContext(&user),
-				name: gp.Name,
-			},
-			wantErr: true,
-		},
-		{
-			name: "cannot delete team pack",
-			fields: fields{
-				ds: ds,
-			},
-			args: args{
-				ctx:  test.UserContext(&user),
-				name: tp.Name,
-			},
-			wantErr: true,
-		},
-		{
-			name: "delete pack that doesn't exist",
-			fields: fields{
-				ds: ds,
-			},
-			args: args{
-				ctx:  test.UserContext(&user),
-				name: "foo",
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(tt.fields.ds, nil, nil)
-			if err := svc.DeletePack(tt.args.ctx, tt.args.name); (err != nil) != tt.wantErr {
-				t.Errorf("DeletePack() error = %v, wantErr %v", err, tt.wantErr)
-			}
 		})
 	}
 }

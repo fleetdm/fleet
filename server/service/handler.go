@@ -60,8 +60,6 @@ type FleetEndpoints struct {
 	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	ListPacks                             endpoint.Endpoint
-	DeletePack                            endpoint.Endpoint
 	DeletePackByID                        endpoint.Endpoint
 	GetScheduledQueriesInPack             endpoint.Endpoint
 	ScheduleQuery                         endpoint.Endpoint
@@ -165,8 +163,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
-		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
 		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
 		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
 		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
@@ -258,8 +254,6 @@ type fleetHandlers struct {
 	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
-	ListPacks                             http.Handler
-	DeletePack                            http.Handler
 	DeletePackByID                        http.Handler
 	GetScheduledQueriesInPack             http.Handler
 	ScheduleQuery                         http.Handler
@@ -350,8 +344,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
-		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
 		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
 		GetScheduledQueriesInPack:             newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
 		ScheduleQuery:                         newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
@@ -543,8 +535,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
 	r.Handle("/api/v1/fleet/packs/id/{id:[0-9]+}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
 	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
 	r.Handle("/api/v1/fleet/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
@@ -634,6 +624,8 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 	e.POST("/api/v1/fleet/packs", createPackEndpoint, createPackRequest{})
 	e.PATCH("/api/v1/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
+	e.GET("/api/v1/fleet/packs", listPacksEndpoint, listPacksRequest{})
+	e.DELETE("/api/v1/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})

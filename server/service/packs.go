@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -217,4 +218,94 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 	}
 
 	return pack, err
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List Packs
+////////////////////////////////////////////////////////////////////////////////
+
+type listPacksRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listPacksResponse struct {
+	Packs []packResponse `json:"packs"`
+	Err   error          `json:"error,omitempty"`
+}
+
+func (r listPacksResponse) error() error { return r.Err }
+
+func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listPacksRequest)
+	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
+	if err != nil {
+		return getPackResponse{Err: err}, nil
+	}
+
+	resp := listPacksResponse{Packs: make([]packResponse, len(packs))}
+	for i, pack := range packs {
+		packResp, err := packResponseForPack(ctx, svc, *pack)
+		if err != nil {
+			return getPackResponse{Err: err}, nil
+		}
+		resp.Packs[i] = *packResp
+	}
+	return resp, nil
+}
+
+func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.ListPacks(ctx, opt)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Pack
+////////////////////////////////////////////////////////////////////////////////
+
+type deletePackRequest struct {
+	Name string `url:"name"`
+}
+
+type deletePackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deletePackResponse) error() error { return r.Err }
+
+func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deletePackRequest)
+	err := svc.DeletePack(ctx, req.Name)
+	if err != nil {
+		return deletePackResponse{Err: err}, nil
+	}
+	return deletePackResponse{}, nil
+}
+
+func (svc *Service) DeletePack(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	pack, _, err := svc.ds.PackByName(ctx, name)
+	if err != nil {
+		return err
+	}
+	// if there is a pack by this name, ensure it is not type Global or Team
+	if pack != nil && !pack.EditablePackType() {
+		return fmt.Errorf("cannot delete pack_type %s", *pack.Type)
+	}
+
+	if err := svc.ds.DeletePack(ctx, name); err != nil {
+		return err
+	}
+
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedPack,
+		&map[string]interface{}{"pack_name": name},
+	)
 }

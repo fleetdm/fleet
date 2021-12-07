@@ -48,66 +48,6 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Packs
-////////////////////////////////////////////////////////////////////////////////
-
-type listPacksRequest struct {
-	ListOptions fleet.ListOptions
-}
-
-type listPacksResponse struct {
-	Packs []packResponse `json:"packs"`
-	Err   error          `json:"error,omitempty"`
-}
-
-func (r listPacksResponse) error() error { return r.Err }
-
-func makeListPacksEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listPacksRequest)
-		packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
-		if err != nil {
-			return getPackResponse{Err: err}, nil
-		}
-
-		resp := listPacksResponse{Packs: make([]packResponse, len(packs))}
-		for i, pack := range packs {
-			packResp, err := packResponseForPack(ctx, svc, *pack)
-			if err != nil {
-				return getPackResponse{Err: err}, nil
-			}
-			resp.Packs[i] = *packResp
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type deletePackRequest struct {
-	Name string
-}
-
-type deletePackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deletePackResponse) error() error { return r.Err }
-
-func makeDeletePackEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deletePackRequest)
-		err := svc.DeletePack(ctx, req.Name)
-		if err != nil {
-			return deletePackResponse{Err: err}, nil
-		}
-		return deletePackResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Pack By ID
 ////////////////////////////////////////////////////////////////////////////////
 

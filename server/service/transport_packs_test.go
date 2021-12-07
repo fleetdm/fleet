@@ -69,7 +69,6 @@ func TestDecodeModifyPackRequest(t *testing.T) {
 		httptest.NewRequest("PATCH", "/api/v1/fleet/packs/1", &body),
 	)
 }
-*/
 
 func TestDecodeDeletePackRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -86,6 +85,7 @@ func TestDecodeDeletePackRequest(t *testing.T) {
 		httptest.NewRequest("DELETE", "/api/v1/fleet/packs/packaday", nil),
 	)
 }
+*/
 
 func TestDecodeGetPackRequest(t *testing.T) {
 	router := mux.NewRouter()
