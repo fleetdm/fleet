@@ -19,10 +19,10 @@ type InitialStateType = {
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
+  setLastEditedQueryResolution: (value: string) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
   selectedOsqueryTable: IOsqueryTable;
-  setLastEditedQueryResolution: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
@@ -34,10 +34,10 @@ const initialState = {
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
+  setLastEditedQueryResolution: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
-  setLastEditedQueryResolution: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -112,17 +112,17 @@ const PolicyProvider = ({ children }: Props) => {
         lastEditedQueryBody,
       });
     },
-    policyTeamId: state.policyTeamId,
-    setPolicyTeamId: (id: number) => {
-      dispatch({ type: actions.SET_POLICY_TEAM_ID, id });
-    },
-    selectedOsqueryTable: state.selectedOsqueryTable,
     setLastEditedQueryResolution: (lastEditedQueryResolution: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryResolution,
       });
     },
+    policyTeamId: state.policyTeamId,
+    setPolicyTeamId: (id: number) => {
+      dispatch({ type: actions.SET_POLICY_TEAM_ID, id });
+    },
+    selectedOsqueryTable: state.selectedOsqueryTable,
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
     },

@@ -179,6 +179,7 @@ const PolicyForm = ({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          resolution: lastEditedQueryResolution,
         });
       }
 
