@@ -286,30 +286,16 @@
 
 {{ define "fleet_detail_query_users" -}}
 [
+  {{ range $index, $item := .HostUsersMacOS }}
+  {{if $index}},{{end}}
   {
-    "uid":"0",
-    "username":"gandalf",
-    "type":"wizard",
-    "groupname":"bree"
-  },
-  {
-    "uid":"1",
-    "username":"frodo",
-    "type":"hobbit",
-    "groupname":"shire"
-  },
-  {
-    "uid":"1",
-    "username":"sam",
-    "type":"hobbit",
-    "groupname":"shire"
-  },
-  {
-    "uid":"1",
-    "username":"legolas",
-    "type":"elve",
-    "groupname":"mirkwood"
+    "uid": "{{ .Uid }}",
+    "username": "{{ .Username }}",
+    "type": "{{ .Type }}",
+    "groupname": "{{ .GroupName }}",
+    "shell": "{{ .Shell }}"
   }
+  {{- end }}
 ]
 {{- end }}
 
