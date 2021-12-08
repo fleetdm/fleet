@@ -7,22 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.ScheduledQuery(ctx, id)
-}
-
-func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	return svc.unauthorizedScheduleQuery(ctx, sq)
-}
-
 func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)

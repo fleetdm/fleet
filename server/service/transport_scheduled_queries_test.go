@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -28,7 +27,6 @@ func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
 		httptest.NewRequest("GET", "/api/v1/fleet/packs/1/scheduled", nil),
 	)
 }
-*/
 
 func TestDecodeScheduleQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -56,6 +54,7 @@ func TestDecodeScheduleQueryRequest(t *testing.T) {
 		httptest.NewRequest("POST", "/api/v1/fleet/schedule", &body),
 	)
 }
+*/
 
 func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -101,21 +100,5 @@ func TestDecodeDeleteScheduledQueryRequest(t *testing.T) {
 	router.ServeHTTP(
 		httptest.NewRecorder(),
 		httptest.NewRequest("DELETE", "/api/v1/fleet/scheduled/1", nil),
-	)
-}
-
-func TestDecodeGetScheduledQueryRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/scheduled/{id}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeGetScheduledQueryRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(getScheduledQueryRequest)
-		assert.Equal(t, uint(1), params.ID)
-	}).Methods("GET")
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/fleet/scheduled/1", nil),
 	)
 }
