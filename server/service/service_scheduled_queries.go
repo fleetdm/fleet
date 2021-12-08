@@ -7,16 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// Scheduled queries are currently authorized the same as packs.
-
-func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.ListScheduledQueriesInPack(ctx, id, opts)
-}
-
 func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err

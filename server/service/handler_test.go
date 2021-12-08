@@ -114,10 +114,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/fleet/queries/run",
 		},
 		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/packs/1/scheduled",
-		},
-		{
 			verb: "POST",
 			uri:  "/api/v1/fleet/schedule",
 		},

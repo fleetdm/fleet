@@ -6,16 +6,6 @@ import (
 	"net/http"
 )
 
-func decodeGetScheduledQueriesInPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req getScheduledQueriesInPackRequest
-	req.ID = uint(id)
-	return req, nil
-}
-
 func decodeScheduleQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req scheduleQueryRequest
 

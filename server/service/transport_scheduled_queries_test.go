@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+/*
 func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/packs/{id}/scheduled", func(writer http.ResponseWriter, request *http.Request) {
@@ -27,6 +28,7 @@ func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
 		httptest.NewRequest("GET", "/api/v1/fleet/packs/1/scheduled", nil),
 	)
 }
+*/
 
 func TestDecodeScheduleQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
