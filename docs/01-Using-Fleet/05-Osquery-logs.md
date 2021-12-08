@@ -2,7 +2,7 @@
 
 This document provides instructions for working with each of the following log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../02-Deploying/02-Configuration.md#osquery-status-log-plugin).
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../02-Deploying/03-Configuration.md#osquery-status-log-plugin).
 
 - [Firehose](#firehose)
 - [Snowflake](#snowflake)
@@ -18,7 +18,7 @@ To configure each log destination, you must set the correct osquery logging conf
 Logs are written to AWS Firehose streams.
 
 - Plugin name: `firehose`
-- Flag namespace: [firehose](../02-Deploying/02-Configuration.md#firehose)
+- Flag namespace: [firehose](../02-Deploying/03-Configuration.md#firehose)
 
 With the Firehose plugin, osquery result and/or status logs are written to [Amazon Kinesis Data Firehose](https://aws.amazon.com/kinesis/data-firehose/). This is a very good method for aggregating osquery logs into AWS S3 storage.
 
@@ -115,7 +115,7 @@ Logs are written to the local Fleet server filesystem.
 The default log destination.
 
 - Plugin name: `filesystem`
-- Flag namespace: [filesystem](../02-Deploying/02-Configuration.md#filesystem)
+- Flag namespace: [filesystem](../02-Deploying/03-Configuration.md#filesystem)
 
 With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. 
 
