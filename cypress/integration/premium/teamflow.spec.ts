@@ -102,6 +102,9 @@ describe("Teams flow", () => {
     cy.visit("/schedule/manage");
 
     cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+    cy.get(".component__team-dropdown").click();
+
     cy.findByText(/valor/i).should("exist");
     cy.findByText(/query all window crashes/i).should("exist");
 

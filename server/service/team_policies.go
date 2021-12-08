@@ -41,7 +41,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Query:       req.Query,
 		Description: req.Description,
 		Resolution:  req.Resolution,
-		Platforms:   req.Platforms,
+		Platform:    req.Platforms,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -261,9 +261,6 @@ func (svc Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p fl
 	}
 	if p.Resolution != nil {
 		policy.Resolution = p.Resolution
-	}
-	if p.Platforms != nil {
-		policy.Platforms = *p.Platforms
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 

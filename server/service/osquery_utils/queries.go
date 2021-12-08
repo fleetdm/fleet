@@ -339,7 +339,7 @@ var detailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestDiskSpace,
 	},
 	"disk_space_windows": {
@@ -450,7 +450,7 @@ SELECT
   'python_packages' AS source
 FROM python_packages;
 `,
-	Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+	Platforms:  fleet.HostLinuxOSs,
 	IngestFunc: ingestSoftware,
 }
 

@@ -122,7 +122,7 @@ const ManageHostsPage = ({
   router,
   params: routeParams,
   location,
-}: IManageHostsProps) => {
+}: IManageHostsProps): JSX.Element => {
   const dispatch = useDispatch();
   const queryParams = location.query;
   const {
@@ -137,6 +137,7 @@ const ManageHostsPage = ({
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
+    isFreeTier,
     currentTeam,
     setCurrentTeam,
   } = useContext(AppContext);
@@ -316,7 +317,7 @@ const ManageHostsPage = ({
       select: (data: ITeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
-        if (responseTeams.length === 1) {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
           setCurrentTeam(responseTeams[0]);
         }
       },
@@ -460,7 +461,9 @@ const ManageHostsPage = ({
     // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
+    if (selectedTeam) {
+      setCurrentTeam(selectedTeam);
+    }
     setShowNoEnrollSecretBanner(true);
 
     // set selected label
@@ -495,7 +498,9 @@ const ManageHostsPage = ({
     // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
+    if (selectedTeam) {
+      setCurrentTeam(selectedTeam);
+    }
     setShowNoEnrollSecretBanner(true);
 
     // set selected label
@@ -620,12 +625,11 @@ const ManageHostsPage = ({
     setSoftwareDetails(null);
   };
 
-  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
-  const handleChangeSelectedTeamFilter = (selectedTeam: number) => {
+  const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
       teams || [],
-      selectedTeam,
+      teamId,
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -647,6 +651,8 @@ const ManageHostsPage = ({
       queryParams: newQueryParams,
     });
     router.replace(nextLocation);
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
@@ -1078,7 +1084,7 @@ const ManageHostsPage = ({
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
       onChange={(newSelectedValue: number) =>
-        handleChangeSelectedTeamFilter(newSelectedValue)
+        handleTeamSelect(newSelectedValue)
       }
     />
   );
@@ -1340,14 +1346,15 @@ const ManageHostsPage = ({
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
           <div className={`${baseClass}__title`}>
-            {!isPremiumTier && <h1>Hosts</h1>}
+            {isFreeTier && <h1>Hosts</h1>}
             {isPremiumTier &&
               teams &&
-              teams.length > 1 &&
+              (teams.length > 1 || isOnGlobalTeam) &&
               renderTeamsFilterDropdown()}
-            {isPremiumTier && teams && teams.length === 1 && (
-              <h1>{teams[0].name}</h1>
-            )}
+            {isPremiumTier &&
+              !isOnGlobalTeam &&
+              teams &&
+              teams.length === 1 && <h1>{teams[0].name}</h1>}
           </div>
         </div>
       </div>

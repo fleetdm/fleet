@@ -277,7 +277,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -1463,9 +1463,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, license)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {

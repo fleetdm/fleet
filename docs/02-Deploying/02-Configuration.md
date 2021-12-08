@@ -27,7 +27,7 @@ Your Fleet server's two main purposes are:
 
 The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure connection to a MySQL replica in addition to the primary, to be used for reading only. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
-> Fleet does not support Redis Cluster or Redis Sentinel. Fleet can scale to hundreds of thousands of devices with a single Redis instance.
+Fleet can scale to hundreds of thousands of devices with a single Redis instance, and is also compatible with Redis Cluster. Fleet does not support Redis Sentinel.
 
 Since Fleet is a web application, when you run Fleet there are some other configurations that must be defined, such as:
 
@@ -1635,7 +1635,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
 
 This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
 
-The timeout value for the http post attempt.  Value is in units of seconds.
+The timeout value for the http post attempt. Value is in units of seconds.
 
 - Default value: 5
 - Environment variable: `FLEET_KAFKAREST_TIMEOUT`
@@ -1749,7 +1749,7 @@ AWS S3 Disable SSL. Useful for local testing.
 
 ##### s3_force_s3_path_style
 
-AWS S3 Force S3 Path Style.	Set this to `true` to force the request to use path-style addressing,
+AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
 will use virtual hosted bucket addressing when possible
 (`http://BUCKET.s3.amazonaws.com/KEY`).
@@ -2023,52 +2023,52 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 1. Navigate to the [Web and Mobile Apps](https://admin.google.com/ac/apps/unified) section of the Google Workspace dashboard. Click _Add App -> Add custom SAML app_.
 
-  ![The Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
+![The Google Workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-1.png)
 
 2. Enter `Fleet` for the _App name_ and click _Continue_.
 
-  ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
+![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
 3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign on options_ section.
 
-  - Check the _Enable single sign on_ checkbox.
-  - For _Identity provider name_ use `Google`.
-  - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
-  - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
-  - All other fields can be left blank.
+- Check the _Enable single sign on_ checkbox.
+- For _Identity provider name_ use `Google`.
+- For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
+- For _Issuer URI_, paste the _SSO URL_ copied from step 3.
+- For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
+- All other fields can be left blank.
 
-  Click _Update settings_ at the bottom of the page.
+Click _Update settings_ at the bottom of the page.
 
-  ![Fleet's SMAL single sign on options page](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-4.png)
+![Fleet's SAML single sign on options page](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-4.png)
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
-  - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
-  - For _Name ID format_ choose `EMAIL`.
-  - For _Name ID_ choose `Basic Information > Primary email`.
-  - All other fields can be left blank.
+- For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
+- For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
+- For _Name ID format_ choose `EMAIL`.
+- For _Name ID_ choose `Basic Information > Primary email`.
+- All other fields can be left blank.
 
-  Click _Continue_ at the bottom of the page.
+Click _Continue_ at the bottom of the page.
 
-  ![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
+![Configuring the service provider details in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-5.png)
 
 6. Click _Finish_.
 
-  ![Finish configuring the new SMAL app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
+![Finish configuring the new SAML app in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-6.png)
 
 7. Click the down arrow on the _User access_ section of the app details page.
 
-  ![The new SMAL app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
+![The new SAML app's details page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-7.png)
 
 8. Check _ON for everyone_. Click _Save_.
 
-  ![The new SMAL app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
+![The new SAML app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
