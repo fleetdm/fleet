@@ -499,7 +499,6 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations up-to-date.")
 			case fleet.UnknownMigrations:
-				// Shouldn't happen, because fleet serve won't be running if this is the case.
 				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
 					migrationStatus.UnknownTable, migrationStatus.UnknownData)
 			case fleet.SomeMigrationsCompleted:
