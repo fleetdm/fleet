@@ -100,6 +100,12 @@ interface IHostResponse {
   host: IHost;
 }
 
+const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 const HostDetailsPage = ({
   router,
   params: { host_id },
@@ -117,6 +123,7 @@ const HostDetailsPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const canTransferTeam =
@@ -401,6 +408,7 @@ const HostDetailsPage = ({
       "Returns yes or no for detecting operating system and version"
     );
     setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryResolution("");
     router.replace(NEW_POLICY);
   };
 
@@ -451,6 +459,17 @@ const HostDetailsPage = ({
     }
 
     return router.push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`);
+  };
+
+  const onQueryHostCustom = () => {
+    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+  };
+
+  const onQueryHostSaved = (selectedQuery: IQuery) => {
+    router.push(
+      PATHS.EDIT_QUERY(selectedQuery) +
+        TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -1303,14 +1322,15 @@ const HostDetailsPage = ({
       </TabsWrapper>
 
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showQueryHostModal && (
+      {showQueryHostModal && host && (
         <SelectQueryModal
           host={host}
           onCancel={() => setShowQueryHostModal(false)}
-          queries={fleetQueries}
-          dispatch={dispatch}
+          queries={fleetQueries || []}
           queryErrors={fleetQueriesError}
           isOnlyObserver={isOnlyObserver}
+          onQueryHostCustom={onQueryHostCustom}
+          onQueryHostSaved={onQueryHostSaved}
         />
       )}
       {!!host && showTransferHostModal && (

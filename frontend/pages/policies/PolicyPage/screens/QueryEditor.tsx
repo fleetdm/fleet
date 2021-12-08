@@ -54,6 +54,7 @@ const QueryEditor = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryResolution,
     policyTeamId,
   } = useContext(PolicyContext);
 
@@ -86,14 +87,20 @@ const QueryEditor = ({
       );
       router.push(PATHS.EDIT_POLICY(policy));
       dispatch(renderFlash("success", "Policy created!"));
-    } catch (createError) {
+    } catch (createError: any) {
       console.error(createError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong creating your policy. Please try again."
-        )
-      );
+      if (createError.errors[0].reason.includes("already exists")) {
+        dispatch(
+          renderFlash("error", "A policy with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong creating your policy. Please try again."
+          )
+        );
+      }
     }
   });
 
@@ -106,6 +113,7 @@ const QueryEditor = ({
       lastEditedQueryName,
       lastEditedQueryDescription,
       lastEditedQueryBody,
+      lastEditedQueryResolution,
     });
 
     const updateAPIRequest = () => {
@@ -123,14 +131,20 @@ const QueryEditor = ({
     try {
       await updateAPIRequest();
       dispatch(renderFlash("success", "Policy updated!"));
-    } catch (updateError) {
+    } catch (updateError: any) {
       console.error(updateError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong updating your policy. Please try again."
-        )
-      );
+      if (updateError.errors[0].reason.includes("Duplicate")) {
+        dispatch(
+          renderFlash("error", "A policy with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong updating your policy. Please try again."
+          )
+        );
+      }
     }
 
     return false;

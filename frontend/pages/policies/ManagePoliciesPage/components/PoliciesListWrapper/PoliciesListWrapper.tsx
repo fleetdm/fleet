@@ -27,6 +27,7 @@ interface IPoliciesListWrapperProps {
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
+  toggleAddPolicyModal?: () => void;
 }
 
 const PoliciesListWrapper = ({
@@ -37,6 +38,7 @@ const PoliciesListWrapper = ({
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
+  toggleAddPolicyModal,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 

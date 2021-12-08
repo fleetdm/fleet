@@ -37,6 +37,8 @@ func debugCommand() *cli.Command {
 			debugHeapCommand(),
 			debugGoroutineCommand(),
 			debugTraceCommand(),
+			debugErrorsCommand(),
+			debugDBLocksCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
 			debugMigrations(),
@@ -269,6 +271,8 @@ func debugArchiveCommand() *cli.Command {
 				"allocs",
 				"block",
 				"cmdline",
+				"db-locks",
+				"errors",
 				"goroutine",
 				"heap",
 				"mutex",
@@ -294,7 +298,23 @@ func debugArchiveCommand() *cli.Command {
 			defer tarwriter.Close()
 
 			for _, profile := range profiles {
-				res, err := fleet.DebugPprof(profile)
+				var res []byte
+
+				switch profile {
+				case "errors":
+					var buf bytes.Buffer
+					err = fleet.DebugErrors(&buf)
+					if err == nil {
+						res = buf.Bytes()
+					}
+
+				case "db-locks":
+					res, err = fleet.DebugDBLocks()
+
+				default:
+					res, err = fleet.DebugPprof(profile)
+				}
+
 				if err != nil {
 					// Don't fail the entire process on errors. We'll take what
 					// we can get if the servers are in a bad state and not
@@ -479,7 +499,6 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Migrations up-to-date.")
 			case fleet.UnknownMigrations:
-				// Shouldn't happen, because fleet serve won't be running if this is the case.
 				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
 					migrationStatus.UnknownTable, migrationStatus.UnknownData)
 			case fleet.SomeMigrationsCompleted:
@@ -487,6 +506,85 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData)
 			}
+			return nil
+		},
+	}
+}
+
+func debugErrorsCommand() *cli.Command {
+	name := "errors"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the recorded fleet server errors to a file.",
+		UsageText: "Recording of errors and their retention period is controlled via the --logging_error_retention_period fleet command flag.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			if err := fleet.DebugErrors(f); err != nil {
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return fmt.Errorf("write errors to file: %w", err)
+			}
+			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
+
+			return nil
+		},
+	}
+}
+
+func debugDBLocksCommand() *cli.Command {
+	name := "db-locks"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the current database transaction locking information to a file.",
+		UsageText: "Saves transaction locking information with queries that are waiting on or blocking other transactions.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			locks, err := fleet.DebugDBLocks()
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			if err := writeFile(outfile, locks, defaultFileMode); err != nil {
+				return fmt.Errorf("write %s to file: %w", name, err)
+			}
+
 			return nil
 		},
 	}

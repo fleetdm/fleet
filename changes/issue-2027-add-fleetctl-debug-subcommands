@@ -1,0 +1,1 @@
+* Add `fleetctl debug errors` to get the list of stored errors, and `fleetctl debug db-locks` to get the current db transactions locked (both reports are also added to the `fleetctl debug archive` output).

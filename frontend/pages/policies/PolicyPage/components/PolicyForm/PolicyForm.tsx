@@ -179,6 +179,7 @@ const PolicyForm = ({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          resolution: lastEditedQueryResolution,
         });
       }
 
@@ -314,6 +315,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryName}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -354,6 +361,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryDescription}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -397,6 +410,12 @@ const PolicyForm = ({
               onChange={setLastEditedQueryResolution}
               inputOptions={{
                 autoFocus: true,
+                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                  // sets cursor to end of inputfield
+                  const val = e.target.value;
+                  e.target.value = "";
+                  e.target.value = val;
+                },
               }}
             />
           </div>
@@ -514,7 +533,7 @@ const PolicyForm = ({
                     !hasTeamMaintainerPermissions
                   }
                 >
-                  Save
+                  <>Save{!isEditMode && " policy"}</>
                 </Button>
               </div>{" "}
               <ReactTooltip
@@ -540,7 +559,7 @@ const PolicyForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Run
           </Button>
         </div>
       </form>

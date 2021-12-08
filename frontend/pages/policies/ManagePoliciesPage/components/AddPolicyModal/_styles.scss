@@ -1,0 +1,59 @@
+.add-policy-modal {
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
+
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
+  }
+
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
+
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
+
+    .info {
+      display: flex;
+
+      &__header {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: left;
+        margin-top: 10px;
+      }
+    }
+  }
+
+  &__policy-selection {
+    padding: $pad-large 0;
+  }
+}
