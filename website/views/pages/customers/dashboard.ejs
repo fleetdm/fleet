@@ -1,5 +1,5 @@
 <div id="dashboard" v-cloak>
-  <div class="container pt-5 pb-5">
+  <div class="container pt-5 pb-5 px-xl-0">
     <div class="pb-4">
       <h3>Your license</h3>
       <div purpose="license-card" class="card card-body">
@@ -30,7 +30,7 @@
 
     <div class="row pt-3">
 
-      <div class="col-12 col-md-6">
+      <div class="col-12 col-lg-6">
       <h3 class="pb-3">Your details</h3>
         <div purpose="details-card" class="card card-body justify-content-center">
           <div class="row">
@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <div class="col-12 col-md-6 pt-4 pt-md-0">
+      <div class="col-12 col-lg-6 pt-4 pt-lg-0">
         <h3 class="pb-3">Billing and payment</h3>
         <div purpose="billing-card" class="card card-body justify-content-center">
           <div class="row pb-3">
@@ -73,16 +73,30 @@
               <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="timeago"></js-timestamp></p>
             </div>
           </div>
-          <div class="row">
-            <p><a href="/contact" target="_blank">Contact us</a> to change the number of devices, or cancel your subscription.</p>
+          <div class="row" purpose="contact">
+            <p><img style="display: inline; height: 16px; width: 16px; margin-bottom: 3px; margin-right: 8px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information"><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
           </div>
         </div>
       </div>
 
     </div>
+    <div class="pt-4">
+      <div class="btn btn-info btn-sm mr-md-3 mb-3 mb-md-0" purpose="deploy-button">
+        <a href="/docs/deploying/installation">
+          Learn how to deploy Fleet
+        </a>
+      </div>
+      <div class="btn btn-outline-secondary btn-sm" purpose="slack-button">
+        <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank">
+          <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
+          Ask for help on Slack
+        </a>
+      </div>
+
+    </div>
   </div>
-  <modal v-if="modal === 'update-profile'" @close="closeModal()" v-cloak>
-    <div class="card card-body">
+  <modal v-if="modal === 'update-profile'" @close="closeModal()" v-cloak purpose="modal">
+    <div class="container">
       <div class="modal-header">
         <h3 class="modal-title">Edit your details?</h3>
       </div>
@@ -116,15 +130,14 @@
           </div>
         </div>
         <div class="modal-footer border-0 justify-content-center">
-          <button data-dismiss="modal" class="btn btn-outline-secondary mr-2">Never mind</button>
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-danger ml-2">Save</ajax-button>
+          <ajax-button type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
         </div>
       </ajax-form>
     </div>
   </modal>
 
-  <modal v-if="modal === 'update-billing-card'" data-backdrop="false" @close="closeModal()" v-cloak>
-    <div class="card card-body">
+  <modal v-if="modal === 'update-billing-card'" data-backdrop="false" @close="closeModal()" v-cloak purpose="modal">
+    <div class="container">
       <div class="modal-header">
         <h2 class="modal-title">Edit card</h2>
         <p class="muted">Currently using: {{me.billingCardBrand}} ending in {{me.billingCardLast4}}</p>
@@ -135,16 +148,15 @@
 
           <p class="text-danger" v-if="cloudError"><small>An error occured while processing your request. Please check your information and try again, or <a href="/contact">contact support</a> if the error persists.</small></p>
         </div>
-        <div class="row flex-row-reverse justify-content-start">
-          <ajax-button :syncing="syncing" class="btn btn-lg btn-info">Save card</ajax-button>
-          <button type="button" class="btn btn-lg btn-outline-danger mr-2" data-dismiss="modal">Cancel</button>
+        <div class="pt-3">
+          <ajax-button :syncing="syncing" class="btn btn-sm btn-block btn-info">Save card</ajax-button>
         </div>
       </ajax-form>
     </div>
   </modal>
 
   <modal v-if="modal === 'remove-billing-card'" @close="closeModal()" v-cloak>
-    <div class="card card-body">
+    <div class="container">
       <h3 >Remove Card Info?</h3>
       <ajax-form action="updateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedRemoveCardForm()">
         <div class="modal-body text-center">
@@ -153,8 +165,7 @@
           <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="modal-footer border-0 justify-content-center">
-          <button data-dismiss="modal" class="btn btn-outline-secondary mr-2">Never mind</button>
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-danger ml-2">Remove</ajax-button>
+          <ajax-button type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
         </div>
       </ajax-form>
     </div>
