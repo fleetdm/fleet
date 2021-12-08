@@ -605,7 +605,7 @@ The address to serve the Fleet webserver.
 
 The TLS cert to use when terminating TLS.
 
-See [TLS certificate considerations](./01-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
+See [TLS certificate considerations](./01-Introduction.md#tls-certificate) for more information about certificates and Fleet.
 
 - Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
