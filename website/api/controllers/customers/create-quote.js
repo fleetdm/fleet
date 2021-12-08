@@ -35,7 +35,6 @@ module.exports = {
 
     let quote = await Quote.create({
       numberOfHosts: numberOfHosts,
-      // status: 'Quote generated',
       quotedPrice: price,
       organization: this.req.me.organization,
       user: this.req.me.id,
