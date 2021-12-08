@@ -1,15 +1,6 @@
 package service
 
-import (
-	"bytes"
-	"context"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-)
+// TODO(mna): delete after covering those in integration tests
 
 /*
 func TestDecodeGetScheduledQueriesInPackRequest(t *testing.T) {
@@ -54,7 +45,6 @@ func TestDecodeScheduleQueryRequest(t *testing.T) {
 		httptest.NewRequest("POST", "/api/v1/fleet/schedule", &body),
 	)
 }
-*/
 
 func TestDecodeModifyScheduledQueryRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -102,3 +92,4 @@ func TestDecodeDeleteScheduledQueryRequest(t *testing.T) {
 		httptest.NewRequest("DELETE", "/api/v1/fleet/scheduled/1", nil),
 	)
 }
+*/
