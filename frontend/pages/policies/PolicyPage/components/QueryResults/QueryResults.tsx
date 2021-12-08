@@ -150,7 +150,7 @@ const QueryResults = ({
       <div className={`${baseClass}__results-table-container`}>
         <InfoBanner>
           Host that responded with results are marked <strong>Yes</strong>.
-          Hosts that responded with no results are maked <strong>No</strong>.
+          Hosts that responded with no results are marked <strong>No</strong>.
         </InfoBanner>
         <Button
           className={`${baseClass}__export-btn`}

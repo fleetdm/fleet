@@ -88,7 +88,7 @@ export interface IPackStats {
 export interface IHostPolicyQuery {
   id: number;
   hostname: string;
-  status: string | undefined;
+  status?: string;
 }
 
 export interface IHostPolicyQueryError {

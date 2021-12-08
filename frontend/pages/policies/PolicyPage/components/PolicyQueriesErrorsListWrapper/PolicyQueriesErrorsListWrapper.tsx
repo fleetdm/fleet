@@ -10,6 +10,7 @@ import {
 
 const baseClass = "policies-queries-list-wrapper";
 const noPolicyQueries = "no-policy-queries";
+
 interface IPoliciesListWrapperProps {
   errorsList: IHostPolicyQueryError[];
   isLoading: boolean;
