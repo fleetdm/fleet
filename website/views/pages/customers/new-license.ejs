@@ -11,7 +11,7 @@
                 <div class="form-group order-first">
                   <label for="numberOfHosts"><strong>Total number of devices</strong></label>
                   <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" v-model.trim="formData.numberOfHosts" v-if="!showBillingForm">
-                  <span class="form-control" v-else>{{formData.numberOfHosts}}<span class="text-danger fa fa-times-circle pl-2" @click="clickResetForm()"></span></span>
+                  <span style="width: 100%; position: relative;" class="form-control" v-else>{{formData.numberOfHosts}}<span style="position: absolute; bottom: 10px; right: 5px;" class="text-muted fa fa-times-circle pl-2" @click="clickResetForm()"></span></span>
                   <div class="invalid-feedback" v-if="formErrors.numberOfHosts" focus-first>Please enter a number of hosts</div>
                 </div>
                 <div style="color: #515774;"class="order-last text-right pl-4 pt-4 ml-auto">
@@ -35,7 +35,7 @@
           </div>
           <div class="card card-body mt-3" v-if="showBillingForm">
             <h3 class="pb-3">Billing information</h3>
-            <ajax-form :handle-submitting="handleSubmittingPayment" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedPaymentForm()">
+            <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedPaymentForm()">
             <div class="form-group">
               <label for="card">Billing Card</label>
               <stripe-card-element class="mb-3" id="card" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
@@ -59,7 +59,6 @@
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">A cool license key</li>
           </ul>
           <div class="pt-2 d-none" v-if="showBillingForm">
           <p><strong>FAQ</strong></p>
@@ -75,4 +74,3 @@
     </div>
   </div>
 </div>
-<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

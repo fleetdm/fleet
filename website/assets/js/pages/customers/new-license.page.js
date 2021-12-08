@@ -24,7 +24,6 @@ parasails.registerPage('new-license', {
     cloudSuccess: false,
     showBillingForm: false,
     quotedPrice: undefined,
-    quotedId: undefined,
     numberOfHostsQuoted: undefined,
     thirtyDaysFromTodayInMS: Date.now() + 30*24*60*60*1000,
     // stripePaymentOptions: {},
@@ -57,11 +56,11 @@ parasails.registerPage('new-license', {
       if(quote.numberOfHosts > 100) {
         let today = new Date(Date.now());
         this.syncing = true;
-        window.location = 'https://calendly.com/fleetdm/demo?month='+today.getFullYear()+'-'+today.getMonth();
         // note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
+        window.location = 'https://calendly.com/fleetdm/demo?month='+today.getFullYear()+'-'+today.getMonth();
       } else {
         this.numberOfHostsQuoted = quote.numberOfHosts;
-        this.quotedId = quote.id;
+        this.formData.quoteId = quote.id;
         this.quotedPrice = quote.quotedPrice;
         this.showBillingForm = true;
       }
@@ -73,16 +72,6 @@ parasails.registerPage('new-license', {
       this.showBillingForm = false;
     },
 
-    handleSubmittingPayment: async function() {
-      this.syncing = true;
-      let paymentArgins = {
-        userId: this.me.id,
-        quoteId: this.quotedId,
-        newPaymentSource: this.formData.paymentSource,
-      };
-      await Cloud.saveBillingInfoAndSubscribe.with(paymentArgins);
-      this.cloudSuccess = true;
-    }
 
   }
 });
