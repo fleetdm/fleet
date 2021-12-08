@@ -276,10 +276,11 @@ func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
 }
 
 func amountUsersDB(db sqlx.Queryer) (int, error) {
-	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM users`)
-	if err != nil {
-		return 0, err
-	}
-	return amount, nil
+	return 0, nil
+	//var amount int
+	//err := sqlx.Get(db, &amount, `SELECT count(*) FROM users`)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//return amount, nil
 }

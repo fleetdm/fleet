@@ -189,8 +189,8 @@ func updateTeamScheduleDB(ctx context.Context, exec sqlx.ExecerContext, team *fl
 func (d *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
-				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
-				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+				0 AS user_count,
+				0 AS host_count
 			FROM teams t
 			WHERE %s
 		`,
@@ -222,8 +222,8 @@ func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*
 func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
-				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
-				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+				0 AS user_count,
+				0 AS host_count
 			FROM teams t
 			WHERE %s AND %s
 		`,
@@ -254,10 +254,11 @@ func (d *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 }
 
 func amountTeamsDB(db sqlx.Queryer) (int, error) {
-	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM teams`)
-	if err != nil {
-		return 0, err
-	}
-	return amount, nil
+	return 0, nil
+	//var amount int
+	//err := sqlx.Get(db, &amount, `SELECT count(*) FROM teams`)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//return amount, nil
 }

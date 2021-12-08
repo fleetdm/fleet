@@ -238,7 +238,7 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 	sql := `
 		SELECT
 		       l.*,
-		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
+		       0 AS host_count
 		FROM labels l
 		WHERE id = ?
 	`
@@ -255,9 +255,9 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 func (d *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	query := fmt.Sprintf(`
 			SELECT *,
-				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
+				0 AS host_count
 			FROM labels l
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, // d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	query = appendListOptionsToSQL(query, opt)
@@ -458,19 +458,20 @@ func (d *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, que
 }
 
 func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
-	query := `SELECT count(*) FROM label_membership lm
-    JOIN hosts h ON (lm.host_id = h.id)
-	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-	WHERE lm.label_id = ?`
-
-	query, params := d.applyHostLabelFilters(filter, lid, query, opt)
-
-	var count int
-	if err := sqlx.GetContext(ctx, d.reader, &count, query, params...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count hosts")
-	}
-
-	return count, nil
+	return 0, nil
+	//query := `SELECT count(*) FROM label_membership lm
+	//JOIN hosts h ON (lm.host_id = h.id)
+	//LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	//WHERE lm.label_id = ?`
+	//
+	//query, params := d.applyHostLabelFilters(filter, lid, query, opt)
+	//
+	//var count int
+	//if err := sqlx.GetContext(ctx, d.reader, &count, query, params...); err != nil {
+	//	return 0, ctxerr.Wrap(ctx, err, "count hosts")
+	//}
+	//
+	//return count, nil
 }
 
 func (d *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.TeamFilter, labels []uint) ([]*fleet.Host, error) {
@@ -507,17 +508,14 @@ func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.Team
 
 	sqlStatement := fmt.Sprintf(`
 			SELECT *,
-				(SELECT COUNT(1)
-					FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id)
-					WHERE label_id = l.id AND %s
-				) AS host_count
+				0 AS host_count
 			FROM labels l
 			WHERE (
 				MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			)
 			AND id NOT IN (?)
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //, d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	sql, args, err := sqlx.In(sqlStatement, transformedQuery, omit)
@@ -547,16 +545,13 @@ func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.Team
 func (d *Datastore) addAllHostsLabelToList(ctx context.Context, filter fleet.TeamFilter, labels []*fleet.Label, omit ...uint) ([]*fleet.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
-				(SELECT COUNT(1)
-					FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id)
-					WHERE label_id = l.id AND %s
-				) AS host_count
+				0 AS host_count
 			FROM labels l
 			WHERE
 			  label_type=?
 				AND name = 'All Hosts'
 			LIMIT 1
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	var allHosts fleet.Label
@@ -582,15 +577,12 @@ func (d *Datastore) addAllHostsLabelToList(ctx context.Context, filter fleet.Tea
 func (d *Datastore) searchLabelsDefault(ctx context.Context, filter fleet.TeamFilter, omit ...uint) ([]*fleet.Label, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,
-				(SELECT COUNT(1)
-					FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id)
-					WHERE label_id = l.id AND %s
-				) AS host_count
+				0 AS host_count
 			FROM labels l
 			WHERE id NOT IN (?)
 			GROUP BY id
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, // d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	var in interface{}
@@ -637,16 +629,13 @@ func (d *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 	// that the order is always consistent.
 	sql := fmt.Sprintf(`
 			SELECT *,
-				(SELECT COUNT(1)
-						FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id)
-						WHERE label_id = l.id AND %s
-					) AS host_count
+				0 AS host_count
 				FROM labels l
 			WHERE (
 				MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			)
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, // d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	matches := []*fleet.Label{}

@@ -60,8 +60,8 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		fmt.Sprintf(`SELECT p.*,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+       		0 as passing_host_count,
+       		0 as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE p.id=? AND %s`, teamWhere),
@@ -181,8 +181,8 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		fmt.Sprintf(`SELECT p.*,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+       		0 as passing_host_count,
+       		0 as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		WHERE %s`, teamWhere), args...,
@@ -339,10 +339,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 }
 
 func amountPoliciesDB(db sqlx.Queryer) (int, error) {
-	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
-	if err != nil {
-		return 0, err
-	}
-	return amount, nil
+	return 0, nil
+	//var amount int
+	//err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//return amount, nil
 }

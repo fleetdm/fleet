@@ -308,19 +308,20 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 func countSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) (int, error) {
-	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.ListOptions.MatchQuery,
-	}
-	sql, args, err := selectSoftwareSQL(hostID, opts)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "sql build")
-	}
-
-	var result int
-	if err := sqlx.GetContext(ctx, q, &result, "select count(*) as count from ("+sql+") s", args...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count host software")
-	}
-	return result, nil
+	return 0, nil
+	//opts.ListOptions = fleet.ListOptions{
+	//	MatchQuery: opts.ListOptions.MatchQuery,
+	//}
+	//sql, args, err := selectSoftwareSQL(hostID, opts)
+	//if err != nil {
+	//	return 0, ctxerr.Wrap(ctx, err, "sql build")
+	//}
+	//
+	//var result int
+	//if err := sqlx.GetContext(ctx, q, &result, "select count(*) as count from ("+sql+") s", args...); err != nil {
+	//	return 0, ctxerr.Wrap(ctx, err, "count host software")
+	//}
+	//return result, nil
 }
 
 // loadCVEsbySoftware loads all the CVEs on software installed on the given hostID and list options.

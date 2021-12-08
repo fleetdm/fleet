@@ -391,7 +391,7 @@ func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 		       coalesce(failing_policies.count, 0) as total_issues_count`
 	policiesJoin := `
 			JOIN (
-		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
+		    	SELECT 0
 			) failing_policies`
 	args := []interface{}{id, id}
 	if skipLoadingExtras {
@@ -433,7 +433,7 @@ func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 
 func amountEnrolledHostsDB(db sqlx.Queryer) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM hosts`)
+	err := sqlx.Get(db, &amount, `SELECT 0`)
 	if err != nil {
 		return 0, err
 	}
@@ -566,21 +566,22 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 }
 
 func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
-	sql := `SELECT count(*) `
-
-	// ignore pagination in count
-	opt.Page = 0
-	opt.PerPage = 0
-
-	var params []interface{}
-	sql, params = d.applyHostFilters(opt, sql, filter, params)
-
-	var count int
-	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count hosts")
-	}
-
-	return count, nil
+	return 0, nil
+	//sql := `SELECT count(*) `
+	//
+	//// ignore pagination in count
+	//opt.Page = 0
+	//opt.PerPage = 0
+	//
+	//var params []interface{}
+	//sql, params = d.applyHostFilters(opt, sql, filter, params)
+	//
+	//var count int
+	//if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
+	//	return 0, ctxerr.Wrap(ctx, err, "count hosts")
+	//}
+	//
+	//return count, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
