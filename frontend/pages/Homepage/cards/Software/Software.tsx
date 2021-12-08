@@ -230,14 +230,13 @@ const Software = ({
 
   useEffect(() => {
     setModalSoftwareState(() => {
-      const modalSoftwareExtra =
+      return (
         modalSoftware?.filter((softwareItem) => {
           return softwareItem.name
             .toLowerCase()
             .includes(modalSoftwareSearchText.toLowerCase());
-        }) || [];
-      console.log("modalSoftwareExtra", modalSoftwareExtra);
-      return modalSoftwareExtra;
+        }) || []
+      );
     });
   }, [modalSoftware, modalSoftwareSearchText]);
 
