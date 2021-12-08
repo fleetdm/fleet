@@ -41,19 +41,6 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	return svc.ds.GetLabelSpec(ctx, name)
 }
 
-func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-
-	return svc.ds.ListLabels(ctx, filter, opt)
-}
-
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return err

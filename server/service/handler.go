@@ -68,7 +68,6 @@ type FleetEndpoints struct {
 	SubmitLogs                            endpoint.Endpoint
 	CarveBegin                            endpoint.Endpoint
 	CarveBlock                            endpoint.Endpoint
-	ListLabels                            endpoint.Endpoint
 	ListHostsInLabel                      endpoint.Endpoint
 	DeleteLabel                           endpoint.Endpoint
 	DeleteLabelByID                       endpoint.Endpoint
@@ -152,7 +151,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		ListLabels:                            authenticatedUser(svc, makeListLabelsEndpoint(svc)),
 		ListHostsInLabel:                      authenticatedUser(svc, makeListHostsInLabelEndpoint(svc)),
 		DeleteLabel:                           authenticatedUser(svc, makeDeleteLabelEndpoint(svc)),
 		DeleteLabelByID:                       authenticatedUser(svc, makeDeleteLabelByIDEndpoint(svc)),
@@ -238,7 +236,6 @@ type fleetHandlers struct {
 	SubmitLogs                            http.Handler
 	CarveBegin                            http.Handler
 	CarveBlock                            http.Handler
-	ListLabels                            http.Handler
 	ListHostsInLabel                      http.Handler
 	DeleteLabel                           http.Handler
 	DeleteLabelByID                       http.Handler
@@ -316,7 +313,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
-		ListLabels:                            newServer(e.ListLabels, decodeListLabelsRequest),
 		ListHostsInLabel:                      newServer(e.ListHostsInLabel, decodeListHostsInLabelRequest),
 		DeleteLabel:                           newServer(e.DeleteLabel, decodeDeleteLabelRequest),
 		DeleteLabelByID:                       newServer(e.DeleteLabelByID, decodeDeleteLabelByIDRequest),
@@ -559,7 +555,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/labels", h.ListLabels).Methods("GET").Name("list_labels")
 	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
 	r.Handle("/api/v1/fleet/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
 	r.Handle("/api/v1/fleet/labels/id/{id:[0-9]+}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
@@ -665,6 +660,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/v1/fleet/labels", createLabelEndpoint, createLabelRequest{})
 	e.PATCH("/api/v1/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, modifyLabelRequest{})
 	e.GET("/api/v1/fleet/labels/{id:[0-9]+}", getLabelEndpoint, getLabelRequest{})
+	e.GET("/api/v1/fleet/labels", listLabelsEndpoint, listLabelsRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 

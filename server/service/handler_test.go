@@ -139,10 +139,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/osquery/log",
 		},
 		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/labels",
-		},
-		{
 			verb: "DELETE",
 			uri:  "/api/v1/fleet/labels/1",
 		},

@@ -8,41 +8,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Labels
-////////////////////////////////////////////////////////////////////////////////
-
-type listLabelsRequest struct {
-	ListOptions fleet.ListOptions
-}
-
-type listLabelsResponse struct {
-	Labels []labelResponse `json:"labels"`
-	Err    error           `json:"error,omitempty"`
-}
-
-func (r listLabelsResponse) error() error { return r.Err }
-
-func makeListLabelsEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listLabelsRequest)
-		labels, err := svc.ListLabels(ctx, req.ListOptions)
-		if err != nil {
-			return listLabelsResponse{Err: err}, nil
-		}
-
-		resp := listLabelsResponse{}
-		for _, label := range labels {
-			labelResp, err := labelResponseForLabel(ctx, svc, label)
-			if err != nil {
-				return listLabelsResponse{Err: err}, nil
-			}
-			resp.Labels = append(resp.Labels, *labelResp)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // List Hosts in Label
 ////////////////////////////////////////////////////////////////////////////////
 
