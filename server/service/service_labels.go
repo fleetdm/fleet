@@ -41,24 +41,6 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	return svc.ds.GetLabelSpec(ctx, name)
 }
 
-func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	label, err := svc.ds.Label(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if payload.Name != nil {
-		label.Name = *payload.Name
-	}
-	if payload.Description != nil {
-		label.Description = *payload.Description
-	}
-	return svc.ds.SaveLabel(ctx, label)
-}
-
 func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -70,14 +52,6 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions) ([]*f
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListLabels(ctx, filter, opt)
-}
-
-func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.Label(ctx, id)
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {

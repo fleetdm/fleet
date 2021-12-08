@@ -26,22 +26,6 @@ func TestDecodeDeleteLabelRequest(t *testing.T) {
 	)
 }
 
-func TestDecodeGetLabelRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/labels/{id}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeGetLabelRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(getLabelRequest)
-		assert.Equal(t, uint(1), params.ID)
-	}).Methods("GET")
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("GET", "/api/v1/fleet/labels/1", nil),
-	)
-}
-
 /*
 func TestDecodeCreateLabelRequest(t *testing.T) {
 	router := mux.NewRouter()

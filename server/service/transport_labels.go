@@ -26,16 +26,6 @@ func decodeDeleteLabelByIDRequest(ctx context.Context, r *http.Request) (interfa
 	return req, nil
 }
 
-func decodeGetLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req getLabelRequest
-	req.ID = uint(id)
-	return req, nil
-}
-
 func decodeListLabelsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	opt, err := listOptionsFromRequest(r)
 	if err != nil {
@@ -65,18 +55,4 @@ func decodeApplyLabelSpecsRequest(ctx context.Context, r *http.Request) (interfa
 	}
 	return req, nil
 
-}
-
-func decodeModifyLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var resp modifyLabelRequest
-	err = json.NewDecoder(r.Body).Decode(&resp.payload)
-	if err != nil {
-		return nil, err
-	}
-	resp.ID = uint(id)
-	return resp, nil
 }
