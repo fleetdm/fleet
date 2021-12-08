@@ -99,26 +99,28 @@ func retryableError(err error) bool {
 // withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	operation := func() error {
-		tx, err := d.writer.BeginTxx(ctx, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "create transaction")
-		}
+		//tx, err := d.writer.BeginTxx(ctx, nil)
+		//if err != nil {
+		//	return ctxerr.Wrap(ctx, err, "create transaction")
+		//}
+		//
+		tx := d.writer
 
 		defer func() {
 			if p := recover(); p != nil {
-				if err := tx.Rollback(); err != nil {
-					d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-				}
+				//if err := tx.Rollback(); err != nil {
+				//	d.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+				//}
 				panic(p)
 			}
 		}()
 
 		if err := fn(tx); err != nil {
-			rbErr := tx.Rollback()
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
-			}
+			//rbErr := tx.Rollback()
+			//if rbErr != nil && rbErr != sql.ErrTxDone {
+			//	// Consider rollback errors to be non-retryable
+			//	return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
+			//}
 
 			if retryableError(err) {
 				return err
@@ -128,15 +130,15 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 			return backoff.Permanent(err)
 		}
 
-		if err := tx.Commit(); err != nil {
-			err = ctxerr.Wrap(ctx, err, "commit transaction")
-
-			if retryableError(err) {
-				return err
-			}
-
-			return backoff.Permanent(err)
-		}
+		//if err := tx.Commit(); err != nil {
+		//	err = ctxerr.Wrap(ctx, err, "commit transaction")
+		//
+		//	if retryableError(err) {
+		//		return err
+		//	}
+		//
+		//	return backoff.Permanent(err)
+		//}
 
 		return nil
 	}
