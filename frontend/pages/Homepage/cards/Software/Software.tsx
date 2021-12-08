@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
@@ -114,6 +114,7 @@ const Software = ({
     isModalSoftwareVulnerable,
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
+  const [modalSoftwareState, setModalSoftwareState] = useState<ISoftware[]>([]);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
@@ -183,7 +184,6 @@ const Software = ({
       setIsLoadingModalSoftware(true);
       return softwareAPI.load({
         page: modalSoftwarePageIndex,
-        perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
         orderKey: "id",
         orderDir: "desc",
@@ -227,6 +227,19 @@ const Software = ({
       setModalSoftwarePageIndex(pageIndex);
     }
   };
+
+  useEffect(() => {
+    setModalSoftwareState(() => {
+      const modalSoftwareExtra =
+        modalSoftware?.filter((softwareItem) => {
+          return softwareItem.name
+            .toLowerCase()
+            .includes(modalSoftwareSearchText.toLowerCase());
+        }) || [];
+      console.log("modalSoftwareExtra", modalSoftwareExtra);
+      return modalSoftwareExtra;
+    });
+  }, [modalSoftware, modalSoftwareSearchText]);
 
   const renderStatusDropdown = () => {
     return (
@@ -301,11 +314,12 @@ const Software = ({
             </p>
             <TableContainer
               columns={tableHeaders}
-              data={modalSoftware || []}
+              data={modalSoftwareState}
               isLoading={isLoadingModalSoftware}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               hideActionButton
+              filteredCount={modalSoftwareState.length}
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptySoftware(
@@ -319,6 +333,8 @@ const Software = ({
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
+              isClientSidePagination
+              isClientSideSearch
             />
           </>
         </Modal>
