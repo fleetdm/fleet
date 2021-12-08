@@ -46,7 +46,7 @@ const QueryResults = ({
   onStopQuery,
   setSelectedTargets,
   goToQueryEditor,
-}: IQueryResultsProps) => {
+}: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
@@ -193,7 +193,7 @@ const QueryResults = ({
       isQueryFinished && (!hostsCount.successful || emptyResults);
 
     if (hasNoResultsYet) {
-      return null;
+      return <Spinner />;
     }
 
     if (finishedWithNoResults) {
