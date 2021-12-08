@@ -73,17 +73,22 @@ To setup Fleet infrastructure, use one of the available commands.
 					bufio.NewScanner(os.Stdin).Scan()
 				}
 			case fleet.UnknownMigrations:
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-					"#   running an older version of Fleet on a newer migrated database.\n"+
-					"#\n"+
-					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Upgrade Fleet server version.\n"+
-					"################################################################################\n",
-					status.UnknownTable, status.UnknownData)
-				os.Exit(1)
+				// We only perform this check in dev mode because some releases may have
+				// introduced some migrations that were later changed, e.g.:
+				// fleet-v4.4.0 released a migration with a timestamp that was changed in fleet-v4.4.1.
+				if dev {
+					fmt.Printf("################################################################################\n"+
+						"# ERROR:\n"+
+						"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+						"#   running an older version of Fleet on a newer migrated database.\n"+
+						"#\n"+
+						"#   Unknown migrations: tables=%v, data=%v.\n"+
+						"#\n"+
+						"#   Upgrade Fleet server version.\n"+
+						"################################################################################\n",
+						status.UnknownTable, status.UnknownData)
+					os.Exit(1)
+				}
 			}
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {

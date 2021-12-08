@@ -179,17 +179,22 @@ the way that the Fleet server works.
 			case fleet.AllMigrationsCompleted:
 				// OK
 			case fleet.UnknownMigrations:
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-					"#   running an older version of Fleet on a newer migrated database.\n"+
-					"#\n"+
-					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Upgrade Fleet server version.\n"+
-					"################################################################################\n",
-					migrationStatus.UnknownTable, migrationStatus.UnknownData)
-				os.Exit(1)
+				// We only perform this check in dev mode because some releases may have
+				// introduced some migrations that were later changed, e.g.:
+				// fleet-v4.4.0 released a migration with a timestamp that was changed in fleet-v4.4.1.
+				if dev {
+					fmt.Printf("################################################################################\n"+
+						"# ERROR:\n"+
+						"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+						"#   running an older version of Fleet on a newer migrated database.\n"+
+						"#\n"+
+						"#   Unknown migrations: tables=%v, data=%v.\n"+
+						"#\n"+
+						"#   Upgrade Fleet server version.\n"+
+						"################################################################################\n",
+						migrationStatus.UnknownTable, migrationStatus.UnknownData)
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
