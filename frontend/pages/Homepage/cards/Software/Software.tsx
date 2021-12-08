@@ -10,7 +10,10 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
-import { generateTableHeaders } from "./SoftwareTableConfig";
+import {
+  generateTableHeaders,
+  generateModalSoftwareTableHeaders,
+} from "./SoftwareTableConfig";
 
 interface ITableQueryProps {
   pageIndex: number;
@@ -312,7 +315,7 @@ const Software = ({
               it installed.
             </p>
             <TableContainer
-              columns={tableHeaders}
+              columns={generateModalSoftwareTableHeaders()}
               data={modalSoftwareState}
               isLoading={isLoadingModalSoftware}
               defaultSortHeader={"name"}

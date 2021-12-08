@@ -91,8 +91,13 @@
       table-layout: fixed;
 
       thead {
+        .vulnerabilities__header {
+          width: 4%;
+          border-right: 0;
+          padding-right: 0;
+        }
         .name__header {
-          width: 70%;
+          width: 60%;
         }
         .version__header {
           width: 30%;
@@ -113,7 +118,8 @@
       }
 
       tbody {
-        td {
+        .name__cell,
+        .version__cell {
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
@@ -121,6 +127,11 @@
         .id__cell {
           padding: 0;
           width: 40px;
+        }
+        .vulnerabilities__cell {
+          img {
+            transform: scale(0.5);
+          }
         }
       }
     }
