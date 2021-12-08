@@ -1437,3 +1437,106 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	ids := []uint{listResp.Hosts[0].ID, listResp.Hosts[1].ID}
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
 }
+
+func (s *integrationTestSuite) TestScheduledQueries() {
+	t := s.T()
+
+	// create a pack
+	var createPackResp createPackResponse
+	reqPack := &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}
+	s.DoJSON("POST", "/api/v1/fleet/packs", reqPack, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	// create a query
+	var createQueryResp createQueryResponse
+	reqQuery := &fleet.QueryPayload{
+		Name:  ptr.String(t.Name()),
+		Query: ptr.String("select * from time;"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query := createQueryResp.Query
+
+	// list scheduled queries in pack, none yet
+	var getInPackResp getScheduledQueriesInPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
+	assert.Len(t, getInPackResp.Scheduled, 0)
+
+	// list scheduled queries in non-existing pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID+1), nil, http.StatusOK, &getInPackResp)
+	assert.Len(t, getInPackResp.Scheduled, 0)
+
+	// create scheduled query
+	var createResp scheduleQueryResponse
+	reqSQ := &scheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID,
+		Interval: 1,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusOK, &createResp)
+	sq1 := createResp.Scheduled.ScheduledQuery
+	assert.NotZero(t, sq1.ID)
+	assert.Equal(t, uint(1), sq1.Interval)
+
+	// create scheduled query with invalid pack
+	reqSQ = &scheduleQueryRequest{
+		PackID:   pack.ID + 1,
+		QueryID:  query.ID,
+		Interval: 2,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusUnprocessableEntity, &createResp)
+
+	// create scheduled query with invalid query
+	reqSQ = &scheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID + 1,
+		Interval: 3,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusInternalServerError, &createResp)
+
+	// list scheduled queries in pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
+	require.Len(t, getInPackResp.Scheduled, 1)
+	assert.Equal(t, sq1.ID, getInPackResp.Scheduled[0].ID)
+
+	// list scheduled queries in pack, next page
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp, "page", "1", "per_page", "2")
+	require.Len(t, getInPackResp.Scheduled, 0)
+
+	// get non-existing scheduled query
+	var getResp getScheduledQueryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// get existing scheduled query
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, sq1.ID, getResp.Scheduled.ID)
+	assert.Equal(t, sq1.Interval, getResp.Scheduled.Interval)
+
+	// modify scheduled query
+	var modResp modifyScheduledQueryResponse
+	reqMod := fleet.ScheduledQueryPayload{
+		Interval: ptr.Uint(4),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), reqMod, http.StatusOK, &modResp)
+	assert.Equal(t, sq1.ID, modResp.Scheduled.ID)
+	assert.Equal(t, uint(4), modResp.Scheduled.Interval)
+
+	// modify non-existing scheduled query
+	reqMod = fleet.ScheduledQueryPayload{
+		Interval: ptr.Uint(5),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), reqMod, http.StatusNotFound, &modResp)
+
+	// delete non-existing scheduled query
+	var delResp deleteScheduledQueryResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), nil, http.StatusNotFound, &delResp)
+
+	// delete existing scheduled query
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusOK, &delResp)
+
+	// get the now-deleted scheduled query
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
+}
