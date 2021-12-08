@@ -361,7 +361,7 @@
   {{ range $index, $item := .SoftwareMacOS }}
   {{if $index}},{{end}}
   {
-    "name": "{{ .Name }}_{{ $index }}",
+    "name": "{{ .Name }}",
     "version": "{{ .Version }}",
     "type": "Application (macOS)",
     "bundle_identifier": "{{ .BundleIdentifier }}",
