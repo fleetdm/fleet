@@ -8,9 +8,9 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -97,7 +97,7 @@ func nothingChanged(current []fleet.Software, incoming []fleet.Software) bool {
 func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) error {
 	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &host.ID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
 	if err != nil {
-		return errors.Wrap(err, "loading current software for host")
+		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
 	if nothingChanged(storedCurrentSoftware, host.Software) {
@@ -142,7 +142,7 @@ func deleteUninstalledHostSoftwareDB(
 		strings.TrimSuffix(strings.Repeat("?,", len(deletesHostSoftware)-1), ","),
 	)
 	if _, err := tx.ExecContext(ctx, sql, deletesHostSoftware...); err != nil {
-		return errors.Wrap(err, "delete host software")
+		return ctxerr.Wrap(ctx, err, "delete host software")
 	}
 
 	return nil
@@ -155,22 +155,23 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		`SELECT id FROM software WHERE name = ? AND version = ? AND source = ? AND bundle_identifier = ?`,
 		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	); err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
 	if len(existingId) > 0 {
 		return uint(existingId[0]), nil
 	}
 
 	result, err := tx.ExecContext(ctx,
-		`REPLACE INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO software (name, version, source, bundle_identifier) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)`,
 		s.Name, s.Version, s.Source, s.BundleIdentifier,
 	)
 	if err != nil {
-		return 0, errors.Wrap(err, "insert software")
+		return 0, ctxerr.Wrap(ctx, err, "insert software")
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, errors.Wrap(err, "last id from software")
+		return 0, ctxerr.Wrap(ctx, err, "last id from software")
 	}
 	return uint(id), nil
 }
@@ -201,7 +202,7 @@ func insertNewInstalledHostSoftwareDB(
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(insertsHostSoftware)/2), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
-			return errors.Wrap(err, "insert host software")
+			return ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
 
@@ -215,10 +216,34 @@ var dialect = goqu.Dialect("mysql")
 func listSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) ([]fleet.Software, error) {
+	sql, args, err := selectSoftwareSQL(hostID, opts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
+
+	var result []fleet.Software
+	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
+	}
+
+	if opts.SkipLoadingCVEs {
+		return result, nil
+	}
+
+	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load CVEs by software")
+	}
+	for i := range result {
+		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+	}
+	return result, nil
+}
+
+func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.From(goqu.I("host_software").As("hs")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		goqu.COUNT(goqu.DISTINCT("hs.host_id")).As("host_count"),
 	).Join(
 		goqu.I("hosts").As("h"),
 		goqu.On(
@@ -277,26 +302,23 @@ func listSoftwareDB(
 		)
 	}
 
-	sql, args, err := ds.ToSQL()
+	return ds.ToSQL()
+}
+
+func countSoftwareDB(
+	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
+) (int, error) {
+	opts.ListOptions = fleet.ListOptions{
+		MatchQuery: opts.ListOptions.MatchQuery,
+	}
+	sql, args, err := selectSoftwareSQL(hostID, opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "sql build")
+		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	var result []fleet.Software
-	if err := sqlx.SelectContext(ctx, q, &result, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "load host software")
-	}
-
-	if opts.SkipLoadingCVEs {
-		return result, nil
-	}
-
-	cvesBySoftware, err := loadCVEsBySoftware(ctx, q, hostID, opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "load CVEs by software")
-	}
-	for i := range result {
-		result[i].Vulnerabilities = cvesBySoftware[result[i].ID]
+	var result int
+	if err := sqlx.GetContext(ctx, q, &result, "select count(*) as count from ("+sql+") s", args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host software")
 	}
 	return result, nil
 }
@@ -335,12 +357,12 @@ func loadCVEsBySoftware(
 
 	sql, args, err := ds.ToSQL()
 	if err != nil {
-		return nil, errors.Wrap(err, "sql2 build")
+		return nil, ctxerr.Wrap(ctx, err, "sql2 build")
 	}
 
 	rows, err := q.QueryxContext(ctx, sql, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "load host software")
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 	defer rows.Close()
 
@@ -349,7 +371,7 @@ func loadCVEsBySoftware(
 		var id uint
 		var cve string
 		if err := rows.Scan(&id, &cve); err != nil {
-			return nil, errors.Wrap(err, "scanning cve")
+			return nil, ctxerr.Wrap(ctx, err, "scanning cve")
 		}
 		cvesBySoftware[id] = append(cvesBySoftware[id], fleet.SoftwareCVE{
 			CVE:         cve,
@@ -357,7 +379,7 @@ func loadCVEsBySoftware(
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "error iterating through cve rows")
+		return nil, ctxerr.Wrap(ctx, err, "error iterating through cve rows")
 	}
 	return cvesBySoftware, nil
 }
@@ -403,7 +425,7 @@ func (d *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.So
 	// returned fleet.SoftwareIterator is done.
 	rows, err := d.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
 	if err != nil {
-		return nil, errors.Wrap(err, "load host software")
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 	return &softwareIterator{rows: rows}, nil
 }
@@ -417,7 +439,7 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
 	res, err := exec.ExecContext(ctx, sql, software.ID, cpe)
 	if err != nil {
-		return 0, errors.Wrap(err, "insert software cpe")
+		return 0, ctxerr.Wrap(ctx, err, "insert software cpe")
 	}
 	id, _ := res.LastInsertId() // cannot fail with the mysql driver
 	return uint(id), nil
@@ -428,7 +450,7 @@ func (d *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
 	var cpes []string
 	err := sqlx.SelectContext(ctx, d.reader, &cpes, sql)
 	if err != nil {
-		return nil, errors.Wrap(err, "loads cpes")
+		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
 	return cpes, nil
 }
@@ -442,7 +464,7 @@ func (d *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	}
 	_, err := d.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "insert software cve")
+		return ctxerr.Wrap(ctx, err, "insert software cve")
 	}
 	return nil
 }
@@ -451,11 +473,15 @@ func (d *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	return listSoftwareDB(ctx, d.reader, nil, opt)
 }
 
+func (d *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+	return countSoftwareDB(ctx, d.reader, nil, opt)
+}
+
 func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
 	software := fleet.Software{}
 	err := sqlx.GetContext(ctx, d.reader, &software, `SELECT * FROM software WHERE id=?`, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "software by id")
+		return nil, ctxerr.Wrap(ctx, err, "software by id")
 	}
 
 	query := `
@@ -468,14 +494,14 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 
 	rows, err := d.reader.QueryxContext(ctx, query, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "load software cves")
+		return nil, ctxerr.Wrap(ctx, err, "load software cves")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var cve string
 		if err := rows.Scan(&cve); err != nil {
-			return nil, errors.Wrap(err, "scanning cve")
+			return nil, ctxerr.Wrap(ctx, err, "scanning cve")
 		}
 
 		software.Vulnerabilities = append(software.Vulnerabilities, fleet.SoftwareCVE{
@@ -484,7 +510,7 @@ func (d *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software,
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "error iterating through cve rows")
+		return nil, ctxerr.Wrap(ctx, err, "error iterating through cve rows")
 	}
 
 	return &software, nil

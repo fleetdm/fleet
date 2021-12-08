@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 type runLiveQueryRequest struct {
@@ -147,7 +147,7 @@ func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.Distr
 	campaign.Status = fleet.QueryRunning
 	if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
 		cancelFunc()
-		return nil, nil, errors.Wrap(err, "error saving campaign state")
+		return nil, nil, ctxerr.Wrap(ctx, err, "error saving campaign state")
 	}
 
 	return readChan, cancelFunc, nil
@@ -157,11 +157,11 @@ func (svc *Service) CompleteCampaign(ctx context.Context, campaign *fleet.Distri
 	campaign.Status = fleet.QueryComplete
 	err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign)
 	if err != nil {
-		return errors.Wrap(err, "saving distributed campaign after complete")
+		return ctxerr.Wrap(ctx, err, "saving distributed campaign after complete")
 	}
 	err = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
 	if err != nil {
-		return errors.Wrap(err, "stopping query after after complete")
+		return ctxerr.Wrap(ctx, err, "stopping query after after complete")
 	}
 	return nil
 }

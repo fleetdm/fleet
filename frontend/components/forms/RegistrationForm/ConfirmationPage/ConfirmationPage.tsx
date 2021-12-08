@@ -78,7 +78,7 @@ const ConfirmationPage = ({
             </tr>
             <tr>
               <th>Email:</th>
-              <td>{email}</td>
+              <td className={`${baseClass}__table-email`}>{email}</td>
             </tr>
             <tr>
               <th>Organization:</th>

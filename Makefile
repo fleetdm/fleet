@@ -110,15 +110,15 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run
+	golangci-lint run --skip-dirs ./node_modules
 
 lint: lint-go lint-js
 
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
-test-go: dump-test-schema
-	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./...
+test-go: dump-test-schema generate-mock
+	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -153,6 +153,7 @@ generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors --watch
 
 generate-mock: .prefix
+	go install github.com/groob/mockimpl@latest
 	go generate github.com/fleetdm/fleet/v4/server/mock
 
 deps: deps-js deps-go
@@ -238,13 +239,13 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
 e2e-serve-free:
-	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 e2e-serve-premium:
-	FLEET_SOFTWARE_INVENTORY=1 ./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 changelog:
-	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md" 
+	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md CHANGELOG.md"
 	sh -c "git rm changes/*"
 

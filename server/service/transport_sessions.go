@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/pkg/errors"
 )
 
 func decodeGetInfoAboutSessionRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -63,11 +63,11 @@ func decodeInitiateSSORequest(ctx context.Context, r *http.Request) (interface{}
 func decodeCallbackSSORequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, errors.Wrap(err, "decode sso callback")
+		return nil, ctxerr.Wrap(ctx, err, "decode sso callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding sso callback")
+		return nil, ctxerr.Wrap(ctx, err, "decoding sso callback")
 	}
 	return authResponse, nil
 }

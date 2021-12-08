@@ -1,90 +1,82 @@
-/* This component is used for creating policies */
+import React, { useContext } from "react";
+import { Link } from "react-router";
+import PATHS from "router/paths";
 
-import React, { useState, useCallback } from "react";
+import { DEFAULT_POLICY, DEFAULT_POLICIES } from "utilities/constants";
 
-// @ts-ignore
-import Modal from "components/Modal";
+import { IPolicyNew } from "interfaces/policy";
+
+import { PolicyContext } from "context/policy";
+
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import { IQuery } from "interfaces/query";
+import Modal from "components/Modal";
+
+export interface IAddPolicyModalProps {
+  onCancel: () => void;
+  router: any;
+  teamId: number;
+  teamName?: string;
+}
 
 const baseClass = "add-policy-modal";
 
-interface IAddPolicyModalProps {
-  allQueries: IQuery[];
-  onCancel: () => void;
-  onSubmit: (query_id: number | undefined) => void;
-}
-
 const AddPolicyModal = ({
   onCancel,
-  onSubmit,
-  allQueries,
-}: IAddPolicyModalProps): JSX.Element => {
-  const [selectedQuery, setSelectedQuery] = useState<number>();
+  router,
+  teamId,
+  teamName,
+}: IAddPolicyModalProps) => {
+  const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setPolicyTeamId,
+  } = useContext(PolicyContext);
 
-  const createQueryDropdownOptions = () => {
-    return allQueries.map(({ id, name }) => ({
-      value: id,
-      label: name,
-    }));
+  const onAddPolicy = (selectedPolicy: IPolicyNew) => {
+    teamName
+      ? setLastEditedQueryName(`${selectedPolicy.name} (${teamName})`)
+      : setLastEditedQueryName(selectedPolicy.name);
+    setLastEditedQueryDescription(selectedPolicy.description);
+    setLastEditedQueryBody(selectedPolicy.query);
+    setLastEditedQueryResolution(selectedPolicy.resolution);
+    setPolicyTeamId(teamId);
+    router.push(PATHS.NEW_POLICY);
   };
 
-  const onChangeSelectQuery = useCallback(
-    (queryId: number) => {
-      setSelectedQuery(queryId);
-    },
-    [setSelectedQuery]
-  );
+  const policiesAvailable = DEFAULT_POLICIES.map((policy) => {
+    return (
+      <Button
+        key={policy.key}
+        variant="unstyled-modal-query"
+        className="modal-policy-button"
+        onClick={() => onAddPolicy(policy)}
+      >
+        <>
+          <span className="info__header">{policy.name}</span>
+          <span className="info__data">{policy.description}</span>
+        </>
+      </Button>
+    );
+  });
 
   return (
-    <Modal title={"Add a policy"} onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__form`}>
-        <Dropdown
-          searchable
-          options={createQueryDropdownOptions()}
-          onChange={onChangeSelectQuery}
-          placeholder={"Select query"}
-          value={selectedQuery}
-          wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
-        />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p>
-            Host that return results for the selected query are <b>Passing</b>.
-          </p>
-
-          <p>
-            Hosts that do not return results for the selected query are{" "}
-            <b>Failing</b>.
-          </p>
-
-          <p>
-            To test which hosts return results, it is recommended to first run
-            your query as a live query by heading to <b>Queries</b> and then
-            selecting a query.
-          </p>
-        </InfoBanner>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="brand"
-            onClick={() => onSubmit(selectedQuery)}
-            disabled={!selectedQuery}
-          >
-            Add
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
+    <Modal
+      title="Add a policy"
+      onExit={onCancel}
+      className={`${baseClass}__modal`}
+    >
+      <>
+        Choose a policy template to get started or{" "}
+        <Link to={PATHS.NEW_POLICY} className={`${baseClass}__back-link`}>
+          create your own policy
+        </Link>
+        .
+        <div className={`${baseClass}__policy-selection`}>
+          {policiesAvailable}
         </div>
-      </form>
+      </>
     </Modal>
   );
 };

@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
-	"math/rand"
-	"net/url"
-
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -45,7 +45,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -131,7 +130,7 @@ the way that the Fleet server works.
 				"hostname": true,
 			}
 			if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-				initFatal(errors.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
+				initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
@@ -143,7 +142,7 @@ the way that the Fleet server works.
 
 				if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
 					initFatal(
-						errors.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
+						fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
 						"setting server URL prefix",
 					)
 				}
@@ -176,17 +175,40 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch migrationStatus {
+			switch migrationStatus.StatusCode {
+			case fleet.AllMigrationsCompleted:
+				// OK
+			case fleet.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
+					"#\n"+
+					"#   Upgrade Fleet server version.\n"+
+					"################################################################################\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+				os.Exit(1)
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
 					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 					"#   errors in Fleet.\n"+
 					"#\n"+
+					"#   Missing migrations: tables=%v, data=%v.\n"+
+					"#\n"+
 					"#   Run `%s prepare db` to perform migrations.\n"+
+					"#\n"+
+					"#   To run the server without performing migrations:\n"+
+					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 					"################################################################################\n",
-					os.Args[0])
-
+					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
@@ -230,7 +252,7 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			ds = cached_mysql.New(ds, redisPool)
+			ds = cached_mysql.New(ds)
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			if err := liveQueryStore.MigrateKeys(); err != nil {
@@ -270,7 +292,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license)
 
 			// Flush seen hosts every second
 			go func() {
@@ -360,7 +382,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh))
+			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -479,7 +501,7 @@ const (
 	lockKeyWebhooks        = "webhooks"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -488,7 +510,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
 	if err != nil {
 		return err
 	}
@@ -503,7 +525,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -515,7 +537,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
 		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
-	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier)
+	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier)
@@ -523,7 +545,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	return cancelBackground
 }
 
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
@@ -572,7 +594,7 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
 		}
 
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics")
+		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
 		if err != nil {
 			level.Error(logger).Log("err", "sending statistics", "details", err)
 		}
@@ -600,6 +622,10 @@ func cronVulnerabilities(
 	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
 		config.Vulnerabilities.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
+		return
+	}
+	if !appConfig.HostSettings.EnableSoftwareInventory {
+		level.Info(logger).Log("software inventory", "not configured")
 		return
 	}
 
@@ -750,7 +776,7 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	default:
 		initFatal(
-			errors.Errorf("%s is invalid", profile),
+			fmt.Errorf("%s is invalid", profile),
 			"set TLS profile",
 		)
 	}

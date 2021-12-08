@@ -1,0 +1,1 @@
+* Add support for osquery flagfile (loaded automatically if it exists in the Orbit root).

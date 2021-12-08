@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -12,10 +13,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kithttp "github.com/go-kit/kit/transport/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -55,7 +55,8 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 
 	host, err := svc.ds.AuthenticateHost(ctx, nodeKey)
 	if err != nil {
-		switch err.(type) {
+		root := ctxerr.Cause(err)
+		switch root.(type) {
 		case fleet.NotFoundError:
 			return nil, false, osqueryError{
 				message:     "authentication error: invalid node key: " + nodeKey,
@@ -84,7 +85,7 @@ func (svc Service) debugEnabledForHost(ctx context.Context, host *fleet.Host) bo
 	hlogger := log.With(svc.logger, "host-id", host.ID)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		level.Debug(hlogger).Log("err", errors.Wrap(err, "getting app config for host debug"))
+		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
 		return false
 	}
 
@@ -102,7 +103,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx, "hostIdentifier", hostIdentifier)
+	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -137,21 +138,21 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", errors.Wrap(err, "Ingesting os_version")
+			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
 		err := detailQueries["osquery_info"].IngestFunc(svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", errors.Wrap(err, "Ingesting osquery_info")
+			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
 		err := detailQueries["system_info"].IngestFunc(svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", errors.Wrap(err, "Ingesting system_info")
+			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
 		}
 		save = true
 	}
@@ -161,7 +162,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 		} else {
 			err = svc.ds.SaveHost(ctx, host)
 			if err != nil {
-				return "", errors.Wrap(err, "save host in enroll agent")
+				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
 			}
 		}
 	}
@@ -254,8 +255,6 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -361,14 +360,14 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	if saveHost {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, errors.Wrap(err, "get app config on get client config")
+			return nil, ctxerr.Wrap(ctx, err, "get app config on get client config")
 		}
 		if appConfig.ServerSettings.DeferredSaveHost {
 			go svc.serialSaveHost(&host)
 		} else {
 			err = svc.ds.SaveHost(ctx, &host)
 			if err != nil {
-				return nil, errors.Wrap(err, "save host in get client config")
+				return nil, ctxerr.Wrap(ctx, err, "save host in get client config")
 			}
 		}
 	}
@@ -380,30 +379,15 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
 	return nil
 }
 
-func logIPs(ctx context.Context, extras ...interface{}) {
-	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
-	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
-	logging.WithLevel(
-		logging.WithExtras(
-			logging.WithNoUser(ctx),
-			append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...),
-		level.Debug,
-	)
-}
-
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
@@ -442,7 +426,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "read app config")
+		return nil, ctxerr.Wrap(ctx, err, "read app config")
 	}
 
 	queries := make(map[string]string)
@@ -460,7 +444,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (
 
 	var additionalQueries map[string]string
 	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, errors.Wrap(err, "unmarshal additional queries")
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
 	for name, query := range additionalQueries {
@@ -490,7 +474,7 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieve label queries")
+		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
 	}
 	return labelQueries, nil
 }
@@ -501,7 +485,7 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieve policy queries")
+		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
 	return policyQueries, nil
 }
@@ -509,8 +493,6 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -599,7 +581,7 @@ func ingestMembershipQuery(
 	trimmedQuery := strings.TrimPrefix(query, prefix)
 	trimmedQueryNum, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
 	if err != nil {
-		return errors.Wrap(err, "converting query from string to int")
+		return fmt.Errorf("converting query from string to int: %w", err)
 	}
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
@@ -634,8 +616,9 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 
 	err = svc.resultStore.WriteResult(res)
 	if err != nil {
-		nErr, ok := err.(pubsub.Error)
-		if !ok || !nErr.NoSubscriber() {
+		var pse pubsub.Error
+		ok := errors.As(err, &pse)
+		if !ok || !pse.NoSubscriber() {
 			return osqueryError{message: "writing results: " + err.Error()}
 		}
 
@@ -688,8 +671,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
@@ -700,7 +681,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// any existing host additional info.
 	for query := range results {
 		if strings.HasPrefix(query, hostDetailQueryPrefix) {
-			fullHost, err := svc.ds.Host(ctx, host.ID)
+			fullHost, err := svc.ds.Host(ctx, host.ID, true)
 			if err != nil {
 				// leave this error return here, we don't want to drop host additionals
 				// if we can't get a host, everything is lost
@@ -741,14 +722,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if err != nil {
-			logging.WithErr(ctx, errors.New("error in live query ingestion"))
+			logging.WithErr(ctx, ctxerr.New(ctx, "error in live query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return errors.Wrap(err, "getting app config")
+		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
 	if len(labelResults) > 0 {

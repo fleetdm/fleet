@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
@@ -15,11 +15,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 
 	for _, spec := range specs {
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
-			return errors.Errorf("label %s is declared as dynamic but contains `hosts` key", spec.Name)
+			return ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name)
 		}
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return errors.Errorf("label %s is declared as manual but contains no `hosts key`", spec.Name)
+			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
 		}
 	}
 	return svc.ds.ApplyLabelSpecs(ctx, specs)

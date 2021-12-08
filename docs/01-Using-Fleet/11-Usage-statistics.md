@@ -12,9 +12,18 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 
 ```json
 {
-  "anonymous_identifier": 1,
-  "fleet_version": "x.x.x",
-  "hosts_enrolled_count": 12345
+  "anonymousIdentifier": "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
+  "fleetVersion": "x.x.x",
+  "licenseTier": "free",
+  "numHostsEnrolled": 12345,
+  "numUsers": 12,
+  "numTeams": 3,
+  "numPolicies": 5,
+  "numLabels": 20,
+  "softwareInventoryEnabled": true,
+  "vulnDetectionEnabled": true,
+  "systemUsersEnabled": true,
+  "hostStatusWebhookEnabled": true,
 }
 ```
 

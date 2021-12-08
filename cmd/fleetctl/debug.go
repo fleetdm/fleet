@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -15,11 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/urfave/cli/v2"
-
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/urfave/cli/v2"
 )
 
 func debugCommand() *cli.Command {
@@ -37,8 +37,11 @@ func debugCommand() *cli.Command {
 			debugHeapCommand(),
 			debugGoroutineCommand(),
 			debugTraceCommand(),
+			debugErrorsCommand(),
+			debugDBLocksCommand(),
 			debugArchiveCommand(),
 			debugConnectionCommand(),
+			debugMigrations(),
 		},
 	}
 }
@@ -84,7 +87,7 @@ func debugProfileCommand() *cli.Command {
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
-				return errors.Wrap(err, "write profile to file")
+				return fmt.Errorf("write profile to file: %w", err)
 			}
 
 			return nil
@@ -125,7 +128,7 @@ func debugCmdlineCommand() *cli.Command {
 
 			if outfile := getOutfile(c); outfile != "" {
 				if err := writeFile(outfile, []byte(out), defaultFileMode); err != nil {
-					return errors.Wrap(err, "write cmdline to file")
+					return fmt.Errorf("write cmdline to file: %w", err)
 				}
 				return nil
 			}
@@ -166,7 +169,7 @@ func debugHeapCommand() *cli.Command {
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
-				return errors.Wrapf(err, "write %s to file", name)
+				return fmt.Errorf("write %s to file: %w", name, err)
 			}
 
 			return nil
@@ -203,7 +206,7 @@ func debugGoroutineCommand() *cli.Command {
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
-				return errors.Wrapf(err, "write %s to file", name)
+				return fmt.Errorf("write %s to file: %w", name, err)
 			}
 
 			return nil
@@ -240,7 +243,7 @@ func debugTraceCommand() *cli.Command {
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
-				return errors.Wrapf(err, "write %s to file", name)
+				return fmt.Errorf("write %s to file: %w", name, err)
 			}
 
 			return nil
@@ -268,6 +271,8 @@ func debugArchiveCommand() *cli.Command {
 				"allocs",
 				"block",
 				"cmdline",
+				"db-locks",
+				"errors",
 				"goroutine",
 				"heap",
 				"mutex",
@@ -284,7 +289,7 @@ func debugArchiveCommand() *cli.Command {
 
 			f, err := secure.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 			if err != nil {
-				return errors.Wrap(err, "open archive for output")
+				return fmt.Errorf("open archive for output: %w", err)
 			}
 			defer f.Close()
 			gzwriter := gzip.NewWriter(f)
@@ -293,7 +298,23 @@ func debugArchiveCommand() *cli.Command {
 			defer tarwriter.Close()
 
 			for _, profile := range profiles {
-				res, err := fleet.DebugPprof(profile)
+				var res []byte
+
+				switch profile {
+				case "errors":
+					var buf bytes.Buffer
+					err = fleet.DebugErrors(&buf)
+					if err == nil {
+						res = buf.Bytes()
+					}
+
+				case "db-locks":
+					res, err = fleet.DebugDBLocks()
+
+				default:
+					res, err = fleet.DebugPprof(profile)
+				}
+
 				if err != nil {
 					// Don't fail the entire process on errors. We'll take what
 					// we can get if the servers are in a bad state and not
@@ -310,11 +331,11 @@ func debugArchiveCommand() *cli.Command {
 						Mode: defaultFileMode,
 					},
 				); err != nil {
-					return errors.Wrapf(err, "write %s header", profile)
+					return fmt.Errorf("write %s header: %w", profile, err)
 				}
 
 				if _, err := tarwriter.Write(res); err != nil {
-					return errors.Wrapf(err, "write %s contents", profile)
+					return fmt.Errorf("write %s contents: %w", profile, err)
 				}
 			}
 
@@ -416,20 +437,20 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			// Check that the url's host resolves to an IP address or is otherwise
 			// a valid IP address directly.
 			if err := resolveHostname(c.Context, timeoutPerCheck, baseURL.Hostname()); err != nil {
-				return errors.Wrap(err, "Fail: resolve host")
+				return fmt.Errorf("Fail: resolve host: %w", err)
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
 
 			// Attempt a raw TCP connection to host:port.
 			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
-				return errors.Wrap(err, "Fail: dial server")
+				return fmt.Errorf("Fail: dial server: %w", err)
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
 
 			if cert := getFleetCertificate(c); cert != "" {
 				// Run some validations on the TLS certificate.
 				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Host); err != nil {
-					return errors.Wrap(err, "Fail: certificate")
+					return fmt.Errorf("Fail: certificate: %w", err)
 				}
 				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")
 			}
@@ -438,9 +459,132 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			// making a POST to /api/v1/osquery/enroll with an invalid
 			// secret).
 			if err := checkAPIEndpoint(c.Context, timeoutPerCheck, baseURL, cli); err != nil {
-				return errors.Wrap(err, "Fail: agent API endpoint")
+				return fmt.Errorf("Fail: agent API endpoint: %w", err)
 			}
 			fmt.Fprintln(c.App.Writer, "Success: agent API endpoints are available.")
+
+			return nil
+		},
+	}
+}
+
+func debugMigrations() *cli.Command {
+	return &cli.Command{
+		Name:  "migrations",
+		Usage: "Run a check of database migrations",
+		Description: `Run a check for database migrations on the fleet server.
+
+It returns the list of migrations that are missing.
+Such migrations can be applied via "fleet prepare db" before running "fleet serve".
+`,
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+			migrationStatus, err := client.DebugMigrations()
+			if err != nil {
+				return err
+			}
+			switch migrationStatus.StatusCode {
+			case fleet.NoMigrationsCompleted:
+				// Currently shouldn't happen, because this command requires authentication, and therefore
+				// requires the sessions table. Leaving this here in case we remove authentication from this endpoint.
+				fmt.Println("Your Fleet database is not initialized. Fleet cannot start up.\n" +
+					"Fleet server must be run with \"prepare db\" to perform the migrations.")
+			case fleet.AllMigrationsCompleted:
+				fmt.Println("Migrations up-to-date.")
+			case fleet.UnknownMigrations:
+				// Shouldn't happen, because fleet serve won't be running if this is the case.
+				fmt.Printf("Unknown migrations detected: tables=%v, data=%v.\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+			case fleet.SomeMigrationsCompleted:
+				fmt.Printf("Missing migrations detected: tables=%v, data=%v.\n"+
+					"Fleet server must be run with \"prepare db\" to perform the migrations.\n",
+					migrationStatus.MissingTable, migrationStatus.MissingData)
+			}
+			return nil
+		},
+	}
+}
+
+func debugErrorsCommand() *cli.Command {
+	name := "errors"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the recorded fleet server errors to a file.",
+		UsageText: "Recording of errors and their retention period is controlled via the --logging_error_retention_period fleet command flag.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			if err := fleet.DebugErrors(f); err != nil {
+				return err
+			}
+			if err := f.Close(); err != nil {
+				return fmt.Errorf("write errors to file: %w", err)
+			}
+			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
+
+			return nil
+		},
+	}
+}
+
+func debugDBLocksCommand() *cli.Command {
+	name := "db-locks"
+	return &cli.Command{
+		Name:      name,
+		Usage:     "Save the current database transaction locking information to a file.",
+		UsageText: "Saves transaction locking information with queries that are waiting on or blocking other transactions.",
+		Flags: []cli.Flag{
+			outfileFlag(),
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			locks, err := fleet.DebugDBLocks()
+			if err != nil {
+				return err
+			}
+
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileName(name)
+			}
+
+			if err := writeFile(outfile, locks, defaultFileMode); err != nil {
+				return fmt.Errorf("write %s to file: %w", name, err)
+			}
 
 			return nil
 		},
@@ -497,7 +641,7 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, baseURL *url.U
 		bytes.NewBufferString(`{"enroll_secret": "--invalid--"}`),
 	)
 	if err != nil {
-		return errors.Wrap(err, "creating request object")
+		return fmt.Errorf("creating request object: %w", err)
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -505,12 +649,12 @@ func checkAPIEndpoint(ctx context.Context, timeout time.Duration, baseURL *url.U
 
 	res, err := client.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "request failed")
+		return fmt.Errorf("request failed: %w", err)
 	}
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&enrollRes); err != nil {
-		return errors.Wrap(err, "invalid JSON")
+		return fmt.Errorf("invalid JSON: %w", err)
 	}
 	if res.StatusCode != http.StatusUnauthorized || enrollRes.Error == "" || !enrollRes.NodeInvalid {
 		return fmt.Errorf("unexpected %d response", res.StatusCode)

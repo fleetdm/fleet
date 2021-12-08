@@ -3,16 +3,17 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -66,7 +67,7 @@ func idFromRequest(r *http.Request, name string) (uint, error) {
 	}
 	uid, err := strconv.Atoi(id)
 	if err != nil {
-		return 0, errors.Wrap(err, "idFromRequest")
+		return 0, ctxerr.Wrap(r.Context(), err, "idFromRequest")
 	}
 	return uint(uid), nil
 }
@@ -79,7 +80,7 @@ func nameFromRequest(r *http.Request, varName string) (string, error) {
 	}
 	unescaped, err := url.PathUnescape(name)
 	if err != nil {
-		return "", errors.Wrap(err, "unescape name in path")
+		return "", ctxerr.Wrap(r.Context(), err, "unescape name in path")
 	}
 	return unescaped, nil
 }
@@ -95,15 +96,16 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	perPageString := r.URL.Query().Get("per_page")
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
+	afterString := r.URL.Query().Get("after")
 
 	var page int
 	if pageString != "" {
 		page, err = strconv.Atoi(pageString)
 		if err != nil {
-			return fleet.ListOptions{}, errors.New("non-int page value")
+			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int page value")
 		}
 		if page < 0 {
-			return fleet.ListOptions{}, errors.New("negative page value")
+			return fleet.ListOptions{}, ctxerr.New(r.Context(), "negative page value")
 		}
 	}
 
@@ -113,10 +115,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	if perPageString != "" {
 		perPage, err = strconv.Atoi(perPageString)
 		if err != nil {
-			return fleet.ListOptions{}, errors.New("non-int per_page value")
+			return fleet.ListOptions{}, ctxerr.New(r.Context(), "non-int per_page value")
 		}
 		if perPage <= 0 {
-			return fleet.ListOptions{}, errors.New("invalid per_page value")
+			return fleet.ListOptions{}, ctxerr.New(r.Context(), "invalid per_page value")
 		}
 	}
 
@@ -129,7 +131,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 
 	if orderKey == "" && orderDirectionString != "" {
 		return fleet.ListOptions{},
-			errors.New("order_key must be specified with order_direction")
+			ctxerr.New(r.Context(), "order_key must be specified with order_direction")
 	}
 
 	var orderDirection fleet.OrderDirection
@@ -142,7 +144,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		orderDirection = fleet.OrderAscending
 	default:
 		return fleet.ListOptions{},
-			errors.New("unknown order_direction: " + orderDirectionString)
+			ctxerr.New(r.Context(), "unknown order_direction: "+orderDirectionString)
 
 	}
 
@@ -154,6 +156,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     query,
+		After:          afterString,
 	}, nil
 }
 
@@ -172,7 +175,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, errors.Errorf("invalid status %s", status)
+		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
 
 	}
 	if err != nil {
@@ -226,7 +229,37 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
+	if disableFailingPolicies != "" {
+		boolVal, err := strconv.ParseBool(disableFailingPolicies)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DisableFailingPolicies = boolVal
+	}
+
 	return hopt, nil
+}
+
+func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.CarveListOptions{}, err
+	}
+
+	copt := fleet.CarveListOptions{ListOptions: opt}
+
+	expired := r.URL.Query().Get("expired")
+	// TODO(mna): allow the same bool encodings as strconv.ParseBool and use it?
+	switch expired {
+	case "1", "true":
+		copt.Expired = true
+	case "0", "":
+		copt.Expired = false
+	default:
+		return copt, ctxerr.Errorf(r.Context(), "invalid expired value %s", expired)
+	}
+	return copt, nil
 }
 
 func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
@@ -240,7 +273,7 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	if tid := r.URL.Query().Get("team_id"); tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return uopt, errors.Wrap(err, "parse team_id as int")
+			return uopt, ctxerr.Wrap(r.Context(), err, "parse team_id as int")
 		}
 		uopt.TeamID = uint(teamID)
 	}

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import PATHS from "router/paths";
 import StatusCell from "components/TableContainer/DataTable/StatusCell";
 import Button from "components/buttons/Button";
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse } from "utilities/constants";
 
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
@@ -61,7 +61,7 @@ const generatePolicyTableHeaders = (
       accessor: "name",
       disableSortBy: true,
       Cell: (cellProps) => {
-        const { query_name } = cellProps.row.original;
+        const { name } = cellProps.row.original;
         return (
           <>
             <Button
@@ -71,7 +71,7 @@ const generatePolicyTableHeaders = (
               variant={"text-icon"}
             >
               <>
-                {query_name}
+                {name}
                 <img src={ArrowIcon} alt="View policy details" />
               </>
             </Button>

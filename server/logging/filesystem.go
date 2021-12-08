@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -11,10 +13,10 @@ import (
 	"syscall"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 )
 
 type filesystemLogWriter struct {
@@ -31,7 +33,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 	// permissions to open the file at path.
 	file, err := openFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "perm check")
+		return nil, fmt.Errorf("perm check: %w", err)
 	}
 	if !enableRotation {
 		// no log rotation, use "raw" bufio implementation
@@ -74,12 +76,12 @@ func (l *filesystemLogWriter) Write(ctx context.Context, logs []json.RawMessage)
 		// Add newline to separate logs in output file
 		log = append(log, '\n')
 		if _, err := l.writer.Write(log); err != nil {
-			return errors.Wrap(err, "writing log")
+			return ctxerr.Wrap(ctx, err, "writing log")
 		}
 	}
 	if flusher, ok := l.writer.(flusher); ok {
 		if err := flusher.Flush(); err != nil {
-			return errors.Wrap(err, "flushing log")
+			return ctxerr.Wrap(ctx, err, "flushing log")
 		}
 	}
 	return nil
@@ -107,7 +109,7 @@ func (l *rawLogWriter) Write(b []byte) (int, error) {
 	if _, statErr := os.Stat(l.file.Name()); errors.Is(statErr, os.ErrNotExist) {
 		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 		if err != nil {
-			return 0, errors.Wrapf(err, "create file for filesystemLogWriter %s", l.file.Name())
+			return 0, fmt.Errorf("create file for filesystemLogWriter %s: %w", l.file.Name(), err)
 		}
 		l.file = f
 		l.buff = bufio.NewWriter(f)

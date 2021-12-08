@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -21,7 +21,7 @@ func (d *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet
 	`
 	result, err := d.writer.ExecContext(ctx, sqlStatement, camp.QueryID, camp.Status, camp.UserID)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting distributed query campaign")
+		return nil, ctxerr.Wrap(ctx, err, "inserting distributed query campaign")
 	}
 
 	id, _ := result.LastInsertId()
@@ -35,7 +35,7 @@ func (d *Datastore) DistributedQueryCampaign(ctx context.Context, id uint) (*fle
 	`
 	campaign := &fleet.DistributedQueryCampaign{}
 	if err := sqlx.GetContext(ctx, d.reader, campaign, sql, id); err != nil {
-		return nil, errors.Wrap(err, "selecting distributed query campaign")
+		return nil, ctxerr.Wrap(ctx, err, "selecting distributed query campaign")
 	}
 
 	return campaign, nil
@@ -51,11 +51,11 @@ func (d *Datastore) SaveDistributedQueryCampaign(ctx context.Context, camp *flee
 	`
 	result, err := d.writer.ExecContext(ctx, sqlStatement, camp.QueryID, camp.Status, camp.UserID, camp.ID)
 	if err != nil {
-		return errors.Wrap(err, "updating distributed query campaign")
+		return ctxerr.Wrap(ctx, err, "updating distributed query campaign")
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "rows affected updating distributed query campaign")
+		return ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 	if rowsAffected == 0 {
 		return notFound("DistributedQueryCampaign").WithID(camp.ID)
@@ -68,7 +68,7 @@ func (d *Datastore) DistributedQueryCampaignsForQuery(ctx context.Context, query
 	var campaigns []*fleet.DistributedQueryCampaign
 	err := sqlx.SelectContext(ctx, d.reader, &campaigns, `SELECT * FROM distributed_query_campaigns WHERE query_id=?`, queryID)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting campaigns for query")
+		return nil, ctxerr.Wrap(ctx, err, "getting campaigns for query")
 	}
 	return campaigns, nil
 }
@@ -80,7 +80,7 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(ctx context.Context, id ui
 	targets := []fleet.DistributedQueryCampaignTarget{}
 
 	if err := sqlx.SelectContext(ctx, d.reader, &targets, sqlStatement, id); err != nil {
-		return nil, errors.Wrap(err, "select distributed campaign target")
+		return nil, ctxerr.Wrap(ctx, err, "select distributed campaign target")
 	}
 
 	hostIDs := []uint{}
@@ -95,7 +95,7 @@ func (d *Datastore) DistributedQueryCampaignTargetIDs(ctx context.Context, id ui
 		case fleet.TargetTeam:
 			teamIDs = append(teamIDs, target.TargetID)
 		default:
-			return nil, errors.Errorf("invalid target type: %d", target.Type)
+			return nil, ctxerr.Errorf(ctx, "invalid target type: %d", target.Type)
 		}
 	}
 
@@ -113,7 +113,7 @@ func (d *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targe
 	`
 	result, err := d.writer.ExecContext(ctx, sqlStatement, target.Type, target.DistributedQueryCampaignID, target.TargetID)
 	if err != nil {
-		return nil, errors.Wrap(err, "insert distributed campaign target")
+		return nil, ctxerr.Wrap(ctx, err, "insert distributed campaign target")
 	}
 
 	id, _ := result.LastInsertId()
@@ -133,12 +133,12 @@ func (d *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 		fleet.QueryWaiting, now.Add(-1*time.Minute),
 		fleet.QueryRunning, now.Add(-24*time.Hour))
 	if err != nil {
-		return 0, errors.Wrap(err, "updating distributed query campaign")
+		return 0, ctxerr.Wrap(ctx, err, "updating distributed query campaign")
 	}
 
 	exp, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "rows affected updating distributed query campaign")
+		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 
 	return uint(exp), nil

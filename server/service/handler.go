@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -106,9 +107,6 @@ type FleetEndpoints struct {
 	SSOSettings                           endpoint.Endpoint
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
-	ListCarves                            endpoint.Endpoint
-	GetCarve                              endpoint.Endpoint
-	GetCarveBlock                         endpoint.Endpoint
 	Version                               endpoint.Endpoint
 	CreateTeam                            endpoint.Endpoint
 	ModifyTeam                            endpoint.Endpoint
@@ -119,7 +117,6 @@ type FleetEndpoints struct {
 	AddTeamUsers                          endpoint.Endpoint
 	DeleteTeamUsers                       endpoint.Endpoint
 	TeamEnrollSecrets                     endpoint.Endpoint
-	ListActivities                        endpoint.Endpoint
 }
 
 // MakeFleetServerEndpoints creates the Fleet API endpoints.
@@ -214,9 +211,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
-		ListCarves:                            authenticatedUser(svc, makeListCarvesEndpoint(svc)),
-		GetCarve:                              authenticatedUser(svc, makeGetCarveEndpoint(svc)),
-		GetCarveBlock:                         authenticatedUser(svc, makeGetCarveBlockEndpoint(svc)),
 		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
 		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
 		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
@@ -227,7 +221,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
 		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
 		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
-		ListActivities:                        authenticatedUser(svc, makeListActivitiesEndpoint(svc)),
 
 		// Authenticated status endpoints
 		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
@@ -334,9 +327,6 @@ type fleetHandlers struct {
 	SettingsSSO                           http.Handler
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
-	ListCarves                            http.Handler
-	GetCarve                              http.Handler
-	GetCarveBlock                         http.Handler
 	Version                               http.Handler
 	CreateTeam                            http.Handler
 	ModifyTeam                            http.Handler
@@ -347,7 +337,6 @@ type fleetHandlers struct {
 	AddTeamUsers                          http.Handler
 	DeleteTeamUsers                       http.Handler
 	TeamEnrollSecrets                     http.Handler
-	ListActivities                        http.Handler
 }
 
 func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
@@ -441,9 +430,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
-		ListCarves:                            newServer(e.ListCarves, decodeListCarvesRequest),
-		GetCarve:                              newServer(e.GetCarve, decodeGetCarveRequest),
-		GetCarveBlock:                         newServer(e.GetCarveBlock, decodeGetCarveBlockRequest),
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
 		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
@@ -454,7 +440,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
 		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
 		TeamEnrollSecrets:                     newServer(e.TeamEnrollSecrets, decodeTeamEnrollSecretsRequest),
-		ListActivities:                        newServer(e.ListActivities, decodeListActivitiesRequest),
 	}
 }
 
@@ -467,20 +452,21 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(kitlog.With(h.logger, "path", path))
 
-	if e, ok := err.(fleet.ErrWithInternal); ok {
-		logger = kitlog.With(logger, "internal", e.Internal())
+	var ewi fleet.ErrWithInternal
+	if errors.As(err, &ewi) {
+		logger = kitlog.With(logger, "internal", ewi.Internal())
 	}
 
-	if e, ok := err.(fleet.ErrWithLogFields); ok {
-		logger = kitlog.With(logger, e.LogFields()...)
+	var ewlf fleet.ErrWithLogFields
+	if errors.As(err, &ewlf) {
+		logger = kitlog.With(logger, ewlf.LogFields()...)
 	}
 
-	switch e := err.(type) {
-	case ratelimit.Error:
-		res := e.Result()
+	var rle ratelimit.Error
+	if errors.As(err, &rle) {
+		res := rle.Result()
 		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
-
-	default:
+	} else {
 		logger.Log("err", err)
 	}
 }
@@ -644,10 +630,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/carves", h.ListCarves).Methods("GET").Name("list_carves")
-	r.Handle("/api/v1/fleet/carves/{id:[0-9]+}", h.GetCarve).Methods("GET").Name("get_carve")
-	r.Handle("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", h.GetCarveBlock).Methods("GET").Name("get_carve_block")
-
 	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
 	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
@@ -664,8 +646,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
 	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
 	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
-
-	r.Handle("/api/v1/fleet/activities", h.ListActivities).Methods("GET").Name("list_activities")
 }
 
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
@@ -691,6 +671,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
 	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+	e.PATCH("/api/v1/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 
 	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
 	e.POST("/api/v1/fleet/team/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
@@ -703,12 +684,14 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
 	e.GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
 	e.POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	e.PATCH("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 
 	e.POST("/api/v1/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
 	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
+	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
 
 	e.GET("/api/v1/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
 	e.GET("/api/v1/fleet/hosts", listHostsEndpoint, listHostsRequest{})
@@ -719,6 +702,12 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 
 	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
+
+	e.GET("/api/v1/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+
+	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
+	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
+	e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

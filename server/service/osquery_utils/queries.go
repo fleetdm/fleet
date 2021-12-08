@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -149,7 +147,7 @@ var detailQueries = map[string]DetailQuery{
 				case "distributed_interval":
 					interval, err := strconv.Atoi(EmptyToZero(row["value"]))
 					if err != nil {
-						return errors.Wrap(err, "parsing distributed_interval")
+						return fmt.Errorf("parsing distributed_interval: %w", err)
 					}
 					host.DistributedInterval = uint(interval)
 
@@ -158,7 +156,7 @@ var detailQueries = map[string]DetailQuery{
 					// called `config_tls_refresh`.
 					interval, err := strconv.Atoi(EmptyToZero(row["value"]))
 					if err != nil {
-						return errors.Wrap(err, "parsing config_tls_refresh")
+						return fmt.Errorf("parsing config_tls_refresh: %w", err)
 					}
 					configTLSRefresh = uint(interval)
 					configTLSRefreshSeen = true
@@ -168,7 +166,7 @@ var detailQueries = map[string]DetailQuery{
 					// aliased to `config_refresh`.
 					interval, err := strconv.Atoi(EmptyToZero(row["value"]))
 					if err != nil {
-						return errors.Wrap(err, "parsing config_refresh")
+						return fmt.Errorf("parsing config_refresh: %w", err)
 					}
 					configRefresh = uint(interval)
 					configRefreshSeen = true
@@ -176,7 +174,7 @@ var detailQueries = map[string]DetailQuery{
 				case "logger_tls_period":
 					interval, err := strconv.Atoi(EmptyToZero(row["value"]))
 					if err != nil {
-						return errors.Wrap(err, "parsing logger_tls_period")
+						return fmt.Errorf("parsing logger_tls_period: %w", err)
 					}
 					host.LoggerTLSPeriod = uint(interval)
 				}
@@ -338,16 +336,16 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"disk_space_unix": {
 		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available, 
-       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available 
+SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestDiskSpace,
 	},
 	"disk_space_windows": {
 		Query: `
-SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available, 
-       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available 
+SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
@@ -452,7 +450,7 @@ SELECT
   'python_packages' AS source
 FROM python_packages;
 `,
-	Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+	Platforms:  fleet.HostLinuxOSs,
 	IngestFunc: ingestSoftware,
 }
 
@@ -525,7 +523,7 @@ var usersQuery = DetailQuery{
 		for _, row := range rows {
 			uid, err := strconv.Atoi(row["uid"])
 			if err != nil {
-				return errors.Wrapf(err, "converting uid %s to int", row["uid"])
+				return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
 			}
 			username := row["username"]
 			type_ := row["type"]
@@ -611,8 +609,7 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 		generatedMap[key] = query
 	}
 
-	softwareInventory := ac != nil && ac.HostSettings.EnableSoftwareInventory
-	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || softwareInventory {
+	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows

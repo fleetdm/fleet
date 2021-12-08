@@ -2,9 +2,8 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 // Login attempts to login to the current Fleet instance. If login is successful,
@@ -17,7 +16,7 @@ func (c *Client) Login(email, password string) (string, error) {
 
 	response, err := c.Do("POST", "/api/v1/fleet/login", "", params)
 	if err != nil {
-		return "", errors.Wrap(err, "POST /api/v1/fleet/login")
+		return "", fmt.Errorf("POST /api/v1/fleet/login: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -26,7 +25,7 @@ func (c *Client) Login(email, password string) (string, error) {
 		return "", notSetupErr{}
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", errors.Errorf(
+		return "", fmt.Errorf(
 			"login received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -36,11 +35,11 @@ func (c *Client) Login(email, password string) (string, error) {
 	var responseBody loginResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return "", errors.Wrap(err, "decode login response")
+		return "", fmt.Errorf("decode login response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return "", errors.Errorf("login: %s", responseBody.Err)
+		return "", fmt.Errorf("login: %s", responseBody.Err)
 	}
 
 	return responseBody.Token, nil
@@ -50,12 +49,12 @@ func (c *Client) Login(email, password string) (string, error) {
 func (c *Client) Logout() error {
 	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/logout", "", nil)
 	if err != nil {
-		return errors.Wrap(err, "POST /api/v1/fleet/logout")
+		return fmt.Errorf("POST /api/v1/fleet/logout: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"logout received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -65,11 +64,11 @@ func (c *Client) Logout() error {
 	var responseBody logoutResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return errors.Wrap(err, "decode logout response")
+		return fmt.Errorf("decode logout response: %w", err)
 	}
 
 	if responseBody.Err != nil {
-		return errors.Errorf("logout: %s", responseBody.Err)
+		return fmt.Errorf("logout: %s", responseBody.Err)
 	}
 
 	return nil

@@ -29,7 +29,9 @@ describe(
 
       cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.findByText(/manage enroll secret/i).should("exist");
+      // See the "Manage" enroll secret” button. A modal appears after the user selects the button
+      cy.contains("button", /manage enroll secret/i).click();
+      cy.contains("button", /done/i).click();
 
       cy.contains("button", /generate installer/i).click();
       // TODO: Check Team Apples is in Select a team dropdown
@@ -57,6 +59,8 @@ describe(
       cy.contains("button", /delete/i).should("exist");
       cy.contains("button", /query/i).click();
       cy.contains("button", /create custom query/i).should("exist");
+      // See and select operating system
+      // TODO
 
       // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");

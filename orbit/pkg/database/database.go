@@ -1,11 +1,12 @@
 package database
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,7 +31,7 @@ func Open(path string) (*BadgerDB, error) {
 	// TODO implement logging?
 	db, err := badger.Open(badger.DefaultOptions(path).WithLogger(nil))
 	if err != nil {
-		return nil, errors.Wrapf(err, "open badger %s", path)
+		return nil, fmt.Errorf("open badger %s: %w", path, err)
 	}
 
 	b := &BadgerDB{DB: db}
@@ -50,7 +51,7 @@ func OpenTruncate(path string) (*BadgerDB, error) {
 	// TODO implement logging?
 	db, err := badger.Open(badger.DefaultOptions(path).WithLogger(nil).WithTruncate(true))
 	if err != nil {
-		return nil, errors.Wrapf(err, "open badger with truncate %s", path)
+		return nil, fmt.Errorf("open badger with truncate %s: %w", path, err)
 	}
 
 	b := &BadgerDB{DB: db}

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -90,7 +91,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 		baseURL:            baseURL,
 		urlPrefix:          "",
 		token:              "1234",
-		http:               &http.Client{},
+		http:               fleethttp.NewClient(),
 		insecureSkipVerify: false,
 		writer:             nil,
 	}

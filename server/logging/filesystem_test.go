@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -77,7 +77,7 @@ func TestFilesystemLoggerPermission(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), tc.rotation, false)
 			require.Error(t, err)
-			require.True(t, stderrors.Is(err, fs.ErrPermission), err)
+			require.True(t, errors.Is(err, fs.ErrPermission), err)
 		})
 	}
 }

@@ -371,7 +371,7 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
     return (
       <>
-        {availableTeams.length &&
+        {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
               <InfoBanner className={`${baseClass}__user-permissions-info`}>

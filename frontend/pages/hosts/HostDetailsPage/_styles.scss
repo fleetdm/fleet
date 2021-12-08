@@ -8,6 +8,13 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   .header {
     flex: 100%;
     display: flex;
@@ -32,6 +39,11 @@
 
     .info-flex {
       display: flex;
+      flex-wrap: wrap;
+
+      .info-flex__item--title {
+        margin-bottom: 2.5rem;
+      }
 
       &__item {
         font-size: $x-small;
@@ -157,6 +169,7 @@
     flex-direction: row;
     justify-content: space-between;
     margin: 0;
+    padding-bottom: 0;
 
     .hostname-container {
       display: flex;
@@ -360,7 +373,8 @@
     display: flex;
     flex-direction: row-reverse;
 
-    .button--alert {
+    .button--alert,
+    .button--brand {
       margin-left: 15px;
     }
   }
@@ -413,22 +427,16 @@
 
   .section--policies {
     .linkToFilteredHosts__header {
-      width: 0;
+      width: 140px;
     }
 
     tr {
-      a {
-        font-size: $x-small;
-        color: $core-vibrant-blue;
-        font-weight: $bold;
-        text-decoration: none;
-      }
-
       .policy-link {
         visibility: hidden;
         text-overflow: none;
         img {
           vertical-align: text-top;
+          width: 16px;
         }
       }
 
@@ -436,10 +444,6 @@
         .policy-link {
           visibility: visible;
           text-overflow: none;
-
-          img {
-            width: 16px;
-          }
         }
       }
     }
@@ -454,10 +458,6 @@
         font-size: 0.875rem;
         margin: 0;
       }
-      a {
-        text-decoration: none;
-        font-weight: bold;
-      }
     }
 
     th:first-child {
@@ -471,15 +471,17 @@
 
   .section--software {
     th {
-      width: 200px;
-
       &:first-child {
         border-right: none;
         width: 16px;
         padding-right: 0px;
       }
+      &:nth-child(2) {
+        width: 25%;
+        padding-right: 0px;
+      }
       &:last-child {
-        width: 200px;
+        width: 150px;
         padding: 0px;
         overflow: none;
       }
@@ -487,19 +489,25 @@
       &:nth-last-child(2) {
         border-right: 0 !important;
       }
+
+      &.source__header {
+        width: 20%;
+      }
     }
     tr {
       td {
+        position: relative;
         &:first-child {
           padding-right: 0px;
         }
-      }
-
-      a {
-        font-size: $x-small;
-        color: $core-vibrant-blue;
-        font-weight: $bold;
-        text-decoration: none;
+        .name-container {
+          .tooltip__tooltip-icon {
+            @include breakpoint(ltdesktop) {
+              position: absolute;
+              right: 0.5rem;
+            }
+          }
+        }
       }
 
       .software-link {
@@ -658,12 +666,24 @@
         // Width for all columns except the "Query name" column
         // Width calculation adjusts for each row's horizontal padding
         th {
-          width: calc(200px - 27px * 2);
-        }
+          // Width for the "Query name" column
+          &:first-child {
+            width: 40%;
+            padding-right: 0px;
+          }
 
-        // Width for the "Query name" column
-        th:nth-child(1) {
-          width: auto !important;
+          &:nth-child(2) {
+            width: 12%;
+          }
+
+          &:nth-child(3) {
+            width: 18%;
+          }
+
+          &:last-child {
+            width: 30%;
+            padding-right: 0px;
+          }
         }
       }
 
@@ -702,5 +722,61 @@
 
   .software-last-used-muted {
     color: $ui-fleet-black-50;
+  }
+
+  &__os-modal-title {
+    padding-right: $pad-medium;
+    font-size: $medium;
+    font-weight: $bold;
+  }
+  &__os-modal-updated {
+    font-style: italic;
+  }
+  &__os-modal-example-title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__os-policy {
+    padding-top: $pad-medium;
+
+    .form-field__label {
+      font-weight: normal;
+    }
+    #os-policy {
+      color: $core-fleet-purple;
+      line-height: 20px;
+      font-size: $x-small;
+      font-family: "SourceCodePro", $monospace;
+      min-height: 55px;
+      padding-right: $pad-xxlarge;
+    }
+  }
+
+  &__os-policy-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 25px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-xxlarge 0 0;
   }
 }

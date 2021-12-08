@@ -3,12 +3,12 @@ package sso
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 )
 
 // Session stores state for the lifetime of a single sign on session
@@ -29,7 +29,7 @@ type Session struct {
 // is constrained in the backing store (Redis) so if the sso process is not completed in
 // a reasonable amount of time, it automatically expires and is removed.
 type SessionStore interface {
-	create(requestID, originalURL, x509Cert string, lifetimeSecs uint) error
+	create(requestID, originalURL, metadata string, lifetimeSecs uint) error
 	Get(requestID string) (*Session, error)
 	Expire(requestID string) error
 }

@@ -10,6 +10,15 @@ export default (client) => {
         .authenticatedPost(client._endpoint(INVITES), JSON.stringify(formData))
         .then((response) => helpers.addGravatarUrlToResource(response.invite));
     },
+    update: (invite, formData) => {
+      const { INVITES } = endpoints;
+      const updateInviteEndpoint = `${client.baseURL}${INVITES}/${invite.id}`;
+
+      return client.authenticatedPatch(
+        updateInviteEndpoint,
+        JSON.stringify(formData)
+      );
+    },
     destroy: (invite) => {
       const { INVITES } = endpoints;
       const endpoint = `${client._endpoint(INVITES)}/${invite.id}`;

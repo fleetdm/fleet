@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -108,11 +108,11 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	conn := t.Pool.Get()
 	defer conn.Close()
 	if err := redis.BindConn(t.Pool, conn, keySet, keyTs); err != nil {
-		return errors.Wrap(err, "bind redis connection")
+		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
 	if _, err := script.Do(conn, args...); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "run redis script")
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 
 			vals, err := redigo.Ints(conn.Do("ZPOPMIN", key, t.RedisPopCount))
 			if err != nil {
-				return hostID, nil, nil, errors.Wrap(err, "redis ZPOPMIN")
+				return hostID, nil, nil, ctxerr.Wrap(ctx, err, "redis ZPOPMIN")
 			}
 			items := len(vals) / 2 // each item has the label id and the score (-1=delete, +1=insert)
 			stats.Items += items

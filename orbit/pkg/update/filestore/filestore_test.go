@@ -62,4 +62,11 @@ func TestFileStore(t *testing.T) {
 	res, err = store.GetMeta()
 	require.NoError(t, err)
 	assert.Equal(t, expected, res)
+
+	// Deletion
+	delete(expected, "test")
+	require.NoError(t, store.DeleteMeta("test"))
+	res, err = store.GetMeta()
+	require.NoError(t, err)
+	assert.Equal(t, expected, res)
 }

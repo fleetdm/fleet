@@ -1,6 +1,8 @@
 package redis
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -10,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
-	"github.com/pkg/errors"
 )
 
 // this is an adapter type to implement the same Stats method as for
@@ -84,7 +85,7 @@ func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 			pool.Wait = false
 			return &standalonePool{pool, config.Server}, nil
 		}
-		return nil, errors.Wrap(err, "refresh cluster")
+		return nil, fmt.Errorf("refresh cluster: %w", err)
 	}
 
 	return &clusterPool{
@@ -237,7 +238,7 @@ func PublishHasListeners(pool fleet.RedisPool, conn redis.Conn, channel, message
 	if err == nil || err == errDone {
 		return count > 0, nil
 	}
-	return false, errors.Wrap(err, "checking for active subscribers")
+	return false, fmt.Errorf("checking for active subscribers: %w", err)
 }
 
 func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
@@ -351,12 +352,12 @@ func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error)
 		for {
 			res, err := redis.Values(conn.Do("SCAN", cursor, "MATCH", pattern, "COUNT", count))
 			if err != nil {
-				return errors.Wrap(err, "scan keys")
+				return fmt.Errorf("scan keys: %w", err)
 			}
 			var curKeys []string
 			_, err = redis.Scan(res, &cursor, &curKeys)
 			if err != nil {
-				return errors.Wrap(err, "convert scan results")
+				return fmt.Errorf("convert scan results: %w", err)
 			}
 			keys = append(keys, curKeys...)
 			if cursor == 0 {

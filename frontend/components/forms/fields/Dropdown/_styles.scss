@@ -50,7 +50,7 @@
     height: 40px;
 
     .Select-value {
-      font-size: $x-small;
+      font-size: $small;
       border-radius: 4px;
       background-color: $ui-off-white;
       border: solid 1px $core-dark-blue-grey;
@@ -62,7 +62,7 @@
   }
 
   .Select-value {
-    font-size: $x-small;
+    font-size: $small;
     border-radius: $border-radius;
     background-color: $ui-off-white;
     border: solid 1px $core-dark-blue-grey;
@@ -92,7 +92,7 @@
     }
 
     .Select-value-label {
-      font-size: $xx-small;
+      font-size: $small;
       color: $core-fleet-black;
       line-height: 28px;
     }
@@ -168,7 +168,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-fleet-black;
-          font-size: $xx-small;
+          font-size: $small;
         }
       }
     }
@@ -250,6 +250,10 @@
 
       .Select-value {
         margin-top: 2px;
+
+        .Select-value-label {
+          font-size: $x-small;
+        }
       }
     }
 

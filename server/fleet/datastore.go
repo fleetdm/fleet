@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -177,7 +178,7 @@ type Datastore interface {
 	SaveHost(ctx context.Context, host *Host) error
 	SerialSaveHost(ctx context.Context, host *Host) error
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint) (*Host, error)
+	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
@@ -187,7 +188,6 @@ type Datastore interface {
 	// "additional" information as this is not typically necessary for the operations performed by the osquery
 	// endpoints.
 	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
-	MarkHostSeen(ctx context.Context, host *Host, t time.Time) error
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
@@ -205,7 +205,7 @@ type Datastore interface {
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
+	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
 	DeleteHosts(ctx context.Context, ids []uint) error
 
@@ -213,7 +213,7 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
-	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -347,35 +347,40 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
-	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
+	// SavePolicy updates some fields of the given policy on the datastore.
+	//
+	// It is also used to update team policies.
+	SavePolicy(ctx context.Context, p *Policy) error
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, specs []*PolicySpec) error
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
 	// MigrateData populates built-in data
 	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
-	MigrationStatus(ctx context.Context) (MigrationStatus, error)
+	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -394,6 +399,8 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+	// DBLocks returns the current database transaction lock waits information.
+	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats
@@ -402,12 +409,39 @@ type Datastore interface {
 	UpdateQueryAggregatedStats(ctx context.Context) error
 }
 
-type MigrationStatus int
+type MigrationStatus struct {
+	// StatusCode holds the code for the migration status.
+	//
+	// If StatusCode is NoMigrationsCompleted or AllMigrationsCompleted
+	// then all other fields are empty.
+	//
+	// If StatusCode is SomeMigrationsCompleted, then missing migrations
+	// are available in MissingTable and MissingData.
+	//
+	// If StatusCode is UnknownMigrations, then unknown migrations
+	// are available in UnknownTable and UnknownData.
+	StatusCode MigrationStatusCode `json:"status_code"`
+	// MissingTable holds the missing table migrations.
+	MissingTable []int64 `json:"missing_table"`
+	// MissingTable holds the missing data migrations.
+	MissingData []int64 `json:"missing_data"`
+	// UnknownTable holds unknown applied table migrations.
+	UnknownTable []int64 `json:"unknown_table"`
+	// UnknownTable holds unknown applied data migrations.
+	UnknownData []int64 `json:"unknown_data"`
+}
+
+type MigrationStatusCode int
 
 const (
-	NoMigrationsCompleted = iota
+	// NoMigrationsCompleted indicates the database has no migrations installed.
+	NoMigrationsCompleted MigrationStatusCode = iota
+	// SomeMigrationsCompleted indicates some (not all) migrations are missing.
 	SomeMigrationsCompleted
+	// AllMigrationsCompleted means all migrations have been installed successfully.
 	AllMigrationsCompleted
+	// UnknownMigrations means some unidentified migrations were detected on the database.
+	UnknownMigrations
 )
 
 // NotFoundError is returned when the datastore resource cannot be found.
@@ -417,11 +451,11 @@ type NotFoundError interface {
 }
 
 func IsNotFound(err error) bool {
-	e, ok := err.(NotFoundError)
-	if !ok {
-		return false
+	var nfe NotFoundError
+	if errors.As(err, &nfe) {
+		return nfe.IsNotFound()
 	}
-	return e.IsNotFound()
+	return false
 }
 
 // AlreadyExistsError is returned when creating a datastore resource that already exists.
@@ -437,11 +471,11 @@ type ForeignKeyError interface {
 }
 
 func IsForeignKey(err error) bool {
-	e, ok := err.(ForeignKeyError)
-	if !ok {
-		return false
+	var fke ForeignKeyError
+	if errors.As(err, &fke) {
+		return fke.IsForeignKey()
 	}
-	return e.IsForeignKey()
+	return false
 }
 
 type OptionalArg func() interface{}

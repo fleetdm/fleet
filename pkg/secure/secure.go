@@ -4,11 +4,11 @@
 package secure
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path"
 	"syscall"
-
-	"github.com/pkg/errors"
 )
 
 func isMorePermissive(currentMode, newMode os.FileMode) bool {
@@ -29,7 +29,7 @@ func checkPermPath(path string, perm os.FileMode) error {
 	if err == nil {
 		if dir.IsDir() {
 			if isMorePermissive(dir.Mode(), perm) {
-				return errors.Errorf(
+				return fmt.Errorf(
 					"Path %s already exists with mode %o instead of the expected %o", path, dir.Mode(), perm)
 			}
 			return nil
@@ -66,7 +66,7 @@ func checkPermPath(path string, perm os.FileMode) error {
 
 func checkPermFile(filePath string, perm os.FileMode) error {
 	if f, err := os.Stat(filePath); !errors.Is(err, os.ErrNotExist) && f != nil && f.Mode() != perm {
-		return errors.Errorf(
+		return fmt.Errorf(
 			"File %s already exists with mode %o instead of the expected %o", filePath, f.Mode(), perm)
 	}
 	if err := checkPermPath(path.Dir(filePath), perm); err != nil {

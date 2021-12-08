@@ -211,10 +211,6 @@ resource "aws_ecs_task_definition" "backend" {
             value = "false"
           },
           {
-            name  = "FLEET_BETA_SOFTWARE_INVENTORY"
-            value = var.software_inventory
-          },
-          {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
             value = var.vuln_db_path
           },

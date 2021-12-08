@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,14 +62,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID)
+		_, err = ds.Host(context.Background(), host.ID, false)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID)
+		host2, err := ds.Host(context.Background(), host.ID, false)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})
@@ -297,21 +297,21 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM app_configs"
+	sql := "SELECT * FROM my_table"
 	opts := fleet.ListOptions{
 		OrderKey: "name",
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -320,30 +320,29 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		PerPage: 10,
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10"
+	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.Page = 2
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10 OFFSET 20"
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
 	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 1000000"
+	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
-
 }
 
 func TestWhereFilterHostsByTeams(t *testing.T) {
@@ -798,6 +797,81 @@ func TestWhereFilterTeas(t *testing.T) {
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestCompareVersions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+
+		v1 []int64
+		v2 []int64
+
+		expMissing []int64
+		expUnknown []int64
+		expEqual   bool
+	}{
+		{
+			name:     "both-empty",
+			v1:       nil,
+			v2:       nil,
+			expEqual: true,
+		},
+		{
+			name:     "equal",
+			v1:       []int64{1, 2, 3},
+			v2:       []int64{1, 2, 3},
+			expEqual: true,
+		},
+		{
+			name:     "equal-out-of-order",
+			v1:       []int64{1, 2, 3},
+			v2:       []int64{1, 3, 2},
+			expEqual: true,
+		},
+		{
+			name:       "empty-with-unknown",
+			v1:         nil,
+			v2:         []int64{1},
+			expEqual:   false,
+			expUnknown: []int64{1},
+		},
+		{
+			name:       "empty-with-missing",
+			v1:         []int64{1},
+			v2:         nil,
+			expEqual:   false,
+			expMissing: []int64{1},
+		},
+		{
+			name:       "missing",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 3},
+			expMissing: []int64{2},
+			expEqual:   false,
+		},
+		{
+			name:       "unknown",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 3, 4},
+			expUnknown: []int64{4},
+			expEqual:   false,
+		},
+		{
+			name:       "missing-and-unknown",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 4},
+			expMissing: []int64{3},
+			expUnknown: []int64{4},
+			expEqual:   false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			missing, unknown, equal := compareVersions(tc.v1, tc.v2)
+			require.Equal(t, tc.expMissing, missing)
+			require.Equal(t, tc.expUnknown, unknown)
+			require.Equal(t, tc.expEqual, equal)
 		})
 	}
 }

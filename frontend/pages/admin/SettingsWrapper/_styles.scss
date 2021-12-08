@@ -2,12 +2,14 @@
 
 .settings-wrapper {
   h1 {
-    margin-bottom: $pad-small;
+    display: flex;
+    align-items: center;
+    height: 38px;
     position: relative;
 
     // fake padding for h1 while sticky
     &::before {
-      content: '';
+      content: "";
       width: 100%;
       height: $pad-xxlarge;
       position: absolute;

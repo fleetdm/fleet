@@ -67,6 +67,7 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
+  pageSize?: number;
 }
 
 const baseClass = "table-container";
@@ -116,6 +117,7 @@ const TableContainer = ({
   isClientSideFilter,
   isClientSideSearch,
   highlightOnHover,
+  pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
 }: ITableContainerProps): JSX.Element => {
@@ -124,7 +126,6 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 

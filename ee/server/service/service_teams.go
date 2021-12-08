@@ -7,11 +7,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/pkg/errors"
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -46,7 +46,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		// Set up a default enroll secret
 		secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 		if err != nil {
-			return nil, errors.Wrap(err, "generate enroll secret string")
+			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 		}
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
@@ -124,10 +124,10 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		idMap[user.ID] = user
 		fullUser, err := svc.ds.UserByID(ctx, user.ID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting full user with id %d", user.ID)
+			return nil, ctxerr.Wrapf(ctx, err, "getting full user with id %d", user.ID)
 		}
 		if fullUser.GlobalRole != nil && currentUser.GlobalRole == nil {
-			return nil, errors.New("A user with a global role cannot be added to a team by a non global user.")
+			return nil, ctxerr.New(ctx, "A user with a global role cannot be added to a team by a non global user.")
 		}
 	}
 
@@ -248,8 +248,8 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{TeamID: ptr.Uint(teamID)}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if len(secrets) < 1 {
-		return nil, fleet.NewInvalidArgumentError("secrets", "need to define at least one secret for the team")
+	if secrets == nil {
+		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
 	}
 
 	var newSecrets []*fleet.EnrollSecret

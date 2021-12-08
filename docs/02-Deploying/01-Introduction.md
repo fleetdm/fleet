@@ -7,7 +7,7 @@
   - [Redis](#redis)
   - [TLS certificate](#tls-certificate)
 
-## Overview
+The Fleet application is distributed as a single static binary (or as a Docker container). This binary serves:
 
 Fleet is the most widely used open source osquery manager in the world. Fleet enables programmable live queries, streaming logs, and realtime visibility of 100,000+ servers, containers, and laptops. It's especially useful for IT, security, and compliance use cases.
 
@@ -17,7 +17,7 @@ The `fleet` binary contains:
 - The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
 - The Fleet web interface
 - The Fleet application management [REST API](../01-Using-Fleet/03-REST-API.md)
-- The osquery API endpoints
+- The Fleet osquery API endpoints
 
 The `fleetctl` binary is the CLI interface which allows management of your deployment, scriptable live queries, and easy integration into your existing logging, alerting, reporting, and management infrastructure.
 

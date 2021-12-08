@@ -3,9 +3,9 @@ package mysql
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
@@ -16,7 +16,7 @@ func (d *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pass
 	`
 	response, err := d.writer.ExecContext(ctx, sqlStatement, req.UserID, req.Token)
 	if err != nil {
-		return nil, errors.Wrap(err, "inserting password reset requests")
+		return nil, ctxerr.Wrap(ctx, err, "inserting password reset requests")
 	}
 
 	id, _ := response.LastInsertId()
@@ -31,7 +31,7 @@ func (d *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 	`
 	_, err := d.writer.ExecContext(ctx, sqlStatement, userID)
 	if err != nil {
-		return errors.Wrap(err, "deleting password reset request by user")
+		return ctxerr.Wrap(ctx, err, "deleting password reset request by user")
 	}
 
 	return nil
@@ -44,7 +44,7 @@ func (d *Datastore) FindPassswordResetByToken(ctx context.Context, token string)
 	passwordResetRequest := &fleet.PasswordResetRequest{}
 	err := sqlx.GetContext(ctx, d.reader, passwordResetRequest, sqlStatement, token)
 	if err != nil {
-		return nil, errors.Wrap(err, "selecting password reset requests")
+		return nil, ctxerr.Wrap(ctx, err, "selecting password reset requests")
 	}
 
 	return passwordResetRequest, nil

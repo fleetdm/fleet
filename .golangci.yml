@@ -2,6 +2,8 @@ linters:
   disable-all: true
   enable:
     - deadcode
+    - depguard
+    - gocritic
     - gofmt
     - govet
     - ineffassign
@@ -14,6 +16,20 @@ linters:
     - unused
 
 linters-settings:
+  depguard:
+    list-type: blacklist
+    include-go-root: false
+    packages-with-error-message:
+      - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
+      - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+
+  gocritic:
+    enabled-checks:
+      - ruleguard
+    settings:
+      ruleguard:
+        rules: "tools/ci/rules.go"
+
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: false
@@ -39,3 +55,9 @@ linters-settings:
       - name: superfluous-else
       - name: unreachable-code
       - name: redefines-builtin-id
+
+issues:
+  exclude-rules:
+    - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
+      linters:
+        - depguard

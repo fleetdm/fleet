@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 
@@ -24,13 +23,13 @@ func logoutCommand() *cli.Command {
 			}
 
 			if err := fleet.Logout(); err != nil {
-				return errors.Wrap(err, "error logging out")
+				return fmt.Errorf("error logging out: %w", err)
 			}
 
 			configPath, context := c.String("config"), c.String("context")
 
 			if err := setConfigValue(configPath, context, "token", ""); err != nil {
-				return errors.Wrap(err, "error setting token for the current context")
+				return fmt.Errorf("error setting token for the current context: %w", err)
 			}
 
 			fmt.Printf("[+] Fleet logout successful and local token cleared!\n")

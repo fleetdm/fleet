@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // Scheduled queries are currently authorized the same as packs.
@@ -39,12 +39,12 @@ func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.Sch
 	if sq.Name == "" {
 		query, err := svc.ds.Query(ctx, sq.QueryID)
 		if err != nil {
-			return nil, errors.Wrap(err, "lookup name for query")
+			return nil, ctxerr.Wrap(ctx, err, "lookup name for query")
 		}
 
 		packQueries, err := svc.ds.ListScheduledQueriesInPack(ctx, sq.PackID, fleet.ListOptions{})
 		if err != nil {
-			return nil, errors.Wrap(err, "find existing scheduled queries")
+			return nil, ctxerr.Wrap(ctx, err, "find existing scheduled queries")
 		}
 		_ = packQueries
 
@@ -53,7 +53,7 @@ func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.Sch
 	} else if sq.QueryName == "" {
 		query, err := svc.ds.Query(ctx, sq.QueryID)
 		if err != nil {
-			return nil, errors.Wrap(err, "lookup name for query")
+			return nil, ctxerr.Wrap(ctx, err, "lookup name for query")
 		}
 		sq.QueryName = query.Name
 	}
@@ -81,7 +81,7 @@ func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.S
 func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
 	sq, err := svc.ds.ScheduledQuery(ctx, id)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting scheduled query to modify")
+		return nil, ctxerr.Wrap(ctx, err, "getting scheduled query to modify")
 	}
 
 	if p.PackID != nil {

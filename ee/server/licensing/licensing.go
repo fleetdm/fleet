@@ -5,11 +5,12 @@ import (
 	"crypto/x509"
 	_ "embed"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -29,13 +30,13 @@ func loadPublicKey() (*ecdsa.PublicKey, error) {
 
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse ecdsa key")
+		return nil, fmt.Errorf("failed to parse ecdsa key: %w", err)
 	}
 
 	if pub, ok := pub.(*ecdsa.PublicKey); ok {
 		return pub, nil
 	}
-	return nil, errors.Errorf("%T is not *ecdsa.PublicKey", pub)
+	return nil, fmt.Errorf("%T is not *ecdsa.PublicKey", pub)
 }
 
 // LoadLicense loads and validates the license key.
@@ -58,14 +59,14 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 
 		// if the ONLY error is that it's expired, then we ignore it
 		if v == nil || v.Errors != jwt.ValidationErrorExpired {
-			return nil, errors.Wrap(err, "parse license")
+			return nil, fmt.Errorf("parse license: %w", err)
 		}
 		parsedToken.Valid = true
 	}
 
 	license, err := validate(parsedToken)
 	if err != nil {
-		return nil, errors.Wrap(err, "validate license")
+		return nil, fmt.Errorf("validate license: %w", err)
 	}
 
 	// Force premium license
@@ -92,29 +93,29 @@ func validate(token *jwt.Token) (*fleet.LicenseInfo, error) {
 	}
 
 	if token.Method.Alg() != expectedAlgorithm {
-		return nil, errors.Errorf("unexpected algorithm %s", token.Method.Alg())
+		return nil, fmt.Errorf("unexpected algorithm %s", token.Method.Alg())
 	}
 
 	var claims *licenseClaims
 	claims, ok := token.Claims.(*licenseClaims)
 	if !ok || claims == nil {
-		return nil, errors.Errorf("unexpected claims type %T", token.Claims)
+		return nil, fmt.Errorf("unexpected claims type %T", token.Claims)
 	}
 
 	if claims.Devices == 0 {
-		return nil, errors.Errorf("missing devices")
+		return nil, errors.New("missing devices")
 	}
 
 	if claims.Tier == "" {
-		return nil, errors.Errorf("missing tier")
+		return nil, errors.New("missing tier")
 	}
 
 	if claims.ExpiresAt == 0 {
-		return nil, errors.Errorf("missing exp")
+		return nil, errors.New("missing exp")
 	}
 
 	if claims.Issuer != expectedIssuer {
-		return nil, errors.Errorf("unexpected issuer %s", claims.Issuer)
+		return nil, fmt.Errorf("unexpected issuer %s", claims.Issuer)
 	}
 
 	return &fleet.LicenseInfo{

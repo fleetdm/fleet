@@ -2,10 +2,11 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/pkg/errors"
+	"github.com/jinzhu/copier"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -164,7 +165,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.Errorf("invalid duration type: %T", value)
+		return fmt.Errorf("invalid duration type: %T", value)
 	}
 }
 
@@ -250,7 +251,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering
+	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`
@@ -258,6 +259,10 @@ type ListOptions struct {
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
 	MatchQuery string `query:"query,optional"`
+
+	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
+	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
+	After string `query:"after,optional"`
 }
 
 type ListQueryOptions struct {
@@ -394,4 +399,10 @@ type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+func (c *AppConfig) Clone() (*AppConfig, error) {
+	newAc := AppConfig{}
+	err := copier.Copy(&newAc, c)
+	return &newAc, err
 }

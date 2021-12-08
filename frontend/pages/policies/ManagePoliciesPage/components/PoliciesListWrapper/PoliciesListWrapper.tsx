@@ -3,7 +3,7 @@ import { noop } from "lodash";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
@@ -20,25 +20,25 @@ const TAGGED_TEMPLATES = {
 };
 
 interface IPoliciesListWrapperProps {
-  policiesList: IPolicy[];
+  policiesList: IPolicyStats[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
-  toggleAddPolicyModal: () => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
+  toggleAddPolicyModal?: () => void;
 }
 
 const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onRemovePoliciesClick,
-  toggleAddPolicyModal,
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
+  toggleAddPolicyModal,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
@@ -85,17 +85,6 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
-              <div className={`${noPoliciesClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noPoliciesClass}__add-policy-button`}
-                  onClick={toggleAddPolicyModal}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -117,7 +106,7 @@ const PoliciesListWrapper = ({
         })}
         data={generateDataSet(policiesList)}
         isLoading={isLoading}
-        defaultSortHeader={"query_name"}
+        defaultSortHeader={"name"}
         defaultSortDirection={"asc"}
         manualSortBy
         showMarkAllPages={false}
@@ -125,8 +114,8 @@ const PoliciesListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemovePoliciesClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoPolicies}
         onQueryChange={noop}
         disableCount={tableType === "inheritedPolicies"}

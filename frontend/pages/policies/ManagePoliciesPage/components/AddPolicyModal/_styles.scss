@@ -1,71 +1,59 @@
 .add-policy-modal {
-  &__sandbox-info {
-    margin-top: $pad-medium;
-    margin-bottom: $pad-large;
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+  }
 
-    p {
-      margin: 0;
-      margin-bottom: $pad-medium;
-    }
-
-    p:last-child {
-      margin-bottom: 0;
-    }
+  #new-tab-icon {
+    height: 12px;
+    width: 12px;
+    margin-left: 6px;
   }
 
   a {
-    color: $core-vibrant-blue;
-    font-weight: $regular;
     font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
     text-decoration: none;
   }
 
-  &__info-header {
-    font-weight: $bold;
-  }
+  &__modal {
+    @include position(absolute, 22px null null null);
+    background-color: $core-white;
+    width: 658px;
+    padding: $pad-xxlarge;
+    border-radius: $pad-small;
 
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
+    a {
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
+    }
 
-  &__btn {
-    margin-left: 12px;
-  }
+    .info {
+      display: flex;
 
-  &__advanced-options-button {
-    margin: $pad-medium 0;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    font-size: $x-small;
-  }
-
-  .downcarat {
-    &::after {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-left: 2px;
-      margin-bottom: 2px;
+      &__header {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: $bold;
+        font-size: $x-small;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        color: $core-fleet-black;
+        font-weight: normal;
+        font-size: $x-small;
+        text-align: left;
+        margin-top: 10px;
+      }
     }
   }
 
-  .upcarat {
-    &::after {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      transform: scale(0.5) rotate(180deg);
-      width: 16px;
-      border-radius: 0px;
-      padding: 0px;
-      padding-left: 2px;
-      margin-bottom: 4px;
-      margin-left: 14px;
-    }
-  }
-
-  .Select-value-label {
-    font-size: $small;
+  &__policy-selection {
+    padding: $pad-large 0;
   }
 }
