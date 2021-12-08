@@ -41,38 +41,6 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	return svc.ds.GetLabelSpec(ctx, name)
 }
 
-func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	label := &fleet.Label{}
-
-	if p.Name == nil {
-		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
-	}
-	label.Name = *p.Name
-
-	if p.Query == nil {
-		return nil, fleet.NewInvalidArgumentError("query", "missing required argument")
-	}
-	label.Query = *p.Query
-
-	if p.Platform != nil {
-		label.Platform = *p.Platform
-	}
-
-	if p.Description != nil {
-		label.Description = *p.Description
-	}
-
-	label, err := svc.ds.NewLabel(ctx, label)
-	if err != nil {
-		return nil, err
-	}
-	return label, nil
-}
-
 func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.Label, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
 		return nil, err

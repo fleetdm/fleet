@@ -147,10 +147,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/fleet/labels",
 		},
 		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/labels",
-		},
-		{
 			verb: "DELETE",
 			uri:  "/api/v1/fleet/labels/1",
 		},

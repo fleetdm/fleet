@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -43,6 +42,7 @@ func TestDecodeGetLabelRequest(t *testing.T) {
 	)
 }
 
+/*
 func TestDecodeCreateLabelRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/labels", func(writer http.ResponseWriter, request *http.Request) {
@@ -67,3 +67,4 @@ func TestDecodeCreateLabelRequest(t *testing.T) {
 		httptest.NewRequest("POST", "/api/v1/fleet/labels", &body),
 	)
 }
+*/

@@ -53,39 +53,6 @@ func makeGetLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create Label
-////////////////////////////////////////////////////////////////////////////////
-
-type createLabelRequest struct {
-	payload fleet.LabelPayload
-}
-
-type createLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
-}
-
-func (r createLabelResponse) error() error { return r.Err }
-
-func makeCreateLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createLabelRequest)
-
-		label, err := svc.NewLabel(ctx, req.payload)
-		if err != nil {
-			return createLabelResponse{Err: err}, nil
-		}
-
-		labelResp, err := labelResponseForLabel(ctx, svc, label)
-		if err != nil {
-			return createLabelResponse{Err: err}, nil
-		}
-
-		return createLabelResponse{Label: *labelResp}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Modify Label
 ////////////////////////////////////////////////////////////////////////////////
 
