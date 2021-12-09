@@ -186,6 +186,8 @@ const TableContainer = ({
 
     // Something besides the pageIndex has changed; we want to set it back to 0.
     if (onQueryChange) {
+      console.log("isClientSideFilter", isClientSideFilter);
+      console.log("isClientSideSearch", isClientSideSearch);
       if (!hasPageIndexChangedRef.current && !isClientSideSearch) {
         const updateQueryData = {
           ...queryData,
@@ -200,6 +202,10 @@ const TableContainer = ({
             onQueryChange(updateQueryData);
           }
           setPageIndex(0);
+        } else {
+          console.log("This hit");
+          console.log("updateQueryData", updateQueryData);
+          onQueryChange(updateQueryData);
         }
       } else if (!isClientSideFilter) {
         onQueryChange(queryData);
