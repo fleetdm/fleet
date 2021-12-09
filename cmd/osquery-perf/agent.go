@@ -132,6 +132,8 @@ type agent struct {
 	policyPassProb float64
 
 	strings map[string]string
+
+	scheduledQueries []string
 }
 
 func newAgent(
@@ -280,6 +282,24 @@ func (a *agent) config() {
 		return
 	}
 
+	parsedResp := struct {
+		Packs map[string]struct {
+			Queries map[string]interface{} `json:"queries"`
+		} `json:"packs"`
+	}{}
+	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+		log.Println("json parse at config:", err)
+		return
+	}
+
+	var scheduledQueries []string
+	for packName, pack := range parsedResp.Packs {
+		for queryName := range pack.Queries {
+			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
+		}
+	}
+	a.scheduledQueries = scheduledQueries
+
 	// No need to read the config body
 }
 
@@ -352,6 +372,26 @@ func (a *agent) runPolicy(query string) []map[string]string {
 	return nil
 }
 
+func (a *agent) randomQueryStats() []map[string]string {
+	var stats []map[string]string
+	for _, scheduledQuery := range a.scheduledQueries {
+		stats = append(stats, map[string]string{
+			"name":           scheduledQuery,
+			"delimiter":      "_",
+			"average_memory": fmt.Sprint(rand.Intn(200) + 10),
+			"denylisted":     "false",
+			"executions":     fmt.Sprint(rand.Intn(100) + 1),
+			"interval":       fmt.Sprint(rand.Intn(100) + 1),
+			"last_executed":  fmt.Sprint(time.Now().Unix()),
+			"output_size":    fmt.Sprint(rand.Intn(100) + 1),
+			"system_time":    fmt.Sprint(rand.Intn(4000) + 10),
+			"user_time":      fmt.Sprint(rand.Intn(4000) + 10),
+			"wall_time":      fmt.Sprint(rand.Intn(4000) + 10),
+		})
+	}
+	return stats
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -359,11 +399,16 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	}
 	r.NodeKey = a.NodeKey
 	const hostPolicyQueryPrefix = "fleet_policy_query_"
+	const hostDetailQueryPrefix = "fleet_detail_query_"
 	for name := range queries {
 		r.Results[name] = defaultQueryResult
 		r.Statuses[name] = fleet.StatusOK
 		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
 			r.Results[name] = a.runPolicy(queries[name])
+			continue
+		}
+		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
+			r.Results[name] = a.randomQueryStats()
 			continue
 		}
 		if t := a.Templates.Lookup(name); t == nil {
