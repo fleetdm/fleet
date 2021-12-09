@@ -145,7 +145,7 @@ kind: query
 spec:
   name: Get laptops with failing batteries
   platforms: macOS
-  description:
+  description: Get all laptops with batteries that are not well-performing.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
   contributors: zwass
