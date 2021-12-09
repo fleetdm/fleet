@@ -197,6 +197,8 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time) (*HostSummary, error)
+	// GetHostOnlineCount returns the number of hosts currently seen as online.
+	GetHostOnlineCount(ctx context.Context, filter TeamFilter, now time.Time) (int, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on

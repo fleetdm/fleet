@@ -229,6 +229,7 @@ type HostSettings struct {
 	EnableHostUsers         bool             `json:"enable_host_users"`
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+	RateLimitDisabled       bool             `json:"rate_limit_disabled"`
 }
 
 type OrderDirection int

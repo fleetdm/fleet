@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"sync"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -39,6 +40,25 @@ type Service struct {
 	seenHostSet *seenHostSet
 
 	authz *authz.Authorizer
+}
+
+type rateLimit struct {
+	sync.Mutex
+
+	lastCheck time.Time
+	rate      int
+}
+
+var queriesRateLimit = map[string]*rateLimit{
+	"detailQueries": {
+		rate: 10,
+	},
+	"policyQueries": {
+		rate: 10,
+	},
+	"labelQueries": {
+		rate: 10,
+	},
 }
 
 // NewService creates a new service from the config struct

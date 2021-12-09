@@ -161,6 +161,8 @@ type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error)
 
+type GetHostOnlineCountFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (int, error)
+
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
@@ -550,6 +552,9 @@ type DataStore struct {
 
 	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
 	GenerateHostStatusStatisticsFuncInvoked bool
+
+	GetHostOnlineCountFunc        GetHostOnlineCountFunc
+	GetHostOnlineCountFuncInvoked bool
 
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
@@ -1171,6 +1176,11 @@ func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
 	s.GenerateHostStatusStatisticsFuncInvoked = true
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now)
+}
+
+func (s *DataStore) GetHostOnlineCount(ctx context.Context, filter fleet.TeamFilter, now time.Time) (int, error) {
+	s.GetHostOnlineCountFuncInvoked = true
+	return s.GetHostOnlineCountFunc(ctx, filter, now)
 }
 
 func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {

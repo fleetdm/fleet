@@ -105,7 +105,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	}
 	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
 
-	// Loop through results, collecting which labels we need to insert/update
+	// Loop through results, collecting which policies we need to insert/update.
 	vals := []interface{}{}
 	bindvars := []string{}
 	for _, policyID := range orderedIDs {

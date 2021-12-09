@@ -420,58 +420,20 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
-
-var (
-	lastCheck time.Time
-	rate      int = 10
-)
-
 func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
-		return nil, nil
-	}
-
-	// Update the rate every 5 seconds
-	if time.Since(lastCheck) > 5*time.Second {
-		lastCheck = time.Now()
-
-		hostStats, err := svc.ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, time.Now())
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host stats for detail queries")
-		}
-
-		// Attempt to calculate a rate that allows all the online hosts to perform their update over
-		// a single interval.
-		rate = int(hostStats.OnlineCount/uint(svc.config.Osquery.DetailUpdateInterval.Seconds())) + 1
-		if rate < 10 {
-			rate = 10
-		}
-
-		fmt.Println(
-			"interval:", svc.config.Osquery.DetailUpdateInterval,
-			"online:", hostStats.OnlineCount,
-			"rate: ", rate,
-		)
-	}
-
-	limiter, err := throttled.NewGCRARateLimiter(
-		svc.limitStore,
-		throttled.RateQuota{MaxRate: throttled.PerSec(rate), MaxBurst: rate},
+	shouldUpdate, err := svc.shouldUpdate(ctx,
+		host.RefetchRequested,
+		host.DetailUpdatedAt,
+		svc.config.Osquery.DetailUpdateInterval,
+		host.DistributedInterval,
+		"detailQueries",
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "rate limit detail queries")
+		return nil, ctxerr.Wrap(ctx, err, "should update for detail queries")
 	}
-	// Maybe there should be a separate limit for if the refetch was requested explicitly? So that
-	// any hosts with refetch requested can do so quicker.
-	limited, _, err := limiter.RateLimit("detailQueries", 1)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "check rate limit detail queries")
-	}
-	if limited {
-		// Rate limited, try again on next checkin
+	if !shouldUpdate {
 		return nil, nil
 	}
-	// Everything below here as normal
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -503,22 +465,140 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (
 	return queries, nil
 }
 
-func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration) bool {
+// shouldUpdate returns whether a query group should be sent to a host or not.
+//
+// queriesName must to be one of "detailQueries", "policyQueries" and "labelQueries",
+// otherwise shouldUpdate panics.
+func (svc *Service) shouldUpdate(
+	ctx context.Context,
+	refetchRequested bool,
+	lastUpdated time.Time,
+	queriesInterval time.Duration,
+	distributedIntervalSecs uint,
+	queriesName string,
+) (bool, error) {
+	if refetchRequested {
+		return true, nil
+	}
 	var jitter time.Duration
 	if svc.config.Osquery.MaxJitterPercent > 0 {
-		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * interval / time.Duration(100.0)
+		maxJitter := time.Duration(svc.config.Osquery.MaxJitterPercent) * queriesInterval / time.Duration(100.0)
 		randDuration, err := rand.Int(rand.Reader, big.NewInt(int64(maxJitter)))
 		if err == nil {
 			jitter = time.Duration(randDuration.Int64())
 		}
 	}
-	cutoff := svc.clock.Now().Add(-(interval + jitter))
-	return lastUpdated.Before(cutoff)
+	cutoff := svc.clock.Now().Add(-(queriesInterval + jitter))
+	if lastUpdated.After(cutoff) {
+		return false, nil
+	}
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "read app config")
+	}
+	if config.HostSettings.RateLimitDisabled {
+		return true, nil
+	}
+
+	rateLimit, ok := queriesRateLimit[queriesName]
+	if !ok {
+		panic(fmt.Sprintf("unknown rate limit config: %s", queriesName))
+	}
+
+	rate, err := svc.updateRateLimit(ctx, rateLimit, queriesName, queriesInterval)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err)
+	}
+
+	// Log if rate-limiting operating is taking considerable time (e.g. due to Redis performance).
+	defer func(start time.Time) {
+		if took := time.Since(start); took > 2*time.Second {
+			level.Info(svc.logger).Log("msg", "high-rate-limiting-latency", "took", took)
+		}
+	}(time.Now())
+
+	limiter, err := throttled.NewGCRARateLimiter(
+		svc.limitStore,
+		throttled.RateQuota{
+			MaxRate:  throttled.PerSec(rate),
+			MaxBurst: rate,
+		},
+	)
+	if err != nil {
+		// If rate-limiting fails we log the error and "allow the request".
+		level.Error(svc.logger).Log("op", "NewGCRARateLimiter", "err", err)
+		return true, nil
+	}
+	limited, _, err := limiter.RateLimit(queriesName, 1)
+	if err != nil {
+		// If rate-limiting fails we log the error and "allow the request".
+		level.Error(svc.logger).Log("op", "RateLimit", "err", err)
+		return true, nil
+	}
+	return !limited, nil
+}
+
+// rateForOnline attempts to calculate a rate that allows all the online
+// hosts to perform their update over a single interval.
+func rateForOnline(onlineCount int, interval time.Duration) int {
+	rate := onlineCount/int(interval.Seconds()) + 1
+	const minRate = 10
+	if rate < minRate {
+		rate = minRate
+	}
+	return rate
+}
+
+// updateRateLimit updates the rate every 5 seconds depending on number of online hosts.
+func (svc *Service) updateRateLimit(
+	ctx context.Context,
+	rateLimit *rateLimit,
+	queriesName string,
+	queriesInterval time.Duration,
+) (int, error) {
+	rateLimit.Lock()
+	defer rateLimit.Unlock()
+
+	if time.Since(rateLimit.lastCheck) < 5*time.Second {
+		return rateLimit.rate, nil
+	}
+
+	rateLimit.lastCheck = time.Now()
+
+	onlineCount, err := svc.ds.GetHostOnlineCount(ctx, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	}, time.Now())
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get online host counts for queries")
+	}
+
+	rateLimit.rate = rateForOnline(onlineCount, queriesInterval)
+
+	level.Info(svc.logger).Log(
+		"queries", queriesName,
+		"interval", queriesInterval,
+		"online", onlineCount,
+		"rate", rateLimit.rate,
+	)
+	return rateLimit.rate, nil
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval) && !host.RefetchRequested {
+	shouldUpdate, err := svc.shouldUpdate(ctx,
+		host.RefetchRequested,
+		labelReportedAt,
+		svc.config.Osquery.LabelUpdateInterval,
+		host.DistributedInterval,
+		"labelQueries",
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "should update for label queries")
+	}
+	if !shouldUpdate {
 		return nil, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
@@ -529,7 +609,17 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 }
 
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) && !host.RefetchRequested {
+	shouldUpdate, err := svc.shouldUpdate(ctx,
+		host.RefetchRequested,
+		host.PolicyUpdatedAt,
+		svc.config.Osquery.PolicyUpdateInterval,
+		host.DistributedInterval,
+		"policyQueries",
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "should update for policy queries")
+	}
+	if !shouldUpdate {
 		return nil, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)

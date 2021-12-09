@@ -596,11 +596,12 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) err
 	return nil
 }
 
+// GenerateHostStatusStatistics returns hosts summary information (online, offline, etc.).
+//
+// The logic in this function should remain synchronized with
+// host.Status and CountHostsInTargets - that is, the intervals associated
+// with each status must be the same.
 func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time) (*fleet.HostSummary, error) {
-	// The logic in this function should remain synchronized with
-	// host.Status and CountHostsInTargets - that is, the intervals associated
-	// with each status must be the same.
-
 	whereClause := d.whereFilterHostsByTeams(filter, "h")
 	sqlStatement := fmt.Sprintf(`
 			SELECT
@@ -638,6 +639,35 @@ func (d *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	summary.Platforms = platforms
 
 	return &summary, nil
+}
+
+// GetHostOnlineCount returns the number of hosts seen as online.
+//
+// The logic in this function should remain synchronized with
+// host.Status and CountHostsInTargets - that is, the intervals associated
+// with each status must be the same.
+func (d *Datastore) GetHostOnlineCount(ctx context.Context, filter fleet.TeamFilter, now time.Time) (int, error) {
+	whereClause := d.whereFilterHostsByTeams(filter, "h")
+	sqlStatement := fmt.Sprintf(`
+			SELECT
+				COALESCE(
+					SUM(
+						CASE WHEN DATE_ADD(
+							COALESCE(hst.seen_time, h.created_at), 
+							INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND
+						) > ? THEN 1 ELSE 0 END
+					),
+				0) online,
+			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
+			LIMIT 1;
+		`, fleet.OnlineIntervalBuffer, whereClause)
+
+	var online int
+	err := sqlx.GetContext(ctx, d.reader, &online, sqlStatement, now)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, ctxerr.Wrap(ctx, err, "generating host online count")
+	}
+	return online, nil
 }
 
 // EnrollHost enrolls a host

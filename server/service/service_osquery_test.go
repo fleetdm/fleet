@@ -29,6 +29,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // One of these queries is the disk space, only one of the two works in a platform
@@ -258,6 +259,9 @@ func TestHostDetailQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
+	ds.GetHostOnlineCountFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (int, error) {
+		return 1, nil
+	}
 
 	mockClock := clock.NewMockClock()
 	host := fleet.Host{
@@ -278,7 +282,16 @@ func TestHostDetailQueries(t *testing.T) {
 		UUID:            "test_uuid",
 	}
 
-	svc := &Service{clock: mockClock, config: config.TestConfig(), ds: ds}
+	memLimitStore, err := memstore.New(3)
+	require.NoError(t, err)
+
+	svc := &Service{
+		clock:      mockClock,
+		config:     config.TestConfig(),
+		ds:         ds,
+		logger:     log.NewNopLogger(),
+		limitStore: memLimitStore,
+	}
 
 	queries, err := svc.detailQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
@@ -339,6 +352,9 @@ func TestLabelQueries(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.GetHostOnlineCountFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time) (int, error) {
+		return 1, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -2046,4 +2062,35 @@ func TestPolicyQueries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries)
 	noPolicyResults(queries)
+}
+
+func TestRateForOnline(t *testing.T) {
+	for _, tc := range []struct {
+		name                    string
+		onlineCount             int
+		queriesInterval         time.Duration
+		distributedIntervalSecs uint
+
+		expRate int
+	}{
+		{
+			name:            "queries-1h-default-with-1k-online-hosts",
+			onlineCount:     1000,
+			queriesInterval: 1 * time.Hour,
+
+			expRate: 10,
+		},
+		{
+			name:            "50k-online-hosts-bigger-than-rate-10",
+			onlineCount:     50000,
+			queriesInterval: 30 * time.Minute,
+
+			expRate: 28,
+		},
+	} {
+		t.Run(tc.name, func(T *testing.T) {
+			rate := rateForOnline(tc.onlineCount, tc.queriesInterval)
+			require.Equal(t, tc.expRate, rate)
+		})
+	}
 }
