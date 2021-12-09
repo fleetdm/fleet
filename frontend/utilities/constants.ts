@@ -20,7 +20,7 @@ export const DEFAULT_POLICIES = [
       "Checks to make sure that the Filevault feature is enabled on macOS devices.",
     resolution:
       "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-    platforms: "darwin",
+    platform: "darwin",
   },
   {
     key: 2,
@@ -30,7 +30,7 @@ export const DEFAULT_POLICIES = [
       "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
     resolution:
       "On the failing device, run the following command in the Terminal app: /usr/sbin / spctl--master- enable",
-    platforms: "darwin",
+    platform: "darwin",
   },
   {
     key: 3,
@@ -40,7 +40,7 @@ export const DEFAULT_POLICIES = [
       "Checks to make sure that device encryption is enabled on Windows devices.",
     resolution:
       "Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
-    platforms: "windows",
+    platform: "windows",
   },
   {
     key: 4,
@@ -50,7 +50,7 @@ export const DEFAULT_POLICIES = [
     description: "Checks to make sure that the SIP is enabled.",
     resolution:
       "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
-    platforms: "darwin",
+    platform: "darwin",
   },
   {
     key: 5,
@@ -61,7 +61,7 @@ export const DEFAULT_POLICIES = [
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password. It’s good practice to have both this policy and the “Is Filevault enabled on macOS devices?” policy enabled.",
     resolution:
       "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65",
-    platforms: "darwin",
+    platform: "darwin",
   },
   {
     key: 6,
@@ -72,7 +72,7 @@ export const DEFAULT_POLICIES = [
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
       "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
-    platforms: "darwin",
+    platform: "darwin",
   },
   {
     key: 7,
@@ -82,7 +82,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
-    platforms: "darwin",
+    platform: "darwin",
   },
 ];
 
