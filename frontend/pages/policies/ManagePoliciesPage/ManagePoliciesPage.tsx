@@ -76,7 +76,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
-    setPolicyTeamId,
   } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
@@ -96,6 +95,16 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
+
+  const { data: fleetQueries } = useQuery(
+    ["fleetQueries"],
+    () => fleetQueriesAPI.loadAll(),
+    {
+      select: (data) => data.queries,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // ===== local state
   const [globalPolicies, setGlobalPolicies] = useState<
@@ -172,7 +181,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
-    setPolicyTeamId(id);
     const selectedTeam = find(teams, ["id", id]);
     setCurrentTeam(selectedTeam);
   };
@@ -335,6 +343,9 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const selectedTeamData = userTeams?.find(
     (team) => selectedTeamId === team.id
   );
+
+  console.log("showInheritedPolicies: ", showInheritedPolicies);
+  console.log("showInheritedPoliciesButton: ", showInheritedPoliciesButton);
 
   return (
     <div className={baseClass}>

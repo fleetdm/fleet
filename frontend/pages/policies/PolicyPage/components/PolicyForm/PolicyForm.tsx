@@ -82,6 +82,7 @@ const PolicyForm = ({
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
+    policyTeamId,
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
@@ -99,6 +100,10 @@ const PolicyForm = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
+    setCurrentTeam,
   } = useContext(AppContext);
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
@@ -127,10 +132,11 @@ const PolicyForm = ({
     ? isAnyTeamMaintainerOrTeamAdmin &&
       storedPolicy &&
       currentUser &&
-      storedPolicy.author_id === currentUser.id
+      currentUser.teams.find((team) => team.id === storedPolicy.team_id)
     : isAnyTeamMaintainerOrTeamAdmin;
 
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+  const hasSavePermissions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -428,23 +434,25 @@ const PolicyForm = ({
       // using a real button
       // prettier-ignore
       return (
-        <div>
-          <b>Resolve:</b> {" "}
-          <span
-            role="button"
-            className={`${baseClass}__policy-resolution`}
-            onClick={() => setIsEditingResolution(true)}
-          >
-            <img alt="Edit resolution" src={PencilIcon} />
-          </span><br/>
-          <span
-            role="button"
-            className={`${baseClass}__policy-resolution`}
-            onClick={() => setIsEditingResolution(true)}
-          >
-            {lastEditedQueryResolution || "Add resolution here."}
-          </span>
-        </div>
+        <>
+          <div className="resolve-text-wrapper">
+            <b>Resolve:</b> {" "}
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              <img alt="Edit resolution" src={PencilIcon} />
+            </span><br/>
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              {lastEditedQueryResolution || "Add resolution here."}
+            </span>
+          </div>
+        </>
       );
       /* eslint-enable */
     }
@@ -578,7 +586,11 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (
+    isOnlyObserver ||
+    isGlobalObserver ||
+    (policyTeamId === 0 && !isOnGlobalTeam)
+  ) {
     return renderRunForObserver;
   }
 
