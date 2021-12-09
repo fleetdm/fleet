@@ -74,16 +74,16 @@ To setup Fleet infrastructure, use one of the available commands.
 				}
 			case fleet.UnknownMigrations:
 				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
+					"# WARNING:\n"+
 					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
 					"#   running an older version of Fleet on a newer migrated database.\n"+
 					"#\n"+
 					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Upgrade Fleet server version.\n"+
 					"################################################################################\n",
 					status.UnknownTable, status.UnknownData)
-				os.Exit(1)
+				if dev {
+					os.Exit(1)
+				}
 			}
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
