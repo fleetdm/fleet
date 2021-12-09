@@ -14,6 +14,7 @@ describe(
 
       // Add a policy
       cy.findByText(/add a policy/i).click();
+      cy.findByText(/create your own policy/i).click();
 
       // Confirm that policy was added successfully
       // cy.findByText(/successfully added policy/i).should("exist");
@@ -50,9 +51,9 @@ describe(
       // });
 
       // Click on policies tab to return to manage policies page
-      cy.get(".site-nav-container").within(() => {
-        cy.findByText(/policies/i).click();
-      });
+      // cy.get(".site-nav-container").within(() => {
+      //   cy.findByText(/policies/i).click();
+      // });
 
       // Delete policy
       // cy.get("tbody").within(() => {
