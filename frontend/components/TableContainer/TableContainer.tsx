@@ -317,44 +317,53 @@ const TableContainer = ({
           </>
         ) : (
           <>
-            <DataTable
-              isLoading={isLoading}
-              columns={columns}
-              data={data}
-              manualSortBy={manualSortBy}
-              sortHeader={sortHeader}
-              sortDirection={sortDirection}
-              onSort={onSortChange}
-              disableMultiRowSelect={disableMultiRowSelect}
-              showMarkAllPages={showMarkAllPages}
-              isAllPagesSelected={isAllPagesSelected}
-              toggleAllPagesSelected={toggleAllPagesSelected}
-              resultsTitle={resultsTitle}
-              defaultPageSize={pageSize}
-              primarySelectActionButtonVariant={
-                primarySelectActionButtonVariant
+            {!clientFilterCount && <EmptyComponent pageIndex={pageIndex} />}
+            <div
+              className={
+                isClientSideFilter
+                  ? `client-result-count-${clientFilterCount}`
+                  : ""
               }
-              primarySelectActionButtonIcon={primarySelectActionButtonIcon}
-              primarySelectActionButtonText={primarySelectActionButtonText}
-              onPrimarySelectActionClick={onPrimarySelectActionClick}
-              secondarySelectActions={secondarySelectActions}
-              onSelectSingleRow={onSelectSingleRow}
-              onResultsCountChange={onResultsCountChange}
-              isClientSidePagination={isClientSidePagination}
-              isClientSideFilter={isClientSideFilter}
-              highlightOnHover={highlightOnHover}
-              searchQuery={searchQuery}
-              searchQueryColumn={searchQueryColumn}
-              selectedDropdownFilter={selectedDropdownFilter}
-            />
-            {!disablePagination && !isClientSidePagination && (
-              <Pagination
-                resultsOnCurrentPage={data.length}
-                currentPage={pageIndex}
-                resultsPerPage={pageSize}
-                onPaginationChange={onPaginationChange}
+            >
+              <DataTable
+                isLoading={isLoading}
+                columns={columns}
+                data={data}
+                manualSortBy={manualSortBy}
+                sortHeader={sortHeader}
+                sortDirection={sortDirection}
+                onSort={onSortChange}
+                disableMultiRowSelect={disableMultiRowSelect}
+                showMarkAllPages={showMarkAllPages}
+                isAllPagesSelected={isAllPagesSelected}
+                toggleAllPagesSelected={toggleAllPagesSelected}
+                resultsTitle={resultsTitle}
+                defaultPageSize={pageSize}
+                primarySelectActionButtonVariant={
+                  primarySelectActionButtonVariant
+                }
+                primarySelectActionButtonIcon={primarySelectActionButtonIcon}
+                primarySelectActionButtonText={primarySelectActionButtonText}
+                onPrimarySelectActionClick={onPrimarySelectActionClick}
+                secondarySelectActions={secondarySelectActions}
+                onSelectSingleRow={onSelectSingleRow}
+                onResultsCountChange={onResultsCountChange}
+                isClientSidePagination={isClientSidePagination}
+                isClientSideFilter={isClientSideFilter}
+                highlightOnHover={highlightOnHover}
+                searchQuery={searchQuery}
+                searchQueryColumn={searchQueryColumn}
+                selectedDropdownFilter={selectedDropdownFilter}
               />
-            )}
+              {!disablePagination && !isClientSidePagination && (
+                <Pagination
+                  resultsOnCurrentPage={data.length}
+                  currentPage={pageIndex}
+                  resultsPerPage={pageSize}
+                  onPaginationChange={onPaginationChange}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
