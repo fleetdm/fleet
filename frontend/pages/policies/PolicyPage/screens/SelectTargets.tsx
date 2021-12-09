@@ -31,7 +31,6 @@ interface ITargetPillSelectorProps {
 interface ISelectTargetsProps {
   baseClass: string;
   selectedTargets: ITarget[];
-  policyIdForEdit: number | null;
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
@@ -75,11 +74,10 @@ const TargetPillSelector = ({
 const SelectTargets = ({
   baseClass,
   selectedTargets,
-  policyIdForEdit,
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
-}: ISelectTargetsProps) => {
+}: ISelectTargetsProps): JSX.Element => {
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
@@ -99,7 +97,7 @@ const SelectTargets = ({
     () =>
       targetsAPI.loadAll({
         query: searchText,
-        queryId: policyIdForEdit,
+        queryId: null,
         selected: formatSelectedTargetsForApi(selectedTargets) as any,
       }),
     {
