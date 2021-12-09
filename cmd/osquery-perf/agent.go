@@ -120,7 +120,8 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 type agent struct {
 	agentIndex     int
-	softwareCount  softwareCount
+	softwareCount  entityCount
+	userCount      entityCount
 	policyPassProb float64
 	strings        map[string]string
 	serverAddress  string
@@ -140,7 +141,7 @@ type agent struct {
 	QueryInterval  time.Duration
 }
 
-type softwareCount struct {
+type entityCount struct {
 	common int
 	unique int
 }
@@ -148,7 +149,7 @@ type softwareCount struct {
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval time.Duration, softwareCount softwareCount,
+	configInterval, queryInterval time.Duration, softwareCount, userCount entityCount,
 	policyPassProb float64,
 ) *agent {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -158,6 +159,7 @@ func newAgent(
 		agentIndex:     agentIndex,
 		serverAddress:  serverAddress,
 		softwareCount:  softwareCount,
+		userCount:      userCount,
 		strings:        make(map[string]string),
 		policyPassProb: policyPassProb,
 		fastClient: fasthttp.Client{
@@ -335,6 +337,36 @@ func (a *agent) CachedString(key string) string {
 	return val
 }
 
+func (a *agent) HostUsersMacOS() []fleet.HostUser {
+	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
+	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
+	commonUsers := make([]fleet.HostUser, a.userCount.common)
+	for i := 0; i < len(commonUsers); i++ {
+		commonUsers[i] = fleet.HostUser{
+			Uid:       uint(i),
+			Username:  fmt.Sprintf("Common_%d", i),
+			Type:      "", // Empty for macOS.
+			GroupName: groupNames[i%len(groupNames)],
+			Shell:     shells[i%len(shells)],
+		}
+	}
+	uniqueUsers := make([]fleet.HostUser, a.userCount.unique)
+	for i := 0; i < len(uniqueUsers); i++ {
+		uniqueUsers[i] = fleet.HostUser{
+			Uid:       uint(i),
+			Username:  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			Type:      "", // Empty for macOS.
+			GroupName: groupNames[i%len(groupNames)],
+			Shell:     shells[i%len(shells)],
+		}
+	}
+	users := append(commonUsers, uniqueUsers...)
+	rand.Shuffle(len(users), func(i, j int) {
+		users[i], users[j] = users[j], users[i]
+	})
+	return users
+}
+
 func (a *agent) SoftwareMacOS() []fleet.Software {
 	commonSoftware := make([]fleet.Software, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
@@ -485,6 +517,8 @@ func main() {
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common of installed applications reported to fleet")
 	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
+	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 
 	flag.Parse()
@@ -510,9 +544,12 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		a := newAgent(i, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, softwareCount{
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, entityCount{
 			common: *commonSoftwareCount,
 			unique: *uniqueSoftwareCount,
+		}, entityCount{
+			common: *commonUserCount,
+			unique: *uniqueUserCount,
 		}, *policyPassProb)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
