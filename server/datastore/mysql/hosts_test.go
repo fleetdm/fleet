@@ -760,6 +760,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 100, OrderKey: "team_name"}}, len(hosts))
+	assert.Equal(t, len(hosts), len(gotHosts))
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
