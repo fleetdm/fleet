@@ -1,4 +1,3 @@
-
 ## About Fleet
 
 Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet.
@@ -59,5 +58,4 @@ Fleet Device Management Inc. is an all-remote company, with team members spread 
 ### Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
 
-<meta name="maintainedBy" value="mike-j-thomas">
-
+<meta name="maintainedBy" value="mikermcneil">
