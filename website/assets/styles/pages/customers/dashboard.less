@@ -88,6 +88,45 @@
     p {
       margin-block-end: 0px;
     }
+    [purpose="license-key"] {
+      display: block;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      max-height: 20px;
+
+      &.show-overflow {
+        overflow: unset;
+        display: inline;
+        overflow: auto;
+        white-space: normal;
+      }
+
+      .copied::before {
+        content: 'Copied to clipboard!';
+        display: flex;
+        font-weight: 400;
+        position: relative;
+        top: -25px;
+        height: 0px;
+        font-size: 14px;
+        // line-height: 14px;
+        color: @core-vibrant-blue;
+        animation-name: copiedText;
+        animation-duration: 4s;
+        animation-fill-mode: forwards;
+      }
+
+      @keyframes copiedText {
+        0% {opacity: 0;}
+        20% {opacity: 100;}
+        30% {opacity: 80;}
+        50% {opacity: 60;}
+        70% {opacity: 40;}
+        80% {opacity: 20;}
+        100% {opacity: 0;}
+      }
+    }
 
   }
 

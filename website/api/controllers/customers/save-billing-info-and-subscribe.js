@@ -123,7 +123,6 @@ module.exports = {
 
     // Send the order confirmation template email
     await sails.helpers.sendTemplateEmail.with({
-      // to: 'eric@feralgoblin.com',
       to: userRecord.emailAddress,
       from: sails.config.custom.fromEmail,
       fromName: sails.config.custom.fromName,

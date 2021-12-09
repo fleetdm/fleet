@@ -21,15 +21,14 @@
             <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="timeago"></js-timestamp></p>
           </div>
           <div class="col-12 col-lg-4 pt-3 pt-lg-0">
-            <strong>License key</strong>
-            <p>{{licenseKey}}<img class="d-inline-block ml-3" style="width: 15px; height: 16px" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"></p>
+            <strong>License key</strong><img class="d-inline-block ml-3" style="width: 15px; height: 16px" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()">
+            <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{licenseKey}}</span></p>
           </div>
         </div>
       </div>
     </div>
 
     <div class="row pt-3">
-
       <div class="col-12 col-lg-6">
       <h3 class="pb-3">Your details</h3>
         <div purpose="details-card" class="card card-body justify-content-center">
@@ -92,9 +91,10 @@
           Ask for help on Slack
         </a>
       </div>
-
     </div>
+
   </div>
+
   <modal v-if="modal === 'update-profile'" @close="closeModal()" v-cloak purpose="modal">
     <div class="container">
       <div class="modal-header">

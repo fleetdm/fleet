@@ -19,8 +19,10 @@ parasails.registerPage('dashboard', {
     // Server error state for the form
     cloudError: '',
     modal: '',
-    // defining the license key here until I get live keys going.
-    licenseKey: '1234 1234 1234 1234 1234'
+    alert: '',
+    showFullLicenseKey: false,
+    // Note: this is the sample key from the license generator readme
+    licenseKey: 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -81,6 +83,15 @@ parasails.registerPage('dashboard', {
 
     clickCopyLicenseKey: function() {
       navigator.clipboard.writeText(this.licenseKey);
+    },
+    clickExpandLicenseKey: function() {
+      if(!this.showFullLicenseKey){
+        $('[purpose="license-key"]').addClass('show-overflow');
+        this.showFullLicenseKey = true;
+      } else {
+        $('[purpose="license-key"]').removeClass('show-overflow');
+        this.showFullLicenseKey = false;
+      }
     },
 
     clickRemoveCardButton: async function() {
