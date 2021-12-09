@@ -220,11 +220,12 @@ const TableContainer = ({
   ]);
 
   const displayCount = useCallback((): number => {
-    if (typeof filteredCount == "number") {
+    if (typeof filteredCount === "number") {
       return filteredCount;
-    } else if (typeof clientFilterCount == "number") {
+    } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
-    } else return data.length;
+    }
+    return data.length;
   }, [filteredCount, clientFilterCount, data]);
 
   return (
