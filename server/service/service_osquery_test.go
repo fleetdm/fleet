@@ -293,23 +293,26 @@ func TestHostDetailQueries(t *testing.T) {
 		limitStore: memLimitStore,
 	}
 
-	queries, err := svc.detailQueriesForHost(context.Background(), host)
+	queries, rateLimited, err := svc.detailQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
 	assert.Empty(t, queries)
+	assert.False(t, rateLimited)
 
 	// With refetch requested detail queries should be returned
 	host.RefetchRequested = true
-	queries, err = svc.detailQueriesForHost(context.Background(), host)
+	queries, rateLimited, err = svc.detailQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
 	assert.NotEmpty(t, queries)
+	assert.False(t, rateLimited)
 	host.RefetchRequested = false
 
 	// Advance the time
 	mockClock.AddTime(1*time.Hour + 1*time.Minute)
 
-	queries, err = svc.detailQueriesForHost(context.Background(), host)
+	queries, rateLimited, err = svc.detailQueriesForHost(context.Background(), host)
 	require.NoError(t, err)
 	require.Len(t, queries, expectedDetailQueries+2)
+	assert.False(t, rateLimited)
 	for name := range queries {
 		assert.True(t,
 			strings.HasPrefix(name, hostDetailQueryPrefix) || strings.HasPrefix(name, hostAdditionalQueryPrefix),

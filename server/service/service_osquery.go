@@ -420,8 +420,8 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
-func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (map[string]string, error) {
-	shouldUpdate, err := svc.shouldUpdate(ctx,
+func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (map[string]string, bool, error) {
+	shouldUpdate, rateLimited, err := svc.shouldUpdate(ctx,
 		host.RefetchRequested,
 		host.DetailUpdatedAt,
 		svc.config.Osquery.DetailUpdateInterval,
@@ -429,15 +429,15 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (
 		"detailQueries",
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "should update for detail queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "should update for detail queries")
 	}
 	if !shouldUpdate {
-		return nil, nil
+		return nil, rateLimited, nil
 	}
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read app config")
+		return nil, false, ctxerr.Wrap(ctx, err, "read app config")
 	}
 
 	queries := make(map[string]string)
@@ -450,19 +450,19 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (
 
 	if config.HostSettings.AdditionalQueries == nil {
 		// No additional queries set
-		return queries, nil
+		return queries, false, nil
 	}
 
 	var additionalQueries map[string]string
 	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
 	for name, query := range additionalQueries {
 		queries[hostAdditionalQueryPrefix+name] = query
 	}
 
-	return queries, nil
+	return queries, false, nil
 }
 
 // shouldUpdate returns whether a query group should be sent to a host or not.
@@ -476,9 +476,9 @@ func (svc *Service) shouldUpdate(
 	queriesInterval time.Duration,
 	distributedIntervalSecs uint,
 	queriesName string,
-) (bool, error) {
+) (update bool, rateLimited bool, err error) {
 	if refetchRequested {
-		return true, nil
+		return true, false, nil
 	}
 	var jitter time.Duration
 	if svc.config.Osquery.MaxJitterPercent > 0 {
@@ -490,15 +490,15 @@ func (svc *Service) shouldUpdate(
 	}
 	cutoff := svc.clock.Now().Add(-(queriesInterval + jitter))
 	if lastUpdated.After(cutoff) {
-		return false, nil
+		return false, false, nil
 	}
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "read app config")
+		return false, false, ctxerr.Wrap(ctx, err, "read app config")
 	}
 	if config.HostSettings.RateLimitDisabled {
-		return true, nil
+		return true, false, nil
 	}
 
 	rateLimit, ok := queriesRateLimit[queriesName]
@@ -508,7 +508,7 @@ func (svc *Service) shouldUpdate(
 
 	rate, err := svc.updateRateLimit(ctx, rateLimit, queriesName, queriesInterval)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err)
+		return false, false, ctxerr.Wrap(ctx, err)
 	}
 
 	// Log if rate-limiting operating is taking considerable time (e.g. due to Redis performance).
@@ -528,15 +528,16 @@ func (svc *Service) shouldUpdate(
 	if err != nil {
 		// If rate-limiting fails we log the error and "allow the request".
 		level.Error(svc.logger).Log("op", "NewGCRARateLimiter", "err", err)
-		return true, nil
+		return true, false, nil
 	}
 	limited, _, err := limiter.RateLimit(queriesName, 1)
 	if err != nil {
 		// If rate-limiting fails we log the error and "allow the request".
 		level.Error(svc.logger).Log("op", "RateLimit", "err", err)
-		return true, nil
+		return true, false, nil
 	}
-	return !limited, nil
+
+	return !limited, limited, nil
 }
 
 // rateForOnline attempts to calculate a rate that allows all the online
@@ -586,9 +587,9 @@ func (svc *Service) updateRateLimit(
 	return rateLimit.rate, nil
 }
 
-func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, bool, error) {
 	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	shouldUpdate, err := svc.shouldUpdate(ctx,
+	shouldUpdate, rateLimited, err := svc.shouldUpdate(ctx,
 		host.RefetchRequested,
 		labelReportedAt,
 		svc.config.Osquery.LabelUpdateInterval,
@@ -596,20 +597,20 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 		"labelQueries",
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "should update for label queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "should update for label queries")
 	}
 	if !shouldUpdate {
-		return nil, nil
+		return nil, rateLimited, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "retrieve label queries")
 	}
-	return labelQueries, nil
+	return labelQueries, false, nil
 }
 
-func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	shouldUpdate, err := svc.shouldUpdate(ctx,
+func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, bool, error) {
+	shouldUpdate, rateLimited, err := svc.shouldUpdate(ctx,
 		host.RefetchRequested,
 		host.PolicyUpdatedAt,
 		svc.config.Osquery.PolicyUpdateInterval,
@@ -617,16 +618,16 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		"policyQueries",
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "should update for policy queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "should update for policy queries")
 	}
 	if !shouldUpdate {
-		return nil, nil
+		return nil, rateLimited, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
+		return nil, false, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
-	return policyQueries, nil
+	return policyQueries, false, nil
 }
 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
@@ -640,7 +641,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	queries := make(map[string]string)
 
-	detailQueries, err := svc.detailQueriesForHost(ctx, host)
+	detailQueries, detailRateLimited, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
@@ -648,7 +649,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[name] = query
 	}
 
-	labelQueries, err := svc.labelQueriesForHost(ctx, &host)
+	labelQueries, labelRateLimited, err := svc.labelQueriesForHost(ctx, &host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
@@ -664,7 +665,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostDistributedQueryPrefix+name] = query
 	}
 
-	policyQueries, err := svc.policyQueriesForHost(ctx, &host)
+	policyQueries, policyRateLimited, err := svc.policyQueriesForHost(ctx, &host)
 	if err != nil {
 		return nil, 0, osqueryError{message: err.Error()}
 	}
@@ -673,10 +674,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	}
 
 	accelerate := uint(0)
-	if host.Hostname == "" || host.Platform == "" {
-		// Assume this host is just enrolling, and accelerate checkins
-		// (to allow for platform restricted labels to run quickly
-		// after platform is retrieved from details)
+	// Assume this host is just enrolling, and accelerate checkins
+	// (to allow for platform restricted labels to run quickly
+	// after platform is retrieved from details)
+	if host.Hostname == "" || host.Platform == "" ||
+		// If any of the detail, label or policies hit a rate limit we also enable accelerate.
+		(detailRateLimited || labelRateLimited || policyRateLimited) {
 		accelerate = 10
 	}
 
