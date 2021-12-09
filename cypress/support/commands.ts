@@ -99,6 +99,54 @@ Cypress.Commands.add("seedQueries", () => {
   });
 });
 
+Cypress.Commands.add("seedPolicies", (team = "") => {
+  const policies = [
+    {
+      name: "Is Filevault enabled on macOS devices?",
+      query:
+        "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1",
+      description:
+        "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      resolution:
+        "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+    },
+    {
+      name: "Is System Integrity Protection (SIP) enabled on macOS devices?",
+      query:
+        "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
+      description: "Checks to make sure that the SIP is enabled.",
+      resolution:
+        "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+    },
+  ];
+
+  if (team === "apples") {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/teams/1/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  } else {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/global/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  }
+});
+
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {

@@ -9,6 +9,7 @@ describe(
       cy.login();
       cy.seedFree();
       cy.seedQueries();
+      cy.seedPolicies();
       cy.addDockerHost();
       cy.logout();
     });
@@ -112,6 +113,28 @@ describe(
       // cy.findByText(/query all/i).click();
 
       // cy.findByText(/edit & run query/i).should("exist");
+
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "create a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
 
       // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");

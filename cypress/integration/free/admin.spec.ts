@@ -10,6 +10,7 @@ describe(
       cy.setupSMTP();
       cy.seedFree();
       cy.seedQueries();
+      cy.seedPolicies();
       cy.addDockerHost();
       cy.logout();
     });
@@ -112,6 +113,28 @@ describe(
 
       // On the Packs pages (manage, new, and edit), they should…
       // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
+
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "create a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
 
       // On the Settings pages, they should…
       // See everything except for the “Teams” pages
