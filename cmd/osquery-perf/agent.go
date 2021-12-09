@@ -299,7 +299,6 @@ func (a *agent) config() {
 		}
 	}
 	a.scheduledQueries = scheduledQueries
-	log.Println("SCHEDULED QUERIES", scheduledQueries)
 
 	// No need to read the config body
 }
