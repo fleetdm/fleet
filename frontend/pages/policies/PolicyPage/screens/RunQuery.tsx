@@ -15,7 +15,7 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 
-import QueryResults from "components/QueryResults";
+import QueryResults from "../components/QueryResults";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;
@@ -31,7 +31,7 @@ const RunQuery = ({
   policyIdForEdit,
   setSelectedTargets,
   goToQueryEditor,
-}: IRunQueryProps) => {
+}: IRunQueryProps): JSX.Element => {
   const dispatch = useDispatch();
 
   const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
@@ -152,10 +152,9 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const isStoredQueryEdited = storedPolicy?.query !== lastEditedQueryBody;
-
-      // because we are not using the saved query id if user edits the SQL
-      const queryId = isStoredQueryEdited ? null : policyIdForEdit;
+      // we do not want to run a stored query,
+      // instead always run provided query
+      const queryId = null;
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
         queryId,
@@ -205,14 +204,16 @@ const RunQuery = ({
   }, []);
 
   const { campaign } = campaignState;
+
   return (
     <QueryResults
       campaign={campaign}
+      isQueryFinished={isQueryFinished}
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
-      isQueryFinished={isQueryFinished}
       setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
+      policyName={storedPolicy?.name}
     />
   );
 };

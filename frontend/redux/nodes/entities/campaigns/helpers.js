@@ -13,6 +13,7 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
   const errors = campaign.errors || [];
   const hosts = campaign.hosts || [];
   const { host, rows, error } = data;
+  host.query_results = rows;
   const { hosts_count: hostsCount } = campaign;
   const newHosts = [...hosts, host];
   const newQueryResults = [...queryResults, ...rows];
