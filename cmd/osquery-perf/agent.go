@@ -282,25 +282,24 @@ func (a *agent) config() {
 		return
 	}
 
-	parsedResp := make(map[string]interface{})
+	parsedResp := struct {
+		Packs map[string]struct {
+			Queries map[string]interface{} `json:"queries"`
+		} `json:"packs"`
+	}{}
 	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
 		log.Println("json parse at config:", err)
 		return
 	}
 
 	var scheduledQueries []string
-	for key, val := range parsedResp {
-		if key == "packs" {
-			packDict := val.(map[string]interface{})
-			for packName, pack := range packDict {
-				queriesDict := pack.(map[string]interface{})["queries"].(map[string]interface{})
-				for queryName := range queriesDict {
-					scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
-				}
-			}
+	for packName, pack := range parsedResp.Packs {
+		for queryName := range pack.Queries {
+			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
 		}
 	}
 	a.scheduledQueries = scheduledQueries
+	log.Println("SCHEDULED QUERIES", scheduledQueries)
 
 	// No need to read the config body
 }
