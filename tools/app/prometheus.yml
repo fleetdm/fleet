@@ -1,7 +1,7 @@
 scrape_configs:
   - job_name: fleet
     scheme: https
-    scrape_interval: 5s
+    scrape_interval: 100ms
     static_configs:
       - targets: ['host.docker.internal:8080']
     tls_config:

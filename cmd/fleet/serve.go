@@ -263,6 +263,11 @@ the way that the Fleet server works.
 			}
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
+			limiterStore := &redis.ThrottledStore{
+				Pool:      redisPool,
+				KeyPrefix: "ratelimit::",
+			}
+
 			osqueryLogger, err := logging.New(config, logger)
 			if err != nil {
 				initFatal(err, "initializing osquery logging")
@@ -280,7 +285,7 @@ the way that the Fleet server works.
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 			}
-			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, limiterStore)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -323,11 +328,6 @@ the way that the Fleet server works.
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
-
-			limiterStore := &redis.ThrottledStore{
-				Pool:      redisPool,
-				KeyPrefix: "ratelimit::",
-			}
 
 			var apiHandler, frontendHandler http.Handler
 			{

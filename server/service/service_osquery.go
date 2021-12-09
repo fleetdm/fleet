@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/throttled/throttled/v2"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
@@ -419,10 +420,58 @@ const hostDistributedQueryPrefix = "fleet_distributed_query_"
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
+
+var (
+	lastCheck time.Time
+	rate      int = 10
+)
+
 func (svc *Service) detailQueriesForHost(ctx context.Context, host fleet.Host) (map[string]string, error) {
 	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
+
+	// Update the rate every 5 seconds
+	if time.Since(lastCheck) > 5*time.Second {
+		lastCheck = time.Now()
+
+		hostStats, err := svc.ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, time.Now())
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host stats for detail queries")
+		}
+
+		// Attempt to calculate a rate that allows all the online hosts to perform their update over
+		// a single interval.
+		rate = int(hostStats.OnlineCount/uint(svc.config.Osquery.DetailUpdateInterval.Seconds())) + 1
+		if rate < 10 {
+			rate = 10
+		}
+
+		fmt.Println(
+			"interval:", svc.config.Osquery.DetailUpdateInterval,
+			"online:", hostStats.OnlineCount,
+			"rate: ", rate,
+		)
+	}
+
+	limiter, err := throttled.NewGCRARateLimiter(
+		svc.limitStore,
+		throttled.RateQuota{MaxRate: throttled.PerSec(rate), MaxBurst: rate},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rate limit detail queries")
+	}
+	// Maybe there should be a separate limit for if the refetch was requested explicitly? So that
+	// any hosts with refetch requested can do so quicker.
+	limited, _, err := limiter.RateLimit("detailQueries", 1)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check rate limit detail queries")
+	}
+	if limited {
+		// Rate limited, try again on next checkin
+		return nil, nil
+	}
+	// Everything below here as normal
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {

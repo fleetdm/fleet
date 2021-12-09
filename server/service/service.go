@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/throttled/throttled/v2"
 )
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
@@ -28,6 +29,7 @@ type Service struct {
 	config         config.FleetConfig
 	clock          clock.Clock
 	license        fleet.LicenseInfo
+	limitStore     throttled.GCRAStore
 
 	osqueryLogWriter *logging.OsqueryLogger
 
@@ -53,6 +55,7 @@ func NewService(
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
+	limitStore throttled.GCRAStore,
 ) (fleet.Service, error) {
 	var svc fleet.Service
 
@@ -76,6 +79,7 @@ func NewService(
 		seenHostSet:      newSeenHostSet(),
 		license:          license,
 		authz:            authorizer,
+		limitStore:       limitStore,
 	}
 	svc = validationMiddleware{svc, ds, sso}
 	return svc, nil

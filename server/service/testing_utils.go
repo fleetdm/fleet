@@ -21,6 +21,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
@@ -56,11 +57,12 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 		}
 	}
+
 	task := &async.Task{
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license)
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license, newLimiterStore())
 	if err != nil {
 		panic(err)
 	}
@@ -91,11 +93,20 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
+	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license, newLimiterStore())
 	if err != nil {
 		panic(err)
 	}
 	return svc
+}
+
+func newLimiterStore() throttled.GCRAStore {
+	limiterStore, err := memstore.New(0)
+	if err != nil {
+		panic(err)
+	}
+
+	return limiterStore
 }
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
