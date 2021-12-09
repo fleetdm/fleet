@@ -3,7 +3,8 @@ import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import softwareAPI from "services/entities/software";
-import { ISoftware } from "interfaces/software";
+import { ISoftware } from "interfaces/software"; // @ts-ignore
+import debounce from "utilities/debounce";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
@@ -220,16 +221,16 @@ const Software = ({
     }
   };
 
-  const onModalSoftwareQueryChange = async ({
-    pageIndex,
-    searchQuery,
-  }: ITableQueryProps) => {
-    setModalSoftwareSearchText(searchQuery);
+  const onModalSoftwareQueryChange = debounce(
+    async ({ pageIndex, searchQuery }: ITableQueryProps) => {
+      setModalSoftwareSearchText(searchQuery);
 
-    if (pageIndex !== modalSoftwarePageIndex) {
-      setModalSoftwarePageIndex(pageIndex);
-    }
-  };
+      if (pageIndex !== modalSoftwarePageIndex) {
+        setModalSoftwarePageIndex(pageIndex);
+      }
+    },
+    { leading: false, trailing: true }
+  );
 
   useEffect(() => {
     setModalSoftwareState(() => {
