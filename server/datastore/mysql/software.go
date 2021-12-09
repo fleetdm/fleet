@@ -241,26 +241,31 @@ func listSoftwareDB(
 }
 
 func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
-	ds := dialect.From(goqu.I("host_software").As("hs")).Select(
+	ds := dialect.From(goqu.I("software").As("s")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-	).Join(
-		goqu.I("hosts").As("h"),
-		goqu.On(
-			goqu.I("hs.host_id").Eq(goqu.I("h.id")),
-		),
-	).Join(
-		goqu.I("software").As("s"),
-		goqu.On(
-			goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-		),
 	)
+
+	if hostID != nil || opts.TeamID != nil {
+		ds = ds.Join(
+			goqu.I("host_software").As("hs"),
+			goqu.On(
+				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
+		)
+	}
 
 	if hostID != nil {
 		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
 	}
+
 	if opts.TeamID != nil {
-		ds = ds.Where(goqu.I("h.team_id").Eq(opts.TeamID))
+		ds = ds.Join(
+			goqu.I("hosts").As("h"),
+			goqu.On(
+				goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+			),
+		).Where(goqu.I("h.team_id").Eq(opts.TeamID))
 	}
 
 	if match := opts.MatchQuery; match != "" {
