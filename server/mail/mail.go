@@ -151,7 +151,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	if e.Config.SMTPSettings.SMTPAuthenticationMethod == fleet.AuthMethodNameCramMD5 {
 		err = smtp.SendMail(smtpHost, auth, e.Config.SMTPSettings.SMTPSenderAddress, e.To, msg)
 		if err != nil {
-			return fmt.Errorf("failed to send mail. cramd5 auth method: %w", err)
+			return fmt.Errorf("failed to send mail. crammd5 auth method: %w", err)
 		}
 		return nil
 	}
@@ -235,7 +235,7 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 	_ = conn.SetDeadline(time.Now().Add(28 * time.Second))
 	client, err = smtp.NewClient(conn, host)
 	if err != nil {
-		return nil, errors.New("SMTP connection error")
+		return nil, fmt.Errorf("SMTP connection error: %w", err)
 	}
 	// Clear deadlines
 	_ = conn.SetDeadline(time.Time{})
