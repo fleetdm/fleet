@@ -135,6 +135,10 @@ describe(
         cy.findByRole("button", { name: /cancel/i }).click();
       });
       cy.findByText(/filevault enabled/i).click();
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+      cy.findByRole("button", { name: /save/i }).should("exist");
+      cy.findByRole("button", { name: /run/i }).should("exist");
 
       // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");
