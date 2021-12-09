@@ -605,7 +605,7 @@ The address to serve the Fleet webserver.
 
 The TLS cert to use when terminating TLS.
 
-See [TLS certificate considerations](./01-Installation.md#tls-certificate-considerations) for more information about certificates and Fleet.
+See [TLS certificate considerations](./01-Introduction.md#tls-certificate) for more information about certificates and Fleet.
 
 - Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
@@ -1768,6 +1768,8 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 ##### s3_region
 
 AWS S3 Region. Leave blank to enable region discovery.
+
+Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
 
 - Default value:
 - Environment variable: `FLEET_S3_REGION`

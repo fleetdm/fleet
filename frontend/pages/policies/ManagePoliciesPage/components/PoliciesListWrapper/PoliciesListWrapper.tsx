@@ -2,7 +2,6 @@ import React from "react";
 import { noop } from "lodash";
 import paths from "router/paths";
 
-import Button from "components/buttons/Button";
 import { IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import TableContainer from "components/TableContainer";

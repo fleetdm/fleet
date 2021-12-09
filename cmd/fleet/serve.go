@@ -180,16 +180,16 @@ the way that the Fleet server works.
 				// OK
 			case fleet.UnknownMigrations:
 				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
+					"# WARNING:\n"+
 					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
 					"#   running an older version of Fleet on a newer migrated database.\n"+
 					"#\n"+
 					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Upgrade Fleet server version.\n"+
 					"################################################################################\n",
 					migrationStatus.UnknownTable, migrationStatus.UnknownData)
-				os.Exit(1)
+				if dev {
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# WARNING:\n"+
