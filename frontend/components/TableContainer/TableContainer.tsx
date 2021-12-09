@@ -217,7 +217,18 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || clientFilterCount || data.length;
+  const displayCount = useCallback((): number => {
+    if (typeof filteredCount == "number") {
+      return filteredCount;
+    } else if (typeof clientFilterCount == "number") {
+      return clientFilterCount;
+    } else return data.length;
+  }, [filteredCount, clientFilterCount, data]);
+
+  console.log("\n\nfilteredCount", filteredCount);
+  console.log("clientFilterCount", clientFilterCount);
+  console.log("data.length", data.length);
+  console.log("displayCount()", displayCount());
 
   return (
     <div className={wrapperClasses}>
@@ -237,7 +248,7 @@ const TableContainer = ({
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
-              displayCount
+              displayCount()
             )}
             {resultsHtml}
           </p>
