@@ -96,15 +96,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     refetchOnWindowFocus: false,
   });
 
-  const { data: fleetQueries } = useQuery(
-    ["fleetQueries"],
-    () => fleetQueriesAPI.loadAll(),
-    {
-      select: (data) => data.queries,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-    }
-  );
+  useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
+    select: (data) => data.queries,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
 
   // ===== local state
   const [globalPolicies, setGlobalPolicies] = useState<
@@ -343,9 +339,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const selectedTeamData = userTeams?.find(
     (team) => selectedTeamId === team.id
   );
-
-  console.log("showInheritedPolicies: ", showInheritedPolicies);
-  console.log("showInheritedPoliciesButton: ", showInheritedPoliciesButton);
 
   return (
     <div className={baseClass}>

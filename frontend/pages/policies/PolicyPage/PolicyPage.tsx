@@ -44,9 +44,11 @@ const PolicyPage = ({
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const policyTeamId = URLQuerySearch.team_id || 0;
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    setCurrentTeam
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
@@ -98,6 +100,10 @@ const PolicyPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
         setPolicyTeamId(returnedQuery.team_id || 0);
+        if (currentUser) {
+          const policyTeam = currentUser.teams.find((userTeam) => userTeam.id === returnedQuery.teamId);
+          console.log("policyTeam: ", policyTeam);
+        }
       },
     }
   );

@@ -95,16 +95,27 @@ const PolicyForm = ({
 
   const {
     currentUser,
-    isOnlyObserver,
+    currentTeam,
+    isTeamObserver,
     isGlobalObserver,
-    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
     isTeamAdmin,
     isTeamMaintainer,
     setCurrentTeam,
+    setCurrentUser
   } = useContext(AppContext);
+
+  console.log("currentTeam: ", currentTeam);
+  console.log("isTeamAdmin: ", isTeamAdmin);
+
+  if (policyTeamId && currentUser && !currentTeam) {
+    console.log("policyTeamId: ", policyTeamId);
+    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
+    console.log("set team");
+    setCurrentTeam(thisPolicyTeam);
+  }
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
     (queryString: string) => {
@@ -129,11 +140,11 @@ const PolicyForm = ({
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainerOrTeamAdmin &&
+    ? (isTeamAdmin || isTeamMaintainer) &&
       storedPolicy &&
       currentUser &&
       currentUser.teams.find((team) => team.id === storedPolicy.team_id)
-    : isAnyTeamMaintainerOrTeamAdmin;
+    : isTeamAdmin || isTeamMaintainer;
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -520,14 +531,14 @@ const PolicyForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+          {hasSavePermissions && (
             <div className="query-form__button-wrap--save-policy-button">
               <div
                 data-tip
                 data-for="save-query-button"
                 data-tip-disable={
                   !(
-                    isAnyTeamMaintainerOrTeamAdmin &&
+                    (isTeamAdmin || isTeamMaintainer) &&
                     !hasTeamMaintainerPermissions
                   )
                 }
@@ -537,7 +548,7 @@ const PolicyForm = ({
                   variant="brand"
                   onClick={promptSavePolicy()}
                   disabled={
-                    isAnyTeamMaintainerOrTeamAdmin &&
+                    (isTeamAdmin || isTeamMaintainer) &&
                     !hasTeamMaintainerPermissions
                   }
                 >
@@ -587,7 +598,7 @@ const PolicyForm = ({
   }
 
   if (
-    isOnlyObserver ||
+    isTeamObserver ||
     isGlobalObserver ||
     (policyTeamId === 0 && !isOnGlobalTeam)
   ) {
