@@ -2,16 +2,20 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/kit/log"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -247,23 +251,74 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 }
 
 func TestEndpointer(t *testing.T) {
+
 	r := mux.NewRouter()
 	ds := new(mock.Store)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			ID:         3,
+			UserID:     42,
+			Key:        key,
+			AccessedAt: time.Now(),
+		}, nil
+	}
+	ds.DestroySessionFunc = func(ctx context.Context, session *fleet.Session) error {
+		return nil
+	}
+	ds.MarkSessionAccessedFunc = func(ctx context.Context, session *fleet.Session) error {
+		return nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+	}
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{GlobalRole: ptr.String(fleet.RoleAdmin)}}, nil
+	}
+
 	svc := newTestService(ds, nil, nil)
-	e := NewUserAuthenticatedEndpointer(svc, nil, r, "v1", "2021-11")
+
+	fleetAPIOptions := []kithttp.ServerOption{
+		kithttp.ServerBefore(
+			kithttp.PopulateRequestContext, // populate the request context with common fields
+			setRequestsContexts(svc),
+		),
+		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerAfter(
+			kithttp.SetContentType("application/json; charset=utf-8"),
+			logRequestEnd(kitlog.NewNopLogger()),
+			checkLicenseExpiration(svc),
+		),
+	}
+
+	e := NewUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
 	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-		return nil, nil
+		if authctx, ok := authz_ctx.FromContext(ctx); ok {
+			authctx.SetChecked()
+		}
+		return "nop", nil
 	}
 	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-		return nil, nil
+		if authctx, ok := authz_ctx.FromContext(ctx); ok {
+			authctx.SetChecked()
+		}
+		return "override", nil
 	}
 
+	// Regular path, no plan to deprecate
 	e.GET("/api/v1/fleet/path1", nopHandler, struct{}{})
+
+	// New path, we want it only available starting from the specified version
 	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/newpath", nopHandler, struct{}{})
 
-	e.GET("/api/v1/fleet/overriddenpath", nopHandler, struct{}{})
-	// TODO: figure out how to check that one route goes to one handler and the other to another
+	// Path that was in v1, but was changed in 2021-11
+	e.EndingAtVersion("v1").GET("/api/v1/fleet/overriddenpath", nopHandler, struct{}{})
 	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/overriddenpath", overrideHandler, struct{}{})
+
+	// Path that got deprecated
+	e.EndingAtVersion("v1").GET("/api/v1/fleet/deprecated", nopHandler, struct{}{})
+	// Path that got deprecated but in the latest version
+	e.EndingAtVersion("2021-11").GET("/api/v1/fleet/deprecated-soon", nopHandler, struct{}{})
 
 	mustMatch := []struct {
 		method     string
@@ -276,6 +331,12 @@ func TestEndpointer(t *testing.T) {
 
 		{method: "GET", path: "/api/2021-11/fleet/newpath"},
 		{method: "GET", path: "/api/latest/fleet/newpath"},
+
+		{method: "GET", path: "/api/v1/fleet/deprecated"},
+
+		{method: "GET", path: "/api/v1/fleet/deprecated-soon"},
+		{method: "GET", path: "/api/2021-11/fleet/deprecated-soon"},
+		{method: "GET", path: "/api/latest/fleet/deprecated-soon"},
 
 		{method: "GET", path: "/api/v1/fleet/overriddenpath"},
 		{method: "GET", path: "/api/2021-11/fleet/overriddenpath", overridden: true},
@@ -292,27 +353,35 @@ func TestEndpointer(t *testing.T) {
 		{method: "GET", path: "/api/v1/qwejoqiwejqiowehioqwe"},
 
 		{method: "GET", path: "/api/v1/fleet/newpath"},
+
+		{method: "GET", path: "/api/2021-11/fleet/deprecated"},
+		{method: "GET", path: "/api/latest/fleet/deprecated"},
 	}
 
-	doesItMatch := func(method, path string) bool {
+	doesItMatch := func(method, path string, override bool) bool {
 		testURL := url.URL{Path: path}
-		request := http.Request{Method: method, URL: &testURL}
+		request := http.Request{Method: method, URL: &testURL, Header: map[string][]string{"Authorization": {"Bearer asd"}}, Body: io.NopCloser(strings.NewReader(""))}
 		routeMatch := mux.RouteMatch{}
 
 		res := r.Match(&request, &routeMatch)
 		if routeMatch.Route != nil {
-			fmt.Println(routeMatch.Route.GetName())
 			rec := httptest.NewRecorder()
-			routeMatch.Handler.ServeHTTP(rec, &http.Request{Body: io.NopCloser(strings.NewReader(""))})
+			routeMatch.Handler.ServeHTTP(rec, &request)
+			got := rec.Body.String()
+			if override {
+				require.Equal(t, "\"override\"\n", got)
+			} else {
+				require.Equal(t, "\"nop\"\n", got)
+			}
 		}
 		return res && routeMatch.MatchErr == nil && routeMatch.Route != nil
 	}
 
 	for _, route := range mustMatch {
-		require.True(t, doesItMatch(route.method, route.path), route)
+		require.True(t, doesItMatch(route.method, route.path, route.overridden), route)
 	}
 
 	for _, route := range mustNotMatch {
-		require.False(t, doesItMatch(route.method, route.path), route)
+		require.False(t, doesItMatch(route.method, route.path, false), route)
 	}
 }
