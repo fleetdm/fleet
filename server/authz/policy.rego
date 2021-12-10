@@ -430,10 +430,8 @@ allow {
 # Team admin and maintainers can read and write policies for their teams
 allow {
   not is_null(object.team_id)
-  team_id := subject.teams[_].id
-  object.team_id == team_id
   object.type == "policy"
-  team_role(subject, team_id) == [admin,maintainer][_]
+  team_role(subject, object.team_id) == [admin,maintainer][_]
   action == [read, write][_]
 }
 
@@ -448,10 +446,8 @@ allow {
 # Team Observer can read policies for their teams
 allow {
   not is_null(object.team_id)
-  team_id := subject.teams[_].id
-  object.team_id == team_id
   object.type == "policy"
-  team_role(subject, team_id) == observer
+  team_role(subject, object.team_id) == observer
   action == read
 }
 
