@@ -1165,12 +1165,14 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 
 	// Make team host online.
 	h, err = ds.Host(context.Background(), h.ID, true)
+	require.NoError(t, err)
 	h.SeenTime = mockClock.Now().Add(-1 * time.Minute)
 	h.DistributedInterval = 60
 	h.ConfigTLSRefresh = 3600
 	err = ds.SaveHost(context.Background(), h)
+	require.NoError(t, err)
 	err = ds.MarkHostsSeen(context.Background(), []uint{h.ID}, mockClock.Now().Add(-1*time.Minute))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
 	assert.Nil(t, err)
