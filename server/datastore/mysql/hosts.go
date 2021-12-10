@@ -657,7 +657,7 @@ func (d *Datastore) GetHostOnlineCount(ctx context.Context, filter fleet.TeamFil
 							INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND
 						) > ? THEN 1 ELSE 0 END
 					),
-				0) online,
+				0) online
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id=hst.host_id) WHERE %s
 			LIMIT 1;
 		`, fleet.OnlineIntervalBuffer, whereClause)

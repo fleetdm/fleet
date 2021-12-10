@@ -104,7 +104,7 @@ func TestHosts(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
+			// defer TruncateTables(t, ds)
 
 			c.fn(t, ds)
 		})
@@ -1029,6 +1029,10 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), summary.MIACount)
 	assert.Equal(t, uint(0), summary.NewCount)
 
+	onlineCount, err := ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now())
+	assert.NoError(t, err)
+	require.Zero(t, onlineCount)
+
 	// Online
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
@@ -1109,6 +1113,10 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now())
+	assert.NoError(t, err)
+	require.Equal(t, summary.OnlineCount, uint(onlineCount))
+
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
@@ -1118,6 +1126,10 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+	require.Zero(t, onlineCount)
+
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
@@ -1125,10 +1137,19 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint(0), summary.TotalsHostsCount)
 
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+	require.Zero(t, onlineCount)
+
 	filter.IncludeObserver = true
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
 	assert.Nil(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(0), summary.OnlineCount)
+
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+	require.Equal(t, summary.OnlineCount, uint(onlineCount))
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
@@ -1136,6 +1157,30 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 	assert.Equal(t, uint(1), summary.MIACount)
+	require.Zero(t, summary.OnlineCount)
+
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now().Add(1*time.Hour))
+	assert.NoError(t, err)
+	require.Equal(t, summary.OnlineCount, uint(onlineCount))
+
+	// Make team host online.
+	h, err = ds.Host(context.Background(), h.ID, true)
+	h.SeenTime = mockClock.Now().Add(-1 * time.Minute)
+	h.DistributedInterval = 60
+	h.ConfigTLSRefresh = 3600
+	err = ds.SaveHost(context.Background(), h)
+	err = ds.MarkHostsSeen(context.Background(), []uint{h.ID}, mockClock.Now().Add(-1*time.Minute))
+	assert.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now())
+	assert.Nil(t, err)
+	assert.Equal(t, uint(1), summary.TotalsHostsCount)
+	assert.Zero(t, summary.MIACount)
+	require.Equal(t, uint(1), summary.OnlineCount)
+
+	onlineCount, err = ds.GetHostOnlineCount(context.Background(), filter, mockClock.Now())
+	assert.NoError(t, err)
+	require.Equal(t, summary.OnlineCount, uint(onlineCount))
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
