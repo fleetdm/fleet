@@ -48,6 +48,7 @@ const PolicyPage = ({
     isAnyTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
   const {
+    lastEditedQueryBody,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     setLastEditedQueryName,

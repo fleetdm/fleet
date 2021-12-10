@@ -1769,6 +1769,8 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
+Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+
 - Default value:
 - Environment variable: `FLEET_S3_REGION`
 - Config file format:
