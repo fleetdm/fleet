@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -222,15 +223,12 @@ type UserAuthEndpointer struct {
 	endingAtVersion   string
 }
 
-type endpointerHandler struct {
-}
-
 func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
 	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
 
 func getNameFromPathAndVerb(verb, path string) string {
-	return strings.ToLower(verb) + "_" + strings.ReplaceAll(strings.TrimSuffix("/api/v1/fleet/", strings.TrimRight(path, "/")), "/", "_")
+	return strings.ToLower(verb) + "_" + strings.ReplaceAll(path, "/", "_")
 }
 
 func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
@@ -278,8 +276,17 @@ func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, v
 		versions = versions[:endIndex+1]
 	}
 
-	versionedPath := strings.Replace(path, "/v1/", fmt.Sprintf("/[%s]/", strings.Join(versions, ",")), 1)
-	e.r.Handle(versionedPath, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
+	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
+	// latest
+	if e.endingAtVersion == "" || e.endingAtVersion == e.versions[len(e.versions)-1] {
+		versions = append(versions, "latest")
+	}
+
+	versionedPath := strings.Replace(path, "/v1/", fmt.Sprintf("/(%s)/", strings.Join(versions, "|")), 1)
+	e.r.Methods(verb).MatcherFunc(func(request *http.Request, match *mux.RouteMatch) bool {
+		matched, err := regexp.MatchString(versionedPath, request.URL.Path)
+		return matched && err == nil
+	}).Handler(e.makeEndpoint(f, v)).Name(getNameFromPathAndVerb(verb, path))
 }
 
 func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {

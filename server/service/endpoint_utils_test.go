@@ -2,11 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -239,4 +244,75 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 	require.NotNil(t, casted.ID1)
 	assert.Equal(t, uint(444), *casted.ID1)
+}
+
+func TestEndpointer(t *testing.T) {
+	r := mux.NewRouter()
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+	e := NewUserAuthenticatedEndpointer(svc, nil, r, "v1", "2021-11")
+	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		return nil, nil
+	}
+	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		return nil, nil
+	}
+
+	e.GET("/api/v1/fleet/path1", nopHandler, struct{}{})
+	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/newpath", nopHandler, struct{}{})
+
+	e.GET("/api/v1/fleet/overriddenpath", nopHandler, struct{}{})
+	// TODO: figure out how to check that one route goes to one handler and the other to another
+	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/overriddenpath", overrideHandler, struct{}{})
+
+	mustMatch := []struct {
+		method     string
+		path       string
+		overridden bool
+	}{
+		{method: "GET", path: "/api/v1/fleet/path1"},
+		{method: "GET", path: "/api/2021-11/fleet/path1"},
+		{method: "GET", path: "/api/latest/fleet/path1"},
+
+		{method: "GET", path: "/api/2021-11/fleet/newpath"},
+		{method: "GET", path: "/api/latest/fleet/newpath"},
+
+		{method: "GET", path: "/api/v1/fleet/overriddenpath"},
+		{method: "GET", path: "/api/2021-11/fleet/overriddenpath", overridden: true},
+		{method: "GET", path: "/api/latest/fleet/overriddenpath", overridden: true},
+	}
+
+	mustNotMatch := []struct {
+		method  string
+		path    string
+		handler http.Handler
+	}{
+		{method: "POST", path: "/api/v1/fleet/path1"},
+		{method: "GET", path: "/api/v1/fleet/qwejoqiwejqiowehioqwe"},
+		{method: "GET", path: "/api/v1/qwejoqiwejqiowehioqwe"},
+
+		{method: "GET", path: "/api/v1/fleet/newpath"},
+	}
+
+	doesItMatch := func(method, path string) bool {
+		testURL := url.URL{Path: path}
+		request := http.Request{Method: method, URL: &testURL}
+		routeMatch := mux.RouteMatch{}
+
+		res := r.Match(&request, &routeMatch)
+		if routeMatch.Route != nil {
+			fmt.Println(routeMatch.Route.GetName())
+			rec := httptest.NewRecorder()
+			routeMatch.Handler.ServeHTTP(rec, &http.Request{Body: io.NopCloser(strings.NewReader(""))})
+		}
+		return res && routeMatch.MatchErr == nil && routeMatch.Route != nil
+	}
+
+	for _, route := range mustMatch {
+		require.True(t, doesItMatch(route.method, route.path), route)
+	}
+
+	for _, route := range mustNotMatch {
+		require.False(t, doesItMatch(route.method, route.path), route)
+	}
 }
