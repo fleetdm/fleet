@@ -567,21 +567,19 @@ func (svc *Service) updateRateLimit(
 
 	rateLimit.lastCheck = time.Now()
 
-	onlineCount, err := svc.ds.GetHostOnlineCount(ctx, fleet.TeamFilter{
-		User: &fleet.User{
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-		},
-	}, time.Now())
+	totalCount, err := svc.ds.CountHosts(
+		ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, fleet.HostListOptions{},
+	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get online host counts for queries")
 	}
 
-	rateLimit.rate = rateForOnline(onlineCount, queriesInterval)
+	rateLimit.rate = rateForOnline(totalCount, queriesInterval)
 
 	level.Info(svc.logger).Log(
 		"queries", queriesName,
 		"interval", queriesInterval,
-		"online", onlineCount,
+		"online", totalCount,
 		"rate", rateLimit.rate,
 	)
 	return rateLimit.rate, nil
