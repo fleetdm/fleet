@@ -11,7 +11,7 @@ The Fleet application is distributed as a single static binary (or as a Docker c
 
 Fleet is the most widely used open source osquery manager in the world. Fleet enables programmable live queries, streaming logs, and realtime visibility of 100,000+ servers, containers, and laptops. It's especially useful for IT, security, and compliance use cases.
 
-The Fleet application is contains two single static binaries which provide web based administration, REST API, and CLI interface to Fleet.
+The Fleet application contains two single static binaries which provide web based administration, REST API, and CLI interface to Fleet.
 
 The `fleet` binary contains:
 - The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
