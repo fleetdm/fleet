@@ -59,6 +59,7 @@ const PolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -100,10 +101,13 @@ const PolicyPage = ({
       refetchOnWindowFocus: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
+        // START HERE: API is responding with empty platform prop after we provide it in POST request
+        console.log("returnedQuery: ", returnedQuery);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryPlatform(returnedQuery.platform);
         setPolicyTeamId(returnedQuery.team_id || 0);
       },
     }
@@ -129,12 +133,13 @@ const PolicyPage = ({
     }
   );
 
-  const {
-    mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) =>
-    formData.team_id
-      ? teamPoliciesAPI.create(formData)
-      : globalPoliciesAPI.create(formData)
+  const { mutateAsync: createPolicy } = useMutation(
+    (formData: IPolicyFormData) => {
+      console.log("formData: ", formData);
+      return formData.team_id
+        ? teamPoliciesAPI.create(formData)
+        : globalPoliciesAPI.create(formData);
+    }
   );
 
   useEffect(() => {
