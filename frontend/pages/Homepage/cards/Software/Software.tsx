@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import softwareAPI from "services/entities/software";
-import { ISoftware } from "interfaces/software";
+import { ISoftware } from "interfaces/software"; // @ts-ignore
+import debounce from "utilities/debounce";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
-import { generateTableHeaders } from "./SoftwareTableConfig";
+import {
+  generateTableHeaders,
+  generateModalSoftwareTableHeaders,
+} from "./SoftwareTableConfig";
 
 interface ITableQueryProps {
   pageIndex: number;
@@ -21,6 +25,7 @@ interface ITableQueryProps {
 }
 
 interface ISoftwareCardProps {
+  currentTeamId?: number;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
 }
@@ -96,6 +101,7 @@ const EmptySoftware = (message: string): JSX.Element => {
 };
 
 const Software = ({
+  currentTeamId,
   isModalOpen,
   setIsSoftwareModalOpen,
 }: ISoftwareCardProps): JSX.Element => {
@@ -112,70 +118,90 @@ const Software = ({
     isModalSoftwareVulnerable,
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
+  const [modalSoftwareState, setModalSoftwareState] = useState<ISoftware[]>([]);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
+  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
+  const [
+    isLoadingVulnerableSoftware,
+    setIsLoadingVulnerableSoftware,
+  ] = useState<boolean>(false);
+  const [isLoadingModalSoftware, setIsLoadingModalSoftware] = useState<boolean>(
+    false
+  );
 
-  const { data: software, isLoading: isLoadingSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(
-    ["software", softwarePageIndex],
-    () =>
-      softwareAPI.load({
+  const { data: software } = useQuery<ISoftware[], Error>(
+    ["software", softwarePageIndex, currentTeamId],
+    () => {
+      setIsLoadingSoftware(true);
+      return softwareAPI.load({
         page: softwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "name,id",
         orderDir: "asc",
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: navTabIndex === 0,
-      refetchOnWindowFocus: false,
+      // If keepPreviousData is enabled,
+      // useQuery no longer returns isLoading when making new calls after load
+      // So we manage our own load states
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingSoftware(false);
+      },
     }
   );
 
-  const {
-    data: vulnerableSoftware,
-    isLoading: isLoadingVulnerableSoftware,
-  } = useQuery<ISoftware[], Error>(
-    ["vSoftware", vSoftwarePageIndex],
-    () =>
-      softwareAPI.load({
+  const { data: vulnerableSoftware } = useQuery<ISoftware[], Error>(
+    ["vSoftware", vSoftwarePageIndex, currentTeamId],
+    () => {
+      setIsLoadingVulnerableSoftware(true);
+      return softwareAPI.load({
         page: vSoftwarePageIndex,
         perPage: PAGE_SIZE,
         orderKey: "name,id",
         orderDir: "asc",
         vulnerable: true,
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: navTabIndex === 1,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingVulnerableSoftware(false);
+      },
     }
   );
 
-  const { data: modalSoftware, isLoading: isLoadingModalSoftware } = useQuery<
-    ISoftware[],
-    Error
-  >(
+  const { data: modalSoftware } = useQuery<ISoftware[], Error>(
     [
       "modalSoftware",
       modalSoftwarePageIndex,
       modalSoftwareSearchText,
       isModalSoftwareVulnerable,
+      currentTeamId,
     ],
-    () =>
-      softwareAPI.load({
+    () => {
+      setIsLoadingModalSoftware(true);
+      return softwareAPI.load({
         page: modalSoftwarePageIndex,
-        perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
         orderKey: "id",
         orderDir: "desc",
         vulnerable: isModalSoftwareVulnerable,
-      }),
+        teamId: currentTeamId && currentTeamId,
+      });
+    },
     {
       enabled: isModalOpen,
       refetchOnWindowFocus: false,
       keepPreviousData: true,
+      onSuccess: () => {
+        setIsLoadingModalSoftware(false);
+      },
     }
   );
 
@@ -195,16 +221,28 @@ const Software = ({
     }
   };
 
-  const onModalSoftwareQueryChange = async ({
-    pageIndex,
-    searchQuery,
-  }: ITableQueryProps) => {
-    setModalSoftwareSearchText(searchQuery);
+  const onModalSoftwareQueryChange = debounce(
+    async ({ pageIndex, searchQuery }: ITableQueryProps) => {
+      setModalSoftwareSearchText(searchQuery);
 
-    if (pageIndex !== modalSoftwarePageIndex) {
-      setModalSoftwarePageIndex(pageIndex);
-    }
-  };
+      if (pageIndex !== modalSoftwarePageIndex) {
+        setModalSoftwarePageIndex(pageIndex);
+      }
+    },
+    { leading: false, trailing: true }
+  );
+
+  useEffect(() => {
+    setModalSoftwareState(() => {
+      return (
+        modalSoftware?.filter((softwareItem) => {
+          return softwareItem.name
+            .toLowerCase()
+            .includes(modalSoftwareSearchText.toLowerCase());
+        }) || []
+      );
+    });
+  }, [modalSoftware, modalSoftwareSearchText]);
 
   const renderStatusDropdown = () => {
     return (
@@ -278,12 +316,13 @@ const Software = ({
               it installed.
             </p>
             <TableContainer
-              columns={tableHeaders}
-              data={modalSoftware || []}
+              columns={generateModalSoftwareTableHeaders()}
+              data={modalSoftwareState}
               isLoading={isLoadingModalSoftware}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               hideActionButton
+              filteredCount={modalSoftwareState.length}
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptySoftware(
@@ -293,11 +332,12 @@ const Software = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
-              disableCount
               disableActionButton
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
+              isClientSidePagination
+              isClientSideSearch
             />
           </>
         </Modal>

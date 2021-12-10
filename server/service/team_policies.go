@@ -23,6 +23,7 @@ type teamPolicyRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
+	Platforms   string `json:"platforms"`
 }
 
 type teamPolicyResponse struct {
@@ -40,6 +41,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Query:       req.Query,
 		Description: req.Description,
 		Resolution:  req.Resolution,
+		Platform:    req.Platforms,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil

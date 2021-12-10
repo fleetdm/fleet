@@ -83,21 +83,25 @@ func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) 
 	defer l.l.Unlock()
 	l.ForceLevel = level
 }
+
 func (l *LoggingContext) SetExtras(extras ...interface{}) {
 	l.l.Lock()
 	defer l.l.Unlock()
 	l.Extras = append(l.Extras, extras...)
 }
+
 func (l *LoggingContext) SetSkipUser() {
 	l.l.Lock()
 	defer l.l.Unlock()
 	l.SkipUser = true
 }
+
 func (l *LoggingContext) SetStartTime() {
 	l.l.Lock()
 	defer l.l.Unlock()
 	l.StartTime = time.Now()
 }
+
 func (l *LoggingContext) SetErrs(err ...error) {
 	l.l.Lock()
 	defer l.l.Unlock()
@@ -109,11 +113,12 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	l.l.Lock()
 	defer l.l.Unlock()
 
-	if l.ForceLevel != nil {
+	switch {
+	case len(l.Errs) > 0:
+		logger = level.Error(logger)
+	case l.ForceLevel != nil:
 		logger = l.ForceLevel(logger)
-	} else if l.Errs != nil || len(l.Extras) > 0 {
-		logger = level.Info(logger)
-	} else {
+	default:
 		logger = level.Debug(logger)
 	}
 

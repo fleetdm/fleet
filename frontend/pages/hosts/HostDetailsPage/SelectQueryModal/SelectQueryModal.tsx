@@ -1,57 +1,47 @@
-import React, { useState } from "react";
-import PropTypes from "prop-types";
-import { push } from "react-router-redux";
+import React, { useState, useCallback } from "react";
 
 import { filter, includes } from "lodash";
 
-import PATHS from "router/paths";
-import queryInterface from "interfaces/query";
-import hostInterface from "interfaces/host";
+import { IHost } from "interfaces/host";
+import { IQuery } from "interfaces/query";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
+export interface ISelectQueryModalProps {
+  host: IHost;
+  onCancel: () => void;
+  onQueryHostCustom: () => void;
+  onQueryHostSaved: (selectedQuery: IQuery) => void;
+  queries: IQuery[] | [];
+  queryErrors: any | null;
+  isOnlyObserver: boolean | undefined;
+}
+
 const baseClass = "select-query-modal";
 
-const onQueryHostCustom = (host, dispatch) => {
-  return dispatch(
-    push({
-      pathname: PATHS.NEW_QUERY,
-      query: { host_ids: [host.id] },
-    })
-  );
-};
-
-const onQueryHostSaved = (host, selectedQuery, dispatch) => {
-  return dispatch(
-    push({
-      pathname: PATHS.EDIT_QUERY(selectedQuery),
-      query: { host_ids: [host.id] },
-    })
-  );
-};
-
 const SelectQueryModal = ({
-  host,
   onCancel,
-  dispatch,
+  onQueryHostCustom,
+  onQueryHostSaved,
   queries,
   queryErrors,
   isOnlyObserver,
-}) => {
+}: ISelectQueryModalProps) => {
   let queriesAvailableToRun = queries;
+
+  const [queriesFilter, setQueriesFilter] = useState("");
 
   if (isOnlyObserver) {
     queriesAvailableToRun = queries.filter(
       (query) => query.observer_can_run === true
     );
   }
-
-  const [queriesFilter, setQueriesFilter] = useState("");
 
   const getQueries = () => {
     if (!queriesFilter) {
@@ -71,10 +61,21 @@ const SelectQueryModal = ({
     });
   };
 
+  const onFilterQueries = useCallback(
+    (filterString: string): void => {
+      setQueriesFilter(filterString);
+    },
+    [setQueriesFilter]
+  );
+
+  const queriesFiltered = getQueries();
+
+  const queriesCount = queriesFiltered.length;
+
   const customQueryButton = () => {
     return (
       <Button
-        onClick={() => onQueryHostCustom(host, dispatch)}
+        onClick={() => onQueryHostCustom()}
         variant="brand"
         className={`${baseClass}__custom-query-button`}
       >
@@ -83,16 +84,7 @@ const SelectQueryModal = ({
     );
   };
 
-  const onFilterQueries = (event) => {
-    setQueriesFilter(event);
-    return false;
-  };
-
-  const queriesFiltered = getQueries();
-
-  const queriesCount = queriesFiltered.length;
-
-  const results = () => {
+  const results = (): JSX.Element => {
     if (queryErrors) {
       return (
         <div className={`${baseClass}__no-queries`}>
@@ -137,10 +129,12 @@ const SelectQueryModal = ({
             key={query.id}
             variant="unstyled-modal-query"
             className="modal-query-button"
-            onClick={() => onQueryHostSaved(host, query, dispatch)}
+            onClick={() => onQueryHostSaved(query)}
           >
-            <span className="info__header">{query.name}</span>
-            <span className="info__data">{query.description}</span>
+            <>
+              <span className="info__header">{query.name}</span>
+              <span className="info__data">{query.description}</span>
+            </>
           </Button>
         );
       });
@@ -198,7 +192,7 @@ const SelectQueryModal = ({
         </div>
       );
     }
-    return null;
+    return <></>;
   };
 
   return (
@@ -210,15 +204,6 @@ const SelectQueryModal = ({
       {results()}
     </Modal>
   );
-};
-
-SelectQueryModal.propTypes = {
-  dispatch: PropTypes.func,
-  host: hostInterface,
-  queries: PropTypes.arrayOf(queryInterface),
-  onCancel: PropTypes.func,
-  queryErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  isOnlyObserver: PropTypes.bool,
 };
 
 export default SelectQueryModal;

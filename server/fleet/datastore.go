@@ -213,7 +213,7 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
-	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -347,7 +347,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -399,6 +399,8 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+	// DBLocks returns the current database transaction lock waits information.
+	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats

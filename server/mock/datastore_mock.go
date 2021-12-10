@@ -175,7 +175,7 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
-type ListPoliciesForHostFunc func(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error)
+type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -277,7 +277,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -318,6 +318,8 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
+
+type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
@@ -786,6 +788,9 @@ type DataStore struct {
 	UnlockFunc        UnlockFunc
 	UnlockFuncInvoked bool
 
+	DBLocksFunc        DBLocksFunc
+	DBLocksFuncInvoked bool
+
 	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
 	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
 
@@ -1203,9 +1208,9 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
-func (s *DataStore) ListPoliciesForHost(ctx context.Context, hid uint) ([]*fleet.HostPolicy, error) {
+func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
-	return s.ListPoliciesForHostFunc(ctx, hid)
+	return s.ListPoliciesForHostFunc(ctx, host)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -1458,9 +1463,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, license)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
@@ -1561,6 +1566,11 @@ func (s *DataStore) Lock(ctx context.Context, name string, owner string, expirat
 func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error {
 	s.UnlockFuncInvoked = true
 	return s.UnlockFunc(ctx, name, owner)
+}
+
+func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
+	s.DBLocksFuncInvoked = true
+	return s.DBLocksFunc(ctx)
 }
 
 func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {

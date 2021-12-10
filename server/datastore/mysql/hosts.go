@@ -13,6 +13,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -84,8 +85,7 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sqlStatement := `
+	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
@@ -122,82 +122,81 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			percent_disk_space_available = ?
 		WHERE id = ?
 	`
-		_, err := tx.ExecContext(ctx, sqlStatement,
-			host.DetailUpdatedAt,
-			host.LabelUpdatedAt,
-			host.PolicyUpdatedAt,
-			host.NodeKey,
-			host.Hostname,
-			host.UUID,
-			host.Platform,
-			host.OsqueryVersion,
-			host.OSVersion,
-			host.Uptime,
-			host.Memory,
-			host.CPUType,
-			host.CPUSubtype,
-			host.CPUBrand,
-			host.CPUPhysicalCores,
-			host.HardwareVendor,
-			host.HardwareModel,
-			host.HardwareVersion,
-			host.HardwareSerial,
-			host.ComputerName,
-			host.Build,
-			host.PlatformLike,
-			host.CodeName,
-			host.CPULogicalCores,
-			host.DistributedInterval,
-			host.ConfigTLSRefresh,
-			host.LoggerTLSPeriod,
-			host.TeamID,
-			host.PrimaryIP,
-			host.PrimaryMac,
-			host.RefetchRequested,
-			host.GigsDiskSpaceAvailable,
-			host.PercentDiskSpaceAvailable,
-			host.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
-		}
+	_, err := d.writer.ExecContext(ctx, sqlStatement,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
+		host.PolicyUpdatedAt,
+		host.NodeKey,
+		host.Hostname,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.Memory,
+		host.CPUType,
+		host.CPUSubtype,
+		host.CPUBrand,
+		host.CPUPhysicalCores,
+		host.HardwareVendor,
+		host.HardwareModel,
+		host.HardwareVersion,
+		host.HardwareSerial,
+		host.ComputerName,
+		host.Build,
+		host.PlatformLike,
+		host.CodeName,
+		host.CPULogicalCores,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
+		host.TeamID,
+		host.PrimaryIP,
+		host.PrimaryMac,
+		host.RefetchRequested,
+		host.GigsDiskSpaceAvailable,
+		host.PercentDiskSpaceAvailable,
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	}
 
-		// Save host pack stats only if it is non-nil. Empty stats should be
-		// represented by an empty slice.
-		if host.PackStats != nil {
-			if err := saveHostPackStatsDB(ctx, tx, host); err != nil {
-				return err
+	// Save host pack stats only if it is non-nil. Empty stats should be
+	// represented by an empty slice.
+	if host.PackStats != nil {
+		if err := saveHostPackStatsDB(ctx, d.writer, host); err != nil {
+			return err
+		}
+	}
+
+	ac, err := d.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
+	}
+
+	if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
+		if err := saveHostSoftwareDB(ctx, d.writer, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to save host software")
+		}
+	}
+
+	if host.Modified {
+		if host.Additional != nil {
+			if err := saveHostAdditionalDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host additional")
 			}
 		}
 
-		ac, err := d.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
-		}
-
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
-			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
-				return ctxerr.Wrap(ctx, err, "failed to save host software")
+		if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
+			if err := saveHostUsersDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host users")
 			}
 		}
+	}
 
-		if host.Modified {
-			if host.Additional != nil {
-				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host additional")
-				}
-			}
-
-			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
-				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host users")
-				}
-			}
-		}
-
-		host.Modified = false
-		return nil
-	})
+	host.Modified = false
+	return nil
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet.Host) error {
@@ -263,16 +262,13 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
-// schQueriesPlatformFromHost converts the platform from a Host.Platform
-// string to a scheduled query platform string.
-func schQueryPlatformFromHost(hostPlatform string) string {
-	switch hostPlatform {
-	case "ubuntu", "rhel", "debian":
-		return "linux"
-	default: // darwin, windows
-		return hostPlatform
-	}
-}
+// MySQL is really particular about using zero values or old values for
+// timestamps, so we set a default value that is plenty far in the past, but
+// hopefully accepted by most MySQL configurations.
+//
+// NOTE: #3229 proposes a better fix that uses *time.Time for
+// ScheduledQueryStats.LastExecuted.
+var pastDate = "2000-01-01T00:00:00Z"
 
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
@@ -301,7 +297,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
 		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
 		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(0)")).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
 		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
 		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
 		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
@@ -328,7 +324,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 			goqu.I("sq.platform").IsNull(),
 			// scheduled_queries.platform can be a comma-separated list of
 			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", schQueryPlatformFromHost(hostPlatform)).Neq(0),
+			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 		),
 	)
 	sql, args, err := ds.ToSQL()
@@ -1004,7 +1000,11 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []*fleet.HostPolicy, err error) {
+func (d *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens.
+		level.Error(d.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
@@ -1017,10 +1017,11 @@ func (d *Datastore) ListPoliciesForHost(ctx context.Context, hid uint) (packs []
 	FROM policies p
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	WHERE p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?)`
+	WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+	AND (p.platforms IS NULL OR p.platforms = "" OR FIND_IN_SET(?, p.platforms) != 0)`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, hid, hid); err != nil {
+	if err := sqlx.SelectContext(ctx, d.reader, &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

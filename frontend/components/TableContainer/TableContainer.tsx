@@ -200,6 +200,8 @@ const TableContainer = ({
             onQueryChange(updateQueryData);
           }
           setPageIndex(0);
+        } else {
+          onQueryChange(updateQueryData);
         }
       } else if (!isClientSideFilter) {
         onQueryChange(queryData);
@@ -217,7 +219,14 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = filteredCount || clientFilterCount || data.length;
+  const displayCount = useCallback((): number => {
+    if (typeof filteredCount === "number") {
+      return filteredCount;
+    } else if (typeof clientFilterCount === "number") {
+      return clientFilterCount;
+    }
+    return data.length;
+  }, [filteredCount, clientFilterCount, data]);
 
   return (
     <div className={wrapperClasses}>
@@ -233,11 +242,11 @@ const TableContainer = ({
         </div>
       )}
       <div className={`${baseClass}__header`}>
-        {data && data.length && !disableCount ? (
+        {data && displayCount() && !disableCount ? (
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
-              displayCount
+              displayCount()
             )}
             {resultsHtml}
           </p>
@@ -317,44 +326,57 @@ const TableContainer = ({
           </>
         ) : (
           <>
-            <DataTable
-              isLoading={isLoading}
-              columns={columns}
-              data={data}
-              manualSortBy={manualSortBy}
-              sortHeader={sortHeader}
-              sortDirection={sortDirection}
-              onSort={onSortChange}
-              disableMultiRowSelect={disableMultiRowSelect}
-              showMarkAllPages={showMarkAllPages}
-              isAllPagesSelected={isAllPagesSelected}
-              toggleAllPagesSelected={toggleAllPagesSelected}
-              resultsTitle={resultsTitle}
-              defaultPageSize={pageSize}
-              primarySelectActionButtonVariant={
-                primarySelectActionButtonVariant
-              }
-              primarySelectActionButtonIcon={primarySelectActionButtonIcon}
-              primarySelectActionButtonText={primarySelectActionButtonText}
-              onPrimarySelectActionClick={onPrimarySelectActionClick}
-              secondarySelectActions={secondarySelectActions}
-              onSelectSingleRow={onSelectSingleRow}
-              onResultsCountChange={onResultsCountChange}
-              isClientSidePagination={isClientSidePagination}
-              isClientSideFilter={isClientSideFilter}
-              highlightOnHover={highlightOnHover}
-              searchQuery={searchQuery}
-              searchQueryColumn={searchQueryColumn}
-              selectedDropdownFilter={selectedDropdownFilter}
-            />
-            {!disablePagination && !isClientSidePagination && (
-              <Pagination
-                resultsOnCurrentPage={data.length}
-                currentPage={pageIndex}
-                resultsPerPage={pageSize}
-                onPaginationChange={onPaginationChange}
-              />
+            {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
+            no longer accesses rows.length because DataTable is not rendered */}
+            {clientFilterCount === 0 && (
+              <EmptyComponent pageIndex={pageIndex} />
             )}
+            <div
+              className={
+                isClientSideFilter
+                  ? `client-result-count-${clientFilterCount}`
+                  : ""
+              }
+            >
+              <DataTable
+                isLoading={isLoading}
+                columns={columns}
+                data={data}
+                manualSortBy={manualSortBy}
+                sortHeader={sortHeader}
+                sortDirection={sortDirection}
+                onSort={onSortChange}
+                disableMultiRowSelect={disableMultiRowSelect}
+                showMarkAllPages={showMarkAllPages}
+                isAllPagesSelected={isAllPagesSelected}
+                toggleAllPagesSelected={toggleAllPagesSelected}
+                resultsTitle={resultsTitle}
+                defaultPageSize={pageSize}
+                primarySelectActionButtonVariant={
+                  primarySelectActionButtonVariant
+                }
+                primarySelectActionButtonIcon={primarySelectActionButtonIcon}
+                primarySelectActionButtonText={primarySelectActionButtonText}
+                onPrimarySelectActionClick={onPrimarySelectActionClick}
+                secondarySelectActions={secondarySelectActions}
+                onSelectSingleRow={onSelectSingleRow}
+                onResultsCountChange={onResultsCountChange}
+                isClientSidePagination={isClientSidePagination}
+                isClientSideFilter={isClientSideFilter}
+                highlightOnHover={highlightOnHover}
+                searchQuery={searchQuery}
+                searchQueryColumn={searchQueryColumn}
+                selectedDropdownFilter={selectedDropdownFilter}
+              />
+              {!disablePagination && !isClientSidePagination && (
+                <Pagination
+                  resultsOnCurrentPage={data.length}
+                  currentPage={pageIndex}
+                  resultsPerPage={pageSize}
+                  onPaginationChange={onPaginationChange}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

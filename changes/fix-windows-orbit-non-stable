@@ -1,0 +1,1 @@
+* Fix issue preventing creation of Windows MSI packages with non-default Orbit update channel.

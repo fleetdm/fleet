@@ -147,6 +147,13 @@ resource "aws_ecs_task_definition" "backend" {
             awslogs-stream-prefix = "fleet"
           }
         },
+        ulimits = [
+          {
+            name      = "nofile"
+            softLimit = 999999
+            hardLimit = 999999
+          }
+        ],
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"

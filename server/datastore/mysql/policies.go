@@ -7,8 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -23,8 +25,8 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Description = q.Description
 	}
 	res, err := ds.writer.ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, resolution, author_id) VALUES (?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, args.Resolution, authorID,
+		`INSERT INTO policies (name, query, description, resolution, author_id, platforms) VALUES (?, ?, ?, ?, ?, ?)`,
+		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform,
 	)
 	switch {
 	case err == nil:
@@ -71,6 +73,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 }
 
 // SavePolicy updates some fields of the given policy on the datastore.
+//
+// Currently SavePolicy does not allow updating the team or platform of an existing policy,
+// such functionality will be implemented in #3220.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	sql := `
 		UPDATE policies
@@ -212,44 +217,46 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 	return ids, nil
 }
 
+// PolicyQueriesForHost returns the policy queries that are to be executed on the given host.
 func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	var globalRows, teamRows []struct {
-		Id    string `db:"id"`
+	var rows []struct {
+		ID    string `db:"id"`
 		Query string `db:"query"`
 	}
-	err := sqlx.SelectContext(
-		ctx,
-		ds.reader,
-		&globalRows,
-		`SELECT p.id, p.query FROM policies p WHERE team_id is NULL`,
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens, as the host
+		// won't be receiving any policies targeted for specific platforms.
+		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
+	q := dialect.From("policies").Select(
+		goqu.I("id"),
+		goqu.I("query"),
+	).Where(
+		goqu.And(
+			goqu.Or(
+				goqu.I("platforms").Eq(""),
+				goqu.L("FIND_IN_SET(?, ?)",
+					host.FleetPlatform(),
+					goqu.I("platforms"),
+				).Neq(0),
+			),
+			goqu.Or(
+				goqu.I("team_id").IsNull(),        // global policies
+				goqu.I("team_id").Eq(host.TeamID), // team policies
+			),
+		),
 	)
+	sql, args, err := q.ToSQL()
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting policies sql build")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &rows, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
-
-	results := map[string]string{}
-
-	if host.TeamID != nil {
-		err := sqlx.SelectContext(
-			ctx,
-			ds.reader,
-			&teamRows,
-			`SELECT p.id, p.query FROM policies p WHERE team_id = ?`,
-			*host.TeamID,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "selecting policies for host in team")
-		}
+	results := make(map[string]string)
+	for _, row := range rows {
+		results[row.ID] = row.Query
 	}
-
-	for _, row := range globalRows {
-		results[row.Id] = row.Query
-	}
-
-	for _, row := range teamRows {
-		results[row.Id] = row.Query
-	}
-
 	return results, nil
 }
 
@@ -264,8 +271,8 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Description = q.Description
 	}
 	res, err := ds.writer.ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, team_id, resolution, author_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID)
+		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform)
 	switch {
 	case err == nil:
 		// OK
@@ -298,6 +305,9 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 //
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
+//
+// Currently ApplyPolicySpecs does not allow updating the team or platform of an existing policy,
+// such functionality will be implemented in #3220.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sql := `
@@ -307,23 +317,32 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			description,
 			author_id,
 			resolution,
-			team_id
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?) )
+			team_id,
+			platforms
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
-			resolution = VALUES(resolution),
-			team_id = VALUES(team_id)
+			resolution = VALUES(resolution)
 		`
 		for _, spec := range specs {
 			if _, err := tx.ExecContext(ctx,
-				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team,
+				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 			}
 		}
 		return nil
 	})
+}
+
+func amountPoliciesDB(db sqlx.Queryer) (int, error) {
+	var amount int
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
 }

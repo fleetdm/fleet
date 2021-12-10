@@ -4,12 +4,12 @@ import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {
   page: number;
-  perPage: number;
+  perPage?: number;
   orderKey: string;
   orderDir: "asc" | "desc";
   query: string;
   vulnerable: boolean;
-  teamId: boolean;
+  teamId?: number;
 }
 
 interface ISoftwareResponse {
@@ -32,7 +32,7 @@ export default {
     teamId,
   }: ISoftwareParams): Promise<ISoftware[]> => {
     const { SOFTWARE } = endpoints;
-    const pagination = `page=${page}&per_page=${perPage}`;
+    const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
     let path = `${SOFTWARE}?${pagination}&${sort}`;
 

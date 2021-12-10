@@ -33,15 +33,19 @@ const NewPolicyModal = ({
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryDescription } = useContext(
-    PolicyContext
-  );
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryResolution,
+  } = useContext(PolicyContext);
 
   const [name, setName] = useState<string>(lastEditedQueryName);
   const [description, setDescription] = useState<string>(
     lastEditedQueryDescription
   );
-  const [resolution, setResolution] = useState<string>("");
+  const [resolution, setResolution] = useState<string>(
+    lastEditedQueryResolution
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useDeepEffect(() => {
@@ -50,7 +54,7 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validatePolicyName(name);
@@ -73,7 +77,11 @@ const NewPolicyModal = ({
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
+      <form
+        onSubmit={handleSavePolicy}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -112,7 +120,7 @@ const NewPolicyModal = ({
           </Button>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
             onClick={handleSavePolicy}
           >
