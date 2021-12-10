@@ -74,7 +74,7 @@ const detectPreview = () => {
 };
 
 // helper function - this is run every
-// time currentUser, config, or teamId is changed
+// time currentUser, currentTeam, config, or teamId is changed
 const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
   if (!user || !config) {
     return {};
@@ -139,7 +139,7 @@ const reducer = (state: any, action: any) => {
 
 export const AppContext = createContext<InitialStateType>(initialState);
 
-const AppProvider = ({ children }: Props) => {
+const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {

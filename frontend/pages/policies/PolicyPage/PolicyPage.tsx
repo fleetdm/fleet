@@ -42,18 +42,24 @@ const PolicyPage = ({
   location: { query: URLQuerySearch },
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
+  const policyTeamId = URLQuerySearch.team_id || 0;
   const {
+    currentUser,
+    currentTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
+    lastEditedQueryBody,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -61,6 +67,11 @@ const PolicyPage = ({
       setLastEditedQueryBody(DEFAULT_POLICY.query);
     }
   }, []);
+
+  if (policyTeamId && currentUser && !currentTeam) {
+    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
+    setCurrentTeam(thisPolicyTeam);
+  }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -80,7 +91,10 @@ const PolicyPage = ({
     refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
-    () => globalPoliciesAPI.load(policyIdForEdit as number),
+    () =>
+      policyTeamId
+        ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
+        : globalPoliciesAPI.load(policyIdForEdit as number),
     {
       enabled: false,
       refetchOnWindowFocus: false,
@@ -90,6 +104,7 @@ const PolicyPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
+        setPolicyTeamId(returnedQuery.team_id || 0);
       },
     }
   );

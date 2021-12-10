@@ -642,7 +642,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	host.HostSoftware = fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		},
 	}
 	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
@@ -793,7 +793,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
-		Platforms:   "darwin",
+		Platform:    "darwin",
 	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
@@ -909,7 +909,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
-		Platforms:   "darwin",
+		Platform:    "darwin",
 	}
 	tpResp := teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
@@ -1060,10 +1060,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			tpReq := teamPolicyRequest{
-				QueryID:   tc.queryID,
-				Name:      tc.name,
-				Query:     tc.query,
-				Platforms: tc.platforms,
+				QueryID:  tc.queryID,
+				Name:     tc.name,
+				Query:    tc.query,
+				Platform: tc.platforms,
 			}
 			tpResp := teamPolicyResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
@@ -1084,10 +1084,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 
 			gpReq := globalPolicyRequest{
-				QueryID:   tc.queryID,
-				Name:      tc.name,
-				Query:     tc.query,
-				Platforms: tc.platforms,
+				QueryID:  tc.queryID,
+				Name:     tc.name,
+				Query:    tc.query,
+				Platform: tc.platforms,
 			}
 			gpResp := globalPolicyResponse{}
 			s.DoJSON("POST", "/api/v1/fleet/global/policies", gpReq, http.StatusBadRequest, &gpResp)

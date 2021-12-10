@@ -27,6 +27,9 @@ func FleetFlags(fleetURL *url.URL) []string {
 		"--logger_plugin=tls",
 		"--logger_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/log"),
 		"--disable_carver=false",
+		// carver_disable_function is separate from disable_carver as it controls the use of file
+		// carving as a SQL function (eg. `SELECT carve(path) FROM processes`).
+		"--carver_disable_function=false",
 		"--carver_start_endpoint=" + path.Join(prefix, "/api/v1/osquery/carve/begin"),
 		"--carver_continue_endpoint=" + path.Join(prefix, "/api/v1/osquery/carve/block"),
 		"--carver_block_size=2000000",
