@@ -96,12 +96,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     refetchOnWindowFocus: false,
   });
 
-  useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
-    select: (data) => data.queries,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
   // ===== local state
   const [globalPolicies, setGlobalPolicies] = useState<
     IPolicyStats[] | never[]

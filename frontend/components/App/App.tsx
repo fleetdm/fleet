@@ -48,7 +48,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
     isAnyTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useDeepEffect(() => {
     // on page refresh
@@ -57,13 +57,16 @@ const App = ({ children }: IAppProps): JSX.Element => {
     }
 
     if (user) {
+      setIsLoading(true);
       setCurrentUser(user);
       dispatch(getConfig())
         .then((config: IConfig) => {
           setConfig(config);
-          setIsLoading(false);
         })
-        .catch(() => false);
+        .catch(() => false)
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, [user]);
 
