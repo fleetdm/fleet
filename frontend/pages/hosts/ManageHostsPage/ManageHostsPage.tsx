@@ -1164,7 +1164,7 @@ const ManageHostsPage = ({
 
     return (
       <Modal
-        title="Edit Columns"
+        title="Edit columns"
         onExit={() => setShowEditColumnsModal(false)}
         className={`${baseClass}__invite-modal`}
       >
