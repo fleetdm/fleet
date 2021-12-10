@@ -54,7 +54,6 @@ const PolicyPage = ({
   const {
     lastEditedQueryBody,
     selectedOsqueryTable,
-    lastEditedQueryBody,
     setSelectedOsqueryTable,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
