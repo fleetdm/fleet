@@ -690,34 +690,33 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 
 func loadPolicies(client *service.Client) error {
 	policies := []struct {
-		name, query, description, resolution string
+		name, query, description, resolution, platform string
 	}{
 		{
 			"Is Gatekeeper enabled on macOS devices?",
 			"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
 			"Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
 			"Run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+			"darwin",
 		},
 		{
 			"Is disk encryption enabled on Windows devices?",
 			"SELECT 1 FROM bitlocker_info where protection_status = 1;",
 			"Checks to make sure that device encryption is enabled on Windows devices.",
 			"Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
+			"windows",
 		},
 		{
 			"Is Filevault enabled on macOS devices?",
 			`SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
 			"Checks to make sure that the Filevault feature is enabled on macOS devices.",
 			"Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+			"darwin",
 		},
 	}
 
 	for _, policy := range policies {
-		q, err := client.CreateQuery(policy.name, policy.query, policy.description)
-		if err != nil {
-			return fmt.Errorf("creating query: %w", err)
-		}
-		err = client.CreatePolicy(&q.ID, policy.resolution)
+		err := client.CreateGlobalPolicy(policy.name, policy.query, policy.description, policy.resolution, policy.platform)
 		if err != nil {
 			return fmt.Errorf("creating policy: %w", err)
 		}
