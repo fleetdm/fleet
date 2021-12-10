@@ -642,7 +642,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	host.HostSoftware = fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		},
 	}
 	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))

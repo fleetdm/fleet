@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import softwareAPI from "services/entities/software";
-import { ISoftware } from "interfaces/software";
+import { ISoftware } from "interfaces/software"; // @ts-ignore
+import debounce from "utilities/debounce";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
-import { generateTableHeaders } from "./SoftwareTableConfig";
+import {
+  generateTableHeaders,
+  generateModalSoftwareTableHeaders,
+} from "./SoftwareTableConfig";
 
 interface ITableQueryProps {
   pageIndex: number;
@@ -114,6 +118,7 @@ const Software = ({
     isModalSoftwareVulnerable,
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
+  const [modalSoftwareState, setModalSoftwareState] = useState<ISoftware[]>([]);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
@@ -183,7 +188,6 @@ const Software = ({
       setIsLoadingModalSoftware(true);
       return softwareAPI.load({
         page: modalSoftwarePageIndex,
-        perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
         orderKey: "id",
         orderDir: "desc",
@@ -217,16 +221,28 @@ const Software = ({
     }
   };
 
-  const onModalSoftwareQueryChange = async ({
-    pageIndex,
-    searchQuery,
-  }: ITableQueryProps) => {
-    setModalSoftwareSearchText(searchQuery);
+  const onModalSoftwareQueryChange = debounce(
+    async ({ pageIndex, searchQuery }: ITableQueryProps) => {
+      setModalSoftwareSearchText(searchQuery);
 
-    if (pageIndex !== modalSoftwarePageIndex) {
-      setModalSoftwarePageIndex(pageIndex);
-    }
-  };
+      if (pageIndex !== modalSoftwarePageIndex) {
+        setModalSoftwarePageIndex(pageIndex);
+      }
+    },
+    { leading: false, trailing: true }
+  );
+
+  useEffect(() => {
+    setModalSoftwareState(() => {
+      return (
+        modalSoftware?.filter((softwareItem) => {
+          return softwareItem.name
+            .toLowerCase()
+            .includes(modalSoftwareSearchText.toLowerCase());
+        }) || []
+      );
+    });
+  }, [modalSoftware, modalSoftwareSearchText]);
 
   const renderStatusDropdown = () => {
     return (
@@ -300,12 +316,13 @@ const Software = ({
               it installed.
             </p>
             <TableContainer
-              columns={tableHeaders}
-              data={modalSoftware || []}
+              columns={generateModalSoftwareTableHeaders()}
+              data={modalSoftwareState}
               isLoading={isLoadingModalSoftware}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               hideActionButton
+              filteredCount={modalSoftwareState.length}
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptySoftware(
@@ -315,11 +332,12 @@ const Software = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
-              disableCount
               disableActionButton
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
+              isClientSidePagination
+              isClientSideSearch
             />
           </>
         </Modal>

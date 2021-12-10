@@ -21,7 +21,11 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-		return nil, nil
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID: id,
+			},
+		}, nil
 	}
 	ds.DeleteGlobalPoliciesFunc = func(ctx context.Context, ids []uint) ([]uint, error) {
 		return nil, nil
@@ -33,6 +37,9 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {
 		return nil
 	}
 
@@ -94,6 +101,9 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 
 			_, err = svc.GetPolicyByIDQueries(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.ModifyGlobalPolicy(ctx, 1, fleet.ModifyPolicyPayload{})
+			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.DeleteGlobalPolicies(ctx, []uint{1})
 			checkAuthErr(t, tt.shouldFailWrite, err)
