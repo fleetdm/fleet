@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 
-import { filter, includes } from "lodash";
 import { useDispatch } from "react-redux";
 import { push } from "react-router-redux";
 
@@ -18,12 +17,9 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { AppContext } from "context/app";
 
-import hostsAPI from "services/entities/hosts";
-import labelsAPI from "services/entities/labels";
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledqueriesAPI from "services/entities/scheduled_queries";
-import teamsAPI from "services/entities/teams";
 
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
@@ -42,17 +38,6 @@ interface IEditPacksPageProps {
 
 interface IStoredFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface IStoredLabelsResponse {
-  labels: ILabel[];
-}
-interface IStoredHostsResponse {
-  hosts: IHost[];
-}
-
-interface IStoredTeamsResponse {
-  teams: ITeam[];
 }
 
 interface IStoredPackResponse {
@@ -88,22 +73,6 @@ const EditPacksPage = ({
     select: (data: IStoredFleetQueriesResponse) => data.queries,
   });
 
-  const { data: labels } = useQuery<IStoredLabelsResponse, Error, ILabel[]>(
-    ["labels"],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: IStoredLabelsResponse) => data.labels,
-    }
-  );
-
-  const { data: hosts } = useQuery<IStoredHostsResponse, Error, IHost[]>(
-    ["all hosts"],
-    () => hostsAPI.loadAll({ perPage: 30000 }),
-    {
-      select: (data: IStoredHostsResponse) => data.hosts,
-    }
-  );
-
   const { data: storedPack } = useQuery<IStoredPackResponse, Error, IPack>(
     ["stored pack"],
     () => packsAPI.load(packId),
@@ -137,58 +106,26 @@ const EditPacksPage = ({
   const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
     number[] | never[]
   >([]);
-  const [storedPackLabels, setStoredPackLabels] = useState<ILabel[]>([]);
-  const [storedPackHosts, setStoredPackHosts] = useState<IHost[]>([]);
-  const [storedPackTeams, setStoredPackTeams] = useState<ITeam[]>([]);
 
-  useEffect(() => {
-    if (labels && storedPack) {
-      const packLabels = filter(labels, (label) => {
-        return includes(storedPack.label_ids, label.id);
-      });
-      setStoredPackLabels(packLabels);
-    }
-  }, [labels, storedPack]);
-
-  useEffect(() => {
-    if (hosts && storedPack) {
-      const packHosts = filter(hosts, (host) => {
-        return includes(storedPack.host_ids, host.id);
-      });
-      setStoredPackHosts(packHosts);
-    }
-  }, [hosts, storedPack]);
-
-  const { data: teams } = useQuery<IStoredTeamsResponse, Error, ITeam[]>(
-    ["all teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: IStoredTeamsResponse) => data.teams,
-    }
-  );
-
-  useEffect(() => {
-    if (teams && storedPack) {
-      const packTeams = filter(teams, (team) => {
-        return includes(storedPack.team_ids, team.id);
-      });
-      setStoredPackTeams(packTeams);
-    }
-  }, [teams, storedPack]);
-
-  const packTargets = [
-    ...storedPackHosts.map((host) => ({
-      ...host,
-      target_type: "hosts",
-    })),
-    ...storedPackLabels,
-    ...storedPackTeams.map((team) => ({
-      ...team,
-      target_type: "teams",
-      display_text: team.name,
-    })),
-  ];
+  const packTargets = storedPack
+    ? [
+        ...storedPack.hosts.map((host) => ({
+          ...host,
+          display_text: host.hostname,
+          target_type: "hosts",
+        })),
+        ...storedPack.labels.map((label) => ({
+          ...label,
+          display_text: label.name,
+          target_type: "labels",
+        })),
+        ...storedPack.teams.map((team) => ({
+          ...team,
+          target_type: "teams",
+          display_text: team.name,
+        })),
+      ]
+    : [];
 
   const onCancelEditPack = () => {
     return dispatch(push(PATHS.MANAGE_PACKS));

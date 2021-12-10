@@ -316,20 +316,33 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 
 func loadPackTargetsDB(ctx context.Context, q sqlx.QueryerContext, pack *fleet.Pack) error {
 	var targets []fleet.PackTarget
-	sql := `SELECT * FROM pack_targets WHERE pack_id = ?`
+	sql := `
+	SELECT pt.*,
+		COALESCE(h.hostname, '') AS host_name,
+		COALESCE(t.name, '') AS team_name,
+		COALESCE(l.name, '') AS label_name
+	FROM pack_targets pt
+		LEFT JOIN hosts h ON (pt.target_id = h.id)
+		LEFT JOIN teams t ON (pt.target_id = t.id)
+		LEFT JOIN labels l ON (pt.target_id = l.id)
+	WHERE pack_id = ?`
 	if err := sqlx.SelectContext(ctx, q, &targets, sql, pack.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "select pack targets")
 	}
 
 	pack.HostIDs, pack.LabelIDs, pack.TeamIDs = []uint{}, []uint{}, []uint{}
+	pack.Hosts, pack.Labels, pack.Teams = []fleet.Host{}, []fleet.Label{}, []fleet.Team{}
 	for _, target := range targets {
 		switch target.Type {
 		case fleet.TargetHost:
 			pack.HostIDs = append(pack.HostIDs, target.TargetID)
+			pack.Hosts = append(pack.Hosts, fleet.Host{ID: target.TargetID, Hostname: target.HostName})
 		case fleet.TargetLabel:
 			pack.LabelIDs = append(pack.LabelIDs, target.TargetID)
+			pack.Labels = append(pack.Labels, fleet.Label{ID: target.TargetID, Name: target.LabelName})
 		case fleet.TargetTeam:
 			pack.TeamIDs = append(pack.TeamIDs, target.TargetID)
+			pack.Teams = append(pack.Teams, fleet.Team{ID: target.TargetID, Name: target.TeamName})
 		default:
 			return ctxerr.Errorf(ctx, "unknown target type: %d", target.Type)
 		}
