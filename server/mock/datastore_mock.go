@@ -175,6 +175,8 @@ type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
 type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error)
 
+type PlainCountHostsFunc func(ctx context.Context) (int, error)
+
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
@@ -573,6 +575,9 @@ type DataStore struct {
 
 	CountHostsFunc        CountHostsFunc
 	CountHostsFuncInvoked bool
+
+	PlainCountHostsFunc        PlainCountHostsFunc
+	PlainCountHostsFuncInvoked bool
 
 	CountHostsInLabelFunc        CountHostsInLabelFunc
 	CountHostsInLabelFuncInvoked bool
@@ -1211,6 +1216,11 @@ func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (s *DataStore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
 	s.CountHostsFuncInvoked = true
 	return s.CountHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) PlainCountHosts(ctx context.Context) (int, error) {
+	s.PlainCountHostsFuncInvoked = true
+	return s.PlainCountHostsFunc(ctx)
 }
 
 func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
