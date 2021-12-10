@@ -255,7 +255,7 @@ kind: query
 spec:
   name: Get Windows machines with unencrypted hard disks
   platforms: Windows
-  description:
+  description: List all Windows machines with unencrypted hard disks.
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
   contributors: zwass
