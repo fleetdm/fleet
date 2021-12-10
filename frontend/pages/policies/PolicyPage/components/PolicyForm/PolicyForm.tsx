@@ -95,7 +95,6 @@ const PolicyForm = ({
 
   const {
     currentUser,
-    currentTeam,
     isTeamObserver,
     isGlobalObserver,
     isGlobalAdmin,
@@ -103,19 +102,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isTeamAdmin,
     isTeamMaintainer,
-    setCurrentTeam,
-    setCurrentUser
   } = useContext(AppContext);
-
-  console.log("currentTeam: ", currentTeam);
-  console.log("isTeamAdmin: ", isTeamAdmin);
-
-  if (policyTeamId && currentUser && !currentTeam) {
-    console.log("policyTeamId: ", policyTeamId);
-    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
-    console.log("set team");
-    setCurrentTeam(thisPolicyTeam);
-  }
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
     (queryString: string) => {
@@ -138,13 +125,6 @@ const PolicyForm = ({
       ...newErrors,
     });
   }, [lastEditedQueryBody]);
-
-  const hasTeamMaintainerPermissions = isEditMode
-    ? (isTeamAdmin || isTeamMaintainer) &&
-      storedPolicy &&
-      currentUser &&
-      currentUser.teams.find((team) => team.id === storedPolicy.team_id)
-    : isTeamAdmin || isTeamMaintainer;
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -536,21 +516,12 @@ const PolicyForm = ({
               <div
                 data-tip
                 data-for="save-query-button"
-                data-tip-disable={
-                  !(
-                    (isTeamAdmin || isTeamMaintainer) &&
-                    !hasTeamMaintainerPermissions
-                  )
-                }
+                data-tip-disable={!(isTeamAdmin || isTeamMaintainer)}
               >
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
                   onClick={promptSavePolicy()}
-                  disabled={
-                    (isTeamAdmin || isTeamMaintainer) &&
-                    !hasTeamMaintainerPermissions
-                  }
                 >
                   <>Save{!isEditMode && " policy"}</>
                 </Button>

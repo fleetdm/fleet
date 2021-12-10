@@ -45,10 +45,11 @@ const PolicyPage = ({
   const policyTeamId = URLQuerySearch.team_id || 0;
   const {
     currentUser,
+    currentTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
-    setCurrentTeam
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
@@ -67,6 +68,11 @@ const PolicyPage = ({
       setLastEditedQueryBody(DEFAULT_POLICY.query);
     }
   }, []);
+
+  if (policyTeamId && currentUser && !currentTeam) {
+    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
+    setCurrentTeam(thisPolicyTeam);
+  }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -100,10 +106,6 @@ const PolicyPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
         setPolicyTeamId(returnedQuery.team_id || 0);
-        if (currentUser) {
-          const policyTeam = currentUser.teams.find((userTeam) => userTeam.id === returnedQuery.teamId);
-          console.log("policyTeam: ", policyTeam);
-        }
       },
     }
   );
