@@ -698,8 +698,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
 
-	e.EndingAtVersion("2021-11").GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
-	e.StartingAtVersion("2021-12").GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+	e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
