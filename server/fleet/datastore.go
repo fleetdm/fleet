@@ -212,6 +212,7 @@ type Datastore interface {
 	DeleteHosts(ctx context.Context, ids []uint) error
 
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
+	PlainCountHosts(ctx context.Context) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing

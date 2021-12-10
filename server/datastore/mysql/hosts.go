@@ -571,6 +571,8 @@ func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	// ignore pagination in count
 	opt.Page = 0
 	opt.PerPage = 0
+	// force ignoring failing policies
+	opt.DisableFailingPolicies = true
 
 	var params []interface{}
 	sql, params = d.applyHostFilters(opt, sql, filter, params)
@@ -578,6 +580,17 @@ func (d *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	var count int
 	if err := sqlx.GetContext(ctx, d.reader, &count, sql, params...); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "count hosts")
+	}
+
+	return count, nil
+}
+
+func (d *Datastore) PlainCountHosts(ctx context.Context) (int, error) {
+	sql := `SELECT count(*) FROM hosts`
+
+	var count int
+	if err := sqlx.GetContext(ctx, d.reader, &count, sql); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "plain count hosts")
 	}
 
 	return count, nil
