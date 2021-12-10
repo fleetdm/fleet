@@ -45,7 +45,8 @@ module.exports = {
       'drewbakerfdm',
       'vercel[bot]',
       'lucasmrod',
-      'tgauda'
+      'tgauda',
+      'ksatter'
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'rlynnj11';// « Used below
 
