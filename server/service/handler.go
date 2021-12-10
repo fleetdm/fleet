@@ -649,7 +649,7 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 }
 
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
-	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1", "2021-11")
+	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
 	e.POST("/api/v1/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	e.POST("/api/v1/fleet/translate", translatorEndpoint, translatorRequest{})
