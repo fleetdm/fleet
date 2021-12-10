@@ -9,6 +9,7 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
+      cy.seedPolicies("apples");
       cy.addDockerHost("apples");
       cy.addDockerHost("oranges");
       cy.logout();

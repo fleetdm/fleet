@@ -12,6 +12,7 @@ describe(
       cy.addDockerHost();
       cy.clearDownloads();
       cy.seedQueries();
+      cy.seedPolicies();
     });
 
     afterEach(() => {

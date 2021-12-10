@@ -10,6 +10,7 @@ describe(
       cy.seedPremium();
       cy.setupSMTP();
       cy.seedQueries();
+      cy.seedPolicies("apples");
       cy.addDockerHost("apples");
       cy.logout();
     });
@@ -208,7 +209,36 @@ describe(
 
         cy.findByText(/successfully removed query/i).should("be.visible");
 
-        cy.findByText(/query all/i).should("not.exist");
+        // On the policies manage page, they should…
+        cy.contains("a", "Policies").click();
+        // See and select the "create a policy", "delete", and "edit" policy
+        cy.findByRole("button", { name: /add a policy/i }).click();
+        cy.get(".modal__ex").within(() => {
+          cy.findByRole("button").click();
+        });
+
+        // No global policies seeded, switch to team apples to create, delete, edit
+        cy.findByText(/ask yes or no questions/i).should("exist");
+        cy.findByText(/all teams/i).click();
+        cy.findByText(/apples/i).click();
+
+        cy.get("tbody").within(() => {
+          cy.get("tr")
+            .first()
+            .within(() => {
+              cy.get(".fleet-checkbox__input").check({ force: true });
+            });
+        });
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.get(".remove-policies-modal").within(() => {
+          cy.findByRole("button", { name: /delete/i }).should("exist");
+          cy.findByRole("button", { name: /cancel/i }).click();
+        });
+        cy.findByText(/filevault enabled/i).click();
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+        cy.findByRole("button", { name: /save/i }).should("exist");
+        cy.findByRole("button", { name: /run/i }).should("exist");
 
         // On the Packs pages (manage, new, and edit), they should…
         // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
