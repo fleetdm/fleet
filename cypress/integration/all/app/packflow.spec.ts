@@ -24,7 +24,7 @@ describe(
       cy.findByRole("button", { name: /save query pack/i }).click();
 
       cy.visit("/packs/manage");
-      cy.findByText(/errors and crashes/i).click();
+      cy.findByText(/errors and crashes/i).click({force: true});
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByLabelText(/name/i)
@@ -106,7 +106,7 @@ describe(
       cy.visit("/packs/manage");
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.get(".fleet-checkbox__input").check({ force: true });
+      cy.get(".fleet-checkbox__input").check();
 
       cy.findByRole("button", { name: /delete/i }).click();
 
@@ -119,6 +119,6 @@ describe(
       cy.findByText(/successfully deleted/i).should("be.visible");
 
       cy.findByText(/server errors/i).should("not.exist");
-    });
+    };);
   }
 );
