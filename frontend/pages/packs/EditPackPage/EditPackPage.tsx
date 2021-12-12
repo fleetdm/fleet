@@ -111,18 +111,15 @@ const EditPacksPage = ({
     ? [
         ...storedPack.hosts.map((host) => ({
           ...host,
-          display_text: host.hostname,
           target_type: "hosts",
         })),
         ...storedPack.labels.map((label) => ({
           ...label,
-          display_text: label.name,
           target_type: "labels",
         })),
         ...storedPack.teams.map((team) => ({
           ...team,
           target_type: "teams",
-          display_text: team.name,
         })),
       ]
     : [];

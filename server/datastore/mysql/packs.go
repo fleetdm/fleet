@@ -315,34 +315,38 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 }
 
 func loadPackTargetsDB(ctx context.Context, q sqlx.QueryerContext, pack *fleet.Pack) error {
-	var targets []fleet.PackTarget
+	var targets []fleet.Target
 	sql := `
-	SELECT pt.*,
-		COALESCE(h.hostname, '') AS host_name,
-		COALESCE(t.name, '') AS team_name,
-		COALESCE(l.name, '') AS label_name
-	FROM pack_targets pt
-		LEFT JOIN hosts h ON (pt.target_id = h.id)
-		LEFT JOIN teams t ON (pt.target_id = t.id)
-		LEFT JOIN labels l ON (pt.target_id = l.id)
+	SELECT type, target_id,
+		COALESCE(
+			CASE
+				WHEN type = ? THEN (SELECT hostname FROM hosts WHERE id = target_id)
+				WHEN type = ? THEN (SELECT name FROM teams WHERE id = target_id)
+				WHEN type = ? THEN (SELECT name FROM labels WHERE id = target_id)
+			END
+		, '') AS display_text
+	FROM pack_targets
 	WHERE pack_id = ?`
-	if err := sqlx.SelectContext(ctx, q, &targets, sql, pack.ID); err != nil {
+	if err := sqlx.SelectContext(
+		ctx, q, &targets, sql,
+		fleet.TargetHost, fleet.TargetTeam, fleet.TargetLabel, pack.ID,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "select pack targets")
 	}
 
 	pack.HostIDs, pack.LabelIDs, pack.TeamIDs = []uint{}, []uint{}, []uint{}
-	pack.Hosts, pack.Labels, pack.Teams = []fleet.Host{}, []fleet.Label{}, []fleet.Team{}
+	pack.Hosts, pack.Labels, pack.Teams = []fleet.Target{}, []fleet.Target{}, []fleet.Target{}
 	for _, target := range targets {
 		switch target.Type {
 		case fleet.TargetHost:
 			pack.HostIDs = append(pack.HostIDs, target.TargetID)
-			pack.Hosts = append(pack.Hosts, fleet.Host{ID: target.TargetID, Hostname: target.HostName})
+			pack.Hosts = append(pack.Hosts, target)
 		case fleet.TargetLabel:
 			pack.LabelIDs = append(pack.LabelIDs, target.TargetID)
-			pack.Labels = append(pack.Labels, fleet.Label{ID: target.TargetID, Name: target.LabelName})
+			pack.Labels = append(pack.Labels, target)
 		case fleet.TargetTeam:
 			pack.TeamIDs = append(pack.TeamIDs, target.TargetID)
-			pack.Teams = append(pack.Teams, fleet.Team{ID: target.TargetID, Name: target.TeamName})
+			pack.Teams = append(pack.Teams, target)
 		default:
 			return ctxerr.Errorf(ctx, "unknown target type: %d", target.Type)
 		}
