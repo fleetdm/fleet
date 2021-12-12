@@ -114,7 +114,7 @@ describe(
 
       cy.get(".remove-pack-modal__btn-wrap > .button--alert")
         .contains("button", /delete/i)
-        .click();
+        .click({ force: true });
 
       cy.findByText(/successfully deleted/i).should("be.visible");
 
