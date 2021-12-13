@@ -39,6 +39,12 @@ func TestLabelsAuth(t *testing.T) {
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opts fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+		return &fleet.LabelSpec{}, nil
+	}
 
 	testCases := []struct {
 		name            string
@@ -91,6 +97,12 @@ func TestLabelsAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.GetLabel(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.GetLabelSpecs(ctx)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.GetLabelSpec(ctx, "abc")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ListLabels(ctx, fleet.ListOptions{})

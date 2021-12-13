@@ -68,8 +68,6 @@ type FleetEndpoints struct {
 	SubmitLogs                            endpoint.Endpoint
 	CarveBegin                            endpoint.Endpoint
 	CarveBlock                            endpoint.Endpoint
-	GetLabelSpecs                         endpoint.Endpoint
-	GetLabelSpec                          endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
@@ -147,8 +145,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		GetLabelSpecs:                         authenticatedUser(svc, makeGetLabelSpecsEndpoint(svc)),
-		GetLabelSpec:                          authenticatedUser(svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
 		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
@@ -228,8 +224,6 @@ type fleetHandlers struct {
 	SubmitLogs                            http.Handler
 	CarveBegin                            http.Handler
 	CarveBlock                            http.Handler
-	GetLabelSpecs                         http.Handler
-	GetLabelSpec                          http.Handler
 	SearchTargets                         http.Handler
 	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
@@ -301,8 +295,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
-		GetLabelSpecs:                         newServer(e.GetLabelSpecs, decodeNoParamsRequest),
-		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
@@ -539,9 +531,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
-	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
-
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
 	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
@@ -645,6 +634,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.DELETE("/api/v1/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
 	e.DELETE("/api/v1/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
 	e.POST("/api/v1/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
+	e.GET("/api/v1/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 

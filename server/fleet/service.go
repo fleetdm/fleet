@@ -176,9 +176,6 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListLabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryService
 

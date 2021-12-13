@@ -363,3 +363,58 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	}
 	return svc.ds.ApplyLabelSpecs(ctx, specs)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Label Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type getLabelSpecsResponse struct {
+	Specs []*fleet.LabelSpec `json:"specs"`
+	Err   error              `json:"error,omitempty"`
+}
+
+func (r getLabelSpecsResponse) error() error { return r.Err }
+
+func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	specs, err := svc.GetLabelSpecs(ctx)
+	if err != nil {
+		return getLabelSpecsResponse{Err: err}, nil
+	}
+	return getLabelSpecsResponse{Specs: specs}, nil
+}
+
+func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.GetLabelSpecs(ctx)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Label Spec
+////////////////////////////////////////////////////////////////////////////////
+
+type getLabelSpecResponse struct {
+	Spec *fleet.LabelSpec `json:"specs,omitempty"`
+	Err  error            `json:"error,omitempty"`
+}
+
+func (r getLabelSpecResponse) error() error { return r.Err }
+
+func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getGenericSpecRequest)
+	spec, err := svc.GetLabelSpec(ctx, req.Name)
+	if err != nil {
+		return getLabelSpecResponse{Err: err}, nil
+	}
+	return getLabelSpecResponse{Spec: spec}, nil
+}
+
+func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.GetLabelSpec(ctx, name)
+}
