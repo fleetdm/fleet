@@ -10,9 +10,10 @@ name: Run Tests
 jobs:
   test-e2e:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.16.0']
+        go-version: ['^1.17.0']
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:
