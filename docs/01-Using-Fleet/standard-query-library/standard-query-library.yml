@@ -4,7 +4,7 @@ kind: query
 spec:
   name: Count Apple applications installed
   platforms: macOS
-  description: Count the number of Apple applications installed on the machine.
+  description: Get the total number of Apple applications installed on the host system.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
   contributors: mike-j-thomas,noahtalerman,mikermcneil
