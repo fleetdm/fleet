@@ -92,7 +92,9 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: cypress
-        path: cypress/
+        path: |
+          cypress/screenshots/
+          cypress/videos/
 
 
   test-js:
