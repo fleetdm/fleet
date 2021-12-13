@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO(mna): delete once covered with integration tests
+
+/*
 func TestDecodeCreateUserRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/users", func(writer http.ResponseWriter, request *http.Request) {
@@ -33,6 +36,7 @@ func TestDecodeCreateUserRequest(t *testing.T) {
 		httptest.NewRequest("POST", "/api/v1/fleet/users", &body),
 	)
 }
+*/
 
 func TestDecodeGetUserRequest(t *testing.T) {
 	router := mux.NewRouter()

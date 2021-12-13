@@ -42,27 +42,6 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	return user, nil
 }
 
-func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	var teams []fleet.UserTeam
-	if p.Teams != nil {
-		teams = *p.Teams
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.User{Teams: teams}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
-		return nil, ctxerr.Errorf(ctx, "%s already invited", *p.Email)
-	}
-
-	if p.AdminForcedPasswordReset == nil {
-		// By default, force password reset for users created this way.
-		p.AdminForcedPasswordReset = ptr.Bool(true)
-	}
-
-	return svc.newUser(ctx, p)
-}
-
 func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	// skipauth: Only the initial user creation should be allowed to skip
 	// authorization (because there is not yet a user context to check against).

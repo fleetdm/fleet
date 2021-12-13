@@ -12,36 +12,10 @@ import (
 // Create User With Invite
 ////////////////////////////////////////////////////////////////////////////////
 
-type createUserRequest struct {
-	payload fleet.UserPayload
-}
-
-type createUserResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r createUserResponse) error() error { return r.Err }
-
 func makeCreateUserFromInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(createUserRequest)
-		user, err := svc.CreateUserFromInvite(ctx, req.payload)
-		if err != nil {
-			return createUserResponse{Err: err}, nil
-		}
-		return createUserResponse{User: user}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Create User
-////////////////////////////////////////////////////////////////////////////////
-
-func makeCreateUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createUserRequest)
-		user, err := svc.CreateUser(ctx, req.payload)
+		user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
 		if err != nil {
 			return createUserResponse{Err: err}, nil
 		}

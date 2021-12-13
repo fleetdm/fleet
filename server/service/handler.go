@@ -30,7 +30,6 @@ type FleetEndpoints struct {
 	Me                                    endpoint.Endpoint
 	ChangePassword                        endpoint.Endpoint
 	CreateUserWithInvite                  endpoint.Endpoint
-	CreateUser                            endpoint.Endpoint
 	GetUser                               endpoint.Endpoint
 	ModifyUser                            endpoint.Endpoint
 	DeleteUser                            endpoint.Endpoint
@@ -119,7 +118,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ModifyUser:                            authenticatedUser(svc, makeModifyUserEndpoint(svc)),
 		DeleteUser:                            authenticatedUser(svc, makeDeleteUserEndpoint(svc)),
 		RequirePasswordReset:                  authenticatedUser(svc, makeRequirePasswordResetEndpoint(svc)),
-		CreateUser:                            authenticatedUser(svc, makeCreateUserEndpoint(svc)),
 		GetSessionsForUserInfo:                authenticatedUser(svc, makeGetInfoAboutSessionsForUserEndpoint(svc)),
 		DeleteSessionsForUser:                 authenticatedUser(svc, makeDeleteSessionsForUserEndpoint(svc)),
 		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
@@ -184,7 +182,6 @@ type fleetHandlers struct {
 	Me                                    http.Handler
 	ChangePassword                        http.Handler
 	CreateUserWithInvite                  http.Handler
-	CreateUser                            http.Handler
 	GetUser                               http.Handler
 	ModifyUser                            http.Handler
 	DeleteUser                            http.Handler
@@ -254,7 +251,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		Me:                                    newServer(e.Me, decodeNoParamsRequest),
 		ChangePassword:                        newServer(e.ChangePassword, decodeChangePasswordRequest),
 		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
-		CreateUser:                            newServer(e.CreateUser, decodeCreateUserRequest),
 		GetUser:                               newServer(e.GetUser, decodeGetUserRequest),
 		ModifyUser:                            newServer(e.ModifyUser, decodeModifyUserRequest),
 		DeleteUser:                            newServer(e.DeleteUser, decodeDeleteUserRequest),
@@ -491,7 +487,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
 
 	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-	r.Handle("/api/v1/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
 	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.GetUser).Methods("GET").Name("get_user")
 	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.ModifyUser).Methods("PATCH").Name("modify_user")
 	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.DeleteUser).Methods("DELETE").Name("delete_user")
@@ -572,6 +567,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.DELETE("/api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	e.GET("/api/v1/fleet/users", listUsersEndpoint, listUsersRequest{})
+	e.POST("/api/v1/fleet/users/admin", createUserEndpoint, createUserRequest{})
 
 	e.POST("/api/v1/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
 	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
