@@ -1650,6 +1650,26 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.NotZero(t, createResp.Label.ID)
 	lbl2 := createResp.Label.Label
 
+	// create hosts and add them to that label
+	hosts := s.createHosts(t)
+	for _, h := range hosts {
+		err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// list hosts in label
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, len(hosts))
+
+	// lists hosts in label without hosts
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// lists hosts in invalid label
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, 0)
+
 	// delete a label by id
 	var delIDResp deleteLabelByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
