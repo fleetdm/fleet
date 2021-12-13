@@ -7,6 +7,7 @@ describe("User invite and activation", () => {
 
   it("Invites and activates a user", () => {
     cy.visit("/settings/organization");
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByRole("tab", { name: /^users$/i }).click();
 
