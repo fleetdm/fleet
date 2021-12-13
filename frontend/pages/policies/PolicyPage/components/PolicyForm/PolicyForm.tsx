@@ -75,25 +75,33 @@ const PolicyForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
   );
+  const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
+    false
+  );
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
+    policyTeamId,
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryResolution,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
   } = useContext(PolicyContext);
 
   const {
     currentUser,
-    isOnlyObserver,
+    isTeamObserver,
     isGlobalObserver,
-    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
   } = useContext(AppContext);
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
@@ -107,16 +115,19 @@ const PolicyForm = ({
 
   useEffect(() => {
     debounceCompatiblePlatforms(lastEditedQueryBody);
+
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      lastEditedQueryBody
+    );
+    valid = isValidated;
+    setErrors({
+      ...newErrors,
+    });
   }, [lastEditedQueryBody]);
 
-  const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainerOrTeamAdmin &&
-      storedPolicy &&
-      currentUser &&
-      storedPolicy.author_id === currentUser.id
-    : isAnyTeamMaintainerOrTeamAdmin;
-
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+  const hasSavePermissions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -136,7 +147,11 @@ const PolicyForm = ({
     });
   };
 
-  const handleSavePolicy = (forceNew = false) => (
+  const onChangePolicy = (sqlString: string) => {
+    setLastEditedQueryBody(sqlString);
+  };
+
+  const promptSavePolicy = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
     evt.preventDefault();
@@ -149,15 +164,9 @@ const PolicyForm = ({
     }
 
     let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
 
     valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
 
     if (valid) {
       if (!isEditMode || forceNew) {
@@ -167,16 +176,14 @@ const PolicyForm = ({
           name: lastEditedQueryName,
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
+          resolution: lastEditedQueryResolution,
         });
-
-        setErrors({});
       }
 
       setIsEditingName(false);
       setIsEditingDescription(false);
+      setIsEditingResolution(false);
     }
-
-    return null;
   };
 
   const renderAuthor = (): JSX.Element | null => {
@@ -224,8 +231,6 @@ const PolicyForm = ({
       } else if (compatiblePlatforms[0] === "None") {
         return "No platforms (check your query for invalid tables or tables that are supported on different platforms)";
       }
-
-      return null;
     };
 
     const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
@@ -307,6 +312,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryName}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -347,6 +358,12 @@ const PolicyForm = ({
             onChange={setLastEditedQueryDescription}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -363,9 +380,70 @@ const PolicyForm = ({
         className={`${baseClass}__policy-description`}
         onClick={() => setIsEditingDescription(true)}
         >
-          {lastEditedQueryDescription}
+          {lastEditedQueryDescription || "Add description here."}
           <img alt="Edit description" src={PencilIcon} />
         </span>
+      );
+      /* eslint-enable */
+    }
+
+    return null;
+  };
+
+  const renderResolution = () => {
+    if (isEditMode) {
+      if (isEditingResolution) {
+        return (
+          <div className={`${baseClass}__policy-resolve`}>
+            {" "}
+            <b>Resolve:</b> <br />
+            <InputField
+              id="policy-resolution"
+              type="textarea"
+              name="policy-resolution"
+              value={lastEditedQueryResolution}
+              placeholder="Add resolution here."
+              inputClassName={`${baseClass}__policy-resolution`}
+              onChange={setLastEditedQueryResolution}
+              inputOptions={{
+                autoFocus: true,
+                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                  // sets cursor to end of inputfield
+                  const val = e.target.value;
+                  e.target.value = "";
+                  e.target.value = val;
+                },
+              }}
+            />
+          </div>
+        );
+      }
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to span - this is needed to avoid
+      // using a real button
+      // prettier-ignore
+      return (
+        <>
+          <div className="resolve-text-wrapper">
+            <b>Resolve:</b> {" "}
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              <img alt="Edit resolution" src={PencilIcon} />
+            </span><br/>
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              {lastEditedQueryResolution || "Add resolution here."}
+            </span>
+          </div>
+        </>
       );
       /* eslint-enable */
     }
@@ -376,7 +454,7 @@ const PolicyForm = ({
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description">
+        <div className="name-description-resolve">
           <h1 className={`${baseClass}__policy-name no-hover`}>
             {lastEditedQueryName}
           </h1>
@@ -410,9 +488,10 @@ const PolicyForm = ({
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
         <div className={`${baseClass}__title-bar`}>
-          <div className="name-description">
+          <div className="name-description-resolve">
             {renderName()}
             {renderDescription()}
+            {renderResolution()}
           </div>
           <div className="author">{isEditMode && renderAuthor()}</div>
         </div>
@@ -424,38 +503,27 @@ const PolicyForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => {
-            setLastEditedQueryBody(sqlString);
-          }}
-          handleSubmit={handleSavePolicy}
+          onChange={onChangePolicy}
+          handleSubmit={promptSavePolicy}
         />
         {renderPlatformCompatibility()}
         {renderLiveQueryWarning()}
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+          {hasSavePermissions && (
             <div className="query-form__button-wrap--save-policy-button">
               <div
                 data-tip
                 data-for="save-query-button"
-                data-tip-disable={
-                  !(
-                    isAnyTeamMaintainerOrTeamAdmin &&
-                    !hasTeamMaintainerPermissions
-                  )
-                }
+                data-tip-disable={!(isTeamAdmin || isTeamMaintainer)}
               >
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
-                  onClick={handleSavePolicy()}
-                  disabled={
-                    isAnyTeamMaintainerOrTeamAdmin &&
-                    !hasTeamMaintainerPermissions
-                  }
+                  onClick={promptSavePolicy()}
                 >
-                  Save
+                  <>Save{!isEditMode && " policy"}</>
                 </Button>
               </div>{" "}
               <ReactTooltip
@@ -481,7 +549,7 @@ const PolicyForm = ({
             variant="blue-green"
             onClick={goToSelectTargets}
           >
-            Run query
+            Run
           </Button>
         </div>
       </form>
@@ -500,7 +568,11 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (
+    isTeamObserver ||
+    isGlobalObserver ||
+    (policyTeamId === 0 && !isOnGlobalTeam)
+  ) {
     return renderRunForObserver;
   }
 

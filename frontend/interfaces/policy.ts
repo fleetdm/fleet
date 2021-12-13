@@ -43,7 +43,16 @@ export interface IHostPolicy extends IPolicy {
 
 export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
+  resolution?: string | number | boolean | any[] | undefined;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
   team_id?: number;
+}
+
+export interface IPolicyNew {
+  id?: number;
+  name: string;
+  description: string;
+  query: string;
+  resolution: string;
 }

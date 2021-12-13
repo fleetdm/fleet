@@ -58,7 +58,7 @@ const EditColumnsModal = ({
 
   return (
     <div className={"edit-column-modal"}>
-      <p>Choose which columns you see</p>
+      <p>Choose which columns you see:</p>
       <div className={"modal-items"}>
         {columnItems.map((column) => {
           if (column.disableHidden) return null;

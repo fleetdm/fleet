@@ -35,6 +35,7 @@ import { IStatusLabels } from "interfaces/status_labels";
 import { ITeam } from "interfaces/team";
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import deepDifference from "utilities/deep_difference";
+import sortUtils from "utilities/sort";
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
@@ -121,7 +122,7 @@ const ManageHostsPage = ({
   router,
   params: routeParams,
   location,
-}: IManageHostsProps) => {
+}: IManageHostsProps): JSX.Element => {
   const dispatch = useDispatch();
   const queryParams = location.query;
   const {
@@ -136,6 +137,7 @@ const ManageHostsPage = ({
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
+    isFreeTier,
     currentTeam,
     setCurrentTeam,
   } = useContext(AppContext);
@@ -312,7 +314,13 @@ const ManageHostsPage = ({
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams: ITeam[]) => {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
     }
   );
 
@@ -453,7 +461,9 @@ const ManageHostsPage = ({
     // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
+    if (selectedTeam) {
+      setCurrentTeam(selectedTeam);
+    }
     setShowNoEnrollSecretBanner(true);
 
     // set selected label
@@ -488,7 +498,9 @@ const ManageHostsPage = ({
     // set the team object in context
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
+    if (selectedTeam) {
+      setCurrentTeam(selectedTeam);
+    }
     setShowNoEnrollSecretBanner(true);
 
     // set selected label
@@ -613,12 +625,11 @@ const ManageHostsPage = ({
     setSoftwareDetails(null);
   };
 
-  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
-  const handleChangeSelectedTeamFilter = (selectedTeam: number) => {
+  const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
       teams || [],
-      selectedTeam,
+      teamId,
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -640,6 +651,8 @@ const ManageHostsPage = ({
       queryParams: newQueryParams,
     });
     router.replace(nextLocation);
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
@@ -1066,13 +1079,12 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      teams={teams || []}
-      isLoading={isLoadingTeams}
-      currentTeamId={
+      currentUserTeams={teams || []}
+      selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
       onChange={(newSelectedValue: number) =>
-        handleChangeSelectedTeamFilter(newSelectedValue)
+        handleTeamSelect(newSelectedValue)
       }
     />
   );
@@ -1152,7 +1164,7 @@ const ManageHostsPage = ({
 
     return (
       <Modal
-        title="Edit Columns"
+        title="Edit columns"
         onExit={() => setShowEditColumnsModal(false)}
         className={`${baseClass}__invite-modal`}
       >
@@ -1333,7 +1345,17 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          {renderTeamsFilterDropdown()}
+          <div className={`${baseClass}__title`}>
+            {isFreeTier && <h1>Hosts</h1>}
+            {isPremiumTier &&
+              teams &&
+              (teams.length > 1 || isOnGlobalTeam) &&
+              renderTeamsFilterDropdown()}
+            {isPremiumTier &&
+              !isOnGlobalTeam &&
+              teams &&
+              teams.length === 1 && <h1>{teams[0].name}</h1>}
+          </div>
         </div>
       </div>
     );
@@ -1597,10 +1619,13 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          <div className={`${baseClass}__info-banners`}>
-            {renderNoEnrollSecretBanner()}
-            {renderSoftwareVulnerabilities()}
-          </div>
+          {renderNoEnrollSecretBanner() ||
+            (renderSoftwareVulnerabilities() && (
+              <div className={`${baseClass}__info-banners`}>
+                {renderNoEnrollSecretBanner()}
+                {renderSoftwareVulnerabilities()}
+              </div>
+            ))}
           {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
         </div>
       )}

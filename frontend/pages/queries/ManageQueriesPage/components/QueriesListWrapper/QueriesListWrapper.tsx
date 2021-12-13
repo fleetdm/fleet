@@ -84,6 +84,15 @@ const QueriesListWrapper = ({
 
   const tableHeaders = currentUser && generateTableHeaders(currentUser);
 
+  // Queries have not been created
+  if (!isLoading && queriesList?.length === 0) {
+    return (
+      <div className={`${baseClass}`}>
+        <NoQueriesComponent />
+      </div>
+    );
+  }
+
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -108,6 +117,7 @@ const QueriesListWrapper = ({
         isClientSideFilter
         searchQueryColumn="name"
         selectedDropdownFilter={selectedDropdownFilter}
+        isClientSidePagination
       />
     </div>
   ) : null;

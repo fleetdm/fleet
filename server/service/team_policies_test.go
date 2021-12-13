@@ -17,13 +17,32 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	svc := newTestService(ds, nil, nil)
 
 	ds.NewTeamPolicyFunc = func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
-		return &fleet.Policy{}, nil
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:     1,
+				TeamID: ptr.Uint(1),
+			},
+		}, nil
 	}
 	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.TeamPolicyFunc = func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 		return nil, nil
+	}
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		if id == 1 {
+			return &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:     1,
+					TeamID: ptr.Uint(1),
+				},
+			}, nil
+		}
+		return nil, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {
+		return nil
 	}
 	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 		return nil, nil
@@ -87,6 +106,21 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			true,
 		},
 		{
+			"team observer, and team admin of another team",
+			&fleet.User{Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleObserver,
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleAdmin,
+				},
+			}},
+			true,
+			false,
+		},
+		{
 			"team maintainer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
 			true,
@@ -114,6 +148,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 
 			_, err = svc.GetTeamPolicyByIDQueries(ctx, 1, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.ModifyTeamPolicy(ctx, 1, 1, fleet.ModifyPolicyPayload{})
+			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.DeleteTeamPolicies(ctx, 1, []uint{1})
 			checkAuthErr(t, tt.shouldFailWrite, err)

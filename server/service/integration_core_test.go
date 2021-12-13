@@ -341,12 +341,20 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 2, countResp.Count)
+
 	lsReq := listSoftwareRequest{}
 	lsResp := listSoftwareResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
+
+	s.DoJSON("GET", "/api/v1/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	assert.Equal(t, 1, countResp.Count)
 
 	s.DoJSON("GET", "/api/v1/fleet/software", lsReq, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "name,id", "order_direction", "desc")
 	assert.Len(t, lsResp.Software, 1)
@@ -634,7 +642,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	host.HostSoftware = fleet.HostSoftware{
 		Modified: true,
 		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		},
 	}
 	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
@@ -759,6 +767,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        "darwin",
 		})
 		require.NoError(t, err)
 	}
@@ -784,6 +793,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some global resolution",
+		Platform:    "darwin",
 	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
@@ -797,6 +807,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.NotNil(t, gpResp.Policy.AuthorID)
 	assert.Equal(t, "Test Name admin1@example.com", gpResp.Policy.AuthorName)
 	assert.Equal(t, "admin1@example.com", gpResp.Policy.AuthorEmail)
+	assert.Equal(t, "darwin", gpResp.Policy.Platform)
 
 	mgpParams := modifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
@@ -814,6 +825,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", mgpResp.Policy.Description)
 	require.NotNil(t, mgpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
 
 	ggpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
@@ -823,6 +835,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", ggpResp.Policy.Description)
 	require.NotNil(t, ggpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *ggpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
@@ -832,6 +845,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some global resolution updated", *policiesResponse.Policies[0].Resolution)
+	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
 
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -882,6 +896,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        "darwin",
 		})
 		require.NoError(t, err)
 		hosts[i] = h.ID
@@ -894,6 +909,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
+		Platform:    "darwin",
 	}
 	tpResp := teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusOK, &tpResp)
@@ -924,6 +940,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", mtpResp.Policy.Description)
 	require.NotNil(t, mtpResp.Policy.Resolution)
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", mtpResp.Policy.Platform)
 
 	gtpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &gtpResp)
@@ -933,6 +950,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", gtpResp.Policy.Description)
 	require.NotNil(t, gtpResp.Policy.Resolution)
 	assert.Equal(t, "some team resolution updated", *gtpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", gtpResp.Policy.Platform)
 
 	policiesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
@@ -942,6 +960,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
+	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
 
 	listHostsURL := fmt.Sprintf("/api/v1/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -1011,6 +1030,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		queryID    *uint
 		name       string
 		query      string
+		platforms  string
 	}{
 		{
 			tname:      "set both QueryID and Query",
@@ -1040,9 +1060,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			tpReq := teamPolicyRequest{
-				QueryID: tc.queryID,
-				Name:    tc.name,
-				Query:   tc.query,
+				QueryID:  tc.queryID,
+				Name:     tc.name,
+				Query:    tc.query,
+				Platform: tc.platforms,
 			}
 			tpResp := teamPolicyResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", team1.ID), tpReq, http.StatusBadRequest, &tpResp)
@@ -1063,9 +1084,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 
 			gpReq := globalPolicyRequest{
-				QueryID: tc.queryID,
-				Name:    tc.name,
-				Query:   tc.query,
+				QueryID:  tc.queryID,
+				Name:     tc.name,
+				Query:    tc.query,
+				Platform: tc.platforms,
 			}
 			gpResp := globalPolicyResponse{}
 			s.DoJSON("POST", "/api/v1/fleet/global/policies", gpReq, http.StatusBadRequest, &gpResp)
@@ -1184,4 +1206,81 @@ func (s *integrationTestSuite) TestListActivities() {
 	s.DoJSON("GET", "/api/v1/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+}
+
+func (s *integrationTestSuite) TestListGetCarves() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	c1, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[0].ID,
+		Name:      t.Name() + "_1",
+		SessionId: "ssn1",
+	})
+	require.NoError(t, err)
+	c2, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[1].ID,
+		Name:      t.Name() + "_2",
+		SessionId: "ssn2",
+	})
+	require.NoError(t, err)
+	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
+		CreatedAt: time.Now(),
+		HostId:    hosts[2].ID,
+		Name:      t.Name() + "_3",
+		SessionId: "ssn3",
+	})
+	require.NoError(t, err)
+
+	// set c1 max block
+	c1.MaxBlock = 3
+	require.NoError(t, s.ds.UpdateCarve(ctx, c1))
+	// make c2 expired, set max block
+	c2.Expired = true
+	c2.MaxBlock = 3
+	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
+
+	var listResp listCarvesResponse
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c3.ID, listResp.Carves[1].ID)
+
+	// include expired
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 2)
+	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
+	assert.Equal(t, c2.ID, listResp.Carves[1].ID)
+
+	// empty page
+	s.DoJSON("GET", "/api/v1/fleet/carves", nil, http.StatusOK, &listResp, "page", "3", "per_page", "2", "order_key", "id", "expired", "1")
+	require.Len(t, listResp.Carves, 0)
+
+	// get specific carve
+	var getResp getCarveResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c2.ID), nil, http.StatusOK, &getResp)
+	require.Equal(t, c2.ID, getResp.Carve.ID)
+	require.True(t, getResp.Carve.Expired)
+
+	// get non-existing carve
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// get expired carve block
+	var blkResp getCarveBlockResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c2.ID, 1), nil, http.StatusInternalServerError, &blkResp)
+
+	// get valid carve block, but block not inserted yet
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusNotFound, &blkResp)
+
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 1, []byte("block1")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 2, []byte("block2")))
+	require.NoError(t, s.ds.NewBlock(ctx, c1, 3, []byte("block3")))
+
+	// get valid carve block
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusOK, &blkResp)
+	require.Equal(t, "block1", string(blkResp.Data))
 }

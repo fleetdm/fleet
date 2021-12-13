@@ -39,7 +39,7 @@ func initFatal(err error, message string) {
 
 func createRootCmd() *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands
-	var rootCmd = &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:   "fleet",
 		Short: "osquery management and orchestration",
 		Long: `Fleet server (https://fleetdm.com)
@@ -61,4 +61,5 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Mysql.Username = "fleet"
 	cfg.Mysql.Database = "fleet"
 	cfg.Mysql.Password = "insecure"
+	cfg.Session.Duration = 7 * 24 * time.Hour
 }

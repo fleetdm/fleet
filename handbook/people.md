@@ -1,6 +1,6 @@
 ## Directly responsible individuals
 
-At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.
+At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.  To see who is DRI of what, see the [list of DRIs at Fleet](https://fleetdm.com/handbook/product#product-dr-is).
 
 This person is responsible for accomplishing goals and making decisions about a particular aspect of Fleet.
 
@@ -27,5 +27,4 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
-
+<meta name="maintainedBy" value="eashaw">
