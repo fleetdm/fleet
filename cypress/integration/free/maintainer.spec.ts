@@ -114,6 +114,7 @@ describe(
 
       // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
