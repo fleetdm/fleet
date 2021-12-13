@@ -1,4 +1,0 @@
-* Policies now have proprietary queries and are managed independently from the saved queries.
-  * Amended policy creation API to support proprietary queries.
-  * New update/edit APIs for policies.
-  * Amended policy spec APIs to support the new proprietary queries.

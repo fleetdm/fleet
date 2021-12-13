@@ -1,3 +1,63 @@
+## Fleet 4.7.0 (Dec 13, 2021)
+
+* Log server request errors that were not being logged when running in non-debug mode.
+
+* Fix dashboard software card not filtering by team and improve load states
+
+* Remove host_expiry event if it still exists
+
+* Add missing software inventory and `disk_space_unix` for Debian hosts. Unify definition of linux hosts.
+
+* Break out storage of hosts into smaller steps to prevent locking
+
+* Query and Policy SQL errors showing on Save now show in realtime
+
+* Add `platform` field to policies.
+
+* Add software count API
+
+* Ensure uniformity of http clients across the codebase, so that all use sane defaults and are proxy-aware.
+
+* In the Add a policy modal, users are prompted to add common policies or create a new one
+
+* Users can preview a schedule response in the create/edit schedule modal
+
+* Frontend and UI use new policies API keys appwide
+
+* Remove host users without login shells, and include host users missing groups.
+
+* Add ability to run live queries on new and existing policies
+
+* Users can create an operating system policy from the host details page
+
+* New `fleetctl` command `debug migrations` to show missing migrations of a running fleet instance.
+* `fleet serve` and `fleet prepare db` will fail if there are unknown migrations (possibly an old version of fleet running against a newer database).
+
+* Remove five-row limit for teams search
+
+* Fix incompatibility zero date issue with MySQL 8.
+
+* Add `fleetctl debug errors` to get the list of stored errors, and `fleetctl debug db-locks` to get the current db transactions locked (both reports are also added to the `fleetctl debug archive` output).
+
+* Enable vulnerability processing by default.
+
+* Software modal on homepage shows exact software count with filterability
+
+* No access users are presented with a 403 "Access denied" page for all user routes
+
+* Users can create and edit instructions to resolve a failing policy
+
+* Improve how software listing queries work depending on filters
+
+* Add index to the software table to improve the performance of the home page
+
+* Policies now have proprietary queries and are managed independently from the saved queries.
+  * Amended policy creation API to support proprietary queries.
+  * New update/edit APIs for policies.
+  * Amended policy spec APIs to support the new proprietary queries.
+
+* Fix issue preventing creation of Windows MSI packages with non-default Orbit update channel.
+
 ## Fleet 4.6.2 (Nov 30, 2021)
 
 * Improve performance of the **Home** page by removing total hosts count from the "Software" table.
