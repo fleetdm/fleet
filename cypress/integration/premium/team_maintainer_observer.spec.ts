@@ -27,7 +27,7 @@ describe(
       // On the Hosts page, they should…
 
       // On observing team, not see the "Generate installer" and "Manage enroll secret" buttons
-      cy.conatains(/apples/i);
+      cy.contains(/apples/i);
       cy.contains("button", /generate installer/i).should("not.exist");
       cy.contains("button", /manage enroll secret/i).should("not.exist");
 
