@@ -29,7 +29,6 @@
               </div>
               <div class="ml-auto">
                 <strong>${{quotedPrice}}.00 /year</strong>
-                <p style="margin-block-end: 0px;" class="text-success">Free for 30 days</p>
               </div>
             </div>
           </div>
@@ -52,7 +51,7 @@
             </ajax-form>
           </div>
         </div>
-        <div style="max-width: 280px;" class="order-last d-none d-md-block ml-auto pl-4" purpose="features-list">
+        <div style="max-width: 280px;" class="order-last d-none d-md-block pl-4" purpose="features-list">
           <p><strong>Fleet Premium includes:</strong></p>
           <ul>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
@@ -60,17 +59,9 @@
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
           </ul>
-          <div class="pt-2 d-none" v-if="showBillingForm">
-          <p><strong>FAQ</strong></p>
-          <strong>Will my credit card be charged now?</strong>
-          <p>No, you’ll be charged on <js-timestamp short="true" :at="thirtyDaysFromTodayInMS"></js-timestamp> unless you cancel before then.</p>
-          <strong>Can I cancel at any time?</strong>
-          <p>Yes you can. Please enjoy Fleet Premium with no oblication to buy.</p>
-          <strong>Can I change my details later?</strong>
-          <p>Yes, you can change your details, including payment method and number of devices from your admin panel.</p>
-          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

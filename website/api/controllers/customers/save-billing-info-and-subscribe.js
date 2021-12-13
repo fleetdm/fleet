@@ -35,6 +35,12 @@ module.exports = {
       }
     },
 
+    // country: {
+    //   type: 'string',
+    //   required: true,
+    //   description: 'The country where the user resides'
+    // }
+
 
   },
 
@@ -77,7 +83,7 @@ module.exports = {
       let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
         emailAddress: userRecord.emailAddress
       }).timeout(5000).retry();
-      await User.updateOne({id: userRecord.id})
+      userRecord = await User.updateOne({id: userRecord.id})
       .set({
         stripeCustomerId
       });
@@ -96,6 +102,7 @@ module.exports = {
         billingCardLast4: inputs.paymentSource.billingCardLast4,
         billingCardExpMonth: inputs.paymentSource.billingCardExpMonth,
         billingCardExpYear: inputs.paymentSource.billingCardExpYear,
+        // country: inputs.country,
       });
 
     // Create the subscription for this order in Stripe
