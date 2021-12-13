@@ -25,14 +25,6 @@ func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, er
 	return getUserRequest{ID: uint(id)}, nil
 }
 
-func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	opt, err := userListOptionsFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-	return listUsersRequest{ListOptions: opt}, nil
-}
-
 func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := uintFromRequest(r, "id")
 	if err != nil {

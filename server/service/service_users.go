@@ -299,14 +299,6 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 	return vc.User, nil
 }
 
-func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.ListUsers(ctx, opt)
-}
-
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.

@@ -86,37 +86,6 @@ func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Users
-////////////////////////////////////////////////////////////////////////////////
-
-type listUsersRequest struct {
-	ListOptions fleet.UserListOptions
-}
-
-type listUsersResponse struct {
-	Users []fleet.User `json:"users"`
-	Err   error        `json:"error,omitempty"`
-}
-
-func (r listUsersResponse) error() error { return r.Err }
-
-func makeListUsersEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listUsersRequest)
-		users, err := svc.ListUsers(ctx, req.ListOptions)
-		if err != nil {
-			return listUsersResponse{Err: err}, nil
-		}
-
-		resp := listUsersResponse{Users: []fleet.User{}}
-		for _, user := range users {
-			resp.Users = append(resp.Users, *user)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Change Password
 ////////////////////////////////////////////////////////////////////////////////
 

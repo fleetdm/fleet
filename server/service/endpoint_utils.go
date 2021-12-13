@@ -67,8 +67,8 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // makeDecoder creates a decoder for the type for the struct passed on. If the
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options that derive from the common
-// list_options).
+// URL (similarly for host_options, carve_options, user_options that derive
+// from the common list_options).
 //
 // Finally, any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
@@ -118,6 +118,13 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				switch urlTagValue {
 				case "list_options":
 					opts, err := listOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
+
+				case "user_options":
+					opts, err := userListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
