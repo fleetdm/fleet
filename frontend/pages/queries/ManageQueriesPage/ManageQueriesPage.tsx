@@ -240,6 +240,7 @@ const ManageQueriesPage = (): JSX.Element => {
               searchable={!!queriesList}
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
+              isOnlyObserver={isOnlyObserver}
             />
           )}
         </div>
