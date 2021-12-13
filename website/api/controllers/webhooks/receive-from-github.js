@@ -33,7 +33,6 @@ module.exports = {
       'mikermcneil',
       'lukeheath',
       'zwass',
-      'rlynnj11',
       'martavis',
       'rachelelysia',
       'gillespi314',
@@ -45,9 +44,10 @@ module.exports = {
       'drewbakerfdm',
       'vercel[bot]',
       'lucasmrod',
-      'tgauda'
+      'tgauda',
+      'ksatter'
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'rlynnj11';// « Used below
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');

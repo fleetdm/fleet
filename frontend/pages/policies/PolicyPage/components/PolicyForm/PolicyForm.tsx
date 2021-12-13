@@ -82,6 +82,7 @@ const PolicyForm = ({
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
+    policyTeamId,
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
@@ -94,11 +95,13 @@ const PolicyForm = ({
 
   const {
     currentUser,
-    isOnlyObserver,
+    isTeamObserver,
     isGlobalObserver,
-    isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
+    isTeamAdmin,
+    isTeamMaintainer,
   } = useContext(AppContext);
 
   const debounceCompatiblePlatforms = useDebouncedCallback(
@@ -123,14 +126,8 @@ const PolicyForm = ({
     });
   }, [lastEditedQueryBody]);
 
-  const hasTeamMaintainerPermissions = isEditMode
-    ? isAnyTeamMaintainerOrTeamAdmin &&
-      storedPolicy &&
-      currentUser &&
-      storedPolicy.author_id === currentUser.id
-    : isAnyTeamMaintainerOrTeamAdmin;
-
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+  const hasSavePermissions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -428,23 +425,25 @@ const PolicyForm = ({
       // using a real button
       // prettier-ignore
       return (
-        <div>
-          <b>Resolve:</b> {" "}
-          <span
-            role="button"
-            className={`${baseClass}__policy-resolution`}
-            onClick={() => setIsEditingResolution(true)}
-          >
-            <img alt="Edit resolution" src={PencilIcon} />
-          </span><br/>
-          <span
-            role="button"
-            className={`${baseClass}__policy-resolution`}
-            onClick={() => setIsEditingResolution(true)}
-          >
-            {lastEditedQueryResolution || "Add resolution here."}
-          </span>
-        </div>
+        <>
+          <div className="resolve-text-wrapper">
+            <b>Resolve:</b> {" "}
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              <img alt="Edit resolution" src={PencilIcon} />
+            </span><br/>
+            <span
+              role="button"
+              className={`${baseClass}__policy-resolution`}
+              onClick={() => setIsEditingResolution(true)}
+            >
+              {lastEditedQueryResolution || "Add resolution here."}
+            </span>
+          </div>
+        </>
       );
       /* eslint-enable */
     }
@@ -512,26 +511,17 @@ const PolicyForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
         >
-          {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+          {hasSavePermissions && (
             <div className="query-form__button-wrap--save-policy-button">
               <div
                 data-tip
                 data-for="save-query-button"
-                data-tip-disable={
-                  !(
-                    isAnyTeamMaintainerOrTeamAdmin &&
-                    !hasTeamMaintainerPermissions
-                  )
-                }
+                data-tip-disable={!(isTeamAdmin || isTeamMaintainer)}
               >
                 <Button
                   className={`${baseClass}__save`}
                   variant="brand"
                   onClick={promptSavePolicy()}
-                  disabled={
-                    isAnyTeamMaintainerOrTeamAdmin &&
-                    !hasTeamMaintainerPermissions
-                  }
                 >
                   <>Save{!isEditMode && " policy"}</>
                 </Button>
@@ -578,7 +568,11 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (
+    isTeamObserver ||
+    isGlobalObserver ||
+    (policyTeamId === 0 && !isOnGlobalTeam)
+  ) {
     return renderRunForObserver;
   }
 

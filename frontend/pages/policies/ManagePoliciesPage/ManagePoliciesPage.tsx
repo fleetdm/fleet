@@ -76,7 +76,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
-    setPolicyTeamId,
   } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
@@ -172,7 +171,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
-    setPolicyTeamId(id);
     const selectedTeam = find(teams, ["id", id]);
     setCurrentTeam(selectedTeam);
   };

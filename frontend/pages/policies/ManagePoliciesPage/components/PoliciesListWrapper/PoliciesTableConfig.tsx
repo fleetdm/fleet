@@ -71,8 +71,8 @@ const generateTableHeaders = (options: {
     case "inheritedPolicies":
       return [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
@@ -86,8 +86,8 @@ const generateTableHeaders = (options: {
     default: {
       const tableHeaders: IDataColumn[] = [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (

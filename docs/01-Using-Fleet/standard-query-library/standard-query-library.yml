@@ -4,7 +4,7 @@ kind: query
 spec:
   name: Count Apple applications installed
   platforms: macOS
-  description: Count the number of Apple applications installed on the machine.
+  description: Get the total number of Apple applications installed on the host system.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
   contributors: mike-j-thomas,noahtalerman,mikermcneil
@@ -145,7 +145,7 @@ kind: query
 spec:
   name: Get laptops with failing batteries
   platforms: macOS
-  description: Get all laptops with batteries that are not well-performing.
+  description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
   contributors: zwass
@@ -175,7 +175,7 @@ kind: query
 spec:
   name: Get the version of the resident operating system
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows system mounted devices and filesystems (not process specific).
+  description: Retrieves the version of the host(s) operating system(s).
   query: SELECT * FROM os_version;
   purpose: Informational
   contributors: zwass
@@ -255,7 +255,7 @@ kind: query
 spec:
   name: Get Windows machines with unencrypted hard disks
   platforms: Windows
-  description:
+  description: List all Windows machines with unencrypted hard disks.
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
   contributors: zwass
