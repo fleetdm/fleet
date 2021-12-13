@@ -68,9 +68,6 @@ type FleetEndpoints struct {
 	SubmitLogs                            endpoint.Endpoint
 	CarveBegin                            endpoint.Endpoint
 	CarveBlock                            endpoint.Endpoint
-	DeleteLabel                           endpoint.Endpoint
-	DeleteLabelByID                       endpoint.Endpoint
-	ApplyLabelSpecs                       endpoint.Endpoint
 	GetLabelSpecs                         endpoint.Endpoint
 	GetLabelSpec                          endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
@@ -150,9 +147,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		DeleteLabel:                           authenticatedUser(svc, makeDeleteLabelEndpoint(svc)),
-		DeleteLabelByID:                       authenticatedUser(svc, makeDeleteLabelByIDEndpoint(svc)),
-		ApplyLabelSpecs:                       authenticatedUser(svc, makeApplyLabelSpecsEndpoint(svc)),
 		GetLabelSpecs:                         authenticatedUser(svc, makeGetLabelSpecsEndpoint(svc)),
 		GetLabelSpec:                          authenticatedUser(svc, makeGetLabelSpecEndpoint(svc)),
 		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
@@ -234,9 +228,6 @@ type fleetHandlers struct {
 	SubmitLogs                            http.Handler
 	CarveBegin                            http.Handler
 	CarveBlock                            http.Handler
-	DeleteLabel                           http.Handler
-	DeleteLabelByID                       http.Handler
-	ApplyLabelSpecs                       http.Handler
 	GetLabelSpecs                         http.Handler
 	GetLabelSpec                          http.Handler
 	SearchTargets                         http.Handler
@@ -310,9 +301,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
 		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
 		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
-		DeleteLabel:                           newServer(e.DeleteLabel, decodeDeleteLabelRequest),
-		DeleteLabelByID:                       newServer(e.DeleteLabelByID, decodeDeleteLabelByIDRequest),
-		ApplyLabelSpecs:                       newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
 		GetLabelSpecs:                         newServer(e.GetLabelSpecs, decodeNoParamsRequest),
 		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
@@ -551,9 +539,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-	r.Handle("/api/v1/fleet/labels/id/{id:[0-9]+}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
-	r.Handle("/api/v1/fleet/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
@@ -657,6 +642,9 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.GET("/api/v1/fleet/labels/{id:[0-9]+}", getLabelEndpoint, getLabelRequest{})
 	e.GET("/api/v1/fleet/labels", listLabelsEndpoint, listLabelsRequest{})
 	e.GET("/api/v1/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, listHostsInLabelRequest{})
+	e.DELETE("/api/v1/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
+	e.DELETE("/api/v1/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
+	e.POST("/api/v1/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 

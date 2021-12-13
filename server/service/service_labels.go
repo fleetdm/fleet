@@ -3,26 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	for _, spec := range specs {
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
-			return ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name)
-		}
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
-			// Hosts list doesn't need to contain anything, but it should at least not be nil.
-			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
-		}
-	}
-	return svc.ds.ApplyLabelSpecs(ctx, specs)
-}
 
 func (svc *Service) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
@@ -38,26 +20,6 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 	}
 
 	return svc.ds.GetLabelSpec(ctx, name)
-}
-
-func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	return svc.ds.DeleteLabel(ctx, name)
-}
-
-func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	label, err := svc.ds.Label(ctx, id)
-	if err != nil {
-		return err
-	}
-	return svc.ds.DeleteLabel(ctx, label.Name)
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -255,4 +256,110 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListHostsInLabel(ctx, filter, lid, opt)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Label
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteLabelRequest struct {
+	Name string `url:"name"`
+}
+
+type deleteLabelResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteLabelResponse) error() error { return r.Err }
+
+func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteLabelRequest)
+	err := svc.DeleteLabel(ctx, req.Name)
+	if err != nil {
+		return deleteLabelResponse{Err: err}, nil
+	}
+	return deleteLabelResponse{}, nil
+}
+
+func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteLabel(ctx, name)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Label By ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteLabelByIDRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteLabelByIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteLabelByIDResponse) error() error { return r.Err }
+
+func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteLabelByIDRequest)
+	err := svc.DeleteLabelByID(ctx, req.ID)
+	if err != nil {
+		return deleteLabelByIDResponse{Err: err}, nil
+	}
+	return deleteLabelByIDResponse{}, nil
+}
+
+func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	label, err := svc.ds.Label(ctx, id)
+	if err != nil {
+		return err
+	}
+	return svc.ds.DeleteLabel(ctx, label.Name)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Label Specs
+////////////////////////////////////////////////////////////////////////////////
+
+type applyLabelSpecsRequest struct {
+	Specs []*fleet.LabelSpec `json:"specs"`
+}
+
+type applyLabelSpecsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyLabelSpecsResponse) error() error { return r.Err }
+
+func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*applyLabelSpecsRequest)
+	err := svc.ApplyLabelSpecs(ctx, req.Specs)
+	if err != nil {
+		return applyLabelSpecsResponse{Err: err}, nil
+	}
+	return applyLabelSpecsResponse{}, nil
+}
+
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	for _, spec := range specs {
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
+			return ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name)
+		}
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeManual && spec.Hosts == nil {
+			// Hosts list doesn't need to contain anything, but it should at least not be nil.
+			return ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name)
+		}
+	}
+	return svc.ds.ApplyLabelSpecs(ctx, specs)
 }

@@ -24,6 +24,12 @@ func TestLabelsAuth(t *testing.T) {
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label) (*fleet.Label, error) {
 		return lbl, nil
 	}
+	ds.DeleteLabelFunc = func(ctx context.Context, nm string) error {
+		return nil
+	}
+	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		return nil
+	}
 	ds.LabelFunc = func(ctx context.Context, id uint) (*fleet.Label, error) {
 		return &fleet.Label{}, nil
 	}
@@ -81,6 +87,9 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
+			err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
 			_, err = svc.GetLabel(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
@@ -89,6 +98,12 @@ func TestLabelsAuth(t *testing.T) {
 
 			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			err = svc.DeleteLabel(ctx, "abc")
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.DeleteLabelByID(ctx, 1)
+			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
 }

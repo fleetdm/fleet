@@ -1,30 +1,6 @@
 package service
 
-import (
-	"context"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-)
-
-func TestDecodeDeleteLabelRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/labels/{name}", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeDeleteLabelRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(deleteLabelRequest)
-		assert.Equal(t, "foo", params.Name)
-	}).Methods("DELETE")
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("DELETE", "/api/v1/fleet/labels/foo", nil),
-	)
-}
+// TODO(mna): delete after integration tests added
 
 /*
 func TestDecodeCreateLabelRequest(t *testing.T) {
