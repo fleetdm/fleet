@@ -215,3 +215,44 @@ func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.
 		Count:       label.HostCount,
 	}, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Hosts in Label
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostsInLabelRequest struct {
+	ID          uint                  `url:"id"`
+	ListOptions fleet.HostListOptions `url:"host_options"`
+}
+
+func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listHostsInLabelRequest)
+	hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
+	if err != nil {
+		return listLabelsResponse{Err: err}, nil
+	}
+
+	hostResponses := make([]HostResponse, len(hosts))
+	for i, host := range hosts {
+		h, err := hostResponseForHost(ctx, svc, host)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+
+		hostResponses[i] = *h
+	}
+	return listHostsResponse{Hosts: hostResponses}, nil
+}
+
+func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	return svc.ds.ListHostsInLabel(ctx, filter, lid, opt)
+}

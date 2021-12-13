@@ -8,36 +8,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Hosts in Label
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostsInLabelRequest struct {
-	ID          uint
-	ListOptions fleet.HostListOptions
-}
-
-func makeListHostsInLabelEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listHostsInLabelRequest)
-		hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
-		if err != nil {
-			return listLabelsResponse{Err: err}, nil
-		}
-
-		hostResponses := make([]HostResponse, len(hosts))
-		for i, host := range hosts {
-			h, err := hostResponseForHost(ctx, svc, host)
-			if err != nil {
-				return listHostsResponse{Err: err}, nil
-			}
-
-			hostResponses[i] = *h
-		}
-		return listHostsResponse{Hosts: hostResponses}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label
 ////////////////////////////////////////////////////////////////////////////////
 
