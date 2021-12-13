@@ -42,6 +42,15 @@ func (s *integrationTestSuite) TearDownTest() {
 		ids = append(ids, host.ID)
 	}
 	s.ds.DeleteHosts(context.Background(), ids)
+
+	lbls, err := s.ds.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(s.T(), err)
+	for _, lbl := range lbls {
+		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			err := s.ds.DeleteLabel(context.Background(), lbl.Name)
+			require.NoError(s.T(), err)
+		}
+	}
 }
 
 func TestIntegrations(t *testing.T) {
@@ -1586,4 +1595,33 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+}
+
+func (s *integrationTestSuite) TestLabels() {
+	t := s.T()
+
+	// list labels, has the built-in ones
+	var listResp listLabelsResponse
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp)
+	assert.True(t, len(listResp.Labels) > 0)
+	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
+	// create a label without name, an error
+	var createResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
+
+	// create a valid label
+	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.Label.ID)
+	lbl1 := createResp.Label.Label
+
+	// get the label
+	var getResp getLabelResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, lbl1.ID, getResp.Label.ID)
+
+	// get a non-existing label
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
 }

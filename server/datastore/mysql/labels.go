@@ -235,7 +235,7 @@ func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 }
 
 func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
-	sql := `
+	stmt := `
 		SELECT
 		       l.*,
 		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
@@ -244,7 +244,10 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 	`
 	label := &fleet.Label{}
 
-	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, label, stmt, lid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
 
