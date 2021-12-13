@@ -76,6 +76,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
@@ -131,6 +132,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         .loadAll()
         .then((response) => response.policies);
       setGlobalPolicies(result);
+      setLastEditedQueryPlatform("");
     } catch (error) {
       console.log(error);
       setIsGlobalPoliciesError(true);

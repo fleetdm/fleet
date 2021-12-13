@@ -1,5 +1,6 @@
 import URL_PREFIX from "router/url_prefix";
 import { IQueryPlatform } from "interfaces/query";
+import { IPolicyNew } from "interfaces/policy";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -85,7 +86,7 @@ export const DEFAULT_POLICIES = [
     resolution: "",
     platform: "darwin",
   },
-];
+] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },

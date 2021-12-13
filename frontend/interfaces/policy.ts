@@ -54,8 +54,10 @@ export interface IPolicyFormData {
 
 export interface IPolicyNew {
   id?: number;
+  key?: number;
   name: string;
   description: string;
   query: string;
   resolution: string;
+  platform: IQueryPlatform;
 }

@@ -101,10 +101,29 @@ const PolicyForm = ({
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+  const displayOrder = [
+    {
+      selected: isDarwinCompatible,
+      displayName: "macOS",
+    },
+    {
+      selected: isWindowsCompatible,
+      displayName: "Windows",
+    },
+    {
+      selected: isLinuxCompatible,
+      displayName: "Linux",
+    },
+  ];
+
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
-    });
+    })
+
+    setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
+    setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
+    setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -147,10 +166,6 @@ const PolicyForm = ({
       isDarwinCompatible && selectedPlatforms.push("darwin");
       isWindowsCompatible && selectedPlatforms.push("windows");
       isLinuxCompatible && selectedPlatforms.push("linux");
-      console.log(
-        "setting new lastEditedQueryPlatform: ",
-        selectedPlatforms.join(",")
-      );
       setLastEditedQueryPlatform(selectedPlatforms.join(",") as IQueryPlatform);
     }
 
@@ -344,14 +359,20 @@ const PolicyForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    const displayOrder = ["macOS", "Windows", "Linux"];
+    const displayPlatforms = displayOrder
+      .filter((platform) => platform.selected)
+      .map((platform) => {
+        return platform.displayName;
+      });
 
     return (
       <span className={`${baseClass}__platform-compatibility`}>
         {isEditMode ? (
           <>
             <b>Checks on:</b>
-            <span className="platforms-text">{displayOrder.join(", ")}</span>
+            <span className="platforms-text">
+              {displayPlatforms.join(", ")}
+            </span>
             <span className={`tooltip`}>
               <span
                 className={`tooltip__tooltip-icon`}
@@ -370,7 +391,9 @@ const PolicyForm = ({
                 data-html
               >
                 <span className={`tooltip__tooltip-text`}>
-                  To choose new platforms, please create a new policy.
+                  To choose new platforms,
+                  <br />
+                  please create a new policy.
                 </span>
               </ReactTooltip>
             </span>

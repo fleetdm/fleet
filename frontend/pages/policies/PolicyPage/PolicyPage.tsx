@@ -101,8 +101,6 @@ const PolicyPage = ({
       refetchOnWindowFocus: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
-        // START HERE: API is responding with empty platform prop after we provide it in POST request
-        console.log("returnedQuery: ", returnedQuery);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
@@ -135,7 +133,6 @@ const PolicyPage = ({
 
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
-      console.log("formData: ", formData);
       return formData.team_id
         ? teamPoliciesAPI.create(formData)
         : globalPoliciesAPI.create(formData);
