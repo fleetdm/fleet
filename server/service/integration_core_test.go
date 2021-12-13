@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1607,6 +1608,7 @@ func (s *integrationTestSuite) TestLabels() {
 	for _, lbl := range listResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
+	builtInsCount := len(listResp.Labels)
 
 	// create a label without name, an error
 	var createResp createLabelResponse
@@ -1635,10 +1637,9 @@ func (s *integrationTestSuite) TestLabels() {
 	// modify a non-existing label
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
 
-	// list labels corresponding to a name
-	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "query", t.Name())
-	assert.Len(t, listResp.Labels, 1)
-	assert.Equal(t, lbl1.ID, listResp.Labels[0].ID)
+	// list labels
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
+	assert.Len(t, listResp.Labels, builtInsCount+1)
 
 	// next page is empty
 	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
