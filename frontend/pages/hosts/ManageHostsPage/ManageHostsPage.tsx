@@ -1010,10 +1010,8 @@ const ManageHostsPage = ({
         softwareId,
       });
 
-      refetchLabels();
       toggleTransferHostModal();
       setSelectedHostIds([]);
-      console.log("setSelectedHostIds hit");
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       dispatch(

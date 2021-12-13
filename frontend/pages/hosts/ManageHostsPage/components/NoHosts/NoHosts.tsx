@@ -9,7 +9,7 @@ import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.pn
 
 interface INoHostsProps {
   toggleGenerateInstallerModal: () => void;
-  canEnrollHosts: boolean;
+  canEnrollHosts?: boolean;
 }
 
 const baseClass = "no-hosts";
