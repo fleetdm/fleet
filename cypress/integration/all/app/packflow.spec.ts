@@ -24,6 +24,7 @@ describe(
       cy.findByRole("button", { name: /save query pack/i }).click();
 
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/errors and crashes/i).click();
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
