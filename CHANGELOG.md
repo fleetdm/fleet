@@ -1,62 +1,44 @@
 ## Fleet 4.7.0 (Dec 13, 2021)
 
-* Log server request errors that were not being logged when running in non-debug mode.
+* Add ability to create, modify, or delete policies in Fleet without modifying saved queries. Fleet 4.7.0 introduces breaking changes to the `/policies` API routes to support the separation of policies from saved queries in Fleet. These changes will not affect any policies previously created or modified in the Fleet UI.
 
-* Fix dashboard software card not filtering by team and improve load states
+* Turn on vulnerability processing for all Fleet instances with software inventory enabled. [Vulnerability processing in Fleet](https://fleetdm.com/docs/using-fleet/vulnerability-processing) provides the ability to see all hosts with specific vulnerable software installed. 
 
-* Remove host_expiry event if it still exists
+* Improve the performance of the "Software" table on the **Home** page in the Fleet UI by reducing the loading time.
 
-* Add missing software inventory and `disk_space_unix` for Debian hosts. Unify definition of linux hosts.
+* Improve performance of the MySQL database by altering the way a host's users information is saved.
 
-* Break out storage of hosts into smaller steps to prevent locking
+* Add ability to select from seven policy templates on the **Policies** page in the Fleet UI. These policy templates ask specific yes or no questions about your hosts. For example, one of these policy templates asks "Is Gatekeeper enabled on macOS devices?"
 
-* Query and Policy SQL errors showing on Save now show in realtime
+* Add ability to ask whether or not your hosts have a specific operating system installed by selecting an operating system policy on the **Host details** page. For example, a host that is running macOS 12.0.1 will present a policy that asks "Is macOS 12.0.1 installed on macOS devices?"
 
-* Add `platform` field to policies.
+* Add ability to specify which platform(s) (macOS, Windows, and/or Linux) a policy is checked on.
 
-* Add software count API
+* Add ability to export a report that includes which hosts are answering "Yes" or "No" to a specific policy by running a policy's query as a live query.
 
-* Ensure uniformity of http clients across the codebase, so that all use sane defaults and are proxy-aware.
+* Add ability to see the total number of installed software software items across all your hosts.
 
-* In the Add a policy modal, users are prompted to add common policies or create a new one
+* Add ability to see an example scheduled query result that is sent to your configured log destination. Select "Schedule a query" > "Preview data" on the **Schedule** page in the Fleet UI to see the example scheduled query result.
 
-* Users can preview a schedule response in the create/edit schedule modal
+* Improve the host's users information by removing users without login shells and adding users that are not associated with a system group.
 
-* Frontend and UI use new policies API keys appwide
+* Add ability to see a Fleet instance's missing migrations with the `fleetctl debug migrations commnad` to show missing migrations of a running fleet instance. The `fleet serve` and `fleet prepare db` commands will now fail if any unknown migrations are detected.
 
-* Remove host users without login shells, and include host users missing groups.
+* Add ability to see syntax errors as your write a query in the Fleet UI.
 
-* Add ability to run live queries on new and existing policies
+* Add ability to record a policy's resolution steps that can be referenced when a host answers "No" to this policy.
 
-* Users can create an operating system policy from the host details page
+* Add server request errors to the Fleet server logs to allow for troubleshooting issues with the Fleet server in non-debug mode.
 
-* New `fleetctl` command `debug migrations` to show missing migrations of a running fleet instance.
-* `fleet serve` and `fleet prepare db` will fail if there are unknown migrations (possibly an old version of fleet running against a newer database).
+* Fix a bug in which software inventory and disk space information was not retrieved for Debian hosts.
 
-* Remove five-row limit for teams search
+* Fix a bug in which some Fleet migrations were incompatible with MySQL 8.
 
-* Fix incompatibility zero date issue with MySQL 8.
+* Fix a bug that prevented the creation of osquery installers for Windows (.msi) when a non-default update channel is specified.
 
-* Add `fleetctl debug errors` to get the list of stored errors, and `fleetctl debug db-locks` to get the current db transactions locked (both reports are also added to the `fleetctl debug archive` output).
+* Fix a bug in which the "Software" table on the home page did not correctly filtering when a specific team was selected on the **Home** page.
 
-* Enable vulnerability processing by default.
-
-* Software modal on homepage shows exact software count with filterability
-
-* No access users are presented with a 403 "Access denied" page for all user routes
-
-* Users can create and edit instructions to resolve a failing policy
-
-* Improve how software listing queries work depending on filters
-
-* Add index to the software table to improve the performance of the home page
-
-* Policies now have proprietary queries and are managed independently from the saved queries.
-  * Amended policy creation API to support proprietary queries.
-  * New update/edit APIs for policies.
-  * Amended policy spec APIs to support the new proprietary queries.
-
-* Fix issue preventing creation of Windows MSI packages with non-default Orbit update channel.
+* Fix a bug in which users with "No access" in Fleet were presented with a perpetual loading state in the Fleet UI.
 
 ## Fleet 4.6.2 (Nov 30, 2021)
 
