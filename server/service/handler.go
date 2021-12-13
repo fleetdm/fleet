@@ -634,6 +634,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.DELETE("/api/v1/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
 	e.DELETE("/api/v1/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
 	e.POST("/api/v1/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
+	e.GET("/api/v1/fleet/spec/labels", getLabelSpecsEndpoint, nil)
 	e.GET("/api/v1/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})

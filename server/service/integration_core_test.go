@@ -1691,3 +1691,67 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 }
+
+func (s *integrationTestSuite) TestLabelSpecs() {
+	t := s.T()
+
+	// list label specs, only those of the built-ins
+	var listResp getLabelSpecsResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	assert.True(t, len(listResp.Specs) > 0)
+	for _, spec := range listResp.Specs {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
+	}
+	builtInsCount := len(listResp.Specs)
+
+	name := strings.ReplaceAll(t.Name(), "/", "_")
+	// apply an invalid label spec - dynamic membership with host specified
+	var applyResp applyLabelSpecsResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Hosts:               []string{"abc"},
+			},
+		},
+	}, http.StatusInternalServerError, &applyResp)
+
+	// apply an invalid label spec - manual membership without a host specified
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+			},
+		},
+	}, http.StatusInternalServerError, &applyResp)
+
+	// apply a valid label spec
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list label specs, has the newly created one
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	assert.Len(t, listResp.Specs, builtInsCount+1)
+
+	// get a specific label spec
+	var getResp getLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
+	assert.Equal(t, name, getResp.Spec.Name)
+
+	// get a non-existing label spec
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
+}
