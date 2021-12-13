@@ -119,7 +119,7 @@ const PolicyForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
-    })
+    });
 
     setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
     setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
