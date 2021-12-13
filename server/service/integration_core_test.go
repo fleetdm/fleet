@@ -1615,6 +1615,7 @@ func (s *integrationTestSuite) TestLabels() {
 	// create a valid label
 	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.Label.ID)
+	assert.Equal(t, t.Name(), createResp.Label.Name)
 	lbl1 := createResp.Label.Label
 
 	// get the label
@@ -1624,4 +1625,22 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// get a non-existing label
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// modify that label
+	var modResp modifyLabelResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
+	assert.Equal(t, lbl1.ID, modResp.Label.ID)
+	assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
+
+	// modify a non-existing label
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+
+	// list labels corresponding to a name
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "query", t.Name())
+	assert.Len(t, listResp.Labels, 1)
+	assert.Equal(t, lbl1.ID, listResp.Labels[0].ID)
+
+	// next page is empty
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
+	assert.Len(t, listResp.Labels, 0)
 }
