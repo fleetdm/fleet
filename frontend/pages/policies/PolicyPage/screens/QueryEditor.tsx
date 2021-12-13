@@ -55,6 +55,7 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryResolution,
+    lastEditedQueryPlatform,
     policyTeamId,
   } = useContext(PolicyContext);
 
@@ -107,6 +108,7 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryResolution,
+      lastEditedQueryPlatform,
     });
 
     const updateAPIRequest = () => {

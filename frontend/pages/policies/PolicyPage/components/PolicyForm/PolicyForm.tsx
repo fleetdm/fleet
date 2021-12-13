@@ -177,6 +177,7 @@ const PolicyForm = ({
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
+        platform: lastEditedQueryPlatform,
       });
     }
 
@@ -400,7 +401,7 @@ const PolicyForm = ({
           </>
         ) : (
           <>
-            <b>Compatible with:</b>
+            <b>Checks on:</b>
             <div className="platforms-select">
               <Checkbox
                 value={isDarwinCompatible}

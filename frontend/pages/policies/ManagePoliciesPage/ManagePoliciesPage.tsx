@@ -16,7 +16,6 @@ import { IUser } from "interfaces/user";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
-import fleetQueriesAPI from "services/entities/queries";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamsAPI from "services/entities/teams";
 import teamPoliciesAPI from "services/entities/team_policies";
