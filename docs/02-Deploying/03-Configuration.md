@@ -777,13 +777,13 @@ The amount of time that a session should last for.
 
 Valid time units are `s`, `m`, `h`.
 
-- Default value: `4 hours`
+- Default value: `24h` (24 hours)
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
 
   ```
   session:
-  	duration: 24h
+  	duration: 4h
   ```
 
 #### Osquery
