@@ -77,13 +77,13 @@ var config = {
         },
       },
       {
-        test: /\.tsx?$/,
+        test: /(\.tsx?|\.jsx?)$/,
         exclude: /node_modules/,
         use: {
           loader: "esbuild-loader",
           options: {
             loader: 'tsx',  // Or 'ts' if you don't need tsx
-            target: 'es2015'
+            target: 'es2016'
           },
         },
       },
@@ -122,17 +122,6 @@ var config = {
           "css-loader",
           "postcss-loader",
         ],
-      },
-      {
-        test: /\.jsx?$/,
-        include: path.join(repo, "frontend"),
-        use: {
-          loader: "esbuild-loader",
-          options: {
-            loader: "jsx",
-            target: "es2015",
-          },
-        },
       },
     ],
   },
