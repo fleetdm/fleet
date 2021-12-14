@@ -19,17 +19,12 @@ interface IPacksListWrapperProps {
   onDisablePackClick: any;
   onCreatePackClick: any;
   packsList: IPack[];
+  isLoading: boolean;
 }
 
 interface IRootState {
   auth: {
     user: IUser;
-  };
-  entities: {
-    packs: {
-      isLoading: boolean;
-      data: IPack[];
-    };
   };
 }
 
@@ -39,11 +34,8 @@ const PacksListWrapper = ({
   onDisablePackClick,
   onCreatePackClick,
   packsList,
+  isLoading,
 }: IPacksListWrapperProps): JSX.Element => {
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.packs.isLoading
-  );
-
   const currentUser = useSelector((state: IRootState) => state.auth.user);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
@@ -129,7 +121,7 @@ const PacksListWrapper = ({
         resultsTitle={"packs"}
         columns={tableHeaders}
         data={generateDataSet(filteredPacks)}
-        isLoading={loadingTableData}
+        isLoading={isLoading}
         defaultSortHeader={"pack"}
         defaultSortDirection={"desc"}
         showMarkAllPages={false}

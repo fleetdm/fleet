@@ -40,11 +40,14 @@ const renderTable = (
   onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packsList: IPack[],
-  packsErrors: { name: string; reason: string }[]
+  packsErrors: { name: string; reason: string }[],
+  isLoadingPacks: boolean
 ): JSX.Element => {
   if (Object.keys(packsErrors).length > 0) {
     return <TableDataError />;
   }
+
+  const isTableDataLoading = isLoadingPacks || packsList === null;
 
   return (
     <PacksListWrapper
@@ -53,6 +56,7 @@ const renderTable = (
       onDisablePackClick={onDisablePackClick}
       onCreatePackClick={onCreatePackClick}
       packsList={packsList}
+      isLoading={isTableDataLoading}
     />
   );
 };
@@ -72,6 +76,7 @@ const ManagePacksPage = (): JSX.Element => {
   const packs = useSelector((state: IRootState) => state.entities.packs);
   const packsList = Object.values(packs.data);
   const packsErrors = packs.errors;
+  const isLoadingPacks = packs.isLoading;
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [showRemovePackModal, setShowRemovePackModal] = useState<boolean>(
@@ -191,7 +196,8 @@ const ManagePacksPage = (): JSX.Element => {
               onDisablePackClick,
               onCreatePackClick,
               packsList,
-              packsErrors
+              packsErrors,
+              isLoadingPacks
             )}
         </div>
         {showRemovePackModal && (
