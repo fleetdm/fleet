@@ -20,7 +20,9 @@ export default {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
   EDIT_POLICY: (policy: IPolicy): string => {
-    return `${URL_PREFIX}/policies/${policy.id}`;
+    return `${URL_PREFIX}/policies/${policy.id}${
+      policy.team_id ? `?team_id=${policy.team_id}` : ""
+    }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,

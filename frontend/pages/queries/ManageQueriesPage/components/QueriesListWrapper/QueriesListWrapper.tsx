@@ -23,6 +23,7 @@ interface IQueriesListWrapperProps {
   searchable: boolean;
   customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
+  isOnlyObserver?: boolean;
 }
 
 const QueriesListWrapper = ({
@@ -33,6 +34,7 @@ const QueriesListWrapper = ({
   searchable,
   customControl,
   selectedDropdownFilter,
+  isOnlyObserver,
 }: IQueriesListWrapperProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
@@ -52,20 +54,24 @@ const QueriesListWrapper = ({
                 <p>
                   A query is a specific question you can ask about your devices.
                 </p>
-                <p>
-                  Create a new query, or go to GitHub to{" "}
-                  <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
-                    import Fleet’s standard query library
-                  </a>
-                  .
-                </p>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  Create new query
-                </Button>
+                {!isOnlyObserver && (
+                  <>
+                    <p>
+                      Create a new query, or go to GitHub to{" "}
+                      <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
+                        import Fleet’s standard query library
+                      </a>
+                      .
+                    </p>
+                    <Button
+                      variant="brand"
+                      className={`${baseClass}__create-button`}
+                      onClick={onCreateQueryClick}
+                    >
+                      Create new query
+                    </Button>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -83,6 +89,15 @@ const QueriesListWrapper = ({
   }, [searchString, onCreateQueryClick]);
 
   const tableHeaders = currentUser && generateTableHeaders(currentUser);
+
+  // Queries have not been created
+  if (!isLoading && queriesList?.length === 0) {
+    return (
+      <div className={`${baseClass}`}>
+        <NoQueriesComponent />
+      </div>
+    );
+  }
 
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
@@ -108,6 +123,7 @@ const QueriesListWrapper = ({
         isClientSideFilter
         searchQueryColumn="name"
         selectedDropdownFilter={selectedDropdownFilter}
+        isClientSidePagination
       />
     </div>
   ) : null;

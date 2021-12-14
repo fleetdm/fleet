@@ -144,7 +144,8 @@ const ManageQueriesPage = (): JSX.Element => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
     const promises = selectedQueryIds.map((id: number) => {
-      return fleetQueriesAPI.destroy(id);
+      fleetQueriesAPI.destroy(id);
+      return null;
     });
 
     return Promise.all(promises)
@@ -209,11 +210,6 @@ const ManageQueriesPage = (): JSX.Element => {
               <h1 className={`${baseClass}__title`}>
                 <span>Queries</span>
               </h1>
-              <div className={`${baseClass}__description`}>
-                <p>
-                  Manage queries to ask specific questions about your devices.
-                </p>
-              </div>
             </div>
           </div>
           {!isOnlyObserver && !!fleetQueries?.length && (
@@ -228,6 +224,9 @@ const ManageQueriesPage = (): JSX.Element => {
             </div>
           )}
         </div>
+        <div className={`${baseClass}__description`}>
+          <p>Manage queries to ask specific questions about your devices.</p>
+        </div>
         <div>
           {isTableDataLoading && !fleetQueriesError && <Spinner />}
           {!isTableDataLoading && fleetQueriesError ? (
@@ -241,6 +240,7 @@ const ManageQueriesPage = (): JSX.Element => {
               searchable={!!queriesList}
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
+              isOnlyObserver={isOnlyObserver}
             />
           )}
         </div>

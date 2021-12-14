@@ -1,9 +1,12 @@
 package service
 
-func (c *Client) CreatePolicy(queryID *uint, resolution string) error {
+func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platform string) error {
 	req := globalPolicyRequest{
-		QueryID:    queryID,
-		Resolution: resolution,
+		Name:        name,
+		Query:       query,
+		Description: description,
+		Resolution:  resolution,
+		Platform:    platform,
 	}
 	verb, path := "POST", "/api/v1/fleet/global/policies"
 	var responseBody globalPolicyResponse

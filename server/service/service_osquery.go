@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kithttp "github.com/go-kit/kit/transport/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
@@ -104,7 +103,7 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx, "hostIdentifier", hostIdentifier)
+	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -257,8 +256,6 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
@@ -382,30 +379,15 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logIPs(ctx)
-
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing status logs: " + err.Error()}
 	}
 	return nil
 }
 
-func logIPs(ctx context.Context, extras ...interface{}) {
-	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
-	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
-	logging.WithLevel(
-		logging.WithExtras(
-			logging.WithNoUser(ctx),
-			append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...),
-		level.Debug,
-	)
-}
-
 func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return osqueryError{message: "error writing result logs: " + err.Error()}
@@ -511,8 +493,6 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]string, uint, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -690,8 +670,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 ) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
-
-	logIPs(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {

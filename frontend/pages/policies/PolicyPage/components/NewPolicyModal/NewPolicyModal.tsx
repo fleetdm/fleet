@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 import { size } from "lodash";
 
 import { IPolicyFormData } from "interfaces/policy";
+import { IQueryPlatform } from "interfaces/query";
 import { useDeepEffect } from "utilities/hooks";
 import { PolicyContext } from "context/policy";
 // @ts-ignore
@@ -12,6 +13,7 @@ import Modal from "components/Modal";
 export interface INewPolicyModalProps {
   baseClass: string;
   queryValue: string;
+  platform: IQueryPlatform;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
 }
@@ -30,16 +32,22 @@ const validatePolicyName = (name: string) => {
 const NewPolicyModal = ({
   baseClass,
   queryValue,
+  platform,
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryDescription } = useContext(
-    PolicyContext
-  );
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryResolution,
+  } = useContext(PolicyContext);
 
-  const [name, setName] = useState<string>(lastEditedQueryName || "");
+  const [name, setName] = useState<string>(lastEditedQueryName);
   const [description, setDescription] = useState<string>(
-    lastEditedQueryDescription || ""
+    lastEditedQueryDescription
+  );
+  const [resolution, setResolution] = useState<string>(
+    lastEditedQueryResolution
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -49,7 +57,7 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validatePolicyName(name);
@@ -63,6 +71,8 @@ const NewPolicyModal = ({
         description,
         name,
         query: queryValue,
+        resolution,
+        platform,
       });
 
       setIsNewPolicyModalOpen(false);
@@ -71,7 +81,11 @@ const NewPolicyModal = ({
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
+      <form
+        onSubmit={handleSavePolicy}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -79,7 +93,7 @@ const NewPolicyModal = ({
           error={errors.name}
           inputClassName={`${baseClass}__policy-save-modal-name`}
           label="Name"
-          placeholder="What is your policy called?"
+          placeholder="What yes or no question does your policy ask about your devices?"
         />
         <InputField
           name="description"
@@ -87,8 +101,16 @@ const NewPolicyModal = ({
           value={description}
           inputClassName={`${baseClass}__policy-save-modal-description`}
           label="Description"
+          placeholder="Add a description here"
+        />
+        <InputField
+          name="resolution"
+          onChange={(value: string) => setResolution(value)}
+          value={resolution}
+          inputClassName={`${baseClass}__policy-save-modal-resolution`}
+          label="Resolution"
           type="textarea"
-          placeholder="What information does your policy reveal?"
+          placeholder="What are the steps a device owner should take to resolve a host that fails this policy?"
         />
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
@@ -102,11 +124,11 @@ const NewPolicyModal = ({
           </Button>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
             onClick={handleSavePolicy}
           >
-            Save policy
+            Save
           </Button>
         </div>
       </form>

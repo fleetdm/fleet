@@ -381,8 +381,8 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 4*time.Hour,
-		"Duration session keys remain valid (i.e. 24h)")
+	man.addConfigDuration("session.duration", 24*time.Hour,
+		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
@@ -514,7 +514,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 
 	// Vulnerability processing
-	man.addConfigString("vulnerabilities.databases_path", "",
+	man.addConfigString("vulnerabilities.databases_path", "/tmp/vulndbs",
 		"Path where Fleet will download the data feeds to check CVEs")
 	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
 		"How much time to wait between processing software for vulnerabilities.")

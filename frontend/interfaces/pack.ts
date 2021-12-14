@@ -1,4 +1,7 @@
 import PropTypes from "prop-types";
+import { IHost } from "./host";
+import { ILabel } from "./label";
+import { ITeam } from "./team";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -25,7 +28,10 @@ export interface IPack {
   disabled?: boolean;
   query_count: number;
   total_hosts_count: number;
+  hosts: IHost[];
   host_ids: number[];
+  labels: ILabel[];
   label_ids: number[];
+  teams: ITeam[];
   team_ids: number[];
 }

@@ -13,12 +13,19 @@
     }
   }
 
+  .Select-menu {
+    padding-right: $pad-small; // moves scrollbar to edge of dropdown
+    padding-bottom: $pad-medium;
+  }
+
   .Select-menu-outer {
     position: absolute;
     width: 330px;
     min-width: 125px;
     left: -12px;
+    top: 36px;
     border-radius: 6px;
+    padding-right: 0;
   }
 
   .Select-control {
@@ -38,12 +45,17 @@
     }
 
     .Select-arrow-zone {
-      padding-left: $pad-small;
+      height: 32px;
+      padding-left: 15px;
 
       .Select-arrow {
-        top: 1px !important;
+        top: 0 !important;
         margin-top: 0 !important;
       }
+    }
+
+    .is-open > .Select-arrow {
+      top: 0 !important;
     }
 
     .Select-multi-value-wrapper {
@@ -65,7 +77,7 @@
         right: 0;
         left: 0;
         bottom: 0;
-        top: 0;
+        top: 2px;
 
         &.is-focused {
           border: 0 !important;

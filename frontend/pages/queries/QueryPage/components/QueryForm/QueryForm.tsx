@@ -108,6 +108,15 @@ const QueryForm = ({
 
   useEffect(() => {
     debounceCompatiblePlatforms(lastEditedQueryBody);
+
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      lastEditedQueryBody
+    );
+    valid = isValidated;
+    setErrors({
+      ...newErrors,
+    });
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -137,6 +146,10 @@ const QueryForm = ({
     });
   };
 
+  const onChangeQuery = (sqlString: string) => {
+    setLastEditedQueryBody(sqlString);
+  };
+
   const promptSaveQuery = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -150,15 +163,9 @@ const QueryForm = ({
     }
 
     let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
 
     valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
 
     if (valid) {
       if (!isEditMode || forceNew) {
@@ -170,8 +177,6 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
         });
-
-        setErrors({});
       }
     }
   };
@@ -302,6 +307,12 @@ const QueryForm = ({
             onChange={setLastEditedQueryName}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -342,6 +353,12 @@ const QueryForm = ({
             onChange={setLastEditedQueryDescription}
             inputOptions={{
               autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
             }}
           />
         );
@@ -432,9 +449,7 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => {
-            setLastEditedQueryBody(sqlString);
-          }}
+          onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
         />
         {renderPlatformCompatibility()}

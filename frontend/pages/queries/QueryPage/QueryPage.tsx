@@ -41,6 +41,7 @@ const QueryPage = ({
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
   const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -55,6 +56,9 @@ const QueryPage = ({
     setLastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
+  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState<boolean>(
+    false
+  );
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
@@ -93,7 +97,7 @@ const QueryPage = ({
     "hostFromURL",
     () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
-      enabled: !!URLQuerySearch.host_ids,
+      enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (data) => {
         const targets = selectedTargets;
@@ -103,6 +107,10 @@ const QueryPage = ({
 
         targets.push(hostTarget as IHost);
         setSelectedTargets([...targets]);
+
+        if (!queryParamHostsAdded) {
+          setQueryParamHostsAdded(true);
+        }
       },
     }
   );

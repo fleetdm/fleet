@@ -188,7 +188,6 @@ type Datastore interface {
 	// "additional" information as this is not typically necessary for the operations performed by the osquery
 	// endpoints.
 	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
-	MarkHostSeen(ctx context.Context, host *Host, t time.Time) error
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
@@ -206,7 +205,7 @@ type Datastore interface {
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (int, int, error)
+	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
 	DeleteHosts(ctx context.Context, ids []uint) error
 
@@ -214,7 +213,7 @@ type Datastore interface {
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
-	ListPoliciesForHost(ctx context.Context, hid uint) ([]*HostPolicy, error)
+	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -348,7 +347,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -376,6 +375,7 @@ type Datastore interface {
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -399,6 +399,8 @@ type Datastore interface {
 	// Unlock tries to unlock the lock by that `name` for the specified
 	// `owner`. Unlocking when not holding the lock shouldn't error
 	Unlock(ctx context.Context, name string, owner string) error
+	// DBLocks returns the current database transaction lock waits information.
+	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats

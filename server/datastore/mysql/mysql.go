@@ -361,12 +361,14 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	missingTable, unknownTable, equalTable := compareVersions(
 		getVersionsFromMigrations(knownTable),
 		appliedTable,
+		knownUnknownTableMigrations,
 	)
 
 	knownData := data.MigrationClient.Migrations
 	missingData, unknownData, equalData := compareVersions(
 		getVersionsFromMigrations(knownData),
 		appliedData,
+		knownUnknownDataMigrations,
 	)
 
 	if equalData && equalTable {
@@ -393,9 +395,28 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	}, nil
 }
 
+var (
+	knownUnknownTableMigrations = map[int64]struct{}{
+		// This migration was introduced incorrectly in fleet-v4.4.0 and its
+		// timestamp was changed in fleet-v4.4.1.
+		20210924114500: {},
+	}
+	knownUnknownDataMigrations = map[int64]struct{}{}
+)
+
+func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
+	var result []int64
+	for _, t := range in {
+		if _, ok := knownUnknowns[t]; !ok {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // compareVersions returns any missing or extra elements in v2 with respect to v1
 // (v1 or v2 need not be ordered).
-func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bool) {
+func compareVersions(v1, v2 []int64, knownUnknowns map[int64]struct{}) (missing []int64, unknown []int64, equal bool) {
 	v1s := make(map[int64]struct{})
 	for _, m := range v1 {
 		v1s[m] = struct{}{}
@@ -414,6 +435,7 @@ func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bo
 			unknown = append(unknown, m)
 		}
 	}
+	unknown = unknownUnknowns(unknown, knownUnknowns)
 	if len(missing) == 0 && len(unknown) == 0 {
 		return nil, nil, true
 	}

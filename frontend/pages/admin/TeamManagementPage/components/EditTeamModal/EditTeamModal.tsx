@@ -31,11 +31,10 @@ const EditTeamModal = ({
     [setName]
   );
 
-  const onFormSubmit = useCallback(() => {
-    onSubmit({
-      name,
-    });
-  }, [onSubmit, name]);
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit({ name });
+  };
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>

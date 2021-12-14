@@ -479,7 +479,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
@@ -569,7 +569,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
@@ -646,7 +646,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 Returns the information of the specified host.
 
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/02-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
+The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../02-Deploying/03-Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
 
 All the scheduled queries that are configured to run on the host (and their stats) are returned in
 `pack_stats`. The `pack_stats[i].type` field can have the following values:
@@ -802,6 +802,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
+        "platform": "windows,linux",
         "response": "pass"
       },
       {
@@ -810,6 +811,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
+        "platform": "darwin",
         "response": "fail"
       },
       {
@@ -818,6 +820,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "query": "select * from baz;",
         "description": "",
         "resolution": "",
+        "platform": "",
         "response": ""
       }
     ],
@@ -1322,7 +1325,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
-| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                   |
 
 #### Example
 
@@ -3444,6 +3447,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_name": "John",
       "author_email": "john@example.com",
       "resolution": "Resolution steps",
+      "platform": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3455,6 +3459,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
+      "resolution": "Resolution steps",
+      "platform": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3491,6 +3497,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 2000,
     "failing_host_count": 300
   }
@@ -3517,6 +3524,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3531,7 +3539,8 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "platform": "darwin"
 }
 ```
 
@@ -3550,6 +3559,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3585,6 +3595,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3648,7 +3659,7 @@ Where `query_id` references an existing `query`.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
 }
 ```
 
@@ -3667,6 +3678,7 @@ Where `query_id` references an existing `query`.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3718,6 +3730,7 @@ Team policies work the same as policies, but at the team level.
       "author_email": "john@example.com",
       "team_id": 1,
       "resolution": "Resolution steps",
+      "platform": "darwin",
       "passing_host_count": 2000,
       "failing_host_count": 300
     },
@@ -3730,6 +3743,8 @@ Team policies work the same as policies, but at the team level.
       "author_name": "Alice",
       "author_email": "alice@example.com",
       "team_id": 1,
+      "resolution": "Resolution steps",
+      "platform": "windows",
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
@@ -3768,6 +3783,7 @@ Team policies work the same as policies, but at the team level.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3790,6 +3806,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
+| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3804,7 +3821,8 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
+  "platform": "darwin"
 }
 ```
 
@@ -3824,6 +3842,7 @@ Either `query` or `query_id` must be provided.
     "author_email": "john@example.com",
     "team_id": 1,
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "passing_host_count": 0,
     "failing_host_count": 0
   }
@@ -3889,7 +3908,7 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
-  "resolution": "Resolution steps"
+  "resolution": "Resolution steps",
 }
 ```
 
@@ -3908,6 +3927,7 @@ Either `query` or `query_id` must be provided.
     "author_name": "John",
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
+    "platform": "darwin",
     "team_id": 2,
     "passing_host_count": 0,
     "failing_host_count": 0
@@ -4482,6 +4502,10 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| enable_host_status_webhook    | boolean | body | _Webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url    | string | body | _Webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage    | integer | body | _Webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count    | integer | body | _Webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -4586,7 +4610,7 @@ Modifies the Fleet's configuration with the supplied information.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     }
@@ -5748,7 +5772,7 @@ _Available in Fleet Premium_
 | order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                          |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                                                                 |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
 
 #### Example
@@ -5796,5 +5820,35 @@ _Available in Fleet Premium_
       }
     ]
   }
+}
+```
+
+### Count software
+
+`GET /api/v1/fleet/software/count`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+
+#### Example
+
+`GET /api/v1/fleet/software/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 43
 }
 ```

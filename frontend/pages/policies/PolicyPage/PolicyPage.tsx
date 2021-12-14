@@ -42,21 +42,44 @@ const PolicyPage = ({
   location: { query: URLQuerySearch },
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
+  const policyTeamId = URLQuerySearch.team_id || 0;
   const {
+    currentUser,
+    currentTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
+    lastEditedQueryBody,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
+
+  useEffect(() => {
+    if (lastEditedQueryBody === "") {
+      setLastEditedQueryBody(DEFAULT_POLICY.query);
+    }
+  }, []);
+
+  if (
+    policyTeamId &&
+    currentUser &&
+    !currentUser.teams.length &&
+    !currentTeam
+  ) {
+    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
+    if (thisPolicyTeam) {
+      setCurrentTeam(thisPolicyTeam);
+    }
+  }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -76,7 +99,10 @@ const PolicyPage = ({
     refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
-    () => globalPoliciesAPI.load(policyIdForEdit as number),
+    () =>
+      policyTeamId
+        ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
+        : globalPoliciesAPI.load(policyIdForEdit as number),
     {
       enabled: false,
       refetchOnWindowFocus: false,
@@ -85,6 +111,9 @@ const PolicyPage = ({
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryPlatform(returnedQuery.platform);
+        setPolicyTeamId(returnedQuery.team_id || 0);
       },
     }
   );
@@ -109,12 +138,12 @@ const PolicyPage = ({
     }
   );
 
-  const {
-    mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) =>
-    formData.team_id
-      ? teamPoliciesAPI.create(formData)
-      : globalPoliciesAPI.create(formData)
+  const { mutateAsync: createPolicy } = useMutation(
+    (formData: IPolicyFormData) => {
+      return formData.team_id
+        ? teamPoliciesAPI.create(formData)
+        : globalPoliciesAPI.create(formData);
+    }
   );
 
   useEffect(() => {
@@ -187,7 +216,6 @@ const PolicyPage = ({
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
-      policyIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
