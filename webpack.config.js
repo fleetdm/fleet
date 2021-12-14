@@ -3,23 +3,22 @@ require("es6-promise").polyfill();
 const path = require("path");
 const webpack = require("webpack");
 const bourbon = require("node-bourbon").includePaths;
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const WebpackNotifierPlugin = require("webpack-notifier");
-const HardSourceWebpackPlugin = require("hard-source-webpack-plugin");
 
 const DEV_SOURCE_MAPS = "eval-source-map";
 
 var plugins = [
-  new webpack.NoEmitOnErrorsPlugin(),
+  new ForkTsCheckerWebpackPlugin(),
   new HtmlWebpackPlugin({
     filename: "../frontend/templates/react.tmpl",
     inject: false,
     template: "frontend/templates/react.ejs",
   }),
   new WebpackNotifierPlugin({
-    title: "Fleet",
-    contentImage: path.resolve("./assets/images/kolide-logo.svg"),
+    title: "Fleet Webpack",
     excludeWarnings: true,
   }),
 ];
@@ -38,11 +37,6 @@ if (process.env.NODE_ENV === "production") {
   // development
   plugins = plugins.concat([
     new MiniCssExtractPlugin({ filename: "bundle.css", allChunks: false }),
-    // Huge speedup on subsequent builds by caching modules
-    new HardSourceWebpackPlugin({
-      // Allow pruning anything over an hour old
-      cachePrune: { maxAge: 60 * 60 * 1000 },
-    }),
   ]);
 }
 
@@ -85,7 +79,13 @@ var config = {
       {
         test: /\.tsx?$/,
         exclude: /node_modules/,
-        use: { loader: "ts-loader" },
+        use: {
+          loader: "esbuild-loader",
+          options: {
+            loader: 'tsx',  // Or 'ts' if you don't need tsx
+            target: 'es2015'
+          },
+        },
       },
       {
         test: /\.scss$/,
@@ -126,7 +126,13 @@ var config = {
       {
         test: /\.jsx?$/,
         include: path.join(repo, "frontend"),
-        use: { loader: "babel-loader", options: { cacheDirectory: true } },
+        use: {
+          loader: "esbuild-loader",
+          options: {
+            loader: "jsx",
+            target: "es2015",
+          },
+        },
       },
     ],
   },
