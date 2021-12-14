@@ -156,18 +156,13 @@
       justify-content: flex-end;
       align-items: center;
     }
-    button:not(:first-of-type) {
-      margin-left: $pad-medium;
+    button {
+      margin-right: $pad-medium;
     }
   }
 
   &__button-wrap--save-policy-button:first-child {
     margin-right: $pad-medium;
-  }
-
-  &__button-wrap--save-policy-button:not(:first-child),
-  &__run {
-    margin-left: $pad-medium;
   }
 
   &__save-policy-btn,
