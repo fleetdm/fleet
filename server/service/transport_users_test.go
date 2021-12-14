@@ -54,29 +54,6 @@ func TestDecodeGetUserRequest(t *testing.T) {
 }
 */
 
-func TestDecodeChangePasswordRequest(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/fleet/change_password", func(writer http.ResponseWriter, request *http.Request) {
-		r, err := decodeChangePasswordRequest(context.Background(), request)
-		assert.Nil(t, err)
-
-		params := r.(changePasswordRequest)
-		assert.Equal(t, "foo", params.OldPassword)
-		assert.Equal(t, "bar", params.NewPassword)
-	}).Methods("POST")
-
-	var body bytes.Buffer
-	body.Write([]byte(`{
-        "old_password": "foo",
-        "new_password": "bar"
-    }`))
-
-	router.ServeHTTP(
-		httptest.NewRecorder(),
-		httptest.NewRequest("POST", "/api/v1/fleet/change_password", &body),
-	)
-}
-
 func TestDecodeResetPasswordRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/users/{id}/password", func(writer http.ResponseWriter, request *http.Request) {

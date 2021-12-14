@@ -17,14 +17,6 @@ func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{},
 	return req, nil
 }
 
-func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req changePasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
 func decodePerformRequiredPasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req performRequiredPasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

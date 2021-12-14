@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -305,6 +306,54 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 	}
 
 	return user, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Change Password
+////////////////////////////////////////////////////////////////////////////////
+
+type changePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+type changePasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r changePasswordResponse) error() error { return r.Err }
+
+func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*changePasswordRequest)
+	err := svc.ChangePassword(ctx, req.OldPassword, req.NewPassword)
+	return changePasswordResponse{Err: err}, nil
+}
+
+func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if vc.User.SSOEnabled {
+		return ctxerr.New(ctx, "change password for single sign on user not allowed")
+	}
+	if err := vc.User.ValidatePassword(newPass); err == nil {
+		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+	}
+
+	if err := vc.User.ValidatePassword(oldPass); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
+	}
+
+	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting new password")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

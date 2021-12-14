@@ -137,33 +137,6 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	return nil
 }
 
-func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return fleet.ErrNoContext
-	}
-
-	if err := svc.authz.Authorize(ctx, vc.User, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	if vc.User.SSOEnabled {
-		return ctxerr.New(ctx, "change password for single sign on user not allowed")
-	}
-	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
-	}
-
-	if err := vc.User.ValidatePassword(oldPass); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
-	}
-
-	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting new password")
-	}
-	return nil
-}
-
 func (svc *Service) ResetPassword(ctx context.Context, token, password string) error {
 	// skipauth: No viewer context available. The user is locked out of their
 	// account and authNZ is performed entirely by providing a valid password
