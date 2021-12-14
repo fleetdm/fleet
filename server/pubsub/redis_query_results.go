@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
@@ -112,6 +113,11 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	// pub-sub can publish and listen on any node in the cluster
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	if err := conn.Err(); err != nil {
+		logging.WithErr(ctx, err)
+		logging.WithExtras(ctx, "pubsub", "get connection from pool failed")
+	}
+
 	psc := &redigo.PubSubConn{Conn: conn}
 	pubSubName := pubSubForID(query.ID)
 	if err := psc.Subscribe(pubSubName); err != nil {
@@ -157,6 +163,8 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 						return
 					}
 				case error:
+					logging.WithErr(ctx, msg)
+					logging.WithExtras(ctx, "pubsub loop", "error received from listening")
 					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}
@@ -170,6 +178,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	go func() {
 		wg.Wait()
+		logging.WithExtras(ctx, "pubsub done", "unsubscribing and closing connection")
 		psc.Unsubscribe(pubSubName)
 		conn.Close()
 	}()

@@ -141,6 +141,8 @@ func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.Distr
 	readChan, err := svc.resultStore.ReadChannel(cancelCtx, *campaign)
 	if err != nil {
 		cancelFunc()
+		logging.WithErr(ctx, err)
+		logging.WithExtras(ctx, "livequery", "ReadChannel failed")
 		return nil, nil, fmt.Errorf("cannot open read channel for campaign %d ", campaign.ID)
 	}
 
