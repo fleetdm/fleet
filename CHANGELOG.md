@@ -1,4 +1,4 @@
-## Fleet 4.7.0 (Dec 13, 2021)
+## Fleet 4.7.0 (Dec 14, 2021)
 
 * Add ability to create, modify, or delete policies in Fleet without modifying saved queries. Fleet
   4.7.0 introduces breaking changes to the `/policies` API routes to separate policies from saved
