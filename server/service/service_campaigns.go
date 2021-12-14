@@ -224,6 +224,9 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// (probably from the redis pubsub implementation)
 	readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 	if err != nil {
+		if logCtx, _ := logging.FromContext(ctx); logCtx != nil {
+			logCtx.Log(ctx, svc.logger)
+		}
 		conn.WriteJSONError("error getting campaign reader: " + err.Error())
 		return
 	}
