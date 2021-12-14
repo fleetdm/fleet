@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"os"
@@ -22,6 +23,7 @@ const (
 	nameFlagName       = "name"
 	ssoFlagName        = "sso"
 	apiOnlyFlagName    = "api-only"
+	csvFlagName        = "csv"
 )
 
 func userCommand() *cli.Command {
@@ -31,6 +33,7 @@ func userCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			createUserCommand(),
 			deleteUserCommand(),
+			createBulkUsersCommand(),
 		},
 	}
 }
@@ -167,6 +170,126 @@ func createUserCommand() *cli.Command {
 				return fmt.Errorf("Failed to create user: %w", err)
 			}
 
+			return nil
+		},
+	}
+}
+
+func createBulkUsersCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "import",
+		Usage:     "Create bulk users",
+		UsageText: `This command will create a set of users in Fleet by imoprting a CSV file.`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     csvFlagName,
+				Usage:    "csv file with all the users (required)",
+				Required: true,
+			},
+			configFlag(),
+			contextFlag(),
+			yamlFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			csvFilePath := c.String(csvFlagName)
+
+			csvFile, err := os.Open(csvFilePath)
+			if err != nil {
+				return err
+			}
+			defer csvFile.Close()
+			csvLines, err := csv.NewReader(csvFile).ReadAll()
+
+			if err != nil {
+				return err
+			}
+			for _, record := range csvLines[1:] {
+				fmt.Println(record[0], record[1], record[2], record[3], record[4], record[5], record[6])
+				password := record[2]
+				email := record[1]
+				name := record[0]
+				sso := c.Bool(record[3])
+				apiOnly := c.Bool(record[4])
+				globalRoleString := c.String(record[5])
+				teamStrings := c.StringSlice(record[6])
+
+				var globalRole *string
+				var teams []fleet.UserTeam
+				if globalRoleString != "" && len(teamStrings) > 0 {
+					return errors.New("Users may not have global_role and teams.")
+				} else if globalRoleString == "" && len(teamStrings) == 0 {
+					globalRole = ptr.String(fleet.RoleObserver)
+				} else if globalRoleString != "" {
+					if !fleet.ValidGlobalRole(globalRoleString) {
+						return fmt.Errorf("'%s' is not a valid team role", globalRoleString)
+					}
+					globalRole = ptr.String(globalRoleString)
+				} else {
+					for _, t := range teamStrings {
+						parts := strings.Split(t, ":")
+						if len(parts) != 2 {
+							return fmt.Errorf("Unable to parse '%s' as team_id:role", t)
+						}
+						teamID, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return fmt.Errorf("Unable to parse team_id: %w", err)
+						}
+						if !fleet.ValidTeamRole(parts[1]) {
+							return fmt.Errorf("'%s' is not a valid team role", parts[1])
+						}
+
+						teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+					}
+				}
+
+				if sso && len(password) > 0 {
+					return errors.New("Password may not be provided for SSO users.")
+				}
+				if !sso && len(password) == 0 {
+					fmt.Print("Enter password for user: ")
+					passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Println()
+					if err != nil {
+						return fmt.Errorf("Failed to read password: %w", err)
+					}
+					if len(passBytes) == 0 {
+						return errors.New("Password may not be empty.")
+					}
+
+					fmt.Print("Enter password for user (confirm): ")
+					confBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Println()
+					if err != nil {
+						return fmt.Errorf("Failed to read confirmation: %w", err)
+					}
+
+					if !bytes.Equal(passBytes, confBytes) {
+						return errors.New("Confirmation does not match")
+					}
+
+					password = string(passBytes)
+				}
+				force_reset := !sso
+				err = client.CreateUser(fleet.UserPayload{
+					Password:                 &password,
+					Email:                    &email,
+					Name:                     &name,
+					SSOEnabled:               &sso,
+					AdminForcedPasswordReset: &force_reset,
+					APIOnly:                  &apiOnly,
+					GlobalRole:               globalRole,
+					Teams:                    &teams,
+				})
+				if err != nil {
+					return fmt.Errorf("Failed to create user: %w", err)
+				}
+			}
 			return nil
 		},
 	}

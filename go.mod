@@ -25,9 +25,7 @@ require (
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.2.0 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0
@@ -40,7 +38,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
-	github.com/groob/mockimpl v0.0.0-20170306012045-dfa944a2a940 // indirect
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
 	github.com/jinzhu/copier v0.3.2
@@ -65,14 +62,12 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.4.1 // indirect
 	github.com/prometheus/procfs v0.2.0 // indirect
-	github.com/quasilyte/go-ruleguard/dsl v0.3.10 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.8.0
@@ -83,7 +78,6 @@ require (
 	github.com/valyala/fasthttp v1.31.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/mod v0.5.1 // indirect
-	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211123173158-ef496fb156ab
 	golang.org/x/tools v0.1.7 // indirect
