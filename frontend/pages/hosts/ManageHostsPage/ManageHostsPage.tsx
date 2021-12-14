@@ -234,11 +234,6 @@ const ManageHostsPage = ({
   !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL); // "all-hosts" should always be alone
   // ===== end filter matching
 
-  const canAddNewHosts =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isAnyTeamAdmin ||
-    isAnyTeamMaintainer;
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
@@ -1489,7 +1484,10 @@ const ManageHostsPage = ({
         searchQuery === "")
     ) {
       return (
-        <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
+        <NoHosts
+          toggleGenerateInstallerModal={toggleGenerateInstallerModal}
+          canEnrollHosts={canEnrollHosts}
+        />
       );
     }
 
@@ -1600,7 +1598,7 @@ const ManageHostsPage = ({
                   <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts &&
+              {canEnrollHosts &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0

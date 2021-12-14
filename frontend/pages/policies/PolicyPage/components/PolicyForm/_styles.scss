@@ -181,6 +181,20 @@
     font-size: $large;
   }
 
+  &__platform-checkbox-wrapper {
+    margin: 0;
+
+    & + p {
+      margin: 0;
+      margin-top: $pad-small;
+    }
+  }
+
+  &__platform-error {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
   &__platform-compatibility {
     display: flex;
     align-items: center;
@@ -193,19 +207,37 @@
       align-items: center;
     }
 
-    b {
-      padding-right: $pad-xsmall;
+    .platforms-text {
+      padding: 0 $pad-small;
+    }
+
+    .platforms-select {
+      display: flex;
+      padding: 0 $pad-medium;
     }
 
     img {
       height: 16px;
       width: auto;
-      padding-left: $pad-xsmall;
+    }
+
+    button {
+      img {
+        padding: 0px;
+      }
+    }
+
+    form,
+    label {
+      display: inline-flex;
+    }
+
+    label {
+      font-weight: $regular;
+      margin-right: $pad-medium;
     }
 
     .tooltip {
-      padding-right: 12px;
-
       img {
         padding: 0px;
       }
@@ -213,10 +245,6 @@
       &__tooltip-text {
         text-align: center;
       }
-    }
-
-    .platform {
-      padding-right: 12px;
     }
   }
 }

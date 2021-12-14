@@ -59,6 +59,7 @@ const PolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -68,9 +69,16 @@ const PolicyPage = ({
     }
   }, []);
 
-  if (policyTeamId && currentUser && !currentTeam) {
+  if (
+    policyTeamId &&
+    currentUser &&
+    !currentUser.teams.length &&
+    !currentTeam
+  ) {
     const thisPolicyTeam = currentUser.teams.find((team) => team.id);
-    setCurrentTeam(thisPolicyTeam);
+    if (thisPolicyTeam) {
+      setCurrentTeam(thisPolicyTeam);
+    }
   }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
@@ -104,6 +112,7 @@ const PolicyPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryPlatform(returnedQuery.platform);
         setPolicyTeamId(returnedQuery.team_id || 0);
       },
     }
@@ -129,12 +138,12 @@ const PolicyPage = ({
     }
   );
 
-  const {
-    mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) =>
-    formData.team_id
-      ? teamPoliciesAPI.create(formData)
-      : globalPoliciesAPI.create(formData)
+  const { mutateAsync: createPolicy } = useMutation(
+    (formData: IPolicyFormData) => {
+      return formData.team_id
+        ? teamPoliciesAPI.create(formData)
+        : globalPoliciesAPI.create(formData);
+    }
   );
 
   useEffect(() => {

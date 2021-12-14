@@ -1,4 +1,6 @@
 import URL_PREFIX from "router/url_prefix";
+import { IQueryPlatform } from "interfaces/query";
+import { IPolicyNew } from "interfaces/policy";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -84,7 +86,7 @@ export const DEFAULT_POLICIES = [
     resolution: "",
     platform: "darwin",
   },
-];
+] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
@@ -154,6 +156,8 @@ export const DEFAULT_QUERY = {
   packs: [],
 };
 
+const DEFAULT_POLICY_PLATFORM: IQueryPlatform = "";
+
 export const DEFAULT_POLICY = {
   id: 1,
   name: "Is osquery running?",
@@ -163,6 +167,7 @@ export const DEFAULT_POLICY = {
   author_name: "John",
   author_email: "john@example.com",
   resolution: "Resolution steps",
+  platform: DEFAULT_POLICY_PLATFORM,
   passing_host_count: 2000,
   failing_host_count: 300,
   created_at: "",

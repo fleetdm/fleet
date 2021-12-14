@@ -7,18 +7,30 @@ import { IPolicyFormData } from "interfaces/policy";
 export default {
   // TODO: How does the frontend need to support legacy policies?
   create: (data: IPolicyFormData) => {
-    const { name, description, query, team_id, resolution } = data;
+    const { name, description, query, team_id, resolution, platform } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
 
-    return sendRequest("POST", path, { name, description, query, resolution });
+    return sendRequest("POST", path, {
+      name,
+      description,
+      query,
+      resolution,
+      platform,
+    });
   },
   update: (id: number, data: IPolicyFormData) => {
-    const { name, description, query, team_id, resolution } = data;
+    const { name, description, query, team_id, resolution, platform } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
 
-    return sendRequest("PATCH", path, { name, description, query, resolution });
+    return sendRequest("PATCH", path, {
+      name,
+      description,
+      query,
+      resolution,
+      platform,
+    });
   },
   destroy: (team_id: number, ids: number[]) => {
     const { TEAMS } = endpoints;
