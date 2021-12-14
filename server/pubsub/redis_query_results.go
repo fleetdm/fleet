@@ -115,7 +115,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	if err := conn.Err(); err != nil {
 		logging.WithErr(ctx, err)
-		logging.WithExtras(ctx, "pubsub", "get connection from pool failed")
+		logging.WithExtras(ctx, "pubsub", "get connection from pool failed", "campaign", query.ID)
 	}
 
 	psc := &redigo.PubSubConn{Conn: conn}
@@ -164,7 +164,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 					}
 				case error:
 					logging.WithErr(ctx, msg)
-					logging.WithExtras(ctx, "pubsub loop", "error received from listening")
+					logging.WithExtras(ctx, "pubsub loop", "error received from listening", "campaign", query.ID)
 					if writeOrDone(ctx, outChannel, ctxerr.Wrap(ctx, msg, "read from redis")) {
 						return
 					}
@@ -178,7 +178,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	go func() {
 		wg.Wait()
-		logging.WithExtras(ctx, "pubsub done", "unsubscribing and closing connection")
+		logging.WithExtras(ctx, "pubsub done", "unsubscribing and closing connection", "campaign", query.ID)
 		psc.Unsubscribe(pubSubName)
 		conn.Close()
 	}()
