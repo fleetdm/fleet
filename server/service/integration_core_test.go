@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -546,7 +547,7 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
 			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
 			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
-			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
+			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "linux",
 		})
@@ -1283,4 +1284,78 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	// get valid carve block
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/carves/%d/block/%d", c1.ID, 1), nil, http.StatusOK, &blkResp)
 	require.Equal(t, "block1", string(blkResp.Data))
+}
+
+func (s *integrationTestSuite) TestHostsAddToTeam() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: uuid.New().String(),
+	})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: uuid.New().String(),
+	})
+	require.NoError(t, err)
+
+	hosts := s.createHosts(t)
+	var refetchResp refetchHostResponse
+	// refetch existing
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/refetch", hosts[0].ID), nil, http.StatusOK, &refetchResp)
+	require.NoError(t, refetchResp.Err)
+
+	// refetch unknown
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/refetch", hosts[2].ID+1), nil, http.StatusNotFound, &refetchResp)
+
+	// get by identifier unknown
+	var getResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &getResp)
+
+	// get by identifier valid
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	require.Equal(t, hosts[0].ID, getResp.Host.ID)
+	require.Nil(t, getResp.Host.TeamID)
+
+	// assign hosts to team 1
+	var addResp addHostsToTeamResponse
+	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm1.ID,
+		HostIDs: []uint{hosts[0].ID, hosts[1].ID},
+	}, http.StatusOK, &addResp)
+
+	// check that hosts are now part of that team
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[1].ID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[2].ID), nil, http.StatusOK, &getResp)
+	require.Nil(t, getResp.Host.TeamID)
+
+	// assign host to team 2 with filter
+	var addfResp addHostsToTeamByFilterResponse
+	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
+	req.Filters.MatchQuery = hosts[2].Hostname
+	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
+
+	// check that host 2 is now part of team 2
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[2].ID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm2.ID, *getResp.Host.TeamID)
+
+	// delete host 0
+	var delResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &delResp)
+	// delete non-existing host
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[2].ID+1), nil, http.StatusNotFound, &delResp)
+
+	// list the hosts
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &listResp, "per_page", "3")
+	require.Len(t, listResp.Hosts, 2)
+	ids := []uint{listResp.Hosts[0].ID, listResp.Hosts[1].ID}
+	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
 }

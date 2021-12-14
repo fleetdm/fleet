@@ -415,6 +415,9 @@ func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
@@ -847,14 +850,17 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 }
 
 func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM hosts
 		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sql, identifier)
+	err := sqlx.GetContext(ctx, d.reader, host, stmt, identifier)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
@@ -933,8 +939,8 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) 
-				VALUES %s 
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell)
+				VALUES %s
 				ON DUPLICATE KEY UPDATE
 				user_type = VALUES(user_type),
 				groupname = VALUES(groupname),
