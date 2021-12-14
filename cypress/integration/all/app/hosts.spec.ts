@@ -20,18 +20,19 @@ describe(
     });
 
     it(
-      "Can add new host from manage hosts page",
+      "Can add new host from manage hosts page and run policy on host",
       {
         retries: {
           runMode: 2,
         },
       },
       () => {
+        let hostname = "";
         cy.visit("/hosts/manage");
 
         cy.contains("button", /generate installer/i).click();
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(2000);
+        cy.wait(1000);
         cy.findByText(/rpm/i).click();
         cy.contains("a", /download/i)
           .first()
@@ -54,13 +55,45 @@ describe(
         cy.location("pathname").should("match", /hosts\/manage/i);
         // eslint-disable-next-line cypress/no-unnecessary-waiting
         cy.wait(1000);
-        cy.get('button[title="Online"]').click();
+
+        cy.get("tbody").within(() => {
+          cy.get(".button--text-link").first().as("hostLink");
+        });
+
+        cy.get("@hostLink")
+          // Set hostname variable for later assertions
+          .then((el) => {
+            console.log(el);
+            hostname = el.text();
+            return el;
+          })
+          .click();
 
         // Go to host details page
         cy.location("pathname").should("match", /hosts\/[0-9]/i);
         // eslint-disable-next-line cypress/no-unnecessary-waiting
         cy.wait(1000);
         cy.get("span.status").contains(/online/i);
+
+        cy.visit("/policies/manage");
+
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(2000);
+
+        cy.findByText(/version 20.4.0/i).click(); // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(1000);
+
+        cy.findByText(/run/i).click(); // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(1000);
+
+        cy.findByText(/all hosts/i)
+          .click()
+          .then(() => {
+            cy.findByText(/run/i).click();
+            cy.get(".data-table").within(() => {
+              cy.findByText(hostname).should("exist");
+            });
+          });
       }
     );
 
@@ -88,14 +121,6 @@ describe(
           cy.findByText(/about this host/i).should("exist");
           cy.findByText(hostname).should("exist");
 
-          // Open query host modal and cancel
-          cy.get('img[alt="Query host icon"]').click();
-          cy.get(".modal__modal_container").within(() => {
-            cy.findByText(/select a query/i).should("exist");
-            cy.get(".modal__ex").click();
-          });
-          cy.findByText(/select a query/i).should("not.exist");
-
           // Open query host modal and select query
           cy.get('img[alt="Query host icon"]').click();
           cy.get(".modal__modal_container")
@@ -116,22 +141,8 @@ describe(
       // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(3000);
       cy.get("@hostLink")
-        // Set hostname variable for later assertions
-        .then((el) => {
-          console.log(el);
-          hostname = el.text();
-          return el;
-        })
         .click()
         .then(() => {
-          // Open delete host modal and cancel
-          cy.get('img[alt="Delete host icon"]').click();
-          cy.get(".modal__modal_container").within(() => {
-            cy.findByText(/delete host/i).should("exist");
-            cy.findByRole("button", { name: /cancel/i }).click();
-          });
-          cy.findByText(/delete host/i).should("not.exist");
-
           // Open delete host modal and delete host
           cy.get('img[alt="Delete host icon"]').click();
           cy.get(".modal__modal_container")

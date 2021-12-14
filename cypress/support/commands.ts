@@ -111,12 +111,12 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
         "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
     },
     {
-      name: "Is System Integrity Protection (SIP) enabled on macOS devices?",
+      name: "Is Ubuntu, version 20.4.0 installed?",
       query:
-        "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-      description: "Checks to make sure that the SIP is enabled.",
-      resolution:
-        "On the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
+        "SELECT 1 from os_version WHERE name = 'Ubuntu' AND major || '.' || minor || '.' || patch = '20.4.0';",
+      description:
+        "Returns yes or no for detecting operating system and version",
+      resolution: "Update OS if needed",
     },
   ];
 
