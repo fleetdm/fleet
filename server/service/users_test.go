@@ -195,9 +195,6 @@ func TestUserAuth(t *testing.T) {
 			//checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			//_, err = svc.GetInfoAboutSessionsForUser(ctx, 888)
 			//checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-
-			// ChangePassword is tricky because the password has to match the old one and pass
-			// the requirements, skipping.
 		})
 	}
 }
