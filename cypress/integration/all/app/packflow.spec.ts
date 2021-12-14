@@ -12,6 +12,7 @@ describe(
     it("Create, edit, and delete a pack and pack query successfully", () => {
       cy.visit("/packs/manage");
 
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByRole("button", { name: /create new pack/i }).click();
 
       cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
@@ -116,7 +117,7 @@ describe(
 
       cy.get(".remove-pack-modal__btn-wrap > .button--alert")
         .contains("button", /delete/i)
-        .click();
+        .click({ force: true });
 
       cy.findByText(/successfully deleted/i).should("be.visible");
 
