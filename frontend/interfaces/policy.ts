@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { IQueryPlatform } from "interfaces/query";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -25,6 +26,7 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
+  platform: IQueryPlatform;
   team_id?: number;
   created_at: string;
   updated_at: string;
@@ -44,6 +46,7 @@ export interface IHostPolicy extends IPolicy {
 export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
   resolution?: string | number | boolean | any[] | undefined;
+  platform?: IQueryPlatform;
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
   team_id?: number;
@@ -51,8 +54,10 @@ export interface IPolicyFormData {
 
 export interface IPolicyNew {
   id?: number;
+  key?: number;
   name: string;
   description: string;
   query: string;
   resolution: string;
+  platform: IQueryPlatform;
 }
