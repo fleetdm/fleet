@@ -1,2 +1,0 @@
-* Add missing software inventory and `disk_space_unix` for Debian hosts. Unify definition of linux hosts.
-
