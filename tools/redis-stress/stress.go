@@ -10,7 +10,10 @@ import (
 )
 
 var (
-	addrFlag = flag.String("addr", "", "Redis address, including port")
+	addrFlag       = flag.String("addr", "", "Redis address, including port")
+	indexStartFlag = flag.Int("index-start", 1, "Index to start from when inserting keys")
+	debugFlag      = flag.Bool("debug", false, "Print debug logs")
+	waitFlag       = flag.Duration("wait", 10*time.Minute, "Amount of time to do SETs")
 )
 
 func main() {
@@ -31,11 +34,16 @@ func main() {
 	quit := make(chan struct{})
 	go func() {
 		i := 0
+		if indexStartFlag != nil {
+			i = *indexStartFlag
+		}
 		for {
 			select {
 			case <-ticker.C:
 				conn.Do("SET", fmt.Sprintf("error:%d", i), 1, "EX", (10 * time.Minute).Seconds())
-				log.Println("SET")
+				if debugFlag != nil && *debugFlag {
+					log.Println("SET", i)
+				}
 			case <-quit:
 				ticker.Stop()
 				return
@@ -44,7 +52,7 @@ func main() {
 		}
 	}()
 
-	time.Sleep(10 * time.Minute)
+	time.Sleep(*waitFlag)
 	close(quit)
 	log.Println("done")
 }
