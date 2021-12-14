@@ -590,13 +590,13 @@ spec:
       AND sigrule IN (
         'rule log4jJndiLookup {
           strings:
-            $jndilookup = \"JndiLookup\"
+            $jndilookup = "JndiLookup"
           condition:
             $jndilookup
         }',
         'rule log4jJavaClass {
           strings:
-            $javaclass = \"org/apache/logging/log4j\"
+            $javaclass = "org/apache/logging/log4j"
           condition:
             $javaclass
         }'
