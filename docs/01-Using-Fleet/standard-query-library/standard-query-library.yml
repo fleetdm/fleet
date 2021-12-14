@@ -556,3 +556,14 @@ spec:
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
   contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect processes with Log4J running on Linux and macOS systems
+  platforms: macOS, Linux
+  description: Describe your query. What does information does your query reveal?
+  query: WITH target_jars AS ( SELECT DISTINCT path FROM ( WITH split(word, str) AS( SELECT '', cmdline || ' ' FROM processes UNION ALL SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1) FROM split WHERE str != '') SELECT word AS path FROM split WHERE word LIKE '%.jar' UNION ALL SELECT path FROM process_open_files WHERE path LIKE '%.jar' ) ) SELECT path, matches FROM yara WHERE path IN (SELECT path FROM target_jars) AND count > 0 AND sigrule IN ( 'rule log4jJndiLookup { strings: $jndilookup = "JndiLookup" condition: $jndilookup }', 'rule log4jJavaClass { strings: $javaclass = "org/apache/logging/log4j" condition: $javaclass }' );
+  purpose: Detection
+  remediation: N/A
+  contributors: zwass,tgauda
