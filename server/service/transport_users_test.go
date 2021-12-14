@@ -36,7 +36,6 @@ func TestDecodeCreateUserRequest(t *testing.T) {
 		httptest.NewRequest("POST", "/api/v1/fleet/users", &body),
 	)
 }
-*/
 
 func TestDecodeGetUserRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -53,6 +52,7 @@ func TestDecodeGetUserRequest(t *testing.T) {
 		httptest.NewRequest("GET", "/api/v1/fleet/users/1", nil),
 	)
 }
+*/
 
 func TestDecodeChangePasswordRequest(t *testing.T) {
 	router := mux.NewRouter()
@@ -100,6 +100,7 @@ func TestDecodeResetPasswordRequest(t *testing.T) {
 	)
 }
 
+/*
 func TestDecodeModifyUserRequest(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/fleet/users/{id}", func(writer http.ResponseWriter, request *http.Request) {
@@ -124,3 +125,4 @@ func TestDecodeModifyUserRequest(t *testing.T) {
 		request,
 	)
 }
+*/

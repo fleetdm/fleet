@@ -284,35 +284,6 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 	return svc.ds.DestroySession(ctx, session)
 }
 
-func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	var validatedSessions []*fleet.Session
-
-	sessions, err := svc.ds.ListSessionsForUser(ctx, id)
-	if err != nil {
-		return validatedSessions, err
-	}
-
-	for _, session := range sessions {
-		if svc.validateSession(ctx, session) == nil {
-			validatedSessions = append(validatedSessions, session)
-		}
-	}
-
-	return validatedSessions, nil
-}
-
-func (svc *Service) DeleteSessionsForUser(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	return svc.ds.DestroyAllSessionsForUser(ctx, id)
-}
-
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {

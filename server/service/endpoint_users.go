@@ -23,32 +23,6 @@ func makeCreateUserFromInviteEndpoint(svc fleet.Service) endpoint.Endpoint {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Get User
-////////////////////////////////////////////////////////////////////////////////
-
-type getUserRequest struct {
-	ID uint `json:"id"`
-}
-
-type getUserResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r getUserResponse) error() error { return r.Err }
-
-func makeGetUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getUserRequest)
-		user, err := svc.User(ctx, req.ID)
-		if err != nil {
-			return getUserResponse{Err: err}, nil
-		}
-		return getUserResponse{User: user}, nil
-	}
-}
-
 func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		user, err := svc.AuthenticatedUser(ctx)
@@ -106,59 +80,6 @@ func makeResetPasswordEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Modify User
-////////////////////////////////////////////////////////////////////////////////
-
-type modifyUserRequest struct {
-	ID      uint
-	payload fleet.UserPayload
-}
-
-type modifyUserResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r modifyUserResponse) error() error { return r.Err }
-
-func makeModifyUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(modifyUserRequest)
-		user, err := svc.ModifyUser(ctx, req.ID, req.payload)
-		if err != nil {
-			return modifyUserResponse{Err: err}, nil
-		}
-
-		return modifyUserResponse{User: user}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete User
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteUserRequest struct {
-	ID uint `json:"id"`
-}
-
-type deleteUserResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteUserResponse) error() error { return r.Err }
-
-func makeDeleteUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteUserRequest)
-		err := svc.DeleteUser(ctx, req.ID)
-		if err != nil {
-			return deleteUserResponse{Err: err}, nil
-		}
-		return deleteUserResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Perform Required Password Reset
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -182,33 +103,6 @@ func makePerformRequiredPasswordResetEndpoint(svc fleet.Service) endpoint.Endpoi
 			return performRequiredPasswordResetResponse{Err: err}, nil
 		}
 		return performRequiredPasswordResetResponse{User: user}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Require Password Reset
-////////////////////////////////////////////////////////////////////////////////
-
-type requirePasswordResetRequest struct {
-	Require bool `json:"require"`
-	ID      uint `json:"id"`
-}
-
-type requirePasswordResetResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r requirePasswordResetResponse) error() error { return r.Err }
-
-func makeRequirePasswordResetEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(requirePasswordResetRequest)
-		user, err := svc.RequirePasswordReset(ctx, req.ID, req.Require)
-		if err != nil {
-			return requirePasswordResetResponse{Err: err}, nil
-		}
-		return requirePasswordResetResponse{User: user}, nil
 	}
 }
 
