@@ -79,7 +79,7 @@ describe("Free tier - Observer user", () => {
     cy.contains("a", "Policies").click();
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    // Not see the "create a policy", "delete", "save", "run" policy
+    // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
 
     cy.get("tbody").within(() => {

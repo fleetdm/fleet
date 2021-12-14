@@ -211,7 +211,7 @@ describe(
 
         // On the policies manage page, they should…
         cy.contains("a", "Policies").click();
-        // See and select the "create a policy", "delete", and "edit" policy
+        // See and select the "Add a policy", "delete", and "edit" policy
         cy.findByRole("button", { name: /add a policy/i }).click();
         cy.get(".modal__ex").within(() => {
           cy.findByRole("button").click();

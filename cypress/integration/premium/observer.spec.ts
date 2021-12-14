@@ -62,7 +62,7 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/policies/manage");
     cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    // Cannot see and select the "create a policy", "delete", and "edit" policy
+    // Cannot see and select the "Add a policy", "delete", and "edit" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
 
     // No global policies seeded, switch to team apples to ensure cannot create, delete, edit
@@ -71,7 +71,7 @@ describe("Premium tier - Observer user", () => {
     cy.findByText(/apples/i).click();
     cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    // Not see the "create a policy", "delete", "save", "run" policy
+    // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
 
     cy.get("tbody").within(() => {
@@ -115,7 +115,7 @@ describe("Premium tier - Observer user", () => {
     cy.visit("/policies/manage");
     cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    // Not see and select the "create a policy", "delete", and "edit" policy
+    // Not see and select the "Add a policy", "delete", and "edit" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
     cy.findByText(/all teams/i).should("not.exist");
     cy.get("tbody").within(() => {
