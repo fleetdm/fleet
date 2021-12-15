@@ -81,7 +81,7 @@ const PolicyPage = ({
 
   if (!policyTeamId && !currentUser) {
     // Window is loading new policy,
-    // return to manage policies
+    // return to manage policies because we have no data in state
     router.push(PATHS.MANAGE_POLICIES);
   }
 
