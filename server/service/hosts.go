@@ -660,6 +660,12 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 		return nil, err
 	}
 
+	// TODO(mna): this is a pattern that is used elsewhere for hosts, authorize
+	// on list, then load the host to get the team info, and authorize properly
+	// (read, with team_id filled). I wonder if we should add a "quick load" of
+	// host when used just for that purpose, because loading even without the
+	// extra info is still a big-ish query with potentially lots of columns and
+	// at least 4 tables involved.
 	host, err := svc.ds.Host(ctx, id, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")

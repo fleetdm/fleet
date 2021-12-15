@@ -101,6 +101,7 @@ func TestHosts(t *testing.T) {
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
 		{"HostsNoSeenTime", testHostsNoSeenTime},
+		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3130,4 +3131,45 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+}
+
+func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		h.ID, "a@b.c", "src1")
+	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		h.ID, "b@b.c", "src1")
+	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		h.ID, "a@b.c", "src2")
+
+	dms, err := ds.ListHostDeviceMapping(ctx, h.ID+1)
+	require.NoError(t, err)
+	require.Len(t, dms, 0)
+
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
+	require.NoError(t, err)
+	require.Len(t, dms, 3)
+
+	want := []*fleet.HostDeviceMapping{
+		{HostID: h.ID, Email: "a@b.c", Source: "src1"},
+		{HostID: h.ID, Email: "a@b.c", Source: "src2"},
+		{HostID: h.ID, Email: "b@b.c", Source: "src1"},
+	}
+	for _, dm := range dms {
+		dm.ID = 0
+	}
+	assert.Equal(t, want, dms)
 }

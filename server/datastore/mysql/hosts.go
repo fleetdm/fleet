@@ -1107,5 +1107,23 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 }
 
 func (d *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	panic("unimplemented")
+	stmt := `
+    SELECT
+      id,
+      host_id,
+      email,
+      source
+    FROM
+      host_emails
+    WHERE
+      host_id = ?
+    ORDER BY
+      email, source`
+
+	var mappings []*fleet.HostDeviceMapping
+	err := sqlx.SelectContext(ctx, d.reader, &mappings, stmt, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host emails by host id")
+	}
+	return mappings, nil
 }
