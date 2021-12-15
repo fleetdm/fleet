@@ -364,9 +364,9 @@ There are several locations in Fleet's public and internal documentation that ca
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
 
-## UI Design
+## UI design
 
-### Communicating design changes to Engineering
+### Communicating design changes to the engineering team
 For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
 2. Detail the required changes (including page links to the relevant layouts), then assign it to the __“Initiatives”__ project.
