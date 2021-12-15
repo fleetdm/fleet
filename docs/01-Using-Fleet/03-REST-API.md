@@ -10,7 +10,7 @@
 - [Schedule](#schedule)
 - [Packs](#packs)
 - [Policies](#policies)
-- [Team Policies](#team-policies)
+- [Team policies](#team-policies)
 - [Activities](#activities)
 - [Targets](#targets)
 - [Fleet configuration](#fleet-configuration)
@@ -3687,7 +3687,7 @@ Where `query_id` references an existing `query`.
 
 ---
 
-## Team Policies
+## Team policies
 
 - [List team policies](#list-team-policies)
 - [Get team policy by ID](#get-team-policy-by-id)
