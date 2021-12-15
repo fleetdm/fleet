@@ -382,6 +382,11 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id=?`, hid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
+	}
+
 	return nil
 }
 
@@ -1003,6 +1008,16 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
+
+	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
+	}
+
+	_, err = d.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
+	}
 	return nil
 }
 
@@ -1074,6 +1089,10 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id = ?`, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired host software")
+		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired host emails")
 		}
 	}
 	if err := rows.Err(); err != nil {
