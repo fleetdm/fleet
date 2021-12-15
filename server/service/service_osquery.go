@@ -745,6 +745,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		if failingPolicies, err := svc.ds.NewFailingPoliciesForHost(ctx, host.ID, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		} else {
+			if err := svc.registerFailingPolicies(ctx, &host, failingPolicies); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+
 		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
 		if err != nil {
@@ -790,6 +798,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	return nil
+}
+
+func (svc *Service) registerFailingPolicies(ctx context.Context, host *fleet.Host, failingPolicies []uint) error {
+	// TODO(lucas): implement me.
+	svc.logger.Log("failing_policies", failingPolicies)
 	return nil
 }
 

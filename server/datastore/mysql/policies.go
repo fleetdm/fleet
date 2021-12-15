@@ -96,6 +96,60 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return nil
 }
 
+// NewFailingPolicies returns a list of new failing policies. By "new" we mean those that fail on their first
+// run and those that were passing on the previous run and are failing on the incoming execution.
+func (ds *Datastore) NewFailingPoliciesForHost(
+	ctx context.Context,
+	hostID uint,
+	incomingResults map[uint]*bool,
+) ([]uint, error) {
+	// Sort the results to have generated SQL queries ordered to minimize
+	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
+	orderedIDs := make([]uint, 0, len(incomingResults))
+	for policyID := range incomingResults {
+		orderedIDs = append(orderedIDs, policyID)
+	}
+	sort.Slice(orderedIDs, func(i, j int) bool {
+		return orderedIDs[i] < orderedIDs[j]
+	})
+
+	selectQuery := fmt.Sprintf(
+		`SELECT policy_id, passes FROM policy_membership
+		WHERE host_id = ? AND policy_id IN (?)`,
+	)
+	var fetchedPolicyResults []struct {
+		ID     uint  `db:"policy_id"`
+		Passes *bool `db:"passes"`
+	}
+	selectQuery, args, err := sqlx.In(selectQuery, hostID, orderedIDs)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build select policy_membership query")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &fetchedPolicyResults, selectQuery, args...); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "select policy_membership")
+	}
+	prevPolicyResults := make(map[uint]bool)
+	for _, result := range fetchedPolicyResults {
+		prevPolicyResults[result.ID] = *result.Passes
+	}
+	// Loop through latest results, collecting which policies are going from
+	// pass to fail and those that fail in the first execution.
+	var newFailingPolicies []uint
+	for incomingPolicyID, incomingResult := range incomingResults {
+		if incomingResult == nil || *incomingResult {
+			continue
+		}
+		// Incoming policy result failed.
+
+		prevPasses, ok := prevPolicyResults[incomingPolicyID]
+		if !ok || prevPasses {
+			// Either first run or previous run succeeded.
+			newFailingPolicies = append(newFailingPolicies, incomingPolicyID)
+		}
+	}
+	return newFailingPolicies, nil
+}
+
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.

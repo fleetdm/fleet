@@ -102,7 +102,7 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// AppConfig
+// AppConfig holds server configuration that can be changed via the API.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
@@ -170,8 +170,12 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type WebhookSettings struct {
-	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
-	Interval          Duration                  `json:"interval"`
+	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// Interval is the interval for running the webhooks.
+	//
+	// This value currently configures both the host status and failing policies webhooks.
+	Interval Duration `json:"interval"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -179,6 +183,16 @@ type HostStatusWebhookSettings struct {
 	DestinationURL string  `json:"destination_url"`
 	HostPercentage float64 `json:"host_percentage"`
 	DaysCount      int     `json:"days_count"`
+}
+
+// FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.
+type FailingPoliciesWebhookSettings struct {
+	// Enable indicates whether the webhook for failing policies is enabled.
+	Enable bool `json:"enable_failing_policies_webhook"`
+	// DestinationURL is the webhook's URL.
+	DestinationURL string `json:"destination_url"`
+	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
+	PolicyIDs []uint `json:"policy_ids"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
