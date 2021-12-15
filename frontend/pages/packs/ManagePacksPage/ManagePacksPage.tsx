@@ -1,17 +1,16 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "react-query";
 
-import { push } from "react-router-redux";
-import pack, { IPack } from "interfaces/pack";
-import { IUser } from "interfaces/user";
+import { IPack } from "interfaces/pack";
+import { IError } from "interfaces/errors";
 
-// @ts-ignore
-import packActions from "redux/nodes/entities/packs/actions";
+import { AppContext } from "context/app";
+import packsAPI from "services/entities/packs";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
-import paths from "router/paths";
-import permissionUtils from "utilities/permissions";
+import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
@@ -21,17 +20,13 @@ import PacksListWrapper from "./components/PacksListWrapper";
 import RemovePackModal from "./components/RemovePackModal";
 
 const baseClass = "manage-packs-page";
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-  entities: {
-    packs: {
-      isLoading: boolean;
-      data: IPack[];
-      errors: { name: string; reason: string }[];
-    };
-  };
+
+interface IManagePacksPageProps {
+  router: any;
+}
+
+interface IPacksResponse {
+  packs: IPack[];
 }
 
 const renderTable = (
@@ -39,15 +34,15 @@ const renderTable = (
   onEnablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onDisablePackClick: React.MouseEventHandler<HTMLButtonElement>,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
-  packsList: IPack[],
-  packsErrors: { name: string; reason: string }[],
+  packs: IPack[] | undefined,
+  packsError: IError | null,
   isLoadingPacks: boolean
 ): JSX.Element => {
-  if (Object.keys(packsErrors).length > 0) {
+  if (packsError) {
     return <TableDataError />;
   }
 
-  const isTableDataLoading = isLoadingPacks || packsList === null;
+  const isTableDataLoading = isLoadingPacks || packs === null;
 
   return (
     <PacksListWrapper
@@ -55,32 +50,38 @@ const renderTable = (
       onEnablePackClick={onEnablePackClick}
       onDisablePackClick={onDisablePackClick}
       onCreatePackClick={onCreatePackClick}
-      packsList={packsList}
+      packs={packs}
       isLoading={isTableDataLoading}
     />
   );
 };
 
-const ManagePacksPage = (): JSX.Element => {
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
+const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
+  const { isOnlyObserver } = useContext(AppContext);
 
   const dispatch = useDispatch();
-  const { NEW_PACK } = paths;
-  const onCreatePackClick = () => dispatch(push(NEW_PACK));
 
-  useEffect(() => {
-    dispatch(packActions.loadAll());
-  }, [dispatch]);
-
-  const packs = useSelector((state: IRootState) => state.entities.packs);
-  const packsList = Object.values(packs.data);
-  const packsErrors = packs.errors;
-  const isLoadingPacks = packs.isLoading;
+  const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
   const [showRemovePackModal, setShowRemovePackModal] = useState<boolean>(
     false
+  );
+
+  const {
+    data: packs,
+    error: packsError,
+    isLoading: isLoadingPacks,
+    refetch: refetchPacks,
+  } = useQuery<IPacksResponse, IError, IPack[]>(
+    "packs",
+    () => packsAPI.loadAll(),
+    {
+      // refetchOnMount: false,
+      // refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      select: (data: IPacksResponse) => data.packs,
+    }
   );
 
   const toggleRemovePackModal = useCallback(() => {
@@ -96,7 +97,8 @@ const ManagePacksPage = (): JSX.Element => {
     const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
 
     const promises = selectedPackIds.map((id: number) => {
-      return dispatch(packActions.destroy({ id }));
+      packsAPI.destroy(id);
+      return null;
     });
 
     return Promise.all(promises)
@@ -105,7 +107,6 @@ const ManagePacksPage = (): JSX.Element => {
           renderFlash("success", `Successfully deleted ${packOrPacks}.`)
         );
         toggleRemovePackModal();
-        dispatch(packActions.loadAll());
       })
       .catch(() => {
         dispatch(
@@ -114,9 +115,12 @@ const ManagePacksPage = (): JSX.Element => {
             `Unable to remove ${packOrPacks}. Please try again.`
           )
         );
+      })
+      .finally(() => {
+        refetchPacks();
         toggleRemovePackModal();
       });
-  }, [dispatch, selectedPackIds, toggleRemovePackModal]);
+  }, [dispatch, refetchPacks, selectedPackIds, toggleRemovePackModal]);
 
   const onEnableDisablePackSubmit = useCallback(
     (selectedTablePackIds: any, disablePack: boolean) => {
@@ -124,7 +128,7 @@ const ManagePacksPage = (): JSX.Element => {
       const enableOrDisable = disablePack ? "disabled" : "enabled";
 
       const promises = selectedTablePackIds.map((id: number) => {
-        return dispatch(packActions.update({ id }, { disabled: disablePack }));
+        packsAPI.update(id, { disabled: disablePack });
       });
 
       return Promise.all(promises)
@@ -135,7 +139,6 @@ const ManagePacksPage = (): JSX.Element => {
               `Successfully ${enableOrDisable} selected ${packOrPacks}.`
             )
           );
-          dispatch(packActions.loadAll());
         })
         .catch(() => {
           dispatch(
@@ -144,9 +147,12 @@ const ManagePacksPage = (): JSX.Element => {
               `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
             )
           );
+        })
+        .finally(() => {
+          refetchPacks();
         });
     },
-    [dispatch, selectedPackIds]
+    [dispatch, refetchPacks, selectedPackIds]
   );
 
   const onEnablePackClick = (selectedTablePackIds: any) => {
@@ -176,7 +182,7 @@ const ManagePacksPage = (): JSX.Element => {
               </div>
             </div>
           </div>
-          {!isOnlyObserver && packsList.length > 0 && (
+          {!isOnlyObserver && packs && packs.length > 0 && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -189,14 +195,14 @@ const ManagePacksPage = (): JSX.Element => {
           )}
         </div>
         <div>
-          {!packs.isLoading &&
+          {!isLoadingPacks &&
             renderTable(
               onRemovePackClick,
               onEnablePackClick,
               onDisablePackClick,
               onCreatePackClick,
-              packsList,
-              packsErrors,
+              packs,
+              packsError,
               isLoadingPacks
             )}
         </div>

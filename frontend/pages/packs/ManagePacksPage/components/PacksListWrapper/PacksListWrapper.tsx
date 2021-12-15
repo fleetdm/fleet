@@ -18,7 +18,7 @@ interface IPacksListWrapperProps {
   onEnablePackClick: any;
   onDisablePackClick: any;
   onCreatePackClick: any;
-  packsList: IPack[];
+  packs?: IPack[];
   isLoading: boolean;
 }
 
@@ -33,26 +33,28 @@ const PacksListWrapper = ({
   onEnablePackClick,
   onDisablePackClick,
   onCreatePackClick,
-  packsList,
+  packs,
   isLoading,
 }: IPacksListWrapperProps): JSX.Element => {
   const currentUser = useSelector((state: IRootState) => state.auth.user);
   const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
 
-  const [filteredPacks, setFilteredPacks] = useState<IPack[]>(packsList);
+  const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
+    packs
+  );
   const [searchString, setSearchString] = useState<string>("");
 
   useEffect(() => {
-    setFilteredPacks(packsList);
-  }, [packsList]);
+    setFilteredPacks(packs);
+  }, [packs]);
 
   useEffect(() => {
     setFilteredPacks(() => {
-      return packsList.filter((pack) => {
+      return packs?.filter((pack) => {
         return pack.name.toLowerCase().includes(searchString.toLowerCase());
       });
     });
-  }, [packsList, searchString, setFilteredPacks]);
+  }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
     (queryData) => {
@@ -128,7 +130,7 @@ const PacksListWrapper = ({
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={packsList.length > 0}
+        searchable={packs && packs.length > 0}
         disablePagination
         onPrimarySelectActionClick={onRemovePackClick}
         primarySelectActionButtonVariant="text-icon"
