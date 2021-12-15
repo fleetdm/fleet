@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -627,20 +629,76 @@ func (s *integrationTestSuite) TestCountSoftware() {
 	assert.Equal(t, 1, resp.Count)
 }
 
-func (s *integrationTestSuite) TestGetPack() {
+func (s *integrationTestSuite) TestPacks() {
 	t := s.T()
 
-	pack := &fleet.Pack{
-		Name: t.Name(),
-	}
-	pack, err := s.ds.NewPack(context.Background(), pack)
-	require.NoError(t, err)
-
 	var packResp getPackResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
-	require.Equal(t, packResp.Pack.ID, pack.ID)
+	// get non-existing pack
+	s.Do("GET", "/api/v1/fleet/packs/999", nil, http.StatusNotFound)
 
-	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+	// create some packs
+	packs := make([]fleet.Pack, 3)
+	for i := range packs {
+		req := &createPackRequest{
+			PackPayload: fleet.PackPayload{
+				Name: ptr.String(fmt.Sprintf("%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), i)),
+			},
+		}
+
+		var createResp createPackResponse
+		s.DoJSON("POST", "/api/v1/fleet/packs", req, http.StatusOK, &createResp)
+		packs[i] = createResp.Pack.Pack
+	}
+
+	// get existing pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[0].ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packs[0].ID, packResp.Pack.ID)
+
+	// list packs
+	var listResp listPacksResponse
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 2)
+	assert.Equal(t, packs[0].ID, listResp.Packs[0].ID)
+	assert.Equal(t, packs[1].ID, listResp.Packs[1].ID)
+
+	// get page 1
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 1)
+	assert.Equal(t, packs[2].ID, listResp.Packs[0].ID)
+
+	// get page 2, empty
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "page", "2", "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 0)
+
+	var delResp deletePackResponse
+	// delete non-existing pack by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/%s", "zzz"), nil, http.StatusNotFound, &delResp)
+
+	// delete existing pack by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/%s", url.PathEscape(packs[0].Name)), nil, http.StatusOK, &delResp)
+
+	// delete non-existing pack by id
+	var delIDResp deletePackByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/id/%d", packs[2].ID+1), nil, http.StatusNotFound, &delIDResp)
+
+	// delete existing pack by id
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/id/%d", packs[1].ID), nil, http.StatusOK, &delIDResp)
+
+	var modResp modifyPackResponse
+	// modify non-existing pack
+	req := &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[2].ID+1), req, http.StatusNotFound, &modResp)
+
+	// modify existing pack
+	req = &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[2].ID), req, http.StatusOK, &modResp)
+	require.Equal(t, packs[2].ID, modResp.Pack.ID)
+	require.Contains(t, modResp.Pack.Name, "updated_")
+
+	// list packs, only packs[2] remains
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 1)
+	assert.Equal(t, packs[2].ID, listResp.Packs[0].ID)
 }
 
 func (s *integrationTestSuite) TestListHosts() {
