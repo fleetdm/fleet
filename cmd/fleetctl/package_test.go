@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,6 +24,13 @@ func TestPackage(t *testing.T) {
 
 	// --insecure and --fleet-certificate are mutually exclusive
 	runAppCheckErr(t, []string{"package", "--type=deb", "--insecure", "--fleet-certificate=test123"}, "--insecure and --fleet-certificate may not be provided together")
+
+	// --insecure and --fleet-certificate are mutually exclusive
+	certDir := t.TempDir()
+	fleetCertificate := filepath.Join(certDir, "fleet.pem")
+	err := ioutil.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0644))
+	require.NoError(t, err)
+	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
 
 	// run package tests, each should output their respective package type
 	// fleet-osquery_0.0.3_amd64.deb
