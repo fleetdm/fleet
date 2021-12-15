@@ -254,6 +254,9 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// ListHostDeviceMapping returns the list of device-mapping of user's email address
+	// for the host.
+	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application

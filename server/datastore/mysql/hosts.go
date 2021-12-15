@@ -1105,3 +1105,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (d *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+	panic("unimplemented")
+}

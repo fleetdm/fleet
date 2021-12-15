@@ -246,3 +246,12 @@ func PlatformFromHost(hostPlatform string) string {
 		return ""
 	}
 }
+
+// HostDeviceMapping represents a mapping of a user email address to a host,
+// as reported by the specified source (e.g. Gogle Chrome Profiles).
+type HostDeviceMapping struct {
+	ID     uint   `json:"-" db:"id"`
+	HostID uint   `json:"host_id" db:"host_id"`
+	Email  string `json:"email" db:"email"`
+	Source string `json:"source" db:"source"`
+}
