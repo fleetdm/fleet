@@ -129,6 +129,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
 
       const promises = selectedTablePackIds.map((id: number) => {
         packsAPI.update(id, { disabled: disablePack });
+        return null;
       });
 
       return Promise.all(promises)
