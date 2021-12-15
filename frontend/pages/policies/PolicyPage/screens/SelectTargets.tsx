@@ -123,6 +123,7 @@ const SelectTargets = ({
         onlineCount,
       }: IModifiedUseQueryTargetsResponse) => {
         if ("labels" in results) {
+          console.log("results: ", results);
           // this will only run once
           const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = filter(
@@ -221,16 +222,19 @@ const SelectTargets = ({
     <>
       {header && <h3>{header}</h3>}
       <div className="selector-block">
-        {entityList?.map((entity: ILabel | ITeam) => (
-          <TargetPillSelector
-            key={entity.id}
-            entity={entity}
-            isSelected={selectedLabels.some(
-              ({ id }: ILabel | ITeam) => id === entity.id
-            )}
-            onClick={handleSelectedLabels}
-          />
-        ))}
+        {entityList?.map((entity: ILabel | ITeam) => {
+          console.log("entity: ", entity);
+          return (
+            <TargetPillSelector
+              key={entity.name}
+              entity={entity}
+              isSelected={selectedLabels.some(
+                ({ name }: ILabel | ITeam) => name === entity.name
+              )}
+              onClick={handleSelectedLabels}
+            />
+          );
+        })}
       </div>
     </>
   );
