@@ -1923,6 +1923,9 @@ func TestPolicyQueries(t *testing.T) {
 		host = gotHost
 		return nil
 	}
+	ds.NewFailingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, error) {
+		return nil, nil
+	}
 
 	ctx := hostctx.NewContext(context.Background(), *host)
 

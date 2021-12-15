@@ -359,6 +359,11 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
+	// NewFailingPoliciesForHost returns a list of new failing policies. "New" failing policies are
+	// those that fail on their first run and those that were passing on the previous run and are
+	// failing on the incoming execution.
+	NewFailingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, error)
+	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
