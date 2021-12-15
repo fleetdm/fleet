@@ -517,7 +517,7 @@ FROM python_packages;
 }
 
 var usersQuery = DetailQuery{
-	Query: `SELECT uid, username, type, groupname, shell FROM users u JOIN groups g ON g.gid=u.gid;`,
+	Query: `SELECT uid, username, type, groupname, shell FROM users u LEFT JOIN groups g ON g.gid=u.gid WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
 	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 		var users []fleet.HostUser
 		for _, row := range rows {

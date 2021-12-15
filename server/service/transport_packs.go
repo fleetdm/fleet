@@ -16,7 +16,7 @@ func decodeCreatePackRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeModifyPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -24,12 +24,12 @@ func decodeModifyPackRequest(ctx context.Context, r *http.Request) (interface{},
 	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
 		return nil, err
 	}
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeDeletePackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	name, err := stringFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
@@ -39,22 +39,22 @@ func decodeDeletePackRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeDeletePackByIDRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req deletePackByIDRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeGetPackRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req getPackRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 

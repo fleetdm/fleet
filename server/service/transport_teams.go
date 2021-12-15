@@ -15,25 +15,25 @@ func decodeCreateTeamRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeModifyTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	req := modifyTeamRequest{ID: id}
+	req := modifyTeamRequest{ID: uint(id)}
 	err = json.NewDecoder(r.Body).Decode(&req.payload)
 	if err != nil {
 		return nil, err
 	}
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeModifyTeamAgentOptionsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	req := modifyTeamAgentOptionsRequest{ID: id}
+	req := modifyTeamAgentOptionsRequest{ID: uint(id)}
 	err = json.NewDecoder(r.Body).Decode(&req.options)
 	if err != nil {
 		return nil, err
@@ -50,15 +50,15 @@ func decodeListTeamsRequest(ctx context.Context, r *http.Request) (interface{}, 
 }
 
 func decodeDeleteTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	return deleteTeamRequest{ID: id}, nil
+	return deleteTeamRequest{ID: uint(id)}, nil
 }
 
 func decodeListTeamUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -66,15 +66,15 @@ func decodeListTeamUsersRequest(ctx context.Context, r *http.Request) (interface
 	if err != nil {
 		return nil, err
 	}
-	return listTeamUsersRequest{TeamID: id, ListOptions: opt}, nil
+	return listTeamUsersRequest{TeamID: uint(id), ListOptions: opt}, nil
 }
 
 func decodeModifyTeamUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	req := modifyTeamUsersRequest{TeamID: id}
+	req := modifyTeamUsersRequest{TeamID: uint(id)}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return nil, err
@@ -83,10 +83,10 @@ func decodeModifyTeamUsersRequest(ctx context.Context, r *http.Request) (interfa
 }
 
 func decodeTeamEnrollSecretsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	req := teamEnrollSecretsRequest{TeamID: id}
+	req := teamEnrollSecretsRequest{TeamID: uint(id)}
 	return req, nil
 }

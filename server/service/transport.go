@@ -59,28 +59,41 @@ type htmlPage interface {
 	error() error
 }
 
-func idFromRequest(r *http.Request, name string) (uint, error) {
+func uintFromRequest(r *http.Request, name string) (uint64, error) {
 	vars := mux.Vars(r)
-	id, ok := vars[name]
+	s, ok := vars[name]
 	if !ok {
 		return 0, errBadRoute
 	}
-	uid, err := strconv.Atoi(id)
+	u, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "idFromRequest")
+		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
 	}
-	return uint(uid), nil
+	return u, nil
 }
 
-func nameFromRequest(r *http.Request, varName string) (string, error) {
+func intFromRequest(r *http.Request, name string) (int64, error) {
 	vars := mux.Vars(r)
-	name, ok := vars[varName]
+	s, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	u, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, ctxerr.Wrap(r.Context(), err, "intFromRequest")
+	}
+	return u, nil
+}
+
+func stringFromRequest(r *http.Request, name string) (string, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
 	if !ok {
 		return "", errBadRoute
 	}
-	unescaped, err := url.PathUnescape(name)
+	unescaped, err := url.PathUnescape(s)
 	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape name in path")
+		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
 	}
 	return unescaped, nil
 }
@@ -290,7 +303,7 @@ type getGenericSpecRequest struct {
 }
 
 func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	name, err := stringFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}

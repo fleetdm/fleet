@@ -381,8 +381,8 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 4*time.Hour,
-		"Duration session keys remain valid (i.e. 24h)")
+	man.addConfigDuration("session.duration", 24*time.Hour,
+		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
@@ -438,7 +438,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.disable_banner", false,
 		"Disable startup banner")
 	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
-		"Amount of time to keep errors")
+		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
