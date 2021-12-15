@@ -226,10 +226,12 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 func (s *integrationTestSuite) TestGlobalSchedule() {
 	t := s.T()
 
+	// list the existing global schedules (none yet)
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 0)
 
+	// create a query that can be scheduled
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery1",
 		Description:    "Some description",
@@ -238,10 +240,12 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	})
 	require.NoError(t, err)
 
+	// schedule that query
 	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
 	r := globalScheduleQueryResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &r)
 
+	// list the scheduled queries, get the one just created
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
@@ -249,18 +253,34 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	assert.Equal(t, "TestQuery1", gs.GlobalSchedule[0].Name)
 	id := gs.GlobalSchedule[0].ID
 
+	// list page 2, should be empty
+	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs, "page", "2", "per_page", "4")
+	require.Len(t, gs.GlobalSchedule, 0)
+
+	// update the scheduled query
 	gs = fleet.GlobalSchedulePayload{}
 	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id), gsParams, http.StatusOK, &gs)
 
+	// update a non-existing schedule
+	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(66)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id+1), gsParams, http.StatusNotFound, &gs)
+
+	// read back that updated scheduled query
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Equal(t, id, gs.GlobalSchedule[0].ID)
 	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
 
+	// delete the scheduled query
 	r = globalScheduleQueryResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id), nil, http.StatusOK, &r)
 
+	// delete a non-existing schedule
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id+1), nil, http.StatusNotFound, &r)
+
+	// list the scheduled queries, back to none
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 0)

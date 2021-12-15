@@ -157,6 +157,9 @@ func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	`
 	sq := &fleet.ScheduledQuery{}
 	if err := sqlx.GetContext(ctx, d.reader, sq, query, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select scheduled query")
 	}
 
