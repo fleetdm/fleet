@@ -5,7 +5,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_POLICY } from "utilities/constants";
 import { IOsqueryTable } from "interfaces/osquery_table";
-import { StringifyOptions } from "querystring";
+import { IQueryPlatform } from "interfaces/query";
 
 type Props = {
   children: ReactNode;
@@ -16,13 +16,15 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
+  lastEditedQueryPlatform: IQueryPlatform;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
+  setLastEditedQueryResolution: (value: string) => void;
+  setLastEditedQueryPlatform: (value: IQueryPlatform) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
   selectedOsqueryTable: IOsqueryTable;
-  setLastEditedQueryResolution: (value: string) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
 
@@ -31,13 +33,15 @@ const initialState = {
   lastEditedQueryDescription: DEFAULT_POLICY.description,
   lastEditedQueryBody: "",
   lastEditedQueryResolution: "",
+  lastEditedQueryPlatform: DEFAULT_POLICY.platform,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
+  setLastEditedQueryResolution: () => null,
+  setLastEditedQueryPlatform: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
-  setLastEditedQueryResolution: () => null,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -78,6 +82,10 @@ const reducer = (state: any, action: any) => {
           typeof action.lastEditedQueryResolution === "undefined"
             ? state.lastEditedQueryResolution
             : action.lastEditedQueryResolution,
+        lastEditedQueryPlatform:
+          typeof action.lastEditedQueryPlatform === "undefined"
+            ? state.lastEditedQueryPlatform
+            : action.lastEditedQueryPlatform,
       };
     default:
       return state;
@@ -86,7 +94,7 @@ const reducer = (state: any, action: any) => {
 
 export const PolicyContext = createContext<InitialStateType>(initialState);
 
-const PolicyProvider = ({ children }: Props) => {
+const PolicyProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {
@@ -94,6 +102,7 @@ const PolicyProvider = ({ children }: Props) => {
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryResolution: state.lastEditedQueryResolution,
+    lastEditedQueryPlatform: state.lastEditedQueryPlatform,
     setLastEditedQueryName: (lastEditedQueryName: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
@@ -112,17 +121,25 @@ const PolicyProvider = ({ children }: Props) => {
         lastEditedQueryBody,
       });
     },
-    policyTeamId: state.policyTeamId,
-    setPolicyTeamId: (id: number) => {
-      dispatch({ type: actions.SET_POLICY_TEAM_ID, id });
-    },
-    selectedOsqueryTable: state.selectedOsqueryTable,
     setLastEditedQueryResolution: (lastEditedQueryResolution: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryResolution,
       });
     },
+    setLastEditedQueryPlatform: (
+      lastEditedQueryPlatform: IQueryPlatform | null | undefined
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryPlatform,
+      });
+    },
+    policyTeamId: state.policyTeamId,
+    setPolicyTeamId: (id: number) => {
+      dispatch({ type: actions.SET_POLICY_TEAM_ID, id });
+    },
+    selectedOsqueryTable: state.selectedOsqueryTable,
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
     },

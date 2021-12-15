@@ -805,8 +805,9 @@ func TestCompareVersions(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 
-		v1 []int64
-		v2 []int64
+		v1            []int64
+		v2            []int64
+		knownUnknowns map[int64]struct{}
 
 		expMissing []int64
 		expUnknown []int64
@@ -859,6 +860,25 @@ func TestCompareVersions(t *testing.T) {
 			expEqual:   false,
 		},
 		{
+			name: "known-unknown",
+			v1:   []int64{1, 2, 3},
+			v2:   []int64{1, 2, 3, 4},
+			knownUnknowns: map[int64]struct{}{
+				4: {},
+			},
+			expEqual: true,
+		},
+		{
+			name:       "unknowns",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 3, 4, 5},
+			expUnknown: []int64{5},
+			knownUnknowns: map[int64]struct{}{
+				4: {},
+			},
+			expEqual: false,
+		},
+		{
 			name:       "missing-and-unknown",
 			v1:         []int64{1, 2, 3},
 			v2:         []int64{1, 2, 4},
@@ -868,7 +888,7 @@ func TestCompareVersions(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			missing, unknown, equal := compareVersions(tc.v1, tc.v2)
+			missing, unknown, equal := compareVersions(tc.v1, tc.v2, tc.knownUnknowns)
 			require.Equal(t, tc.expMissing, missing)
 			require.Equal(t, tc.expUnknown, unknown)
 			require.Equal(t, tc.expEqual, equal)

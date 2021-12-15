@@ -23,10 +23,10 @@ type PolicyPayload struct {
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
-	// Platforms is a comma-separated string to indicate the target platforms.
+	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
-	Platforms string
+	Platform string
 }
 
 var (
@@ -51,7 +51,7 @@ func (p PolicyPayload) Verify() error {
 			return err
 		}
 	}
-	if err := verifyPolicyPlatforms(p.Platforms); err != nil {
+	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
 	return nil
@@ -99,10 +99,6 @@ type ModifyPolicyPayload struct {
 	Description *string `json:"description"`
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution *string `json:"resolution"`
-	// Platforms is a comma-separated string to indicate the target platforms.
-	//
-	// Empty string targets all platforms.
-	Platforms *string `json:"platforms"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -114,11 +110,6 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.Query != nil {
 		if err := verifyPolicyQuery(*p.Query); err != nil {
-			return err
-		}
-	}
-	if p.Platforms != nil {
-		if err := verifyPolicyPlatforms(*p.Platforms); err != nil {
 			return err
 		}
 	}
@@ -148,10 +139,10 @@ type PolicyData struct {
 	TeamID *uint `json:"team_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
-	// Platforms is a comma-separated string to indicate the target platforms.
+	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
-	Platforms string `json:"platforms" db:"platforms"`
+	Platform string `json:"platform" db:"platforms"`
 
 	UpdateCreateTimestamps
 }
@@ -199,10 +190,10 @@ type PolicySpec struct {
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
 	Team string `json:"team,omitempty"`
-	// Platforms is a comma-separated string to indicate the target platforms.
+	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
-	Platforms string `json:"platforms,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
 // Verify verifies the policy data is valid.
@@ -213,7 +204,7 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPolicyQuery(p.Query); err != nil {
 		return err
 	}
-	if err := verifyPolicyPlatforms(p.Platforms); err != nil {
+	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
 	return nil

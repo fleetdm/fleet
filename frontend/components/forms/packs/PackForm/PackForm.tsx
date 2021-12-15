@@ -1,5 +1,4 @@
-import React, { Component, useState } from "react";
-import PropTypes from "prop-types";
+import React, { useState } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -41,7 +40,6 @@ const EditPackForm = ({
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
-  formData,
   baseError,
 }: IPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({});

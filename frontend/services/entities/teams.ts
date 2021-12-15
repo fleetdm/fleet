@@ -23,6 +23,10 @@ interface ITeamSearchOptions {
   globalFilter?: string;
 }
 
+interface IEditTeamFormData {
+  name: string;
+}
+
 export default {
   create: (formData: ICreateTeamFormData) => {
     const { TEAMS } = endpoints;
@@ -60,7 +64,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (teamId: number, updateParams: ITeam) => {
+  update: (teamId: number, updateParams: IEditTeamFormData) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 

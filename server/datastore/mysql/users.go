@@ -120,7 +120,6 @@ func (d *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	}
 
 	return users, nil
-
 }
 
 func (d *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
@@ -274,4 +273,13 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 // DeleteUser deletes the associated user
 func (d *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return d.deleteEntity(ctx, usersTable, id)
+}
+
+func amountUsersDB(db sqlx.Queryer) (int, error) {
+	var amount int
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM users`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
 }

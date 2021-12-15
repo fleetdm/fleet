@@ -10,9 +10,10 @@ name: Run Tests
 jobs:
   test-e2e:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.16.0']
+        go-version: ['^1.17.0']
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:
@@ -78,13 +79,23 @@ jobs:
         make
 
     - name: Run E2E Tests
+      id: e2e
       run: |
         .github/scripts/check-infra-dependencies.sh all
         make e2e-reset-db
         make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
         make e2e-setup
-        yarn cypress run --config-file cypress-${{ matrix.fleet-tier }}.json --config video=false
+        yarn cypress run --config-file cypress-${{ matrix.fleet-tier }}.json
+
+    - name: Upload artifacts
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: cypress
+        path: |
+          cypress/screenshots/
+          cypress/videos/
 
 
   test-js:

@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 import { size } from "lodash";
 
 import { IPolicyFormData } from "interfaces/policy";
+import { IQueryPlatform } from "interfaces/query";
 import { useDeepEffect } from "utilities/hooks";
 import { PolicyContext } from "context/policy";
 // @ts-ignore
@@ -12,6 +13,7 @@ import Modal from "components/Modal";
 export interface INewPolicyModalProps {
   baseClass: string;
   queryValue: string;
+  platform: IQueryPlatform;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
 }
@@ -30,6 +32,7 @@ const validatePolicyName = (name: string) => {
 const NewPolicyModal = ({
   baseClass,
   queryValue,
+  platform,
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
@@ -54,7 +57,7 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const { valid, errors: newErrors } = validatePolicyName(name);
@@ -69,6 +72,7 @@ const NewPolicyModal = ({
         name,
         query: queryValue,
         resolution,
+        platform,
       });
 
       setIsNewPolicyModalOpen(false);
@@ -77,7 +81,11 @@ const NewPolicyModal = ({
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form className={`${baseClass}__save-modal-form`} autoComplete="off">
+      <form
+        onSubmit={handleSavePolicy}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
@@ -116,7 +124,7 @@ const NewPolicyModal = ({
           </Button>
           <Button
             className={`${baseClass}__btn`}
-            type="button"
+            type="submit"
             variant="brand"
             onClick={handleSavePolicy}
           >

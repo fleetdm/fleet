@@ -4,7 +4,7 @@ kind: query
 spec:
   name: Count Apple applications installed
   platforms: macOS
-  description: Count the number of Apple applications installed on the machine.
+  description: Get the total number of Apple applications installed on the host system.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
   contributors: mike-j-thomas,noahtalerman,mikermcneil
@@ -145,7 +145,7 @@ kind: query
 spec:
   name: Get laptops with failing batteries
   platforms: macOS
-  description:
+  description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
   contributors: zwass
@@ -175,7 +175,7 @@ kind: query
 spec:
   name: Get the version of the resident operating system
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows system mounted devices and filesystems (not process specific).
+  description: Retrieves the version of the host(s) operating system(s).
   query: SELECT * FROM os_version;
   purpose: Informational
   contributors: zwass
@@ -255,7 +255,7 @@ kind: query
 spec:
   name: Get Windows machines with unencrypted hard disks
   platforms: Windows
-  description:
+  description: List all Windows machines with unencrypted hard disks.
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
   contributors: zwass
@@ -556,3 +556,50 @@ spec:
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
   contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active processes with Log4j running
+  platforms: macOS, Linux
+  description: Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename.
+  query: |
+    WITH target_jars AS (
+      SELECT DISTINCT path
+      FROM (
+          WITH split(word, str) AS(
+            SELECT '', cmdline || ' '
+            FROM processes
+            UNION ALL
+            SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)
+            FROM split
+            WHERE str != '')
+          SELECT word AS path
+          FROM split
+          WHERE word LIKE '%.jar'
+        UNION ALL
+          SELECT path
+          FROM process_open_files
+          WHERE path LIKE '%.jar'
+      )
+    )
+    SELECT path, matches
+    FROM yara
+    WHERE path IN (SELECT path FROM target_jars)
+      AND count > 0
+      AND sigrule IN (
+        'rule log4jJndiLookup {
+          strings:
+            $jndilookup = "JndiLookup"
+          condition:
+            $jndilookup
+        }',
+        'rule log4jJavaClass {
+          strings:
+            $javaclass = "org/apache/logging/log4j"
+          condition:
+            $javaclass
+        }'
+      );
+  purpose: Detection
+  contributors: zwass,tgauda
