@@ -544,6 +544,22 @@ var usersQuery = DetailQuery{
 	},
 }
 
+var chromeProfilesQuery = DetailQuery{
+	Query: `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
+	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
+		for _, row := range rows {
+			mapping = append(mapping, &fleet.HostDeviceMapping{
+				Email:  row["email"],
+				Source: "google_chrome_profiles",
+			})
+		}
+		host.DeviceMapping = mapping
+
+		return nil
+	},
+}
+
 func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	software := fleet.HostSoftware{Modified: true}
 
@@ -617,6 +633,8 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+		// TODO(mna): ok to enable only if EnableHostUsers is true?
+		generatedMap["google_chrome_profiles"] = chromeProfilesQuery
 	}
 
 	return generatedMap

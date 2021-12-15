@@ -290,11 +290,11 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsers, 10)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
+	require.Len(t, queriesWithUsers, 11)
+	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "google_chrome_profiles"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 13)
+	require.Len(t, queriesWithUsersAndSoftware, 14)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+		append(baseQueries, "users", "google_chrome_profiles", "software_macos", "software_linux", "software_windows"))
 }
