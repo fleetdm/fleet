@@ -320,6 +320,9 @@ func TestEndpointer(t *testing.T) {
 	// Path that got deprecated but in the latest version
 	e.EndingAtVersion("2021-11").GET("/api/v1/fleet/deprecated-soon", nopHandler, struct{}{})
 
+	// Aliasing works with versioning too
+	e.WithAlias("/api/v1/fleet/something/{fff}").GET("/api/v1/fleet/somethings/{fff}", nopHandler, struct{}{})
+
 	mustMatch := []struct {
 		method     string
 		path       string
@@ -341,6 +344,13 @@ func TestEndpointer(t *testing.T) {
 		{method: "GET", path: "/api/v1/fleet/overriddenpath"},
 		{method: "GET", path: "/api/2021-11/fleet/overriddenpath", overridden: true},
 		{method: "GET", path: "/api/latest/fleet/overriddenpath", overridden: true},
+
+		{method: "GET", path: "/api/v1/fleet/something/aaa"},
+		{method: "GET", path: "/api/2021-11/fleet/something/aaa"},
+		{method: "GET", path: "/api/latest/fleet/something/aaa"},
+		{method: "GET", path: "/api/v1/fleet/somethings/aaa"},
+		{method: "GET", path: "/api/2021-11/fleet/somethings/aaa"},
+		{method: "GET", path: "/api/latest/fleet/somethings/aaa"},
 	}
 
 	mustNotMatch := []struct {

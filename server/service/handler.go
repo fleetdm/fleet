@@ -631,10 +631,10 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/v1/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
 
 	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
-	e.GET("/api/v1/fleet/team[,s]/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	e.POST("/api/v1/fleet/team[,s]/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	e.PATCH("/api/v1/fleet/team[,s]/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	e.DELETE("/api/v1/fleet/team[,s]/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule").GET("/api/v1/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule").POST("/api/v1/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}").PATCH("/api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}").DELETE("/api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	e.POST("/api/v1/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
 	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
@@ -643,10 +643,10 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/v1/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 
 	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
-	e.POST("/api/v1/fleet/team[,s]/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
-	e.GET("/api/v1/fleet/team[,s]/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
-	e.GET("/api/v1/fleet/team[,s]/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
-	e.POST("/api/v1/fleet/team[,s]/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/policies").POST("/api/v1/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/policies").GET("/api/v1/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/policies/{policy_id}").GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
+	e.WithAlias("/api/v1/fleet/team/{team_id}/policies/delete").POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
 
 	e.PATCH("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 

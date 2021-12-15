@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -236,7 +237,13 @@ func TestAPIRoutesConflicts(t *testing.T) {
 		path = reSimpleVar.ReplaceAllString(path, "$1")
 		// for now at least, the only times we use regexp-constrained vars is
 		// for numeric arguments.
-		path = reNumVar.ReplaceAllString(path, "1")
+		path = reNumVar.ReplaceAllStringFunc(path, func(s string) string {
+			if strings.Index(s, "fleetversion") != -1 {
+				parts := strings.Split(strings.TrimPrefix(s, "{fleetversion:(?:"), "|")
+				return strings.TrimSuffix(parts[0], ")}")
+			}
+			return "1"
+		})
 
 		routeStatus := status
 		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(routeStatus) })
