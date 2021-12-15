@@ -69,12 +69,7 @@ const PolicyPage = ({
     }
   }, []);
 
-  if (
-    policyTeamId &&
-    currentUser &&
-    !currentUser.teams.length &&
-    !currentTeam
-  ) {
+  if (policyTeamId && currentUser && currentUser.teams.length && !currentTeam) {
     const thisPolicyTeam = currentUser.teams.find((team) => team.id);
     if (thisPolicyTeam) {
       setCurrentTeam(thisPolicyTeam);
