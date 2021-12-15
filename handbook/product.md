@@ -255,25 +255,6 @@ Non-release blocking bugs may include known issues that were not targeted for th
 
 Documentation on completing the release process can be found [here](../docs/03-Contributing/05-Releasing-Fleet.md).  
 
-
-## Support process
-
-This section outlines the customer and community support process at Fleet.
-
-The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
-
-The on-call engineer is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
-
-The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
-
-1. What went well?
-
-2. What could have gone better?
-
-3. What should we remember next time?
-
-This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
-
 ### Goals
 At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
 
