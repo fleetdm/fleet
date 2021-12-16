@@ -10,9 +10,17 @@ After a customer conversation, it can sometimes feel like there are 1001 things 
 
 This section outlines the customer and community support process at Fleet.
 
-The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
+L1: Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
+L2: In-depth technical suppport -> CS Team with L2 Oncall Technician
+L3: Expert product and service support -> CS team liases with L2 and L3 Oncall Technician.
 
-The on-call engineer is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
+In each case, if possible, the resulting solution should be made more clear in the documentation and/or the FAQs.
+
+The support process is accomplished via on-call rotation and the weekly on-call retro meeting.
+
+The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the Customer Success team.
+
+Slack messages have a 24 hour SLA and the Slack channel should have a notice at the top explaining so.
 
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
