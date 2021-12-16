@@ -99,6 +99,9 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 // NewFailingPolicies fetches the incomingFailing policies and returns a list of the "new" failing
 // policies. By "new" we mean those that fail on their first run and those that were passing on
 // the previous run and are failing on the incoming execution.
+//
+// NOTE(lucas): If a policy has been deleted (and also deleted on policy_membership via cascade)
+// and osquery agents bring in new failing results from them then those will be returned here.
 func (ds *Datastore) NewFailingPoliciesForHost(
 	ctx context.Context,
 	hostID uint,

@@ -102,4 +102,14 @@ func testRedisFailingPolicySetBasic(t *testing.T, r *redisFailingPolicySet) {
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 1)
 	require.Equal(t, host4, hostIDs[0])
+
+	err = r.RemoveSet(policyID1)
+	require.NoError(t, err)
+
+	hostIDs, err = r.ListHosts(policyID1)
+	require.NoError(t, err)
+	require.Empty(t, hostIDs)
+
+	err = r.RemoveSet(policyID1)
+	require.NoError(t, err)
 }
