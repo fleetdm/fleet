@@ -18,8 +18,10 @@ interface IPreviewPayloadModalProps {
 const PreviewPayloadModal = ({
   onCancel,
 }: IPreviewPayloadModalProps): JSX.Element => {
+  // TODO: Restyle this "json" box according to figma
   const post = "POST https://server.com/example";
 
+  // TODO: Update with appropriate JSON once decided by product/backend 12/15
   const json = {
     action: "snapshot",
     snapshot: [

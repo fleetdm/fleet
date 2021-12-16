@@ -212,6 +212,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     });
   };
 
+  // TODO: UPDATE REQUEST AND FLASH MESSAGES 12/15
   const onCreateAutomationsSubmit = async () => {
     try {
       const request = selectedTeamId
@@ -559,7 +560,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             showPreviewPayloadModal={showPreviewPayloadModal}
             onFormChange={onSelectedAutomationsChange}
             availablePolicies={globalPolicies}
-            currentAutomatedPolicies={globalPolicies} // TODO: Fix parameter
+            currentAutomatedPolicies={globalPolicies} // TODO: Fix parameter 12/15
           />
         )}
         {showAddPolicyModal && (
