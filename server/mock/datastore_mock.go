@@ -287,7 +287,7 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
-type NewFailingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, error)
+type NewFailingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingFailing []uint) ([]uint, error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
@@ -1493,7 +1493,7 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return s.SavePolicyFunc(ctx, p)
 }
 
-func (s *DataStore) NewFailingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) ([]uint, error) {
+func (s *DataStore) NewFailingPoliciesForHost(ctx context.Context, hostID uint, incomingResults []uint) ([]uint, error) {
 	s.NewFailingPoliciesForHostFuncInvoked = true
 	return s.NewFailingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }

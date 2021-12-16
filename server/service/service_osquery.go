@@ -745,10 +745,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-		if failingPolicies, err := svc.ds.NewFailingPoliciesForHost(ctx, host.ID, policyResults); err != nil {
-			logging.WithErr(ctx, err)
-		} else {
-			if err := svc.registerFailingPolicies(ctx, &host, failingPolicies); err != nil {
+		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
+			incomingFailing := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+			if failingPolicies, err := svc.ds.NewFailingPoliciesForHost(ctx, host.ID, incomingFailing); err != nil {
+				logging.WithErr(ctx, err)
+			} else if err := svc.registerFailingPolicies(ctx, host.ID, failingPolicies); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -801,9 +802,32 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
-func (svc *Service) registerFailingPolicies(ctx context.Context, host *fleet.Host, failingPolicies []uint) error {
-	// TODO(lucas): implement me.
-	svc.logger.Log("failing_policies", failingPolicies)
+// filterPolicyResults filters out the passing policies and those
+// that aren't configured for webhook automation.
+func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) []uint {
+	wp := make(map[uint]struct{})
+	for _, policyID := range webhookPolicies {
+		wp[policyID] = struct{}{}
+	}
+	var filtered []uint
+	for policyID, passes := range incoming {
+		if passes != nil && *passes {
+			continue
+		}
+		if _, ok := wp[policyID]; !ok {
+			continue
+		}
+		filtered = append(filtered, policyID)
+	}
+	return filtered
+}
+
+func (svc *Service) registerFailingPolicies(ctx context.Context, hostID uint, failingPolicies []uint) error {
+	for _, policyID := range failingPolicies {
+		if err := svc.failingPolicySet.AddHost(policyID, hostID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

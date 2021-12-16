@@ -36,7 +36,19 @@ type Service struct {
 
 	seenHostSet *seenHostSet
 
+	failingPolicySet FailingPolicySet
+
 	authz *authz.Authorizer
+}
+
+// FailingPolicySet holds sets of hosts that failed policy executions.
+type FailingPolicySet interface {
+	// AddHost adds the given host to the policy set.
+	AddHost(policyID, hostID uint) error
+	// ListHosts returns the list of hosts present in the policy set.
+	ListHosts(policyID uint) ([]uint, error)
+	// RemoveHosts removes the hosts from the policy set.
+	RemoveHosts(policyID uint, hostIDs []uint) error
 }
 
 // NewService creates a new service from the config struct
@@ -53,6 +65,7 @@ func NewService(
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
+	failingPolicySet FailingPolicySet,
 ) (fleet.Service, error) {
 	var svc fleet.Service
 
@@ -75,6 +88,7 @@ func NewService(
 		ssoSessionStore:  sso,
 		seenHostSet:      newSeenHostSet(),
 		license:          license,
+		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
 	}
 	svc = validationMiddleware{svc, ds, sso}

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/WatchBeam/clock"
@@ -60,7 +61,7 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license)
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license, NewMemFailingPolicySet())
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +92,7 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
+	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license, NewMemFailingPolicySet())
 	if err != nil {
 		panic(err)
 	}
@@ -274,4 +275,56 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 	require.Nil(t, getJSON(resp, err))
 	assert.Equal(t, code, err.Code)
 	assert.Equal(t, message, err.Message)
+}
+
+type memFailingPolicySet struct {
+	mMu sync.RWMutex
+	m   map[uint][]uint
+}
+
+var _ FailingPolicySet = (*memFailingPolicySet)(nil)
+
+func NewMemFailingPolicySet() *memFailingPolicySet {
+	return new(memFailingPolicySet)
+}
+
+// AddFailingPoliciesForHost adds the given host to the policy sets.
+func (m *memFailingPolicySet) AddHost(policyID, hostID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	m.m[policyID] = append(m.m[policyID], hostID)
+	return nil
+}
+
+// ListHosts returns the list of hosts present in the policy set.
+func (m *memFailingPolicySet) ListHosts(policyID uint) ([]uint, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	hostIDs := make([]uint, len(m.m[policyID]))
+	for i := range m.m[policyID] {
+		hostIDs[i] = m.m[policyID][i]
+	}
+	return hostIDs, nil
+}
+
+// RemoveHosts removes the hosts from the policy set.
+func (m *memFailingPolicySet) RemoveHosts(policyID uint, hostIDs []uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	hostsSet := make(map[uint]struct{})
+	for _, hostID := range hostIDs {
+		hostsSet[hostID] = struct{}{}
+	}
+	n := 0
+	for _, hostID := range m.m[policyID] {
+		if _, ok := hostsSet[hostID]; !ok {
+			m.m[policyID][n] = hostID
+			n++
+		}
+	}
+	m.m[policyID] = m.m[policyID][:n]
+	return nil
 }

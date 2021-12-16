@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -262,6 +263,8 @@ the way that the Fleet server works.
 				initFatal(err, "initializing osquery logging")
 			}
 
+			failingPolicySet := redis_policy_set.NewFailing(redisPool)
+
 			task := &async.Task{
 				Datastore:          ds,
 				Pool:               redisPool,
@@ -274,7 +277,7 @@ the way that the Fleet server works.
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 			}
-			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -286,7 +289,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
 
 			// Flush seen hosts every second
 			go func() {
@@ -519,7 +522,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet service.FailingPolicySet) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -534,7 +537,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet)
 
 	return cancelBackground
 }
@@ -680,7 +683,7 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet service.FailingPolicySet) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -699,15 +702,23 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
+
+		// TODO(lucas): Currently sharing the lock for host status and failing policies.
 		if locked, err := ds.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
 			continue
 		}
 
-		err := webhooks.TriggerHostStatusWebhook(
-			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig)
-		if err != nil {
+		if err := webhooks.TriggerHostStatusWebhook(
+			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
+		); err != nil {
 			level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+		}
+
+		if err := webhooks.TriggerFailingPoliciesWebhook(
+			ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet,
+		); err != nil {
+			level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
 		}
 
 		// Reread app config to be able to change interval somewhat on the fly
