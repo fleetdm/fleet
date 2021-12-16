@@ -50,6 +50,7 @@ export interface IPolicyFormData {
   name?: string | number | boolean | any[] | undefined;
   query?: string | number | boolean | any[] | undefined;
   team_id?: number;
+  id?: number;
 }
 
 export interface IPolicyNew {

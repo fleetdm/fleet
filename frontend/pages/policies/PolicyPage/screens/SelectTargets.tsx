@@ -302,7 +302,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           onClick={goToQueryEditor}
-          variant="text-link"
+          variant="inverse"
         >
           Cancel
         </Button>

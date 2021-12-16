@@ -338,7 +338,7 @@ const ScheduleEditorModal = ({
           <div className={`${baseClass}__preview-btn-wrap`}>
             <Button
               type="button"
-              variant="inverse"
+              variant="text-link"
               onClick={togglePreviewDataModal}
             >
               Preview data

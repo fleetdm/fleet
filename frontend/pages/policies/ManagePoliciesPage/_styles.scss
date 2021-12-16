@@ -8,6 +8,17 @@
     align-items: center;
     justify-content: space-between;
     height: 38px;
+
+    .button-wrap {
+      display: flex;
+      justify-content: flex-end;
+      min-width: 266px;
+    }
+  }
+
+  &__manage-automations {
+    padding: $pad-small;
+    margin-right: $pad-small;
   }
 
   &__header {

@@ -9,7 +9,8 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 
 import { DEFAULT_POLICY } from "utilities/constants";
-import { IPolicy, IPolicyStats } from "interfaces/policy";
+import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import { IAutomationFormData } from "interfaces/automation";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
@@ -30,6 +31,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import TeamsDropdown from "components/TeamsDropdown";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
@@ -114,6 +116,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
+  const [automationFormData, setAutomationFormData] = useState<
+    IAutomationFormData | {}
+  >({});
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
+  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
@@ -176,6 +185,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setCurrentTeam(selectedTeam);
   };
 
+  const toggleManageAutomationsModal = () =>
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+
+  const togglePreviewPayloadModal = useCallback(() => {
+    setShowPreviewPayloadModal(!showPreviewPayloadModal);
+  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
@@ -183,6 +199,49 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  const onSelectedAutomationsChange = (policies: IPolicyFormData[]): void => {
+    setAutomationFormData({
+      formData: {
+        policies,
+      },
+    });
+  };
+
+  const onCreateAutomationsSubmit = async () => {
+    try {
+      const request = selectedTeamId
+        ? teamPoliciesAPI.destroy(selectedTeamId, selectedPolicyIds)
+        : globalPoliciesAPI.destroy(selectedPolicyIds);
+
+      await request.then(() => {
+        dispatch(
+          renderFlash(
+            "success",
+            `Successfully removed ${
+              selectedPolicyIds?.length === 1 ? "policy" : "policies"
+            }.`
+          )
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          `Unable to remove ${
+            selectedPolicyIds?.length === 1 ? "policy" : "policies"
+          }. Please try again.`
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      getPolicies(selectedTeamId);
+    }
+  };
 
   const onAddPolicyClick = () => {
     setLastEditedQueryName("");
@@ -361,17 +420,29 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               </div>
             </div>
           </div>
-          {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="brand"
-                className={`${baseClass}__select-policy-button`}
-                onClick={onAddPolicyClick}
-              >
-                Add a policy
-              </Button>
-            </div>
-          )}
+          <div className={`${baseClass} button-wrap`}>
+            {canAddOrRemovePolicy(currentUser, selectedTeamId) &&
+              selectedTeamId === 0 && (
+                <Button
+                  onClick={() => onManageAutomationsClick()}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
+            {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__select-policy-button`}
+                  onClick={onAddPolicyClick}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         {!isLoadingTeams && (
           <div className={`${baseClass}__description`}>
@@ -479,6 +550,17 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
+        )}
+        {showManageAutomationsModal && !!globalPolicies.length && (
+          <ManageAutomationsModal
+            onCancel={toggleManageAutomationsModal}
+            onCreateAutomationsSubmit={onCreateAutomationsSubmit}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            onFormChange={onSelectedAutomationsChange}
+            availablePolicies={globalPolicies}
+            currentAutomatedPolicies={globalPolicies} // TODO: Fix parameter
+          />
         )}
         {showAddPolicyModal && (
           <AddPolicyModal
