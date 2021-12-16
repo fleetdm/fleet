@@ -92,3 +92,12 @@ func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []service.Polic
 	_, err := conn.Do("SREM", args...)
 	return err
 }
+
+// RemoveSet removes a policy set.
+func (r *redisFailingPolicySet) RemoveSet(policyID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("DEL", policySetKey(policyID))
+	return err
+}

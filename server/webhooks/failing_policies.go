@@ -36,7 +36,7 @@ func TriggerFailingPoliciesWebhook(
 		case err == nil:
 			// OK
 		case errors.Is(err, sql.ErrNoRows):
-			// TODO(lucas): Deal with deleted policies.
+			level.Debug(logger).Log("msg", "skipping removed policy", "id", policyID)
 			continue
 		default:
 			return ctxerr.Wrapf(ctx, err, "failing to load failing policies set %d", policyID)
@@ -44,6 +44,9 @@ func TriggerFailingPoliciesWebhook(
 		hosts, err := failingPoliciesSet.ListHosts(policyID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policyID)
+		}
+		if len(hosts) == 0 {
+			continue
 		}
 		failingHosts := make([]FailingHost, len(hosts))
 		for i := range hosts {

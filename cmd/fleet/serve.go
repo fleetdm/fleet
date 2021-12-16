@@ -703,6 +703,15 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			return
 		}
 
+		// Reread app config to be able to read latest data and update any intervals for next run.
+		appConfig, err = ds.AppConfig(ctx)
+		if err != nil {
+			level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		} else {
+			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			ticker.Reset(interval)
+		}
+
 		// TODO(lucas): Currently sharing the lock for host status and failing policies.
 		if locked, err := ds.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
 			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
@@ -719,15 +728,6 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 		); err != nil {
 			level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
-		}
-
-		// Reread app config to be able to change interval somewhat on the fly
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		} else {
-			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-			ticker.Reset(interval)
 		}
 
 		level.Debug(logger).Log("loop", "done")

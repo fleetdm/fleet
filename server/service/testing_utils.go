@@ -330,3 +330,12 @@ func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []PolicySetHost) 
 	m.m[policyID] = m.m[policyID][:n]
 	return nil
 }
+
+// RemoveSet removes a policy set.
+func (m *memFailingPolicySet) RemoveSet(policyID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	delete(m.m, policyID)
+	return nil
+}

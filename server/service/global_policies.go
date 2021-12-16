@@ -162,11 +162,38 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
+	}
 	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "deleting global policies")
 	}
 	return ids, nil
+}
+
+func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, ids []uint) error {
+	ac, err := svc.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	idSet := make(map[uint]struct{})
+	for _, id := range ids {
+		idSet[id] = struct{}{}
+	}
+	n := 0
+	policyIDs := ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	for i := range policyIDs {
+		if _, ok := idSet[policyIDs[i]]; !ok {
+			policyIDs[n] = policyIDs[i]
+			n++
+		}
+	}
+	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = policyIDs[:n]
+	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+		return err
+	}
+	return nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
