@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
 
@@ -16,6 +16,7 @@ import PolicyProvider from "context/policy";
 import { AppContext } from "context/app";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
+import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
@@ -33,7 +34,7 @@ interface IRootState {
   };
 }
 
-const App = ({ children }: IAppProps) => {
+const App = ({ children }: IAppProps): JSX.Element => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
   const queryClient = new QueryClient();
@@ -45,8 +46,9 @@ const App = ({ children }: IAppProps) => {
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
-    enrollSecret,
   } = useContext(AppContext);
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useDeepEffect(() => {
     // on page refresh
@@ -55,10 +57,16 @@ const App = ({ children }: IAppProps) => {
     }
 
     if (user) {
+      setIsLoading(true);
       setCurrentUser(user);
       dispatch(getConfig())
-        .then((config: IConfig) => setConfig(config))
-        .catch(() => false);
+        .then((config: IConfig) => {
+          setConfig(config);
+        })
+        .catch(() => false)
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, [user]);
 
@@ -82,7 +90,9 @@ const App = ({ children }: IAppProps) => {
   }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
   const wrapperStyles = classnames("wrapper");
-  return (
+  return isLoading ? (
+    <Spinner />
+  ) : (
     <QueryClientProvider client={queryClient}>
       <TableProvider>
         <QueryProvider>

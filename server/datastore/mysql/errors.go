@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -52,6 +53,13 @@ func (e *notFoundError) WithMessage(msg string) error {
 
 func (e *notFoundError) IsNotFound() bool {
 	return true
+}
+
+// Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
+// error of type *notFoundError, without having to wrap sql.ErrNoRows
+// explicitly.
+func (e *notFoundError) Is(other error) bool {
+	return other == sql.ErrNoRows
 }
 
 type existsError struct {

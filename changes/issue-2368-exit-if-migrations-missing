@@ -1,1 +1,0 @@
-* `fleet serve` exits if there are any migrations missing.

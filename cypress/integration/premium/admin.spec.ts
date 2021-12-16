@@ -190,7 +190,7 @@ describe(
         // End e2e test for schedules
 
         cy.visit("/queries/manage");
-
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all window crashes/i)
           .parent()
           .parent()
@@ -226,6 +226,7 @@ describe(
 
         // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.get(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });

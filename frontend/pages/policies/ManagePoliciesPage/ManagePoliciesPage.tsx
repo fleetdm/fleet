@@ -16,7 +16,6 @@ import { IUser } from "interfaces/user";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
-import fleetQueriesAPI from "services/entities/queries";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamsAPI from "services/entities/teams";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -76,7 +75,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
-    setPolicyTeamId,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const { isTeamMaintainer, isTeamAdmin } = permissionsUtils;
@@ -132,6 +131,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         .loadAll()
         .then((response) => response.policies);
       setGlobalPolicies(result);
+      setLastEditedQueryPlatform("");
     } catch (error) {
       console.log(error);
       setIsGlobalPoliciesError(true);
@@ -172,7 +172,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     router.replace(path);
     setShowInheritedPolicies(false);
     setSelectedPolicyIds([]);
-    setPolicyTeamId(id);
     const selectedTeam = find(teams, ["id", id]);
     setCurrentTeam(selectedTeam);
   };

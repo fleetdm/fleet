@@ -1,3 +1,0 @@
-* Policies now have proprietary queries and are managed independently from the saved queries.
-  * Amended policy creation API to support proprietary queries.
-  * Bug fix: Query checkboxes now reset upon deleting a query

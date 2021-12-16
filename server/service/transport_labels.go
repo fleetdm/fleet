@@ -7,7 +7,7 @@ import (
 )
 
 func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	name, err := stringFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
@@ -17,22 +17,22 @@ func decodeDeleteLabelRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func decodeDeleteLabelByIDRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteLabelByIDRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeGetLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req getLabelRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
@@ -45,7 +45,7 @@ func decodeListLabelsRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeListHostsInLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func decodeListHostsInLabelRequest(ctx context.Context, r *http.Request) (interf
 		return nil, err
 	}
 
-	return listHostsInLabelRequest{ID: id, ListOptions: hopt}, nil
+	return listHostsInLabelRequest{ID: uint(id), ListOptions: hopt}, nil
 }
 
 func decodeApplyLabelSpecsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -76,7 +76,7 @@ func decodeCreateLabelRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func decodeModifyLabelRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +85,6 @@ func decodeModifyLabelRequest(ctx context.Context, r *http.Request) (interface{}
 	if err != nil {
 		return nil, err
 	}
-	resp.ID = id
+	resp.ID = uint(id)
 	return resp, nil
 }

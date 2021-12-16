@@ -401,7 +401,12 @@ var (
 		// timestamp was changed in fleet-v4.4.1.
 		20210924114500: {},
 	}
-	knownUnknownDataMigrations = map[int64]struct{}{}
+	knownUnknownDataMigrations = map[int64]struct{}{
+		// This migration was present in 2.0.0, and was removed on a subsequent release.
+		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
+		// column doesn't exist anymore).
+		20171212182459: {},
+	}
 )
 
 func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {

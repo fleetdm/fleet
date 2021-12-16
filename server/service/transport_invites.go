@@ -22,11 +22,11 @@ func decodeCreateInviteRequest(ctx context.Context, r *http.Request) (interface{
 }
 
 func decodeDeleteInviteRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	return deleteInviteRequest{ID: id}, nil
+	return deleteInviteRequest{ID: uint(id)}, nil
 }
 
 func decodeVerifyInviteRequest(ctx context.Context, r *http.Request) (interface{}, error) {

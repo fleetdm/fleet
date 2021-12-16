@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
-import { DEFAULT_POLICY, DEFAULT_POLICIES } from "utilities/constants";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 
@@ -25,12 +25,13 @@ const AddPolicyModal = ({
   router,
   teamId,
   teamName,
-}: IAddPolicyModalProps) => {
+}: IAddPolicyModalProps): JSX.Element => {
   const {
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -42,10 +43,11 @@ const AddPolicyModal = ({
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
     setPolicyTeamId(teamId);
+    setLastEditedQueryPlatform(selectedPolicy.platform || "");
     router.push(PATHS.NEW_POLICY);
   };
 
-  const policiesAvailable = DEFAULT_POLICIES.map((policy) => {
+  const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
     return (
       <Button
         key={policy.key}
