@@ -175,7 +175,7 @@ kind: query
 spec:
   name: Get the version of the resident operating system
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows system mounted devices and filesystems (not process specific).
+  description: Retrieves the version of the host(s) operating system(s).
   query: SELECT * FROM os_version;
   purpose: Informational
   contributors: zwass
