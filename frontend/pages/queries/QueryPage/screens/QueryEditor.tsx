@@ -6,13 +6,15 @@ import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query"; // @ts-ignore
+import { QueryContext } from "context/query";
+// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import PATHS from "router/paths";
+// @ts-ignore
+import debounce from "utilities/debounce";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IQueryFormData, IQuery } from "interfaces/query";
-import { IApiError } from "interfaces/errors";
 
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
