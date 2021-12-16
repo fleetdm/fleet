@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
@@ -37,35 +38,41 @@ func testRedisFailingPolicySetBasic(t *testing.T, r *redisFailingPolicySet) {
 	require.NoError(t, err)
 	require.Empty(t, hostIDs)
 
-	hostID2 := uint(2)
-	err = r.AddHost(policyID1, hostID2)
+	host2 := service.PolicySetHost{
+		ID:       uint(2),
+		Hostname: "host2.example",
+	}
+	err = r.AddHost(policyID1, host2)
 	require.NoError(t, err)
 
 	hostIDs, err = r.ListHosts(policyID1)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 1)
-	require.Equal(t, hostID2, hostIDs[0])
+	require.Equal(t, host2, hostIDs[0])
 
-	hostID3 := uint(3)
-	err = r.AddHost(policyID1, hostID3)
+	host3 := service.PolicySetHost{
+		ID:       uint(3),
+		Hostname: "host3.example",
+	}
+	err = r.AddHost(policyID1, host3)
 	require.NoError(t, err)
 
 	policyID2 := uint(2)
-	err = r.AddHost(policyID2, hostID2)
+	err = r.AddHost(policyID2, host2)
 	require.NoError(t, err)
 
 	hostIDs, err = r.ListHosts(policyID1)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 2)
-	require.Equal(t, hostID2, hostIDs[0])
-	require.Equal(t, hostID3, hostIDs[1])
+	require.Equal(t, host2, hostIDs[0])
+	require.Equal(t, host3, hostIDs[1])
 
 	hostIDs, err = r.ListHosts(policyID2)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 1)
-	require.Equal(t, hostID2, hostIDs[0])
+	require.Equal(t, host2, hostIDs[0])
 
-	err = r.RemoveHosts(policyID1, []uint{hostID2, hostID3})
+	err = r.RemoveHosts(policyID1, []service.PolicySetHost{host2, host3})
 	require.NoError(t, err)
 
 	hostIDs, err = r.ListHosts(policyID1)
@@ -75,21 +82,24 @@ func testRedisFailingPolicySetBasic(t *testing.T, r *redisFailingPolicySet) {
 	hostIDs, err = r.ListHosts(policyID2)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 1)
-	require.Equal(t, hostID2, hostIDs[0])
+	require.Equal(t, host2, hostIDs[0])
 
-	err = r.RemoveHosts(policyID2, []uint{hostID2})
+	err = r.RemoveHosts(policyID2, []service.PolicySetHost{host2})
 	require.NoError(t, err)
 
 	hostIDs, err = r.ListHosts(policyID2)
 	require.NoError(t, err)
 	require.Empty(t, hostIDs)
 
-	hostID4 := uint(4)
-	err = r.AddHost(policyID1, hostID4)
+	host4 := service.PolicySetHost{
+		ID:       uint(4),
+		Hostname: "host4.example",
+	}
+	err = r.AddHost(policyID1, host4)
 	require.NoError(t, err)
 
 	hostIDs, err = r.ListHosts(policyID1)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 1)
-	require.Equal(t, hostID4, hostIDs[0])
+	require.Equal(t, host4, hostIDs[0])
 }

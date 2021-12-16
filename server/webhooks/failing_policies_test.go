@@ -67,9 +67,15 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	}
 
 	failingPolicySet := service.NewMemFailingPolicySet()
-	err := failingPolicySet.AddHost(policyID1, 1)
+	err := failingPolicySet.AddHost(policyID1, service.PolicySetHost{
+		ID:       1,
+		Hostname: "host1.example",
+	})
 	require.NoError(t, err)
-	err = failingPolicySet.AddHost(policyID1, 2)
+	err = failingPolicySet.AddHost(policyID1, service.PolicySetHost{
+		ID:       2,
+		Hostname: "host2.example",
+	})
 	require.NoError(t, err)
 
 	mockClock := time.Now()
@@ -100,12 +106,12 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
     "hosts": [
         {
             "id": 1,
-            "hostname": "todo",
+            "hostname": "host1.example",
             "url": "https:/fleet.example.com/hosts/1"
         },
         {
             "id": 2,
-            "hostname": "todo",
+            "hostname": "host2.example",
             "url": "https:/fleet.example.com/hosts/2"
         }
     ]
