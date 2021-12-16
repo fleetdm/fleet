@@ -35,7 +35,7 @@ const TargetsInput = ({
   handleRowSelect,
   handleRowRemove,
   setSearchText,
-}: ITargetsInputProps) => {
+}: ITargetsInputProps): JSX.Element => {
   const resultsDropdownTableHeaders = generateTableHeaders(false);
   const selectedTableHeaders = generateTableHeaders(true);
   const finalRelatedHosts =
