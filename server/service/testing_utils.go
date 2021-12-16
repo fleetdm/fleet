@@ -279,51 +279,51 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 
 type memFailingPolicySet struct {
 	mMu sync.RWMutex
-	m   map[uint][]uint
+	m   map[uint][]PolicySetHost
 }
 
 var _ FailingPolicySet = (*memFailingPolicySet)(nil)
 
 func NewMemFailingPolicySet() *memFailingPolicySet {
 	return &memFailingPolicySet{
-		m: make(map[uint][]uint),
+		m: make(map[uint][]PolicySetHost),
 	}
 }
 
 // AddFailingPoliciesForHost adds the given host to the policy sets.
-func (m *memFailingPolicySet) AddHost(policyID, hostID uint) error {
+func (m *memFailingPolicySet) AddHost(policyID uint, host PolicySetHost) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
-	m.m[policyID] = append(m.m[policyID], hostID)
+	m.m[policyID] = append(m.m[policyID], host)
 	return nil
 }
 
 // ListHosts returns the list of hosts present in the policy set.
-func (m *memFailingPolicySet) ListHosts(policyID uint) ([]uint, error) {
+func (m *memFailingPolicySet) ListHosts(policyID uint) ([]PolicySetHost, error) {
 	m.mMu.RLock()
 	defer m.mMu.RUnlock()
 
-	hostIDs := make([]uint, len(m.m[policyID]))
+	hosts := make([]PolicySetHost, len(m.m[policyID]))
 	for i := range m.m[policyID] {
-		hostIDs[i] = m.m[policyID][i]
+		hosts[i] = m.m[policyID][i]
 	}
-	return hostIDs, nil
+	return hosts, nil
 }
 
 // RemoveHosts removes the hosts from the policy set.
-func (m *memFailingPolicySet) RemoveHosts(policyID uint, hostIDs []uint) error {
+func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []PolicySetHost) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
 	hostsSet := make(map[uint]struct{})
-	for _, hostID := range hostIDs {
-		hostsSet[hostID] = struct{}{}
+	for _, host := range hosts {
+		hostsSet[host.ID] = struct{}{}
 	}
 	n := 0
-	for _, hostID := range m.m[policyID] {
-		if _, ok := hostsSet[hostID]; !ok {
-			m.m[policyID][n] = hostID
+	for _, host := range m.m[policyID] {
+		if _, ok := hostsSet[host.ID]; !ok {
+			m.m[policyID][n] = host
 			n++
 		}
 	}

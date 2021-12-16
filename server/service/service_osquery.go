@@ -749,7 +749,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			incomingFailing := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 			if failingPolicies, err := svc.ds.NewFailingPoliciesForHost(ctx, host.ID, incomingFailing); err != nil {
 				logging.WithErr(ctx, err)
-			} else if err := svc.registerFailingPolicies(ctx, host.ID, failingPolicies); err != nil {
+			} else if err := svc.registerFailingPolicies(ctx, host.ID, host.Hostname, failingPolicies); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -822,9 +822,13 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) []uint
 	return filtered
 }
 
-func (svc *Service) registerFailingPolicies(ctx context.Context, hostID uint, failingPolicies []uint) error {
+func (svc *Service) registerFailingPolicies(ctx context.Context, hostID uint, hostname string, failingPolicies []uint) error {
+	host := PolicySetHost{
+		ID:       hostID,
+		Hostname: hostname,
+	}
 	for _, policyID := range failingPolicies {
-		if err := svc.failingPolicySet.AddHost(policyID, hostID); err != nil {
+		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {
 			return err
 		}
 	}

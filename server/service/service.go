@@ -44,11 +44,19 @@ type Service struct {
 // FailingPolicySet holds sets of hosts that failed policy executions.
 type FailingPolicySet interface {
 	// AddHost adds the given host to the policy set.
-	AddHost(policyID, hostID uint) error
+	AddHost(policyID uint, host PolicySetHost) error
 	// ListHosts returns the list of hosts present in the policy set.
-	ListHosts(policyID uint) ([]uint, error)
+	ListHosts(policyID uint) ([]PolicySetHost, error)
 	// RemoveHosts removes the hosts from the policy set.
-	RemoveHosts(policyID uint, hostIDs []uint) error
+	RemoveHosts(policyID uint, hosts []PolicySetHost) error
+}
+
+// PolicySetHost is a host entry for a policy set.
+type PolicySetHost struct {
+	// ID is the identifier of the host.
+	ID uint
+	// Hostname is the host's name.
+	Hostname string
 }
 
 // NewService creates a new service from the config struct

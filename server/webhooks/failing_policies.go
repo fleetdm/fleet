@@ -41,13 +41,13 @@ func TriggerFailingPoliciesWebhook(
 		default:
 			return ctxerr.Wrapf(ctx, err, "failing to load failing policies set %d", policyID)
 		}
-		hostIDs, err := failingPoliciesSet.ListHosts(policyID)
+		hosts, err := failingPoliciesSet.ListHosts(policyID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policyID)
 		}
-		failingHosts := make([]FailingHost, len(hostIDs))
-		for i := range hostIDs {
-			failingHosts[i] = makeFailingHost(hostIDs[i], appConfig.ServerSettings.ServerURL)
+		failingHosts := make([]FailingHost, len(hosts))
+		for i := range hosts {
+			failingHosts[i] = makeFailingHost(hosts[i], appConfig.ServerSettings.ServerURL)
 		}
 		payload := FailingPoliciesPayload{
 			Timestamp:    now,
@@ -59,8 +59,8 @@ func TriggerFailingPoliciesWebhook(
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "posting to '%s'", url)
 		}
-		if err := failingPoliciesSet.RemoveHosts(policyID, hostIDs); err != nil {
-			return ctxerr.Wrapf(ctx, err, "removing hosts %v from failing policies set %d", hostIDs, policyID)
+		if err := failingPoliciesSet.RemoveHosts(policyID, hosts); err != nil {
+			return ctxerr.Wrapf(ctx, err, "removing hosts %+v from failing policies set %d", hosts, policyID)
 		}
 	}
 	return nil
@@ -78,12 +78,10 @@ type FailingHost struct {
 	URL      string `json:"url"`
 }
 
-func makeFailingHost(hostID uint, fleetServerURL string) FailingHost {
+func makeFailingHost(host service.PolicySetHost, fleetServerURL string) FailingHost {
 	return FailingHost{
-		ID: hostID,
-		// TODO(lucas): Currently hostname is empty.
-		// Preload hostname into redis so that we don't have to perform hosts db lookup.
-		Hostname: "todo",
-		URL:      path.Join(fleetServerURL, "hosts", strconv.Itoa(int(hostID))),
+		ID:       host.ID,
+		Hostname: host.Hostname,
+		URL:      path.Join(fleetServerURL, "hosts", strconv.Itoa(int(host.ID))),
 	}
 }
