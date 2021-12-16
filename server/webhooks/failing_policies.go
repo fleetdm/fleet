@@ -22,6 +22,7 @@ func TriggerFailingPoliciesWebhook(
 	logger kitlog.Logger,
 	appConfig *fleet.AppConfig,
 	failingPoliciesSet service.FailingPolicySet,
+	now time.Time,
 ) error {
 	if !appConfig.WebhookSettings.FailingPoliciesWebhook.Enable {
 		return nil
@@ -49,7 +50,7 @@ func TriggerFailingPoliciesWebhook(
 			failingHosts[i] = makeFailingHost(hostIDs[i], appConfig.ServerSettings.ServerURL)
 		}
 		payload := FailingPoliciesPayload{
-			Timestamp:    time.Now(),
+			Timestamp:    now,
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}

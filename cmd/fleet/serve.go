@@ -716,7 +716,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		}
 
 		if err := webhooks.TriggerFailingPoliciesWebhook(
-			ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet,
+			ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 		); err != nil {
 			level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
 		}

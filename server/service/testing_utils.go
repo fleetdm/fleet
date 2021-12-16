@@ -285,7 +285,9 @@ type memFailingPolicySet struct {
 var _ FailingPolicySet = (*memFailingPolicySet)(nil)
 
 func NewMemFailingPolicySet() *memFailingPolicySet {
-	return new(memFailingPolicySet)
+	return &memFailingPolicySet{
+		m: make(map[uint][]uint),
+	}
 }
 
 // AddFailingPoliciesForHost adds the given host to the policy sets.
