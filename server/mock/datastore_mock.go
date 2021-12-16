@@ -287,7 +287,7 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
-type NewFailingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingFailing []uint) ([]uint, error)
+type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
@@ -742,8 +742,8 @@ type DataStore struct {
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
 
-	NewFailingPoliciesForHostFunc        NewFailingPoliciesForHostFunc
-	NewFailingPoliciesForHostFuncInvoked bool
+	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
+	FlippingPoliciesForHostFuncInvoked bool
 
 	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
 	RecordPolicyQueryExecutionsFuncInvoked bool
@@ -1493,9 +1493,9 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return s.SavePolicyFunc(ctx, p)
 }
 
-func (s *DataStore) NewFailingPoliciesForHost(ctx context.Context, hostID uint, incomingResults []uint) ([]uint, error) {
-	s.NewFailingPoliciesForHostFuncInvoked = true
-	return s.NewFailingPoliciesForHostFunc(ctx, hostID, incomingResults)
+func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	s.FlippingPoliciesForHostFuncInvoked = true
+	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }
 
 func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {

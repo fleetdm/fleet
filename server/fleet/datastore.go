@@ -359,10 +359,15 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
-	// NewFailingPolicies fetches the incomingFailing policies and returns a list of the "new" failing
-	// policies. By "new" we mean those that fail on their first run and those that were passing on
-	// the previous run and are failing on the incoming execution.
-	NewFailingPoliciesForHost(ctx context.Context, hostID uint, incomingFailing []uint) ([]uint, error)
+	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
+	//	- a list of "new" failing policies; "new" here means those that fail on their first
+	//	run, and those that were passing on the previous run and are failing on the incoming execution.
+	//	- a list of "new" passing policies; "new" here means those that failed on a previous
+	//	run and are passing now.
+	//
+	// NOTE(lucas): If a policy has been deleted (also deleted on policy_membership via cascade)
+	// and osquery agents bring in new failing results from them then those will be returned here.
+	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 

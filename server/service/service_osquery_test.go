@@ -1923,8 +1923,8 @@ func TestPolicyQueries(t *testing.T) {
 		host = gotHost
 		return nil
 	}
-	ds.NewFailingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingFailing []uint) ([]uint, error) {
-		return nil, nil
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return nil, nil, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), *host)
