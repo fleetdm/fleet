@@ -42,6 +42,15 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {
 		return nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+					Enable: false,
+				},
+			},
+		}, nil
+	}
 
 	testCases := []struct {
 		name            string

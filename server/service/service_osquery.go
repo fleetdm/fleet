@@ -746,10 +746,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	if len(policyResults) > 0 {
 		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
-			incomingFailing := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-			if failingPolicies, err := svc.ds.NewFailingPoliciesForHost(ctx, host.ID, incomingFailing); err != nil {
+			incomingResults := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
 				logging.WithErr(ctx, err)
-			} else if err := svc.registerFailingPolicies(ctx, host.ID, host.Hostname, failingPolicies); err != nil {
+			} else if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -802,33 +802,37 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
-// filterPolicyResults filters out the passing policies and those
-// that aren't configured for webhook automation.
-func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) []uint {
+// filterPolicyResults filters out policies that aren't configured for webhook automation.
+func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[uint]*bool {
 	wp := make(map[uint]struct{})
 	for _, policyID := range webhookPolicies {
 		wp[policyID] = struct{}{}
 	}
-	var filtered []uint
+	filtered := make(map[uint]*bool)
 	for policyID, passes := range incoming {
-		if passes != nil && *passes {
-			continue
-		}
 		if _, ok := wp[policyID]; !ok {
 			continue
 		}
-		filtered = append(filtered, policyID)
+		filtered[policyID] = passes
 	}
 	return filtered
 }
 
-func (svc *Service) registerFailingPolicies(ctx context.Context, hostID uint, hostname string, failingPolicies []uint) error {
+// TODO(lucas): Consider locking failingPolicySet here and in the webhook execution, and policy
+// removal?
+// TODO(lucas): Consider policy results (of policies that have been deleted).
+func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
 	host := PolicySetHost{
 		ID:       hostID,
 		Hostname: hostname,
 	}
-	for _, policyID := range failingPolicies {
+	for _, policyID := range newFailing {
 		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {
+			return err
+		}
+	}
+	for _, policyID := range newPassing {
+		if err := svc.failingPolicySet.RemoveHosts(policyID, []PolicySetHost{host}); err != nil {
 			return err
 		}
 	}

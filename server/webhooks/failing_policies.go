@@ -30,6 +30,12 @@ func TriggerFailingPoliciesWebhook(
 
 	level.Debug(logger).Log("enabled", "true")
 
+	globalPoliciesURL := appConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL
+	if globalPoliciesURL == "" {
+		level.Info(logger).Log("msg", "empty global destination_url")
+		return nil
+	}
+
 	for _, policyID := range appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs {
 		policy, err := ds.Policy(ctx, policyID)
 		switch {
@@ -39,13 +45,14 @@ func TriggerFailingPoliciesWebhook(
 			level.Debug(logger).Log("msg", "skipping removed policy", "id", policyID)
 			continue
 		default:
-			return ctxerr.Wrapf(ctx, err, "failing to load failing policies set %d", policyID)
+			return ctxerr.Wrapf(ctx, err, "failing to load global failing policies set %d", policyID)
 		}
 		hosts, err := failingPoliciesSet.ListHosts(policyID)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policyID)
+			return ctxerr.Wrapf(ctx, err, "listing hosts for global failing policies set %d", policyID)
 		}
 		if len(hosts) == 0 {
+			level.Debug(logger).Log("policyID", policyID, "msg", "no hosts")
 			continue
 		}
 		failingHosts := make([]FailingHost, len(hosts))
@@ -57,10 +64,10 @@ func TriggerFailingPoliciesWebhook(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		url := appConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL
-		err = server.PostJSONWithTimeout(ctx, url, &payload)
+		level.Debug(logger).Log("payload", payload, "url", globalPoliciesURL)
+		err = server.PostJSONWithTimeout(ctx, globalPoliciesURL, &payload)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "posting to '%s'", url)
+			return ctxerr.Wrapf(ctx, err, "posting to '%s'", globalPoliciesURL)
 		}
 		if err := failingPoliciesSet.RemoveHosts(policyID, hosts); err != nil {
 			return ctxerr.Wrapf(ctx, err, "removing hosts %+v from failing policies set %d", hosts, policyID)
