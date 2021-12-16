@@ -116,6 +116,8 @@ describe(
       // On the Settings pages, they should…
       // See everything except for the “Teams” pages
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
       cy.findByText(/teams/i).should("not.exist");
       cy.get(".react-tabs").within(() => {
         cy.findByText(/organization settings/i).should("exist");
