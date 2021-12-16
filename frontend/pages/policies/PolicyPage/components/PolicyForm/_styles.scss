@@ -46,15 +46,10 @@
         margin: $pad-large 0;
         line-height: 2rem;
         height: 2rem;
-        cursor: pointer;
       }
       .policy-form__policy-resolve,
       .resolve-text-wrapper {
         margin-top: $pad-large;
-      }
-      .policy-form__policy-description:not(textarea),
-      .policy-form__policy-resolution-button:not(textarea) {
-        cursor: pointer;
       }
       #policy-description {
         height: 38px;

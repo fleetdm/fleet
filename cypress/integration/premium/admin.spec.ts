@@ -216,6 +216,8 @@ describe(
         // On the Settings pages, they should…
         // See the “Teams” navigation item and access the Settings - Teams page
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         cy.get(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();
         });
@@ -236,6 +238,8 @@ describe(
         // On the Profile page, they should…
         // See Global in the Team section and Admin in the Role section
         cy.visit("/profile");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         cy.findByText(/team/i)
           .next()
           .contains(/global/i);
