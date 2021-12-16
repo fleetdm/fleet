@@ -25,7 +25,7 @@ func TestPackage(t *testing.T) {
 	// --insecure and --fleet-certificate are mutually exclusive
 	runAppCheckErr(t, []string{"package", "--type=deb", "--insecure", "--fleet-certificate=test123"}, "--insecure and --fleet-certificate may not be provided together")
 
-	// --insecure and --fleet-certificate are mutually exclusive
+	// Test invalid PEM file provided in --fleet-certificate.
 	certDir := t.TempDir()
 	fleetCertificate := filepath.Join(certDir, "fleet.pem")
 	err := ioutil.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0644))
