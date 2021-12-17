@@ -59,7 +59,7 @@ describe(
       cy.getAttached(".button--alert.remove-query-modal__btn").click();
 
       cy.findByText(/successfully removed query/i).should("be.visible");
-      cy.getAttached(".name__cell .button--text-link").should("not.exist");
+      cy.get(".name__cell .button--text-link").should("not.exist");
     });
   }
 );
