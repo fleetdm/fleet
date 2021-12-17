@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     environment: Docker Hub
     steps:
       - name: Checkout
@@ -26,7 +26,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@ac067437f516133269923265894e77920c3dce18 # v2.6.1
         with:
-          distribution: goreleaser-pro
+          distribution: goreleaser
           version: latest
           args: release --rm-dist -f orbit/.goreleaser.yml
         env:
