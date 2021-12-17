@@ -40,4 +40,5 @@ jobs:
           version: v1.1.0
           args: release --rm-dist --snapshot -f orbit/.goreleaser.yml
         env:
+          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
