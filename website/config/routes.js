@@ -158,6 +158,7 @@ module.exports.routes = {
   'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
+  'GET /jobs':                   'https://fleet-device-management.breezy.hr',
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
