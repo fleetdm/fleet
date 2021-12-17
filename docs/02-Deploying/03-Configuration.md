@@ -1783,7 +1783,7 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 #### Upgrades
 
-##### allow_missing_migations
+##### allow_missing_migrations
 
 If set then `fleet serve` will run even if there are database migrations missing.
 
