@@ -818,9 +818,6 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
-// TODO(lucas): Consider locking failingPolicySet here and in the webhook execution, and policy
-// removal?
-// TODO(lucas): Consider policy results (of policies that have been deleted).
 func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
 	host := PolicySetHost{
 		ID:       hostID,
