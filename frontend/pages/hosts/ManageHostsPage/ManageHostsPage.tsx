@@ -52,6 +52,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
+import Spinner from "components/Spinner";
 
 import { getValidatedTeamId } from "fleet/helpers";
 import {
@@ -1078,6 +1079,7 @@ const ManageHostsPage = ({
       selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
+      isDisabled={isHostsLoading || isHostCountLoading}
       onChange={(newSelectedValue: number) =>
         handleTeamSelect(newSelectedValue)
       }
@@ -1461,7 +1463,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = (selectedTeam: number) => {
+  const renderTable = () => {
     if (
       !config ||
       !currentUser ||
@@ -1481,7 +1483,8 @@ const ManageHostsPage = ({
       (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
       (getStatusSelected() === ALL_HOSTS_LABEL &&
         filteredHostCount === 0 &&
-        searchQuery === "")
+        searchQuery === "" &&
+        !isHostsLoading)
     ) {
       return (
         <NoHosts
@@ -1489,6 +1492,11 @@ const ManageHostsPage = ({
           canEnrollHosts={canEnrollHosts}
         />
       );
+    }
+
+    // Hosts not ready to render
+    if (isHostsLoading && filteredHostCount === 0) {
+      return <Spinner />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1543,8 +1551,6 @@ const ManageHostsPage = ({
       />
     );
   };
-
-  const selectedTeam = currentTeam?.id || 0;
 
   const renderNoEnrollSecretBanner = () => {
     const noTeamEnrollSecrets =
@@ -1624,7 +1630,7 @@ const ManageHostsPage = ({
                 {renderSoftwareVulnerabilities()}
               </div>
             ))}
-          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
+          {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
