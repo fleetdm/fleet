@@ -1,6 +1,7 @@
 package redis_policy_set
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -64,6 +65,9 @@ func testRedisFailingPolicySetBasic(t *testing.T, r *redisFailingPolicySet) {
 	hostIDs, err = r.ListHosts(policyID1)
 	require.NoError(t, err)
 	require.Len(t, hostIDs, 2)
+	sort.Slice(hostIDs, func(i, j int) bool {
+		return hostIDs[i].ID < hostIDs[j].ID
+	})
 	require.Equal(t, host2, hostIDs[0])
 	require.Equal(t, host3, hostIDs[1])
 
