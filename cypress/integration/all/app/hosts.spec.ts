@@ -74,7 +74,8 @@ describe(
         // Run policy on host
         let policyname = "";
         cy.contains("a", "Policies").click();
-        cy.wait(2000); // Ensuring page load with table is flakey, temp solution wait
+        // Ensuring page load with table is flakey, temp solution to use wait
+        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
         // cy.get(".table-container").should("contain", /filevault/i); // Ensures page load
 
         cy.get("tbody").within(() => {
