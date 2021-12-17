@@ -221,6 +221,8 @@ describe(
         cy.get(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();
         });
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         // Access the Settings - Team details page
         cy.findByText(/apples/i).click();
         cy.findByText(/apples/i).should("exist");
