@@ -107,12 +107,12 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         {
             "id": 1,
             "hostname": "host1.example",
-            "url": "https:/fleet.example.com/hosts/1"
+            "url": "https://fleet.example.com/hosts/1"
         },
         {
             "id": 2,
             "hostname": "host2.example",
-            "url": "https:/fleet.example.com/hosts/2"
+            "url": "https://fleet.example.com/hosts/2"
         }
     ]
 }`, timestamp), requestBody)
