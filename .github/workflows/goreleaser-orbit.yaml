@@ -34,7 +34,7 @@ jobs:
           go-version: 1.17
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser/cmd release --rm-dist --snapshot -f orbit/.goreleaser.yml
+        run: go run github.com/goreleaser/goreleaser release --rm-dist --snapshot -f orbit/.goreleaser.yml
         env:
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
