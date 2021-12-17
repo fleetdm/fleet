@@ -625,59 +625,59 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
 	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
 
-	e.POST("/api/v1/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
-	e.POST("/api/v1/fleet/translate", translatorEndpoint, translatorRequest{})
-	e.POST("/api/v1/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
-	e.PATCH("/api/v1/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
+	e.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
+	e.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
+	e.POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
+	e.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
 
-	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
-	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule").GET("/api/v1/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule").POST("/api/v1/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}").PATCH("/api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/schedule/{scheduled_query_id}").DELETE("/api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").GET("/api/_version_/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").POST("/api/_version_/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").PATCH("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").DELETE("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
-	e.POST("/api/v1/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
-	e.GET("/api/v1/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
-	e.GET("/api/v1/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
-	e.POST("/api/v1/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
-	e.PATCH("/api/v1/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
+	e.POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
+	e.GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
+	e.GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
+	e.POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+	e.PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 
-	// Alias /api/v1/fleet/team/ -> /api/v1/fleet/teams/
-	e.WithAlias("/api/v1/fleet/team/{team_id}/policies").POST("/api/v1/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/policies").GET("/api/v1/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/policies/{policy_id}").GET("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
-	e.WithAlias("/api/v1/fleet/team/{team_id}/policies/delete").POST("/api/v1/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").POST("/api/_version_/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").GET("/api/_version_/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/{policy_id}").GET("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
+	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
 
-	e.PATCH("/api/v1/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
+	e.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 
-	e.POST("/api/v1/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
+	e.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
-	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
+	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 
-	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
-	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
+	e.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
+	e.GET("/api/_version_/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
 
-	e.GET("/api/v1/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
-	e.GET("/api/v1/fleet/hosts", listHostsEndpoint, listHostsRequest{})
-	e.POST("/api/v1/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
-	e.GET("/api/v1/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
-	e.GET("/api/v1/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
-	e.GET("/api/v1/fleet/hosts/identifier/{identifier}", hostByIdentifierEndpoint, hostByIdentifierRequest{})
-	e.DELETE("/api/v1/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
-	e.POST("/api/v1/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
-	e.POST("/api/v1/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
-	e.POST("/api/v1/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
+	e.GET("/api/_version_/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
+	e.GET("/api/_version_/fleet/hosts", listHostsEndpoint, listHostsRequest{})
+	e.POST("/api/_version_/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
+	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
+	e.GET("/api/_version_/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
+	e.GET("/api/_version_/fleet/hosts/identifier/{identifier}", hostByIdentifierEndpoint, hostByIdentifierRequest{})
+	e.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
+	e.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
+	e.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
+	e.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
 
-	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	e.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 
-	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
+	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
-	e.GET("/api/v1/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+	e.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
-	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
-	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
+	e.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
+	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
 
-	e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler

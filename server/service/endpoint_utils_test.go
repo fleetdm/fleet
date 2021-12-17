@@ -306,22 +306,22 @@ func TestEndpointer(t *testing.T) {
 	}
 
 	// Regular path, no plan to deprecate
-	e.GET("/api/v1/fleet/path1", nopHandler, struct{}{})
+	e.GET("/api/_version_/fleet/path1", nopHandler, struct{}{})
 
 	// New path, we want it only available starting from the specified version
-	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/newpath", nopHandler, struct{}{})
+	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/newpath", nopHandler, struct{}{})
 
 	// Path that was in v1, but was changed in 2021-11
-	e.EndingAtVersion("v1").GET("/api/v1/fleet/overriddenpath", nopHandler, struct{}{})
-	e.StartingAtVersion("2021-11").GET("/api/v1/fleet/overriddenpath", overrideHandler, struct{}{})
+	e.EndingAtVersion("v1").GET("/api/_version_/fleet/overriddenpath", nopHandler, struct{}{})
+	e.StartingAtVersion("2021-11").GET("/api/_version_/fleet/overriddenpath", overrideHandler, struct{}{})
 
 	// Path that got deprecated
-	e.EndingAtVersion("v1").GET("/api/v1/fleet/deprecated", nopHandler, struct{}{})
+	e.EndingAtVersion("v1").GET("/api/_version_/fleet/deprecated", nopHandler, struct{}{})
 	// Path that got deprecated but in the latest version
-	e.EndingAtVersion("2021-11").GET("/api/v1/fleet/deprecated-soon", nopHandler, struct{}{})
+	e.EndingAtVersion("2021-11").GET("/api/_version_/fleet/deprecated-soon", nopHandler, struct{}{})
 
 	// Aliasing works with versioning too
-	e.WithAlias("/api/v1/fleet/something/{fff}").GET("/api/v1/fleet/somethings/{fff}", nopHandler, struct{}{})
+	e.WithAltPaths("/api/_version_/fleet/something/{fff}").GET("/api/_version_/fleet/somethings/{fff}", nopHandler, struct{}{})
 
 	mustMatch := []struct {
 		method     string

@@ -244,7 +244,7 @@ type UserAuthEndpointer struct {
 	versions          []string
 	startingAtVersion string
 	endingAtVersion   string
-	aliases           []string
+	alternativePaths  []string
 }
 
 func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
@@ -306,19 +306,14 @@ func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, v
 		versions = append(versions, "latest")
 	}
 
-	versionedPath := strings.Replace(path, "/v1/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
 	endpoint := e.makeEndpoint(f, v)
 	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
-	for _, alias := range e.aliases {
-		versionedPath := strings.Replace(alias, "/v1/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+	for _, alias := range e.alternativePaths {
+		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	}
-
-	//Methods(verb).MatcherFunc(func(request *http.Request, match *mux.RouteMatch) bool {
-	//	matched, err := regexp.MatchString(versionedPath, request.URL.Path)
-	//	return matched && err == nil
-	//}).Handler(e.makeEndpoint(f, v)).Name(getNameFromPathAndVerb(verb, path))
 }
 
 func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
@@ -341,7 +336,7 @@ func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpoint
 		versions:          e.versions,
 		startingAtVersion: version,
 		endingAtVersion:   e.endingAtVersion,
-		aliases:           e.aliases,
+		alternativePaths:  e.alternativePaths,
 	}
 }
 
@@ -353,11 +348,11 @@ func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer
 		versions:          e.versions,
 		startingAtVersion: e.startingAtVersion,
 		endingAtVersion:   version,
-		aliases:           e.aliases,
+		alternativePaths:  e.alternativePaths,
 	}
 }
 
-func (e *UserAuthEndpointer) WithAlias(alias ...string) *UserAuthEndpointer {
+func (e *UserAuthEndpointer) WithAltPaths(paths ...string) *UserAuthEndpointer {
 	return &UserAuthEndpointer{
 		svc:               e.svc,
 		opts:              e.opts,
@@ -365,6 +360,6 @@ func (e *UserAuthEndpointer) WithAlias(alias ...string) *UserAuthEndpointer {
 		versions:          e.versions,
 		startingAtVersion: e.startingAtVersion,
 		endingAtVersion:   e.endingAtVersion,
-		aliases:           alias,
+		alternativePaths:  paths,
 	}
 }
