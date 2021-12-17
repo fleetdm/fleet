@@ -1086,3 +1086,20 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (d *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	_, err := d.writer.ExecContext(ctx, `INSERT INTO host_munki_version(host_id, version) VALUES(?,?) 
+		ON DUPLICATE KEY UPDATE version = VALUES(version)`,
+		hostID, version,
+	)
+	return ctxerr.Wrap(ctx, err)
+}
+
+func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	_, err := d.writer.ExecContext(ctx, `INSERT INTO host_mdm(host_id, enrolled, server_url, installed_from_dep) 
+		VALUES(?, ?, ?, ?) 
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep)`,
+		hostID, enrolled, serverURL, installedFromDep,
+	)
+	return ctxerr.Wrap(ctx, err)
+}
