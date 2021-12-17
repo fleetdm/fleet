@@ -64,12 +64,18 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
-// makeDecoder creates a decoder for the type for the struct passed on. If the struct has at least 1 json tag
-// it'll unmarshall the body. If the struct has a `url` tag with value list-options it'll gather fleet.ListOptions
-// from the URL. And finally, any other `url` tag will be treated as an ID from the URL path pattern, and it'll
-// be decoded and set accordingly.
-// IDs are expected to be uint, and can be optional by setting the tag as follows: `url:"some-id,optional"`
-// list-options are optional by default and it'll ignore the optional portion of the tag.
+// makeDecoder creates a decoder for the type for the struct passed on. If the
+// struct has at least 1 json tag it'll unmarshall the body. If the struct has
+// a `url` tag with value list_options it'll gather fleet.ListOptions from the
+// URL (similarly for host_options, carve_options that derive from the common
+// list_options).
+//
+// Finally, any other `url` tag will be treated as a path variable (of the form
+// /path/{name} in the route's path) from the URL path pattern, and it'll be
+// decoded and set accordingly. Variables can be optional by setting the tag as
+// follows: `url:"some-id,optional"`.
+// The "list_options" are optional by default and it'll ignore the optional
+// portion of the tag.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {

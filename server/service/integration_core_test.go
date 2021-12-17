@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,10 +228,12 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 func (s *integrationTestSuite) TestGlobalSchedule() {
 	t := s.T()
 
+	// list the existing global schedules (none yet)
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 0)
 
+	// create a query that can be scheduled
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQuery1",
 		Description:    "Some description",
@@ -238,10 +242,12 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	})
 	require.NoError(t, err)
 
+	// schedule that query
 	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
 	r := globalScheduleQueryResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &r)
 
+	// list the scheduled queries, get the one just created
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
@@ -249,18 +255,34 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	assert.Equal(t, "TestQuery1", gs.GlobalSchedule[0].Name)
 	id := gs.GlobalSchedule[0].ID
 
+	// list page 2, should be empty
+	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs, "page", "2", "per_page", "4")
+	require.Len(t, gs.GlobalSchedule, 0)
+
+	// update the scheduled query
 	gs = fleet.GlobalSchedulePayload{}
 	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id), gsParams, http.StatusOK, &gs)
 
+	// update a non-existing schedule
+	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(66)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id+1), gsParams, http.StatusNotFound, &gs)
+
+	// read back that updated scheduled query
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Equal(t, id, gs.GlobalSchedule[0].ID)
 	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
 
+	// delete the scheduled query
 	r = globalScheduleQueryResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id), nil, http.StatusOK, &r)
 
+	// delete a non-existing schedule
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", id+1), nil, http.StatusNotFound, &r)
+
+	// list the scheduled queries, back to none
 	gs = fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/v1/fleet/global/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 0)
@@ -607,20 +629,76 @@ func (s *integrationTestSuite) TestCountSoftware() {
 	assert.Equal(t, 1, resp.Count)
 }
 
-func (s *integrationTestSuite) TestGetPack() {
+func (s *integrationTestSuite) TestPacks() {
 	t := s.T()
 
-	pack := &fleet.Pack{
-		Name: t.Name(),
-	}
-	pack, err := s.ds.NewPack(context.Background(), pack)
-	require.NoError(t, err)
-
 	var packResp getPackResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID), nil, http.StatusOK, &packResp)
-	require.Equal(t, packResp.Pack.ID, pack.ID)
+	// get non-existing pack
+	s.Do("GET", "/api/v1/fleet/packs/999", nil, http.StatusNotFound)
 
-	s.Do("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", pack.ID+1), nil, http.StatusNotFound)
+	// create some packs
+	packs := make([]fleet.Pack, 3)
+	for i := range packs {
+		req := &createPackRequest{
+			PackPayload: fleet.PackPayload{
+				Name: ptr.String(fmt.Sprintf("%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), i)),
+			},
+		}
+
+		var createResp createPackResponse
+		s.DoJSON("POST", "/api/v1/fleet/packs", req, http.StatusOK, &createResp)
+		packs[i] = createResp.Pack.Pack
+	}
+
+	// get existing pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[0].ID), nil, http.StatusOK, &packResp)
+	require.Equal(t, packs[0].ID, packResp.Pack.ID)
+
+	// list packs
+	var listResp listPacksResponse
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 2)
+	assert.Equal(t, packs[0].ID, listResp.Packs[0].ID)
+	assert.Equal(t, packs[1].ID, listResp.Packs[1].ID)
+
+	// get page 1
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 1)
+	assert.Equal(t, packs[2].ID, listResp.Packs[0].ID)
+
+	// get page 2, empty
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "page", "2", "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 0)
+
+	var delResp deletePackResponse
+	// delete non-existing pack by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/%s", "zzz"), nil, http.StatusNotFound, &delResp)
+
+	// delete existing pack by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/%s", url.PathEscape(packs[0].Name)), nil, http.StatusOK, &delResp)
+
+	// delete non-existing pack by id
+	var delIDResp deletePackByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/id/%d", packs[2].ID+1), nil, http.StatusNotFound, &delIDResp)
+
+	// delete existing pack by id
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/packs/id/%d", packs[1].ID), nil, http.StatusOK, &delIDResp)
+
+	var modResp modifyPackResponse
+	// modify non-existing pack
+	req := &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[2].ID+1), req, http.StatusNotFound, &modResp)
+
+	// modify existing pack
+	req = &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", packs[2].ID), req, http.StatusOK, &modResp)
+	require.Equal(t, packs[2].ID, modResp.Pack.ID)
+	require.Contains(t, modResp.Pack.Name, "updated_")
+
+	// list packs, only packs[2] remains
+	s.DoJSON("GET", "/api/v1/fleet/packs", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "name")
+	require.Len(t, listResp.Packs, 1)
+	assert.Equal(t, packs[2].ID, listResp.Packs[0].ID)
 }
 
 func (s *integrationTestSuite) TestListHosts() {
@@ -1358,4 +1436,107 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Len(t, listResp.Hosts, 2)
 	ids := []uint{listResp.Hosts[0].ID, listResp.Hosts[1].ID}
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
+}
+
+func (s *integrationTestSuite) TestScheduledQueries() {
+	t := s.T()
+
+	// create a pack
+	var createPackResp createPackResponse
+	reqPack := &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}
+	s.DoJSON("POST", "/api/v1/fleet/packs", reqPack, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	// create a query
+	var createQueryResp createQueryResponse
+	reqQuery := &fleet.QueryPayload{
+		Name:  ptr.String(t.Name()),
+		Query: ptr.String("select * from time;"),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	query := createQueryResp.Query
+
+	// list scheduled queries in pack, none yet
+	var getInPackResp getScheduledQueriesInPackResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
+	assert.Len(t, getInPackResp.Scheduled, 0)
+
+	// list scheduled queries in non-existing pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID+1), nil, http.StatusOK, &getInPackResp)
+	assert.Len(t, getInPackResp.Scheduled, 0)
+
+	// create scheduled query
+	var createResp scheduleQueryResponse
+	reqSQ := &scheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID,
+		Interval: 1,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusOK, &createResp)
+	sq1 := createResp.Scheduled.ScheduledQuery
+	assert.NotZero(t, sq1.ID)
+	assert.Equal(t, uint(1), sq1.Interval)
+
+	// create scheduled query with invalid pack
+	reqSQ = &scheduleQueryRequest{
+		PackID:   pack.ID + 1,
+		QueryID:  query.ID,
+		Interval: 2,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusUnprocessableEntity, &createResp)
+
+	// create scheduled query with invalid query
+	reqSQ = &scheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID + 1,
+		Interval: 3,
+	}
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusInternalServerError, &createResp)
+
+	// list scheduled queries in pack
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
+	require.Len(t, getInPackResp.Scheduled, 1)
+	assert.Equal(t, sq1.ID, getInPackResp.Scheduled[0].ID)
+
+	// list scheduled queries in pack, next page
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp, "page", "1", "per_page", "2")
+	require.Len(t, getInPackResp.Scheduled, 0)
+
+	// get non-existing scheduled query
+	var getResp getScheduledQueryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// get existing scheduled query
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, sq1.ID, getResp.Scheduled.ID)
+	assert.Equal(t, sq1.Interval, getResp.Scheduled.Interval)
+
+	// modify scheduled query
+	var modResp modifyScheduledQueryResponse
+	reqMod := fleet.ScheduledQueryPayload{
+		Interval: ptr.Uint(4),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), reqMod, http.StatusOK, &modResp)
+	assert.Equal(t, sq1.ID, modResp.Scheduled.ID)
+	assert.Equal(t, uint(4), modResp.Scheduled.Interval)
+
+	// modify non-existing scheduled query
+	reqMod = fleet.ScheduledQueryPayload{
+		Interval: ptr.Uint(5),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), reqMod, http.StatusNotFound, &modResp)
+
+	// delete non-existing scheduled query
+	var delResp deleteScheduledQueryResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID+1), nil, http.StatusNotFound, &delResp)
+
+	// delete existing scheduled query
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusOK, &delResp)
+
+	// get the now-deleted scheduled query
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
 }

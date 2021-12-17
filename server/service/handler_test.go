@@ -115,37 +115,6 @@ func TestAPIRoutes(t *testing.T) {
 			uri:  "/api/v1/fleet/queries/run",
 		},
 		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/packs",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/packs",
-		},
-		{
-			verb: "PATCH",
-			uri:  "/api/v1/fleet/packs/1",
-		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/packs/1",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/packs/1/scheduled",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/schedule",
-		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/schedule/1",
-		},
-		{
-			verb: "PATCH",
-			uri:  "/api/v1/fleet/schedule/1",
-		}, {
 			verb: "POST",
 			uri:  "/api/v1/osquery/enroll",
 		},

@@ -60,23 +60,6 @@ type FleetEndpoints struct {
 	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	CreatePack                            endpoint.Endpoint
-	ModifyPack                            endpoint.Endpoint
-	ListPacks                             endpoint.Endpoint
-	DeletePack                            endpoint.Endpoint
-	DeletePackByID                        endpoint.Endpoint
-	GetScheduledQueriesInPack             endpoint.Endpoint
-	ScheduleQuery                         endpoint.Endpoint
-	GetScheduledQuery                     endpoint.Endpoint
-	ModifyScheduledQuery                  endpoint.Endpoint
-	DeleteScheduledQuery                  endpoint.Endpoint
-	ApplyPackSpecs                        endpoint.Endpoint
-	GetPackSpecs                          endpoint.Endpoint
-	GetPackSpec                           endpoint.Endpoint
-	GlobalScheduleQuery                   endpoint.Endpoint
-	GetGlobalSchedule                     endpoint.Endpoint
-	ModifyGlobalSchedule                  endpoint.Endpoint
-	DeleteGlobalSchedule                  endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
 	GetClientConfig                       endpoint.Endpoint
 	GetDistributedQueries                 endpoint.Endpoint
@@ -171,23 +154,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
-		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
-		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
-		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
-		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
-		GetScheduledQuery:                     authenticatedUser(svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:                  authenticatedUser(svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:                  authenticatedUser(svc, makeDeleteScheduledQueryEndpoint(svc)),
-		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
-		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
-		GlobalScheduleQuery:                   authenticatedUser(svc, makeGlobalScheduleQueryEndpoint(svc)),
-		GetGlobalSchedule:                     authenticatedUser(svc, makeGetGlobalScheduleEndpoint(svc)),
-		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
-		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
 		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(svc, makeGetLabelEndpoint(svc)),
@@ -270,23 +236,6 @@ type fleetHandlers struct {
 	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
-	CreatePack                            http.Handler
-	ModifyPack                            http.Handler
-	ListPacks                             http.Handler
-	DeletePack                            http.Handler
-	DeletePackByID                        http.Handler
-	GetScheduledQueriesInPack             http.Handler
-	ScheduleQuery                         http.Handler
-	GetScheduledQuery                     http.Handler
-	ModifyScheduledQuery                  http.Handler
-	DeleteScheduledQuery                  http.Handler
-	ApplyPackSpecs                        http.Handler
-	GetPackSpecs                          http.Handler
-	GetPackSpec                           http.Handler
-	GlobalScheduleQuery                   http.Handler
-	GetGlobalSchedule                     http.Handler
-	ModifyGlobalSchedule                  http.Handler
-	DeleteGlobalSchedule                  http.Handler
 	EnrollAgent                           http.Handler
 	GetClientConfig                       http.Handler
 	GetDistributedQueries                 http.Handler
@@ -368,23 +317,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		CreatePack:                            newServer(e.CreatePack, decodeCreatePackRequest),
-		ModifyPack:                            newServer(e.ModifyPack, decodeModifyPackRequest),
-		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
-		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
-		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
-		GetScheduledQueriesInPack:             newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
-		ScheduleQuery:                         newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
-		GetScheduledQuery:                     newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
-		ModifyScheduledQuery:                  newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
-		DeleteScheduledQuery:                  newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
-		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
-		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
-		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
-		GlobalScheduleQuery:                   newServer(e.GlobalScheduleQuery, decodeGlobalScheduleQueryRequest),
-		GetGlobalSchedule:                     newServer(e.GetGlobalSchedule, decodeGetGlobalScheduleRequest),
-		ModifyGlobalSchedule:                  newServer(e.ModifyGlobalSchedule, decodeModifyGlobalScheduleRequest),
-		DeleteGlobalSchedule:                  newServer(e.DeleteGlobalSchedule, decodeDeleteGlobalScheduleRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -500,7 +432,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
-	r.PathPrefix("/api/v1/fleet/results/").
+	r.PathPrefix("/api/_version_/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 
@@ -519,107 +451,88 @@ func addMetrics(r *mux.Router) {
 }
 
 func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
-	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
-	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
-	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/fleet/me", h.Me).Methods("GET").Name("me")
-	r.Handle("/api/v1/fleet/change_password", h.ChangePassword).Methods("POST").Name("change_password")
-	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
-	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
-	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
-	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-	r.Handle("/api/v1/fleet/users", h.ListUsers).Methods("GET").Name("list_users")
-	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-	r.Handle("/api/v1/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.GetUser).Methods("GET").Name("get_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.ModifyUser).Methods("PATCH").Name("modify_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.DeleteUser).Methods("DELETE").Name("delete_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
+	r.Handle("/api/_version_/fleet/login", h.Login).Methods("POST").Name("login")
+	r.Handle("/api/_version_/fleet/logout", h.Logout).Methods("POST").Name("logout")
+	r.Handle("/api/_version_/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
+	r.Handle("/api/_version_/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
+	r.Handle("/api/_version_/fleet/me", h.Me).Methods("GET").Name("me")
+	r.Handle("/api/_version_/fleet/change_password", h.ChangePassword).Methods("POST").Name("change_password")
+	r.Handle("/api/_version_/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
+	r.Handle("/api/_version_/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
+	r.Handle("/api/_version_/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
+	r.Handle("/api/_version_/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
+	r.Handle("/api/_version_/fleet/users", h.ListUsers).Methods("GET").Name("list_users")
+	r.Handle("/api/_version_/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
+	r.Handle("/api/_version_/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}", h.GetUser).Methods("GET").Name("get_user")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}", h.ModifyUser).Methods("PATCH").Name("modify_user")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}", h.DeleteUser).Methods("DELETE").Name("delete_user")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
+	r.Handle("/api/_version_/fleet/users/{id:[0-9]+}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
 
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.DeleteSession).Methods("DELETE").Name("delete_session")
+	r.Handle("/api/_version_/fleet/sessions/{id:[0-9]+}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
+	r.Handle("/api/_version_/fleet/sessions/{id:[0-9]+}", h.DeleteSession).Methods("DELETE").Name("delete_session")
 
-	r.Handle("/api/v1/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
-	r.Handle("/api/v1/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
-	r.Handle("/api/v1/fleet/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
-	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
-	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
-	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
+	r.Handle("/api/_version_/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
+	r.Handle("/api/_version_/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
+	r.Handle("/api/_version_/fleet/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
+	r.Handle("/api/_version_/fleet/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
+	r.Handle("/api/_version_/fleet/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
+	r.Handle("/api/_version_/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
+	r.Handle("/api/_version_/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
+	r.Handle("/api/_version_/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
+	r.Handle("/api/_version_/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
 
-	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
+	r.Handle("/api/_version_/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
 
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.GetQuery).Methods("GET").Name("get_query")
-	r.Handle("/api/v1/fleet/queries", h.ListQueries).Methods("GET").Name("list_queries")
-	r.Handle("/api/v1/fleet/queries", h.CreateQuery).Methods("POST").Name("create_query")
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/fleet/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
-	r.Handle("/api/v1/fleet/queries/id/{id:[0-9]+}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
-	r.Handle("/api/v1/fleet/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
-	r.Handle("/api/v1/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
-	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
-	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
+	r.Handle("/api/_version_/fleet/queries/{id:[0-9]+}", h.GetQuery).Methods("GET").Name("get_query")
+	r.Handle("/api/_version_/fleet/queries", h.ListQueries).Methods("GET").Name("list_queries")
+	r.Handle("/api/_version_/fleet/queries", h.CreateQuery).Methods("POST").Name("create_query")
+	r.Handle("/api/_version_/fleet/queries/{id:[0-9]+}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
+	r.Handle("/api/_version_/fleet/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
+	r.Handle("/api/_version_/fleet/queries/id/{id:[0-9]+}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
+	r.Handle("/api/_version_/fleet/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
+	r.Handle("/api/_version_/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
+	r.Handle("/api/_version_/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
+	r.Handle("/api/_version_/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
+	r.Handle("/api/_version_/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
+	r.Handle("/api/_version_/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/packs", h.CreatePack).Methods("POST").Name("create_pack")
-	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
-	r.Handle("/api/v1/fleet/packs/id/{id:[0-9]+}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
-	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
-	r.Handle("/api/v1/fleet/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
-	r.Handle("/api/v1/fleet/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
-	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
-	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
+	r.Handle("/api/_version_/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
+	r.Handle("/api/_version_/fleet/labels/{id:[0-9]+}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
+	r.Handle("/api/_version_/fleet/labels/{id:[0-9]+}", h.GetLabel).Methods("GET").Name("get_label")
+	r.Handle("/api/_version_/fleet/labels", h.ListLabels).Methods("GET").Name("list_labels")
+	r.Handle("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
+	r.Handle("/api/_version_/fleet/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
+	r.Handle("/api/_version_/fleet/labels/id/{id:[0-9]+}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
+	r.Handle("/api/_version_/fleet/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
+	r.Handle("/api/_version_/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
+	r.Handle("/api/_version_/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
 
-	r.Handle("/api/v1/fleet/global/schedule", h.GetGlobalSchedule).Methods("GET").Name("set_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule", h.GlobalScheduleQuery).Methods("POST").Name("add_to_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.ModifyGlobalSchedule).Methods("PATCH").Name("modify_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.DeleteGlobalSchedule).Methods("DELETE").Name("delete_global_schedule")
+	r.Handle("/api/_version_/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
-	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
-	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
-	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}", h.GetLabel).Methods("GET").Name("get_label")
-	r.Handle("/api/v1/fleet/labels", h.ListLabels).Methods("GET").Name("list_labels")
-	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}/hosts", h.ListHostsInLabel).Methods("GET").Name("list_hosts_in_label")
-	r.Handle("/api/v1/fleet/labels/{name}", h.DeleteLabel).Methods("DELETE").Name("delete_label")
-	r.Handle("/api/v1/fleet/labels/id/{id:[0-9]+}", h.DeleteLabelByID).Methods("DELETE").Name("delete_label_by_id")
-	r.Handle("/api/v1/fleet/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
-	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
-	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
+	r.Handle("/api/_version_/fleet/version", h.Version).Methods("GET").Name("version")
 
-	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
+	r.Handle("/api/_version_/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
+	r.Handle("/api/_version_/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
-
-	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
-	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
-
-	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
-	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
-	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
-	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
-	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
-	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
-	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
-	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
+	r.Handle("/api/_version_/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
+	r.Handle("/api/_version_/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
+	r.Handle("/api/_version_/fleet/teams/{id:[0-9]+}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
+	r.Handle("/api/_version_/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
+	r.Handle("/api/_version_/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
+	r.Handle("/api/_version_/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
+	r.Handle("/api/_version_/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
+	r.Handle("/api/_version_/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
+	r.Handle("/api/_version_/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
+	r.Handle("/api/_version_/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
 }
 
 func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
@@ -676,8 +589,28 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
-
 	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+
+	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
+	e.POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
+	e.GET("/api/_version_/fleet/schedule/{id:[0-9]+}", getScheduledQueryEndpoint, getScheduledQueryRequest{})
+	e.PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyScheduledQueryEndpoint, modifyScheduledQueryRequest{})
+	e.DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteScheduledQueryEndpoint, deleteScheduledQueryRequest{})
+
+	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
+	e.POST("/api/_version_/fleet/packs", createPackEndpoint, createPackRequest{})
+	e.PATCH("/api/_version_/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
+	e.GET("/api/_version_/fleet/packs", listPacksEndpoint, listPacksRequest{})
+	e.DELETE("/api/_version_/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
+	e.DELETE("/api/_version_/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
+	e.POST("/api/_version_/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
+	e.GET("/api/_version_/fleet/spec/packs", getPackSpecsEndpoint, nil)
+	e.GET("/api/_version_/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
+
+	e.GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
+	e.POST("/api/_version_/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
+	e.PATCH("/api/_version_/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
+	e.DELETE("/api/_version_/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
 }
 
 // TODO: this duplicates the one in makeKitHandler
@@ -692,13 +625,13 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
+		configRouter.Handle("/api/_version_/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
 			encodeResponse,
 		))
 		// whitelist osqueryd endpoints
-		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
+		if strings.HasPrefix(r.URL.Path, "/api/_version_/osquery") {
 			next.ServeHTTP(w, r)
 			return
 		}
