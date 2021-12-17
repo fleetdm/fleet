@@ -34,11 +34,7 @@ jobs:
           go-version: 1.17
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5df302e5e9e4c66310a6b6493a8865b12c555af2 # v2.8.0
-        with:
-          distribution: goreleaser
-          version: v1.1.0
-          args: release --rm-dist --snapshot -f orbit/.goreleaser.yml
+        run: go run github.com/goreleaser/goreleaser/cmd release --rm-dist --snapshot -f orbit/.goreleaser.yml
         env:
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
