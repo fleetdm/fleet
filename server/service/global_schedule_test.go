@@ -20,6 +20,18 @@ func TestGlobalScheduleAuth(t *testing.T) {
 	ds.EnsureGlobalPackFunc = func(ctx context.Context) (*fleet.Pack, error) {
 		return &fleet.Pack{}, nil
 	}
+	ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+		return sq, nil
+	}
+	ds.ScheduledQueryFunc = func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
+		return &fleet.ScheduledQuery{}, nil
+	}
+	ds.SaveScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+		return sq, nil
+	}
+	ds.DeleteScheduledQueryFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
 
 	var testCases = []struct {
 		name            string
@@ -70,6 +82,15 @@ func TestGlobalScheduleAuth(t *testing.T) {
 
 			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
+
+			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query"})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			_, err = svc.ModifyGlobalScheduledQueries(ctx, 1, fleet.ScheduledQueryPayload{})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			err = svc.DeleteGlobalScheduledQueries(ctx, 1)
+			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
 }

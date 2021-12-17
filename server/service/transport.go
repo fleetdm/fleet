@@ -299,7 +299,7 @@ func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 type getGenericSpecRequest struct {
-	Name string
+	Name string `url:"name"`
 }
 
 func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
