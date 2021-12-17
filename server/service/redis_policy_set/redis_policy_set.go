@@ -11,6 +11,8 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+// TODO(lucas): We'll need a mutex for each policy ID.
+// because of the policySetsSet approach for keeping keys.
 type redisFailingPolicySet struct {
 	pool fleet.RedisPool
 }
@@ -24,18 +26,14 @@ func NewFailing(pool fleet.RedisPool) *redisFailingPolicySet {
 	}
 }
 
-const policySetKeyPrefix = "policies:failing:"
+const (
+	policySetKeyPrefix = "policies:failing:"
+	// We use this to avoid a SCAN command when listing policy sets.
+	policySetsSetKey = "policies:failing_sets"
+)
 
 func policySetKey(policyID uint) string {
 	return policySetKeyPrefix + strconv.Itoa(int(policyID))
-}
-
-func policyIDFromKey(key string) (uint, error) {
-	policyID, err := strconv.Atoi(strings.TrimPrefix(key, policySetKeyPrefix))
-	if err != nil {
-		return 0, err
-	}
-	return uint(policyID), nil
 }
 
 func hostEntry(host service.PolicySetHost) string {
@@ -62,32 +60,13 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	var policyIDs []uint
-	err := redis.EachNode(r.pool, false, func(conn redigo.Conn) error {
-		var cursor int
-		for {
-			res, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", policySetKeyPrefix+"*"))
-			if err != nil {
-				return err
-			}
-			var curKeys []string
-			if _, err = redigo.Scan(res, &cursor, &curKeys); err != nil {
-				return err
-			}
-			for _, curKey := range curKeys {
-				policyID, err := policyIDFromKey(curKey)
-				if err != nil {
-					return fmt.Errorf("invalid policy set key %s: %w", curKey, err)
-				}
-				policyIDs = append(policyIDs, policyID)
-			}
-			if cursor == 0 {
-				return nil
-			}
-		}
-	})
-	if err != nil {
+	ids, err := redigo.Ints(conn.Do("SMEMBERS", policySetsSetKey))
+	if err != nil && err != redigo.ErrNil {
 		return nil, err
+	}
+	policyIDs := make([]uint, len(ids))
+	for i := range ids {
+		policyIDs[i] = uint(ids[i])
 	}
 	return policyIDs, nil
 }
@@ -97,9 +76,15 @@ func (r *redisFailingPolicySet) AddHost(policyID uint, host service.PolicySetHos
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	_, err := conn.Do("SADD",
+	if _, err := conn.Do("SADD",
 		policySetKey(policyID),
 		hostEntry(host),
+	); err != nil {
+		return err
+	}
+	_, err := conn.Do("SADD",
+		policySetsSetKey,
+		policyID,
 	)
 	return err
 }
@@ -136,7 +121,18 @@ func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []service.Polic
 		args = args.Add(hostEntry(host))
 	}
 	_, err := conn.Do("SREM", args...)
-	return err
+	if err != nil {
+		return err
+	}
+	currentCount, err := redigo.Int(conn.Do("SCARD", policySetKey(policyID)))
+	if err != nil {
+		return err
+	}
+	if currentCount == 0 {
+		_, err := conn.Do("SREM", policySetsSetKey, policyID)
+		return err
+	}
+	return nil
 }
 
 // RemoveSet removes a policy set.
@@ -144,6 +140,9 @@ func (r *redisFailingPolicySet) RemoveSet(policyID uint) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	_, err := conn.Do("DEL", policySetKey(policyID))
+	if _, err := conn.Do("DEL", policySetKey(policyID)); err != nil {
+		return err
+	}
+	_, err := conn.Do("SREM", policySetsSetKey, policyID)
 	return err
 }
