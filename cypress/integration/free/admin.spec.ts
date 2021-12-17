@@ -21,9 +21,7 @@ describe(
     it("Can perform the appropriate free-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");
       cy.visit("/hosts/manage");
-
-      // Ensure page is loaded
-      cy.contains("All hosts");
+      cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
       // On the hosts page, they should…
 

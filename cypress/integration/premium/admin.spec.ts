@@ -28,9 +28,7 @@ describe(
       () => {
         cy.login("anna@organization.com", "user123#");
         cy.visit("/hosts/manage");
-
-        // Ensure the hosts page is loaded
-        cy.contains("All hosts");
+        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
         // On the hosts page, they should…
 
@@ -211,8 +209,11 @@ describe(
 
         // On the policies manage page, they should…
         cy.contains("a", "Policies").click();
+
         // See and select the "Add a policy", "delete", and "edit" policy
-        cy.findByRole("button", { name: /add a policy/i }).click();
+        cy.findByRole("button", { name: /add a policy/i })
+          .should("exist")
+          .click();
         cy.get(".modal__ex").within(() => {
           cy.findByRole("button").click();
         });

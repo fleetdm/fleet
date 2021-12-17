@@ -10,7 +10,10 @@ describe(
     });
     it("Can create, update, and delete a policy successfully", () => {
       cy.visit("/policies/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.get(".manage-policies-page__description").should(
+        "contain",
+        /add policies/i
+      ); // Ensure page load
 
       // Add a policy
       cy.findByText(/add a policy/i).click();
@@ -43,7 +46,10 @@ describe(
       cy.findByText(/policy created/i).should("exist");
 
       cy.visit("/policies/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.get(".manage-policies-page__description").should(
+        "contain",
+        /add policies/i
+      ); // Ensure page load
 
       // Add a default policy
       cy.findByText(/add a policy/i).click();
@@ -56,21 +62,14 @@ describe(
       cy.findByText(/policy created/i).should("exist");
 
       cy.visit("/policies/manage");
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-      cy.get(".policies-list-wrapper").within(() => {
-        cy.findByText(/backup/i).should("exist");
-        cy.findByText(/gatekeeper/i).should("exist");
-
-        // Click on link in table and confirm that policies filter block diplays as expected on manage hosts page
-        cy.get("tbody").within(() => {
-          cy.get("tr")
-            .first()
-            .within(() => {
-              cy.get("td").last().children().first().should("exist").click();
-            });
+      // Click on link in table and confirm that policies filter block diplays as expected on manage hosts page
+      cy.get(".failing_host_count__cell")
+        .first()
+        .within(() => {
+          cy.findByRole("button", { name: /0 hosts/i }).click();
         });
-      });
 
       // confirm policy functionality on manage host page
       cy.get(".manage-hosts__policies-filter-block").within(() => {
@@ -88,20 +87,6 @@ describe(
 
       // Update policy
       cy.findByText(/gatekeeper enabled/i).click();
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-      // TODO: Detached dom issues
-      // cy.findByText(/gatekeeper enabled on macOS/i)
-      //   .click()
-      //   .type("{selectall}Gatekeeper enabled on macOS");
-      // cy.findByText(/checks to make sure/i)
-      //   .click()
-      //   .type(
-      //     "{selectall}Gatekeeper helps ensure only trusted software is running"
-      //   );
-      // cy.findByText(/failing device/i)
-      //   .click()
-      //   .type("{selectall}Run /user/sbin/spctl--master -enable");
 
       cy.get(".ace_scroller")
         .click({ force: true })
@@ -116,8 +101,7 @@ describe(
 
       // Delete policy
       cy.visit("/policies/manage");
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.get("tbody").within(() => {
         cy.get("tr")
           .first()

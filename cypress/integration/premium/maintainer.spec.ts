@@ -21,14 +21,7 @@ describe(
     it("Can perform the appropriate basic global maintainer actions", () => {
       cy.login("mary@organization.com", "user123#");
       cy.visit("/hosts/manage");
-
-      // Ensure page is loaded
-      cy.contains("All hosts");
-
-      // Host manage page: Teams column, select a team
-      cy.visit("/hosts/manage");
-
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
       // See the "Manage" enroll secret” button. A modal appears after the user selects the button
       cy.contains("button", /manage enroll secret/i).click();
