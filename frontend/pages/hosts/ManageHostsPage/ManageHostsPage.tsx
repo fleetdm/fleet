@@ -1552,7 +1552,6 @@ const ManageHostsPage = ({
     );
   };
 
-
   const renderNoEnrollSecretBanner = () => {
     const noTeamEnrollSecrets =
       currentTeam &&
