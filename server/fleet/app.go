@@ -193,6 +193,9 @@ type FailingPoliciesWebhookSettings struct {
 	DestinationURL string `json:"destination_url"`
 	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
 	PolicyIDs []uint `json:"policy_ids"`
+	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
+	// A value of 0 means no batching.
+	HostBatchSize int `json:"host_batch_size"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {

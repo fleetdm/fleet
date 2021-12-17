@@ -749,8 +749,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 			incomingResults := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
 				logging.WithErr(ctx, err)
-			} else if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
-				logging.WithErr(ctx, err)
+			} else {
+				go func() {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
+						logging.WithErr(ctx, err)
+					}
+				}()
 			}
 		}
 
