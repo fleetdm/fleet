@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"path"
+	"sort"
 	"strconv"
 	"time"
 
@@ -59,6 +60,9 @@ func TriggerFailingPoliciesWebhook(
 		for i := range hosts {
 			failingHosts[i] = makeFailingHost(hosts[i], appConfig.ServerSettings.ServerURL)
 		}
+		sort.Slice(failingHosts, func(i, j int) bool {
+			return failingHosts[i].ID < failingHosts[j].ID
+		})
 		payload := FailingPoliciesPayload{
 			Timestamp:    now,
 			Policy:       policy,
