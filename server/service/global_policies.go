@@ -165,11 +165,6 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
-	for _, id := range ids {
-		if err := svc.failingPolicySet.RemoveSet(id); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "removing global policy %d from policy set", id)
-		}
-	}
 	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "deleting global policies")

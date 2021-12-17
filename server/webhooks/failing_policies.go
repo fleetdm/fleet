@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/url"
 	"path"
 	"sort"
 	"strconv"
@@ -45,14 +46,20 @@ func TriggerFailingPoliciesWebhook(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing global policies set")
 	}
+	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "invalid server url")
+	}
 	for _, policyID := range policySets {
 		if _, ok := configuredPolicyIDs[policyID]; !ok {
 			level.Debug(logger).Log("msg", "removing policy from set", "id", policyID)
 			// Remove and ignore the policies that are present in the set and
-			// are not present in the config anymore.
-			err := failingPoliciesSet.RemoveSet(policyID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "listing global policies set")
+			// are not present in the config.
+			// This could happen with:
+			//	- policies that have been deleted.
+			//	- policies with automation disabled.
+			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing global policy  %d from policy set", policyID)
 			}
 			continue
 		}
@@ -62,6 +69,10 @@ func TriggerFailingPoliciesWebhook(
 			// OK
 		case errors.Is(err, sql.ErrNoRows):
 			level.Debug(logger).Log("msg", "skipping removed policy", "id", policyID)
+			// The policy might have been deleted, thus we remove the set.
+			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing global policy %d from policy set", policyID)
+			}
 			continue
 		default:
 			return ctxerr.Wrapf(ctx, err, "failing to load global failing policies set %d", policyID)
@@ -76,7 +87,7 @@ func TriggerFailingPoliciesWebhook(
 		}
 		failingHosts := make([]FailingHost, len(hosts))
 		for i := range hosts {
-			failingHosts[i] = makeFailingHost(hosts[i], appConfig.ServerSettings.ServerURL)
+			failingHosts[i] = makeFailingHost(hosts[i], *serverURL)
 		}
 		sort.Slice(failingHosts, func(i, j int) bool {
 			return failingHosts[i].ID < failingHosts[j].ID
@@ -110,10 +121,11 @@ type FailingHost struct {
 	URL      string `json:"url"`
 }
 
-func makeFailingHost(host service.PolicySetHost, fleetServerURL string) FailingHost {
+func makeFailingHost(host service.PolicySetHost, serverURL url.URL) FailingHost {
+	serverURL.Path = path.Join(serverURL.Path, "hosts", strconv.Itoa(int(host.ID)))
 	return FailingHost{
 		ID:       host.ID,
 		Hostname: host.Hostname,
-		URL:      path.Join(fleetServerURL, "hosts", strconv.Itoa(int(host.ID))),
+		URL:      serverURL.String(),
 	}
 }
