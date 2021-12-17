@@ -20,11 +20,11 @@ import fleetQueriesAPI from "services/entities/queries";
 import teamsAPI from "services/entities/teams";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import sortUtils from "utilities/sort";
 
+import sortUtils from "utilities/sort";
 import paths from "router/paths";
 import Button from "components/buttons/Button";
-// @ts-ignore
+import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import IconToolTip from "components/IconToolTip";
 import TableDataError from "components/TableDataError";
@@ -153,13 +153,13 @@ const ManageSchedulePage = ({
     () => teamsAPI.loadAll({}),
     {
       enabled: !!isPremiumTier,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
       select: (data) => {
         return currentUser?.teams
           ? filterAndSortTeamOptions(data.teams, currentUser.teams)
           : data.teams;
       },
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
     }
   );
 
@@ -167,9 +167,9 @@ const ManageSchedulePage = ({
     ["fleetQueries"],
     () => fleetQueriesAPI.loadAll(),
     {
-      select: (data) => data.queries,
       refetchOnMount: false,
       refetchOnWindowFocus: false,
+      select: (data) => data.queries,
     }
   );
 
@@ -450,7 +450,7 @@ const ManageSchedulePage = ({
           )}
         </div>
         <div>
-          {!isLoadingTeams &&
+          {!isLoadingTeams ? (
             renderTable(
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
@@ -459,7 +459,10 @@ const ManageSchedulePage = ({
               toggleScheduleEditorModal,
               isOnGlobalTeam || false,
               selectedTeamData
-            )}
+            )
+          ) : (
+            <Spinner />
+          )}
         </div>
         {/* must use ternary for NaN */}
         {selectedTeamId && allTeamsScheduledQueriesList.length > 0 ? (

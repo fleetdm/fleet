@@ -4,3 +4,10 @@
     opacity: 1;
   }
 }
+
+#app {
+  .Select.is-disabled > .Select-control {
+    background: transparent;
+    pointer-events: none;
+  }
+}
