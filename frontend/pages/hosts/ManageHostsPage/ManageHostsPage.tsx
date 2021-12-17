@@ -968,6 +968,8 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  console.log("selected host ids: ", selectedHostIds);
+
   const onTransferHostSubmit = async (team: ITeam) => {
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
