@@ -1,4 +1,5 @@
 import React, { useContext, useMemo } from "react";
+import classnames from "classnames";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 
@@ -34,6 +35,7 @@ interface ITeamsDropdownProps {
   currentUserTeams: ITeam[];
   selectedTeamId: number;
   includeAll?: boolean;
+  isDisabled?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
@@ -45,6 +47,7 @@ const TeamsDropdown = ({
   currentUserTeams,
   selectedTeamId,
   includeAll,
+  isDisabled,
   onChange,
   onOpen,
   onClose,
@@ -63,8 +66,12 @@ const TeamsDropdown = ({
     ? selectedTeamId
     : teamOptions[0]?.value;
 
+  const dropdownWrapperClasses = classnames(`${baseClass}-wrapper`, {
+    disabled: isDisabled || undefined,
+  });
+
   return (
-    <div>
+    <div className={dropdownWrapperClasses}>
       {teamOptions.length && (
         <Dropdown
           value={selectedValue}
@@ -72,6 +79,7 @@ const TeamsDropdown = ({
           className={baseClass}
           options={teamOptions}
           searchable={false}
+          disabled={isDisabled || false}
           onChange={onChange}
           onOpen={onOpen}
           onClose={onClose}
