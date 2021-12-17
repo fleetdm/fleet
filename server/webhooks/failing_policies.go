@@ -37,7 +37,25 @@ func TriggerFailingPoliciesWebhook(
 		return nil
 	}
 
+	configuredPolicyIDs := make(map[uint]struct{})
 	for _, policyID := range appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs {
+		configuredPolicyIDs[policyID] = struct{}{}
+	}
+	policySets, err := failingPoliciesSet.ListSets()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing global policies set")
+	}
+	for _, policyID := range policySets {
+		if _, ok := configuredPolicyIDs[policyID]; !ok {
+			level.Debug(logger).Log("msg", "removing policy from set", "id", policyID)
+			// Remove and ignore the policies that are present in the set and
+			// are not present in the config anymore.
+			err := failingPoliciesSet.RemoveSet(policyID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "listing global policies set")
+			}
+			continue
+		}
 		policy, err := ds.Policy(ctx, policyID)
 		switch {
 		case err == nil:

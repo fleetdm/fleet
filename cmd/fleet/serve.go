@@ -493,9 +493,10 @@ the way that the Fleet server works.
 }
 
 const (
-	lockKeyLeader          = "leader"
-	lockKeyVulnerabilities = "vulnerabilities"
-	lockKeyWebhooks        = "webhooks"
+	lockKeyLeader                  = "leader"
+	lockKeyVulnerabilities         = "vulnerabilities"
+	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
+	lockKeyWebhooksFailingPolicies = "webhooks:failing_policies"
 )
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
@@ -703,7 +704,8 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			return
 		}
 
-		// Reread app config to be able to read latest data and update any intervals for next run.
+		// Reread app config to be able to read latest data used by the webhook
+		// and update any intervals for next run.
 		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -712,25 +714,51 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			ticker.Reset(interval)
 		}
 
-		// TODO(lucas): Currently sharing the lock for host status and failing policies.
-		if locked, err := ds.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-			continue
-		}
-
-		if err := webhooks.TriggerHostStatusWebhook(
-			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-		); err != nil {
-			level.Error(logger).Log("err", "triggering host status webhook", "details", err)
-		}
-
-		if err := webhooks.TriggerFailingPoliciesWebhook(
-			ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-		); err != nil {
-			level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
-		}
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
+		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func maybeTriggerHostStatus(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	appConfig *fleet.AppConfig,
+	interval time.Duration,
+) {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, interval); err != nil || !locked {
+		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
+		return
+	}
+
+	if err := webhooks.TriggerHostStatusWebhook(
+		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
+	); err != nil {
+		level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+	}
+}
+
+func maybeTriggerFailingPoliciesWebhook(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	appConfig *fleet.AppConfig,
+	interval time.Duration,
+	failingPoliciesSet service.FailingPolicySet,
+) {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
+		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
+		return
+	}
+
+	if err := webhooks.TriggerFailingPoliciesWebhook(
+		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
+	); err != nil {
+		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
 	}
 }
 
