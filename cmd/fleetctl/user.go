@@ -210,10 +210,9 @@ func createBulkUsersCommand() *cli.Command {
 				return err
 			}
 			for _, record := range csvLines[1:] {
-				fmt.Println(record[0], record[1], record[2], record[3], record[4], record[5], record[6])
-				password := record[2]
-				email := record[1]
 				name := record[0]
+				email := record[1]
+				password := record[2]
 				sso := c.Bool(record[3])
 				apiOnly := c.Bool(record[4])
 				globalRoleString := c.String(record[5])
