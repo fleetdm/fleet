@@ -116,9 +116,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
-  const [automationFormData, setAutomationFormData] = useState<
-    IAutomationFormData | {}
-  >({});
+  const [
+    automationFormData,
+    setAutomationFormData,
+  ] = useState<IAutomationFormData>({});
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -204,44 +205,37 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     toggleManageAutomationsModal();
   };
 
-  const onSelectedAutomationsChange = (policies: IPolicyFormData[]): void => {
-    setAutomationFormData({
-      formData: {
-        policies,
-      },
-    });
+  const onSelectedAutomationsChange = (formData: IAutomationFormData): void => {
+    setAutomationFormData(formData);
   };
 
-  // TODO: UPDATE REQUEST AND FLASH MESSAGES 12/15
-  const onCreateAutomationsSubmit = async () => {
-    try {
-      const request = selectedTeamId
-        ? teamPoliciesAPI.destroy(selectedTeamId, selectedPolicyIds)
-        : globalPoliciesAPI.destroy(selectedPolicyIds);
-
-      await request.then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            `Successfully removed ${
-              selectedPolicyIds?.length === 1 ? "policy" : "policies"
-            }.`
-          )
-        );
-      });
-    } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          `Unable to remove ${
-            selectedPolicyIds?.length === 1 ? "policy" : "policies"
-          }. Please try again.`
-        )
-      );
-    } finally {
-      toggleManageAutomationsModal();
-      getPolicies(selectedTeamId);
-    }
+  // TODO: UPDATE REQUEST AND FLASH MESSAGES 12/15, 12/20
+  const onCreateAutomationsSubmit = async ({
+    destination_url,
+    policy_ids,
+  }: IAutomationFormData) => {
+    // uncomment when configAPI is built
+    // try {
+    //   const request = configAPI.update(desination_url, policy_ids);
+    //   await request.then(() => {
+    //     dispatch(
+    //       renderFlash(
+    //         "success",
+    //         `Successfully updated policies webhook settings.`
+    //       )
+    //     );
+    //   });
+    // } catch {
+    //   dispatch(
+    //     renderFlash(
+    //       "error",
+    //       `Unable to update policies webhook settings. Please try again.`
+    //     )
+    //   );
+    // } finally {
+    //   toggleManageAutomationsModal();
+    //   getPolicies(selectedTeamId);
+    // }
   };
 
   const onAddPolicyClick = () => {

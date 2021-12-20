@@ -5,9 +5,11 @@
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
-  url: PropTypes.string,
+  destination_url: PropTypes.string,
+  policy_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
 export interface IAutomationFormData {
-  url: string;
+  destination_url?: string;
+  policy_ids?: number[];
 }
