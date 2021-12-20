@@ -40,7 +40,7 @@ Fleet will have a new release for the API.
 
 ## How long do I have until you remove a deprecated API?
 
-3 months after the new release has been available.
+6 months after the new release has been available.
 
 ## How are breaking changes introduced? (Mostly for developers)
 
