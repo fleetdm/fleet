@@ -16,6 +16,13 @@ func Up_20211202092042(tx *sql.Tx) error {
 		return errors.Wrap(err, "drop view policy_membership")
 	}
 
+	if _, err := tx.Exec(`ALTER TABLE policy_membership_history
+		DROP FOREIGN KEY fk_policy_membership_policy_id,
+		DROP FOREIGN KEY fk_policy_membership_host_id`,
+	); err != nil {
+		return errors.Wrap(err, "dropping policy_membership_history indexes")
+	}
+
 	policyMembershipTable := `
 		CREATE TABLE IF NOT EXISTS policy_membership (
 			policy_id INT UNSIGNED NOT NULL,

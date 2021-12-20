@@ -1,0 +1,1 @@
+* Fix v4.7.0 migration issue with policy membership history on MariaDB.
