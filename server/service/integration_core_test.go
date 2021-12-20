@@ -1564,7 +1564,9 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 2)
 	require.Equal(t, "a@b.c", listResp.DeviceMapping[0].Email)
+	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[0].Source)
 	require.Equal(t, "b@b.c", listResp.DeviceMapping[1].Email)
+	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[1].Source)
 
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
