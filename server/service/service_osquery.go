@@ -732,7 +732,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
 
-			ingested, err := svc.directIngestDetailQuery(ctx, &host, trimmedQuery, rows, failed)
+			var ingested bool
+			ingested, err = svc.directIngestDetailQuery(ctx, &host, trimmedQuery, rows, failed)
 
 			if !ingested && err == nil {
 				err = svc.ingestDetailQuery(ctx, &host, trimmedQuery, rows)

@@ -1092,6 +1092,9 @@ func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, inse
 	if err != nil {
 		if err == sql.ErrNoRows {
 			_, err = d.writer.ExecContext(ctx, insertQuery, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
 		}
 	}
 	affected, err := res.RowsAffected()
