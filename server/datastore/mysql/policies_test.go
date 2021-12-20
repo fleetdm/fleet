@@ -1282,6 +1282,7 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 		Name:  "policy3",
 		Query: "select 43;",
 	})
+	require.NoError(t, err)
 
 	// Unknown policies will be considered their first execution.
 	newFailing, newPassing, err := ds.FlippingPoliciesForHost(ctx, host1.ID, map[uint]*bool{
