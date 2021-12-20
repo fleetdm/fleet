@@ -4428,6 +4428,12 @@ None.
        "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
     }
   },
   "logging": {
@@ -4502,10 +4508,14 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| enable_host_status_webhook    | boolean | body | _Webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url    | string | body | _Webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage    | integer | body | _Webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count    | integer | body | _Webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url    | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count    | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url    | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids    | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size    | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. ThIe default, 0, means no batching (all hosts failing a policy are sent on one request). |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -4613,6 +4623,12 @@ Modifies the Fleet's configuration with the supplied information.
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    },
+    "failing_policies_webhook":{
+      "enable_failing_policies_webhook":true,
+      "destination_url": "https://server.com",
+      "policy_ids": [1, 2, 3],
+      "host_batch_size": 1000
     }
   },
   "logging": {
