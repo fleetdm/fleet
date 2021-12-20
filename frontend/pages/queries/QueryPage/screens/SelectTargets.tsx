@@ -99,7 +99,6 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
 }: ISelectTargetsProps) => {
-  console.log("selectedTargets: ", selectedTargets);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
