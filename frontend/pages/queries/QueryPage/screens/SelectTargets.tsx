@@ -99,6 +99,7 @@ const SelectTargets = ({
   goToRunQuery,
   setSelectedTargets,
 }: ISelectTargetsProps) => {
+  console.log("selectedTargets: ", selectedTargets);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
@@ -189,6 +190,11 @@ const SelectTargets = ({
       },
     }
   );
+
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
 
   const handleSelectedLabels = (selectedLabel: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
@@ -330,7 +336,7 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel
