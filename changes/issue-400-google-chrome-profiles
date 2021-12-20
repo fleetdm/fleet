@@ -1,0 +1,1 @@
+* Add support for the Google Chrome profiles macadmins osquery extension, which associates email addresses with hosts, and add ability to search hosts by such an email address.
