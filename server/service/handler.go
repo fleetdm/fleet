@@ -433,7 +433,7 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
 
 	// Results endpoint is handled different due to websockets use
-	r.PathPrefix("/api/_version_/fleet/results/").
+	r.PathPrefix("/api/v1/fleet/results/").
 		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
 		Name("distributed_query_results")
 
@@ -695,13 +695,13 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		configRouter.Handle("/api/_version_/setup", kithttp.NewServer(
+		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
 			makeSetupEndpoint(svc),
 			decodeSetupRequest,
 			encodeResponse,
 		))
 		// whitelist osqueryd endpoints
-		if strings.HasPrefix(r.URL.Path, "/api/_version_/osquery") {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
 			next.ServeHTTP(w, r)
 			return
 		}
