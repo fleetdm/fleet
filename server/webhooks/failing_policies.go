@@ -135,7 +135,6 @@ func makeFailingHost(host service.PolicySetHost, serverURL url.URL) FailingHost 
 	}
 }
 
-// filteredPolicies filters the given configured policies and returns those that
 func filteredPolicies(
 	ctx context.Context,
 	ds fleet.Datastore,
