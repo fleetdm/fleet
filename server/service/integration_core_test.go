@@ -1540,3 +1540,33 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// get the now-deleted scheduled query
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
 }
+
+func (s *integrationTestSuite) TestHostDeviceMapping() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+
+	// get host device mappings of invalid host
+	var listResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[2].ID+1), nil, http.StatusNotFound, &listResp)
+
+	// existing host but none yet
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 0)
+
+	// create some mappings
+	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 2)
+	require.Equal(t, "a@b.c", listResp.DeviceMapping[0].Email)
+	require.Equal(t, "b@b.c", listResp.DeviceMapping[1].Email)
+
+	// other host still has none
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 0)
+}
