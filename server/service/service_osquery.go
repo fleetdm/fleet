@@ -750,6 +750,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
 				logging.WithErr(ctx, err)
 			} else {
+				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
 					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
 						logging.WithErr(ctx, err)

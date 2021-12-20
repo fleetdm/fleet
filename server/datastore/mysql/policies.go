@@ -157,6 +157,9 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	return newFailing, newPassing, nil
 }
 
+// policyPasses returns true if the policy result is considered as "passed".
+// A value of nil means the policy query failed to execute (e.g. SQL parsing error),
+// and we consider such case as "not passed".
 func policyPasses(passes *bool) bool {
 	return passes != nil && *passes
 }
