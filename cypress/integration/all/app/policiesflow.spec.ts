@@ -62,10 +62,9 @@ describe(
       cy.findByText(/policy created/i).should("exist");
 
       cy.visit("/policies/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       // Click on link in table and confirm that policies filter block diplays as expected on manage hosts page
-      cy.get(".failing_host_count__cell")
+      cy.getAttached(".failing_host_count__cell")
         .first()
         .within(() => {
           cy.findByRole("button", { name: /0 hosts/i }).click();
@@ -101,8 +100,8 @@ describe(
 
       // Delete policy
       cy.visit("/policies/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.get("tbody").within(() => {
+
+      cy.getAttached("tbody").within(() => {
         cy.get("tr")
           .first()
           .within(() => {
