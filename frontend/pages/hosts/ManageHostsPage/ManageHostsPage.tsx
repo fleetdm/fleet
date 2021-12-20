@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -218,6 +218,7 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -1014,6 +1015,7 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
+      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1530,24 +1532,25 @@ const ManageHostsPage = ({
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
-        onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
-        emptyComponent={EmptyHosts}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
-        toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
-        customControl={renderStatusDropdown}
         filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
+        clearSelectionCount={clearSelectionCount}
+        emptyComponent={EmptyHosts}
+        customControl={renderStatusDropdown}
+        onActionButtonClick={onEditColumnsClick}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        onQueryChange={onTableQueryChange}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };
