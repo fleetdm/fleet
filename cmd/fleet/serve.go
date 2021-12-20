@@ -496,7 +496,7 @@ const (
 	lockKeyLeader                  = "leader"
 	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
-	lockKeyWebhooksFailingPolicies = "webhooks:failing_policies"
+	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 )
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
@@ -715,7 +715,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		}
 
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
-		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -741,7 +741,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerFailingPoliciesWebhook(
+func maybeTriggerGlobalFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -755,7 +755,7 @@ func maybeTriggerFailingPoliciesWebhook(
 		return
 	}
 
-	if err := webhooks.TriggerFailingPoliciesWebhook(
+	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
 	); err != nil {
 		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)

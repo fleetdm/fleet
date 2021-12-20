@@ -18,7 +18,8 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func TriggerFailingPoliciesWebhook(
+// TriggerGlobalFailingPoliciesWebhook performs the webhook requests for failing policies.
+func TriggerGlobalFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -32,14 +33,14 @@ func TriggerFailingPoliciesWebhook(
 
 	level.Debug(logger).Log("enabled", "true")
 
+	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "invalid server url")
+	}
 	globalPoliciesURL := appConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL
 	if globalPoliciesURL == "" {
 		level.Info(logger).Log("msg", "empty global destination_url")
 		return nil
-	}
-	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "invalid server url")
 	}
 	policies, err := filteredPolicies(ctx, ds, appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, failingPoliciesSet, logger)
 	if err != nil {
@@ -134,6 +135,7 @@ func makeFailingHost(host service.PolicySetHost, serverURL url.URL) FailingHost 
 	}
 }
 
+// filteredPolicies filters the given configured policies and returns those that
 func filteredPolicies(
 	ctx context.Context,
 	ds fleet.Datastore,

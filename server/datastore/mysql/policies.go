@@ -96,14 +96,21 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return nil
 }
 
-// FlippingPoliciesForHost fetches the policies with incoming results and returns:
+// FlippingPoliciesForHost fetches previous policy membership results and returns:
 //	- a list of "new" failing policies; "new" here means those that fail on their first
 //	run, and those that were passing on the previous run and are failing on the incoming execution.
 //	- a list of "new" passing policies; "new" here means those that failed on a previous
 //	run and are passing now.
 //
-// NOTE(lucas): If a policy has been deleted (also deleted on policy_membership via cascade)
-// and osquery agents bring in new failing results from them then those will be returned here.
+// FlippingPoliciesForHost doesn't discriminate global from team policies.
+//
+// NOTES(lucas):
+//	- If a policy has been deleted (also deleted on `policy_membership` via cascade)
+// 	and osquery agents bring in new failing results from them then those will be returned here
+// 	(in newFailing or newPassing).
+//	- Similar in case a host was deleted.
+// Trying to filter those out here would make this operation more expensive (fetch policies from the
+// `policies` table and querying the `hosts` table).
 func (ds *Datastore) FlippingPoliciesForHost(
 	ctx context.Context,
 	hostID uint,

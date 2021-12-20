@@ -1540,3 +1540,40 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// get the now-deleted scheduled query
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
 }
+
+func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
+	t := s.T()
+
+	gpParams := globalPolicyRequest{
+		Name:  "policy1",
+		Query: "select 41;",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"webhook_settings": {
+    		"failing_policies_webhook": {
+     	 		"enable_failing_policies_webhook": true,
+     	 		"destination_url": "http://some/url",
+     			"policy_ids": [%d],
+				"host_batch_size": 1000
+    		},
+    		"interval": "1h"
+  		}
+	}`, gpResp.Policy.ID)), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{gpResp.Policy.ID}, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
+	require.Equal(t, 1000, config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
+	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
+
+	config = s.getConfig()
+	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
