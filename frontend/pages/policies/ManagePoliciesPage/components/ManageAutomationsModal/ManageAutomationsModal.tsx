@@ -25,7 +25,7 @@ interface IManageAutomationsModalProps {
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
-  currentAutomatedPolicies: IPolicy[];
+  currentAutomatedPolicies: number[];
   onFormChange: (formData: IAutomationFormData) => void;
 }
 
@@ -44,11 +44,14 @@ const validateAutomationURL = (url: string) => {
 with a boolean key isChecked based on current policies */
 const generateFormListItems = (
   allPolicies: IPolicy[],
-  currentPolicies: IPolicy[]
+  currentAutomatedPolicies: number[]
 ): IPolicyCheckboxListItem[] => {
+  console.log("allPolicies", allPolicies);
+  console.log("currentAutomatedPolicies", currentAutomatedPolicies);
+
   return allPolicies.map((policy) => {
-    const foundPolicy = currentPolicies.find(
-      (currentPolicy) => currentPolicy.id === policy.id
+    const foundPolicy = currentAutomatedPolicies.find(
+      (currentPolicy) => currentPolicy === policy.id
     );
     return {
       ...policy,
@@ -97,11 +100,11 @@ const updateFormState = (
 /* TODO: What does this hook do? How/why does this work? */
 const useSelectedPolicyState = (
   allPolicies: IPolicy[],
-  currentPolicies: IPolicy[],
+  currentAutomatedPolicies: number[],
   formChange: (policies: IPolicyFormData[]) => void
 ) => {
   const [policiesFormList, setPoliciesFormList] = useState(() => {
-    return generateFormListItems(allPolicies, currentPolicies);
+    return generateFormListItems(allPolicies, currentAutomatedPolicies);
   });
 
   const updateSelectedPolicies = (

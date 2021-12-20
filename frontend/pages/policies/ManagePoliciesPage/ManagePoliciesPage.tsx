@@ -40,6 +40,16 @@ const baseClass = "manage-policies-page";
 const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
 
+const configMock = {
+  webhook_settings: {
+    failing_policies_webhook: {
+      destination_url: "https://foo.bar",
+      enable_failing_policies_webhook: true,
+      policy_ids: [6, 14],
+    },
+  },
+};
+
 const renderInheritedPoliciesButtonText = (
   showPolicies: boolean,
   policies: IPolicy[]
@@ -554,7 +564,9 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             showPreviewPayloadModal={showPreviewPayloadModal}
             onFormChange={onSelectedAutomationsChange}
             availablePolicies={globalPolicies}
-            currentAutomatedPolicies={globalPolicies} // TODO: Fix parameter 12/15
+            currentAutomatedPolicies={
+              configMock.webhook_settings.failing_policies_webhook.policy_ids
+            } // TODO: Fix parameter 12/20
           />
         )}
         {showAddPolicyModal && (
