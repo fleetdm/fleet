@@ -2,7 +2,9 @@ name: GoReleaser Orbit
 
 on:
   push:
-
+   tags:
+     - 'orbit-*'
+     
 permissions:
   contents: write
 
@@ -13,6 +15,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
+      # paid version. We pay for goreleaser, but using the closed source build would weaken our
+      # supply-chain integrity goals, so we hack around it by replacing the tag.
+      - name: Replace tag
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g')
 
       - name: Import signing keys
         env: 
