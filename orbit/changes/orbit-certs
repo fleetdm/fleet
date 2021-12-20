@@ -1,1 +1,0 @@
-* Use `certs.pem` if available in root directory to improve TLS compatibility.
