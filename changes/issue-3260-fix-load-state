@@ -1,0 +1,1 @@
+* Fix incorrect load state when switching from a host filter to all hosts.
