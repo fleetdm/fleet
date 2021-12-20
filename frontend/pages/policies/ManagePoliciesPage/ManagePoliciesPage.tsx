@@ -566,7 +566,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             availablePolicies={globalPolicies}
             currentAutomatedPolicies={
               configMock.webhook_settings.failing_policies_webhook.policy_ids
-            } // TODO: Fix parameter 12/20
+            }
+            currentDestinationUrl={
+              configMock.webhook_settings.failing_policies_webhook
+                .destination_url
+            }
           />
         )}
         {showAddPolicyModal && (

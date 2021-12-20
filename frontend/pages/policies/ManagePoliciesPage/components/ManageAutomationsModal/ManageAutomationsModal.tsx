@@ -26,6 +26,7 @@ interface IManageAutomationsModalProps {
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
   currentAutomatedPolicies: number[];
+  currentDestinationUrl: string;
   onFormChange: (formData: IAutomationFormData) => void;
 }
 
@@ -150,9 +151,12 @@ const ManageAutomationsModal = ({
   showPreviewPayloadModal,
   availablePolicies,
   currentAutomatedPolicies,
+  currentDestinationUrl,
   onFormChange,
 }: IManageAutomationsModalProps): JSX.Element => {
-  const [destination_url, setDestinationUrl] = useState<string>("");
+  const [destination_url, setDestinationUrl] = useState<string>(
+    currentDestinationUrl
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [policiesFormList, updateSelectedPolicies] = useSelectedPolicyState(
     availablePolicies,
