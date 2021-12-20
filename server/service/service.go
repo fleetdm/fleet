@@ -50,7 +50,6 @@ type FailingPolicySet interface {
 	// ListHosts returns the list of hosts present in the policy set.
 	ListHosts(policyID uint) ([]PolicySetHost, error)
 	// RemoveHosts removes the hosts from the policy set.
-	// If after removal, the policy has no hosts then the set is removed.
 	RemoveHosts(policyID uint, hosts []PolicySetHost) error
 	// RemoveSet removes a policy set.
 	RemoveSet(policyID uint) error
