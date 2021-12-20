@@ -1,1 +1,1 @@
-* Fix incorrect load state when switching from a host filter to all hosts.
+* Fix incorrect load state when selecting all hosts from the hosts filter.
