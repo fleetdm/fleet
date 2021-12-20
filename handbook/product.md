@@ -7,14 +7,17 @@ Below is a table of [directly responsible individuals (DRIs)](./people.md#direct
 | Wireframes (figma)	 										| Noah Talerman	|
 | How the product works 										| Noah Talerman |
 | fleetctl CLI interface (and other tools) 						| Tomás Touceda |
-| REST API interface, REST API docs 							| Luke Heath	|
-| Postman 											| Ben Edwards (transitioning to Luke Heath) 	|
+| REST API interface design 							| Luke Heath	|
+| [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
+| Postman 											| Luke Heath 	|
 | Terraform 											| Ben Edwards 	|
-| Customer deployments like acme.fleetdm.com 				| Ben Edwards 	|
+| Customer PoV deployments like acme.fleetdm.com 				| Ben Edwards 	|
 | dogfood.fleetdm.com 											| Ben Edwards  	|
 | Quality of core product UI 									| Luke Heath 	|
 | Quality of tickets after Noah's done with them   				| Luke Heath 	|
-| Quality of core product API 									| Tomás Touceda |
+| ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
+| Customer Slack channels | Tony Gauda |
+| Quality of core product backend 									| Tomás Touceda |
 | Quality of fleetctl (and other tools)							| Tomás Touceda |
 | Final cut of what goes into each release 						| Zach Wasserman|
 | When we cut a release, version numbers, and whether to release| Zach Wasserman|
@@ -254,25 +257,6 @@ Non-release blocking bugs may include known issues that were not targeted for th
 ### Release day
 
 Documentation on completing the release process can be found [here](../docs/03-Contributing/05-Releasing-Fleet.md).  
-
-
-## Support process
-
-This section outlines the customer and community support process at Fleet.
-
-The support process is accomplished via an on-call rotation and the weekly on-call retro meeting.
-
-The on-call engineer is responsible for responding to Slack comments, Slack threads, and GitHub issues raised by customers and the community.
-
-The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
-
-1. What went well?
-
-2. What could have gone better?
-
-3. What should we remember next time?
-
-This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
 ### Goals
 At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 

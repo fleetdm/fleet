@@ -46,11 +46,9 @@
         margin-top: $pad-large;
         line-height: 2rem;
         height: 2rem;
-        cursor: pointer;
       }
       .query-form__query-description:not(textarea) {
         margin: 0.25rem 0 1rem;
-        cursor: pointer;
       }
       textarea.query-form__query-description {
         margin-top: 0.8125rem;

@@ -13,6 +13,7 @@ import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
+import PATHS from "router/paths";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -42,7 +43,7 @@ const PolicyPage = ({
   location: { query: URLQuerySearch },
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
-  const policyTeamId = URLQuerySearch.team_id || 0;
+  const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
   const {
     currentUser,
     currentTeam,
@@ -69,16 +70,19 @@ const PolicyPage = ({
     }
   }, []);
 
-  if (
-    policyTeamId &&
-    currentUser &&
-    !currentUser.teams.length &&
-    !currentTeam
-  ) {
-    const thisPolicyTeam = currentUser.teams.find((team) => team.id);
+  if (currentUser && currentUser.teams.length && policyTeamId && !currentTeam) {
+    const thisPolicyTeam = currentUser.teams.find(
+      (team) => team.id === policyTeamId
+    );
     if (thisPolicyTeam) {
       setCurrentTeam(thisPolicyTeam);
     }
+  }
+
+  if (!policyTeamId && !currentUser) {
+    // Window is loading new policy,
+    // return to manage policies because we have no data in state
+    router.push(PATHS.MANAGE_POLICIES);
   }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
