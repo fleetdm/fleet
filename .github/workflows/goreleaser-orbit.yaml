@@ -42,7 +42,7 @@ jobs:
           go-version: 1.17
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser release --rm-dist --snapshot -f orbit/.goreleaser.yml
+        run: go run github.com/goreleaser/goreleaser release --rm-dist -f orbit/.goreleaser.yml
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
