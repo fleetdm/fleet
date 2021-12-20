@@ -325,7 +325,7 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = prometheus.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -370,10 +370,10 @@ the way that the Fleet server works.
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", prometheus.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", prometheus.InstrumentHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", prometheus.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
-			rootMux.Handle("/metrics", prometheus.InstrumentHandler("metrics", promhttp.Handler()))
+			rootMux.Handle("/healthz", service.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
+			rootMux.Handle("/version", service.InstrumentHandler("version", version.Handler()))
+			rootMux.Handle("/assets/", service.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			rootMux.Handle("/metrics", service.InstrumentHandler("metrics", promhttp.Handler()))
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
 			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
