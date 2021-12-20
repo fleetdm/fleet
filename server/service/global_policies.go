@@ -183,16 +183,17 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 	}
 	n := 0
 	policyIDs := ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	origLen := len(policyIDs)
 	for i := range policyIDs {
 		if _, ok := idSet[policyIDs[i]]; !ok {
 			policyIDs[n] = policyIDs[i]
 			n++
 		}
 	}
-	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = policyIDs[:n]
-	if n == len(ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) {
+	if n == origLen {
 		return nil
 	}
+	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = policyIDs[:n]
 	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 		return err
 	}
