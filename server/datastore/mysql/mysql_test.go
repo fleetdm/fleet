@@ -208,7 +208,7 @@ func TestHostSearchLike(t *testing.T) {
 			inParams:  []interface{}{1},
 			match:     "a@b.c",
 			columns:   []string{"ipv4"},
-			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?))",
+			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
 			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
 		},
 	}

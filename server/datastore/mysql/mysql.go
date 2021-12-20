@@ -805,7 +805,7 @@ func hostSearchLike(sql string, params []interface{}, match string, columns ...s
 	// in host_emails table as an option, in addition to the provided columns.
 	if rxLooseEmail.MatchString(match) {
 		// remove the closing paren and add the email condition to the list
-		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?))`
+		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
 	return base, args

@@ -693,6 +693,10 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 func testHostsListQuery(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 10; i++ {
+		hostname := fmt.Sprintf("hostname%%00%d", i)
+		if i == 5 {
+			hostname += "ba@b.ca"
+		}
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -701,7 +705,7 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 			OsqueryHostID:   strconv.Itoa(i),
 			NodeKey:         fmt.Sprintf("%d", i),
 			UUID:            fmt.Sprintf("uuid_00%d", i),
-			Hostname:        fmt.Sprintf("hostname%%00%d", i),
+			Hostname:        hostname,
 			HardwareSerial:  fmt.Sprintf("serial00%d", i),
 		})
 		require.NoError(t, err)
@@ -709,6 +713,18 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.SaveHost(context.Background(), host))
 		hosts = append(hosts, host)
 	}
+
+	// add some device mapping for some hosts
+	require.NoError(t, ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: "src1"},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: "src1"},
+	}))
+	require.NoError(t, ds.ReplaceHostDeviceMapping(context.Background(), hosts[1].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[1].ID, Email: "c@b.c", Source: "src1"},
+	}))
+	require.NoError(t, ds.ReplaceHostDeviceMapping(context.Background(), hosts[2].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[2].ID, Email: "dbca@b.cba", Source: "src1"},
+	}))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -762,6 +778,12 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "serial009"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "a@b.c"}}, 3)
+	require.Equal(t, 3, len(gotHosts))
+	gotIDs := []uint{gotHosts[0].ID, gotHosts[1].ID, gotHosts[2].ID}
+	wantIDs := []uint{hosts[0].ID, hosts[2].ID, hosts[5].ID}
+	require.ElementsMatch(t, wantIDs, gotIDs)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
