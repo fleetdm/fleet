@@ -41,10 +41,6 @@ func TriggerFailingPoliciesWebhook(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "invalid server url")
 	}
-	configuredPolicyIDs := make(map[uint]struct{})
-	for _, policyID := range appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs {
-		configuredPolicyIDs[policyID] = struct{}{}
-	}
 	policies, err := filteredPolicies(ctx, ds, appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, failingPoliciesSet, logger)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "filtering policies")
@@ -59,11 +55,10 @@ func TriggerFailingPoliciesWebhook(
 			continue
 		}
 		if err := sendBatchedPOSTs(ctx, policy, hosts, failingPoliciesSet, postData{
-			serverURL:     serverURL,
-			now:           now,
-			webhookURL:    globalPoliciesURL,
-			hostBatchSize: appConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize,
-		}, logger); err != nil {
+			serverURL:  serverURL,
+			now:        now,
+			webhookURL: globalPoliciesURL,
+		}, appConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize, logger); err != nil {
 			return ctxerr.Wrapf(ctx, err, "sending POSTs for policy set %d", policy.ID)
 		}
 	}
@@ -71,10 +66,9 @@ func TriggerFailingPoliciesWebhook(
 }
 
 type postData struct {
-	serverURL     *url.URL
-	now           time.Time
-	webhookURL    string
-	hostBatchSize int
+	serverURL  *url.URL
+	now        time.Time
+	webhookURL string
 }
 
 func sendBatchedPOSTs(
@@ -83,17 +77,17 @@ func sendBatchedPOSTs(
 	hosts []service.PolicySetHost,
 	failingPoliciesSet service.FailingPolicySet,
 	postData postData,
+	hostBatchSize int,
 	logger kitlog.Logger,
 ) error {
-	batchSize := postData.hostBatchSize
-	if batchSize == 0 {
-		batchSize = len(hosts)
+	if hostBatchSize == 0 {
+		hostBatchSize = len(hosts)
 	}
 	sort.Slice(hosts, func(i, j int) bool {
 		return hosts[i].ID < hosts[j].ID
 	})
 	for len(hosts) > 0 {
-		j := batchSize
+		j := hostBatchSize
 		if l := len(hosts); j > l {
 			j = l
 		}
@@ -107,9 +101,8 @@ func sendBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts[:j],
 		}
-		level.Debug(logger).Log("payload", payload, "url", postData.webhookURL)
-		err := server.PostJSONWithTimeout(ctx, postData.webhookURL, &payload)
-		if err != nil {
+		level.Debug(logger).Log("payload", payload, "url", postData.webhookURL, "batch", len(batch))
+		if err := server.PostJSONWithTimeout(ctx, postData.webhookURL, &payload); err != nil {
 			return ctxerr.Wrapf(ctx, err, "posting to '%s'", postData.webhookURL)
 		}
 		if err := failingPoliciesSet.RemoveHosts(policy.ID, batch); err != nil {
@@ -156,7 +149,7 @@ func filteredPolicies(
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing global policies set")
 	}
-	var filteredPolicies []*fleet.Policy
+	var policies []*fleet.Policy
 	var gcSet []uint
 	for _, policyID := range policySets {
 		if _, ok := configuredPolicyIDsSet[policyID]; !ok {
@@ -166,23 +159,21 @@ func filteredPolicies(
 		}
 		switch policy, err := ds.Policy(ctx, policyID); {
 		case err == nil:
-			filteredPolicies = append(filteredPolicies, policy)
+			policies = append(policies, policy)
 		case errors.Is(err, sql.ErrNoRows):
 			level.Debug(logger).Log("msg", "skipping policy from set, deleted", "id", policyID)
 			gcSet = append(gcSet, policyID)
-			continue
 		default:
 			return nil, ctxerr.Wrapf(ctx, err, "failing to load global failing policies set %d", policyID)
 		}
 	}
-	// Remove the policies that are present in the set.
-	// This could happen with:
-	//	- policies that have been deleted.
-	//	- policies with automation disabled (id removed from the config).
+	// Remove the policies that are present in the set but:
+	//	- are not present in the config (user disabled automation for them), or,
+	//	- do not exist anymore (user deleted the policy).
 	for _, policyID := range gcSet {
 		if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "removing global policy  %d from policy set", policyID)
 		}
 	}
-	return filteredPolicies, nil
+	return policies, nil
 }
