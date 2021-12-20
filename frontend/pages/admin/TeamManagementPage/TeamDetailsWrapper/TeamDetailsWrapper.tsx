@@ -253,6 +253,7 @@ const TeamDetailsWrapper = ({
               <TeamsDropdown
                 selectedTeamId={toNumber(routeParams.team_id)}
                 currentUserTeams={adminTeams || []}
+                isDisabled={isLoadingTeams}
                 onChange={(newSelectedValue: number) =>
                   handleTeamSelect(newSelectedValue)
                 }

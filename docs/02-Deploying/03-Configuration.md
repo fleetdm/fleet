@@ -888,7 +888,8 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_status_log_plugin
 
-Which log output plugin should be used for osquery status logs received from clients.
+Which log output plugin should be used for osquery status logs received from clients. Check out the reference documentation for osquery logging options [here in the Fleet documentation](../01-Using-Fleet/05-Osquery-logs.md).
+
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
@@ -903,7 +904,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 ##### osquery_result_log_plugin
 
-Which log output plugin should be used for osquery result logs received from clients.
+Which log output plugin should be used for osquery result logs received from clients. Check out the reference documentation for osquery logging options [here in the Fleet documentation](../01-Using-Fleet/05-Osquery-logs.md).
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
@@ -1621,7 +1622,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kafkarest`.
 
-The identifier of the kafka topic that osquery status logs will be published to.
+The identifier of the kafka topic that osquery result logs will be published to.
 
 - Default value: none
 - Environment variable: `FLEET_KAFKAREST_RESULT_TOPIC`

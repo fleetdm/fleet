@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
 import { IPack } from "interfaces/pack";
@@ -12,10 +12,10 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 
 import PATHS from "router/paths";
 // @ts-ignore
-import deepDifference from "utilities/deep_difference";
 
 import Button from "components/buttons/Button";
 import TableDataError from "components/TableDataError";
+import Spinner from "components/Spinner";
 import PacksListWrapper from "./components/PacksListWrapper";
 import RemovePackModal from "./components/RemovePackModal";
 
@@ -196,7 +196,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           )}
         </div>
         <div>
-          {!isLoadingPacks &&
+          {!isLoadingPacks ? (
             renderTable(
               onRemovePackClick,
               onEnablePackClick,
@@ -205,7 +205,10 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
               packs,
               packsError,
               isLoadingPacks
-            )}
+            )
+          ) : (
+            <Spinner />
+          )}
         </div>
         {showRemovePackModal && (
           <RemovePackModal
