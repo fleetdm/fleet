@@ -54,6 +54,8 @@ const QueryEditor = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
+    lastEditedQueryResolution,
+    lastEditedQueryPlatform,
     policyTeamId,
   } = useContext(PolicyContext);
 
@@ -69,13 +71,6 @@ const QueryEditor = ({
   }, []);
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
-    // TODO: The approach taken with selectedTeamId context works in most cases. Howeve, the context
-    // will reset to global if page is refreshed. This will cause bugs where a global policy gets
-    // created when the user intended a team policy. For non-gloabl users, request will fail but the
-    // erorr is opaque and would require them to navigate back to the manage policies page to select
-    // a team and start over, in which case it might be better to intercept the unauthorized errors
-    // and redirect to the manage policies page (unless we have added a means to select a team on
-    // the edit/create policy form itself).
     if (policyTeamId) {
       formData.team_id = policyTeamId;
     }
@@ -86,14 +81,20 @@ const QueryEditor = ({
       );
       router.push(PATHS.EDIT_POLICY(policy));
       dispatch(renderFlash("success", "Policy created!"));
-    } catch (createError) {
+    } catch (createError: any) {
       console.error(createError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong creating your policy. Please try again."
-        )
-      );
+      if (createError.errors[0].reason.includes("already exists")) {
+        dispatch(
+          renderFlash("error", "A policy with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong creating your policy. Please try again."
+          )
+        );
+      }
     }
   });
 
@@ -106,6 +107,8 @@ const QueryEditor = ({
       lastEditedQueryName,
       lastEditedQueryDescription,
       lastEditedQueryBody,
+      lastEditedQueryResolution,
+      lastEditedQueryPlatform,
     });
 
     const updateAPIRequest = () => {
@@ -123,14 +126,20 @@ const QueryEditor = ({
     try {
       await updateAPIRequest();
       dispatch(renderFlash("success", "Policy updated!"));
-    } catch (updateError) {
+    } catch (updateError: any) {
       console.error(updateError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong updating your policy. Please try again."
-        )
-      );
+      if (updateError.errors[0].reason.includes("Duplicate")) {
+        dispatch(
+          renderFlash("error", "A policy with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong updating your policy. Please try again."
+          )
+        );
+      }
     }
 
     return false;

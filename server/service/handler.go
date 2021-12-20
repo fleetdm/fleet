@@ -61,23 +61,6 @@ type FleetEndpoints struct {
 	GetQuerySpec                          endpoint.Endpoint
 	CreateDistributedQueryCampaign        endpoint.Endpoint
 	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	CreatePack                            endpoint.Endpoint
-	ModifyPack                            endpoint.Endpoint
-	ListPacks                             endpoint.Endpoint
-	DeletePack                            endpoint.Endpoint
-	DeletePackByID                        endpoint.Endpoint
-	GetScheduledQueriesInPack             endpoint.Endpoint
-	ScheduleQuery                         endpoint.Endpoint
-	GetScheduledQuery                     endpoint.Endpoint
-	ModifyScheduledQuery                  endpoint.Endpoint
-	DeleteScheduledQuery                  endpoint.Endpoint
-	ApplyPackSpecs                        endpoint.Endpoint
-	GetPackSpecs                          endpoint.Endpoint
-	GetPackSpec                           endpoint.Endpoint
-	GlobalScheduleQuery                   endpoint.Endpoint
-	GetGlobalSchedule                     endpoint.Endpoint
-	ModifyGlobalSchedule                  endpoint.Endpoint
-	DeleteGlobalSchedule                  endpoint.Endpoint
 	EnrollAgent                           endpoint.Endpoint
 	GetClientConfig                       endpoint.Endpoint
 	GetDistributedQueries                 endpoint.Endpoint
@@ -95,11 +78,6 @@ type FleetEndpoints struct {
 	ApplyLabelSpecs                       endpoint.Endpoint
 	GetLabelSpecs                         endpoint.Endpoint
 	GetLabelSpec                          endpoint.Endpoint
-	HostByIdentifier                      endpoint.Endpoint
-	DeleteHost                            endpoint.Endpoint
-	RefetchHost                           endpoint.Endpoint
-	AddHostsToTeam                        endpoint.Endpoint
-	AddHostsToTeamByFilter                endpoint.Endpoint
 	SearchTargets                         endpoint.Endpoint
 	GetCertificate                        endpoint.Endpoint
 	ChangeEmail                           endpoint.Endpoint
@@ -177,28 +155,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
 		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
 		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		CreatePack:                            authenticatedUser(svc, makeCreatePackEndpoint(svc)),
-		ModifyPack:                            authenticatedUser(svc, makeModifyPackEndpoint(svc)),
-		ListPacks:                             authenticatedUser(svc, makeListPacksEndpoint(svc)),
-		DeletePack:                            authenticatedUser(svc, makeDeletePackEndpoint(svc)),
-		DeletePackByID:                        authenticatedUser(svc, makeDeletePackByIDEndpoint(svc)),
-		GetScheduledQueriesInPack:             authenticatedUser(svc, makeGetScheduledQueriesInPackEndpoint(svc)),
-		ScheduleQuery:                         authenticatedUser(svc, makeScheduleQueryEndpoint(svc)),
-		GetScheduledQuery:                     authenticatedUser(svc, makeGetScheduledQueryEndpoint(svc)),
-		ModifyScheduledQuery:                  authenticatedUser(svc, makeModifyScheduledQueryEndpoint(svc)),
-		DeleteScheduledQuery:                  authenticatedUser(svc, makeDeleteScheduledQueryEndpoint(svc)),
-		ApplyPackSpecs:                        authenticatedUser(svc, makeApplyPackSpecsEndpoint(svc)),
-		GetPackSpecs:                          authenticatedUser(svc, makeGetPackSpecsEndpoint(svc)),
-		GetPackSpec:                           authenticatedUser(svc, makeGetPackSpecEndpoint(svc)),
-		GlobalScheduleQuery:                   authenticatedUser(svc, makeGlobalScheduleQueryEndpoint(svc)),
-		GetGlobalSchedule:                     authenticatedUser(svc, makeGetGlobalScheduleEndpoint(svc)),
-		ModifyGlobalSchedule:                  authenticatedUser(svc, makeModifyGlobalScheduleEndpoint(svc)),
-		DeleteGlobalSchedule:                  authenticatedUser(svc, makeDeleteGlobalScheduleEndpoint(svc)),
-		HostByIdentifier:                      authenticatedUser(svc, makeHostByIdentifierEndpoint(svc)),
-		DeleteHost:                            authenticatedUser(svc, makeDeleteHostEndpoint(svc)),
-		AddHostsToTeam:                        authenticatedUser(svc, makeAddHostsToTeamEndpoint(svc)),
-		AddHostsToTeamByFilter:                authenticatedUser(svc, makeAddHostsToTeamByFilterEndpoint(svc)),
-		RefetchHost:                           authenticatedUser(svc, makeRefetchHostEndpoint(svc)),
 		CreateLabel:                           authenticatedUser(svc, makeCreateLabelEndpoint(svc)),
 		ModifyLabel:                           authenticatedUser(svc, makeModifyLabelEndpoint(svc)),
 		GetLabel:                              authenticatedUser(svc, makeGetLabelEndpoint(svc)),
@@ -281,23 +237,6 @@ type fleetHandlers struct {
 	GetQuerySpec                          http.Handler
 	CreateDistributedQueryCampaign        http.Handler
 	CreateDistributedQueryCampaignByNames http.Handler
-	CreatePack                            http.Handler
-	ModifyPack                            http.Handler
-	ListPacks                             http.Handler
-	DeletePack                            http.Handler
-	DeletePackByID                        http.Handler
-	GetScheduledQueriesInPack             http.Handler
-	ScheduleQuery                         http.Handler
-	GetScheduledQuery                     http.Handler
-	ModifyScheduledQuery                  http.Handler
-	DeleteScheduledQuery                  http.Handler
-	ApplyPackSpecs                        http.Handler
-	GetPackSpecs                          http.Handler
-	GetPackSpec                           http.Handler
-	GlobalScheduleQuery                   http.Handler
-	GetGlobalSchedule                     http.Handler
-	ModifyGlobalSchedule                  http.Handler
-	DeleteGlobalSchedule                  http.Handler
 	EnrollAgent                           http.Handler
 	GetClientConfig                       http.Handler
 	GetDistributedQueries                 http.Handler
@@ -315,11 +254,6 @@ type fleetHandlers struct {
 	ApplyLabelSpecs                       http.Handler
 	GetLabelSpecs                         http.Handler
 	GetLabelSpec                          http.Handler
-	HostByIdentifier                      http.Handler
-	DeleteHost                            http.Handler
-	RefetchHost                           http.Handler
-	AddHostsToTeam                        http.Handler
-	AddHostsToTeamByFilter                http.Handler
 	SearchTargets                         http.Handler
 	GetCertificate                        http.Handler
 	ChangeEmail                           http.Handler
@@ -384,23 +318,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
 		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
 		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		CreatePack:                            newServer(e.CreatePack, decodeCreatePackRequest),
-		ModifyPack:                            newServer(e.ModifyPack, decodeModifyPackRequest),
-		ListPacks:                             newServer(e.ListPacks, decodeListPacksRequest),
-		DeletePack:                            newServer(e.DeletePack, decodeDeletePackRequest),
-		DeletePackByID:                        newServer(e.DeletePackByID, decodeDeletePackByIDRequest),
-		GetScheduledQueriesInPack:             newServer(e.GetScheduledQueriesInPack, decodeGetScheduledQueriesInPackRequest),
-		ScheduleQuery:                         newServer(e.ScheduleQuery, decodeScheduleQueryRequest),
-		GetScheduledQuery:                     newServer(e.GetScheduledQuery, decodeGetScheduledQueryRequest),
-		ModifyScheduledQuery:                  newServer(e.ModifyScheduledQuery, decodeModifyScheduledQueryRequest),
-		DeleteScheduledQuery:                  newServer(e.DeleteScheduledQuery, decodeDeleteScheduledQueryRequest),
-		ApplyPackSpecs:                        newServer(e.ApplyPackSpecs, decodeApplyPackSpecsRequest),
-		GetPackSpecs:                          newServer(e.GetPackSpecs, decodeNoParamsRequest),
-		GetPackSpec:                           newServer(e.GetPackSpec, decodeGetGenericSpecRequest),
-		GlobalScheduleQuery:                   newServer(e.GlobalScheduleQuery, decodeGlobalScheduleQueryRequest),
-		GetGlobalSchedule:                     newServer(e.GetGlobalSchedule, decodeGetGlobalScheduleRequest),
-		ModifyGlobalSchedule:                  newServer(e.ModifyGlobalSchedule, decodeModifyGlobalScheduleRequest),
-		DeleteGlobalSchedule:                  newServer(e.DeleteGlobalSchedule, decodeDeleteGlobalScheduleRequest),
 		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
 		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
 		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
@@ -418,11 +335,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ApplyLabelSpecs:                       newServer(e.ApplyLabelSpecs, decodeApplyLabelSpecsRequest),
 		GetLabelSpecs:                         newServer(e.GetLabelSpecs, decodeNoParamsRequest),
 		GetLabelSpec:                          newServer(e.GetLabelSpec, decodeGetGenericSpecRequest),
-		HostByIdentifier:                      newServer(e.HostByIdentifier, decodeHostByIdentifierRequest),
-		DeleteHost:                            newServer(e.DeleteHost, decodeDeleteHostRequest),
-		RefetchHost:                           newServer(e.RefetchHost, decodeRefetchHostRequest),
-		AddHostsToTeam:                        newServer(e.AddHostsToTeam, decodeAddHostsToTeamRequest),
-		AddHostsToTeamByFilter:                newServer(e.AddHostsToTeamByFilter, decodeAddHostsToTeamByFilterRequest),
 		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
 		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
 		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
@@ -659,25 +571,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
 	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
 
-	r.Handle("/api/v1/fleet/packs", h.CreatePack).Methods("POST").Name("create_pack")
-	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}", h.ModifyPack).Methods("PATCH").Name("modify_pack")
-	r.Handle("/api/v1/fleet/packs", h.ListPacks).Methods("GET").Name("list_packs")
-	r.Handle("/api/v1/fleet/packs/{name}", h.DeletePack).Methods("DELETE").Name("delete_pack")
-	r.Handle("/api/v1/fleet/packs/id/{id:[0-9]+}", h.DeletePackByID).Methods("DELETE").Name("delete_pack_by_id")
-	r.Handle("/api/v1/fleet/packs/{id:[0-9]+}/scheduled", h.GetScheduledQueriesInPack).Methods("GET").Name("get_scheduled_queries_in_pack")
-	r.Handle("/api/v1/fleet/schedule", h.ScheduleQuery).Methods("POST").Name("schedule_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.GetScheduledQuery).Methods("GET").Name("get_scheduled_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.ModifyScheduledQuery).Methods("PATCH").Name("modify_scheduled_query")
-	r.Handle("/api/v1/fleet/schedule/{id:[0-9]+}", h.DeleteScheduledQuery).Methods("DELETE").Name("delete_scheduled_query")
-	r.Handle("/api/v1/fleet/spec/packs", h.ApplyPackSpecs).Methods("POST").Name("apply_pack_specs")
-	r.Handle("/api/v1/fleet/spec/packs", h.GetPackSpecs).Methods("GET").Name("get_pack_specs")
-	r.Handle("/api/v1/fleet/spec/packs/{name}", h.GetPackSpec).Methods("GET").Name("get_pack_spec")
-
-	r.Handle("/api/v1/fleet/global/schedule", h.GetGlobalSchedule).Methods("GET").Name("set_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule", h.GlobalScheduleQuery).Methods("POST").Name("add_to_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.ModifyGlobalSchedule).Methods("PATCH").Name("modify_global_schedule")
-	r.Handle("/api/v1/fleet/global/schedule/{id:[0-9]+}", h.DeleteGlobalSchedule).Methods("DELETE").Name("delete_global_schedule")
-
 	r.Handle("/api/v1/fleet/labels", h.CreateLabel).Methods("POST").Name("create_label")
 	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}", h.ModifyLabel).Methods("PATCH").Name("modify_label")
 	r.Handle("/api/v1/fleet/labels/{id:[0-9]+}", h.GetLabel).Methods("GET").Name("get_label")
@@ -688,12 +581,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/spec/labels", h.ApplyLabelSpecs).Methods("POST").Name("apply_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels", h.GetLabelSpecs).Methods("GET").Name("get_label_specs")
 	r.Handle("/api/v1/fleet/spec/labels/{name}", h.GetLabelSpec).Methods("GET").Name("get_label_spec")
-
-	r.Handle("/api/v1/fleet/hosts/identifier/{identifier}", h.HostByIdentifier).Methods("GET").Name("host_by_identifier")
-	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}", h.DeleteHost).Methods("DELETE").Name("delete_host")
-	r.Handle("/api/v1/fleet/hosts/transfer", h.AddHostsToTeam).Methods("POST").Name("add_hosts_to_team")
-	r.Handle("/api/v1/fleet/hosts/transfer/filter", h.AddHostsToTeamByFilter).Methods("POST").Name("add_hosts_to_team_by_filter")
-	r.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/refetch", h.RefetchHost).Methods("POST").Name("refetch_host")
 
 	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
 
@@ -760,7 +647,21 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 
 	e.POST("/api/v1/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
+	e.GET("/api/v1/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
+	e.POST("/api/v1/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
+	e.GET("/api/v1/fleet/schedule/{id:[0-9]+}", getScheduledQueryEndpoint, getScheduledQueryRequest{})
+	e.PATCH("/api/v1/fleet/schedule/{id:[0-9]+}", modifyScheduledQueryEndpoint, modifyScheduledQueryRequest{})
+	e.DELETE("/api/v1/fleet/schedule/{id:[0-9]+}", deleteScheduledQueryEndpoint, deleteScheduledQueryRequest{})
+
 	e.GET("/api/v1/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
+	e.POST("/api/v1/fleet/packs", createPackEndpoint, createPackRequest{})
+	e.PATCH("/api/v1/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
+	e.GET("/api/v1/fleet/packs", listPacksEndpoint, listPacksRequest{})
+	e.DELETE("/api/v1/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
+	e.DELETE("/api/v1/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
+	e.POST("/api/v1/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
+	e.GET("/api/v1/fleet/spec/packs", getPackSpecsEndpoint, nil)
+	e.GET("/api/v1/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
 
 	e.GET("/api/v1/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
 	e.GET("/api/v1/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
@@ -770,12 +671,22 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/v1/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
 	e.GET("/api/v1/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
 	e.GET("/api/v1/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
+	e.GET("/api/v1/fleet/hosts/identifier/{identifier}", hostByIdentifierEndpoint, hostByIdentifierRequest{})
+	e.DELETE("/api/v1/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
+	e.POST("/api/v1/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
+	e.POST("/api/v1/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
+	e.POST("/api/v1/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
 
 	e.GET("/api/v1/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 
 	e.PATCH("/api/v1/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	e.GET("/api/v1/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+
+	e.GET("/api/v1/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
+	e.POST("/api/v1/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
+	e.PATCH("/api/v1/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
+	e.DELETE("/api/v1/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
 
 	e.GET("/api/v1/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	e.GET("/api/v1/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})

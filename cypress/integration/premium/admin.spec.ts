@@ -190,7 +190,7 @@ describe(
         // End e2e test for schedules
 
         cy.visit("/queries/manage");
-
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all window crashes/i)
           .parent()
           .parent()
@@ -216,9 +216,13 @@ describe(
         // On the Settings pages, they should…
         // See the “Teams” navigation item and access the Settings - Teams page
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         cy.get(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();
         });
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         // Access the Settings - Team details page
         cy.findByText(/apples/i).click();
         cy.findByText(/apples/i).should("exist");
@@ -226,6 +230,7 @@ describe(
 
         // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.get(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });
@@ -235,6 +240,8 @@ describe(
         // On the Profile page, they should…
         // See Global in the Team section and Admin in the Role section
         cy.visit("/profile");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         cy.findByText(/team/i)
           .next()
           .contains(/global/i);

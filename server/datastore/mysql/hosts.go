@@ -85,8 +85,7 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sqlStatement := `
+	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
@@ -123,82 +122,81 @@ func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
 			percent_disk_space_available = ?
 		WHERE id = ?
 	`
-		_, err := tx.ExecContext(ctx, sqlStatement,
-			host.DetailUpdatedAt,
-			host.LabelUpdatedAt,
-			host.PolicyUpdatedAt,
-			host.NodeKey,
-			host.Hostname,
-			host.UUID,
-			host.Platform,
-			host.OsqueryVersion,
-			host.OSVersion,
-			host.Uptime,
-			host.Memory,
-			host.CPUType,
-			host.CPUSubtype,
-			host.CPUBrand,
-			host.CPUPhysicalCores,
-			host.HardwareVendor,
-			host.HardwareModel,
-			host.HardwareVersion,
-			host.HardwareSerial,
-			host.ComputerName,
-			host.Build,
-			host.PlatformLike,
-			host.CodeName,
-			host.CPULogicalCores,
-			host.DistributedInterval,
-			host.ConfigTLSRefresh,
-			host.LoggerTLSPeriod,
-			host.TeamID,
-			host.PrimaryIP,
-			host.PrimaryMac,
-			host.RefetchRequested,
-			host.GigsDiskSpaceAvailable,
-			host.PercentDiskSpaceAvailable,
-			host.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
-		}
+	_, err := d.writer.ExecContext(ctx, sqlStatement,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
+		host.PolicyUpdatedAt,
+		host.NodeKey,
+		host.Hostname,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.Memory,
+		host.CPUType,
+		host.CPUSubtype,
+		host.CPUBrand,
+		host.CPUPhysicalCores,
+		host.HardwareVendor,
+		host.HardwareModel,
+		host.HardwareVersion,
+		host.HardwareSerial,
+		host.ComputerName,
+		host.Build,
+		host.PlatformLike,
+		host.CodeName,
+		host.CPULogicalCores,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
+		host.TeamID,
+		host.PrimaryIP,
+		host.PrimaryMac,
+		host.RefetchRequested,
+		host.GigsDiskSpaceAvailable,
+		host.PercentDiskSpaceAvailable,
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	}
 
-		// Save host pack stats only if it is non-nil. Empty stats should be
-		// represented by an empty slice.
-		if host.PackStats != nil {
-			if err := saveHostPackStatsDB(ctx, tx, host); err != nil {
-				return err
+	// Save host pack stats only if it is non-nil. Empty stats should be
+	// represented by an empty slice.
+	if host.PackStats != nil {
+		if err := saveHostPackStatsDB(ctx, d.writer, host); err != nil {
+			return err
+		}
+	}
+
+	ac, err := d.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
+	}
+
+	if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
+		if err := saveHostSoftwareDB(ctx, d.writer, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to save host software")
+		}
+	}
+
+	if host.Modified {
+		if host.Additional != nil {
+			if err := saveHostAdditionalDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host additional")
 			}
 		}
 
-		ac, err := d.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to get app config to see if we need to update host users and inventory")
-		}
-
-		if host.HostSoftware.Modified && ac.HostSettings.EnableSoftwareInventory && len(host.HostSoftware.Software) > 0 {
-			if err := saveHostSoftwareDB(ctx, tx, host); err != nil {
-				return ctxerr.Wrap(ctx, err, "failed to save host software")
+		if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
+			if err := saveHostUsersDB(ctx, d.writer, host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to save host users")
 			}
 		}
+	}
 
-		if host.Modified {
-			if host.Additional != nil {
-				if err := saveHostAdditionalDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host additional")
-				}
-			}
-
-			if ac.HostSettings.EnableHostUsers && len(host.Users) > 0 {
-				if err := saveHostUsersDB(ctx, tx, host); err != nil {
-					return ctxerr.Wrap(ctx, err, "failed to save host users")
-				}
-			}
-		}
-
-		host.Modified = false
-		return nil
-	})
+	host.Modified = false
+	return nil
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet.Host) error {
@@ -264,6 +262,14 @@ func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, host *fleet
 	return nil
 }
 
+// MySQL is really particular about using zero values or old values for
+// timestamps, so we set a default value that is plenty far in the past, but
+// hopefully accepted by most MySQL configurations.
+//
+// NOTE: #3229 proposes a better fix that uses *time.Time for
+// ScheduledQueryStats.LastExecuted.
+var pastDate = "2000-01-01T00:00:00Z"
+
 // loadhostPacksStatsDB will load all the pack stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
@@ -291,7 +297,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
 		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
 		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(0)")).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
 		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
 		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
 		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
@@ -409,6 +415,9 @@ func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
@@ -841,14 +850,17 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 }
 
 func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM hosts
 		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sql, identifier)
+	err := sqlx.GetContext(ctx, d.reader, host, stmt, identifier)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
@@ -927,8 +939,8 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) 
-				VALUES %s 
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell)
+				VALUES %s
 				ON DUPLICATE KEY UPDATE
 				user_type = VALUES(user_type),
 				groupname = VALUES(groupname),

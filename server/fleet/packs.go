@@ -10,15 +10,18 @@ type PackListOptions struct {
 // Pack is the structure which represents an osquery query pack.
 type Pack struct {
 	UpdateCreateTimestamps
-	ID          uint    `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description,omitempty"`
-	Platform    string  `json:"platform,omitempty"`
-	Disabled    bool    `json:"disabled"`
-	Type        *string `json:"type" db:"pack_type"`
-	LabelIDs    []uint  `json:"label_ids"`
-	HostIDs     []uint  `json:"host_ids"`
-	TeamIDs     []uint  `json:"team_ids"`
+	ID          uint     `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Platform    string   `json:"platform,omitempty"`
+	Disabled    bool     `json:"disabled"`
+	Type        *string  `json:"type" db:"pack_type"`
+	Labels      []Target `json:"labels"`
+	LabelIDs    []uint   `json:"label_ids"`
+	Hosts       []Target `json:"hosts"`
+	HostIDs     []uint   `json:"host_ids"`
+	Teams       []Target `json:"teams"`
+	TeamIDs     []uint   `json:"team_ids"`
 }
 
 // EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
@@ -75,8 +78,8 @@ type PackSpecQuery struct {
 
 // PackTarget targets a pack to a host, label, or team.
 type PackTarget struct {
-	ID     uint `db:"id"`
-	PackID uint `db:"pack_id"`
+	ID     uint `db:"id" json:"-"`
+	PackID uint `db:"pack_id" json:"-"`
 	Target
 }
 

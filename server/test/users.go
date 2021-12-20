@@ -75,4 +75,17 @@ var (
 			},
 		},
 	}
+	UserTeamObserverTeam1TeamAdminTeam2 = &fleet.User{
+		ID: 11,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleObserver,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
 )

@@ -7,7 +7,6 @@ import { memoize } from "lodash";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
@@ -72,8 +71,8 @@ const generateTableHeaders = (options: {
     case "inheritedPolicies":
       return [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
@@ -87,8 +86,8 @@ const generateTableHeaders = (options: {
     default: {
       const tableHeaders: IDataColumn[] = [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
           accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (

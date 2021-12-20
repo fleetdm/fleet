@@ -21,8 +21,9 @@ describe("Premium tier - Observer user", () => {
     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("All hosts");
 
-    // Not see the "Manage enroll secret” button
+    // Not see the "Manage enroll secret” or "Generate installer" button
     cy.contains("button", /manage enroll secret/i).should("not.exist");
+    cy.contains("button", /generate installer/i).should("not.exist");
 
     cy.get("thead").within(() => {
       cy.findByText(/team/i).should("exist");

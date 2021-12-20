@@ -65,8 +65,11 @@ func testPacksDelete(t *testing.T, ds *Datastore) {
 func testPacksSave(t *testing.T, ds *Datastore) {
 	expectedPack := &fleet.Pack{
 		Name:     "foo",
+		Hosts:    []fleet.Target{{TargetID: 1, Type: fleet.TargetHost}},
 		HostIDs:  []uint{1},
+		Labels:   []fleet.Target{{TargetID: 1, Type: fleet.TargetLabel}},
 		LabelIDs: []uint{1},
+		Teams:    []fleet.Target{{TargetID: 1, Type: fleet.TargetTeam}},
 		TeamIDs:  []uint{1},
 	}
 
@@ -82,8 +85,11 @@ func testPacksSave(t *testing.T, ds *Datastore) {
 	expectedPack = &fleet.Pack{
 		ID:       pack.ID,
 		Name:     "bar",
+		Hosts:    []fleet.Target{{TargetID: 3, Type: fleet.TargetHost}},
 		HostIDs:  []uint{3},
+		Labels:   []fleet.Target{{TargetID: 4, Type: fleet.TargetLabel}, {TargetID: 6, Type: fleet.TargetLabel}},
 		LabelIDs: []uint{4, 6},
+		Teams:    []fleet.Target{},
 		TeamIDs:  []uint{},
 	}
 

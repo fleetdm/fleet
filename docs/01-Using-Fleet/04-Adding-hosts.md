@@ -183,7 +183,7 @@ time, [uninstall the existing
 osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
 
 If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setting for Fleet's
-[osquery_host_identifier](../02-Deploying/02-Configuration.md#osquery-host-identifier)), the new
+[osquery_host_identifier](../02-Deploying/03-Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).

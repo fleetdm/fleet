@@ -6,13 +6,14 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import Fleet from "fleet"; // @ts-ignore
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { QUERIES_PAGE_STEPS } from "utilities/constants";
+import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
 import globalPoliciesAPI from "services/entities/global_policies"; // @ts-ignore
 import teamPoliciesAPI from "services/entities/team_policies"; // @ts-ignore
 import hostAPI from "services/entities/hosts"; // @ts-ignore
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
+import PATHS from "router/paths";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -42,22 +43,47 @@ const PolicyPage = ({
   location: { query: URLQuerySearch },
 }: IPolicyPageProps): JSX.Element => {
   const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
+  const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
   const {
+    currentUser,
+    currentTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
+    lastEditedQueryBody,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
+
+  useEffect(() => {
+    if (lastEditedQueryBody === "") {
+      setLastEditedQueryBody(DEFAULT_POLICY.query);
+    }
+  }, []);
+
+  if (currentUser && currentUser.teams.length && policyTeamId && !currentTeam) {
+    const thisPolicyTeam = currentUser.teams.find(
+      (team) => team.id === policyTeamId
+    );
+    if (thisPolicyTeam) {
+      setCurrentTeam(thisPolicyTeam);
+    }
+  }
+
+  if (!policyTeamId && !currentUser) {
+    // Window is loading new policy,
+    // return to manage policies because we have no data in state
+    router.push(PATHS.MANAGE_POLICIES);
+  }
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
@@ -77,7 +103,10 @@ const PolicyPage = ({
     refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
-    () => globalPoliciesAPI.load(policyIdForEdit as number),
+    () =>
+      policyTeamId
+        ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
+        : globalPoliciesAPI.load(policyIdForEdit as number),
     {
       enabled: false,
       refetchOnWindowFocus: false,
@@ -87,6 +116,8 @@ const PolicyPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryPlatform(returnedQuery.platform);
+        setPolicyTeamId(returnedQuery.team_id || 0);
       },
     }
   );
@@ -111,12 +142,12 @@ const PolicyPage = ({
     }
   );
 
-  const {
-    mutateAsync: createPolicy,
-  } = useMutation((formData: IPolicyFormData) =>
-    formData.team_id
-      ? teamPoliciesAPI.create(formData)
-      : globalPoliciesAPI.create(formData)
+  const { mutateAsync: createPolicy } = useMutation(
+    (formData: IPolicyFormData) => {
+      return formData.team_id
+        ? teamPoliciesAPI.create(formData)
+        : globalPoliciesAPI.create(formData);
+    }
   );
 
   useEffect(() => {
@@ -189,7 +220,6 @@ const PolicyPage = ({
     const step2Opts = {
       baseClass,
       selectedTargets: [...selectedTargets],
-      policyIdForEdit,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,

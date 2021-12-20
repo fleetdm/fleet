@@ -12,9 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/database"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -153,25 +151,6 @@ func main() {
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
-
-		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
-		db, err := database.Open(dbPath)
-		if err != nil {
-			if errors.Is(err, badger.ErrTruncateNeeded) {
-				db, err = database.OpenTruncate(dbPath)
-				if err != nil {
-					return err
-				}
-				log.Warn().Msg("Open badger required truncate. Data loss is possible.")
-			} else {
-				return err
-			}
-		}
-		defer func() {
-			if err := db.Close(); err != nil {
-				log.Error().Err(err).Msg("Close badger")
-			}
-		}()
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {

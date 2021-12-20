@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,19 @@ func TestMigrationStatus(t *testing.T) {
 	assert.NotEmpty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateData(context.Background()))
+
+	status, err = ds.MigrationStatus(context.Background())
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
+
+	// Insert unknown migration.
+	ds.writer.Exec(`INSERT INTO ` + tables.MigrationClient.TableName + ` (version_id, is_applied) VALUES (1638994765, 1)`)
+	status, err = ds.MigrationStatus(context.Background())
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.UnknownMigrations, status.StatusCode)
+	ds.writer.Exec(`DELETE FROM ` + tables.MigrationClient.TableName + ` WHERE version_id = 1638994765`)
 
 	status, err = ds.MigrationStatus(context.Background())
 	require.NoError(t, err)

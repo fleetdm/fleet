@@ -339,7 +339,7 @@ var detailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestDiskSpace,
 	},
 	"disk_space_windows": {
@@ -450,7 +450,7 @@ SELECT
   'python_packages' AS source
 FROM python_packages;
 `,
-	Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+	Platforms:  fleet.HostLinuxOSs,
 	IngestFunc: ingestSoftware,
 }
 
@@ -517,7 +517,7 @@ FROM python_packages;
 }
 
 var usersQuery = DetailQuery{
-	Query: `SELECT uid, username, type, groupname, shell FROM users u JOIN groups g ON g.gid=u.gid;`,
+	Query: `SELECT uid, username, type, groupname, shell FROM users u LEFT JOIN groups g ON g.gid=u.gid WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
 	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 		var users []fleet.HostUser
 		for _, row := range rows {
