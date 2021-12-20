@@ -102,6 +102,7 @@ func TestHosts(t *testing.T) {
 		{"HostsReadsLessRows", testHostsReadsLessRows},
 		{"HostsNoSeenTime", testHostsNoSeenTime},
 		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
+		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3161,15 +3162,80 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 
 	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
 	require.NoError(t, err)
-	require.Len(t, dms, 3)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: "src1"},
+		{Email: "a@b.c", Source: "src2"},
+		{Email: "b@b.c", Source: "src1"},
+	})
+}
 
-	want := []*fleet.HostDeviceMapping{
+func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, nil)
+	require.NoError(t, err)
+
+	dms, err := ds.ListHostDeviceMapping(ctx, h.ID)
+	require.NoError(t, err)
+	require.Len(t, dms, 0)
+
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, []*fleet.HostDeviceMapping{
 		{HostID: h.ID, Email: "a@b.c", Source: "src1"},
-		{HostID: h.ID, Email: "a@b.c", Source: "src2"},
+		{HostID: h.ID + 1, Email: "a@b.c", Source: "src1"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), fmt.Sprintf("found %d", h.ID+1))
+
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, []*fleet.HostDeviceMapping{
+		{HostID: h.ID, Email: "a@b.c", Source: "src1"},
 		{HostID: h.ID, Email: "b@b.c", Source: "src1"},
+		{HostID: h.ID, Email: "c@b.c", Source: "src2"},
+	})
+	require.NoError(t, err)
+
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: "src1"},
+		{Email: "b@b.c", Source: "src1"},
+		{Email: "c@b.c", Source: "src2"},
+	})
+
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, []*fleet.HostDeviceMapping{
+		{HostID: h.ID, Email: "a@b.c", Source: "src1"},
+		{HostID: h.ID, Email: "d@b.c", Source: "src2"},
+	})
+	require.NoError(t, err)
+
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: "src1"},
+		{Email: "d@b.c", Source: "src2"},
+	})
+}
+
+func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping) {
+	t.Helper()
+
+	// only the email and source are validated
+	require.Len(t, got, len(want))
+
+	for i, g := range got {
+		w := want[i]
+		g.ID, g.HostID = 0, 0
+		assert.Equal(t, w, g, "index %d", i)
 	}
-	for _, dm := range dms {
-		dm.ID = 0
-	}
-	assert.Equal(t, want, dms)
 }

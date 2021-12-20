@@ -1128,41 +1128,44 @@ func (d *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return mappings, nil
 }
 
-func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, mappings []*fleet.HostDeviceMapping) error {
-	var hid uint
+func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mappings []*fleet.HostDeviceMapping) error {
 	for _, m := range mappings {
-		if hid > 0 && hid != m.HostID {
-			return ctxerr.Errorf(ctx, "host device mapping are not all for the same host id, found %d and %d", hid, m.HostID)
+		if hid != m.HostID {
+			return ctxerr.Errorf(ctx, "host device mapping are not all for the provided host id %d, found %d", hid, m.HostID)
 		}
-		hid = m.HostID
 	}
 
 	// the following SQL statements assume a small number of emails reported
 	// per host.
-	delStmt := `
-    DELETE
-      host_emails
-    WHERE
-      host_id = ?`
-	insStmt := `
-    INSERT INTO
-      host_emails (host_id, email, source)
-    VALUES `
+	const (
+		delStmt = `
+      DELETE FROM
+        host_emails
+      WHERE
+        host_id = ?`
 
-	const insPart = `(?, ?, ?),`
+		insStmt = `
+      INSERT INTO
+        host_emails (host_id, email, source)
+      VALUES`
+
+		insPart = ` (?, ?, ?),`
+	)
 
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, delStmt, hid); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete host emails")
 		}
 
-		var args []interface{}
-		for _, m := range mappings {
-			args = append(args, hid, m.Email, m.Source)
-		}
-		stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(args)), ",")
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host emails")
+		if len(mappings) > 0 {
+			var args []interface{}
+			for _, m := range mappings {
+				args = append(args, hid, m.Email, m.Source)
+			}
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(mappings)), ",")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host emails")
+			}
 		}
 		return nil
 	})
