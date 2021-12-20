@@ -98,7 +98,7 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
-}: ISelectTargetsProps) => {
+}: ISelectTargetsProps): JSX.Element => {
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
@@ -114,7 +114,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
     ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
@@ -264,7 +264,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -320,7 +320,7 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading}
+        isTargetsLoading={isTargetsFetching}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
