@@ -79,7 +79,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := time.Now()
-	err = TriggerFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
+	err = TriggerGlobalFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
 	require.NoError(t, err)
@@ -117,9 +117,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
     ]
 }`, timestamp), requestBody)
 
+	hosts, err := failingPolicySet.ListHosts(policyID1)
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+
 	requestBody = ""
 
-	err = TriggerHostStatusWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac)
+	err = TriggerGlobalFailingPoliciesWebhook(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, mockClock)
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
 }
