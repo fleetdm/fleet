@@ -313,11 +313,13 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]PolicySetHost, error) 
 }
 
 // RemoveHosts removes the hosts from the policy set.
-// If after removal, the policy has no hosts then the set is removed.
 func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []PolicySetHost) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
+	if _, ok := m.m[policyID]; !ok {
+		return nil
+	}
 	hostsSet := make(map[uint]struct{})
 	for _, host := range hosts {
 		hostsSet[host.ID] = struct{}{}
@@ -330,9 +332,6 @@ func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []PolicySetHost) 
 		}
 	}
 	m.m[policyID] = m.m[policyID][:n]
-	if len(m.m[policyID]) == 0 {
-		delete(m.m, policyID)
-	}
 	return nil
 }
 
@@ -493,7 +492,17 @@ func RunFailingPolicySetTests(t *testing.T, r FailingPolicySet) {
 	err = r.RemoveSet(policyIDX)
 	require.NoError(t, err)
 
-	// Test listing policy sets with no sets.
+	// Test listing policy still returns the policyID2 set.
+	policyIDs, err = r.ListSets()
+	require.NoError(t, err)
+	require.Len(t, policyIDs, 1)
+	require.Equal(t, policyID2, policyIDs[0])
+
+	// Now remove the remaining set.
+	err = r.RemoveSet(policyID2)
+	require.NoError(t, err)
+
+	// And now it should be empty.
 	policyIDs, err = r.ListSets()
 	require.NoError(t, err)
 	require.Empty(t, policyIDs)
