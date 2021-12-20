@@ -38,8 +38,13 @@ checksum:
 snapshot:
   name_template: "{{ .Tag }}-untagged"
 
+changelog:
+  skip: true
+
 release:
   github:
     owner: fleetdm
     name: fleet
   draft: true
+  name_template: "orbit-{{ .Tag }}"
+  prerelease: auto
