@@ -218,6 +218,9 @@ type Datastore interface {
 	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
+	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 

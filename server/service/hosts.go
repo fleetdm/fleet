@@ -630,3 +630,69 @@ func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uin
 	opt.PerPage = fleet.PerPageUnlimited
 	return filter, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Macadmins
+////////////////////////////////////////////////////////////////////////////////
+
+type getMacadminsDataRequest struct {
+	ID uint `url:"id"`
+}
+
+type getMacadminsDataResponse struct {
+	Err       error                `json:"error,omitempty"`
+	Macadmins *fleet.MacadminsData `json:"macadmins"`
+}
+
+func (r getMacadminsDataResponse) error() error { return r.Err }
+
+func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getMacadminsDataRequest)
+	data, err := svc.MacadminsData(ctx, req.ID)
+	if err != nil {
+		return getMacadminsDataResponse{Err: err}, nil
+	}
+	return getMacadminsDataResponse{Macadmins: data}, nil
+}
+
+func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.Host(ctx, id, false)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	version, err := svc.ds.GetMunkiVersion(ctx, id)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, err
+	}
+
+	enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, err
+	}
+
+	enrollmentStatus := "Unenrolled"
+	if enrolled && !installedFromDep {
+		enrollmentStatus = "Enrolled (manual)"
+	} else if enrolled && installedFromDep {
+		enrollmentStatus = "Enrolled (automated)"
+	}
+
+	data := &fleet.MacadminsData{
+		Munki: fleet.HostMunkiInfo{Version: version},
+		MDM: fleet.HostMDM{
+			EnrollmentStatus: enrollmentStatus,
+			ServerURL:        serverURL,
+		},
+	}
+
+	return data, nil
+}

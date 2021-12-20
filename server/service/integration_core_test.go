@@ -1540,3 +1540,50 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// get the now-deleted scheduled query
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
 }
+
+func (s *integrationTestSuite) TestGetMacadminsData() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, host.ID, "1.3.0"))
+
+	macadminsData := getMacadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, "url2", true))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, host.ID, "1.5.0"))
+
+	macadminsData = getMacadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "url2", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "1.5.0", macadminsData.Macadmins.Munki.Version)
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, "url2", false))
+
+	macadminsData = getMacadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+}

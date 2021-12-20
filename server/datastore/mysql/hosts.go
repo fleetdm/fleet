@@ -1087,19 +1087,63 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	return nil
 }
 
-func (d *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
-	_, err := d.writer.ExecContext(ctx, `INSERT INTO host_munki_version(host_id, version) VALUES(?,?) 
-		ON DUPLICATE KEY UPDATE version = VALUES(version)`,
-		hostID, version,
-	)
+func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
+	res, err := d.writer.ExecContext(ctx, updateQuery, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			_, err = d.writer.ExecContext(ctx, insertQuery, args...)
+		}
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if affected == 0 {
+		_, err = d.writer.ExecContext(ctx, insertQuery, args...)
+	}
 	return ctxerr.Wrap(ctx, err)
 }
 
-func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
-	_, err := d.writer.ExecContext(ctx, `INSERT INTO host_mdm(host_id, enrolled, server_url, installed_from_dep) 
-		VALUES(?, ?, ?, ?) 
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep)`,
-		hostID, enrolled, serverURL, installedFromDep,
+func (d *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
+		`INSERT INTO host_munki_info(version, host_id) VALUES (?,?)`,
+		version, hostID,
 	)
-	return ctxerr.Wrap(ctx, err)
+}
+
+func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_mdm SET enrolled=?, server_url=?, installed_from_dep=? WHERE host_id=?`,
+		`INSERT INTO host_mdm(enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, hostID,
+	)
+}
+
+func (d *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	row := d.reader.QueryRowxContext(ctx, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
+	var version string
+	err := row.Scan(&version)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting data from host_munki_info for host_id %d", hostID)
+	}
+
+	return version, nil
+}
+
+func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
+	row := d.reader.QueryRowxContext(ctx, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
+	err = row.Scan(&enrolled, &serverURL, &installedFromDep)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+		}
+		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return enrolled, serverURL, installedFromDep, nil
 }
