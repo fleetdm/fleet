@@ -35,6 +35,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
           security find-identity -vv
+          rm certificate.p12
 
       - name: Set up Go
         uses: actions/setup-go@v2
