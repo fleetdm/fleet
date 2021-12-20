@@ -17,6 +17,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
 )
 
@@ -441,10 +442,81 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 	return r
 }
 
-// addMetrics decorates each hander with prometheus instrumentation
+// InstrumentHandler wraps the provided handler with prometheus metrics
+// middleware and returns the resulting handler that should be mounted for that
+// route.
+func InstrumentHandler(name string, handler http.Handler) http.Handler {
+	reg := prometheus.DefaultRegisterer
+	registerOrExisting := func(coll prometheus.Collector) prometheus.Collector {
+		if err := reg.Register(coll); err != nil {
+			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+				return are.ExistingCollector
+			}
+			panic(err)
+		}
+		return coll
+	}
+
+	// this configuration is to keep prometheus metrics as close as possible to
+	// what the v0.9.3 (that we used to use) provided via the now-deprecated
+	// prometheus.InstrumentHandler.
+
+	reqCnt := registerOrExisting(prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem:   "http",
+			Name:        "requests_total",
+			Help:        "Total number of HTTP requests made.",
+			ConstLabels: prometheus.Labels{"handler": name},
+		},
+		[]string{"method", "code"},
+	)).(*prometheus.CounterVec)
+
+	reqDur := registerOrExisting(prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "request_duration_seconds",
+			Help:        "The HTTP request latencies in seconds.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			// Use default buckets, as they are suited for durations.
+		},
+		nil,
+	)).(*prometheus.HistogramVec)
+
+	// 1KB, 100KB, 1MB, 100MB, 1GB
+	sizeBuckets := []float64{1024, 100 * 1024, 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024}
+
+	resSz := registerOrExisting(prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "response_size_bytes",
+			Help:        "The HTTP response sizes in bytes.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			Buckets:     sizeBuckets,
+		},
+		nil,
+	)).(*prometheus.HistogramVec)
+
+	reqSz := registerOrExisting(prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Subsystem:   "http",
+			Name:        "request_size_bytes",
+			Help:        "The HTTP request sizes in bytes.",
+			ConstLabels: prometheus.Labels{"handler": name},
+			Buckets:     sizeBuckets,
+		},
+		nil,
+	)).(*prometheus.HistogramVec)
+
+	return promhttp.InstrumentHandlerDuration(reqDur,
+		promhttp.InstrumentHandlerCounter(reqCnt,
+			promhttp.InstrumentHandlerResponseSize(resSz,
+				promhttp.InstrumentHandlerRequestSize(reqSz, handler))))
+}
+
+// addMetrics decorates each handler with prometheus instrumentation
 func addMetrics(r *mux.Router) {
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.Handler(prometheus.InstrumentHandler(route.GetName(), route.GetHandler()))
+		route.Handler(InstrumentHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
 	r.Walk(walkFn)

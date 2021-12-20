@@ -1,3 +1,10 @@
+.component__team-dropdown-wrapper {
+  &.disabled {
+    cursor: auto;
+    opacity: 0.75;
+  }
+}
+
 .component__team-dropdown {
   border: 0 !important;
   position: relative;

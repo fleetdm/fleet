@@ -257,8 +257,15 @@ func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
 
+var pathReplacer = strings.NewReplacer(
+	"/", "_",
+	"{", "_",
+	"}", "_",
+)
+
 func getNameFromPathAndVerb(verb, path string) string {
-	return strings.ToLower(verb) + "_" + strings.ReplaceAll(path, "/", "_")
+	return strings.ToLower(verb) + "_" +
+		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/v1/fleet/"))
 }
 
 func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
