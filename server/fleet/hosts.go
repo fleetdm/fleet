@@ -125,9 +125,6 @@ type Host struct {
 
 	// Users currently in the host
 	Users []HostUser `json:"users,omitempty"`
-	// Device mapping - email addresses to this host, not typically returned
-	// unless explicitly requested.
-	DeviceMapping []*HostDeviceMapping `json:"device_mapping,omitempty"`
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
