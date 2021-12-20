@@ -680,8 +680,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
 			}
 		}
+		return true, nil
 	}
-	return true, nil
+	return false, nil
 }
 
 func (svc *Service) SubmitDistributedQueryResults(
