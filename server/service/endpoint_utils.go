@@ -324,6 +324,7 @@ func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, v
 	endpoint := e.makeEndpoint(f, v)
 	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	for _, alias := range e.alternativePaths {
+		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
 	}
