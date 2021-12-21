@@ -763,6 +763,16 @@ func TestDetailQueries(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.True(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Equal(t, "hi.com", serverURL)
+		return nil
+	}
+	ds.SetOrUpdateMunkiVersionFunc = func(ctx context.Context, hostID uint, version string) error {
+		require.Equal(t, "3.4.5", version)
+		return nil
+	}
 
 	// With a new host, we should get the detail queries (and accelerated
 	// queries)
@@ -893,6 +903,18 @@ func TestDetailQueries(t *testing.T) {
 		"percent_disk_space_available": "56",
 		"gigs_disk_space_available": "277.0"
 	}
+],
+"fleet_detail_query_mdm": [
+	{
+		"enrolled": "true",
+		"server_url": "hi.com",
+		"installed_from_dep": "false"
+	}
+],
+"fleet_detail_query_munki_info": [
+	{
+		"version": "3.4.5"
+	}
 ]
 }
 `
@@ -913,7 +935,11 @@ func TestDetailQueries(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NotNil(t, gotHost)
+
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+	require.True(t, ds.SetOrUpdateMunkiVersionFuncInvoked)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)

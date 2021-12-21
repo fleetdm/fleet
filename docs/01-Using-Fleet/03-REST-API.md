@@ -462,6 +462,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
+- [List MDM and Munki information if available](#list-mdm-and-munk-information-if-available)
 
 ### List hosts
 
@@ -477,7 +478,7 @@ This is the callback endpoint that the identity provider will use to send securi
 | after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
@@ -567,7 +568,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../01-Using-Fleet/02-fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
@@ -1055,6 +1056,72 @@ Request (`filters` is specified):
 ##### Default response
 
 `Status: 200`
+
+### Get host device mapping
+
+Returns the mapping of users' email addresses to the host, as reported by optional osquery extensions such as the Google Chrome profiles.
+
+`GET /api/v1/fleet/hosts/{id}/device_mapping`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/device_mapping`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    }
+  ]
+}
+```
+
+---
+
+### List MDM and Munki information if available
+
+`GET /api/v1/fleet/hosts/{id}/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki": {
+      "version": "1.2.3"
+    },
+    "mobile_device_management": {
+      "enrollment_status": "Enrolled (automated)",
+      "server_url": "http://some.url/mdm"
+    }
+  }
+}
+```
 
 ---
 

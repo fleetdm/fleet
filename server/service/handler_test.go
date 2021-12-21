@@ -138,22 +138,6 @@ func TestAPIRoutes(t *testing.T) {
 			verb: "POST",
 			uri:  "/api/v1/osquery/log",
 		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/labels/1",
-		},
-		{
-			verb: "GET",
-			uri:  "/api/v1/fleet/labels",
-		},
-		{
-			verb: "POST",
-			uri:  "/api/v1/fleet/labels",
-		},
-		{
-			verb: "DELETE",
-			uri:  "/api/v1/fleet/labels/1",
-		},
 	}
 
 	for _, route := range routes {
@@ -197,6 +181,16 @@ func TestAPIRoutesConflicts(t *testing.T) {
 		if path == "" || err != nil { // failure or no method set
 			return err
 		}
+		path = reSimpleVar.ReplaceAllString(path, "$1")
+		// for now at least, the only times we use regexp-constrained vars is
+		// for numeric arguments.
+		path = reNumVar.ReplaceAllStringFunc(path, func(s string) string {
+			if strings.Index(s, "fleetversion") != -1 {
+				parts := strings.Split(strings.TrimPrefix(s, "{fleetversion:(?:"), "|")
+				return strings.TrimSuffix(parts[0], ")}")
+			}
+			return "1"
+		})
 
 		meths, _ := route.GetMethods()
 		for _, meth := range meths {
@@ -257,6 +251,9 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	// collect the route names
 	routeNames := make(map[string]bool)
 	err = router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		if _, ok := routeNames[route.GetName()]; ok {
+			t.Errorf("duplicate route name: %s", route.GetName())
+		}
 		routeNames[route.GetName()] = true
 		return nil
 	})
@@ -450,7 +447,13 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 	path = reSimpleVar.ReplaceAllString(path, "$1")
 	// for now at least, the only times we use regexp-constrained vars is
 	// for numeric arguments.
-	path = reNumVar.ReplaceAllString(path, "1")
+	path = reNumVar.ReplaceAllStringFunc(path, func(s string) string {
+		if strings.Index(s, "fleetversion") != -1 {
+			parts := strings.Split(strings.TrimPrefix(s, "{fleetversion:(?:"), "|")
+			return strings.TrimSuffix(parts[0], ")}")
+		}
+		return "1"
+	})
 
 	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
 	return meths[0], path, nil
