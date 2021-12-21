@@ -7,3 +7,4 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Documented any permissions changes
 - [ ] Added/updated tests
 - [ ] Manual QA for all new/changed functionality
+- [ ] (Backend only) Updated osquery perf to support this functionality
