@@ -3,6 +3,10 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
+import { useDispatch } from "react-redux";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
 // @ts-ignore
@@ -13,6 +17,8 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TabsWrapper from "components/TabsWrapper";
+
+import { isValidPemCertificate } from "../../../helpers";
 
 import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DownloadIcon from "../../../../../../../assets/images/icon-download-12x12@2x.png";
@@ -55,6 +61,8 @@ const PlatformWrapper = ({
   const { config } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
 
+  const dispatch = useDispatch();
+
   const { data: certificate, isFetching: isFetchingCertificate } = useQuery<
     string,
     Error
@@ -65,13 +73,20 @@ const PlatformWrapper = ({
   const onDownloadCertificate = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    if (certificate) {
+    if (certificate && isValidPemCertificate(certificate)) {
       const filename = "fleet.pem";
       const file = new global.window.File([certificate], filename, {
         type: "application/x-pem-file",
       });
 
       FileSaver.saveAs(file);
+    } else {
+      dispatch(
+        renderFlash(
+          "error",
+          "Your certificate could not be downloaded. Please check your Fleet configuration."
+        )
+      );
     }
     return false;
   };
