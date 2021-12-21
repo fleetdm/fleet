@@ -25,7 +25,7 @@ interface IManageAutomationsModalProps {
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
-  currentAutomatedPolicies: number[];
+  currentAutomatedPolicies?: number[];
   currentDestinationUrl: string;
   onFormChange: (formData: IAutomationFormData) => void;
 }
@@ -45,15 +45,16 @@ const validateAutomationURL = (url: string) => {
 with a boolean key isChecked based on current policies */
 const generateFormListItems = (
   allPolicies: IPolicy[],
-  currentAutomatedPolicies: number[]
+  currentAutomatedPolicies?: number[] | undefined
 ): IPolicyCheckboxListItem[] => {
   console.log("allPolicies", allPolicies);
   console.log("currentAutomatedPolicies", currentAutomatedPolicies);
 
   return allPolicies.map((policy) => {
-    const foundPolicy = currentAutomatedPolicies.find(
-      (currentPolicy) => currentPolicy === policy.id
-    );
+    const foundPolicy =
+      currentAutomatedPolicies?.find(
+        (currentPolicy) => currentPolicy === policy.id
+      ) || undefined;
     return {
       ...policy,
       isChecked: foundPolicy !== undefined,
@@ -160,7 +161,7 @@ const ManageAutomationsModal = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [policiesFormList, updateSelectedPolicies] = useSelectedPolicyState(
     availablePolicies,
-    currentAutomatedPolicies,
+    currentAutomatedPolicies || [],
     onSelectedPolicyChange
   );
 

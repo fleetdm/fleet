@@ -597,12 +597,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             showPreviewPayloadModal={showPreviewPayloadModal}
             onFormChange={onSelectedAutomationsChange}
             availablePolicies={globalPolicies}
-            currentAutomatedPolicies={
-              configMock.failing_policies_webhook.policy_ids
-            }
-            currentDestinationUrl={
-              configMock.failing_policies_webhook.destination_url
-            }
+            currentAutomatedPolicies={failingPoliciesWebhook.policy_ids}
+            currentDestinationUrl={failingPoliciesWebhook.destination_url}
           />
         )}
         {showAddPolicyModal && (
