@@ -1138,11 +1138,21 @@ func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mapp
 	// the following SQL statements assume a small number of emails reported
 	// per host.
 	const (
+		selStmt = `
+      SELECT
+        id,
+        email,
+        source
+      FROM
+        host_emails
+      WHERE
+        host_id = ?`
+
 		delStmt = `
       DELETE FROM
         host_emails
       WHERE
-        host_id = ?`
+        id IN (?)`
 
 		insStmt = `
       INSERT INTO
@@ -1152,17 +1162,47 @@ func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mapp
 		insPart = ` (?, ?, ?),`
 	)
 
+	// index the mappings by email and source, to quickly check which ones
+	// need to be deleted and inserted
+	toIns := make(map[string]*fleet.HostDeviceMapping)
+	for _, m := range mappings {
+		toIns[m.Email+"\n"+m.Source] = m
+	}
+
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, delStmt, hid); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete host emails")
+		var prevMappings []*fleet.HostDeviceMapping
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "select previous host emails")
 		}
 
-		if len(mappings) > 0 {
+		var delIDs []uint
+		for _, pm := range prevMappings {
+			key := pm.Email + "\n" + pm.Source
+			if _, ok := toIns[key]; ok {
+				// already exists, no need to insert
+				delete(toIns, key)
+			} else {
+				// does not exist anymore, must be delete
+				delIDs = append(delIDs, pm.ID)
+			}
+		}
+
+		if len(delIDs) > 0 {
+			stmt, args, err := sqlx.In(delStmt, delIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare delete statement")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host emails")
+			}
+		}
+
+		if len(toIns) > 0 {
 			var args []interface{}
-			for _, m := range mappings {
+			for _, m := range toIns {
 				args = append(args, hid, m.Email, m.Source)
 			}
-			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(mappings)), ",")
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(toIns)), ",")
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host emails")
 			}
