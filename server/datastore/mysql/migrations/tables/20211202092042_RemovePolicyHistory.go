@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -16,11 +17,19 @@ func Up_20211202092042(tx *sql.Tx) error {
 		return errors.Wrap(err, "drop view policy_membership")
 	}
 
-	if _, err := tx.Exec(`ALTER TABLE policy_membership_history
-		DROP FOREIGN KEY fk_policy_membership_policy_id,
-		DROP FOREIGN KEY fk_policy_membership_host_id`,
-	); err != nil {
-		return errors.Wrap(err, "dropping policy_membership_history indexes")
+	table := "policy_membership_history"
+	referencedTables := map[string]struct{}{
+		"policies": {},
+		"hosts":    {},
+	}
+	constraints, err := constraintsForTable(tx, table, referencedTables)
+	if err != nil {
+		return errors.Wrap(err, "getting references to policies and hosts table")
+	}
+	for _, ct := range constraints {
+		if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE policy_membership_history DROP FOREIGN KEY %s;`, ct)); err != nil {
+			return errors.Wrapf(err, "dropping policy_membership_history foreign keys: %s", ct)
+		}
 	}
 
 	policyMembershipTable := `
