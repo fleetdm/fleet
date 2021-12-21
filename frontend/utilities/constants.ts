@@ -68,12 +68,12 @@ export const DEFAULT_POLICIES = [
   {
     key: 6,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 0 LIMIT 1;",
-    name: "Are guest users not activated on macOS devices?",
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
+    name: "Are guest users disabled on macOS devices?",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
-      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
+      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
     platform: "darwin",
   },
   {
