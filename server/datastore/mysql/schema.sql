@@ -127,9 +127,9 @@ CREATE TABLE `host_additional` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_mdm` (
   `host_id` int(10) unsigned NOT NULL,
-  `enrolled` tinyint(1) DEFAULT '0',
-  `server_url` varchar(255) DEFAULT '',
-  `installed_from_dep` tinyint(1) DEFAULT '0',
+  `enrolled` tinyint(1) NOT NULL DEFAULT '0',
+  `server_url` varchar(255) NOT NULL DEFAULT '',
+  `installed_from_dep` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -137,7 +137,7 @@ CREATE TABLE `host_mdm` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_munki_info` (
   `host_id` int(10) unsigned NOT NULL,
-  `version` varchar(255) DEFAULT '',
+  `version` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;

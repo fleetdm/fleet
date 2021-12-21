@@ -451,11 +451,11 @@ func (a *agent) randomQueryStats() []map[string]string {
 
 func (a *agent) mdm() []map[string]string {
 	enrolled := "true"
-	if rand.Intn(1) == 1 {
+	if rand.Intn(2) == 1 {
 		enrolled = "false"
 	}
 	installedFromDep := "true"
-	if rand.Intn(1) == 1 {
+	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
 	return []map[string]string{
@@ -489,14 +489,14 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			continue
 		}
 		if name == hostDetailQueryPrefix+"mdm" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(1))
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.mdm()
 			}
 		}
 		if name == hostDetailQueryPrefix+"munki_info" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(1))
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.munkiInfo()

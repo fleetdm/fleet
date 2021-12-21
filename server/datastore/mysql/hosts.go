@@ -1090,12 +1090,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := d.writer.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			_, err = d.writer.ExecContext(ctx, insertQuery, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err)
-			}
-		}
+		return ctxerr.Wrap(ctx, err)
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
@@ -1126,9 +1121,8 @@ func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 }
 
 func (d *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
-	row := d.reader.QueryRowxContext(ctx, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
 	var version string
-	err := row.Scan(&version)
+	err := sqlx.GetContext(ctx, d.reader, &version, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
@@ -1139,14 +1133,18 @@ func (d *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 	return version, nil
 }
 
-func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
-	row := d.reader.QueryRowxContext(ctx, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
-	err = row.Scan(&enrolled, &serverURL, &installedFromDep)
+func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
+	dest := struct {
+		Enrolled         bool   `db:"enrolled"`
+		ServerURL        string `db:"server_url"`
+		InstalledFromDep bool   `db:"installed_from_dep"`
+	}{}
+	err := sqlx.GetContext(ctx, d.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
 		}
 		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
-	return enrolled, serverURL, installedFromDep, nil
+	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }

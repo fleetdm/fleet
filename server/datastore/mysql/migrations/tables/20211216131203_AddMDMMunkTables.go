@@ -14,9 +14,9 @@ func Up_20211216131203(tx *sql.Tx) error {
 	mdmTable := `
 		CREATE TABLE IF NOT EXISTS host_mdm (
 			host_id int(10) UNSIGNED NOT NULL,
-			enrolled bool DEFAULT FALSE,
-			server_url VARCHAR(255) DEFAULT '',
-			installed_from_dep bool DEFAULT FALSE,
+			enrolled bool DEFAULT FALSE NOT NULL,
+			server_url VARCHAR(255) DEFAULT '' NOT NULL,
+			installed_from_dep bool DEFAULT FALSE NOT NULL,
 			PRIMARY KEY (host_id)
 		);
 	`
@@ -26,7 +26,7 @@ func Up_20211216131203(tx *sql.Tx) error {
 	munkiInfoTable := `
 		CREATE TABLE IF NOT EXISTS host_munki_info (
 			host_id int(10) UNSIGNED NOT NULL,
-			version VARCHAR(255) DEFAULT '',
+			version VARCHAR(255) DEFAULT '' NOT NULL,
 			PRIMARY KEY (host_id)
 		);
 	`

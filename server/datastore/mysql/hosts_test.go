@@ -3150,7 +3150,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.Equal(t, "9.0", version)
 
 	_, _, _, err = ds.GetMDM(context.Background(), 432)
-	require.True(t, fleet.IsNotFound(err))
+	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
