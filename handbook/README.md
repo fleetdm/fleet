@@ -20,6 +20,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
+### Engineering
+
+[Release process](./engineering.md#release-process)
+
 ### Product
 
 [Product DRIs](./product.md#product-dris)
@@ -27,10 +31,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Fleet docs](./product.md#fleet-docs)
 
 [Manual QA](./product.md#manual-qa)
-
-[Release process](./product.md#release-process)
-
-[Support process](./product.md#support-process)
 
 [UI design](./product.md#ui-design)
 
@@ -45,6 +45,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 ### Customer experience
 
 [Customer succcess](./customer-experience.md#customer-success)
+
+[Support process](./customer-experience.md#support-process)
 
 ### About the handbook
 
