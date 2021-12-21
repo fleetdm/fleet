@@ -125,11 +125,19 @@ export const formatConfigDataForServer = (config: any): any => {
     "host_expiry_enabled",
     "host_expiry_window",
   ]);
-  const webhookSettingsAttrs = pick(config, [
+  const hostStatusWebhookSettingsAttrs = pick(config, [
     "enable_host_status_webhook",
     "destination_url",
     "host_percentage",
     "days_count",
+  ]);
+
+  // TODO: should this be formatted similar to agent_options? 12/20
+  const failingPolicyAutomationsSettingsAttrs = pick(config, [
+    "enable_failing_policies_webhook",
+    "destination_url", // TODO: fix same attribute as host status webhook settings attrs 12/20
+    "policy_ids",
+    "host_batch_size",
   ]);
   // because agent_options is already an object
   const agentOptionsSettingsAttrs = config.agent_options;
@@ -150,8 +158,16 @@ export const formatConfigDataForServer = (config: any): any => {
   const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
     agent_options: yaml.load(agentOptionsSettingsAttrs),
   };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
+  const hostStatusWebhookSettings = size(hostStatusWebhookSettingsAttrs) && {
+    webhook_settings: { host_status_webhook: hostStatusWebhookSettingsAttrs }, // nested to server
+  };
+
+  const failingPolicyAutomationsSettings = size(
+    failingPolicyAutomationsSettingsAttrs
+  ) && {
+    webhook_settings: {
+      failing_policy_automations: failingPolicyAutomationsSettingsAttrs,
+    }, // nested to server
   };
 
   if (hostExpirySettings) {
@@ -167,7 +183,8 @@ export const formatConfigDataForServer = (config: any): any => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...agentOptionsSettings,
-    ...webhookSettings,
+    ...hostStatusWebhookSettings,
+    ...failingPolicyAutomationsSettings,
   };
 };
 
@@ -179,7 +196,10 @@ export const frontendFormattedConfig = (config: any) => {
     smtp_settings: smtpSettings,
     sso_settings: ssoSettings,
     host_expiry_settings: hostExpirySettings,
-    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
+    webhook_settings: {
+      host_status_webhook: hostStatusWebhookSettings,
+      failing_policy_automations: failingPolicyAutomationsSettings,
+    }, // unnested to frontend
     update_interval: updateInterval,
     license,
   } = config;
@@ -194,7 +214,8 @@ export const frontendFormattedConfig = (config: any) => {
     ...smtpSettings,
     ...ssoSettings,
     ...hostExpirySettings,
-    ...webhookSettings,
+    ...hostStatusWebhookSettings,
+    ...failingPolicyAutomationsSettings,
     ...updateInterval,
     ...license,
     agent_options: config.agent_options,

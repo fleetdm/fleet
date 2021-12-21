@@ -1,6 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+import { get } from "lodash";
+
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
+import helpers from "fleet/helpers";
 // import { IConfig } from "interfaces/host";
 
 // TODO add other methods from "fleet/entities/config"
@@ -11,5 +14,18 @@ export default {
     const path = `${CONFIG}`;
 
     return sendRequest("GET", path);
+  },
+  update: (formData: any) => {
+    const { CONFIG } = endpoints;
+
+    const configData = helpers.formatConfigDataForServer(formData);
+
+    if (get(configData, "smtp_settings.port")) {
+      configData.smtp_settings.port = parseInt(
+        configData.smtp_settings.port,
+        10
+      );
+    }
+    return sendRequest("PATCH", CONFIG, configData);
   },
 };

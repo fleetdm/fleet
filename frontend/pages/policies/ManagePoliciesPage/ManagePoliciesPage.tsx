@@ -246,33 +246,37 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setAutomationFormData(formData);
   };
 
-  // TODO: UPDATE REQUEST AND FLASH MESSAGES 12/15, 12/20
+  // TODO: STARTED REQUEST, FIX, TEST 12/20
   const onCreateAutomationsSubmit = async ({
     destination_url,
     policy_ids,
   }: IAutomationFormData) => {
-    // uncomment when configAPI is built
-    // try {
-    //   const request = configAPI.update(desination_url, policy_ids);
-    //   await request.then(() => {
-    //     dispatch(
-    //       renderFlash(
-    //         "success",
-    //         "Successfully updated policy automations.""
-    //       )
-    //     );
-    //   });
-    // } catch {
-    //   dispatch(
-    //     renderFlash(
-    //       "error",
-    //       "Could not update policy automations. Please try again.""
-    //     )
-    //   );
-    // } finally {
-    //   toggleManageAutomationsModal();
-    //   getPolicies(selectedTeamId);
-    // }
+    let enable_failing_policies_webhook = false;
+    if (policy_ids && policy_ids.length > 0) {
+      enable_failing_policies_webhook = true;
+    }
+    try {
+      const request = configAPI.update({
+        destination_url,
+        policy_ids,
+        enable_failing_policies_webhook,
+      });
+      await request.then(() => {
+        dispatch(
+          renderFlash("success", "Successfully updated policy automations.")
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update policy automations. Please try again."
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      getPolicies(selectedTeamId);
+    }
   };
 
   const onAddPolicyClick = () => {
