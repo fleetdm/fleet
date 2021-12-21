@@ -558,24 +558,8 @@ var usersQuery = DetailQuery{
 }
 
 var chromeProfilesQuery = DetailQuery{
-	Query: `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
-
-	/*
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-			mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
-			for _, row := range rows {
-				mapping = append(mapping, &fleet.HostDeviceMapping{
-					Email:  row["email"],
-					Source: "google_chrome_profiles",
-				})
-			}
-			host.DeviceMapping = mapping
-
-			return nil
-		},
-	*/
-	// TODO(mna): integrate this once Tomas' MDM PR is merged
-	//DirectIngestFunc: directIngestChromeProfiles,
+	Query:            `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
+	DirectIngestFunc: directIngestChromeProfiles,
 }
 
 func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
