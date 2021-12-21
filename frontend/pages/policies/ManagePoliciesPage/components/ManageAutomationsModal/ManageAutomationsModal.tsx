@@ -109,6 +109,8 @@ const useSelectedPolicyState = (
     return generateFormListItems(allPolicies, currentAutomatedPolicies);
   });
 
+  console.log("MAM: useSelectedPolicyState policiesFormList", policiesFormList);
+
   const updateSelectedPolicies = (
     policyId: number,
     newValue: any,
@@ -129,6 +131,11 @@ const useSelectedPolicyState = (
     });
   };
 
+  console.log(
+    "MAM: useSelectedPolicyState after updateSelectedPolicies policiesFormList",
+    policiesFormList
+  );
+
   return [policiesFormList, updateSelectedPolicies] as const;
 };
 
@@ -141,6 +148,7 @@ const onSelectedPolicyChange = (policies: IPolicyFormData[]): void => {
   //     policies,
   //   },
   // });
+  console.log("MAM: onSelectedPolicyChange policies", policies);
 };
 
 const baseClass = "manage-automations-modal";
@@ -150,9 +158,9 @@ const ManageAutomationsModal = ({
   onCreateAutomationsSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
-  availablePolicies,
-  currentAutomatedPolicies,
-  currentDestinationUrl,
+  availablePolicies, // comes from policiesAPI
+  currentAutomatedPolicies, // comes from configAPI
+  currentDestinationUrl, // comes from configAPI
   onFormChange,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
@@ -164,6 +172,8 @@ const ManageAutomationsModal = ({
     currentAutomatedPolicies || [],
     onSelectedPolicyChange
   );
+
+  console.log("MAM: policiesFormList", policiesFormList);
 
   useDeepEffect(() => {
     if (destination_url) {
@@ -185,10 +195,25 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      //TODO: FIX THIS
-      // onCreateAutomationsSubmit({ destination_url, policiesFormList });
+      const policy_ids = policiesFormList.map((policy) => policy.id);
+      const enable_failing_policies_webhook = policiesFormList.length > 0; // Leave nearest component in case we decide to add enable/disable as a UI feature
 
-      onReturnToApp;
+      console.log(
+        "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
+        enable_failing_policies_webhook,
+        "\ndestination_url",
+        destination_url,
+        "\npolicy_ids",
+        policy_ids
+      );
+
+      onCreateAutomationsSubmit({
+        destination_url,
+        policy_ids,
+        enable_failing_policies_webhook,
+      });
+
+      onReturnToApp();
     }
   };
 

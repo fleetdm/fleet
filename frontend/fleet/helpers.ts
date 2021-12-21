@@ -133,11 +133,11 @@ export const formatConfigDataForServer = (config: any): any => {
   ]);
 
   // TODO: should this be formatted similar to agent_options? 12/20
-  const failingPolicyAutomationsSettingsAttrs = pick(config, [
+  const failingPoliciesWebhookSettingsAttrs = pick(config, [
     "enable_failing_policies_webhook",
     "destination_url", // TODO: fix same attribute as host status webhook settings attrs 12/20
     "policy_ids",
-    "host_batch_size",
+    "host_batch_size", // TODO: this is not changing in frontend UI, only in fleetctl, can this be removed 12/21
   ]);
   // because agent_options is already an object
   const agentOptionsSettingsAttrs = config.agent_options;
@@ -162,11 +162,11 @@ export const formatConfigDataForServer = (config: any): any => {
     webhook_settings: { host_status_webhook: hostStatusWebhookSettingsAttrs }, // nested to server
   };
 
-  const failingPolicyAutomationsSettings = size(
-    failingPolicyAutomationsSettingsAttrs
+  const failingPoliciesWebhookSettings = size(
+    failingPoliciesWebhookSettingsAttrs
   ) && {
     webhook_settings: {
-      failing_policy_automations: failingPolicyAutomationsSettingsAttrs,
+      failing_policies_webhook: failingPoliciesWebhookSettingsAttrs,
     }, // nested to server
   };
 
@@ -184,7 +184,7 @@ export const formatConfigDataForServer = (config: any): any => {
     ...hostExpirySettings,
     ...agentOptionsSettings,
     ...hostStatusWebhookSettings,
-    ...failingPolicyAutomationsSettings,
+    ...failingPoliciesWebhookSettings,
   };
 };
 
@@ -198,7 +198,7 @@ export const frontendFormattedConfig = (config: any) => {
     host_expiry_settings: hostExpirySettings,
     webhook_settings: {
       host_status_webhook: hostStatusWebhookSettings,
-      failing_policy_automations: failingPolicyAutomationsSettings,
+      failing_policies_webhook: failingPoliciesWebhookSettings,
     }, // unnested to frontend
     update_interval: updateInterval,
     license,
@@ -215,7 +215,7 @@ export const frontendFormattedConfig = (config: any) => {
     ...ssoSettings,
     ...hostExpirySettings,
     ...hostStatusWebhookSettings,
-    ...failingPolicyAutomationsSettings,
+    ...failingPoliciesWebhookSettings,
     ...updateInterval,
     ...license,
     agent_options: config.agent_options,

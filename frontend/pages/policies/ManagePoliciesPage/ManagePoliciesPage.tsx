@@ -169,7 +169,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     return result;
   }, []);
 
-  console.log("failingPoliciesWebhook", failingPoliciesWebhook);
+  // Q: patterns using useCallback vs. useQuery
+  console.log("\n\n\nMPP failingPoliciesWebhook", failingPoliciesWebhook);
   const getFailingPoliciesWebhook = useCallback(async () => {
     setIsLoadingFailingPoliciesWebhook(true);
     setIsFailingPoliciesWebhookError(false);
@@ -242,19 +243,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     toggleManageAutomationsModal();
   };
 
-  const onSelectedAutomationsChange = (formData: IAutomationFormData): void => {
-    setAutomationFormData(formData);
-  };
-
-  // TODO: STARTED REQUEST, FIX, TEST 12/20
+  // TODO: TEST 12/21
   const onCreateAutomationsSubmit = async ({
     destination_url,
     policy_ids,
+    enable_failing_policies_webhook,
   }: IAutomationFormData) => {
-    let enable_failing_policies_webhook = false;
-    if (policy_ids && policy_ids.length > 0) {
-      enable_failing_policies_webhook = true;
-    }
     try {
       const request = configAPI.update({
         destination_url,
@@ -275,7 +269,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       );
     } finally {
       toggleManageAutomationsModal();
-      getPolicies(selectedTeamId);
+      getFailingPoliciesWebhook();
     }
   };
 
@@ -595,7 +589,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             onCreateAutomationsSubmit={onCreateAutomationsSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            onFormChange={onSelectedAutomationsChange}
             availablePolicies={globalPolicies}
             currentAutomatedPolicies={failingPoliciesWebhook.policy_ids}
             currentDestinationUrl={failingPoliciesWebhook.destination_url}
