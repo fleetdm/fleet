@@ -27,7 +27,6 @@ interface IManageAutomationsModalProps {
   availablePolicies: IPolicy[];
   currentAutomatedPolicies?: number[];
   currentDestinationUrl: string;
-  onFormChange: (formData: IAutomationFormData) => void;
 }
 
 const validateAutomationURL = (url: string) => {
@@ -149,6 +148,8 @@ const onSelectedPolicyChange = (policies: IPolicyFormData[]): void => {
   //   },
   // });
   console.log("MAM: onSelectedPolicyChange policies", policies);
+  // these are the correct policies
+  // updateSelectedPolicies(policies);
 };
 
 const baseClass = "manage-automations-modal";
@@ -161,7 +162,6 @@ const ManageAutomationsModal = ({
   availablePolicies, // comes from policiesAPI
   currentAutomatedPolicies, // comes from configAPI
   currentDestinationUrl, // comes from configAPI
-  onFormChange,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl
