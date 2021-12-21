@@ -79,7 +79,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 7,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value=1 LIMIT 1;",
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Is secure keyboard entry enabled on macOS devices?",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
