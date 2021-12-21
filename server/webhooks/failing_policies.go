@@ -42,7 +42,11 @@ func TriggerGlobalFailingPoliciesWebhook(
 		level.Info(logger).Log("msg", "empty global destination_url")
 		return nil
 	}
-	policies, err := filteredPolicies(ctx, ds, appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, failingPoliciesSet, logger)
+	policies, err := filterPolicies(ctx, ds,
+		appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+		failingPoliciesSet,
+		logger,
+	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "filtering policies")
 	}
@@ -135,7 +139,11 @@ func makeFailingHost(host service.PolicySetHost, serverURL url.URL) FailingHost 
 	}
 }
 
-func filteredPolicies(
+// filterPolicies fetches the policies from the policy set and filters out those
+// that are not configured for webhook anymore or are deleted.
+//
+// The filtered out policies are removed from the set.
+func filterPolicies(
 	ctx context.Context,
 	ds fleet.Datastore,
 	configuredPolicyIDs []uint,
