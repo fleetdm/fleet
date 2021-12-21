@@ -363,6 +363,10 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 	},
+	"google_chrome_profiles": {
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		DirectIngestFunc: directIngestChromeProfiles,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -555,6 +559,23 @@ var usersQuery = DetailQuery{
 
 		return nil
 	},
+}
+
+func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		// assume the extension is not there
+		return nil
+	}
+
+	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
+	for _, row := range rows {
+		mapping = append(mapping, &fleet.HostDeviceMapping{
+			HostID: host.ID,
+			Email:  row["email"],
+			Source: "google_chrome_profiles",
+		})
+	}
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
 func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
