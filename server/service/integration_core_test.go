@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,15 @@ func (s *integrationTestSuite) TearDownTest() {
 		ids = append(ids, host.ID)
 	}
 	s.ds.DeleteHosts(context.Background(), ids)
+
+	lbls, err := s.ds.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(s.T(), err)
+	for _, lbl := range lbls {
+		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			err := s.ds.DeleteLabel(context.Background(), lbl.Name)
+			require.NoError(s.T(), err)
+		}
+	}
 }
 
 func TestIntegrations(t *testing.T) {
@@ -1586,4 +1596,162 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+}
+
+func (s *integrationTestSuite) TestLabels() {
+	t := s.T()
+
+	// list labels, has the built-in ones
+	var listResp listLabelsResponse
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp)
+	assert.True(t, len(listResp.Labels) > 0)
+	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+	builtInsCount := len(listResp.Labels)
+
+	// create a label without name, an error
+	var createResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
+
+	// create a valid label
+	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.Label.ID)
+	assert.Equal(t, t.Name(), createResp.Label.Name)
+	lbl1 := createResp.Label.Label
+
+	// get the label
+	var getResp getLabelResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, lbl1.ID, getResp.Label.ID)
+
+	// get a non-existing label
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// modify that label
+	var modResp modifyLabelResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
+	assert.Equal(t, lbl1.ID, modResp.Label.ID)
+	assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
+
+	// modify a non-existing label
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/labels/%d", lbl1.ID+1), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+
+	// list labels
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
+	assert.Len(t, listResp.Labels, builtInsCount+1)
+
+	// next page is empty
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
+	assert.Len(t, listResp.Labels, 0)
+
+	// create another label
+	s.DoJSON("POST", "/api/v1/fleet/labels", &fleet.LabelPayload{Name: ptr.String(strings.ReplaceAll(t.Name(), "/", "_")), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.Label.ID)
+	lbl2 := createResp.Label.Label
+
+	// create hosts and add them to that label
+	hosts := s.createHosts(t)
+	for _, h := range hosts {
+		err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// list hosts in label
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, len(hosts))
+
+	// lists hosts in label without hosts
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// lists hosts in invalid label
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
+	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// delete a label by id
+	var delIDResp deleteLabelByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
+
+	// delete a non-existing label by id
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
+
+	// delete a label by name
+	var delResp deleteLabelResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusOK, &delResp)
+
+	// delete a non-existing label by name
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
+
+	// list labels, only the built-ins remain
+	s.DoJSON("GET", "/api/v1/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
+	assert.Len(t, listResp.Labels, builtInsCount)
+	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+}
+
+func (s *integrationTestSuite) TestLabelSpecs() {
+	t := s.T()
+
+	// list label specs, only those of the built-ins
+	var listResp getLabelSpecsResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	assert.True(t, len(listResp.Specs) > 0)
+	for _, spec := range listResp.Specs {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
+	}
+	builtInsCount := len(listResp.Specs)
+
+	name := strings.ReplaceAll(t.Name(), "/", "_")
+	// apply an invalid label spec - dynamic membership with host specified
+	var applyResp applyLabelSpecsResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Hosts:               []string{"abc"},
+			},
+		},
+	}, http.StatusInternalServerError, &applyResp)
+
+	// apply an invalid label spec - manual membership without a host specified
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+			},
+		},
+	}, http.StatusInternalServerError, &applyResp)
+
+	// apply a valid label spec
+	s.DoJSON("POST", "/api/v1/fleet/spec/labels", applyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{
+			{
+				Name:                name,
+				Query:               "select 1",
+				Platform:            "linux",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// list label specs, has the newly created one
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	assert.Len(t, listResp.Specs, builtInsCount+1)
+
+	// get a specific label spec
+	var getResp getLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
+	assert.Equal(t, name, getResp.Spec.Name)
+
+	// get a non-existing label spec
+	s.DoJSON("GET", "/api/v1/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
 }
