@@ -74,10 +74,12 @@ func TestUserAuth(t *testing.T) {
 		shouldFailGlobalWrite bool
 		shouldFailTeamWrite   bool
 		shouldFailRead        bool
+		shouldFailDeleteReset bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
 			false,
 			false,
 			false,
@@ -88,6 +90,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"global observer",
@@ -95,6 +98,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"team admin, belongs to team",
@@ -102,6 +106,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			false,
 			false,
+			true,
 		},
 		{
 			"team maintainer, belongs to team",
@@ -109,6 +114,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"team observer, belongs to team",
@@ -116,6 +122,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -123,6 +130,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"team admin, DOES NOT belong to team",
@@ -130,6 +138,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 		{
 			"team observer, DOES NOT belong to team",
@@ -137,6 +146,7 @@ func TestUserAuth(t *testing.T) {
 			true,
 			true,
 			false,
+			true,
 		},
 	}
 	for _, tt := range testCases {
@@ -169,17 +179,11 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.ModifyUser(ctx, 888, fleet.UserPayload{GlobalRole: ptr.String(fleet.RoleMaintainer)})
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			// TODO(mna): can only delete oneself?
-			//err = svc.DeleteUser(ctx, 999)
-			//checkAuthErr(t, tt.shouldFailTeamWrite, err)
-			//err = svc.DeleteUser(ctx, 888)
-			//checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.DeleteUser(ctx, 999)
+			checkAuthErr(t, tt.shouldFailDeleteReset, err)
 
-			// TODO(mna): can only reset oneself? team admin fails.
-			//_, err = svc.RequirePasswordReset(ctx, 999, false)
-			//checkAuthErr(t, tt.shouldFailTeamWrite, err)
-			_, err = svc.RequirePasswordReset(ctx, 888, false)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			_, err = svc.RequirePasswordReset(ctx, 999, false)
+			checkAuthErr(t, tt.shouldFailDeleteReset, err)
 
 			_, err = svc.ListUsers(ctx, fleet.UserListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
@@ -189,12 +193,6 @@ func TestUserAuth(t *testing.T) {
 
 			_, err = svc.User(ctx, 888)
 			checkAuthErr(t, tt.shouldFailRead, err)
-
-			// TODO(mna): this is actually Session-related auth, move there once session endpoints get migrated
-			//_, err = svc.GetInfoAboutSessionsForUser(ctx, 999)
-			//checkAuthErr(t, tt.shouldFailTeamWrite, err)
-			//_, err = svc.GetInfoAboutSessionsForUser(ctx, 888)
-			//checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
 }
