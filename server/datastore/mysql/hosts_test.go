@@ -3248,6 +3248,14 @@ func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
 		{Email: "a@b.c", Source: "src1"},
 		{Email: "d@b.c", Source: "src2"},
 	})
+
+	// delete only
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, nil)
+	require.NoError(t, err)
+
+	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, nil)
 }
 
 func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping) {
