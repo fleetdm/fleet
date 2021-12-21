@@ -363,6 +363,10 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 	},
+	"google_chrome_profiles": {
+		Query:            `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
+		DirectIngestFunc: directIngestChromeProfiles,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -557,11 +561,6 @@ var usersQuery = DetailQuery{
 	},
 }
 
-var chromeProfilesQuery = DetailQuery{
-	Query:            `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
-	DirectIngestFunc: directIngestChromeProfiles,
-}
-
 func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
 		// assume the extension is not there
@@ -686,8 +685,6 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
-		// TODO(mna): ok to enable only if EnableHostUsers is true?
-		generatedMap["google_chrome_profiles"] = chromeProfilesQuery
 	}
 
 	return generatedMap

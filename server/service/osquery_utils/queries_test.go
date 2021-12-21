@@ -275,7 +275,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil)
-	require.Len(t, queriesNoConfig, 11)
+	require.Len(t, queriesNoConfig, 12)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -288,15 +288,16 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_space_windows",
 		"mdm",
 		"munki_info",
+		"google_chrome_profiles",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
 	require.Len(t, queriesWithUsers, 13)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "google_chrome_profiles", "users"))
+	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}})
 	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "google_chrome_profiles", "software_macos", "software_linux", "software_windows"))
+		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
 }
