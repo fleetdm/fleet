@@ -1182,7 +1182,7 @@ func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mapp
 				// already exists, no need to insert
 				delete(toIns, key)
 			} else {
-				// does not exist anymore, must be delete
+				// does not exist anymore, must be deleted
 				delIDs = append(delIDs, pm.ID)
 			}
 		}
