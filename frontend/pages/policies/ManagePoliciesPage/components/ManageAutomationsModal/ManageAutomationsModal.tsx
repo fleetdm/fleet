@@ -25,16 +25,15 @@ interface IManageAutomationsModalProps {
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
-  currentAutomatedPolicies: number[];
+  currentAutomatedPolicies?: number[];
   currentDestinationUrl: string;
-  onFormChange: (formData: IAutomationFormData) => void;
 }
 
 const validateAutomationURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!url) {
-    errors.url = "URL name must be present";
+    errors.url = "Please add a valid destination URL";
   }
 
   const valid = !size(errors);
@@ -45,15 +44,16 @@ const validateAutomationURL = (url: string) => {
 with a boolean key isChecked based on current policies */
 const generateFormListItems = (
   allPolicies: IPolicy[],
-  currentAutomatedPolicies: number[]
+  currentAutomatedPolicies?: number[] | undefined
 ): IPolicyCheckboxListItem[] => {
   console.log("allPolicies", allPolicies);
   console.log("currentAutomatedPolicies", currentAutomatedPolicies);
 
   return allPolicies.map((policy) => {
-    const foundPolicy = currentAutomatedPolicies.find(
-      (currentPolicy) => currentPolicy === policy.id
-    );
+    const foundPolicy =
+      currentAutomatedPolicies?.find(
+        (currentPolicy) => currentPolicy === policy.id
+      ) || undefined;
     return {
       ...policy,
       isChecked: foundPolicy !== undefined,
@@ -108,6 +108,8 @@ const useSelectedPolicyState = (
     return generateFormListItems(allPolicies, currentAutomatedPolicies);
   });
 
+  console.log("MAM: useSelectedPolicyState policiesFormList", policiesFormList);
+
   const updateSelectedPolicies = (
     policyId: number,
     newValue: any,
@@ -128,6 +130,11 @@ const useSelectedPolicyState = (
     });
   };
 
+  console.log(
+    "MAM: useSelectedPolicyState after updateSelectedPolicies policiesFormList",
+    policiesFormList
+  );
+
   return [policiesFormList, updateSelectedPolicies] as const;
 };
 
@@ -140,6 +147,9 @@ const onSelectedPolicyChange = (policies: IPolicyFormData[]): void => {
   //     policies,
   //   },
   // });
+  console.log("MAM: onSelectedPolicyChange policies", policies);
+  // these are the correct policies
+  // updateSelectedPolicies(policies);
 };
 
 const baseClass = "manage-automations-modal";
@@ -149,10 +159,9 @@ const ManageAutomationsModal = ({
   onCreateAutomationsSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
-  availablePolicies,
-  currentAutomatedPolicies,
-  currentDestinationUrl,
-  onFormChange,
+  availablePolicies, // comes from policiesAPI
+  currentAutomatedPolicies, // comes from configAPI
+  currentDestinationUrl, // comes from configAPI
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl
@@ -160,9 +169,11 @@ const ManageAutomationsModal = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [policiesFormList, updateSelectedPolicies] = useSelectedPolicyState(
     availablePolicies,
-    currentAutomatedPolicies,
+    currentAutomatedPolicies || [],
     onSelectedPolicyChange
   );
+
+  console.log("MAM: policiesFormList", policiesFormList);
 
   useDeepEffect(() => {
     if (destination_url) {
@@ -184,10 +195,25 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      //TODO: FIX THIS
-      // onCreateAutomationsSubmit({ destination_url, policiesFormList });
+      const policy_ids = policiesFormList.map((policy) => policy.id);
+      const enable_failing_policies_webhook = policiesFormList.length > 0; // Leave nearest component in case we decide to add enable/disable as a UI feature
 
-      onReturnToApp;
+      console.log(
+        "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
+        enable_failing_policies_webhook,
+        "\ndestination_url",
+        destination_url,
+        "\npolicy_ids",
+        policy_ids
+      );
+
+      onCreateAutomationsSubmit({
+        destination_url,
+        policy_ids,
+        enable_failing_policies_webhook,
+      });
+
+      onReturnToApp();
     }
   };
 

@@ -18,26 +18,32 @@ interface IPreviewPayloadModalProps {
 const PreviewPayloadModal = ({
   onCancel,
 }: IPreviewPayloadModalProps): JSX.Element => {
-  // TODO: Restyle this "json" box according to figma
-  const post = "POST https://server.com/example";
-
-  // TODO: Update with appropriate JSON once decided by product/backend 12/15
   const json = {
-    action: "snapshot",
-    snapshot: [
+    timestamp: "0000-00-00T00:00:00Z",
+    policy: {
+      id: 1,
+      name: "Is Gatekeeper enabled?",
+      query: "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+      description: "Checks if gatekeeper is enabled on macOS devices.",
+      author_id: 1,
+      author_name: "John",
+      author_email: "john@example.com",
+      resolution: "Turn on Gatekeeper feature in System Preferences.",
+      passing_host_count: 2000,
+      failing_host_count: 300,
+    },
+    hosts: [
       {
-        remote_address: "0.0.0.0",
-        remote_port: "0",
-        cmdline: "/usr/sbin/syslogd",
+        id: 1,
+        hostname: "macbook-1",
+        url: "https://fleet.example.com/hosts/1",
+      },
+      {
+        id: 2,
+        hostname: "macbbook-2",
+        url: "https://fleet.example.com/hosts/2",
       },
     ],
-    name: "xxxxxxx",
-    hostIdentifier: "xxxxxxx",
-    calendarTime: "xxx xxx  x xx:xx:xx xxxx UTC",
-    unixTime: "xxxxxxxxx",
-    epoch: "xxxxxxxxx",
-    counter: "x",
-    numerics: "x",
   };
 
   return (
@@ -55,7 +61,7 @@ const PreviewPayloadModal = ({
           </a>
         </p>
         <div className={`${baseClass}__payload-request-preview`}>
-          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(post) }} />
+          <pre>POST https://server.com/example</pre>
         </div>
         <div className={`${baseClass}__payload-webhook-preview`}>
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
