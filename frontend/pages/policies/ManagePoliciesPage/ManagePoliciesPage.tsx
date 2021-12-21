@@ -17,6 +17,7 @@ import { IUser } from "interfaces/user";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
+import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamsAPI from "services/entities/teams";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -41,12 +42,10 @@ const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
 
 const configMock = {
-  webhook_settings: {
-    failing_policies_webhook: {
-      destination_url: "https://foo.bar",
-      enable_failing_policies_webhook: true,
-      policy_ids: [6, 14],
-    },
+  failing_policies_webhook: {
+    destination_url: "https://foo.bar",
+    enable_failing_policies_webhook: true,
+    policy_ids: [6, 14],
   },
 };
 
@@ -140,6 +139,15 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [updateInterval, setUpdateInterval] = useState<string>(
     "osquery policy update interval"
   );
+  const [
+    isLoadingFailingPoliciesWebhook,
+    setIsLoadingFailingPoliciesWebhook,
+  ] = useState(true);
+  const [
+    isFailingPoliciesWebhookError,
+    setIsFailingPoliciesWebhookError,
+  ] = useState(false);
+  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<any>();
   // ===== local state
 
   const getGlobalPolicies = useCallback(async () => {
@@ -157,6 +165,25 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       setIsGlobalPoliciesError(true);
     } finally {
       setIsLoadingGlobalPolicies(false);
+    }
+    return result;
+  }, []);
+
+  console.log("failingPoliciesWebhook", failingPoliciesWebhook);
+  const getFailingPoliciesWebhook = useCallback(async () => {
+    setIsLoadingFailingPoliciesWebhook(true);
+    setIsFailingPoliciesWebhookError(false);
+    let result;
+    try {
+      result = await configAPI
+        .loadAll()
+        .then((response) => response.webhook_settings.failing_policies_webhook);
+      setFailingPoliciesWebhook(result);
+    } catch (error) {
+      console.log(error);
+      setIsFailingPoliciesWebhookError(true);
+    } finally {
+      setIsLoadingFailingPoliciesWebhook(false);
     }
     return result;
   }, []);
@@ -231,7 +258,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     //     dispatch(
     //       renderFlash(
     //         "success",
-    //         `Successfully updated policies webhook settings.`
+    //         "Successfully updated policy automations.""
     //       )
     //     );
     //   });
@@ -239,7 +266,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     //   dispatch(
     //     renderFlash(
     //       "error",
-    //       `Unable to update policies webhook settings. Please try again.`
+    //       "Could not update policy automations. Please try again.""
     //     )
     //   );
     // } finally {
@@ -360,9 +387,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         getTeamPolicies(selectedTeamId);
       }
     }
+    getFailingPoliciesWebhook();
   }, [
     getGlobalPolicies,
     getTeamPolicies,
+    getFailingPoliciesWebhook,
     isAnyTeamMaintainerOrTeamAdmin,
     isOnGlobalTeam,
     selectedTeamId,
@@ -565,11 +594,10 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             onFormChange={onSelectedAutomationsChange}
             availablePolicies={globalPolicies}
             currentAutomatedPolicies={
-              configMock.webhook_settings.failing_policies_webhook.policy_ids
+              configMock.failing_policies_webhook.policy_ids
             }
             currentDestinationUrl={
-              configMock.webhook_settings.failing_policies_webhook
-                .destination_url
+              configMock.failing_policies_webhook.destination_url
             }
           />
         )}
