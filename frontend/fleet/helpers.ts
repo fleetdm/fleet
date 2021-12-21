@@ -90,6 +90,7 @@ const filterTarget = (targetType: string) => {
 };
 
 export const formatConfigDataForServer = (config: any): any => {
+  console.log("config: ", config);
   const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
   const serverSettingsAttrs = pick(config, [
     "server_url",
@@ -132,13 +133,6 @@ export const formatConfigDataForServer = (config: any): any => {
     "days_count",
   ]);
 
-  // TODO: should this be formatted similar to agent_options? 12/20
-  const failingPoliciesWebhookSettingsAttrs = pick(config, [
-    "enable_failing_policies_webhook",
-    "destination_url", // TODO: fix same attribute as host status webhook settings attrs 12/20
-    "policy_ids",
-    "host_batch_size", // TODO: this is not changing in frontend UI, only in fleetctl, can this be removed 12/21
-  ]);
   // because agent_options is already an object
   const agentOptionsSettingsAttrs = config.agent_options;
 
@@ -162,14 +156,6 @@ export const formatConfigDataForServer = (config: any): any => {
     webhook_settings: { host_status_webhook: hostStatusWebhookSettingsAttrs }, // nested to server
   };
 
-  const failingPoliciesWebhookSettings = size(
-    failingPoliciesWebhookSettingsAttrs
-  ) && {
-    webhook_settings: {
-      failing_policies_webhook: failingPoliciesWebhookSettingsAttrs,
-    }, // nested to server
-  };
-
   if (hostExpirySettings) {
     hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
       hostExpirySettings.host_expiry_settings.host_expiry_window
@@ -184,7 +170,6 @@ export const formatConfigDataForServer = (config: any): any => {
     ...hostExpirySettings,
     ...agentOptionsSettings,
     ...hostStatusWebhookSettings,
-    ...failingPoliciesWebhookSettings,
   };
 };
 

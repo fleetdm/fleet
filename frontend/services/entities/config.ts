@@ -15,10 +15,15 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (formData: any) => {
+  update: (formData: any, enableFormat = false) => {
     const { CONFIG } = endpoints;
+    let configData;
 
-    const configData = helpers.formatConfigDataForServer(formData);
+    if (enableFormat) {
+      configData = helpers.formatConfigDataForServer(formData);
+    } else {
+      configData = formData;
+    }
 
     if (get(configData, "smtp_settings.port")) {
       configData.smtp_settings.port = parseInt(
