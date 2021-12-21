@@ -570,6 +570,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
 	for _, row := range rows {
 		mapping = append(mapping, &fleet.HostDeviceMapping{
+			HostID: host.ID,
 			Email:  row["email"],
 			Source: "google_chrome_profiles",
 		})
