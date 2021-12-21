@@ -1,13 +1,16 @@
 import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
-import { AppContext } from "context/app"; // @ts-ignore
-import Fleet from "fleet"; // @ts-ignore
+import configAPI from "services/entities/config";
+import { AppContext } from "context/app";
+// @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -51,21 +54,13 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProp): JSX.Element => {
   const { config } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
-  const [certificate, setCertificate] = useState<string | undefined>(undefined);
-  const [fetchCertificateError, setFetchCertificateError] = useState<
-    string | undefined
-  >(undefined);
 
-  Fleet.config
-    .loadCertificate()
-    .then((loadedCertificate: any) => {
-      setCertificate(loadedCertificate);
-    })
-    .catch(() => {
-      setFetchCertificateError(
-        "Failed to load certificate. Is Fleet app URL configured properly?"
-      );
-    });
+  const { data: certificate, isFetching: isFetchingCertificate } = useQuery<
+    string,
+    Error
+  >(["certificate"], () => configAPI.loadCertificate(), {
+    refetchOnWindowFocus: false,
+  });
 
   const onDownloadCertificate = (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -144,15 +139,16 @@ const PlatformWrapper = ({
       <>
         {(platform === "rpm" || platform === "deb") && (
           <>
-            <span className={`${baseClass}__cta`}>
+            <p className={`${baseClass}__cta`}>
               Download your Fleet certificate:
-            </span>
-            <p>
-              {fetchCertificateError ? (
-                <span className={`${baseClass}__error`}>
-                  {fetchCertificateError}
-                </span>
-              ) : (
+            </p>
+            {isFetchingCertificate && (
+              <p className={`${baseClass}__certificate-loading`}>
+                Loading your certificate
+              </p>
+            )}
+            {!isFetchingCertificate &&
+              (certificate ? (
                 <a
                   href="#downloadCertificate"
                   className={`${baseClass}__fleet-certificate-download`}
@@ -161,8 +157,16 @@ const PlatformWrapper = ({
                   Download
                   <img src={DownloadIcon} alt="download" />
                 </a>
-              )}
-            </p>
+              ) : (
+                <p className={`${baseClass}__certificate-error`}>
+                  <em>Fleet failed to load your certificate.</em>
+                  <span>
+                    If you&apos;re able to access Fleet at a private or secure
+                    (HTTPS) IP address, please log into Fleet at this address to
+                    load your certificate.
+                  </span>
+                </p>
+              ))}
           </>
         )}
         <InputField
