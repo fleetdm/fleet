@@ -190,6 +190,11 @@ const SelectTargets = ({
     }
   );
 
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
   const handleSelectedLabels = (selectedLabel: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
@@ -330,7 +335,7 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel

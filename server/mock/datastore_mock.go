@@ -177,6 +177,14 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
+type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
+
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+
+type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
+
+type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -574,6 +582,18 @@ type DataStore struct {
 
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
+
+	SetOrUpdateMunkiVersionFunc        SetOrUpdateMunkiVersionFunc
+	SetOrUpdateMunkiVersionFuncInvoked bool
+
+	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
+	SetOrUpdateMDMDataFuncInvoked bool
+
+	GetMunkiVersionFunc        GetMunkiVersionFunc
+	GetMunkiVersionFuncInvoked bool
+
+	GetMDMFunc        GetMDMFunc
+	GetMDMFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -1211,6 +1231,26 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
 	return s.ListPoliciesForHostFunc(ctx, host)
+}
+
+func (s *DataStore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	s.SetOrUpdateMunkiVersionFuncInvoked = true
+	return s.SetOrUpdateMunkiVersionFunc(ctx, hostID, version)
+}
+
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	s.SetOrUpdateMDMDataFuncInvoked = true
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep)
+}
+
+func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	s.GetMunkiVersionFuncInvoked = true
+	return s.GetMunkiVersionFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
+	s.GetMDMFuncInvoked = true
+	return s.GetMDMFunc(ctx, hostID)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {

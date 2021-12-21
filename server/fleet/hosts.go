@@ -246,3 +246,17 @@ func PlatformFromHost(hostPlatform string) string {
 		return ""
 	}
 }
+
+type HostMunkiInfo struct {
+	Version string `json:"version"`
+}
+
+type HostMDM struct {
+	EnrollmentStatus string `json:"enrollment_status"`
+	ServerURL        string `json:"server_url"`
+}
+
+type MacadminsData struct {
+	Munki HostMunkiInfo `json:"munki"`
+	MDM   HostMDM       `json:"mobile_device_management"`
+}
