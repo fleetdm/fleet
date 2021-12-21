@@ -365,8 +365,8 @@ type Datastore interface {
 	//	- a list of "new" passing policies; "new" here means those that failed on a previous
 	//	run and are passing now.
 	//
-	// NOTE(lucas): If a policy has been deleted (also deleted on policy_membership via cascade)
-	// and osquery agents bring in new failing results from them then those will be returned here.
+	// "Failure" here means the policy query executed successfully but didn't return any rows,
+	// so policies that did not execute (incomingResults with nil bool) are ignored.
 	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error

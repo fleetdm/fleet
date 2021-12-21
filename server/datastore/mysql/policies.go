@@ -102,7 +102,8 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 //	- a list of "new" passing policies; "new" here means those that failed on a previous
 //	run and are passing now.
 //
-// FlippingPoliciesForHost doesn't discriminate global from team policies.
+// "Failure" here means the policy query executed successfully but didn't return any rows,
+// so policies that did not execute (incomingResults with nil bool) are ignored.
 //
 // NOTES(lucas):
 //	- If a policy has been deleted (also deleted on `policy_membership` via cascade)
@@ -116,24 +117,31 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	hostID uint,
 	incomingResults map[uint]*bool,
 ) (newFailing []uint, newPassing []uint, err error) {
-	if len(incomingResults) == 0 {
-		return nil, nil, nil
-	}
 	orderedIDs := make([]uint, 0, len(incomingResults))
-	for policyID := range incomingResults {
+	filteredIncomingResults := make(map[uint]bool)
+	for policyID, passes := range incomingResults {
+		if passes == nil {
+			// Ignore policies that did not execute.
+			continue
+		}
 		orderedIDs = append(orderedIDs, policyID)
+		filteredIncomingResults[policyID] = *passes
+	}
+	if len(orderedIDs) == 0 {
+		return nil, nil, nil
 	}
 	// Sort the results to have generated SQL queries ordered to minimize deadlocks (see #1146).
 	sort.Slice(orderedIDs, func(i, j int) bool {
 		return orderedIDs[i] < orderedIDs[j]
 	})
+	// By using `passes IS NOT NULL` we consider those policies never executed.
 	selectQuery := fmt.Sprintf(
 		`SELECT policy_id, passes FROM policy_membership
-		WHERE host_id = ? AND policy_id IN (?)`,
+		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`,
 	)
 	var fetchedPolicyResults []struct {
-		ID     uint  `db:"policy_id"`
-		Passes *bool `db:"passes"`
+		ID     uint `db:"policy_id"`
+		Passes bool `db:"passes"`
 	}
 	selectQuery, args, err := sqlx.In(selectQuery, hostID, orderedIDs)
 	if err != nil {
@@ -144,10 +152,9 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	}
 	prevPolicyResults := make(map[uint]bool)
 	for _, result := range fetchedPolicyResults {
-		prevPolicyResults[result.ID] = policyPasses(result.Passes)
+		prevPolicyResults[result.ID] = result.Passes
 	}
-	for policyID, passes := range incomingResults {
-		incomingPasses := policyPasses(passes)
+	for policyID, incomingPasses := range filteredIncomingResults {
 		prevPasses, ok := prevPolicyResults[policyID]
 		if !ok { // first run
 			if !incomingPasses {
@@ -162,13 +169,6 @@ func (ds *Datastore) FlippingPoliciesForHost(
 		}
 	}
 	return newFailing, newPassing, nil
-}
-
-// policyPasses returns true if the policy result is considered as "passed".
-// A value of nil means the policy query failed to execute (e.g. SQL parsing error),
-// and we consider such case as "not passed".
-func policyPasses(passes *bool) bool {
-	return passes != nil && *passes
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {

@@ -1227,30 +1227,6 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 }
 
 func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
-	// host doesn't exist
-	// create policy 1, 2 and 3 (3 never ran policy).
-	// create policy 4 that belongs to a team.
-	// incoming policy 5 doesn't exist
-	// incoming with no incoming results.
-
-	// incoming policy 1 with first new failing result // --- => no
-	// incoming policy 2 with first new passing result // --- => yes
-
-	// record
-
-	// incoming policy 1 with passing result // no => yes
-	// incoming policy 2 with failing result // yes => no
-
-	// record
-
-	// incoming policy 1 with passing result // yes => yes
-	// incoming policy 2 with failing result // no => no
-
-	// record
-
-	// incoming policy 1 failed to execute (nil) // yes => no
-	// incoming policy 2 failed to execute (nil) // no => no
-
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	ctx := context.Background()
 	host1, err := ds.NewHost(ctx, &fleet.Host{
@@ -1283,10 +1259,25 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 		Query: "select 43;",
 	})
 	require.NoError(t, err)
+	pfailed, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy_failed",
+		Query: "select * from unexistent_table;",
+	})
+	require.NoError(t, err)
+	p4, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy_failed_to_run_then_pass",
+		Query: "select 42;",
+	})
+	require.NoError(t, err)
+	p5, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "policy_failed_to_run_then_fail",
+		Query: "select 42;",
+	})
+	require.NoError(t, err)
 
 	// Unknown policies will be considered their first execution.
 	newFailing, newPassing, err := ds.FlippingPoliciesForHost(ctx, host1.ID, map[uint]*bool{
-		99997: nil,
+		99997: nil, // considered as didn't run.
 		99998: ptr.Bool(false),
 		99999: ptr.Bool(true),
 	})
@@ -1294,7 +1285,7 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	sort.Slice(newFailing, func(i, j int) bool {
 		return newFailing[i] < newFailing[j]
 	})
-	require.Equal(t, []uint{99997, 99998}, newFailing)
+	require.Equal(t, []uint{99998}, newFailing)
 	require.Empty(t, newPassing) // because this would be the first run.
 
 	// Unknown host.
@@ -1311,8 +1302,8 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	require.Empty(t, newFailing)
 	require.Empty(t, newPassing)
 
-	// incoming policy 1 with first new failing result // --- => no
-	// incoming policy 2 with first new passing result // --- => yes
+	// incoming policy 1 with first new failing result: => no
+	// incoming policy 2 with first new passing result: => yes
 	incoming := map[uint]*bool{
 		p1.ID: ptr.Bool(false),
 		p2.ID: ptr.Bool(true),
@@ -1326,8 +1317,8 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	err = ds.RecordPolicyQueryExecutions(ctx, host1, incoming, time.Now(), false)
 	require.NoError(t, err)
 
-	// incoming policy 1 with passing result // no => yes
-	// incoming policy 2 with failing result // yes => no
+	// incoming policy 1 with passing result: no => yes
+	// incoming policy 2 with failing result: yes => no
 	incoming = map[uint]*bool{
 		p1.ID: ptr.Bool(true),
 		p2.ID: ptr.Bool(false),
@@ -1341,8 +1332,8 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	err = ds.RecordPolicyQueryExecutions(ctx, host1, incoming, time.Now(), false)
 	require.NoError(t, err)
 
-	// incoming policy 1 with passing result // yes => yes
-	// incoming policy 2 with failing result // no => no
+	// incoming policy 1 with passing result: yes => yes
+	// incoming policy 2 with failing result: no => no
 	incoming = map[uint]*bool{
 		p1.ID: ptr.Bool(true),
 		p2.ID: ptr.Bool(false),
@@ -1356,8 +1347,8 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	err = ds.RecordPolicyQueryExecutions(ctx, host1, incoming, time.Now(), false)
 	require.NoError(t, err)
 
-	// incoming policy 1 failed to execute (nil) // yes => no
-	// incoming policy 2 failed to execute (nil) // no => no
+	// incoming policy 1 failed to execute: yes => no
+	// incoming policy 2 failed to execute: no => no
 	incoming = map[uint]*bool{
 		p1.ID: ptr.Bool(false),
 		p2.ID: ptr.Bool(false),
@@ -1365,5 +1356,61 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
 	require.NoError(t, err)
 	require.Equal(t, []uint{p1.ID}, newFailing)
+	require.Empty(t, newPassing)
+
+	// incoming pfailed failed to execute: ---
+	incoming = map[uint]*bool{
+		pfailed.ID: nil,
+	}
+	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
+	require.NoError(t, err)
+	require.Empty(t, newFailing)
+	require.Empty(t, newPassing)
+
+	// Record the above executions.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1, incoming, time.Now(), false)
+	require.NoError(t, err)
+
+	// incoming pfailed again failed to execute: --- -> ---
+	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
+	require.NoError(t, err)
+	require.Empty(t, newFailing)
+	require.Empty(t, newPassing)
+
+	// incoming policy 4 failed to run: => ---
+	// incoming policy 5 failed to run: => ---
+	incoming = map[uint]*bool{
+		p4.ID: nil,
+		p5.ID: nil,
+	}
+	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
+	require.NoError(t, err)
+	require.Empty(t, newFailing)
+	require.Empty(t, newPassing)
+
+	// Record the above executions.
+	err = ds.RecordPolicyQueryExecutions(ctx, host1, incoming, time.Now(), false)
+	require.NoError(t, err)
+
+	// incoming policy 4 with first new failing result: --- => no
+	// incoming policy 5 with first new passing result: --- => yes
+	incoming = map[uint]*bool{
+		p4.ID: ptr.Bool(false),
+		p5.ID: ptr.Bool(true),
+	}
+	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
+	require.NoError(t, err)
+	require.Equal(t, []uint{p4.ID}, newFailing)
+	require.Empty(t, newPassing) // because this would be the first run.
+
+	// incoming policy 4 now fails to execute: no => ---
+	// incoming policy 5 now fails to execute: yes => ---
+	incoming = map[uint]*bool{
+		p4.ID: nil,
+		p5.ID: nil,
+	}
+	newFailing, newPassing, err = ds.FlippingPoliciesForHost(ctx, host1.ID, incoming)
+	require.NoError(t, err)
+	require.Empty(t, newFailing)
 	require.Empty(t, newPassing)
 }
