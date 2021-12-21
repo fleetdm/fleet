@@ -34,7 +34,7 @@ const validateAutomationURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!url) {
-    errors.url = "URL name must be present";
+    errors.url = "Please add a valid destination URL";
   }
 
   const valid = !size(errors);
