@@ -1584,6 +1584,15 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
+
+	// search host by email address finds the corresponding host
+	var listHosts listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "a@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	assert.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	require.Len(t, listHosts.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestGetMacadminsData() {
