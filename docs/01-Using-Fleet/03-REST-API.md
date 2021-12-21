@@ -1079,9 +1079,9 @@ Returns the mapping of users' email addresses to the host, as reported by option
 
 ```json
 {
+  "host_id": 1,
   "device_mapping": [
     {
-      "host_id": 1,
       "email": "user@example.com",
       "source": "google_chrome_profiles"
     }

@@ -640,6 +640,7 @@ type listHostDeviceMappingRequest struct {
 }
 
 type listHostDeviceMappingResponse struct {
+	HostID        uint                       `json:"host_id"`
 	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
 	Err           error                      `json:"error,omitempty"`
 }
@@ -652,7 +653,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 	if err != nil {
 		return listHostDeviceMappingResponse{Err: err}, nil
 	}
-	return listHostDeviceMappingResponse{DeviceMapping: dms}, nil
+	return listHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {

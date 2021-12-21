@@ -251,7 +251,7 @@ func PlatformFromHost(hostPlatform string) string {
 // as reported by the specified source (e.g. Gogle Chrome Profiles).
 type HostDeviceMapping struct {
 	ID     uint   `json:"-" db:"id"`
-	HostID uint   `json:"host_id" db:"host_id"`
+	HostID uint   `json:"-" db:"host_id"`
 	Email  string `json:"email" db:"email"`
 	Source string `json:"source" db:"source"`
 }
