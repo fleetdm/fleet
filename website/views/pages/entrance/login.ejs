@@ -1,10 +1,10 @@
 <div id="login" v-cloak>
-  <div style="max-width: 800px;" class="container-fluid pt-5 pb-5">
+  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5">
     <h1>Welcome to Fleet Premium</h1>
-    <p>We just need a few details in order to get you a Fleet Premium license key</p>
+    <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key</p>
     <div class="d-flex flex-row">
 
-      <div class="card card-body order-first" >
+      <div class="card card-body order-first flex-grow-1">
 
         <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="form-group">
@@ -21,7 +21,7 @@
           <cloud-error v-if="cloudError==='badCombo'">Something’s not quite right with your email or password.</cloud-error>
           <cloud-error v-else-if="cloudError"></cloud-error>
           <div class="form-group">
-            <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info btn-lg btn-block">Sign in</ajax-button>
+            <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info mt-4 btn-lg btn-block">Sign in</ajax-button>
           </div>
         </ajax-form>
         <p class="text-center"><a href="/customers/forgot-password">Forgot your password?</a></p>
@@ -31,10 +31,9 @@
         <p><strong>Fleet Premium includes:</strong></p>
         <ul>
           <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple Teams (RBAC)</li>
+          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
           <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
           <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
-          <li><img alt="A checkmark" src="/images/check-16x16@2x.png">A cool license key</li>
         </ul>
       </div>
 

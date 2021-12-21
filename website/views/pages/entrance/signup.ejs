@@ -1,11 +1,11 @@
 <div id="signup" v-cloak>
-  <div style="max-width: 800px;" class="container-fluid pt-5 pb-5">
+  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5">
     <!-- <h1>Try Fleet Premium free for 30 days</h1> -->
     <h1>Welcome to Fleet Premium</h1>
+    <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key</p>
     <div class="mx-auto">
-      <p class="pb-3">We just need a few details in order to get you a Fleet Premium license key</p>
       <div class="d-flex flex-row">
-        <div class="card card-body order-first" >
+        <div class="card card-body order-first flex-grow-1">
           <ajax-form action="signup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
             <div class="form-group">
               <label for="email-address">Email</label>
@@ -49,8 +49,8 @@
               <!-- </div> -->
             </cloud-error>
             <p>By signing up you agree to our <a>Privacy Policy</a> and <a>Terms of Service</a>.</p>
-            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-3" v-if="!cloudError">Agree and continue</ajax-button>
-            <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-3" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
+            <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+            <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
           </ajax-form>
         </div>
 
@@ -58,7 +58,7 @@
           <p><strong>Fleet Premium includes:</strong></p>
           <ul>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
-            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple Teams (RBAC)</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
             <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
           </ul>

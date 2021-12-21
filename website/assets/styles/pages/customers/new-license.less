@@ -9,8 +9,22 @@
   a {
     color: @core-vibrant-blue;
   }
+  label {
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .form-control {
+    height: 40px;
+    border-radius: 6px;
+  }
+  .card {
+    border-radius: 6px;
+  }
+  .card-body {
+    padding: 2em;
+  }
   p {
-    font-size: 14px;
+    font-size: 16px;
   }
   input::-webkit-outer-spin-button,
   input::-webkit-inner-spin-button {
@@ -36,29 +50,20 @@
     }
   }
   [purpose="features-list"] {
-   ul {
-     list-style-type: none;
-     padding-inline-start: 0px;
-   }
-   li {
-    padding-bottom: 8px;
-   }
-   img {
-    display: inline;
-    height: 16px;
-    margin-right: 8px;
-   }
-
+    // max-width: 280px;
+     ul {
+       list-style-type: none;
+       padding-inline-start: 0px;
+     }
+     li {
+      padding-bottom: 12px;
+      color: @core-fleet-black-75;
+     }
+     img {
+      display: inline;
+      height: 16px;
+      margin-right: 8px;
+     }
   }
-
-
-  .form-control {
-    height: 40px;
-    border-radius: 4px;
-    &:focus {
-      // border-color:
-    }
-  }
-
 
 }

@@ -54,9 +54,9 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div style="padding-bottom: 60px" purpose="page-wrap">
+    <div style="padding-bottom: 60px; background-color: #F9FAFC;" purpose="page-wrap">
 
-      <div class="header" purpose="page-header">
+      <div style="background-color: #FFFFFF;" class="header" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
           <a class="" href="/" style="max-width: 118px;">
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
@@ -70,12 +70,12 @@
       <%- body %>
 
       <div purpose="footer" style="position: absolute; bottom:  0px; width: 100%; height:  60px; color: #515774;">
-        <div style="max-width: 400px;" class="container-fluid">
-          <div style="font-size: 11px; line-height: 18px;" class="d-flex flex-row">
+        <div style="max-width: 500px;" class="container-fluid">
+          <div style="font-size: 11px; line-height: 18px;" class="d-flex flex-row justify-content-center">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2"/>
             © 2021 Fleet Device Management Inc.
-            <a class="ml-2" style="text-decoration: underline; color: #515774" href="/legal/privacy">Privacy</a>
-            <a class="ml-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: underline; color: #515774" href="/logout">Log out</a>
+            <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
+            <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" href="/logout">Log out</a>
           </div>
         </div>
       </div>
@@ -126,7 +126,6 @@
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
-    <script src="/js/components/stripe-payment-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>

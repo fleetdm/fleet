@@ -1,5 +1,5 @@
 <div id="dashboard" v-cloak>
-  <div class="container pt-5 pb-5 px-xl-0">
+  <div style="padding-top: 80px;" class="container pb-5 px-xl-0">
     <div class="pb-4">
       <h3>Your license</h3>
       <div purpose="license-card" class="card card-body">
@@ -21,7 +21,7 @@
             <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="timeago"></js-timestamp></p>
           </div>
           <div class="col-12 col-lg-4 pt-3 pt-lg-0">
-            <strong>License key</strong><img class="d-inline-block ml-3" style="width: 15px; height: 16px" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()">
+            <strong>License key</strong><img class="d-inline-block ml-3" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()">
             <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{licenseKey}}</span></p>
           </div>
         </div>
@@ -31,7 +31,7 @@
     <div class="row pt-3">
       <div class="col-12 col-lg-6">
       <h3 class="pb-3">Your details</h3>
-        <div purpose="details-card" class="card card-body justify-content-center">
+        <div purpose="details-card" class="card card-body justify-content-top">
           <div class="row">
             <div class="col-4">Organization:</div>
             <div class="col-8 text-right">
@@ -59,13 +59,13 @@
         <h3 class="pb-3">Billing and payment</h3>
         <div purpose="billing-card" class="card card-body justify-content-center">
           <div class="row pb-3">
-            <div class="col-1 px-0"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A small credit card"></div>
+            <div class="col-1"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A small credit card"></div>
             <div class="col">
-              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img class="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"><span style="float: right" class="text-right" @click="clickRemoveCardButton()"><a>remove</a></span></p>
+              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img class="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"><span style="float: right; cursor: pointer;" class="text-right d-none" @click="clickRemoveCardButton()"><a>remove</a></span></p>
             </div>
           </div>
           <div class="row pb-3">
-            <div class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A small credit card"></div>
+            <div class="col-1"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A small credit card"></div>
             <div class="col">
               <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
               <p>Billed anually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
@@ -73,7 +73,12 @@
             </div>
           </div>
           <div class="row" purpose="contact">
-            <p><img style="display: inline; height: 16px; width: 16px; margin-bottom: 3px; margin-right: 8px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information"><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+            <div style="max-width: 32px;" class="col-1 px-0">
+              <img style="display: inline-block; height: 16px; width: 16px; margin-top: 5px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
+            </div>
+            <div class="col pl-1">
+              <p><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -98,7 +103,7 @@
   <modal v-if="modal === 'update-profile'" @close="closeModal()" v-cloak purpose="modal">
     <div class="container">
       <div class="modal-header">
-        <h3 class="modal-title">Edit your details?</h3>
+        <h3 class="modal-title text-left">Edit your details?</h3>
       </div>
       <ajax-form action="updateProfile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateProfileForm()">
         <div class="modal-bodytext-center">
@@ -108,14 +113,14 @@
             <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
           </div>
           <div class="row">
-            <div class="col-6">
+            <div class="col-6 pr-2">
               <div class="form-group">
                 <label for="first-name">First name</label>
                 <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
                 <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
               </div>
             </div>
-            <div class="col-6">
+            <div class="col-6 pl-2">
               <div class="form-group">
                 <label for="last-name">Last name</label>
                 <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
@@ -138,14 +143,13 @@
 
   <modal v-if="modal === 'update-billing-card'" data-backdrop="false" @close="closeModal()" v-cloak purpose="modal">
     <div class="container">
-      <div class="modal-header">
-        <h2 class="modal-title">Edit card</h2>
+      <div class="modal-header text-left">
+        <h3 class="modal-title">Edit card?</h3>
         <p class="muted">Currently using: {{me.billingCardBrand}} ending in {{me.billingCardLast4}}</p>
       </div>
       <ajax-form :handle-submitting="handleSubmittingUpdateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateBillingCard()">
         <div class="modal-body">
-            <stripe-card-element :stripe-publishable-key="stripePublishableKey" :is-errored.sync="formErrors.newPaymentSource" v-model="formData.newPaymentSource" key="billing-card" ref="billingcardref"></stripe-card-element>
-
+          <stripe-card-element :stripe-publishable-key="stripePublishableKey" :is-errored.sync="formErrors.newPaymentSource" v-model="formData.newPaymentSource" key="billing-card" ref="billingcardref"></stripe-card-element>
           <p class="text-danger" v-if="cloudError"><small>An error occured while processing your request. Please check your information and try again, or <a href="/contact">contact support</a> if the error persists.</small></p>
         </div>
         <div class="pt-3">
@@ -157,7 +161,7 @@
 
   <modal v-if="modal === 'remove-billing-card'" @close="closeModal()" v-cloak>
     <div class="container">
-      <h3 >Remove Card Info?</h3>
+      <h3>Remove Card Info?</h3>
       <ajax-form action="updateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedRemoveCardForm()">
         <div class="modal-body text-center">
           <p>Are you sure you want to remove your {{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong>?</p>
