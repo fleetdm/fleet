@@ -28,12 +28,11 @@ describe(
       () => {
         cy.login("anna@organization.com", "user123#");
         cy.visit("/hosts/manage");
-        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
         // On the hosts page, they should…
 
         // See the “Teams” column in the Hosts table
-        cy.get("thead").contains(/team/i).should("exist");
+        cy.getAttached("thead").contains(/team/i).should("exist");
 
         // See and select the “Generate installer” button
         cy.contains("button", /generate installer/i).click();

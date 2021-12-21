@@ -74,11 +74,8 @@ describe(
         // Run policy on host
         let policyname = "";
         cy.contains("a", "Policies").click();
-        // Ensuring page load with table is flakey, temp solution to use wait
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-        // cy.get(".table-container").should("contain", /filevault/i); // Ensures page load
 
-        cy.get("tbody").within(() => {
+        cy.getAttached("tbody").within(() => {
           cy.get(".button--text-link").first().as("policyLink");
         });
 
@@ -107,9 +104,8 @@ describe(
           });
 
         cy.visit("/hosts/manage");
-        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
-        cy.get("tbody").within(() => {
+        cy.getAttached("tbody").within(() => {
           cy.get(".button--text-link").first().as("hostLink");
         });
 
@@ -135,9 +131,8 @@ describe(
           });
 
         cy.visit("/hosts/manage");
-        cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
-        cy.get("@hostLink")
+        cy.getAttached("@hostLink")
           .click()
           .then(() => {
             // Open delete host modal and delete host
