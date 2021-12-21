@@ -176,9 +176,6 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListLabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryService
 
@@ -257,6 +254,8 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application

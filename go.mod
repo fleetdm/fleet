@@ -12,9 +12,9 @@ require (
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/aws/aws-sdk-go v1.40.34
 	github.com/beevik/etree v1.1.0
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff/v4 v4.0.0
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/dnaeon/go-vcr/v2 v2.0.1
@@ -27,7 +27,6 @@ require (
 	github.com/fleetdm/goose v0.0.0-20210209032905-c3c01484bacb
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
-	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/gomodule/redigo v1.8.5
@@ -59,10 +58,9 @@ require (
 	github.com/open-policy-agent/opa v0.24.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v0.9.3
-	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.4.1 // indirect
-	github.com/prometheus/procfs v0.2.0 // indirect
+	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
 	github.com/rotisserie/eris v0.5.1
 	github.com/rs/zerolog v1.20.0
@@ -79,7 +77,7 @@ require (
 	github.com/valyala/fasthttp v1.31.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211123173158-ef496fb156ab
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
 	google.golang.org/grpc v1.40.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3

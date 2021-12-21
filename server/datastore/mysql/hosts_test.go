@@ -103,6 +103,7 @@ func TestHosts(t *testing.T) {
 		{"HostsNoSeenTime", testHostsNoSeenTime},
 		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
+		{"HostMDMAndMunki", testHostMDMAndMunki},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3260,4 +3261,40 @@ func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping)
 		g.ID, g.HostID = 0, 0
 		assert.Equal(t, w, g, "index %d", i)
 	}
+}
+
+func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
+	_, err := ds.GetMunkiVersion(context.Background(), 123)
+	require.True(t, fleet.IsNotFound(err))
+
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
+	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.3.0"))
+
+	version, err := ds.GetMunkiVersion(context.Background(), 123)
+	require.NoError(t, err)
+	require.Equal(t, "1.3.0", version)
+
+	version, err = ds.GetMunkiVersion(context.Background(), 999)
+	require.NoError(t, err)
+	require.Equal(t, "9.0", version)
+
+	_, _, _, err = ds.GetMDM(context.Background(), 432)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
+
+	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	require.NoError(t, err)
+	assert.False(t, enrolled)
+	assert.Equal(t, "url3", serverURL)
+	assert.True(t, installedFromDep)
+
+	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.True(t, enrolled)
+	assert.Equal(t, "url2", serverURL)
+	assert.True(t, installedFromDep)
 }

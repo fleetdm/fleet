@@ -305,3 +305,20 @@ Cypress.Commands.add("clearDownloads", () => {
     cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`, { env: { SHELL } });
   }
 });
+
+Cypress.Commands.add("getAttached", (selector) => {
+  const uniqueAlias = `element_${selector}`;
+
+  return cy
+    .waitUntil(
+      () =>
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy
+          .get(selector)
+          .as(uniqueAlias)
+          .wait(1)
+          .then(($el) => Cypress.dom.isAttached($el)),
+      { timeout: 1000, interval: 10 }
+    )
+    .get(`@${uniqueAlias}`);
+});

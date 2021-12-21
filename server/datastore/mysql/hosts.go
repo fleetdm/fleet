@@ -1170,3 +1170,65 @@ func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mapp
 		return nil
 	})
 }
+
+func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
+	res, err := d.writer.ExecContext(ctx, updateQuery, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if affected == 0 {
+		_, err = d.writer.ExecContext(ctx, insertQuery, args...)
+	}
+	return ctxerr.Wrap(ctx, err)
+}
+
+func (d *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
+		`INSERT INTO host_munki_info(version, host_id) VALUES (?,?)`,
+		version, hostID,
+	)
+}
+
+func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_mdm SET enrolled=?, server_url=?, installed_from_dep=? WHERE host_id=?`,
+		`INSERT INTO host_mdm(enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, hostID,
+	)
+}
+
+func (d *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, d.reader, &version, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting data from host_munki_info for host_id %d", hostID)
+	}
+
+	return version, nil
+}
+
+func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
+	dest := struct {
+		Enrolled         bool   `db:"enrolled"`
+		ServerURL        string `db:"server_url"`
+		InstalledFromDep bool   `db:"installed_from_dep"`
+	}{}
+	err := sqlx.GetContext(ctx, d.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+		}
+		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -18,8 +19,11 @@ type DetailQuery struct {
 	Query string
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
-	Platforms  []string
+	Platforms []string
+	// IngestFunc translates a query result into an update to the host struct
 	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	// DirectIngestFunc gathers results from a query and directly works with the datastore to persist them
+	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -351,6 +355,14 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
+	"mdm": {
+		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
+		DirectIngestFunc: directIngestMDM,
+	},
+	"munki_info": {
+		Query:            `select version from munki_info;`,
+		DirectIngestFunc: directIngestMunkiInfo,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -639,6 +651,41 @@ func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]stri
 		return err
 	}
 	return nil
+}
+
+func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) == 0 || failed {
+		// assume the extension is not there
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+	}
+
+	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	}
+	enrolled, err := strconv.ParseBool(rows[0]["enrolled"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing enrolled")
+	}
+
+	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
+}
+
+func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) == 0 || failed {
+		// assume the extension is not there
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
+			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
+	}
+
+	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
 }
 
 func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {

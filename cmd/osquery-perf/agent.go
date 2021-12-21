@@ -449,6 +449,26 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
+func (a *agent) mdm() []map[string]string {
+	enrolled := "true"
+	if rand.Intn(2) == 1 {
+		enrolled = "false"
+	}
+	installedFromDep := "true"
+	if rand.Intn(2) == 1 {
+		installedFromDep = "false"
+	}
+	return []map[string]string{
+		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+	}
+}
+
+func (a *agent) munkiInfo() []map[string]string {
+	return []map[string]string{
+		{"version": "1.2.3"},
+	}
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -467,6 +487,20 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
 			r.Results[name] = a.randomQueryStats()
 			continue
+		}
+		if name == hostDetailQueryPrefix+"mdm" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.mdm()
+			}
+		}
+		if name == hostDetailQueryPrefix+"munki_info" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.munkiInfo()
+			}
 		}
 		if t := a.templates.Lookup(name); t == nil {
 			continue
@@ -492,7 +526,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	req.SetBody(body)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
+	req.Header.Add("User-Agent", "osquery/5.0.1")
 	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/write")
 	res := fasthttp.AcquireResponse()
 

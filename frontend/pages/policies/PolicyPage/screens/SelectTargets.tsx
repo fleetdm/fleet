@@ -92,7 +92,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
     ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
@@ -182,6 +182,11 @@ const SelectTargets = ({
     }
   );
 
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
   const handleSelectedLabels = (entity: ILabel | ITeam) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
@@ -252,7 +257,7 @@ const SelectTargets = ({
     </>
   );
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -308,7 +313,7 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading}
+        isTargetsLoading={isTargetsFetching}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
@@ -318,7 +323,7 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel

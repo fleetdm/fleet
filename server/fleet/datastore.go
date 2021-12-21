@@ -217,6 +217,12 @@ type Datastore interface {
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
+	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+
+	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 

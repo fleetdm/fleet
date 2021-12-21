@@ -244,17 +244,28 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 }
 
 type UserAuthEndpointer struct {
-	svc  fleet.Service
-	opts []kithttp.ServerOption
-	r    *mux.Router
+	svc               fleet.Service
+	opts              []kithttp.ServerOption
+	r                 *mux.Router
+	versions          []string
+	startingAtVersion string
+	endingAtVersion   string
+	alternativePaths  []string
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router) *UserAuthEndpointer {
-	return &UserAuthEndpointer{svc: svc, opts: opts, r: r}
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
+
+var pathReplacer = strings.NewReplacer(
+	"/", "_",
+	"{", "_",
+	"}", "_",
+)
 
 func getNameFromPathAndVerb(verb, path string) string {
-	return strings.ToLower(verb) + "_" + strings.ReplaceAll(strings.TrimSuffix("/api/v1/fleet/", strings.TrimRight(path, "/")), "/", "_")
+	return strings.ToLower(verb) + "_" +
+		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/v1/fleet/"))
 }
 
 func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
@@ -273,8 +284,49 @@ func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "DELETE")
 }
 
-func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) *mux.Route {
-	return e.r.Handle(path, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
+func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+	versions := e.versions
+	if e.startingAtVersion != "" {
+		startIndex := -1
+		for i, version := range versions {
+			if version == e.startingAtVersion {
+				startIndex = i
+				break
+			}
+		}
+		if startIndex == -1 {
+			panic("StartAtVersion is not part of the valid versions")
+		}
+		versions = versions[startIndex:]
+	}
+	if e.endingAtVersion != "" {
+		endIndex := -1
+		for i, version := range versions {
+			if version == e.endingAtVersion {
+				endIndex = i
+				break
+			}
+		}
+		if endIndex == -1 {
+			panic("EndAtVersion is not part of the valid versions")
+		}
+		versions = versions[:endIndex+1]
+	}
+
+	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
+	// latest
+	if e.endingAtVersion == "" || e.endingAtVersion == e.versions[len(e.versions)-1] {
+		versions = append(versions, "latest")
+	}
+
+	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+	nameAndVerb := getNameFromPathAndVerb(verb, path)
+	endpoint := e.makeEndpoint(f, v)
+	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	for _, alias := range e.alternativePaths {
+		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	}
 }
 
 func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
@@ -287,4 +339,40 @@ func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Han
 		makeDecoder(v),
 		e.opts,
 	)
+}
+
+func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: version,
+		endingAtVersion:   e.endingAtVersion,
+		alternativePaths:  e.alternativePaths,
+	}
+}
+
+func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: e.startingAtVersion,
+		endingAtVersion:   version,
+		alternativePaths:  e.alternativePaths,
+	}
+}
+
+func (e *UserAuthEndpointer) WithAltPaths(paths ...string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: e.startingAtVersion,
+		endingAtVersion:   e.endingAtVersion,
+		alternativePaths:  paths,
+	}
 }
