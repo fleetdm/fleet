@@ -406,6 +406,12 @@ var (
 		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
 		// column doesn't exist anymore).
 		20171212182459: {},
+		// Deleted in
+		// https://github.com/fleetdm/fleet/commit/fd61dcab67f341c9e47fb6cb968171650c19a681
+		20161223115449: {},
+		20170309091824: {},
+		20171027173700: {},
+		20171212182458: {},
 	}
 )
 
