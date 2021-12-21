@@ -77,9 +77,9 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
-## Manual QA
+## Product quality
 
-This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
+This section outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
 
 All steps should be conducted during each QA pass. All steps are possible with `fleetctl preview`. In order to target a specific version of `fleetctl preview`, the tag argument can be used together with the commit you are targeting as long as that commit is represented by a tag in [docker hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated). Without tag argument, `fleetctl preview` defaults to latest stable.
 
