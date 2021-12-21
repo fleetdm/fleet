@@ -1,3 +1,5 @@
+# Company
+
 ## About Fleet
 
 Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet.
