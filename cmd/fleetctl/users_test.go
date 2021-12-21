@@ -41,12 +41,15 @@ func writeTmpCsv(t *testing.T, contents string) string {
 }
 
 func TestCreateBulkUsers(t *testing.T) {
-	runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t)
+	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, nil
+	}
 
 	csvFile := writeTmpCsv(t,
 		`Name,Email,Password,SSO,API,Roles,Team
-	test1,test1@test.com,P@ssw0rd!0,0,0,,
-	test2,test2@test.com,P@ssw0rd!0,0,0,,`)
+	user11,user11@domain.com,P@ssw0rd!2,false,false,,
+	user12,user12@domain.com,P@ssw0rd!2,false,false,,`)
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "import", "--csv", csvFile}))
 }
