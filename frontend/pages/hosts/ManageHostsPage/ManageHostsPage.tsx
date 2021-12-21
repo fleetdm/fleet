@@ -5,6 +5,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
@@ -384,36 +385,42 @@ const ManageHostsPage = ({
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  const retrieveHosts = async (options: IHostLoadOptions = {}) => {
-    setIsHostsLoading(true);
+  // START HERE: Why isn't this debouncing properly?
+  const retrieveHosts = useDebouncedCallback(
+    async (options: IHostLoadOptions = {}) => {
+      const date = new Date();
+      console.log(date.getSeconds());
+      setIsHostsLoading(true);
 
-    options = {
-      ...options,
-      teamId: getValidatedTeamId(
-        teams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
-    };
+      options = {
+        ...options,
+        teamId: getValidatedTeamId(
+          teams || [],
+          options.teamId as number,
+          currentUser,
+          isOnGlobalTeam as boolean
+        ),
+      };
 
-    if (queryParams.team_id) {
-      options.teamId = queryParams.team_id;
-    }
+      if (queryParams.team_id) {
+        options.teamId = queryParams.team_id;
+      }
 
-    try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
-        options
-      );
-      setHosts(returnedHosts);
-      software && setSoftwareDetails(software);
-    } catch (error) {
-      console.error(error);
-      setHasHostErrors(true);
-    } finally {
-      setIsHostsLoading(false);
-    }
-  };
+      try {
+        const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
+          options
+        );
+        setHosts(returnedHosts);
+        software && setSoftwareDetails(software);
+      } catch (error) {
+        console.error(error);
+        setHasHostErrors(true);
+      } finally {
+        setIsHostsLoading(false);
+      }
+    },
+    5000
+  );
 
   const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
     setIsHostCountLoading(true);
@@ -462,15 +469,6 @@ const ManageHostsPage = ({
     }
     setShowNoEnrollSecretBanner(true);
 
-    // set selected label
-    const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
-
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
-    setSelectedLabel(selected);
-
     // get the hosts
     const options: IHostLoadOptions = {
       selectedLabels: selectedFilters,
@@ -487,8 +485,19 @@ const ManageHostsPage = ({
       options.perPage = tableQueryData.pageSize;
     }
 
-    retrieveHosts(options);
-  }, [location, labels]);
+    retrieveHosts();
+  }, [location]);
+
+  useDeepEffect(() => {
+    // set selected label
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+
+    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    setSelectedLabel(selected);
+  }, [labels]);
 
   useDeepEffect(() => {
     // set the team object in context
@@ -529,7 +538,8 @@ const ManageHostsPage = ({
     softwareId,
   ]);
 
-  const handleLabelChange = ({ slug }: ILabel) => {
+  const handleLabelChange = ({ slug }: ILabel): boolean => {
+    console.log("handleLabelChange: ", slug);
     if (!slug) {
       console.error("Slug was missing. This should not happen.");
       return false;
@@ -579,6 +589,8 @@ const ManageHostsPage = ({
         queryParams: newQueryParams,
       })
     );
+
+    return true;
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
@@ -761,6 +773,8 @@ const ManageHostsPage = ({
     if (softwareId && !policyId) {
       newQueryParams.software_id = softwareId;
     }
+
+    console.log("new query params: ", newQueryParams);
 
     // triggers useDeepEffect using queryParams
     router.replace(
