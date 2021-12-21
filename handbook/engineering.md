@@ -141,9 +141,5 @@ There are several locations in Fleet's public and internal documentation that ca
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
-## Support process
-
-TODO
-
 <meta name="maintainedBy" value="zwass">
 
