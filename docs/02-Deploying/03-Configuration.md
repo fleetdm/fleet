@@ -1622,7 +1622,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kafkarest`.
 
-The identifier of the kafka topic that osquery status logs will be published to.
+The identifier of the kafka topic that osquery result logs will be published to.
 
 - Default value: none
 - Environment variable: `FLEET_KAFKAREST_RESULT_TOPIC`
