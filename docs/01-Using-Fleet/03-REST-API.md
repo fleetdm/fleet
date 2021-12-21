@@ -462,6 +462,7 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
+- [List MDM and Munki information if available](#list-mdm-and-munk-information-if-available)
 
 ### List hosts
 
@@ -1055,6 +1056,40 @@ Request (`filters` is specified):
 ##### Default response
 
 `Status: 200`
+
+---
+
+### List MDM and Munki information if available
+
+`GET /api/v1/fleet/hosts/{id}/macadmins`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/macadmins`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "macadmins": {
+    "munki": {
+      "version": "1.2.3"
+    },
+    "mobile_device_management": {
+      "enrollment_status": "Enrolled (automated)",
+      "server_url": "http://some.url/mdm"
+    }
+  }
+}
+```
 
 ---
 

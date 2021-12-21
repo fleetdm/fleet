@@ -163,3 +163,18 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 * Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./04-Adding-hosts.md).
 * Restart the `fleetctl preview` docker containers.
 * Uninstall and reinstall Docker.
+
+## Fleet preview fails with Invalid interpolation. What should I do?
+
+If you tried running fleet preview and you get the following error:
+
+```
+fleetctl preview
+Downloading dependencies into /root/.fleet/preview...
+Pulling Docker dependencies...
+Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
+
+Failed to run docker-compose
+```
+
+You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
