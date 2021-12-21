@@ -364,7 +364,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 	},
 	"google_chrome_profiles": {
-		Query:            `SELECT email FROM google_chrome_profiles`, // TODO(mna): where not ephemeral?
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
 		DirectIngestFunc: directIngestChromeProfiles,
 	},
 }

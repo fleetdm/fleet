@@ -473,7 +473,15 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	count := rand.Intn(5) // return between 0 and 4 emails
 	result := make([]map[string]string, count)
 	for i := range result {
-		result[i] = map[string]string{"email": fmt.Sprintf("user%d@example.com", i)}
+		email := fmt.Sprintf("user%d@example.com", i)
+		if i == 4 {
+			// if the maximum number of emails is returned, set a random domain name
+			// so that we have email addresses that match a lot of hosts, and some
+			// that match few hosts.
+			domainRand := rand.Intn(10)
+			email = fmt.Sprintf("user%d@example%d.com", i, domainRand)
+		}
+		result[i] = map[string]string{"email": email}
 	}
 	return result
 }
