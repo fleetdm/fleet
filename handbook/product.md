@@ -77,17 +77,19 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
-## Human-oriented QA
+## Product quality
 
 Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
-To test out Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
+To try stuff out with Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
 
 To target a different version of Fleet, you can use the `--tag` argument to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag='main'`
 
 ### Why human-oriented QA?
 
-The goal of quality assurance (QA) is to catch unexpected behavior prior to release:
+Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether that's in the user interface, the REST API, or the command line.
+
+The goal of quality assurance is to catch unexpected behavior prior to release:
 - bugs
 - edge cases
 - error message UX
@@ -99,8 +101,6 @@ The goal of quality assurance (QA) is to catch unexpected behavior prior to rele
 - data accuracy
 - perceived data freshness
 - the product’s ability to save users from themselves
-
-Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether that's in the user interface, the REST API, or the command line.
 
 
 ### Collecting bugs
