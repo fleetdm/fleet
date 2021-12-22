@@ -14,6 +14,21 @@ Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flag
 
 ## Fleet docs
 
+### Docs styleguide
+
+#### Headings
+
+Headings help readers scan content to easily find what they need. Organize page content using clear headings, specific to the topic they describe.
+
+Keep headings brief and organize them in a logical order:
+
+* H1: Page title
+* H2: Main headings
+* H3: Subheadings
+* H4: Sub-subheadings (headings nested under subheadings)
+
+Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+
 ### Adding a link to the Fleet docs
 You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
 
