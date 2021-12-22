@@ -38,7 +38,7 @@ func CheckFileHash(meta *data.TargetFileMeta, localPath string) error {
 }
 
 // selectHashFunction returns the first matching hash function and expected
-// hash, otherwise returning an error if not matching hash can be found.
+// hash, otherwise returning an error if no matching hash can be found.
 //
 // SHA512 is preferred, and SHA256 is returned if 512 is not available.
 
