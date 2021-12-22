@@ -1,3 +1,5 @@
+# People
+
 ## Directly responsible individuals
 
 At Fleet we use the concept of directly responsible individuals (**DRI**s), a person who is singularly responsible for a given aspect of the open source project, the product, or the company.

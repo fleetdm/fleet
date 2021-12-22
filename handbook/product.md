@@ -1,3 +1,5 @@
+# Product
+
 ## Feature flags
 
 In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
