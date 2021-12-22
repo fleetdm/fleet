@@ -79,15 +79,33 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 ## Product quality
 
-This section outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
+Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
-All steps should be conducted during each QA pass. All steps are possible with `fleetctl preview`. In order to target a specific version of `fleetctl preview`, the tag argument can be used together with the commit you are targeting as long as that commit is represented by a tag in [docker hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated). Without tag argument, `fleetctl preview` defaults to latest stable.
+To try stuff out with Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
 
-As new features are added to Fleet, new steps and flows will be added.
+To target a different version of Fleet, you can use the `--tag` argument to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag='main'`
+
+### Why human-oriented QA?
+
+Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether that's in the user interface, the REST API, or the command line.
+
+The goal of quality assurance is to catch unexpected behavior prior to release:
+- bugs
+- edge cases
+- error message UX
+- developer experience using the API/CLI
+- operator experience looking at logs
+- API response time latency
+- UI comprehensibility
+- simplicity
+- data accuracy
+- perceived data freshness
+- the product’s ability to save users from themselves
+
 
 ### Collecting bugs
 
-The goal of manual QA is to catch unexpected behavior prior to release. All Manual QA steps should be possible using `fleetctl preview`. Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
 
