@@ -9,13 +9,15 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 
 import { DEFAULT_POLICY } from "utilities/constants";
-import { IPolicy, IPolicyStats } from "interfaces/policy";
+import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import { IAutomationFormData } from "interfaces/automation";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 
+import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamsAPI from "services/entities/teams";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -30,6 +32,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import IconToolTip from "components/IconToolTip";
 import TeamsDropdown from "components/TeamsDropdown";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
@@ -37,6 +40,14 @@ const baseClass = "manage-policies-page";
 
 const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
+
+const configMock = {
+  failing_policies_webhook: {
+    destination_url: "https://foo.bar",
+    enable_failing_policies_webhook: true,
+    policy_ids: [6, 14],
+  },
+};
 
 const renderInheritedPoliciesButtonText = (
   showPolicies: boolean,
@@ -114,12 +125,29 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
+  const [
+    automationFormData,
+    setAutomationFormData,
+  ] = useState<IAutomationFormData>({});
+  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+    false
+  );
+  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
   const [updateInterval, setUpdateInterval] = useState<string>(
     "osquery policy update interval"
   );
+  const [
+    isLoadingFailingPoliciesWebhook,
+    setIsLoadingFailingPoliciesWebhook,
+  ] = useState(true);
+  const [
+    isFailingPoliciesWebhookError,
+    setIsFailingPoliciesWebhookError,
+  ] = useState(false);
+  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<any>();
   // ===== local state
 
   const getGlobalPolicies = useCallback(async () => {
@@ -137,6 +165,26 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       setIsGlobalPoliciesError(true);
     } finally {
       setIsLoadingGlobalPolicies(false);
+    }
+    return result;
+  }, []);
+
+  // Q: patterns using useCallback vs. useQuery
+  console.log("\n\n\nMPP failingPoliciesWebhook", failingPoliciesWebhook);
+  const getFailingPoliciesWebhook = useCallback(async () => {
+    setIsLoadingFailingPoliciesWebhook(true);
+    setIsFailingPoliciesWebhookError(false);
+    let result;
+    try {
+      result = await configAPI
+        .loadAll()
+        .then((response) => response.webhook_settings.failing_policies_webhook);
+      setFailingPoliciesWebhook(result);
+    } catch (error) {
+      console.log(error);
+      setIsFailingPoliciesWebhookError(true);
+    } finally {
+      setIsLoadingFailingPoliciesWebhook(false);
     }
     return result;
   }, []);
@@ -176,6 +224,13 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     setCurrentTeam(selectedTeam);
   };
 
+  const toggleManageAutomationsModal = () =>
+    setShowManageAutomationsModal(!showManageAutomationsModal);
+
+  const togglePreviewPayloadModal = useCallback(() => {
+    setShowPreviewPayloadModal(!showPreviewPayloadModal);
+  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleRemovePoliciesModal = () =>
@@ -183,6 +238,44 @@ const ManagePolicyPage = (managePoliciesPageProps: {
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
+
+  const onManageAutomationsClick = () => {
+    toggleManageAutomationsModal();
+  };
+
+  // TODO: TEST 12/21
+  const onCreateAutomationsSubmit = async ({
+    destination_url,
+    policy_ids,
+    enable_failing_policies_webhook,
+  }: IAutomationFormData) => {
+    try {
+      const request = configAPI.update({
+        webhook_settings: {
+          failing_policies_webhook: {
+            destination_url,
+            policy_ids,
+            enable_failing_policies_webhook,
+          },
+        },
+      });
+      await request.then(() => {
+        dispatch(
+          renderFlash("success", "Successfully updated policy automations.")
+        );
+      });
+    } catch {
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not update policy automations. Please try again."
+        )
+      );
+    } finally {
+      toggleManageAutomationsModal();
+      getFailingPoliciesWebhook();
+    }
+  };
 
   const onAddPolicyClick = () => {
     setLastEditedQueryName("");
@@ -296,9 +389,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         getTeamPolicies(selectedTeamId);
       }
     }
+    getFailingPoliciesWebhook();
   }, [
     getGlobalPolicies,
     getTeamPolicies,
+    getFailingPoliciesWebhook,
     isAnyTeamMaintainerOrTeamAdmin,
     isOnGlobalTeam,
     selectedTeamId,
@@ -361,17 +456,29 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               </div>
             </div>
           </div>
-          {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                variant="brand"
-                className={`${baseClass}__select-policy-button`}
-                onClick={onAddPolicyClick}
-              >
-                Add a policy
-              </Button>
-            </div>
-          )}
+          <div className={`${baseClass} button-wrap`}>
+            {canAddOrRemovePolicy(currentUser, selectedTeamId) &&
+              selectedTeamId === 0 && (
+                <Button
+                  onClick={() => onManageAutomationsClick()}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="inverse"
+                >
+                  <span>Manage automations</span>
+                </Button>
+              )}
+            {canAddOrRemovePolicy(currentUser, selectedTeamId) && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__select-policy-button`}
+                  onClick={onAddPolicyClick}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         {!isLoadingTeams && (
           <div className={`${baseClass}__description`}>
@@ -479,6 +586,21 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
             />
           </div>
+        )}
+        {showManageAutomationsModal && (
+          <ManageAutomationsModal
+            onCancel={toggleManageAutomationsModal}
+            onCreateAutomationsSubmit={onCreateAutomationsSubmit}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            availablePolicies={globalPolicies}
+            currentAutomatedPolicies={
+              failingPoliciesWebhook && failingPoliciesWebhook.policy_ids
+            }
+            currentDestinationUrl={
+              failingPoliciesWebhook && failingPoliciesWebhook.destination_url
+            }
+          />
         )}
         {showAddPolicyModal && (
           <AddPolicyModal
