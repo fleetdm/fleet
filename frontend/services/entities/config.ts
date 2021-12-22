@@ -35,6 +35,11 @@ export default {
   update: (formData: any) => {
     const { CONFIG } = endpoints;
 
+    // Failing policies webhook does not use flatten <> nest config helper
+    if (formData.webhook_settings.failing_policies_webhook) {
+      return sendRequest("PATCH", CONFIG, formData);
+    }
+
     const configData = helpers.formatConfigDataForServer(formData);
 
     if (get(configData, "smtp_settings.port")) {

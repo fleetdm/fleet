@@ -200,8 +200,7 @@ const ManageAutomationsModal = ({
     if (valid) {
       const policy_ids =
         policiesFormList && policiesFormList.map((policy) => policy.id);
-      const enable_failing_policies_webhook =
-        policiesFormList && policiesFormList.length > 0; // Leave nearest component in case we decide to add enable/disable as a UI feature
+      const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
       console.log(
         "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
