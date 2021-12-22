@@ -18,6 +18,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -25,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -1992,6 +1994,180 @@ func TestPolicyQueries(t *testing.T) {
 	require.NotNil(t, recordedResults[1])
 	require.Equal(t, true, *recordedResults[1])
 	require.Nil(t, recordedResults[2])
+
+	noPolicyResults := func(queries map[string]string) {
+		hasAnyPolicy := false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				hasAnyPolicy = true
+				break
+			}
+		}
+		assert.False(t, hasAnyPolicy)
+	}
+
+	// After the first time we get policies and update the host, then there shouldn't be any policies.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// Let's move time forward, there should be policies now.
+	mockClock.AddTime(2 * time.Hour)
+
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recordedResults[1])
+	require.Equal(t, true, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+
+	// With refetch requested policy queries should be returned.
+	host.RefetchRequested = true
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+2)
+	checkPolicyResults(queries)
+
+	// Record another query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recordedResults[1])
+	require.Equal(t, true, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
+
+	// SubmitDistributedQueryResults will set RefetchRequested to false.
+	require.False(t, host.RefetchRequested)
+
+	// There shouldn't be any policies now.
+	ctx = hostctx.NewContext(context.Background(), *host)
+	queries, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+	noPolicyResults(queries)
+}
+
+func TestPolicyWebhooks(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	lq := new(live_query.MockLiveQuery)
+	pool := redistest.SetupRedis(t, false, false, false)
+	failingPolicySet := redis_policy_set.NewFailing(pool)
+	testConfig := config.TestConfig()
+	svc := newTestServiceWithConfig(ds, testConfig, nil, lq, TestServerOpts{
+		FailingPolicySet: failingPolicySet,
+		Clock:            mockClock,
+	})
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+	}
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{
+			"1": "select 1;",                       // passing policy
+			"2": "select * from unexistent_table;", // policy that fails to execute (e.g. missing table)
+			"3": "select 1 where 1 = 0;",           // failing policy
+		}, nil
+	}
+	recordedResults := make(map[uint]*bool)
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
+		recordedResults = results
+		host = gotHost
+		return nil
+	}
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	}
+
+	ctx := hostctx.NewContext(context.Background(), *host)
+
+	queries, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries+3)
+
+	checkPolicyResults := func(queries map[string]string) {
+		hasPolicy1, hasPolicy2, hasPolicy3 := false, false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				switch name[len(hostPolicyQueryPrefix):] {
+				case "1":
+					hasPolicy1 = true
+				case "2":
+					hasPolicy2 = true
+				case "3":
+					hasPolicy3 = true
+				}
+			}
+		}
+		assert.True(t, hasPolicy1)
+		assert.True(t, hasPolicy2)
+		assert.True(t, hasPolicy3)
+	}
+
+	checkPolicyResults(queries)
+
+	// Record a query execution.
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "3": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostPolicyQueryPrefix + "2": 1,
+		},
+		map[string]string{},
+	)
+	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
+	require.NotNil(t, recordedResults[1])
+	require.True(t, *recordedResults[1])
+	require.Nil(t, recordedResults[2])
+	require.NotNil(t, recordedResults[3])
+	require.False(t, *recordedResults[3])
 
 	noPolicyResults := func(queries map[string]string) {
 		hasAnyPolicy := false

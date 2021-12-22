@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -24,7 +23,7 @@ func TriggerGlobalFailingPoliciesWebhook(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	appConfig *fleet.AppConfig,
-	failingPoliciesSet service.FailingPolicySet,
+	failingPoliciesSet fleet.FailingPolicySet,
 	now time.Time,
 ) error {
 	if !appConfig.WebhookSettings.FailingPoliciesWebhook.Enable {
@@ -51,15 +50,7 @@ func TriggerGlobalFailingPoliciesWebhook(
 		return ctxerr.Wrap(ctx, err, "filtering policies")
 	}
 	for _, policy := range policies {
-		hosts, err := failingPoliciesSet.ListHosts(policy.ID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "listing hosts for global failing policies set %d", policy.ID)
-		}
-		if len(hosts) == 0 {
-			level.Debug(logger).Log("id", policy.ID, "msg", "no hosts")
-			continue
-		}
-		if err := sendBatchedPOSTs(ctx, policy, hosts, failingPoliciesSet, postData{
+		if err := sendBatchedPOSTs(ctx, policy, failingPoliciesSet, postData{
 			serverURL:  serverURL,
 			now:        now,
 			webhookURL: globalPoliciesURL,
@@ -79,12 +70,19 @@ type postData struct {
 func sendBatchedPOSTs(
 	ctx context.Context,
 	policy *fleet.Policy,
-	hosts []service.PolicySetHost,
-	failingPoliciesSet service.FailingPolicySet,
+	failingPoliciesSet fleet.FailingPolicySet,
 	postData postData,
 	hostBatchSize int,
 	logger kitlog.Logger,
 ) error {
+	hosts, err := failingPoliciesSet.ListHosts(policy.ID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "listing hosts for global failing policies set %d", policy.ID)
+	}
+	if len(hosts) == 0 {
+		level.Debug(logger).Log("id", policy.ID, "msg", "no hosts")
+		return nil
+	}
 	if hostBatchSize == 0 {
 		hostBatchSize = len(hosts)
 	}
@@ -130,7 +128,7 @@ type FailingHost struct {
 	URL      string `json:"url"`
 }
 
-func makeFailingHost(host service.PolicySetHost, serverURL url.URL) FailingHost {
+func makeFailingHost(host fleet.PolicySetHost, serverURL url.URL) FailingHost {
 	serverURL.Path = path.Join(serverURL.Path, "hosts", strconv.Itoa(int(host.ID)))
 	return FailingHost{
 		ID:       host.ID,
@@ -147,7 +145,7 @@ func filterPolicies(
 	ctx context.Context,
 	ds fleet.Datastore,
 	configuredPolicyIDs []uint,
-	failingPoliciesSet service.FailingPolicySet,
+	failingPoliciesSet fleet.FailingPolicySet,
 	logger kitlog.Logger,
 ) ([]*fleet.Policy, error) {
 	configuredPolicyIDsSet := make(map[uint]struct{})

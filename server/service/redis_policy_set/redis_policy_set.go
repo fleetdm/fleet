@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -16,7 +15,7 @@ type redisFailingPolicySet struct {
 	pool fleet.RedisPool
 }
 
-var _ service.FailingPolicySet = (*redisFailingPolicySet)(nil)
+var _ fleet.FailingPolicySet = (*redisFailingPolicySet)(nil)
 
 // NewFailing creates a redis policy set for failing policies.
 func NewFailing(pool fleet.RedisPool) *redisFailingPolicySet {
@@ -48,7 +47,7 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 }
 
 // AddHost adds the given host to the policy sets.
-func (r *redisFailingPolicySet) AddHost(policyID uint, host service.PolicySetHost) error {
+func (r *redisFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -67,7 +66,7 @@ func (r *redisFailingPolicySet) AddHost(policyID uint, host service.PolicySetHos
 }
 
 // ListHosts returns the list of hosts present in the policy set.
-func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]service.PolicySetHost, error) {
+func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -75,7 +74,7 @@ func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]service.PolicySetHos
 	if err != nil && err != redigo.ErrNil {
 		return nil, err
 	}
-	hosts := make([]service.PolicySetHost, len(hostEntries))
+	hosts := make([]fleet.PolicySetHost, len(hostEntries))
 	for i := range hostEntries {
 		policySetHost, err := parseHostEntry(hostEntries[i])
 		if err != nil {
@@ -87,7 +86,7 @@ func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]service.PolicySetHos
 }
 
 // RemoveHosts removes the hosts from the policy set.
-func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []service.PolicySetHost) error {
+func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicySetHost) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -121,11 +120,11 @@ func policySetKey(policyID uint) string {
 	return policySetKeyPrefix + strconv.Itoa(int(policyID))
 }
 
-func hostEntry(host service.PolicySetHost) string {
+func hostEntry(host fleet.PolicySetHost) string {
 	return strconv.Itoa(int(host.ID)) + "," + host.Hostname
 }
 
-func parseHostEntry(v string) (*service.PolicySetHost, error) {
+func parseHostEntry(v string) (*fleet.PolicySetHost, error) {
 	parts := strings.SplitN(v, ",", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid format: %s", v)
@@ -134,7 +133,7 @@ func parseHostEntry(v string) (*service.PolicySetHost, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid id: %s", v)
 	}
-	return &service.PolicySetHost{
+	return &fleet.PolicySetHost{
 		ID:       uint(id),
 		Hostname: parts[1],
 	}, nil

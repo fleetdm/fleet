@@ -36,31 +36,9 @@ type Service struct {
 
 	seenHostSet *seenHostSet
 
-	failingPolicySet FailingPolicySet
+	failingPolicySet fleet.FailingPolicySet
 
 	authz *authz.Authorizer
-}
-
-// FailingPolicySet holds sets of hosts that failed policy executions.
-type FailingPolicySet interface {
-	// ListSets lists all the policy sets.
-	ListSets() ([]uint, error)
-	// AddHost adds the given host to the policy set.
-	AddHost(policyID uint, host PolicySetHost) error
-	// ListHosts returns the list of hosts present in the policy set.
-	ListHosts(policyID uint) ([]PolicySetHost, error)
-	// RemoveHosts removes the hosts from the policy set.
-	RemoveHosts(policyID uint, hosts []PolicySetHost) error
-	// RemoveSet removes a policy set.
-	RemoveSet(policyID uint) error
-}
-
-// PolicySetHost is a host entry for a policy set.
-type PolicySetHost struct {
-	// ID is the identifier of the host.
-	ID uint
-	// Hostname is the host's name.
-	Hostname string
 }
 
 // NewService creates a new service from the config struct
@@ -77,7 +55,7 @@ func NewService(
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
-	failingPolicySet FailingPolicySet,
+	failingPolicySet fleet.FailingPolicySet,
 ) (fleet.Service, error) {
 	var svc fleet.Service
 

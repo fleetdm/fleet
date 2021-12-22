@@ -134,7 +134,7 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	sort.Slice(orderedIDs, func(i, j int) bool {
 		return orderedIDs[i] < orderedIDs[j]
 	})
-	// By using `passes IS NOT NULL` we consider those policies never executed.
+	// By using `passes IS NOT NULL` we only account for those policies that never executed.
 	selectQuery := fmt.Sprintf(
 		`SELECT policy_id, passes FROM policy_membership
 		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`,
@@ -154,8 +154,13 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	for _, result := range fetchedPolicyResults {
 		prevPolicyResults[result.ID] = result.Passes
 	}
-	for policyID, incomingPasses := range filteredIncomingResults {
-		prevPasses, ok := prevPolicyResults[policyID]
+	newFailing, newPassing = flipping(prevPolicyResults, filteredIncomingResults)
+	return newFailing, newPassing, nil
+}
+
+func flipping(prevResults map[uint]bool, incomingResults map[uint]bool) (newFailing, newPassing []uint) {
+	for policyID, incomingPasses := range incomingResults {
+		prevPasses, ok := prevResults[policyID]
 		if !ok { // first run
 			if !incomingPasses {
 				newFailing = append(newFailing, policyID)
@@ -168,7 +173,7 @@ func (ds *Datastore) FlippingPoliciesForHost(
 			}
 		}
 	}
-	return newFailing, newPassing, nil
+	return newFailing, newPassing
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {

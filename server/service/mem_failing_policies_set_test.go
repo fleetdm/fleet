@@ -1,8 +1,12 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/fleet/policytest"
+)
 
 func TestMemFailingPolicySet(t *testing.T) {
 	m := NewMemFailingPolicySet()
-	RunFailingPolicySetTests(t, m)
+	policytest.RunFailingPolicySetTests(t, m)
 }

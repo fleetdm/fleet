@@ -523,7 +523,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet service.FailingPolicySet) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -684,7 +684,7 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet service.FailingPolicySet) {
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -748,7 +748,7 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 	identifier string,
 	appConfig *fleet.AppConfig,
 	interval time.Duration,
-	failingPoliciesSet service.FailingPolicySet,
+	failingPoliciesSet fleet.FailingPolicySet,
 ) {
 	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
 		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")

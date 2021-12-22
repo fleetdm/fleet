@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -47,6 +46,9 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	logger := kitlog.NewNopLogger()
 
 	var ssoStore sso.SessionStore
+
+	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
+	var c clock.Clock = clock.C
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -57,17 +59,23 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 		}
+		if opts[0].FailingPolicySet != nil {
+			failingPolicySet = opts[0].FailingPolicySet
+		}
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
 	}
 	task := &async.Task{
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, ssoStore, lq, ds, *license, NewMemFailingPolicySet())
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet)
 	if err != nil {
 		panic(err)
 	}
 	if license.IsPremium() {
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, clock.C, license)
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, license)
 		if err != nil {
 			panic(err)
 		}
@@ -76,27 +84,10 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 }
 
 func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
-	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: fleet.TierFree}
 	testConfig := config.TestConfig()
-	writer, err := logging.NewFilesystemLogWriter(
-		testConfig.Filesystem.StatusLogFile,
-		kitlog.NewNopLogger(),
-		testConfig.Filesystem.EnableLogRotation,
-		testConfig.Filesystem.EnableLogCompression,
-	)
-	if err != nil {
-		panic(err)
-	}
-	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
-	}
-	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license, NewMemFailingPolicySet())
-	if err != nil {
-		panic(err)
-	}
+	svc := newTestServiceWithConfig(ds, testConfig, rs, lq, TestServerOpts{
+		Clock: c,
+	})
 	return svc
 }
 
@@ -160,6 +151,8 @@ type TestServerOpts struct {
 	Rs                  fleet.QueryResultStore
 	Lq                  fleet.LiveQueryStore
 	Pool                fleet.RedisPool
+	FailingPolicySet    fleet.FailingPolicySet
+	Clock               clock.Clock
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -280,19 +273,19 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 
 type memFailingPolicySet struct {
 	mMu sync.RWMutex
-	m   map[uint][]PolicySetHost
+	m   map[uint][]fleet.PolicySetHost
 }
 
-var _ FailingPolicySet = (*memFailingPolicySet)(nil)
+var _ fleet.FailingPolicySet = (*memFailingPolicySet)(nil)
 
 func NewMemFailingPolicySet() *memFailingPolicySet {
 	return &memFailingPolicySet{
-		m: make(map[uint][]PolicySetHost),
+		m: make(map[uint][]fleet.PolicySetHost),
 	}
 }
 
 // AddFailingPoliciesForHost adds the given host to the policy sets.
-func (m *memFailingPolicySet) AddHost(policyID uint, host PolicySetHost) error {
+func (m *memFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
@@ -301,11 +294,11 @@ func (m *memFailingPolicySet) AddHost(policyID uint, host PolicySetHost) error {
 }
 
 // ListHosts returns the list of hosts present in the policy set.
-func (m *memFailingPolicySet) ListHosts(policyID uint) ([]PolicySetHost, error) {
+func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
 	m.mMu.RLock()
 	defer m.mMu.RUnlock()
 
-	hosts := make([]PolicySetHost, len(m.m[policyID]))
+	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
 	for i := range m.m[policyID] {
 		hosts[i] = m.m[policyID][i]
 	}
@@ -313,7 +306,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]PolicySetHost, error) 
 }
 
 // RemoveHosts removes the hosts from the policy set.
-func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []PolicySetHost) error {
+func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicySetHost) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
@@ -354,156 +347,4 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
-}
-
-func RunFailingPolicySetTests(t *testing.T, r FailingPolicySet) {
-	policyID1 := uint(1)
-
-	// Test listing policy sets with no sets.
-	policyIDs, err := r.ListSets()
-	require.NoError(t, err)
-	require.Empty(t, policyIDs)
-
-	// Test listing if the policy set doesn't exist.
-	hostIDs, err := r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Empty(t, hostIDs)
-
-	// Test removing hosts if the set doesn't exist.
-	hostx := PolicySetHost{
-		ID:       uint(999),
-		Hostname: "hostx.example",
-	}
-	err = r.RemoveHosts(policyID1, []PolicySetHost{hostx})
-	require.NoError(t, err)
-
-	// Test adding a new host to a policy set.
-	host2 := PolicySetHost{
-		ID:       uint(2),
-		Hostname: "host2.example",
-	}
-	err = r.AddHost(policyID1, host2)
-	require.NoError(t, err)
-
-	// Test listing the created policy set.
-	policyIDs, err = r.ListSets()
-	require.NoError(t, err)
-	require.Len(t, policyIDs, 1)
-	require.Equal(t, policyID1, policyIDs[0])
-
-	// Test listing the policy set.
-	hostIDs, err = r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 1)
-	require.Equal(t, host2, hostIDs[0])
-
-	// Test adding a second host to the policy set.
-	host3 := PolicySetHost{
-		ID:       uint(3),
-		Hostname: "host3.example",
-	}
-	err = r.AddHost(policyID1, host3)
-	require.NoError(t, err)
-
-	// Test adding a shared host on a different policy set.
-	policyID2 := uint(2)
-	err = r.AddHost(policyID2, host2)
-	require.NoError(t, err)
-
-	// Test listing the newly created policy set.
-	policyIDs, err = r.ListSets()
-	require.NoError(t, err)
-	require.Len(t, policyIDs, 2)
-	sort.Slice(policyIDs, func(i, j int) bool {
-		return policyIDs[i] < policyIDs[j]
-	})
-	require.Equal(t, policyID1, policyIDs[0])
-	require.Equal(t, policyID2, policyIDs[1])
-
-	// Test listing of first and second policy set.
-	hostIDs, err = r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 2)
-	sort.Slice(hostIDs, func(i, j int) bool {
-		return hostIDs[i].ID < hostIDs[j].ID
-	})
-	require.Equal(t, host2, hostIDs[0])
-	require.Equal(t, host3, hostIDs[1])
-	hostIDs, err = r.ListHosts(policyID2)
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 1)
-	require.Equal(t, host2, hostIDs[0])
-
-	// Test removing all hosts from the first policy set.
-	err = r.RemoveHosts(policyID1, []PolicySetHost{host2, host3})
-	require.NoError(t, err)
-
-	// Test listing of first and second policy set (after some removal).
-	hostIDs, err = r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Empty(t, hostIDs)
-	hostIDs, err = r.ListHosts(policyID2)
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 1)
-	require.Equal(t, host2, hostIDs[0])
-
-	// Test removal of a host on the second policy set.
-	err = r.RemoveHosts(policyID2, []PolicySetHost{host2})
-	require.NoError(t, err)
-
-	// Test listing of the second policy set.
-	hostIDs, err = r.ListHosts(policyID2)
-	require.NoError(t, err)
-	require.Empty(t, hostIDs)
-
-	// Add another host to the first policy set (after removal of the other two).
-	host4 := PolicySetHost{
-		ID:       uint(4),
-		Hostname: "host4.example",
-	}
-	err = r.AddHost(policyID1, host4)
-	require.NoError(t, err)
-
-	// Test listing of the first policy set.
-	hostIDs, err = r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Len(t, hostIDs, 1)
-	require.Equal(t, host4, hostIDs[0])
-
-	// Test removal of the first policy set.
-	err = r.RemoveSet(policyID1)
-	require.NoError(t, err)
-
-	// Test listing of a removed policy set.
-	hostIDs, err = r.ListHosts(policyID1)
-	require.NoError(t, err)
-	require.Empty(t, hostIDs)
-
-	// Test a second removal of the first policy set.
-	err = r.RemoveSet(policyID1)
-	require.NoError(t, err)
-
-	// Test removing hosts if the set doesn't exist anymore.
-	err = r.RemoveHosts(policyID1, []PolicySetHost{host4})
-	require.NoError(t, err)
-
-	// Test removal of an unexisting policy set.
-	policyIDX := uint(999)
-	err = r.RemoveSet(policyIDX)
-	require.NoError(t, err)
-
-	// Test listing policy still returns the policyID2 set.
-	policyIDs, err = r.ListSets()
-	require.NoError(t, err)
-	require.Len(t, policyIDs, 1)
-	require.Equal(t, policyID2, policyIDs[0])
-
-	// Now remove the remaining set.
-	err = r.RemoveSet(policyID2)
-	require.NoError(t, err)
-
-	// And now it should be empty.
-	policyIDs, err = r.ListSets()
-	require.NoError(t, err)
-	require.Empty(t, policyIDs)
 }

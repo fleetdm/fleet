@@ -74,12 +74,12 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	}
 
 	failingPolicySet := service.NewMemFailingPolicySet()
-	err := failingPolicySet.AddHost(policyID1, service.PolicySetHost{
+	err := failingPolicySet.AddHost(policyID1, fleet.PolicySetHost{
 		ID:       1,
 		Hostname: "host1.example",
 	})
 	require.NoError(t, err)
-	err = failingPolicySet.AddHost(policyID1, service.PolicySetHost{
+	err = failingPolicySet.AddHost(policyID1, fleet.PolicySetHost{
 		ID:       2,
 		Hostname: "host2.example",
 	})
@@ -171,10 +171,10 @@ func TestSendBatchedPOSTs(t *testing.T) {
 		},
 	}
 
-	makeHosts := func(c int) []service.PolicySetHost {
-		hosts := make([]service.PolicySetHost, c)
+	makeHosts := func(c int) []fleet.PolicySetHost {
+		hosts := make([]fleet.PolicySetHost, c)
 		for i := 0; i < len(hosts); i++ {
-			hosts[i] = service.PolicySetHost{
+			hosts[i] = fleet.PolicySetHost{
 				ID:       uint(i + 1),
 				Hostname: fmt.Sprintf("hostname-%d", i+1),
 			}
@@ -245,7 +245,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 				require.NoError(t, err)
 			}
 			err := sendBatchedPOSTs(context.Background(),
-				p, hosts, failingPolicySet, postData{
+				p, failingPolicySet, postData{
 					serverURL:  serverURL,
 					now:        now,
 					webhookURL: ts.URL,
@@ -307,7 +307,7 @@ func TestFilterPolicies(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			failingPoliciesSet := service.NewMemFailingPolicySet()
 			for _, policyID := range tc.set {
-				err := failingPoliciesSet.AddHost(policyID, service.PolicySetHost{ID: 1})
+				err := failingPoliciesSet.AddHost(policyID, fleet.PolicySetHost{ID: 1})
 				require.NoError(t, err)
 			}
 			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {

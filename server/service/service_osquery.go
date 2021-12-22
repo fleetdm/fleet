@@ -862,7 +862,7 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 }
 
 func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
-	host := PolicySetHost{
+	host := fleet.PolicySetHost{
 		ID:       hostID,
 		Hostname: hostname,
 	}
@@ -872,7 +872,7 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 		}
 	}
 	for _, policyID := range newPassing {
-		if err := svc.failingPolicySet.RemoveHosts(policyID, []PolicySetHost{host}); err != nil {
+		if err := svc.failingPolicySet.RemoveHosts(policyID, []fleet.PolicySetHost{host}); err != nil {
 			return err
 		}
 	}
