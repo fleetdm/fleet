@@ -24,10 +24,11 @@ type specMetadata struct {
 }
 
 type specGroup struct {
-	Queries []*fleet.QuerySpec
-	Teams   []*fleet.TeamSpec
-	Packs   []*fleet.PackSpec
-	Labels  []*fleet.LabelSpec
+	Queries  []*fleet.QuerySpec
+	Teams    []*fleet.TeamSpec
+	Packs    []*fleet.PackSpec
+	Labels   []*fleet.LabelSpec
+	Policies []*fleet.PolicySpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
 	AppConfig    interface{}
@@ -79,6 +80,13 @@ func specGroupFromBytes(b []byte) (*specGroup, error) {
 				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
 			}
 			specs.Labels = append(specs.Labels, labelSpec)
+
+		case fleet.PolicyKind:
+			var policySpec *fleet.PolicySpec
+			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
+				return nil, fmt.Errorf("unmarshaling "+kind+" spec: %w", err)
+			}
+			specs.Policies = append(specs.Policies, policySpec)
 
 		case fleet.AppConfigKind:
 			if specs.AppConfig != nil {
@@ -176,6 +184,13 @@ func applyCommand() *cli.Command {
 					return fmt.Errorf("applying labels: %w", err)
 				}
 				logf(c, "[+] applied %d labels\n", len(specs.Labels))
+			}
+
+			if len(specs.Policies) > 0 {
+				if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
+					return fmt.Errorf("applying labels: %w", err)
+				}
+				logf(c, "[+] applied %d policies\n", len(specs.Policies))
 			}
 
 			if len(specs.Packs) > 0 {

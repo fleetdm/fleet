@@ -273,3 +273,43 @@ spec:
 	)
 	require.Nil(t, savedAppConfig)
 }
+
+func TestApplyPolicies(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	var appliedPolicySpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedPolicySpecs = specs
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is disk encryption enabled on Windows devices?
+  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  description: Checks to make sure that device encryption is enabled on Windows devices.
+  resolution: "Option 1: Select the Start button. Select Settings  > Update & Security  > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions."
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Filevault enabled on macOS devices?
+  query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;
+  description: Checks to make sure that the Filevault feature is enabled on macOS devices.
+  resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
+`)
+
+	assert.Equal(t, "[+] applied 3 policies\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	assert.Len(t, appliedPolicySpecs, 3)
+}
