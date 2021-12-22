@@ -29,6 +29,53 @@ interface IManageAutomationsModalProps {
   currentDestinationUrl: string;
 }
 
+interface ICheckedPoliciesProps {
+  name?: string;
+  id: number;
+  isChecked: boolean;
+}
+
+const useCheckboxListStateManagement = (
+  allPolicies: IPolicy[],
+  automatedPolicies: number[] | undefined
+) => {
+  const [policyItems, setPolicyItems] = useState(() => {
+    return allPolicies.map(
+      (policy): ICheckedPoliciesProps => {
+        return {
+          name: policy.name,
+          id: policy.id,
+          isChecked:
+            !!automatedPolicies && automatedPolicies.includes(policy.id),
+        };
+      }
+    );
+  });
+
+  const updatePolicyItems = (policyId: number) => {
+    setPolicyItems((prevState) => {
+      const selectedPolicy = policyItems.find(
+        (policy) => policy.id === policyId
+      );
+
+      const updatedPolicy = selectedPolicy && {
+        ...selectedPolicy,
+        isChecked: !!selectedPolicy && !selectedPolicy.isChecked,
+      };
+
+      // this is replacing the policy object with the updatedPolicy we just created.
+      const newState = prevState.map((currentPolicy) => {
+        return currentPolicy.id === policyId && updatedPolicy
+          ? updatedPolicy
+          : currentPolicy;
+      });
+      return newState;
+    });
+  };
+
+  return [policyItems, updatePolicyItems];
+};
+
 const validateAutomationURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
@@ -42,118 +89,27 @@ const validateAutomationURL = (url: string) => {
 
 /* Handles all policies and returns all policies
 with a boolean key isChecked based on current policies */
-const generateFormListItems = (
-  allPolicies: IPolicy[],
-  currentAutomatedPolicies?: number[] | undefined
-): IPolicyCheckboxListItem[] => {
-  console.log("allPolicies", allPolicies);
-  console.log("currentAutomatedPolicies", currentAutomatedPolicies);
+// const generateFormListItems = (
+//   allPolicies: IPolicy[],
+//   currentAutomatedPolicies?: number[] | undefined
+// ): IPolicyCheckboxListItem[] => {
+//   console.log("allPolicies", allPolicies);
+//   console.log("currentAutomatedPolicies", currentAutomatedPolicies);
 
-  return (
-    allPolicies &&
-    allPolicies.map((policy) => {
-      const foundPolicy =
-        currentAutomatedPolicies?.find(
-          (currentPolicy) => currentPolicy === policy.id
-        ) || undefined;
-      return {
-        ...policy,
-        isChecked: foundPolicy !== undefined,
-      };
-    })
-  );
-};
-
-/* Handles the generation of the form data eventually passed up to the parent
-so we only want to send the selected policies. */
-const generateSelectedPolicyData = (
-  policiesFormList: IPolicyCheckboxListItem[]
-): IPolicyFormData[] => {
-  return policiesFormList.reduce(
-    (selectedPolicies: IPolicyFormData[], policyItem) => {
-      if (policyItem.isChecked) {
-        selectedPolicies.push({
-          id: policyItem.id,
-          name: policyItem.name,
-          description: policyItem.description,
-          resolution: policyItem.resolution,
-        });
-      }
-      return selectedPolicies;
-    },
-    []
-  );
-};
-
-/* Handles the updating of the form items and updates the selected state. */
-const updateFormState = (
-  prevPolicyItems: IPolicyCheckboxListItem[],
-  policyId: number,
-  newValue: any,
-  updateType: string
-): IPolicyCheckboxListItem[] => {
-  const prevItemIndex = prevPolicyItems.findIndex(
-    (item) => item.id === policyId
-  );
-  const prevItem = prevPolicyItems[prevItemIndex];
-  prevItem.isChecked = newValue;
-
-  return [...prevPolicyItems];
-};
-
-/* TODO: What does this hook do? How/why does this work? */
-const useSelectedPolicyState = (
-  allPolicies: IPolicy[],
-  currentAutomatedPolicies: number[],
-  formChange: (policies: IPolicyFormData[]) => void
-) => {
-  const [policiesFormList, setPoliciesFormList] = useState(() => {
-    return generateFormListItems(allPolicies, currentAutomatedPolicies);
-  });
-
-  console.log("MAM: useSelectedPolicyState policiesFormList", policiesFormList);
-
-  const updateSelectedPolicies = (
-    policyId: number,
-    newValue: any,
-    updateType: string
-  ) => {
-    setPoliciesFormList((prevState: any) => {
-      const updatedPolicyFormList = updateFormState(
-        prevState,
-        policyId,
-        newValue,
-        updateType
-      );
-      const selectedPoliciesData = generateSelectedPolicyData(
-        updatedPolicyFormList
-      );
-      formChange(selectedPoliciesData);
-      return updatedPolicyFormList;
-    });
-  };
-
-  console.log(
-    "MAM: useSelectedPolicyState after updateSelectedPolicies policiesFormList",
-    policiesFormList
-  );
-
-  return [policiesFormList, updateSelectedPolicies] as const;
-};
-
-const onSelectedPolicyChange = (policies: IPolicyFormData[]) => {
-  // TODO: rewrite
-  // const { formData } = this.state;
-  // this.setState({
-  //   formData: {
-  //     ...formData,
-  //     policies,
-  //   },
-  // });
-  console.log("MAM: onSelectedPolicyChange policies", policies);
-  // these are the correct policies
-  // updateSelectedPolicies(policies);
-};
+//   return (
+//     allPolicies &&
+//     allPolicies.map((policy) => {
+//       const foundPolicy =
+//         currentAutomatedPolicies?.find(
+//           (currentPolicy) => currentPolicy === policy.id
+//         ) || undefined;
+//       return {
+//         ...policy,
+//         isChecked: foundPolicy !== undefined,
+//       };
+//     })
+//   );
+// };
 
 const baseClass = "manage-automations-modal";
 
@@ -170,13 +126,11 @@ const ManageAutomationsModal = ({
     currentDestinationUrl
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [policiesFormList, updateSelectedPolicies] = useSelectedPolicyState(
-    availablePolicies,
-    currentAutomatedPolicies || [],
-    onSelectedPolicyChange
-  );
 
-  console.log("MAM: policiesFormList", policiesFormList);
+  const [policyItems, updatePolicyItems] = useCheckboxListStateManagement(
+    availablePolicies,
+    currentAutomatedPolicies
+  );
 
   useDeepEffect(() => {
     if (destination_url) {
@@ -198,24 +152,24 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      const policy_ids =
-        policiesFormList && policiesFormList.map((policy) => policy.id);
-      const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
+      // const policy_ids =
+      //   policyItems && policyItems.map((policy: any) => policy.id);
+      // const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
-      console.log(
-        "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
-        enable_failing_policies_webhook,
-        "\ndestination_url",
-        destination_url,
-        "\npolicy_ids",
-        policy_ids
-      );
+      // console.log(
+      //   "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
+      //   enable_failing_policies_webhook,
+      //   "\ndestination_url",
+      //   destination_url,
+      //   "\npolicy_ids",
+      //   policy_ids
+      // );
 
-      onCreateAutomationsSubmit({
-        destination_url,
-        policy_ids,
-        enable_failing_policies_webhook,
-      });
+      // onCreateAutomationsSubmit({
+      //   destination_url,
+      //   policy_ids,
+      //   enable_failing_policies_webhook,
+      // });
 
       onReturnToApp();
     }
@@ -234,8 +188,8 @@ const ManageAutomationsModal = ({
       <div className={baseClass}>
         <div className={`${baseClass}__policy-select-items`}>
           <p> Choose which policy you would like to listen to:</p>
-          {policiesFormList &&
-            policiesFormList.map((policyItem) => {
+          {policyItems &&
+            policyItems.map((policyItem) => {
               const { isChecked, name, id } = policyItem;
               return (
                 <div key={id} className={`${baseClass}__team-item`}>
@@ -243,11 +197,7 @@ const ManageAutomationsModal = ({
                     value={isChecked}
                     name={name}
                     onChange={(newValue: boolean) =>
-                      updateSelectedPolicies(
-                        policyItem.id,
-                        newValue,
-                        "checkbox"
-                      )
+                      onUpdateCheckedPolicies(policyItem.id, newValue)
                     }
                   >
                     {name}
