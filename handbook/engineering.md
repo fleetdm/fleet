@@ -32,13 +32,13 @@ Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa
 
 **Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/08-Updating-Fleet.md
 
-#### Manual QA
+### Manual QA
 
 After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title=) and assigned to the person responsible. 
 
 Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
 
-#### Release freeze period
+### Release freeze period
 
 In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged. 
 
@@ -89,7 +89,7 @@ Premium support for support/troubleshooting: **All versions**
 
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
 
-#### Requesting more details
+### Requesting more details
 
 Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
 
@@ -108,13 +108,13 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?." 
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-#### Feature requests
+### Feature requests
 
 If the feature is requested by a customer, the on-call engineer is requested to create a feature request issue and follow up with the customer by linking them to this issue. This way, the customer can add additional comments or feedback to the newly filed feature request issue.
 
 If the feature is requested by anyone other than a customer (ex. user in #fleet Slack), the on-call engineer is requested to point to the user to the [feature request GitHub issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title=) and kindly ask the user to create a feature request.
 
-#### Closing issues
+### Closing issues
 
 It is often a good idea to let the original poster (OP) close their issue themselves, since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed issues might get closed.
 
