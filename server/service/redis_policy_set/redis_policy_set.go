@@ -1,3 +1,4 @@
+// Package redis_policy_set provides a Redis implementation of service.FailingPolicySet.
 package redis_policy_set
 
 import (
@@ -26,32 +27,9 @@ func NewFailing(pool fleet.RedisPool) *redisFailingPolicySet {
 
 const (
 	policySetKeyPrefix = "policies:failing:"
-	// We use this approach to avoid a SCAN command when listing policy sets.
+	// policySetsSetKey is used to avoid a SCAN command when listing policy sets.
 	policySetsSetKey = "policies:failing_sets"
 )
-
-func policySetKey(policyID uint) string {
-	return policySetKeyPrefix + strconv.Itoa(int(policyID))
-}
-
-func hostEntry(host service.PolicySetHost) string {
-	return strconv.Itoa(int(host.ID)) + "," + host.Hostname
-}
-
-func parseHostEntry(v string) (*service.PolicySetHost, error) {
-	parts := strings.SplitN(v, ",", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid format: %s", v)
-	}
-	id, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid id: %s", v)
-	}
-	return &service.PolicySetHost{
-		ID:       uint(id),
-		Hostname: parts[1],
-	}, nil
-}
 
 // ListSets lists all the policy sets.
 func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
@@ -69,7 +47,7 @@ func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	return policyIDs, nil
 }
 
-// AddFailingPoliciesForHost adds the given host to the policy sets.
+// AddHost adds the given host to the policy sets.
 func (r *redisFailingPolicySet) AddHost(policyID uint, host service.PolicySetHost) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
@@ -128,6 +106,7 @@ func (r *redisFailingPolicySet) RemoveSet(policyID uint) error {
 	defer conn.Close()
 
 	// The order of the following two operations is important.
+	//
 	// See comment in AddHost.
 	if _, err := conn.Do("SREM", policySetsSetKey, policyID); err != nil {
 		return err
@@ -136,4 +115,27 @@ func (r *redisFailingPolicySet) RemoveSet(policyID uint) error {
 		return err
 	}
 	return nil
+}
+
+func policySetKey(policyID uint) string {
+	return policySetKeyPrefix + strconv.Itoa(int(policyID))
+}
+
+func hostEntry(host service.PolicySetHost) string {
+	return strconv.Itoa(int(host.ID)) + "," + host.Hostname
+}
+
+func parseHostEntry(v string) (*service.PolicySetHost, error) {
+	parts := strings.SplitN(v, ",", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid format: %s", v)
+	}
+	id, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid id: %s", v)
+	}
+	return &service.PolicySetHost{
+		ID:       uint(id),
+		Hostname: parts[1],
+	}, nil
 }
