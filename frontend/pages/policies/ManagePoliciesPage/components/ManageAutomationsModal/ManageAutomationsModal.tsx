@@ -9,7 +9,7 @@ import InputField from "components/forms/fields/InputField";
 import IconToolTip from "components/IconToolTip";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { IAutomationFormData } from "interfaces/automation";
+import { IWebhookFailingPolicies } from "interfaces/webhook";
 import { useDeepEffect } from "utilities/hooks";
 import { size } from "lodash";
 
@@ -21,7 +21,7 @@ interface IPolicyCheckboxListItem extends IPolicy {
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
-  onCreateAutomationsSubmit: (formData: IAutomationFormData) => void;
+  onCreateAutomationsSubmit: (formData: IWebhookFailingPolicies) => void;
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
@@ -29,7 +29,7 @@ interface IManageAutomationsModalProps {
   currentDestinationUrl: string;
 }
 
-interface ICheckedPoliciesProps {
+interface ICheckedPolicy {
   name?: string;
   id: number;
   isChecked: boolean;
@@ -39,17 +39,14 @@ const useCheckboxListStateManagement = (
   allPolicies: IPolicy[],
   automatedPolicies: number[] | undefined
 ) => {
-  const [policyItems, setPolicyItems] = useState(() => {
-    return allPolicies.map(
-      (policy): ICheckedPoliciesProps => {
-        return {
-          name: policy.name,
-          id: policy.id,
-          isChecked:
-            !!automatedPolicies && automatedPolicies.includes(policy.id),
-        };
-      }
-    );
+  const [policyItems, setPolicyItems] = useState<ICheckedPolicy[]>(() => {
+    return allPolicies.map((policy) => {
+      return {
+        name: policy.name,
+        id: policy.id,
+        isChecked: !!automatedPolicies && automatedPolicies.includes(policy.id),
+      };
+    });
   });
 
   const updatePolicyItems = (policyId: number) => {
@@ -73,7 +70,7 @@ const useCheckboxListStateManagement = (
     });
   };
 
-  return [policyItems, updatePolicyItems];
+  return { policyItems, updatePolicyItems };
 };
 
 const validateAutomationURL = (url: string) => {
@@ -127,7 +124,7 @@ const ManageAutomationsModal = ({
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const [policyItems, updatePolicyItems] = useCheckboxListStateManagement(
+  const { policyItems, updatePolicyItems } = useCheckboxListStateManagement(
     availablePolicies,
     currentAutomatedPolicies
   );
@@ -196,9 +193,7 @@ const ManageAutomationsModal = ({
                   <Checkbox
                     value={isChecked}
                     name={name}
-                    onChange={(newValue: boolean) =>
-                      onUpdateCheckedPolicies(policyItem.id, newValue)
-                    }
+                    onChange={() => updatePolicyItems(policyItem.id)}
                   >
                     {name}
                   </Checkbox>
