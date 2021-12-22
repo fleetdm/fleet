@@ -84,30 +84,6 @@ const validateAutomationURL = (url: string) => {
   return { valid, errors };
 };
 
-/* Handles all policies and returns all policies
-with a boolean key isChecked based on current policies */
-// const generateFormListItems = (
-//   allPolicies: IPolicy[],
-//   currentAutomatedPolicies?: number[] | undefined
-// ): IPolicyCheckboxListItem[] => {
-//   console.log("allPolicies", allPolicies);
-//   console.log("currentAutomatedPolicies", currentAutomatedPolicies);
-
-//   return (
-//     allPolicies &&
-//     allPolicies.map((policy) => {
-//       const foundPolicy =
-//         currentAutomatedPolicies?.find(
-//           (currentPolicy) => currentPolicy === policy.id
-//         ) || undefined;
-//       return {
-//         ...policy,
-//         isChecked: foundPolicy !== undefined,
-//       };
-//     })
-//   );
-// };
-
 const baseClass = "manage-automations-modal";
 
 const ManageAutomationsModal = ({
@@ -149,24 +125,24 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      // const policy_ids =
-      //   policyItems && policyItems.map((policy: any) => policy.id);
-      // const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
+      const policy_ids =
+        policyItems && policyItems.map((policy: any) => policy.id);
+      const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
-      // console.log(
-      //   "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
-      //   enable_failing_policies_webhook,
-      //   "\ndestination_url",
-      //   destination_url,
-      //   "\npolicy_ids",
-      //   policy_ids
-      // );
+      console.log(
+        "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
+        enable_failing_policies_webhook,
+        "\ndestination_url",
+        destination_url,
+        "\npolicy_ids",
+        policy_ids
+      );
 
-      // onCreateAutomationsSubmit({
-      //   destination_url,
-      //   policy_ids,
-      //   enable_failing_policies_webhook,
-      // });
+      onCreateAutomationsSubmit({
+        destination_url,
+        policy_ids,
+        enable_failing_policies_webhook,
+      });
 
       onReturnToApp();
     }
