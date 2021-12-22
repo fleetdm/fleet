@@ -18,6 +18,7 @@ export default PropTypes.shape({
  */
 export interface ITeam {
   id: number;
+  uuid?: string;
   display_text?: string;
   count?: number;
   created_at?: string;

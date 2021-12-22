@@ -10,6 +10,7 @@ describe(
       cy.setupSMTP();
       cy.seedFree();
       cy.seedQueries();
+      cy.seedPolicies();
       cy.addDockerHost();
       cy.logout();
     });
@@ -20,9 +21,7 @@ describe(
     it("Can perform the appropriate free-tier admin actions", () => {
       cy.login("anna@organization.com", "user123#");
       cy.visit("/hosts/manage");
-
-      // Ensure page is loaded
-      cy.contains("All hosts");
+      cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
       // On the hosts page, they should…
 
@@ -113,9 +112,37 @@ describe(
       // On the Packs pages (manage, new, and edit), they should…
       // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
 
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "Add a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
+      cy.findByRole("button", { name: /save/i }).should("exist");
+      cy.findByRole("button", { name: /run/i }).should("exist");
+
       // On the Settings pages, they should…
       // See everything except for the “Teams” pages
       cy.visit("/settings/organization");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
       cy.findByText(/teams/i).should("not.exist");
       cy.get(".react-tabs").within(() => {
         cy.findByText(/organization settings/i).should("exist");
@@ -129,6 +156,7 @@ describe(
       // On the Profile page, they should…
       // See Admin in Role section, and no Team section
       cy.visit("/profile");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.findByText(/teams/i).should("not.exist");
       cy.findByText("Role").next().contains(/admin/i);
     });

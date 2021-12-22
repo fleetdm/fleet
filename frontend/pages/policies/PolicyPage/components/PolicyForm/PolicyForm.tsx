@@ -52,7 +52,6 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
-  const isEditMode = !!policyIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
@@ -97,6 +96,8 @@ const PolicyForm = ({
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
+
+  const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -505,23 +506,7 @@ const PolicyForm = ({
                 >
                   <>Save{!isEditMode && " policy"}</>
                 </Button>
-              </div>{" "}
-              <ReactTooltip
-                className={`save-policy-button-tooltip`}
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="save-query-button"
-                data-html
-              >
-                <div
-                  className={`tooltip`}
-                  style={{ width: "152px", textAlign: "center" }}
-                >
-                  You can only save changes to a query if you are the author.
-                </div>
-              </ReactTooltip>
+              </div>
             </div>
           )}
           <Button

@@ -48,7 +48,7 @@ const LoginPage = ({
   user,
   ssoSettings,
 }: ILoginPageProps) => {
-  const { setCurrentUser } = useContext(AppContext);
+  const { setCurrentUser, setCurrentTeam } = useContext(AppContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
   useEffect(() => {
@@ -82,6 +82,9 @@ const LoginPage = ({
 
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
+
+        // Ensure team is undefined on login
+        setCurrentTeam(undefined);
 
         setTimeout(() => {
           const nextLocation = redirectLocation || HOME;

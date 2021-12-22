@@ -785,3 +785,28 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 	sql += " AND (" + strings.Join(ors, " OR ") + ")"
 	return sql, params
 }
+
+// very loosely checks that a string looks like an email:
+// has no spaces, a single @ character, a part before the @,
+// a part after the @, the part after has at least one dot
+// with something after the dot. I don't think this is perfectly
+// correct as the email format allows any chars including spaces
+// when inside double quotes, but this is an edge case that is
+// unlikely to matter much in practice. Another option that would
+// definitely not cut out any valid address is to just check for
+// the presence of @, which is arguably the most important check
+// in this.
+var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]\..+$`)
+
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	base, args := searchLike(sql, params, match, columns...)
+
+	// special-case for hosts: if match looks like an email address, add searching
+	// in host_emails table as an option, in addition to the provided columns.
+	if rxLooseEmail.MatchString(match) {
+		// remove the closing paren and add the email condition to the list
+		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
+		args = append(args, likePattern(match))
+	}
+	return base, args
+}

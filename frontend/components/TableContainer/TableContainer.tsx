@@ -31,12 +31,10 @@ interface ITableContainerProps {
   manualSortBy?: boolean;
   defaultSortHeader?: string;
   defaultSortDirection?: string;
-  onActionButtonClick?: () => void;
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
-  onQueryChange?: (queryData: ITableSearchData) => void;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -55,10 +53,7 @@ interface ITableContainerProps {
   primarySelectActionButtonVariant?: ButtonVariant;
   primarySelectActionButtonIcon?: string;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
-  onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
-  customControl?: () => JSX.Element;
-  onSelectSingleRow?: (value: Row) => void;
   filteredCount?: number;
   searchToolTipText?: string;
   searchQueryColumn?: string;
@@ -68,6 +63,12 @@ interface ITableContainerProps {
   isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
   pageSize?: number;
+  clearSelectionCount?: number;
+  onActionButtonClick?: () => void;
+  onQueryChange?: (queryData: ITableSearchData) => void;
+  onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
+  customControl?: () => JSX.Element;
+  onSelectSingleRow?: (value: Row) => void;
 }
 
 const baseClass = "table-container";
@@ -83,10 +84,8 @@ const TableContainer = ({
   manualSortBy = false,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
-  onActionButtonClick,
   inputPlaceHolder = "Search",
   additionalQueries,
-  onQueryChange,
   resultsTitle,
   resultsHtml,
   emptyComponent,
@@ -107,10 +106,7 @@ const TableContainer = ({
   primarySelectActionButtonVariant = "brand",
   primarySelectActionButtonIcon,
   primarySelectActionButtonText,
-  onPrimarySelectActionClick,
   secondarySelectActions,
-  customControl,
-  onSelectSingleRow,
   filteredCount,
   searchToolTipText,
   isClientSidePagination,
@@ -120,6 +116,12 @@ const TableContainer = ({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
+  clearSelectionCount,
+  onActionButtonClick,
+  onQueryChange,
+  onPrimarySelectActionClick,
+  customControl,
+  onSelectSingleRow,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -367,6 +369,7 @@ const TableContainer = ({
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}
+                clearSelectionCount={clearSelectionCount}
               />
               {!disablePagination && !isClientSidePagination && (
                 <Pagination

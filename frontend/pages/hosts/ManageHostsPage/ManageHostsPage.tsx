@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -52,6 +52,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
+import Spinner from "components/Spinner";
 
 import { getValidatedTeamId } from "fleet/helpers";
 import {
@@ -217,6 +218,7 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -1013,6 +1015,7 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
+      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1078,6 +1081,7 @@ const ManageHostsPage = ({
       selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
+      isDisabled={isHostsLoading || isHostCountLoading}
       onChange={(newSelectedValue: number) =>
         handleTeamSelect(newSelectedValue)
       }
@@ -1461,7 +1465,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = (selectedTeam: number) => {
+  const renderTable = () => {
     if (
       !config ||
       !currentUser ||
@@ -1481,7 +1485,8 @@ const ManageHostsPage = ({
       (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
       (getStatusSelected() === ALL_HOSTS_LABEL &&
         filteredHostCount === 0 &&
-        searchQuery === "")
+        searchQuery === "" &&
+        !isHostsLoading)
     ) {
       return (
         <NoHosts
@@ -1489,6 +1494,11 @@ const ManageHostsPage = ({
           canEnrollHosts={canEnrollHosts}
         />
       );
+    }
+
+    // Hosts not ready to render
+    if (isHostsLoading && filteredHostCount === 0) {
+      return <Spinner />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1522,29 +1532,28 @@ const ManageHostsPage = ({
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
-        onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
-        emptyComponent={EmptyHosts}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
-        toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
-        customControl={renderStatusDropdown}
         filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
+        clearSelectionCount={clearSelectionCount}
+        emptyComponent={EmptyHosts}
+        customControl={renderStatusDropdown}
+        onActionButtonClick={onEditColumnsClick}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        onQueryChange={onTableQueryChange}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };
-
-  const selectedTeam = currentTeam?.id || 0;
 
   const renderNoEnrollSecretBanner = () => {
     const noTeamEnrollSecrets =
@@ -1624,7 +1633,7 @@ const ManageHostsPage = ({
                 {renderSoftwareVulnerabilities()}
               </div>
             ))}
-          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
+          {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
