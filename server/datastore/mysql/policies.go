@@ -118,14 +118,9 @@ func (ds *Datastore) FlippingPoliciesForHost(
 	incomingResults map[uint]*bool,
 ) (newFailing []uint, newPassing []uint, err error) {
 	orderedIDs := make([]uint, 0, len(incomingResults))
-	filteredIncomingResults := make(map[uint]bool)
-	for policyID, passes := range incomingResults {
-		if passes == nil {
-			// Ignore policies that did not execute.
-			continue
-		}
+	filteredIncomingResults := filterNotExecuted(incomingResults)
+	for policyID := range filteredIncomingResults {
 		orderedIDs = append(orderedIDs, policyID)
-		filteredIncomingResults[policyID] = *passes
 	}
 	if len(orderedIDs) == 0 {
 		return nil, nil, nil
@@ -174,6 +169,16 @@ func flipping(prevResults map[uint]bool, incomingResults map[uint]bool) (newFail
 		}
 	}
 	return newFailing, newPassing
+}
+
+func filterNotExecuted(results map[uint]*bool) map[uint]bool {
+	filtered := make(map[uint]bool)
+	for id, result := range results {
+		if result != nil {
+			filtered[id] = *result
+		}
+	}
+	return filtered
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {

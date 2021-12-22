@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1984,6 +1986,7 @@ func TestPolicyQueries(t *testing.T) {
 		ctx,
 		map[string][]map[string]string{
 			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
 		},
 		map[string]fleet.OsqueryStatus{
 			hostPolicyQueryPrefix + "2": 1,
@@ -1991,9 +1994,12 @@ func TestPolicyQueries(t *testing.T) {
 		map[string]string{},
 	)
 	require.NoError(t, err)
+	require.Len(t, recordedResults, 2)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.True(t, *recordedResults[1])
+	result, ok := recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
 
 	noPolicyResults := func(queries map[string]string) {
 		hasAnyPolicy := false
@@ -2026,6 +2032,7 @@ func TestPolicyQueries(t *testing.T) {
 		ctx,
 		map[string][]map[string]string{
 			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
 		},
 		map[string]fleet.OsqueryStatus{
 			hostPolicyQueryPrefix + "2": 1,
@@ -2033,9 +2040,12 @@ func TestPolicyQueries(t *testing.T) {
 		map[string]string{},
 	)
 	require.NoError(t, err)
+	require.Len(t, recordedResults, 2)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.True(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
 
 	// There shouldn't be any policies now.
 	ctx = hostctx.NewContext(context.Background(), *host)
@@ -2057,6 +2067,7 @@ func TestPolicyQueries(t *testing.T) {
 		ctx,
 		map[string][]map[string]string{
 			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "2": {},
 		},
 		map[string]fleet.OsqueryStatus{
 			hostPolicyQueryPrefix + "2": 1,
@@ -2065,8 +2076,10 @@ func TestPolicyQueries(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.True(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
 
 	// SubmitDistributedQueryResults will set RefetchRequested to false.
 	require.False(t, host.RefetchRequested)
@@ -2092,9 +2105,15 @@ func TestPolicyWebhooks(t *testing.T) {
 	})
 
 	host := &fleet.Host{
+		ID:       5,
 		Platform: "darwin",
+		Hostname: "test.hostname",
 	}
 
+	lq.On("QueriesForHost", uint(5)).Return(map[string]string{}, nil)
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
 	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		return host, nil
 	}
@@ -2103,7 +2122,17 @@ func TestPolicyWebhooks(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{
+			HostSettings: fleet.HostSettings{
+				EnableHostUsers: true,
+			},
+			WebhookSettings: fleet.WebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+					Enable:    true,
+					PolicyIDs: []uint{1, 2, 3},
+				},
+			},
+		}, nil
 	}
 
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -2119,9 +2148,6 @@ func TestPolicyWebhooks(t *testing.T) {
 		host = gotHost
 		return nil
 	}
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
-	}
-
 	ctx := hostctx.NewContext(context.Background(), *host)
 
 	queries, _, err := svc.GetDistributedQueries(ctx)
@@ -2149,15 +2175,20 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	checkPolicyResults(queries)
 
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{3}, nil, nil
+	}
+
 	// Record a query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
-			hostPolicyQueryPrefix + "3": {},
+			hostPolicyQueryPrefix + "1": {{"col1": "val1"}}, // succeeds
+			hostPolicyQueryPrefix + "2": {},                 // didn't execute
+			hostPolicyQueryPrefix + "3": {},                 // fails
 		},
 		map[string]fleet.OsqueryStatus{
-			hostPolicyQueryPrefix + "2": 1,
+			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
 	)
@@ -2165,9 +2196,58 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.Len(t, recordedResults, 3)
 	require.NotNil(t, recordedResults[1])
 	require.True(t, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	result, ok := recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
 	require.NotNil(t, recordedResults[3])
 	require.False(t, *recordedResults[3])
+
+	cmpSets := func(expSets map[uint][]fleet.PolicySetHost) error {
+		actualSets, err := failingPolicySet.ListSets()
+		if err != nil {
+			return err
+		}
+		var expSets_ []uint
+		for expSet := range expSets {
+			expSets_ = append(expSets_, expSet)
+		}
+		sort.Slice(expSets_, func(i, j int) bool {
+			return expSets_[i] < expSets_[j]
+		})
+		sort.Slice(actualSets, func(i, j int) bool {
+			return actualSets[i] < actualSets[j]
+		})
+		if !reflect.DeepEqual(actualSets, expSets_) {
+			return fmt.Errorf("sets mismatch: %+v vs %+v", actualSets, expSets_)
+		}
+		for expID, expHosts := range expSets {
+			actualHosts, err := failingPolicySet.ListHosts(expID)
+			if err != nil {
+				return err
+			}
+			sort.Slice(actualHosts, func(i, j int) bool {
+				return actualHosts[i].ID < actualHosts[j].ID
+			})
+			sort.Slice(expHosts, func(i, j int) bool {
+				return expHosts[i].ID < expHosts[j].ID
+			})
+			if !reflect.DeepEqual(actualHosts, expHosts) {
+				return fmt.Errorf("hosts mismatch %d: %+v vs %+v", expID, actualHosts, expHosts)
+			}
+		}
+		return nil
+	}
+
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			3: {{
+				ID:       host.ID,
+				Hostname: host.Hostname,
+			}},
+		})
+		return err == nil
+	}, 5*time.Second, 250*time.Millisecond)
+	require.NoError(t, err)
 
 	noPolicyResults := func(queries map[string]string) {
 		hasAnyPolicy := false
@@ -2192,63 +2272,85 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
+	require.Len(t, queries, expectedDetailQueries+3)
 	checkPolicyResults(queries)
+
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{1}, []uint{3}, nil
+	}
 
 	// Record another query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "1": {},                 // 1 now fails
+			hostPolicyQueryPrefix + "2": {},                 // didn't execute
+			hostPolicyQueryPrefix + "3": {{"col1": "val1"}}, // 1 now succeeds
 		},
 		map[string]fleet.OsqueryStatus{
-			hostPolicyQueryPrefix + "2": 1,
+			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
 	)
 	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.False(t, *recordedResults[1])
+	result, ok = recordedResults[2]
+	require.True(t, ok)
+	require.Nil(t, result)
+	require.NotNil(t, recordedResults[3])
+	require.True(t, *recordedResults[3])
 
-	// There shouldn't be any policies now.
-	ctx = hostctx.NewContext(context.Background(), *host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			1: {{
+				ID:       host.ID,
+				Hostname: host.Hostname,
+			}},
+			3: {},
+		})
+		return err == nil
+	}, 5*time.Second, 250*time.Millisecond)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
-	noPolicyResults(queries)
 
-	// With refetch requested policy queries should be returned.
-	host.RefetchRequested = true
-	ctx = hostctx.NewContext(context.Background(), *host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	// Simulate webhook trigger by removing the hosts.
+	err = failingPolicySet.RemoveHosts(1, []fleet.PolicySetHost{{
+		ID:       host.ID,
+		Hostname: host.Hostname,
+	}})
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
-	checkPolicyResults(queries)
+
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+		return []uint{}, []uint{2}, nil
+	}
 
 	// Record another query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostPolicyQueryPrefix + "1": {{"col1": "val1"}},
+			hostPolicyQueryPrefix + "1": {},                 // continues to fail
+			hostPolicyQueryPrefix + "2": {{"col1": "val1"}}, // now passes
+			hostPolicyQueryPrefix + "3": {{"col1": "val1"}}, // continues to succeed
 		},
-		map[string]fleet.OsqueryStatus{
-			hostPolicyQueryPrefix + "2": 1,
-		},
+		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
 	require.NoError(t, err)
+	require.Len(t, recordedResults, 3)
 	require.NotNil(t, recordedResults[1])
-	require.Equal(t, true, *recordedResults[1])
-	require.Nil(t, recordedResults[2])
+	require.False(t, *recordedResults[1])
+	require.NotNil(t, recordedResults[2])
+	require.True(t, *recordedResults[2])
+	require.NotNil(t, recordedResults[3])
+	require.True(t, *recordedResults[3])
 
-	// SubmitDistributedQueryResults will set RefetchRequested to false.
-	require.False(t, host.RefetchRequested)
-
-	// There shouldn't be any policies now.
-	ctx = hostctx.NewContext(context.Background(), *host)
-	queries, _, err = svc.GetDistributedQueries(ctx)
+	assert.Eventually(t, func() bool {
+		err = cmpSets(map[uint][]fleet.PolicySetHost{
+			1: {},
+			3: {},
+		})
+		return err == nil
+	}, 5*time.Second, 250*time.Millisecond)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
-	noPolicyResults(queries)
 }
