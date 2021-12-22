@@ -10,7 +10,7 @@ import PATHS from "router/paths";
 
 import { DEFAULT_POLICY } from "utilities/constants";
 import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
-import { IAutomationFormData } from "interfaces/automation";
+import { IWebhookFailingPolicies } from "interfaces/webhook";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
 
@@ -128,7 +128,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [
     automationFormData,
     setAutomationFormData,
-  ] = useState<IAutomationFormData>({});
+  ] = useState<IWebhookFailingPolicies>({});
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -248,7 +248,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     destination_url,
     policy_ids,
     enable_failing_policies_webhook,
-  }: IAutomationFormData) => {
+  }: IWebhookFailingPolicies) => {
     try {
       const request = configAPI.update({
         webhook_settings: {
