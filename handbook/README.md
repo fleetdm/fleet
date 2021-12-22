@@ -48,6 +48,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customer-experience.md#support-process)
 
+### Community
+
+[Community Contributions (Pull Requests)](./community.md#community-contributions-pull-requests)
+
 ### About the handbook
 
 #### Why bother?
