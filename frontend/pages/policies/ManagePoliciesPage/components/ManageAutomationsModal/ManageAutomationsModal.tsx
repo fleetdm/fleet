@@ -49,16 +49,19 @@ const generateFormListItems = (
   console.log("allPolicies", allPolicies);
   console.log("currentAutomatedPolicies", currentAutomatedPolicies);
 
-  return allPolicies.map((policy) => {
-    const foundPolicy =
-      currentAutomatedPolicies?.find(
-        (currentPolicy) => currentPolicy === policy.id
-      ) || undefined;
-    return {
-      ...policy,
-      isChecked: foundPolicy !== undefined,
-    };
-  });
+  return (
+    allPolicies &&
+    allPolicies.map((policy) => {
+      const foundPolicy =
+        currentAutomatedPolicies?.find(
+          (currentPolicy) => currentPolicy === policy.id
+        ) || undefined;
+      return {
+        ...policy,
+        isChecked: foundPolicy !== undefined,
+      };
+    })
+  );
 };
 
 /* Handles the generation of the form data eventually passed up to the parent
@@ -82,7 +85,7 @@ const generateSelectedPolicyData = (
   );
 };
 
-/* Handles the updating of the form items and updates the selected state.*/
+/* Handles the updating of the form items and updates the selected state. */
 const updateFormState = (
   prevPolicyItems: IPolicyCheckboxListItem[],
   policyId: number,
@@ -138,7 +141,7 @@ const useSelectedPolicyState = (
   return [policiesFormList, updateSelectedPolicies] as const;
 };
 
-const onSelectedPolicyChange = (policies: IPolicyFormData[]): void => {
+const onSelectedPolicyChange = (policies: IPolicyFormData[]) => {
   // TODO: rewrite
   // const { formData } = this.state;
   // this.setState({
