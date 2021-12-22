@@ -1,3 +1,7 @@
+## Orbit 0.0.5 (Dec 22, 2021)
+
+* Fix handling of enroll secrets to address 0.0.4 enrollment issue.
+
 ## Orbit 0.0.4 (Dec 19, 2021)
 
 * Use `certs.pem` if available in root directory to improve TLS compatibility.
