@@ -583,15 +583,19 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             />
           </div>
         )}
-        {showManageAutomationsModal && !!globalPolicies.length && (
+        {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
             onCreateAutomationsSubmit={onCreateAutomationsSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
             availablePolicies={globalPolicies}
-            currentAutomatedPolicies={failingPoliciesWebhook.policy_ids}
-            currentDestinationUrl={failingPoliciesWebhook.destination_url}
+            currentAutomatedPolicies={
+              failingPoliciesWebhook && failingPoliciesWebhook.policy_ids
+            }
+            currentDestinationUrl={
+              failingPoliciesWebhook && failingPoliciesWebhook.destination_url
+            }
           />
         )}
         {showAddPolicyModal && (

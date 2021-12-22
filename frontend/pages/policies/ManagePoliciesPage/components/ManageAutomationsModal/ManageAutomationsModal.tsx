@@ -195,8 +195,10 @@ const ManageAutomationsModal = ({
     });
 
     if (valid) {
-      const policy_ids = policiesFormList.map((policy) => policy.id);
-      const enable_failing_policies_webhook = policiesFormList.length > 0; // Leave nearest component in case we decide to add enable/disable as a UI feature
+      const policy_ids =
+        policiesFormList && policiesFormList.map((policy) => policy.id);
+      const enable_failing_policies_webhook =
+        policiesFormList && policiesFormList.length > 0; // Leave nearest component in case we decide to add enable/disable as a UI feature
 
       console.log(
         "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
@@ -230,22 +232,27 @@ const ManageAutomationsModal = ({
       <div className={baseClass}>
         <div className={`${baseClass}__policy-select-items`}>
           <p> Choose which policy you would like to listen to:</p>
-          {policiesFormList.map((policyItem) => {
-            const { isChecked, name, id } = policyItem;
-            return (
-              <div key={id} className={`${baseClass}__team-item`}>
-                <Checkbox
-                  value={isChecked}
-                  name={name}
-                  onChange={(newValue: boolean) =>
-                    updateSelectedPolicies(policyItem.id, newValue, "checkbox")
-                  }
-                >
-                  {name}
-                </Checkbox>
-              </div>
-            );
-          })}
+          {policiesFormList &&
+            policiesFormList.map((policyItem) => {
+              const { isChecked, name, id } = policyItem;
+              return (
+                <div key={id} className={`${baseClass}__team-item`}>
+                  <Checkbox
+                    value={isChecked}
+                    name={name}
+                    onChange={(newValue: boolean) =>
+                      updateSelectedPolicies(
+                        policyItem.id,
+                        newValue,
+                        "checkbox"
+                      )
+                    }
+                  >
+                    {name}
+                  </Checkbox>
+                </div>
+              );
+            })}
         </div>
         <div className="tooltip-wrap tooltip-wrap--input">
           <InputField
