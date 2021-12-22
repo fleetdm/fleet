@@ -1,30 +1,5 @@
-## Product DRIs
-
-Below is a table of [directly responsible individuals (DRIs)](./people.md#directly-resonsible-individuals) for aspects of the Fleet product:
-
-|    Aspect              										| DRI     		|
-| ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah Talerman	|
-| How the product works 										| Noah Talerman |
-| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
-| REST API interface design 							| Luke Heath	|
-| [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
-| Postman 											| Luke Heath 	|
-| Terraform 											| Ben Edwards 	|
-| Customer PoV deployments like acme.fleetdm.com 				| Ben Edwards 	|
-| dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke Heath 	|
-| Quality of tickets after Noah's done with them   				| Luke Heath 	|
-| ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
-| Customer Slack channels | Tony Gauda |
-| Quality of core product backend 									| Tomás Touceda |
-| Quality of fleetctl (and other tools)							| Tomás Touceda |
-| Final cut of what goes into each release 						| Zach Wasserman|
-| When we cut a release, version numbers, and whether to release| Zach Wasserman|
-| Release notes 												| Noah Talerman |
-| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
-
 ## Feature flags
+
 In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
 
 The following highlights should be considered when deciding if feature flags should be leveraged:
