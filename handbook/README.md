@@ -1,3 +1,5 @@
+# Welcome to Fleet
+
 ## Introduction
 
 The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
