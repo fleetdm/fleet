@@ -251,7 +251,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           },
         },
       });
-      setIsLoadingFailingPoliciesWebhook(true); // attempt to reload table
       await request.then(() => {
         dispatch(
           renderFlash("success", "Successfully updated policy automations.")
@@ -266,8 +265,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       );
     } finally {
       toggleManageAutomationsModal();
-      getFailingPoliciesWebhook(); // attempt to reload table
-      setIsLoadingFailingPoliciesWebhook(false); // attempt to reload table
+      getFailingPoliciesWebhook();
     }
   };
 
