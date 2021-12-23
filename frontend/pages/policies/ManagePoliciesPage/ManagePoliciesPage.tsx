@@ -510,7 +510,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           {!!selectedTeamId &&
             (isTeamPoliciesError ? (
               <TableDataError />
-            ) : !isLoadingFailingPoliciesWebhook ? (
+            ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies}
                 isLoading={
@@ -524,13 +524,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 selectedTeamData={selectedTeamData}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
-            ) : (
-              <Spinner />
             ))}
           {!selectedTeamId &&
             (isGlobalPoliciesError ? (
               <TableDataError />
-            ) : !isLoadingFailingPoliciesWebhook ? (
+            ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies}
                 isLoading={
@@ -544,8 +542,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
                 selectedTeamData={selectedTeamData}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
-            ) : (
-              <Spinner />
             ))}
         </div>
         {showInheritedPoliciesButton && (
@@ -575,25 +571,22 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
           <div className={`${baseClass}__inherited-policies-table`}>
-            {!isLoadingFailingPoliciesWebhook ? (
-              <PoliciesListWrapper
-                isLoading={
-                  isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
-                }
-                policiesList={globalPolicies}
-                onRemovePoliciesClick={noop}
-                resultsTitle="policies"
-                canAddOrRemovePolicy={canAddOrRemovePolicy(
-                  currentUser,
-                  selectedTeamId
-                )}
-                tableType="inheritedPolicies"
-                selectedTeamData={selectedTeamData}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-              />
-            ) : (
-              <Spinner />
-            )}
+            <PoliciesListWrapper
+              isLoading={
+                isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
+              }
+              policiesList={globalPolicies}
+              onRemovePoliciesClick={noop}
+              resultsTitle="policies"
+              canAddOrRemovePolicy={canAddOrRemovePolicy(
+                currentUser,
+                selectedTeamId
+              )}
+              tableType="inheritedPolicies"
+              selectedTeamData={selectedTeamData}
+              currentAutomatedPolicies={currentAutomatedPolicies}
+            />
+            )
           </div>
         )}
         {showManageAutomationsModal && (
