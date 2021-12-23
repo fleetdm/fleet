@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -218,6 +218,7 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -529,9 +530,8 @@ const ManageHostsPage = ({
     softwareId,
   ]);
 
-  const handleLabelChange = ({ slug }: ILabel) => {
+  const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
-      console.error("Slug was missing. This should not happen.");
       return false;
     }
 
@@ -579,6 +579,8 @@ const ManageHostsPage = ({
         queryParams: newQueryParams,
       })
     );
+
+    return true;
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
@@ -1014,6 +1016,7 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
+      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -1478,13 +1481,12 @@ const ManageHostsPage = ({
       return <TableDataError />;
     }
 
-    // Hosts have not been set up for this instance yet.
+    // There are no hosts for this instance yet
     if (
-      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
-      (getStatusSelected() === ALL_HOSTS_LABEL &&
-        filteredHostCount === 0 &&
-        searchQuery === "" &&
-        !isHostsLoading)
+      getStatusSelected() === ALL_HOSTS_LABEL &&
+      filteredHostCount === 0 &&
+      searchQuery === "" &&
+      !isHostsLoading
     ) {
       return (
         <NoHosts
@@ -1530,24 +1532,25 @@ const ManageHostsPage = ({
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
-        onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
-        emptyComponent={EmptyHosts}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
-        toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
-        customControl={renderStatusDropdown}
         filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
+        clearSelectionCount={clearSelectionCount}
+        emptyComponent={EmptyHosts}
+        customControl={renderStatusDropdown}
+        onActionButtonClick={onEditColumnsClick}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        onQueryChange={onTableQueryChange}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };
@@ -1563,6 +1566,7 @@ const ManageHostsPage = ({
         (isPremiumTier && !currentTeam?.id && !isLoadingTeams)) &&
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
+
     return ((canEnrollHosts && noTeamEnrollSecrets) ||
       (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner ? (
