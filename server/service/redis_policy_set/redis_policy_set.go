@@ -65,13 +65,36 @@ func (r *redisFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost)
 	return nil
 }
 
+func (r *redisFailingPolicySet) scanPolicySet(conn redigo.Conn, policyID uint, count int) ([]string, error) {
+	var hosts []string
+
+	cursor := 0
+	for {
+		res, err := redigo.Values(conn.Do("SSCAN", policySetKey(policyID), cursor, "COUNT", count))
+		if err != nil {
+			return nil, fmt.Errorf("scan keys: %w", err)
+		}
+		var curElems []string
+		_, err = redigo.Scan(res, &cursor, &curElems)
+		if err != nil {
+			return nil, fmt.Errorf("convert scan results: %w", err)
+		}
+		hosts = append(hosts, curElems...)
+		if cursor == 0 {
+			break
+		}
+	}
+	return hosts, nil
+}
+
 // ListHosts returns the list of hosts present in the policy set.
 func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	hostEntries, err := redigo.Strings(conn.Do("SMEMBERS", policySetKey(policyID)))
-	if err != nil && err != redigo.ErrNil {
+	const hostsScanCount = 100
+	hostEntries, err := r.scanPolicySet(conn, policyID, hostsScanCount)
+	if err != nil {
 		return nil, err
 	}
 	hosts := make([]fleet.PolicySetHost, len(hostEntries))
@@ -87,6 +110,10 @@ func (r *redisFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost,
 
 // RemoveHosts removes the hosts from the policy set.
 func (r *redisFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicySetHost) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 

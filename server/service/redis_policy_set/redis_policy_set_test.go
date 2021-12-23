@@ -1,7 +1,11 @@
 package redis_policy_set
 
 import (
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,7 +31,91 @@ func TestRedisFailingPolicySet(t *testing.T) {
 	}
 }
 
-func setupRedis(t *testing.T, cluster bool) *redisFailingPolicySet {
+func setupRedis(t testing.TB, cluster bool) *redisFailingPolicySet {
 	pool := redistest.SetupRedis(t, cluster, true, true)
 	return NewFailing(pool)
+}
+
+func BenchmarkFailingPolicySetStandaloneP10H10(b *testing.B) {
+	benchmarkFailingPolicySet(b, 10, 10, false)
+}
+
+func BenchmarkFailingPolicySetClusterP10H10(b *testing.B) {
+	benchmarkFailingPolicySet(b, 10, 10, true)
+}
+
+func benchmarkFailingPolicySet(b *testing.B, policyCount, hostCount int, cluster bool) {
+	s := setupRedis(b, cluster)
+	for i := 0; i < b.N; i++ {
+		runBenchmark(b, policyCount, hostCount, s)
+	}
+}
+
+func runBenchmark(b *testing.B, policyCount, hostCount int, s *redisFailingPolicySet) {
+	var wg sync.WaitGroup
+
+	const checkInCount = 5
+
+	done := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				sets, err := s.ListSets()
+				if err != nil {
+					b.Error(err)
+				}
+				for _, set := range sets {
+					hosts, err := s.ListHosts(set)
+					if err != nil {
+						b.Error(err)
+					}
+
+					// simulate consumption of hosts
+					time.Sleep(100 * time.Millisecond)
+
+					err = s.RemoveHosts(set, hosts)
+					if err != nil {
+						b.Error(err)
+					}
+				}
+			}
+		}
+	}()
+
+	for hostID := 1; hostID < hostCount+1; hostID++ {
+		hostID := uint(hostID)
+		wg.Add(+1)
+		go func() {
+			defer wg.Done()
+
+			for i := 0; i < checkInCount; i++ {
+				for policyID := 1; policyID < policyCount+1; policyID++ {
+					host := fleet.PolicySetHost{
+						ID:       hostID,
+						Hostname: fmt.Sprintf("test.hostname.%d", hostID),
+					}
+					var err error
+					if rand.Float64() < 0.5 {
+						err = s.AddHost(uint(policyID), host)
+					} else {
+						err = s.RemoveHosts(uint(policyID), []fleet.PolicySetHost{host})
+					}
+					if err != nil {
+						b.Error(err)
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(done)
+	<-finished
 }

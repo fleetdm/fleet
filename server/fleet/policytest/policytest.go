@@ -1,6 +1,7 @@
 package policytest
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -9,6 +10,38 @@ import (
 )
 
 func RunFailingPolicySetTests(t *testing.T, r fleet.FailingPolicySet) {
+	t.Run("basic", func(t *testing.T) {
+		testBasic(t, r)
+	})
+
+	t.Run("1000-hosts", func(t *testing.T) {
+		hosts := make([]fleet.PolicySetHost, 1000)
+		for i := range hosts {
+			hosts[i] = fleet.PolicySetHost{
+				ID:       uint(i + 1),
+				Hostname: fmt.Sprintf("test.hostname.%d", i+1),
+			}
+		}
+		policyID1k := uint(999)
+		for i := range hosts {
+			err := r.AddHost(policyID1k, hosts[i])
+			require.NoError(t, err)
+		}
+		fetchedHosts, err := r.ListHosts(policyID1k)
+		require.NoError(t, err)
+		sort.Slice(fetchedHosts, func(i, j int) bool {
+			return fetchedHosts[i].ID < fetchedHosts[j].ID
+		})
+		require.Equal(t, hosts, fetchedHosts)
+		err = r.RemoveHosts(policyID1k, hosts)
+		require.NoError(t, err)
+		fetchedHosts, err = r.ListHosts(policyID1k)
+		require.NoError(t, err)
+		require.Empty(t, fetchedHosts)
+	})
+}
+
+func testBasic(t *testing.T, r fleet.FailingPolicySet) {
 	policyID1 := uint(1)
 
 	// Test listing policy sets with no sets.
@@ -27,6 +60,10 @@ func RunFailingPolicySetTests(t *testing.T, r fleet.FailingPolicySet) {
 		Hostname: "hostx.example",
 	}
 	err = r.RemoveHosts(policyID1, []fleet.PolicySetHost{hostx})
+	require.NoError(t, err)
+
+	// Remove no hosts.
+	err = r.RemoveHosts(policyID1, []fleet.PolicySetHost{})
 	require.NoError(t, err)
 
 	// Test adding a new host to a policy set.
