@@ -718,11 +718,17 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		return nil, err
 	}
 
+	var munkiInfo *fleet.HostMunkiInfo
 	version, err := svc.ds.GetMunkiVersion(ctx, id)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, err
 	}
 
+	if err == nil {
+		munkiInfo = &fleet.HostMunkiInfo{Version: version}
+	}
+
+	var mdm *fleet.HostMDM
 	enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, err
@@ -735,12 +741,16 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		enrollmentStatus = "Enrolled (automated)"
 	}
 
-	data := &fleet.MacadminsData{
-		Munki: fleet.HostMunkiInfo{Version: version},
-		MDM: fleet.HostMDM{
+	if err == nil {
+		mdm = &fleet.HostMDM{
 			EnrollmentStatus: enrollmentStatus,
 			ServerURL:        serverURL,
-		},
+		}
+	}
+
+	data := &fleet.MacadminsData{
+		Munki: munkiInfo,
+		MDM:   mdm,
 	}
 
 	return data, nil
