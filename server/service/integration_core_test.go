@@ -1689,9 +1689,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	// nothing returns null
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
-	require.NotNil(t, macadminsData.Macadmins)
-	require.Nil(t, macadminsData.Macadmins.MDM)
-	require.Nil(t, macadminsData.Macadmins.Munki)
+	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))

@@ -748,6 +748,10 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		}
 	}
 
+	if munkiInfo == nil && mdm == nil {
+		return nil, nil
+	}
+
 	data := &fleet.MacadminsData{
 		Munki: munkiInfo,
 		MDM:   mdm,
