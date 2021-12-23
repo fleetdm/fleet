@@ -655,8 +655,8 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
 	if !enrolled {
-		// TODO(lucas): Do we want to create a host_mdm entry when enrolled is false?
-		// When enrolled is false, all other columns are empty.
+		// A row with enrolled=false and all other columns empty is a host with the osquery
+		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
 		return nil
 	}
 	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
