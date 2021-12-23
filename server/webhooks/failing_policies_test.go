@@ -244,7 +244,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 				err := failingPolicySet.AddHost(p.ID, host)
 				require.NoError(t, err)
 			}
-			err := sendBatchedPOSTs(context.Background(),
+			err := sendFailingPoliciesBatchedPOSTs(context.Background(),
 				p, failingPolicySet, postData{
 					serverURL:  serverURL,
 					now:        now,

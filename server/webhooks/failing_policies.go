@@ -50,7 +50,7 @@ func TriggerGlobalFailingPoliciesWebhook(
 		return ctxerr.Wrap(ctx, err, "filtering policies")
 	}
 	for _, policy := range policies {
-		if err := sendBatchedPOSTs(ctx, policy, failingPoliciesSet, postData{
+		if err := sendFailingPoliciesBatchedPOSTs(ctx, policy, failingPoliciesSet, postData{
 			serverURL:  serverURL,
 			now:        now,
 			webhookURL: globalPoliciesURL,
@@ -67,7 +67,7 @@ type postData struct {
 	webhookURL string
 }
 
-func sendBatchedPOSTs(
+func sendFailingPoliciesBatchedPOSTs(
 	ctx context.Context,
 	policy *fleet.Policy,
 	failingPoliciesSet fleet.FailingPolicySet,

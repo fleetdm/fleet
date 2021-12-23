@@ -65,6 +65,10 @@ func (r *redisFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost)
 	return nil
 }
 
+// scanPolicySet uses SSCAN (instead of SMEMBERS) to fetch the hosts from a policy set with a cursor.
+//
+// SMEMBERS blocks the Redis instance for the duration of the call, so if the set is big
+// it could impact performance overall.
 func (r *redisFailingPolicySet) scanPolicySet(conn redigo.Conn, policyID uint, count int) ([]string, error) {
 	var hosts []string
 

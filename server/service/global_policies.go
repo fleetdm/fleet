@@ -169,7 +169,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	}
 	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "deleting global policies")
+		return nil, err
 	}
 	return ids, nil
 }
