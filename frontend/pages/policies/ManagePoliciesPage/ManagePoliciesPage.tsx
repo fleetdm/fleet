@@ -9,7 +9,7 @@ import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
 
 import { DEFAULT_POLICY } from "utilities/constants";
-import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import { IPolicy, IPolicyStats } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -26,6 +26,7 @@ import { inMilliseconds, secondsToHms } from "fleet/helpers";
 import sortUtils from "utilities/sort";
 import permissionsUtils from "utilities/permissions";
 
+import Spinner from "components/Spinner";
 import TableDataError from "components/TableDataError";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -40,14 +41,6 @@ const baseClass = "manage-policies-page";
 
 const DOCS_LINK =
   "https://fleetdm.com/docs/deploying/configuration#osquery-policy-update-interval";
-
-const configMock = {
-  failing_policies_webhook: {
-    destination_url: "https://foo.bar",
-    enable_failing_policies_webhook: true,
-    policy_ids: [6, 14],
-  },
-};
 
 const renderInheritedPoliciesButtonText = (
   showPolicies: boolean,
@@ -125,10 +118,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<
     number[] | never[]
   >([]);
-  const [
-    automationFormData,
-    setAutomationFormData,
-  ] = useState<IWebhookFailingPolicies>({});
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
@@ -147,7 +136,12 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     isFailingPoliciesWebhookError,
     setIsFailingPoliciesWebhookError,
   ] = useState(false);
-  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<any>();
+  const [failingPoliciesWebhook, setFailingPoliciesWebhook] = useState<
+    IWebhookFailingPolicies | undefined
+  >();
+  const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
+    number[]
+  >();
   // ===== local state
 
   const getGlobalPolicies = useCallback(async () => {
@@ -169,17 +163,18 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     return result;
   }, []);
 
-  // Q: patterns using useCallback vs. useQuery
-  console.log("\n\n\nMPP failingPoliciesWebhook", failingPoliciesWebhook);
   const getFailingPoliciesWebhook = useCallback(async () => {
     setIsLoadingFailingPoliciesWebhook(true);
     setIsFailingPoliciesWebhookError(false);
+    console.log("GET FAILING POLICIES WEBHOOK");
     let result;
     try {
       result = await configAPI
         .loadAll()
         .then((response) => response.webhook_settings.failing_policies_webhook);
+      console.log("result", result);
       setFailingPoliciesWebhook(result);
+      setCurrentAutomatedPolicies(result.policy_ids);
     } catch (error) {
       console.log(error);
       setIsFailingPoliciesWebhookError(true);
@@ -243,7 +238,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     toggleManageAutomationsModal();
   };
 
-  // TODO: TEST 12/21
   const onCreateAutomationsSubmit = async ({
     destination_url,
     policy_ids,
@@ -259,6 +253,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           },
         },
       });
+      setIsLoadingFailingPoliciesWebhook(true); // attempt to reload table
       await request.then(() => {
         dispatch(
           renderFlash("success", "Successfully updated policy automations.")
@@ -273,7 +268,8 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       );
     } finally {
       toggleManageAutomationsModal();
-      getFailingPoliciesWebhook();
+      getFailingPoliciesWebhook(); // attempt to reload table
+      setIsLoadingFailingPoliciesWebhook(false); // attempt to reload table
     }
   };
 
@@ -516,34 +512,42 @@ const ManagePolicyPage = (managePoliciesPageProps: {
           {!!selectedTeamId &&
             (isTeamPoliciesError ? (
               <TableDataError />
-            ) : (
+            ) : !isLoadingFailingPoliciesWebhook ? (
               <PoliciesListWrapper
                 policiesList={teamPolicies}
-                isLoading={isLoadingTeamPolicies}
+                isLoading={
+                  isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
+                }
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
                 )}
                 selectedTeamData={selectedTeamData}
+                currentAutomatedPolicies={currentAutomatedPolicies}
               />
+            ) : (
+              <Spinner />
             ))}
           {!selectedTeamId &&
             (isGlobalPoliciesError ? (
               <TableDataError />
-            ) : (
+            ) : !isLoadingFailingPoliciesWebhook ? (
               <PoliciesListWrapper
                 policiesList={globalPolicies}
-                isLoading={isLoadingGlobalPolicies}
+                isLoading={
+                  isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
+                }
                 onRemovePoliciesClick={onRemovePoliciesClick}
-                toggleAddPolicyModal={toggleAddPolicyModal}
                 canAddOrRemovePolicy={canAddOrRemovePolicy(
                   currentUser,
                   selectedTeamId
                 )}
                 selectedTeamData={selectedTeamData}
+                currentAutomatedPolicies={currentAutomatedPolicies}
               />
+            ) : (
+              <Spinner />
             ))}
         </div>
         {showInheritedPoliciesButton && (
@@ -573,18 +577,25 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
           <div className={`${baseClass}__inherited-policies-table`}>
-            <PoliciesListWrapper
-              isLoading={isLoadingGlobalPolicies}
-              policiesList={globalPolicies}
-              onRemovePoliciesClick={noop}
-              resultsTitle="policies"
-              canAddOrRemovePolicy={canAddOrRemovePolicy(
-                currentUser,
-                selectedTeamId
-              )}
-              tableType="inheritedPolicies"
-              selectedTeamData={selectedTeamData}
-            />
+            {!isLoadingFailingPoliciesWebhook ? (
+              <PoliciesListWrapper
+                isLoading={
+                  isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
+                }
+                policiesList={globalPolicies}
+                onRemovePoliciesClick={noop}
+                resultsTitle="policies"
+                canAddOrRemovePolicy={canAddOrRemovePolicy(
+                  currentUser,
+                  selectedTeamId
+                )}
+                tableType="inheritedPolicies"
+                selectedTeamData={selectedTeamData}
+                currentAutomatedPolicies={currentAutomatedPolicies}
+              />
+            ) : (
+              <Spinner />
+            )}
           </div>
         )}
         {showManageAutomationsModal && (
@@ -594,11 +605,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
             availablePolicies={globalPolicies}
-            currentAutomatedPolicies={
-              failingPoliciesWebhook && failingPoliciesWebhook.policy_ids
-            }
+            currentAutomatedPolicies={currentAutomatedPolicies || []}
             currentDestinationUrl={
-              failingPoliciesWebhook && failingPoliciesWebhook.destination_url
+              (failingPoliciesWebhook &&
+                failingPoliciesWebhook.destination_url) ||
+              ""
             }
           />
         )}

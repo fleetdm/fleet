@@ -7,6 +7,7 @@ import { memoize } from "lodash";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
@@ -146,6 +147,17 @@ const generateTableHeaders = (options: {
           ),
         },
       ];
+      if (!selectedTeamId) {
+        tableHeaders.push({
+          title: "Automations",
+          Header: "Automations",
+          disableSortBy: true,
+          accessor: "automation",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <StatusCell value={cellProps.cell.value} />
+          ),
+        });
+      }
       if (showSelectionColumn) {
         tableHeaders.splice(0, 0, {
           id: "selection",
@@ -175,10 +187,24 @@ const generateTableHeaders = (options: {
 };
 
 const generateDataSet = memoize(
-  (policiesList: IPolicyStats[] = []): IPolicyStats[] => {
+  (
+    policiesList: IPolicyStats[] = [],
+    currentAutomatedPolicies?: number[]
+  ): IPolicyStats[] => {
     policiesList = policiesList.sort((a, b) =>
       sortUtils.caseInsensitiveAsc(a.name, b.name)
     );
+
+    console.log("currentAutomatedPolicies", currentAutomatedPolicies);
+    policiesList.forEach((policy) => {
+      console.log("policy.id", policy.id);
+      policy.automation =
+        currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
+          ? "On"
+          : "Off";
+    });
+
+    console.log("policiesList", policiesList);
     return policiesList;
   }
 );

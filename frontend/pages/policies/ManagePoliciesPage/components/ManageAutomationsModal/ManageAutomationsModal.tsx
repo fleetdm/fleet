@@ -8,16 +8,12 @@ import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import IconToolTip from "components/IconToolTip";
 
-import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { IPolicy } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
 import { useDeepEffect } from "utilities/hooks";
 import { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
-
-interface IPolicyCheckboxListItem extends IPolicy {
-  isChecked: boolean | undefined;
-}
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
@@ -26,7 +22,7 @@ interface IManageAutomationsModalProps {
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
   currentAutomatedPolicies?: number[];
-  currentDestinationUrl: string;
+  currentDestinationUrl?: string;
 }
 
 interface ICheckedPolicy {
@@ -40,13 +36,17 @@ const useCheckboxListStateManagement = (
   automatedPolicies: number[] | undefined
 ) => {
   const [policyItems, setPolicyItems] = useState<ICheckedPolicy[]>(() => {
-    return allPolicies.map((policy) => {
-      return {
-        name: policy.name,
-        id: policy.id,
-        isChecked: !!automatedPolicies && automatedPolicies.includes(policy.id),
-      };
-    });
+    return (
+      allPolicies &&
+      allPolicies.map((policy) => {
+        return {
+          name: policy.name,
+          id: policy.id,
+          isChecked:
+            !!automatedPolicies && automatedPolicies.includes(policy.id),
+        };
+      })
+    );
   });
 
   const updatePolicyItems = (policyId: number) => {
@@ -91,12 +91,12 @@ const ManageAutomationsModal = ({
   onCreateAutomationsSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
-  availablePolicies, // comes from policiesAPI
-  currentAutomatedPolicies, // comes from configAPI
-  currentDestinationUrl, // comes from configAPI
+  availablePolicies,
+  currentAutomatedPolicies,
+  currentDestinationUrl,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
-    currentDestinationUrl
+    currentDestinationUrl || ""
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -126,17 +126,11 @@ const ManageAutomationsModal = ({
 
     if (valid) {
       const policy_ids =
-        policyItems && policyItems.map((policy: any) => policy.id);
+        policyItems &&
+        policyItems
+          .filter((policy) => policy.isChecked)
+          .map((policy) => policy.id);
       const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
-
-      console.log(
-        "\n\nhandleSaveAutomation\nenable_failing_policies_webhook",
-        enable_failing_policies_webhook,
-        "\ndestination_url",
-        destination_url,
-        "\npolicy_ids",
-        policy_ids
-      );
 
       onCreateAutomationsSubmit({
         destination_url,
@@ -159,24 +153,31 @@ const ManageAutomationsModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        <div className={`${baseClass}__policy-select-items`}>
-          <p> Choose which policy you would like to listen to:</p>
-          {policyItems &&
-            policyItems.map((policyItem) => {
-              const { isChecked, name, id } = policyItem;
-              return (
-                <div key={id} className={`${baseClass}__team-item`}>
-                  <Checkbox
-                    value={isChecked}
-                    name={name}
-                    onChange={() => updatePolicyItems(policyItem.id)}
-                  >
-                    {name}
-                  </Checkbox>
-                </div>
-              );
-            })}
-        </div>
+        {availablePolicies && availablePolicies.length > 0 ? (
+          <div className={`${baseClass}__policy-select-items`}>
+            <p> Choose which policy you would like to listen to:</p>
+            {policyItems &&
+              policyItems.map((policyItem) => {
+                const { isChecked, name, id } = policyItem;
+                return (
+                  <div key={id} className={`${baseClass}__team-item`}>
+                    <Checkbox
+                      value={isChecked}
+                      name={name}
+                      onChange={() => updatePolicyItems(policyItem.id)}
+                    >
+                      {name}
+                    </Checkbox>
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div className={`${baseClass}__no-policies`}>
+            <b>You have no policies.</b>
+            <p>Add a policy to turn on automations.</p>
+          </div>
+        )}
         <div className="tooltip-wrap tooltip-wrap--input">
           <InputField
             inputWrapperClass={`${baseClass}__url-input`}
