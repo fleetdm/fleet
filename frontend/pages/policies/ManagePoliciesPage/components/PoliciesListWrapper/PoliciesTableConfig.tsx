@@ -186,27 +186,22 @@ const generateTableHeaders = (options: {
   }
 };
 
-const generateDataSet = memoize(
-  (
-    policiesList: IPolicyStats[] = [],
-    currentAutomatedPolicies?: number[]
-  ): IPolicyStats[] => {
-    policiesList = policiesList.sort((a, b) =>
-      sortUtils.caseInsensitiveAsc(a.name, b.name)
-    );
+const generateDataSet = (
+  policiesList: IPolicyStats[] = [],
+  currentAutomatedPolicies?: number[]
+): IPolicyStats[] => {
+  policiesList = policiesList.sort((a, b) =>
+    sortUtils.caseInsensitiveAsc(a.name, b.name)
+  );
 
-    console.log("currentAutomatedPolicies", currentAutomatedPolicies);
-    policiesList.forEach((policy) => {
-      console.log("policy.id", policy.id);
-      policy.automation =
-        currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
-          ? "On"
-          : "Off";
-    });
+  policiesList.forEach((policy) => {
+    policy.automation =
+      currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
+        ? "On"
+        : "Off";
+  });
 
-    console.log("policiesList", policiesList);
-    return policiesList;
-  }
-);
+  return policiesList;
+};
 
 export { generateTableHeaders, generateDataSet };
