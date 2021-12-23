@@ -719,29 +719,24 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var munkiInfo *fleet.HostMunkiInfo
-	version, err := svc.ds.GetMunkiVersion(ctx, id)
-	if err != nil && !fleet.IsNotFound(err) {
+	switch version, err := svc.ds.GetMunkiVersion(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
-	}
-
-	if err == nil {
+	case err == nil:
 		munkiInfo = &fleet.HostMunkiInfo{Version: version}
 	}
 
 	var mdm *fleet.HostMDM
-	enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id)
-	if err != nil && !fleet.IsNotFound(err) {
+	switch enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
-	}
-
-	enrollmentStatus := "Unenrolled"
-	if enrolled && !installedFromDep {
-		enrollmentStatus = "Enrolled (manual)"
-	} else if enrolled && installedFromDep {
-		enrollmentStatus = "Enrolled (automated)"
-	}
-
-	if err == nil {
+	case err == nil:
+		enrollmentStatus := "Unenrolled"
+		if enrolled && !installedFromDep {
+			enrollmentStatus = "Enrolled (manual)"
+		} else if enrolled && installedFromDep {
+			enrollmentStatus = "Enrolled (automated)"
+		}
 		mdm = &fleet.HostMDM{
 			EnrollmentStatus: enrollmentStatus,
 			ServerURL:        serverURL,
