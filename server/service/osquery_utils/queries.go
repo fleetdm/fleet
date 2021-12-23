@@ -646,14 +646,22 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
-
+	enrolledVal := rows[0]["enrolled"]
+	if enrolledVal == "" {
+		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
+	}
+	enrolled, err := strconv.ParseBool(enrolledVal)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing enrolled")
+	}
+	if !enrolled {
+		// TODO(lucas): Do we want to create a host_mdm entry when enrolled is false?
+		// When enrolled is false, all other columns are empty.
+		return nil
+	}
 	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
-	}
-	enrolled, err := strconv.ParseBool(rows[0]["enrolled"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
