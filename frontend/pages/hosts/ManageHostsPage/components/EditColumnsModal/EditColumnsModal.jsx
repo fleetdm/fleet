@@ -6,7 +6,7 @@ import Button from "../../../../../components/buttons/Button";
 
 const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
   const [columnItems, setColumnItems] = useState(() => {
-    const ret = allColumns.map((column) => {
+    return allColumns.map((column) => {
       return {
         name: column.title,
         accessor: column.accessor,
@@ -14,9 +14,6 @@ const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
         disableHidden: column.disableHidden,
       };
     });
-
-    console.log(ret);
-    return ret;
   });
 
   const updateColumnItems = (columnAccessor) => {
