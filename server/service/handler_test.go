@@ -219,8 +219,6 @@ func TestAPIRoutesConflicts(t *testing.T) {
 }
 
 func TestAPIRoutesMetrics(t *testing.T) {
-	t.Skip("TODO")
-
 	ds := new(mock.Store)
 
 	svc := newTestService(ds, nil, nil)
