@@ -518,7 +518,7 @@ func (d *Datastore) searchLabelsWithOmits(ctx context.Context, filter fleet.Team
 			)
 			AND id NOT IN (?)
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	sql, args, err := sqlx.In(sqlStatement, transformedQuery, omit)
@@ -554,7 +554,7 @@ func (d *Datastore) addAllHostsLabelToList(ctx context.Context, filter fleet.Tea
 			  label_type=?
 				AND name = 'All Hosts'
 			LIMIT 1
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	var allHosts fleet.Label
@@ -585,7 +585,7 @@ func (d *Datastore) searchLabelsDefault(ctx context.Context, filter fleet.TeamFi
 			WHERE id NOT IN (?)
 			GROUP BY id
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	var in interface{}
@@ -638,7 +638,7 @@ func (d *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 				MATCH(name) AGAINST(? IN BOOLEAN MODE)
 			)
 			ORDER BY label_type DESC, id ASC
-		`, d.whereFilterHostsByTeams(filter, "h"),
+		`, //d.whereFilterHostsByTeams(filter, "h"),
 	)
 
 	matches := []*fleet.Label{}
