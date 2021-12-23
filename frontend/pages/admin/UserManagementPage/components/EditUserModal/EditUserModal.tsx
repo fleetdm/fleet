@@ -1,4 +1,5 @@
 import React from "react";
+import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -43,6 +44,8 @@ const EditUserModal = ({
   currentTeam,
   serverErrors,
 }: IEditUserModalProps): JSX.Element => {
+  const dispatch = useDispatch();
+
   return (
     <Modal
       title="Edit user"
@@ -66,6 +69,7 @@ const EditUserModal = ({
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         currentTeam={currentTeam}
+        dispatch={dispatch}
       />
     </Modal>
   );
