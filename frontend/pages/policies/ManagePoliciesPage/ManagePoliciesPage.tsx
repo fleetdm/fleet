@@ -166,13 +166,11 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const getFailingPoliciesWebhook = useCallback(async () => {
     setIsLoadingFailingPoliciesWebhook(true);
     setIsFailingPoliciesWebhookError(false);
-    console.log("GET FAILING POLICIES WEBHOOK");
     let result;
     try {
       result = await configAPI
         .loadAll()
         .then((response) => response.webhook_settings.failing_policies_webhook);
-      console.log("result", result);
       setFailingPoliciesWebhook(result);
       setCurrentAutomatedPolicies(result.policy_ids);
     } catch (error) {
