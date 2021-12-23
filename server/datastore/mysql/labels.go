@@ -461,6 +461,7 @@ func (d *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, que
 }
 
 func (d *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
+	return 0, nil
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)

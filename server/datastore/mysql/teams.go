@@ -190,7 +190,7 @@ func (d *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt 
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
-				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+				(SELECT 0 as count) AS host_count
 			FROM teams t
 			WHERE %s
 		`,
@@ -223,7 +223,7 @@ func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, ma
 	sql := fmt.Sprintf(`
 			SELECT *,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
-				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
+				(SELECT 0 as count) AS host_count
 			FROM teams t
 			WHERE %s AND %s
 		`,

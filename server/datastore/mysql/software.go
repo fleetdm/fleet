@@ -313,6 +313,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 func countSoftwareDB(
 	ctx context.Context, q sqlx.QueryerContext, hostID *uint, opts fleet.SoftwareListOptions,
 ) (int, error) {
+	return 0, nil
 	opts.ListOptions = fleet.ListOptions{
 		MatchQuery: opts.ListOptions.MatchQuery,
 	}

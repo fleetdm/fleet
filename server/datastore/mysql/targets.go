@@ -11,6 +11,7 @@ import (
 )
 
 func (d *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+	return fleet.TargetMetrics{}, nil
 	// The logic in this function should remain synchronized with
 	// host.Status and GenerateHostStatusStatistics - that is, the intervals associated
 	// with each status must be the same.
