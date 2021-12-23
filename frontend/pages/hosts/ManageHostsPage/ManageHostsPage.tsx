@@ -530,9 +530,8 @@ const ManageHostsPage = ({
     softwareId,
   ]);
 
-  const handleLabelChange = ({ slug }: ILabel) => {
+  const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
-      console.error("Slug was missing. This should not happen.");
       return false;
     }
 
@@ -580,6 +579,8 @@ const ManageHostsPage = ({
         queryParams: newQueryParams,
       })
     );
+
+    return true;
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
@@ -1480,13 +1481,12 @@ const ManageHostsPage = ({
       return <TableDataError />;
     }
 
-    // Hosts have not been set up for this instance yet.
+    // There are no hosts for this instance yet
     if (
-      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
-      (getStatusSelected() === ALL_HOSTS_LABEL &&
-        filteredHostCount === 0 &&
-        searchQuery === "" &&
-        !isHostsLoading)
+      getStatusSelected() === ALL_HOSTS_LABEL &&
+      filteredHostCount === 0 &&
+      searchQuery === "" &&
+      !isHostsLoading
     ) {
       return (
         <NoHosts
@@ -1566,6 +1566,7 @@ const ManageHostsPage = ({
         (isPremiumTier && !currentTeam?.id && !isLoadingTeams)) &&
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
+
     return ((canEnrollHosts && noTeamEnrollSecrets) ||
       (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner ? (
