@@ -41,14 +41,13 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to POST to %s: %s, request-size=%d", url, err, len(jsonBytes))
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("Error posting to %s: %d. %s", url, resp.StatusCode, string(body))
+		return fmt.Errorf("error posting to %s: %d. %s", url, resp.StatusCode, string(body))
 	}
 
 	return nil
