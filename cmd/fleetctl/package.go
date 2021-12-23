@@ -51,7 +51,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "version",
 				Usage:       "Version for package product",
-				Value:       "0.0.3",
+				Value:       "0.0.5",
 				Destination: &opt.Version,
 			},
 			&cli.BoolFlag{
