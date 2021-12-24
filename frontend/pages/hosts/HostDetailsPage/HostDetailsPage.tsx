@@ -110,17 +110,6 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-const MOCK_DEVICE_MAPPING = [
-  {
-    email: "rocket.j.squirrel@example.com",
-    source: "google_chrome_profiles",
-  },
-  {
-    email: "bullwinkle.j.moose@example.com",
-    source: "google_chrome_profiles",
-  },
-];
-
 const HostDetailsPage = ({
   router,
   params: { host_id },
@@ -215,9 +204,6 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       select: (data: IDeviceMappingResponse) => data.device_mapping,
-      // select: (data: IDeviceMappingResponse) =>
-      //   data.device_mapping || MOCK_DEVICE_MAPPING,
-      // onSuccess: (res) => console.log(res),
     }
   );
 
@@ -230,13 +216,6 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       select: (data: IMacadminsResponse) => data.macadmins,
-      // select: (data: IMacadminsResponse) => {
-      //   if (data.macadmins?.munki?.version === "") {
-      //     data.macadmins = null;
-      //   }
-      //   return data.macadmins;
-      // },
-      // onSuccess: (res) => console.log(res),
     }
   );
 
