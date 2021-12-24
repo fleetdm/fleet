@@ -760,7 +760,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if err != nil {
-			logging.WithErr(ctx, ctxerr.New(ctx, "error in live query ingestion"))
+			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}

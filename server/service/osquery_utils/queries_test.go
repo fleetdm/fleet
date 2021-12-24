@@ -1,6 +1,7 @@
 package osquery_utils
 
 import (
+	"context"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -300,4 +301,20 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+}
+
+func TestDirectIngestMDM(t *testing.T) {
+	var host fleet.Host
+
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{}, true)
+	require.NoError(t, err)
+
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{
+		{
+			"enrolled":           "false",
+			"installed_from_dep": "",
+			"server_url":         "",
+		},
+	}, false)
+	require.NoError(t, err)
 }
