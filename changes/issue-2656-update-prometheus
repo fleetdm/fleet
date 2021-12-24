@@ -1,0 +1,6 @@
+* Update to the latest version of the prometheus Go client library, resulting in some breaking changes in the exported metrics:
+    - `http_request_duration_microseconds` which was a Summary metric aggregated per quantile is now `http_request_duration_seconds_bucket`, an Histogram metric aggregated per bucket, with the buckets being `.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10`
+    - `http_request_duration_microseconds_sum` is now `http_request_duration_seconds_sum`
+    - `http_request_duration_microseconds_count` is now `http_request_duration_seconds_count`
+    - `http_request_size_bytes` which was a Summary metric aggregated per quantile is now `http_request_size_bytes_bucket`, an Histogram metric aggregated per bucket, with the buckets being `1KB, 100KB, 1MB, 100MB, 1GB`
+    - `http_response_size_bytes` which was a Summary metric aggregated per quantile is now `http_response_size_bytes_bucket`, an Histogram metric aggregated per bucket, with the buckets being `1KB, 100KB, 1MB, 100MB, 1GB`

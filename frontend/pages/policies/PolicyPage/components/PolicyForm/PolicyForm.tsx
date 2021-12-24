@@ -1,26 +1,26 @@
-import React, { useState, useContext, useEffect } from "react";
+/* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
+/* eslint-disable jsx-a11y/interactive-supports-focus */
+import React, { useState, useContext } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { size } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { isUndefined } from "lodash";
 
 import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
-import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import { IQueryPlatform } from "interfaces/query";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce"; // @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import FleetAce from "components/FleetAce";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+import Spinner from "components/Spinner";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import NewPolicyModal from "../NewPolicyModal";
-import CompatibleIcon from "../../../../../../assets/images/icon-compatible-green-16x16@2x.png";
-import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -40,18 +40,6 @@ interface IPolicyFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
 }
 
-const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: string } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
-
-  if (!queryValid) {
-    errors.query = queryError;
-  }
-
-  const valid = !size(errors);
-  return { valid, errors };
-};
-
 const PolicyForm = ({
   policyIdForEdit,
   showOpenSchemaActionText,
@@ -64,13 +52,11 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IPolicyFormProps): JSX.Element => {
-  const isEditMode = !!policyIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
     false
@@ -78,6 +64,11 @@ const PolicyForm = ({
   const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
+  const [isDarwinCompatible, setIsDarwinCompatible] = useState<boolean>(false);
+  const [isWindowsCompatible, setIsWindowsCompatible] = useState<boolean>(
+    false
+  );
+  const [isLinuxCompatible, setIsLinuxCompatible] = useState<boolean>(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -87,10 +78,12 @@ const PolicyForm = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryResolution,
+    lastEditedQueryPlatform,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const {
@@ -104,35 +97,34 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
-  const debounceCompatiblePlatforms = useDebouncedCallback(
-    (queryString: string) => {
-      setCompatiblePlatforms(
-        listCompatiblePlatforms(parseSqlTables(queryString))
-      );
-    },
-    300
-  );
-
-  useEffect(() => {
-    debounceCompatiblePlatforms(lastEditedQueryBody);
-
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
-    valid = isValidated;
-    setErrors({
-      ...newErrors,
-    });
-  }, [lastEditedQueryBody]);
+  const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+  const displayOrder = [
+    {
+      selected: isDarwinCompatible,
+      displayName: "macOS",
+    },
+    {
+      selected: isWindowsCompatible,
+      displayName: "Windows",
+    },
+    {
+      selected: isLinuxCompatible,
+      displayName: "Linux",
+    },
+  ];
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
     });
+
+    setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
+    setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
+    setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -163,27 +155,36 @@ const PolicyForm = ({
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+    const selectedPlatforms = [];
 
-    valid = isValidated;
+    const areCheckboxesUndefined = [
+      isDarwinCompatible,
+      isWindowsCompatible,
+      isLinuxCompatible,
+    ].some((val) => isUndefined(val));
 
-    if (valid) {
-      if (!isEditMode || forceNew) {
-        setIsNewPolicyModalOpen(true);
-      } else {
-        onUpdate({
-          name: lastEditedQueryName,
-          description: lastEditedQueryDescription,
-          query: lastEditedQueryBody,
-          resolution: lastEditedQueryResolution,
-        });
-      }
-
-      setIsEditingName(false);
-      setIsEditingDescription(false);
-      setIsEditingResolution(false);
+    if (!areCheckboxesUndefined) {
+      isDarwinCompatible && selectedPlatforms.push("darwin");
+      isWindowsCompatible && selectedPlatforms.push("windows");
+      isLinuxCompatible && selectedPlatforms.push("linux");
+      setLastEditedQueryPlatform(selectedPlatforms.join(",") as IQueryPlatform);
     }
+
+    if (!isEditMode || forceNew) {
+      setIsNewPolicyModalOpen(true);
+    } else {
+      onUpdate({
+        name: lastEditedQueryName,
+        description: lastEditedQueryDescription,
+        query: lastEditedQueryBody,
+        resolution: lastEditedQueryResolution,
+        platform: lastEditedQueryPlatform,
+      });
+    }
+
+    setIsEditingName(false);
+    setIsEditingDescription(false);
+    setIsEditingResolution(false);
   };
 
   const renderAuthor = (): JSX.Element | null => {
@@ -222,81 +223,6 @@ const PolicyForm = ({
     );
   };
 
-  const renderPlatformCompatibility = () => {
-    const displayOrder = ["macOS", "Windows", "Linux"];
-
-    const displayIncompatibilityText = () => {
-      if (compatiblePlatforms[0] === "Invalid query") {
-        return "No platforms (check your query for a possible syntax error)";
-      } else if (compatiblePlatforms[0] === "None") {
-        return "No platforms (check your query for invalid tables or tables that are supported on different platforms)";
-      }
-    };
-
-    const displayFormattedPlatforms = compatiblePlatforms.map((string) => {
-      switch (string) {
-        case "darwin":
-          return "macOS";
-        case "windows":
-          return "Windows";
-        case "linux":
-          return "Linux";
-        default:
-          return string;
-      }
-    });
-
-    return (
-      <span className={`${baseClass}__platform-compatibility`}>
-        <b>Compatible with:</b>
-        <span className={`tooltip`}>
-          <span
-            className={`tooltip__tooltip-icon`}
-            data-tip
-            data-for="query-compatibility-tooltip"
-            data-tip-disable={false}
-          >
-            <img alt="question icon" src={QuestionIcon} />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id="query-compatibility-tooltip"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              Estimated compatiblity
-              <br />
-              based on the tables used
-              <br />
-              in the query
-            </span>
-          </ReactTooltip>
-        </span>
-        {displayIncompatibilityText() ||
-          displayOrder.map((platform) => {
-            const isCompatible =
-              displayFormattedPlatforms.includes(platform) ||
-              displayFormattedPlatforms[0] === "No tables in query AST"; // If query has no tables but is still syntatically valid sql, we treat it as compatible with all platforms
-            return (
-              <span
-                key={`platform-compatibility__${platform}`}
-                className="platform"
-              >
-                {platform}{" "}
-                <img
-                  alt={isCompatible ? "compatible" : "incompatible"}
-                  src={isCompatible ? CompatibleIcon : IncompatibleIcon}
-                />
-              </span>
-            );
-          })}
-      </span>
-    );
-  };
-
   const renderName = () => {
     if (isEditMode) {
       if (isEditingName) {
@@ -323,11 +249,6 @@ const PolicyForm = ({
         );
       }
 
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to H1 - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
         <h1
           role="button"
@@ -338,7 +259,6 @@ const PolicyForm = ({
           <img alt="Edit name" src={PencilIcon} />
         </h1>
       );
-      /* eslint-enable */
     }
 
     return <h1 className={`${baseClass}__policy-name no-hover`}>New policy</h1>;
@@ -369,22 +289,16 @@ const PolicyForm = ({
         );
       }
 
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to span - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
         <span
-        role="button"
-        className={`${baseClass}__policy-description`}
-        onClick={() => setIsEditingDescription(true)}
+          role="button"
+          className={`${baseClass}__policy-description`}
+          onClick={() => setIsEditingDescription(true)}
         >
           {lastEditedQueryDescription || "Add description here."}
           <img alt="Edit description" src={PencilIcon} />
         </span>
       );
-      /* eslint-enable */
     }
 
     return null;
@@ -419,22 +333,18 @@ const PolicyForm = ({
         );
       }
 
-      /* eslint-disable */
-      // eslint complains about the button role
-      // applied to span - this is needed to avoid
-      // using a real button
-      // prettier-ignore
       return (
         <>
           <div className="resolve-text-wrapper">
-            <b>Resolve:</b> {" "}
+            <b>Resolve:</b>{" "}
             <span
               role="button"
               className={`${baseClass}__policy-resolution`}
               onClick={() => setIsEditingResolution(true)}
             >
               <img alt="Edit resolution" src={PencilIcon} />
-            </span><br/>
+            </span>
+            <br />
             <span
               role="button"
               className={`${baseClass}__policy-resolution`}
@@ -445,10 +355,81 @@ const PolicyForm = ({
           </div>
         </>
       );
-      /* eslint-enable */
     }
 
     return null;
+  };
+
+  const renderPlatformCompatibility = () => {
+    const displayPlatforms = displayOrder
+      .filter((platform) => platform.selected)
+      .map((platform) => {
+        return platform.displayName;
+      });
+
+    return (
+      <span className={`${baseClass}__platform-compatibility`}>
+        {isEditMode ? (
+          <>
+            <b>Checks on:</b>
+            <span className="platforms-text">
+              {displayPlatforms.join(", ")}
+            </span>
+            <span className={`tooltip`}>
+              <span
+                className={`tooltip__tooltip-icon`}
+                data-tip
+                data-for="query-compatibility-tooltip"
+                data-tip-disable={false}
+              >
+                <img alt="question icon" src={QuestionIcon} />
+              </span>
+              <ReactTooltip
+                place="bottom"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="query-compatibility-tooltip"
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>
+                  To choose new platforms,
+                  <br />
+                  please create a new policy.
+                </span>
+              </ReactTooltip>
+            </span>
+          </>
+        ) : (
+          <>
+            <b>Checks on:</b>
+            <div className="platforms-select">
+              <Checkbox
+                value={isDarwinCompatible}
+                onChange={(value: boolean) => setIsDarwinCompatible(value)}
+                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+              >
+                macOS
+              </Checkbox>
+              <Checkbox
+                value={isWindowsCompatible}
+                onChange={(value: boolean) => setIsWindowsCompatible(value)}
+                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+              >
+                Windows
+              </Checkbox>
+              <Checkbox
+                value={isLinuxCompatible}
+                onChange={(value: boolean) => setIsLinuxCompatible(value)}
+                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+              >
+                Linux
+              </Checkbox>
+            </div>
+          </>
+        )}
+      </span>
+    );
   };
 
   const renderRunForObserver = (
@@ -525,23 +506,7 @@ const PolicyForm = ({
                 >
                   <>Save{!isEditMode && " policy"}</>
                 </Button>
-              </div>{" "}
-              <ReactTooltip
-                className={`save-policy-button-tooltip`}
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="save-query-button"
-                data-html
-              >
-                <div
-                  className={`tooltip`}
-                  style={{ width: "152px", textAlign: "center" }}
-                >
-                  You can only save changes to a query if you are the author.
-                </div>
-              </ReactTooltip>
+              </div>
             </div>
           )}
           <Button
@@ -559,6 +524,7 @@ const PolicyForm = ({
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
+          platform={lastEditedQueryPlatform}
         />
       )}
     </>

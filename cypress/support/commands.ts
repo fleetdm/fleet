@@ -99,6 +99,54 @@ Cypress.Commands.add("seedQueries", () => {
   });
 });
 
+Cypress.Commands.add("seedPolicies", (team = "") => {
+  const policies = [
+    {
+      name: "Is Filevault enabled on macOS devices?",
+      query:
+        "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1",
+      description:
+        "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      resolution:
+        "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+    },
+    {
+      name: "Is Ubuntu, version 20.4.0 installed?",
+      query:
+        "SELECT 1 from os_version WHERE name = 'Ubuntu' AND major || '.' || minor || '.' || patch = '20.4.0';",
+      description:
+        "Returns yes or no for detecting operating system and version",
+      resolution: "Update OS if needed",
+    },
+  ];
+
+  if (team === "apples") {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/teams/1/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  } else {
+    policies.forEach((policyForm) => {
+      const { name, query, description, resolution } = policyForm;
+      cy.request({
+        url: "/api/v1/fleet/global/policies",
+        method: "POST",
+        body: { name, query, description, resolution },
+        auth: {
+          bearer: window.localStorage.getItem("FLEET::auth_token"),
+        },
+      });
+    });
+  }
+});
+
 Cypress.Commands.add("setupSMTP", () => {
   const body = {
     smtp_settings: {
@@ -304,4 +352,21 @@ Cypress.Commands.add("clearDownloads", () => {
   if (Cypress.platform !== "win32") {
     cy.exec(`rm -rf ${Cypress.config("downloadsFolder")}`, { env: { SHELL } });
   }
+});
+
+Cypress.Commands.add("getAttached", (selector) => {
+  const uniqueAlias = `element_${selector}`;
+
+  return cy
+    .waitUntil(
+      () =>
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy
+          .get(selector)
+          .as(uniqueAlias)
+          .wait(1)
+          .then(($el) => Cypress.dom.isAttached($el)),
+      { timeout: 1000, interval: 10 }
+    )
+    .get(`@${uniqueAlias}`);
 });

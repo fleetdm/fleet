@@ -46,15 +46,10 @@
         margin: $pad-large 0;
         line-height: 2rem;
         height: 2rem;
-        cursor: pointer;
       }
       .policy-form__policy-resolve,
       .resolve-text-wrapper {
         margin-top: $pad-large;
-      }
-      .policy-form__policy-description:not(textarea),
-      .policy-form__policy-resolution-button:not(textarea) {
-        cursor: pointer;
       }
       #policy-description {
         height: 38px;
@@ -156,18 +151,13 @@
       justify-content: flex-end;
       align-items: center;
     }
-    button:not(:first-of-type) {
-      margin-left: $pad-medium;
+    button {
+      margin-right: $pad-medium;
     }
   }
 
   &__button-wrap--save-policy-button:first-child {
     margin-right: $pad-medium;
-  }
-
-  &__button-wrap--save-policy-button:not(:first-child),
-  &__run {
-    margin-left: $pad-medium;
   }
 
   &__save-policy-btn,
@@ -179,6 +169,20 @@
     color: $core-fleet-black;
     display: inline-block;
     font-size: $large;
+  }
+
+  &__platform-checkbox-wrapper {
+    margin: 0;
+
+    & + p {
+      margin: 0;
+      margin-top: $pad-small;
+    }
+  }
+
+  &__platform-error {
+    font-size: $small;
+    font-weight: $bold;
   }
 
   &__platform-compatibility {
@@ -193,19 +197,37 @@
       align-items: center;
     }
 
-    b {
-      padding-right: $pad-xsmall;
+    .platforms-text {
+      padding: 0 $pad-small;
+    }
+
+    .platforms-select {
+      display: flex;
+      padding: 0 $pad-medium;
     }
 
     img {
       height: 16px;
       width: auto;
-      padding-left: $pad-xsmall;
+    }
+
+    button {
+      img {
+        padding: 0px;
+      }
+    }
+
+    form,
+    label {
+      display: inline-flex;
+    }
+
+    label {
+      font-weight: $regular;
+      margin-right: $pad-medium;
     }
 
     .tooltip {
-      padding-right: 12px;
-
       img {
         padding: 0px;
       }
@@ -213,10 +235,6 @@
       &__tooltip-text {
         text-align: center;
       }
-    }
-
-    .platform {
-      padding-right: 12px;
     }
   }
 }

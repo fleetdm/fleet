@@ -382,6 +382,11 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id=?`, hid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
+	}
+
 	return nil
 }
 
@@ -415,6 +420,9 @@ func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, d.reader, host, sqlStatement, args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
@@ -522,7 +530,7 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
 	return sql, params
@@ -847,14 +855,17 @@ func (d *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 }
 
 func (d *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM hosts
 		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, d.reader, host, sql, identifier)
+	err := sqlx.GetContext(ctx, d.reader, host, stmt, identifier)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
@@ -933,8 +944,8 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) 
 
 	insertValues := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?),", len(host.Users)), ",")
 	insertSql := fmt.Sprintf(
-		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell) 
-				VALUES %s 
+		`INSERT INTO host_users (host_id, uid, username, user_type, groupname, shell)
+				VALUES %s
 				ON DUPLICATE KEY UPDATE
 				user_type = VALUES(user_type),
 				groupname = VALUES(groupname),
@@ -996,6 +1007,16 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	_, err = d.writer.ExecContext(ctx, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
+	}
+
+	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
+	}
+
+	_, err = d.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
 	}
 	return nil
 }
@@ -1069,6 +1090,10 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired host software")
 		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired host emails")
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
@@ -1079,4 +1104,171 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
 	return nil
+}
+
+func (d *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+	stmt := `
+    SELECT
+      id,
+      host_id,
+      email,
+      source
+    FROM
+      host_emails
+    WHERE
+      host_id = ?
+    ORDER BY
+      email, source`
+
+	var mappings []*fleet.HostDeviceMapping
+	err := sqlx.SelectContext(ctx, d.reader, &mappings, stmt, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host emails by host id")
+	}
+	return mappings, nil
+}
+
+func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mappings []*fleet.HostDeviceMapping) error {
+	for _, m := range mappings {
+		if hid != m.HostID {
+			return ctxerr.Errorf(ctx, "host device mapping are not all for the provided host id %d, found %d", hid, m.HostID)
+		}
+	}
+
+	// the following SQL statements assume a small number of emails reported
+	// per host.
+	const (
+		selStmt = `
+      SELECT
+        id,
+        email,
+        source
+      FROM
+        host_emails
+      WHERE
+        host_id = ?`
+
+		delStmt = `
+      DELETE FROM
+        host_emails
+      WHERE
+        id IN (?)`
+
+		insStmt = `
+      INSERT INTO
+        host_emails (host_id, email, source)
+      VALUES`
+
+		insPart = ` (?, ?, ?),`
+	)
+
+	// index the mappings by email and source, to quickly check which ones
+	// need to be deleted and inserted
+	toIns := make(map[string]*fleet.HostDeviceMapping)
+	for _, m := range mappings {
+		toIns[m.Email+"\n"+m.Source] = m
+	}
+
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var prevMappings []*fleet.HostDeviceMapping
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "select previous host emails")
+		}
+
+		var delIDs []uint
+		for _, pm := range prevMappings {
+			key := pm.Email + "\n" + pm.Source
+			if _, ok := toIns[key]; ok {
+				// already exists, no need to insert
+				delete(toIns, key)
+			} else {
+				// does not exist anymore, must be deleted
+				delIDs = append(delIDs, pm.ID)
+			}
+		}
+
+		if len(delIDs) > 0 {
+			stmt, args, err := sqlx.In(delStmt, delIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare delete statement")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host emails")
+			}
+		}
+
+		if len(toIns) > 0 {
+			var args []interface{}
+			for _, m := range toIns {
+				args = append(args, hid, m.Email, m.Source)
+			}
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(toIns)), ",")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host emails")
+			}
+		}
+		return nil
+	})
+}
+
+func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
+	res, err := d.writer.ExecContext(ctx, updateQuery, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	if affected == 0 {
+		_, err = d.writer.ExecContext(ctx, insertQuery, args...)
+	}
+	return ctxerr.Wrap(ctx, err)
+}
+
+func (d *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_munki_info SET version=? WHERE host_id=?`,
+		`INSERT INTO host_munki_info(version, host_id) VALUES (?,?)`,
+		version, hostID,
+	)
+}
+
+func (d *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	return d.updateOrInsert(
+		ctx,
+		`UPDATE host_mdm SET enrolled=?, server_url=?, installed_from_dep=? WHERE host_id=?`,
+		`INSERT INTO host_mdm(enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, hostID,
+	)
+}
+
+func (d *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	var version string
+	err := sqlx.GetContext(ctx, d.reader, &version, `SELECT version FROM host_munki_info WHERE host_id=?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("MunkiInfo").WithID(hostID))
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting data from host_munki_info for host_id %d", hostID)
+	}
+
+	return version, nil
+}
+
+func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
+	dest := struct {
+		Enrolled         bool   `db:"enrolled"`
+		ServerURL        string `db:"server_url"`
+		InstalledFromDep bool   `db:"installed_from_dep"`
+	}{}
+	err := sqlx.GetContext(ctx, d.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id=?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+		}
+		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }

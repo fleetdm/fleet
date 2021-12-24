@@ -64,12 +64,18 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
-// makeDecoder creates a decoder for the type for the struct passed on. If the struct has at least 1 json tag
-// it'll unmarshall the body. If the struct has a `url` tag with value list-options it'll gather fleet.ListOptions
-// from the URL. And finally, any other `url` tag will be treated as an ID from the URL path pattern, and it'll
-// be decoded and set accordingly.
-// IDs are expected to be uint, and can be optional by setting the tag as follows: `url:"some-id,optional"`
-// list-options are optional by default and it'll ignore the optional portion of the tag.
+// makeDecoder creates a decoder for the type for the struct passed on. If the
+// struct has at least 1 json tag it'll unmarshall the body. If the struct has
+// a `url` tag with value list_options it'll gather fleet.ListOptions from the
+// URL (similarly for host_options, carve_options that derive from the common
+// list_options).
+//
+// Finally, any other `url` tag will be treated as a path variable (of the form
+// /path/{name} in the route's path) from the URL path pattern, and it'll be
+// decoded and set accordingly. Variables can be optional by setting the tag as
+// follows: `url:"some-id,optional"`.
+// The "list_options" are optional by default and it'll ignore the optional
+// portion of the tag.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -116,31 +122,55 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
+
 				case "host_options":
 					opts, err := hostListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
+
 				case "carve_options":
 					opts, err := carveListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
 					field.Set(reflect.ValueOf(opts))
-				default:
-					id, err := idFromRequest(r, urlTagValue)
-					if err != nil {
-						if err == errBadRoute && optional {
-							continue
-						}
 
-						return nil, err
-					}
-					if field.Kind() == reflect.Int64 {
-						field.SetInt(int64(id))
-					} else {
-						field.SetUint(uint64(id))
+				default:
+					switch field.Kind() {
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						v, err := intFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetInt(v)
+
+					case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+						v, err := uintFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetUint(v)
+
+					case reflect.String:
+						v, err := stringFromRequest(r, urlTagValue)
+						if err != nil {
+							if err == errBadRoute && optional {
+								continue
+							}
+							return nil, err
+						}
+						field.SetString(v)
+
+					default:
+						return nil, fmt.Errorf("unsupported type for field %s for 'url' decoding: %s", urlTagValue, field.Kind())
 					}
 				}
 			}
@@ -214,17 +244,28 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 }
 
 type UserAuthEndpointer struct {
-	svc  fleet.Service
-	opts []kithttp.ServerOption
-	r    *mux.Router
+	svc               fleet.Service
+	opts              []kithttp.ServerOption
+	r                 *mux.Router
+	versions          []string
+	startingAtVersion string
+	endingAtVersion   string
+	alternativePaths  []string
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router) *UserAuthEndpointer {
-	return &UserAuthEndpointer{svc: svc, opts: opts, r: r}
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
 }
+
+var pathReplacer = strings.NewReplacer(
+	"/", "_",
+	"{", "_",
+	"}", "_",
+)
 
 func getNameFromPathAndVerb(verb, path string) string {
-	return strings.ToLower(verb) + "_" + strings.ReplaceAll(strings.TrimSuffix("/api/v1/fleet/", strings.TrimRight(path, "/")), "/", "_")
+	return strings.ToLower(verb) + "_" +
+		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/v1/fleet/"))
 }
 
 func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
@@ -243,8 +284,50 @@ func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handle(path, f, v, "DELETE")
 }
 
-func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) *mux.Route {
-	return e.r.Handle(path, e.makeEndpoint(f, v)).Methods(verb).Name(getNameFromPathAndVerb(verb, path))
+func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+	versions := e.versions
+	if e.startingAtVersion != "" {
+		startIndex := -1
+		for i, version := range versions {
+			if version == e.startingAtVersion {
+				startIndex = i
+				break
+			}
+		}
+		if startIndex == -1 {
+			panic("StartAtVersion is not part of the valid versions")
+		}
+		versions = versions[startIndex:]
+	}
+	if e.endingAtVersion != "" {
+		endIndex := -1
+		for i, version := range versions {
+			if version == e.endingAtVersion {
+				endIndex = i
+				break
+			}
+		}
+		if endIndex == -1 {
+			panic("EndAtVersion is not part of the valid versions")
+		}
+		versions = versions[:endIndex+1]
+	}
+
+	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
+	// latest
+	if e.endingAtVersion == "" || e.endingAtVersion == e.versions[len(e.versions)-1] {
+		versions = append(versions, "latest")
+	}
+
+	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+	nameAndVerb := getNameFromPathAndVerb(verb, path)
+	endpoint := e.makeEndpoint(f, v)
+	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	for _, alias := range e.alternativePaths {
+		nameAndVerb := getNameFromPathAndVerb(verb, alias)
+		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	}
 }
 
 func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
@@ -257,4 +340,40 @@ func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Han
 		makeDecoder(v),
 		e.opts,
 	)
+}
+
+func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: version,
+		endingAtVersion:   e.endingAtVersion,
+		alternativePaths:  e.alternativePaths,
+	}
+}
+
+func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: e.startingAtVersion,
+		endingAtVersion:   version,
+		alternativePaths:  e.alternativePaths,
+	}
+}
+
+func (e *UserAuthEndpointer) WithAltPaths(paths ...string) *UserAuthEndpointer {
+	return &UserAuthEndpointer{
+		svc:               e.svc,
+		opts:              e.opts,
+		r:                 e.r,
+		versions:          e.versions,
+		startingAtVersion: e.startingAtVersion,
+		endingAtVersion:   e.endingAtVersion,
+		alternativePaths:  paths,
+	}
 }

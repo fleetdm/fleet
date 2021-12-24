@@ -401,7 +401,12 @@ var (
 		// timestamp was changed in fleet-v4.4.1.
 		20210924114500: {},
 	}
-	knownUnknownDataMigrations = map[int64]struct{}{}
+	knownUnknownDataMigrations = map[int64]struct{}{
+		// This migration was present in 2.0.0, and was removed on a subsequent release.
+		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
+		// column doesn't exist anymore).
+		20171212182459: {},
+	}
 )
 
 func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
@@ -779,4 +784,29 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 
 	sql += " AND (" + strings.Join(ors, " OR ") + ")"
 	return sql, params
+}
+
+// very loosely checks that a string looks like an email:
+// has no spaces, a single @ character, a part before the @,
+// a part after the @, the part after has at least one dot
+// with something after the dot. I don't think this is perfectly
+// correct as the email format allows any chars including spaces
+// when inside double quotes, but this is an edge case that is
+// unlikely to matter much in practice. Another option that would
+// definitely not cut out any valid address is to just check for
+// the presence of @, which is arguably the most important check
+// in this.
+var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]\..+$`)
+
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	base, args := searchLike(sql, params, match, columns...)
+
+	// special-case for hosts: if match looks like an email address, add searching
+	// in host_emails table as an option, in addition to the provided columns.
+	if rxLooseEmail.MatchString(match) {
+		// remove the closing paren and add the email condition to the list
+		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
+		args = append(args, likePattern(match))
+	}
+	return base, args
 }

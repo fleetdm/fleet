@@ -1,4 +1,6 @@
 import URL_PREFIX from "router/url_prefix";
+import { IQueryPlatform } from "interfaces/query";
+import { IPolicyNew } from "interfaces/policy";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -66,25 +68,25 @@ export const DEFAULT_POLICIES = [
   {
     key: 6,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 0 LIMIT 1;",
-    name: "Are guest users not activated on macOS devices?",
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
+    name: "Are guest users disabled on macOS devices?",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
-      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
+      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71",
     platform: "darwin",
   },
   {
     key: 7,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value=1 LIMIT 1;",
+      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Is secure keyboard entry enabled on macOS devices?",
     description:
       "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
     platform: "darwin",
   },
-];
+] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
@@ -154,6 +156,8 @@ export const DEFAULT_QUERY = {
   packs: [],
 };
 
+const DEFAULT_POLICY_PLATFORM: IQueryPlatform = "";
+
 export const DEFAULT_POLICY = {
   id: 1,
   name: "Is osquery running?",
@@ -163,6 +167,7 @@ export const DEFAULT_POLICY = {
   author_name: "John",
   author_email: "john@example.com",
   resolution: "Resolution steps",
+  platform: DEFAULT_POLICY_PLATFORM,
   passing_host_count: 2000,
   failing_host_count: 300,
   created_at: "",

@@ -15,7 +15,7 @@ func decodeCreateQueryRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func decodeModifyQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -23,12 +23,12 @@ func decodeModifyQueryRequest(ctx context.Context, r *http.Request) (interface{}
 	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
 		return nil, err
 	}
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeDeleteQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	name, err := stringFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}
@@ -38,12 +38,12 @@ func decodeDeleteQueryRequest(ctx context.Context, r *http.Request) (interface{}
 }
 
 func decodeDeleteQueryByIDRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req deleteQueryByIDRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
@@ -56,12 +56,12 @@ func decodeDeleteQueriesRequest(ctx context.Context, r *http.Request) (interface
 }
 
 func decodeGetQueryRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
 	var req getQueryRequest
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 

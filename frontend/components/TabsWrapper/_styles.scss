@@ -9,19 +9,20 @@
       border-bottom: 1px solid $ui-gray;
     }
     &__tab {
-      padding-bottom: $pad-small;
+      padding: $pad-small 0;
+      margin-right: $pad-xxlarge;
       font-size: $x-small;
       border: none;
-      
+
       &:focus {
         box-shadow: none;
         outline: 0;
       }
       &--selected {
         text-shadow: -0.3px 0 #192147, 0.3px 0 #192147;
-  
+
         &::after {
-          content: '';
+          content: "";
           width: 100%;
           height: 0;
           border-bottom: 1px solid #6a67fe;
@@ -51,7 +52,7 @@
         margin-top: $pad-xxlarge;
         font-size: $small;
         font-weight: $bold;
-  
+
         span {
           margin-top: $pad-medium;
           font-size: $x-small;
