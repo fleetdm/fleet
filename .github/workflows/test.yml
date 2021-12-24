@@ -86,7 +86,7 @@ jobs:
         make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
         make e2e-setup
-        yarn cypress run --config-file cypress-${{ matrix.fleet-tier }}.json
+        yarn cypress run --config-file cypress/cypress-${{ matrix.fleet-tier }}.json
 
     - name: Upload artifacts
       if: failure()
