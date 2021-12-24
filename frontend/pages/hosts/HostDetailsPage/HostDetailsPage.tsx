@@ -16,7 +16,12 @@ import queryAPI from "services/entities/queries";
 import teamAPI from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { IHost, IPackStats } from "interfaces/host";
+import {
+  IHost,
+  IDeviceMappingResponse,
+  IMacadminsResponse,
+  IPackStats,
+} from "interfaces/host";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
@@ -46,7 +51,6 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 import {
-  humanTimeAgo,
   humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
@@ -106,6 +110,17 @@ const TAGGED_TEMPLATES = {
   },
 };
 
+const MOCK_DEVICE_MAPPING = [
+  {
+    email: "rocket.j.squirrel@example.com",
+    source: "google_chrome_profiles",
+  },
+  {
+    email: "bullwinkle.j.moose@example.com",
+    source: "google_chrome_profiles",
+  },
+];
+
 const HostDetailsPage = ({
   router,
   params: { host_id },
@@ -157,10 +172,7 @@ const HostDetailsPage = ({
   );
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [
-    showRefetchLoadingSpinner,
-    setShowRefetchLoadingSpinner,
-  ] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [softwareState, setSoftwareState] = useState<ISoftware[]>([]);
@@ -181,25 +193,68 @@ const HostDetailsPage = ({
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
-  const { data: teams, error: teamsError } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >("teams", () => teamAPI.loadAll(), {
-    enabled: !!hostIdFromURL && !!isPremiumTier,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    select: (data: ITeamsResponse) => data.teams,
-  });
+  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    "teams",
+    () => teamAPI.loadAll(),
+    {
+      enabled: !!hostIdFromURL && !!isPremiumTier,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      select: (data: ITeamsResponse) => data.teams,
+    }
+  );
+
+  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
+    ["deviceMapping", hostIdFromURL],
+    () =>
+      hostAPI.loadHostDetails(hostIdFromURL, { extension: "device_mapping" }),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
+      // select: (data: IDeviceMappingResponse) =>
+      //   data.device_mapping || MOCK_DEVICE_MAPPING,
+      // onSuccess: (res) => console.log(res),
+    }
+  );
+
+  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+    ["macadmins", hostIdFromURL],
+    () => hostAPI.loadHostDetails(hostIdFromURL, { extension: "macadmins" }),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      select: (data: IMacadminsResponse) => data.macadmins,
+      // select: (data: IMacadminsResponse) => {
+      //   if (data.macadmins?.munki?.version === "") {
+      //     data.macadmins = null;
+      //   }
+      //   return data.macadmins;
+      // },
+      // onSuccess: (res) => console.log(res),
+    }
+  );
+
+  // When we refetch host details, we also want to refetch the endpoint extensions (e.g.,
+  // `/macadmins`) unless we already have a null response indicating the extension is not enabled
+  // for this host
+  const refetchExtensions = () => {
+    deviceMapping !== null && refetchDeviceMapping();
+    macadmins !== null && refetchMacadmins();
+  };
 
   const {
     isLoading: isLoadingHost,
     data: host,
-    refetch: fullyReloadHost,
+    refetch: refetchHostDetails,
   } = useQuery<IHostResponse, Error, IHost>(
     ["host", hostIdFromURL],
-    () => hostAPI.load(hostIdFromURL),
+    () => hostAPI.loadHostDetails(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
       refetchOnMount: false,
@@ -210,31 +265,9 @@ const HostDetailsPage = ({
       // The onSuccess method below will run each time react-query successfully fetches data from
       // the hosts API through this useQuery hook.
       // This includes the initial page load as well as whenever we call react-query's refetch method,
-      // which above we renamed to fullyReloadHost. For example, we use fullyReloadHost with the refetch
-      // button and also after actions like team transfers.
+      // for example, via the refetch button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
-        setSoftwareState(returnedHost.software);
-        setUsersState(returnedHost.users);
-        if (returnedHost.pack_stats) {
-          const packStatsByType = returnedHost.pack_stats.reduce(
-            (
-              dictionary: { packs: IPackStats[]; schedule: IQueryStats[] },
-              pack: IPackStats
-            ) => {
-              if (pack.type === "pack") {
-                dictionary.packs.push(pack);
-              } else {
-                dictionary.schedule.push(...pack.query_stats);
-              }
-              return dictionary;
-            },
-            { packs: [], schedule: [] }
-          );
-          setPacksState(packStatsByType.packs);
-          setScheduleState(packStatsByType.schedule);
-        }
-
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
+        setShowRefetchSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -248,17 +281,19 @@ const HostDetailsPage = ({
             if (returnedHost.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
-                fullyReloadHost();
+                refetchHostDetails();
+                refetchExtensions();
               }, 1000);
             } else {
-              setShowRefetchLoadingSpinner(false);
+              setShowRefetchSpinner(false);
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
               if (returnedHost.status === "online") {
                 setTimeout(() => {
-                  fullyReloadHost();
+                  refetchHostDetails();
+                  refetchExtensions();
                 }, 1000);
               } else {
                 dispatch(
@@ -267,7 +302,7 @@ const HostDetailsPage = ({
                     `This host is offline. Please try refetching host vitals later.`
                   )
                 );
-                setShowRefetchLoadingSpinner(false);
+                setShowRefetchSpinner(false);
               }
             } else {
               dispatch(
@@ -276,9 +311,33 @@ const HostDetailsPage = ({
                   `We're having trouble fetching fresh vitals for this host. Please try again later.`
                 )
               );
-              setShowRefetchLoadingSpinner(false);
+              setShowRefetchSpinner(false);
             }
           }
+          return; // exit early because refectch is pending so we can avoid unecessary steps below
+        }
+        setSoftwareState(returnedHost.software);
+        setUsersState(returnedHost.users);
+        if (returnedHost.pack_stats) {
+          const packStatsByType = returnedHost.pack_stats.reduce(
+            (
+              dictionary: {
+                packs: IPackStats[];
+                schedule: IQueryStats[];
+              },
+              pack: IPackStats
+            ) => {
+              if (pack.type === "pack") {
+                dictionary.packs.push(pack);
+              } else {
+                dictionary.schedule.push(...pack.query_stats);
+              }
+              return dictionary;
+            },
+            { packs: [], schedule: [] }
+          );
+          setPacksState(packStatsByType.packs);
+          setScheduleState(packStatsByType.schedule);
         }
       },
       onError: (error) => {
@@ -439,16 +498,19 @@ const HostDetailsPage = ({
       // Once the user clicks to refetch, the refetch loading spinner should continue spinning
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
-      setShowRefetchLoadingSpinner(true);
+      setShowRefetchSpinner(true);
       try {
         await hostAPI.refetch(host).then(() => {
           setRefetchStartTime(Date.now());
-          setTimeout(() => fullyReloadHost(), 1000);
+          setTimeout(() => {
+            refetchHostDetails();
+            refetchExtensions();
+          }, 1000);
         });
       } catch (error) {
         console.log(error);
         dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
-        setShowRefetchLoadingSpinner(false);
+        setShowRefetchSpinner(false);
       }
     }
   };
@@ -484,7 +546,7 @@ const HostDetailsPage = ({
           : `Host successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      fullyReloadHost();
+      refetchHostDetails();
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
@@ -970,19 +1032,19 @@ const HostDetailsPage = ({
           className="refetch"
           data-tip
           data-for="refetch-tooltip"
-          data-tip-disable={isOnline || showRefetchLoadingSpinner}
+          data-tip-disable={isOnline || showRefetchSpinner}
         >
           <Button
             className={`
               button
               button--unstyled
               ${!isOnline ? "refetch-offline" : ""} 
-              ${showRefetchLoadingSpinner ? "refetch-spinner" : "refetch-btn"}
+              ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
             onClick={onRefetchHost}
           >
-            {showRefetchLoadingSpinner
+            {showRefetchSpinner
               ? "Fetching fresh vitals...this may take a moment"
               : "Refetch"}
           </Button>
@@ -1047,18 +1109,47 @@ const HostDetailsPage = ({
   );
 
   const renderDeviceUser = () => {
-    if (host?.device_users && host?.device_users.length > 0) {
+    const numUsers = deviceMapping?.length;
+    if (numUsers) {
       return (
-        // max width is added here because this is the only div that needs it
-        <div
-          className="info-flex__item info-flex__item--title"
-          style={{ maxWidth: 216 }}
-        >
-          <span className="info-flex__header">Device user</span>
-          <span className="info-flex__data">{host.device_users[0].email}</span>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Device user</span>
+          <span className="info-grid__data">
+            {numUsers === 1 ? (
+              deviceMapping[0].email || "---"
+            ) : (
+              <span className={`${baseClass}__device-mapping`}>
+                <span
+                  className="device-user"
+                  data-tip
+                  data-for="device-user-tooltip"
+                >
+                  {`${numUsers} users`}
+                </span>
+                <ReactTooltip
+                  place="top"
+                  type="dark"
+                  effect="solid"
+                  id="device-user-tooltip"
+                  backgroundColor="#3e4771"
+                >
+                  <div
+                    className={`${baseClass}__tooltip-text device-user-tooltip`}
+                  >
+                    {deviceMapping.map((user, i, arr) => (
+                      <span key={user.email}>{`${user.email}${
+                        i < arr.length - 1 ? ", " : ""
+                      }`}</span>
+                    ))}
+                  </div>
+                </ReactTooltip>
+              </span>
+            )}
+          </span>
         </div>
       );
     }
+    return null;
   };
 
   const renderDiskSpace = () => {
@@ -1088,50 +1179,44 @@ const HostDetailsPage = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
-  const renderMunkiData = () => {
-    if (host?.munki) {
+  const renderMdmData = () => {
+    if (macadmins) {
+      const { mobile_device_management: mdm } = macadmins;
       return (
-        <>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki last run</span>
-            <span className="info-grid__data">
-              {humanTimeAgo(host.munki.last_run_time)} days ago
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki packages installed</span>
-            <span className="info-grid__data">
-              {host.munki.packages_intalled_count}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki errors</span>
-            <span className="info-grid__data">{host.munki.errors_count}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Munki version</span>
-            <span className="info-grid__data">{host.munki.version}</span>
-          </div>
-        </>
+        mdm.enrollment_status !== "Unenrolled" && (
+          <>
+            <div className="info-grid__block">
+              <span className="info-grid__header">MDM enrollment</span>
+              <span className="info-grid__data">
+                {mdm.enrollment_status || "---"}
+              </span>
+            </div>
+            <div className="info-grid__block">
+              <span className="info-grid__header">MDM server URL</span>
+              <span className="info-grid__data">{mdm.server_url || "---"}</span>
+            </div>
+          </>
+        )
       );
     }
+    return null;
   };
 
-  const renderMDMData = () => {
-    if (host?.mdm) {
+  const renderMunkiData = () => {
+    if (macadmins) {
+      const { munki } = macadmins;
       return (
-        <>
-          <div className="info-grid__block">
-            <span className="info-grid__header">MDM health</span>
-            <span className="info-grid__data">{host.mdm?.health}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">MDM enrollment URL</span>
-            <span className="info-grid__data">{host.mdm.enrollment_url}</span>
-          </div>
-        </>
+        !!munki && (
+          <>
+            <div className="info-grid__block">
+              <span className="info-grid__header">Munki version</span>
+              <span className="info-grid__data">{munki.version || "---"}</span>
+            </div>
+          </>
+        )
       );
     }
+    return null;
   };
 
   if (isLoadingHost) {
@@ -1173,7 +1258,6 @@ const HostDetailsPage = ({
             </div>
             {titleData.issues?.total_issues_count > 0 && renderIssues()}
             {isPremiumTier && renderHostTeam()}
-            {renderDeviceUser()}
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Disk Space</span>
               {renderDiskSpace()}
@@ -1267,7 +1351,8 @@ const HostDetailsPage = ({
                   </span>
                 </div>
                 {renderMunkiData()}
-                {renderMDMData()}
+                {renderMdmData()}
+                {renderDeviceUser()}
               </div>
             </div>
             <div className="col-2">

@@ -318,7 +318,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
   const showDefaultDescription =
     isFreeTier || (isPremiumTier && !selectedTeamId && selectedTeamId !== null);
 
-  // If there aren't any policies of if there are loading errors, we don't show the update interval info banner.
+  // If there aren't any policies or if there are loading errors, we don't show the update interval info banner.
   // We also want to check selectTeamId for the null case so that we don't render the element prematurely.
   const showInfoBanner =
     (selectedTeamId && !isTeamPoliciesError && !!teamPolicies?.length) ||
@@ -327,7 +327,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
       !isGlobalPoliciesError &&
       !!globalPolicies?.length);
 
-  // If there aren't any policies of if there are loading errors, we don't show the inherited policies button.
+  // If there aren't any policies or if there are loading errors, we don't show the inherited policies button.
   const showInheritedPoliciesButton =
     !!selectedTeamId && !!globalPolicies?.length && !isGlobalPoliciesError;
 

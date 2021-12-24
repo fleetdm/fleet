@@ -8,7 +8,7 @@ export interface ISortOption {
   direction: string;
 }
 
-export interface IHostLoadOptions {
+export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
   selectedLabels?: string[];
@@ -18,6 +18,10 @@ export interface IHostLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+}
+
+export interface ILoadHostDetailsOptions {
+  extension: "device_mapping" | "macadmins";
 }
 
 export default {
@@ -48,19 +52,7 @@ export default {
       },
     });
   },
-  refetch: (host: IHost) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${host.id}/refetch`;
-
-    return sendRequest("POST", path);
-  },
-  load: (hostID: number) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
-
-    return sendRequest("GET", path);
-  },
-  loadAll: (options: IHostLoadOptions | undefined) => {
+  loadHosts: (options: ILoadHostsOptions | undefined) => {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
@@ -130,6 +122,21 @@ export default {
     }
 
     return sendRequest("GET", path);
+  },
+  loadHostDetails: (hostID: number, options?: ILoadHostDetailsOptions) => {
+    const { HOSTS } = endpoints;
+    let path = `${HOSTS}/${hostID}`;
+    if (options?.extension) {
+      path += `/${options.extension}`;
+    }
+
+    return sendRequest("GET", path);
+  },
+  refetch: (host: IHost) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${host.id}/refetch`;
+
+    return sendRequest("POST", path);
   },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;

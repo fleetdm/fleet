@@ -48,7 +48,7 @@ const WelcomeHost = (): JSX.Element => {
     refetch: fullyReloadHost,
   } = useQuery<IHostResponse, Error, IHost>(
     ["host"],
-    () => hostAPI.load(HOST_ID),
+    () => hostAPI.loadHostDetails(HOST_ID),
     {
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
