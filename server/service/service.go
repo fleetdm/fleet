@@ -36,6 +36,8 @@ type Service struct {
 
 	seenHostSet *seenHostSet
 
+	failingPolicySet fleet.FailingPolicySet
+
 	authz *authz.Authorizer
 }
 
@@ -53,6 +55,7 @@ func NewService(
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
 	license fleet.LicenseInfo,
+	failingPolicySet fleet.FailingPolicySet,
 ) (fleet.Service, error) {
 	var svc fleet.Service
 
@@ -75,6 +78,7 @@ func NewService(
 		ssoSessionStore:  sso,
 		seenHostSet:      newSeenHostSet(),
 		license:          license,
+		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
 	}
 	svc = validationMiddleware{svc, ds, sso}

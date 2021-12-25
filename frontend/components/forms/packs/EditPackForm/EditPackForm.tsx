@@ -12,7 +12,6 @@ import InputField from "components/forms/fields/InputField";
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
 
-const fieldNames = ["description", "name", "targets"];
 const baseClass = "edit-pack-form";
 
 interface IEditPackForm {

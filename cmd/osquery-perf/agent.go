@@ -449,6 +449,43 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
+func (a *agent) mdm() []map[string]string {
+	enrolled := "true"
+	if rand.Intn(2) == 1 {
+		enrolled = "false"
+	}
+	installedFromDep := "true"
+	if rand.Intn(2) == 1 {
+		installedFromDep = "false"
+	}
+	return []map[string]string{
+		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+	}
+}
+
+func (a *agent) munkiInfo() []map[string]string {
+	return []map[string]string{
+		{"version": "1.2.3"},
+	}
+}
+
+func (a *agent) googleChromeProfiles() []map[string]string {
+	count := rand.Intn(5) // return between 0 and 4 emails
+	result := make([]map[string]string, count)
+	for i := range result {
+		email := fmt.Sprintf("user%d@example.com", i)
+		if i == len(result)-1 {
+			// if the maximum number of emails is returned, set a random domain name
+			// so that we have email addresses that match a lot of hosts, and some
+			// that match few hosts.
+			domainRand := rand.Intn(10)
+			email = fmt.Sprintf("user%d@example%d.com", i, domainRand)
+		}
+		result[i] = map[string]string{"email": email}
+	}
+	return result
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -467,6 +504,27 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
 			r.Results[name] = a.randomQueryStats()
 			continue
+		}
+		if name == hostDetailQueryPrefix+"mdm" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.mdm()
+			}
+		}
+		if name == hostDetailQueryPrefix+"munki_info" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.munkiInfo()
+			}
+		}
+		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.googleChromeProfiles()
+			}
 		}
 		if t := a.templates.Lookup(name); t == nil {
 			continue
@@ -492,7 +550,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	req.SetBody(body)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
+	req.Header.Add("User-Agent", "osquery/5.0.1")
 	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/write")
 	res := fasthttp.AcquireResponse()
 

@@ -2,6 +2,7 @@ import React, { useState, useContext } from "react";
 import { size } from "lodash";
 
 import { IPolicyFormData } from "interfaces/policy";
+import { IQueryPlatform } from "interfaces/query";
 import { useDeepEffect } from "utilities/hooks";
 import { PolicyContext } from "context/policy";
 // @ts-ignore
@@ -12,6 +13,7 @@ import Modal from "components/Modal";
 export interface INewPolicyModalProps {
   baseClass: string;
   queryValue: string;
+  platform: IQueryPlatform;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
 }
@@ -30,6 +32,7 @@ const validatePolicyName = (name: string) => {
 const NewPolicyModal = ({
   baseClass,
   queryValue,
+  platform,
   onCreatePolicy,
   setIsNewPolicyModalOpen,
 }: INewPolicyModalProps): JSX.Element => {
@@ -69,6 +72,7 @@ const NewPolicyModal = ({
         name,
         query: queryValue,
         resolution,
+        platform,
       });
 
       setIsNewPolicyModalOpen(false);

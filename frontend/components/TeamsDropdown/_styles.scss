@@ -1,3 +1,10 @@
+.component__team-dropdown-wrapper {
+  &.disabled {
+    cursor: auto;
+    opacity: 0.75;
+  }
+}
+
 .component__team-dropdown {
   border: 0 !important;
   position: relative;
@@ -13,12 +20,19 @@
     }
   }
 
+  .Select-menu {
+    padding-right: $pad-small; // moves scrollbar to edge of dropdown
+    padding-bottom: $pad-medium;
+  }
+
   .Select-menu-outer {
     position: absolute;
     width: 330px;
     min-width: 125px;
     left: -12px;
+    top: 36px;
     border-radius: 6px;
+    padding-right: 0;
   }
 
   .Select-control {
@@ -39,12 +53,16 @@
 
     .Select-arrow-zone {
       height: 32px;
-      padding-left: $pad-small;
+      padding-left: 15px;
 
       .Select-arrow {
-        top: 2px !important;
+        top: 0 !important;
         margin-top: 0 !important;
       }
+    }
+
+    .is-open > .Select-arrow {
+      top: 0 !important;
     }
 
     .Select-multi-value-wrapper {

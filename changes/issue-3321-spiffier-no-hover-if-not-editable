@@ -1,0 +1,1 @@
+* No hover state for query or policy details if RBAC does not allow editing

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
 import { filter, forEach, isEmpty, remove, unionBy } from "lodash";
+import { v4 as uuidv4 } from "uuid";
 
 // @ts-ignore
 import { formatSelectedTargetsForApi } from "fleet/helpers";
@@ -91,7 +92,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
     ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
@@ -123,32 +124,46 @@ const SelectTargets = ({
         onlineCount,
       }: IModifiedUseQueryTargetsResponse) => {
         if ("labels" in results) {
-          // this will only run once
           const { labels, teams: targetTeams } = results as ITargets;
           const allHosts = filter(
             labels,
             ({ display_text: text }) => text === "All Hosts"
-          );
+          ).map((host) => {
+            host.uuid = uuidv4();
+            return host;
+          });
           const platforms = filter(
             labels,
             ({ display_text: text }) =>
               text === "macOS" || text === "MS Windows" || text === "All Linux"
-          );
-          const other = filter(
+          ).map((platform) => {
+            platform.uuid = uuidv4();
+            return platform;
+          });
+          const others = filter(
             labels,
             ({ label_type: type }) => type === "regular"
-          );
+          ).map((other) => {
+            other.uuid = uuidv4();
+            return other;
+          });
 
           setAllHostsLabels(allHosts);
           setPlatformLabels(platforms);
-          setTeams(targetTeams);
-          setOtherLabels(other);
+          setOtherLabels(others);
+
+          setTeams(
+            targetTeams.map((team) => {
+              team.uuid = uuidv4();
+              return team;
+            })
+          );
 
           const labelCount =
             allHosts.length +
             platforms.length +
             targetTeams.length +
-            other.length;
+            others.length;
           setInputTabIndex(labelCount || 0);
         } else if (searchText === "") {
           setRelatedHosts([]);
@@ -167,6 +182,11 @@ const SelectTargets = ({
     }
   );
 
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
   const handleSelectedLabels = (entity: ILabel | ITeam) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
@@ -174,7 +194,7 @@ const SelectTargets = ({
     const labels = selectedLabels;
     let newTargets = null;
     const targets = selectedTargets;
-    const removed = remove(labels, ({ id }) => id === entity.id);
+    const removed = remove(labels, ({ uuid }) => uuid === entity.uuid);
 
     // visually show selection
     const isRemoval = removed.length > 0;
@@ -221,21 +241,23 @@ const SelectTargets = ({
     <>
       {header && <h3>{header}</h3>}
       <div className="selector-block">
-        {entityList?.map((entity: ILabel | ITeam) => (
-          <TargetPillSelector
-            key={entity.id}
-            entity={entity}
-            isSelected={selectedLabels.some(
-              ({ id }: ILabel | ITeam) => id === entity.id
-            )}
-            onClick={handleSelectedLabels}
-          />
-        ))}
+        {entityList?.map((entity: ILabel | ITeam) => {
+          return (
+            <TargetPillSelector
+              key={entity.uuid}
+              entity={entity}
+              isSelected={selectedLabels.some(
+                ({ uuid }: ILabel | ITeam) => uuid === entity.uuid
+              )}
+              onClick={handleSelectedLabels}
+            />
+          );
+        })}
       </div>
     </>
   );
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -291,7 +313,7 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading}
+        isTargetsLoading={isTargetsFetching}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
@@ -301,7 +323,7 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel

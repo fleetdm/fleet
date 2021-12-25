@@ -33,6 +33,8 @@
 
   &__cta {
     font-weight: $bold;
+    padding-top: $pad-xsmall;
+    margin: 0;
   }
 
   .form-field {
@@ -102,5 +104,23 @@
     display: flex;
     justify-content: flex-end;
     margin: $pad-xxlarge 0 0;
+  }
+
+  &__certificate-loading {
+    color: $ui-fleet-black-50;
+    padding-top: $pad-xsmall;
+    margin: 0;
+  }
+
+  &__certificate-error {
+    span,
+    em {
+      display: block;
+      padding-top: $pad-xsmall;
+    }
+    em {
+      color: $ui-error;
+      font-style: normal;
+    }
   }
 }
