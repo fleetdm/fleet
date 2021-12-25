@@ -177,9 +177,10 @@ func createUserCommand() *cli.Command {
 
 func createBulkUsersCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "import",
-		Usage:     "Create bulk users",
-		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: name, email, password, sso, api only, global role, teams. Created Users by default get Observer Role.`,
+		Name:  "import",
+		Usage: "Create bulk users",
+		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,Password,SSO,API Only,Global Role,Teams. Created Users by default get Observer Role.
+		Password could be left blank, Users should receive an invitation link.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     csvFlagName,
@@ -250,7 +251,30 @@ func createBulkUsersCommand() *cli.Command {
 				if sso && len(password) > 0 {
 					return errors.New("Password may not be provided for SSO users.")
 				}
+				if !sso && len(password) == 0 {
+					fmt.Print("Enter password for user: ")
+					passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Println()
+					if err != nil {
+						return fmt.Errorf("Failed to read password: %w", err)
+					}
+					if len(passBytes) == 0 {
+						return errors.New("Password may not be empty.")
+					}
 
+					fmt.Print("Enter password for user (confirm): ")
+					confBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+					fmt.Println()
+					if err != nil {
+						return fmt.Errorf("Failed to read confirmation: %w", err)
+					}
+
+					if !bytes.Equal(passBytes, confBytes) {
+						return errors.New("Confirmation does not match")
+					}
+
+					password = string(passBytes)
+				}
 				force_reset := !sso
 				err = client.CreateUser(fleet.UserPayload{
 					Password:                 &password,

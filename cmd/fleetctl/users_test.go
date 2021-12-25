@@ -46,37 +46,18 @@ func TestCreateBulkUsers(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleList, nil
-	}
-
 	csvFile := writeTmpCsv(t,
-		`Name,Email,Password,SSO,API,Roles,Team
-	user11,user11@domain.com,P@ssw0rd!2,false,false,,
-	user12,user12@domain.com,P@ssw0rd!2,false,false,,
-	user13,user11@domain.com,P@ssw0rd!2,false,false,admin,
-	user14,user12@domain.com,P@ssw0rd!2,false,false,,team14
-	user15,user12@domain.com,P@ssw0rd!2,false,false,maintainer,`)
+		`Name,Email,Password,SSO,API Only,Global Role,Teams
+	user11,user11@example.com,P@ssw0rd!2,false,false,maintainer,
+	user12,user12@example.com,P@ssw0rd!2,false,false,admin,
+	user13,user13@example.com,P@ssw0rd!2,false,false,admin,1:team1
+	user14,user14@example.com,P@ssw0rd!2,false,false,,team14
+	user15,user15@example.com,P@ssw0rd!2,false,false,,1:admin`)
 
-	expectedText := `+-------------------------------+-------------+
-	|             USER              | GLOBAL ROLE |
-	+-------------------------------+-------------+
-	| Test Name admin1@example.com  | admin       |
-	+-------------------------------+-------------+
-	| Test Name2 admin2@example.com |             |
-	+-------------------------------+-------------+
-	| Test Name admin1@example.com  | admin       |
-	+-------------------------------+-------------+
-	| Test Name2 admin2@example.com |             |
-	+-------------------------------+-------------+
-	| Test Name admin1@example.com  | admin       |
-	+-------------------------------+-------------+
-	| Test Name2 admin2@example.com |             |
-	+-------------------------------+-------------+
-	| Test Name admin1@example.com  | admin       |
-	+-------------------------------+-------------+`
+	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"observer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"observer","teams":null},"user14@example.com":{"global_role":"observer","teams":null},"user15@example.com":{"global_role":"observer","teams":null},"user1@example.com":{"global_role":"observer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
+`
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "import", "--csv", csvFile}))
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
 
 }
