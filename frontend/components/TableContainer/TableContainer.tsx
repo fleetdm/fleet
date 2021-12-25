@@ -221,13 +221,14 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  const displayCount = useCallback((): number => {
+  // TODO: refactor?
+  const displayCount = useCallback((): any => {
     if (typeof filteredCount === "number") {
       return filteredCount;
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    return data.length;
+    // return data.length;
   }, [filteredCount, clientFilterCount, data]);
 
   return (

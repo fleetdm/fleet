@@ -55,4 +55,15 @@ export default {
       throw error;
     }
   },
+
+  count: async (query: string): Promise<number> => {
+    const { SOFTWARE } = endpoints;
+    const path = `${SOFTWARE}/count${query ? `?query=${query}` : ""}`;
+    try {
+      const { count } = await sendRequest("GET", path);
+      return count;
+    } catch (error) {
+      throw error;
+    }
+  },
 };

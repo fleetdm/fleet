@@ -5,6 +5,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import softwareAPI from "services/entities/software";
 import { ISoftware } from "interfaces/software"; // @ts-ignore
 import debounce from "utilities/debounce";
+import { useDebouncedCallback } from "use-debounce/lib";
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
@@ -118,7 +119,7 @@ const Software = ({
     isModalSoftwareVulnerable,
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
-  const [modalSoftwareState, setModalSoftwareState] = useState<ISoftware[]>([]);
+  const [modalSoftwareCount, setModalSoftwareCount] = useState<number>(0);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
@@ -126,7 +127,7 @@ const Software = ({
     setIsLoadingVulnerableSoftware,
   ] = useState<boolean>(false);
   const [isLoadingModalSoftware, setIsLoadingModalSoftware] = useState<boolean>(
-    false
+    true
   );
 
   const { data: software } = useQuery<ISoftware[], Error>(
@@ -148,6 +149,10 @@ const Software = ({
       // So we manage our own load states
       keepPreviousData: true,
       onSuccess: () => {
+        setIsLoadingSoftware(false);
+      },
+      // TODO: error UX?
+      onError: () => {
         setIsLoadingSoftware(false);
       },
     }
@@ -173,6 +178,10 @@ const Software = ({
       onSuccess: () => {
         setIsLoadingVulnerableSoftware(false);
       },
+      onError: () => {
+        // TODO: error UX?
+        setIsLoadingVulnerableSoftware(false);
+      },
     }
   );
 
@@ -188,6 +197,7 @@ const Software = ({
       setIsLoadingModalSoftware(true);
       return softwareAPI.load({
         page: modalSoftwarePageIndex,
+        perPage: MODAL_PAGE_SIZE,
         query: modalSoftwareSearchText,
         orderKey: "id",
         orderDir: "desc",
@@ -200,6 +210,10 @@ const Software = ({
       refetchOnWindowFocus: false,
       keepPreviousData: true,
       onSuccess: () => {
+        setIsLoadingModalSoftware(false);
+      },
+      onError: () => {
+        // TODO: error UX?
         setIsLoadingModalSoftware(false);
       },
     }
@@ -221,28 +235,25 @@ const Software = ({
     }
   };
 
-  const onModalSoftwareQueryChange = debounce(
+  const onModalSoftwareQueryChange = useDebouncedCallback(
     async ({ pageIndex, searchQuery }: ITableQueryProps) => {
       setModalSoftwareSearchText(searchQuery);
 
       if (pageIndex !== modalSoftwarePageIndex) {
         setModalSoftwarePageIndex(pageIndex);
+      } else {
+        try {
+          // TODO: count loading UX?
+          const count = await softwareAPI.count(searchQuery);
+          setModalSoftwareCount(count);
+        } catch (err) {
+          // TODO: count errors UX?
+          console.log(err);
+        }
       }
     },
-    { leading: false, trailing: true }
+    300
   );
-
-  useEffect(() => {
-    setModalSoftwareState(() => {
-      return (
-        modalSoftware?.filter((softwareItem) => {
-          return softwareItem.name
-            .toLowerCase()
-            .includes(modalSoftwareSearchText.toLowerCase());
-        }) || []
-      );
-    });
-  }, [modalSoftware, modalSoftwareSearchText]);
 
   const renderStatusDropdown = () => {
     return (
@@ -317,12 +328,12 @@ const Software = ({
             </p>
             <TableContainer
               columns={generateModalSoftwareTableHeaders()}
-              data={modalSoftwareState}
+              data={modalSoftware || []}
               isLoading={isLoadingModalSoftware}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               hideActionButton
-              filteredCount={modalSoftwareState.length}
+              filteredCount={modalSoftwareCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptySoftware(
@@ -336,8 +347,6 @@ const Software = ({
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
-              isClientSidePagination
-              isClientSideSearch
             />
           </>
         </Modal>
