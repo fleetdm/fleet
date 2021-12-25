@@ -1,6 +1,6 @@
 ## Fleet community
 
-As an open-core company, Fleet endeavors build a community of engaged users, customers, and
+As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
 
 ### Community contributions (pull requests)
