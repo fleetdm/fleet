@@ -20,9 +20,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
 }
 
-export interface ILoadHostDetailsOptions {
-  extension: "device_mapping" | "macadmins";
-}
+export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
 export default {
   destroy: (host: IHost) => {
@@ -123,12 +121,18 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadHostDetails: (hostID: number, options?: ILoadHostDetailsOptions) => {
+  loadHostDetails: (hostID: number) => {
     const { HOSTS } = endpoints;
-    let path = `${HOSTS}/${hostID}`;
-    if (options?.extension) {
-      path += `/${options.extension}`;
-    }
+    const path = `${HOSTS}/${hostID}`;
+
+    return sendRequest("GET", path);
+  },
+  loadHostDetailsExtension: (
+    hostID: number,
+    extension: ILoadHostDetailsExtension
+  ) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostID}/${extension}`;
 
     return sendRequest("GET", path);
   },

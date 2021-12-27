@@ -196,8 +196,7 @@ const HostDetailsPage = ({
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", hostIdFromURL],
-    () =>
-      hostAPI.loadHostDetails(hostIdFromURL, { extension: "device_mapping" }),
+    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
     {
       enabled: !!hostIdFromURL,
       refetchOnMount: false,
@@ -209,7 +208,7 @@ const HostDetailsPage = ({
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
-    () => hostAPI.loadHostDetails(hostIdFromURL, { extension: "macadmins" }),
+    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
       enabled: !!hostIdFromURL,
       refetchOnMount: false,
@@ -219,9 +218,6 @@ const HostDetailsPage = ({
     }
   );
 
-  // When we refetch host details, we also want to refetch the endpoint extensions (e.g.,
-  // `/macadmins`) unless we already have a null response indicating the extension is not enabled
-  // for this host
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
@@ -240,11 +236,6 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       select: (data: IHostResponse) => data.host,
-
-      // The onSuccess method below will run each time react-query successfully fetches data from
-      // the hosts API through this useQuery hook.
-      // This includes the initial page load as well as whenever we call react-query's refetch method,
-      // for example, via the refetch button and also after actions like team transfers.
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
         if (returnedHost.refetch_requested) {
@@ -525,7 +516,7 @@ const HostDetailsPage = ({
           : `Host successfully transferred to  ${team.name}.`;
 
       dispatch(renderFlash("success", successMessage));
-      refetchHostDetails();
+      refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
       console.log(error);
@@ -1159,43 +1150,39 @@ const HostDetailsPage = ({
   };
 
   const renderMdmData = () => {
-    if (macadmins) {
-      const { mobile_device_management: mdm } = macadmins;
-      return (
-        mdm.enrollment_status !== "Unenrolled" && (
-          <>
-            <div className="info-grid__block">
-              <span className="info-grid__header">MDM enrollment</span>
-              <span className="info-grid__data">
-                {mdm.enrollment_status || "---"}
-              </span>
-            </div>
-            <div className="info-grid__block">
-              <span className="info-grid__header">MDM server URL</span>
-              <span className="info-grid__data">{mdm.server_url || "---"}</span>
-            </div>
-          </>
-        )
-      );
+    if (!macadmins) {
+      return null;
     }
-    return null;
+    const { mobile_device_management: mdm } = macadmins;
+    return mdm.enrollment_status !== "Unenrolled" ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM enrollment</span>
+          <span className="info-grid__data">
+            {mdm.enrollment_status || "---"}
+          </span>
+        </div>
+        <div className="info-grid__block">
+          <span className="info-grid__header">MDM server URL</span>
+          <span className="info-grid__data">{mdm.server_url || "---"}</span>
+        </div>
+      </>
+    ) : null;
   };
 
   const renderMunkiData = () => {
-    if (macadmins) {
-      const { munki } = macadmins;
-      return (
-        !!munki && (
-          <>
-            <div className="info-grid__block">
-              <span className="info-grid__header">Munki version</span>
-              <span className="info-grid__data">{munki.version || "---"}</span>
-            </div>
-          </>
-        )
-      );
+    if (!macadmins) {
+      return null;
     }
-    return null;
+    const { munki } = macadmins;
+    return munki ? (
+      <>
+        <div className="info-grid__block">
+          <span className="info-grid__header">Munki version</span>
+          <span className="info-grid__data">{munki.version || "---"}</span>
+        </div>
+      </>
+    ) : null;
   };
 
   if (isLoadingHost) {
