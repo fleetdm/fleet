@@ -97,7 +97,9 @@ const PoliciesListWrapper = ({
         canAddOrRemovePolicy ? "" : "hide-selection-column"
       }`}
     >
-      {!isLoading ? (
+      {isLoading ? (
+        <Spinner />
+      ) : (
         <TableContainer
           resultsTitle={resultsTitle || "policies"}
           columns={generateTableHeaders({
@@ -121,8 +123,6 @@ const PoliciesListWrapper = ({
           onQueryChange={noop}
           disableCount={tableType === "inheritedPolicies"}
         />
-      ) : (
-        <Spinner />
       )}
     </div>
   );
