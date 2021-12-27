@@ -93,7 +93,7 @@ describe("Free tier - Observer user", () => {
         });
     });
     cy.findByText(/filevault enabled/i).click();
-    cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+    cy.getAttached(".policy-form__wrapper").within(() => {
       cy.findByRole("button", { name: /run/i }).should("not.exist");
       cy.findByRole("button", { name: /save/i }).should("not.exist");
     });
