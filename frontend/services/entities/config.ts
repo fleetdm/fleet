@@ -32,6 +32,7 @@ export default {
 
       return Promise.resolve(decodedCertificate);
     });
+  },
   update: (formData: any) => {
     const { CONFIG } = endpoints;
 
