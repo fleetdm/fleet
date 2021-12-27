@@ -13,7 +13,7 @@ import teamsAPI from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
-  IHostLoadOptions,
+  ILoadHostsOptions,
   ISortOption,
 } from "services/entities/hosts";
 import hostCountAPI, {
@@ -131,9 +131,7 @@ const ManageHostsPage = ({
     config,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainer,
     isTeamMaintainer,
-    isAnyTeamAdmin,
     isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
@@ -270,7 +268,6 @@ const ManageHostsPage = ({
   const {
     isLoading: isTeamSecretsLoading,
     data: teamSecrets,
-    error: teamSecretsError,
     refetch: refetchTeamSecrets,
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
     ["team secrets", currentTeam],
@@ -385,7 +382,7 @@ const ManageHostsPage = ({
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  const retrieveHosts = async (options: IHostLoadOptions = {}) => {
+  const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
 
     options = {
@@ -403,7 +400,7 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
+      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
         options
       );
       setHosts(returnedHosts);
@@ -444,7 +441,7 @@ const ManageHostsPage = ({
     }
   };
 
-  const refetchHosts = (options: IHostLoadOptions) => {
+  const refetchHosts = (options: ILoadHostsOptions) => {
     retrieveHosts(options);
     if (options.sortBy) {
       delete options.sortBy;
@@ -473,7 +470,7 @@ const ManageHostsPage = ({
     setSelectedLabel(selected);
 
     // get the hosts
-    const options: IHostLoadOptions = {
+    const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
@@ -510,7 +507,7 @@ const ManageHostsPage = ({
     setSelectedLabel(selected);
 
     // get the hosts
-    const options: IHostLoadOptions = {
+    const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
