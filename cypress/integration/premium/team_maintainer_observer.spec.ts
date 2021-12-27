@@ -61,14 +61,15 @@ describe(
           .within(() => {
             cy.get(".fleet-checkbox__input").should("not.exist");
           });
-
-        // On observing team, cannot save or run policy
-        cy.findByText(/filevault enabled/i).click();
       });
 
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByRole("button", { name: /save/i }).should("not.exist");
-      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      // On observing team, cannot save or run policy
+      cy.findByText(/filevault enabled/i).click();
+
+      cy.getAttached(".policy-form__wrapper").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("not.exist");
+        cy.findByRole("button", { name: /save/i }).should("not.exist");
+      });
 
       // On the Host details page, they should…
 

@@ -42,6 +42,8 @@ describe("Premium tier - Observer user", () => {
     cy.contains("button", /delete/i).should("not.exist");
     cy.contains("button", /query/i).click();
     cy.contains("button", /create custom query/i).should("not.exist");
+    cy.get(".modal__ex").click();
+
     // See and not select operating system
     // TODO
 
@@ -85,9 +87,10 @@ describe("Premium tier - Observer user", () => {
         });
     });
     cy.findByText(/filevault enabled/i).click();
-
-    cy.findByRole("button", { name: /save/i }).should("not.exist");
-    cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      cy.findByRole("button", { name: /save/i }).should("not.exist");
+    });
   });
 
   // Pseudo code for team observer only
@@ -128,8 +131,10 @@ describe("Premium tier - Observer user", () => {
       cy.findByText(/filevault enabled/i).click();
     });
 
-    cy.findByRole("button", { name: /save/i }).should("not.exist");
-    cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      cy.findByRole("button", { name: /save/i }).should("not.exist");
+    });
 
     // On the Profile page, they should…
     // See Global in the Team section and Observer in the Role section

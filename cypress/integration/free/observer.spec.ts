@@ -93,10 +93,10 @@ describe("Free tier - Observer user", () => {
         });
     });
     cy.findByText(/filevault enabled/i).click();
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-    cy.findByRole("button", { name: /save/i }).should("not.exist");
-    cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      cy.findByRole("button", { name: /save/i }).should("not.exist");
+    });
 
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section

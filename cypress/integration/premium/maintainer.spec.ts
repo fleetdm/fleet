@@ -110,11 +110,10 @@ describe(
         cy.findByRole("button", { name: /cancel/i }).click();
       });
       cy.findByText(/filevault enabled/i).click();
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-      cy.findByRole("button", { name: /save/i }).should("exist");
-      cy.findByRole("button", { name: /run/i }).should("exist");
-
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
       // On the Packs pages (manage, new, and edit), they should…
       // On the Schedule pages (manage, new, and edit), they should…
       // ^^General maintainer functionality for packs page is being tested in free/maintainer.spec.ts
