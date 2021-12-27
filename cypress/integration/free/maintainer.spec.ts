@@ -116,6 +116,10 @@ describe(
 
       // On the policies manage page, they should…
       cy.contains("a", "Policies").click();
+      // See and select the "Manage automations" button
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.findByRole("button", { name: /cancel/i }).click();
+
       // See and select the "Add a policy", "delete", and "edit" policy
       cy.findByRole("button", { name: /add a policy/i }).click();
       cy.get(".modal__ex").within(() => {

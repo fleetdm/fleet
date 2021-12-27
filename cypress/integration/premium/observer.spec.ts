@@ -59,8 +59,11 @@ describe("Premium tier - Observer user", () => {
     // });
 
     // On the policies manage page, they should…
-    cy.visit("/policies/manage");
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.contains("a", "Policies").click();
+    // Not see the "Manage automations" button
+    cy.findByRole("button", { name: /manage automations/i }).should(
+      "not.exist"
+    );
 
     // Cannot see and select the "Add a policy", "delete", and "edit" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
@@ -82,11 +85,9 @@ describe("Premium tier - Observer user", () => {
         });
     });
     cy.findByText(/filevault enabled/i).click();
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByRole("button", { name: /save/i }).should("not.exist");
-    // TODO: Uncomment out after bug fix #3364
-    // cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.findByRole("button", { name: /run/i }).should("not.exist");
   });
 
   // Pseudo code for team observer only
@@ -114,20 +115,19 @@ describe("Premium tier - Observer user", () => {
 
     // On the policies manage page, they should…
     cy.visit("/policies/manage");
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     // Not see and select the "Add a policy", "delete", and "edit" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
     cy.findByText(/all teams/i).should("not.exist");
-    cy.get("tbody").within(() => {
+    cy.getAttached("tbody").within(() => {
       cy.get("tr")
         .first()
         .within(() => {
           cy.get(".fleet-checkbox__input").should("not.exist");
         });
+      cy.findByText(/filevault enabled/i).click();
     });
-    cy.findByText(/filevault enabled/i).click();
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+
     cy.findByRole("button", { name: /save/i }).should("not.exist");
     cy.findByRole("button", { name: /run/i }).should("not.exist");
 

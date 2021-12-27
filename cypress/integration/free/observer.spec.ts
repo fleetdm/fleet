@@ -77,7 +77,10 @@ describe("Free tier - Observer user", () => {
 
     // On the policies manage page, they should…
     cy.contains("a", "Policies").click();
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    // Not see the "Manage automations" button
+    cy.findByRole("button", { name: /manage automations/i }).should(
+      "not.exist"
+    );
 
     // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
