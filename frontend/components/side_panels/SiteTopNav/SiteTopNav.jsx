@@ -35,7 +35,6 @@ class SiteTopNav extends Component {
   renderNavItem = (navItem) => {
     const { name, iconName } = navItem;
     const {
-      onNavItemClick,
       pathname,
       config: { org_logo_url: orgLogoURL },
     } = this.props;
@@ -53,7 +52,7 @@ class SiteTopNav extends Component {
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <a
             className={`${navItemBaseClass}__link`}
-            onClick={onNavItemClick(navItem.location.pathname)}
+            href={navItem.location.pathname}
           >
             <OrgLogoIcon className="logo" src={orgLogoURL} />
           </a>
@@ -84,7 +83,7 @@ class SiteTopNav extends Component {
       <li className={navItemClasses} key={`nav-item-${name}`}>
         <a
           className={`${navItemBaseClass}__link`}
-          onClick={onNavItemClick(navItem.location.pathname)}
+          href={navItem.location.pathname}
         >
           {icon}
           <span
