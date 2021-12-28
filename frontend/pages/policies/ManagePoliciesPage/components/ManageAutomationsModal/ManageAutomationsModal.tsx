@@ -7,6 +7,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import IconToolTip from "components/IconToolTip";
+import validURL from "components/forms/validators/valid_url";
 
 import { IPolicy } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
@@ -76,7 +77,7 @@ const useCheckboxListStateManagement = (
 const validateAutomationURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
-  if (!url) {
+  if (!validURL(url)) {
     errors.url = "Please add a valid destination URL";
   }
 
