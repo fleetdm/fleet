@@ -152,7 +152,7 @@ const generateTableHeaders = (options: {
           title: "Automations",
           Header: "Automations",
           disableSortBy: true,
-          accessor: "automation",
+          accessor: "webhook",
           Cell: (cellProps: ICellProps): JSX.Element => (
             <StatusCell value={cellProps.cell.value} />
           ),
