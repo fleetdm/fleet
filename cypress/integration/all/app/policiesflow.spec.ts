@@ -115,7 +115,7 @@ describe(
       cy.findByText(/removed policy/i).should("exist");
       cy.findByText(/backup/i).should("not.exist");
 
-      // Create policy automations
+      // Create failing policies webhook
       cy.findByRole("button", { name: /manage automations/i }).click();
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.get(".fleet-checkbox__input").check({ force: true });
