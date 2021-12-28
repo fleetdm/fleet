@@ -77,7 +77,10 @@ describe("Free tier - Observer user", () => {
 
     // On the policies manage page, they should…
     cy.contains("a", "Policies").click();
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+    // Not see the "Manage automations" button
+    cy.findByRole("button", { name: /manage automations/i }).should(
+      "not.exist"
+    );
 
     // Not see the "Add a policy", "delete", "save", "run" policy
     cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
@@ -90,10 +93,10 @@ describe("Free tier - Observer user", () => {
         });
     });
     cy.findByText(/filevault enabled/i).click();
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-    cy.findByRole("button", { name: /save/i }).should("not.exist");
-    cy.findByRole("button", { name: /run/i }).should("not.exist");
+    cy.getAttached(".policy-form__wrapper").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      cy.findByRole("button", { name: /save/i }).should("not.exist");
+    });
 
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section
