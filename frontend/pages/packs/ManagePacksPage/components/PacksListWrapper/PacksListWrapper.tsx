@@ -69,7 +69,15 @@ const PacksListWrapper = ({
       <div className={`${noPacksClass}`}>
         <div className={`${noPacksClass}__inner`}>
           <div className={`${noPacksClass}__inner-text`}>
-            {!searchString ? (
+            {searchString ? (
+              <>
+                <h2>No packs match the current search criteria.</h2>
+                <p>
+                  Expecting to see packs? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
+            ) : (
               <>
                 <h2>You don&apos;t have any packs</h2>
                 <p>
@@ -83,14 +91,6 @@ const PacksListWrapper = ({
                 >
                   Create new pack
                 </Button>
-              </>
-            ) : (
-              <>
-                <h2>No packs match the current search criteria.</h2>
-                <p>
-                  Expecting to see packs? Try again in a few seconds as the
-                  system catches up.
-                </p>
               </>
             )}
           </div>

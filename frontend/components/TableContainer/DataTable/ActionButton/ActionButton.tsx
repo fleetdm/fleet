@@ -77,7 +77,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return Boolean(hideButtonProp);
   };
 
-  return !isHidden(hideButton) ? (
+  return isHidden(hideButton) ? null : (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
@@ -91,7 +91,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         </>
       </Button>
     </div>
-  ) : null;
+  );
 };
 
 export default ActionButton;
