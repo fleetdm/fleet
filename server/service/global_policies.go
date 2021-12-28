@@ -155,6 +155,8 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 	return deleteGlobalPoliciesResponse{Deleted: resp}, nil
 }
 
+// DeleteGlobalPolicies deletes the given policies from the database.
+// It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -162,11 +164,42 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
+	}
 	ids, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	return ids, nil
+}
+
+func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, ids []uint) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	idSet := make(map[uint]struct{})
+	for _, id := range ids {
+		idSet[id] = struct{}{}
+	}
+	n := 0
+	policyIDs := ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
+	origLen := len(policyIDs)
+	for i := range policyIDs {
+		if _, ok := idSet[policyIDs[i]]; !ok {
+			policyIDs[n] = policyIDs[i]
+			n++
+		}
+	}
+	if n == origLen {
+		return nil
+	}
+	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = policyIDs[:n]
+	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+		return err
+	}
+	return nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

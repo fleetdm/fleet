@@ -2,6 +2,7 @@ import React, { Component, FormEvent } from "react";
 import ReactTooltip from "react-tooltip";
 import { Link } from "react-router";
 import PATHS from "router/paths";
+import { Dispatch } from "redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -10,6 +11,8 @@ import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 
 // ignore TS error for now until these are rewritten in ts.
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
 // @ts-ignore
@@ -89,6 +92,7 @@ interface ICreateUserFormProps {
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
   serverErrors?: IUserFormErrors; // "server" because this form does its own client validation
+  dispatch: Dispatch;
 }
 
 interface ICreateUserFormState {
@@ -244,9 +248,16 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
   validate = (): boolean => {
     const {
       errors,
-      formData: { email, password, newUserType, sso_enabled },
+      formData: {
+        email,
+        password,
+        newUserType,
+        sso_enabled,
+        global_role,
+        teams,
+      },
     } = this.state;
-    const { isNewUser } = this.props;
+    const { dispatch, isNewUser } = this.props;
 
     if (!validatePresence(email)) {
       this.setState({
@@ -291,6 +302,13 @@ class UserForm extends Component<ICreateUserFormProps, ICreateUserFormState> {
 
         return false;
       }
+    }
+
+    if (!global_role && !teams.length) {
+      dispatch(
+        renderFlash("error", `Please select at least one team for this user.`)
+      );
+      return false;
     }
 
     return true;
