@@ -236,7 +236,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
     toggleManageAutomationsModal();
   };
 
-  const onCreateAutomationsSubmit = async ({
+  const onCreateWebhookSubmit = async ({
     destination_url,
     policy_ids,
     enable_failing_policies_webhook,
@@ -590,7 +590,7 @@ const ManagePolicyPage = (managePoliciesPageProps: {
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
-            onCreateAutomationsSubmit={onCreateAutomationsSubmit}
+            onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
             availablePolicies={globalPolicies}

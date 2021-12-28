@@ -120,7 +120,7 @@ describe(
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.get(".fleet-checkbox__input").check({ force: true });
       });
-      cy.get("#automations-url").click().type("www.foo.com/bar");
+      cy.get("#webhook-url").click().type("www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
 
       // Confirm that policy automations was added successfully

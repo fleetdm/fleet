@@ -36,7 +36,7 @@ export interface IPolicy {
 export interface IPolicyStats extends IPolicy {
   passing_host_count: number;
   failing_host_count: number;
-  automation: string;
+  webhook: string;
 }
 
 // Used on the host details page and other places where the status of individual hosts are displayed

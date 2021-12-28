@@ -18,7 +18,7 @@ import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
-  onCreateAutomationsSubmit: (formData: IWebhookFailingPolicies) => void;
+  onCreateWebhookSubmit: (formData: IWebhookFailingPolicies) => void;
   togglePreviewPayloadModal: () => void;
   showPreviewPayloadModal: boolean;
   availablePolicies: IPolicy[];
@@ -74,7 +74,7 @@ const useCheckboxListStateManagement = (
   return { policyItems, updatePolicyItems };
 };
 
-const validateAutomationURL = (url: string) => {
+const validateWebhookURL = (url: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!validURL(url)) {
@@ -89,7 +89,7 @@ const baseClass = "manage-automations-modal";
 
 const ManageAutomationsModal = ({
   onCancel: onReturnToApp,
-  onCreateAutomationsSubmit,
+  onCreateWebhookSubmit,
   togglePreviewPayloadModal,
   showPreviewPayloadModal,
   availablePolicies,
@@ -119,7 +119,7 @@ const ManageAutomationsModal = ({
   const handleSaveAutomation = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validateAutomationURL(destination_url);
+    const { valid, errors: newErrors } = validateWebhookURL(destination_url);
     setErrors({
       ...errors,
       ...newErrors,
@@ -133,7 +133,7 @@ const ManageAutomationsModal = ({
           .map((policy) => policy.id);
       const enable_failing_policies_webhook = true; // Leave nearest component in case we decide to add disabling as a UI feature
 
-      onCreateAutomationsSubmit({
+      onCreateWebhookSubmit({
         destination_url,
         policy_ids,
         enable_failing_policies_webhook,
@@ -182,7 +182,7 @@ const ManageAutomationsModal = ({
         <div className="tooltip-wrap tooltip-wrap--input">
           <InputField
             inputWrapperClass={`${baseClass}__url-input`}
-            name="automations-url"
+            name="webhook-url"
             label={"Destination URL"}
             type={"text"}
             value={destination_url}

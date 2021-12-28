@@ -195,7 +195,7 @@ const generateDataSet = (
   );
 
   policiesList.forEach((policy) => {
-    policy.automation =
+    policy.webhook =
       currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
         ? "On"
         : "Off";
