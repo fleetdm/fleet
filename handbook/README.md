@@ -56,7 +56,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [About the handbook](./handbook.md#about-the-handbook)
 
-[Handbook styleguide](./handbook.md#handbook-styleguide)
+[Handbook style guide](./handbook.md#handbook-style-guide)
 
 
 <meta name="maintainedBy" value="mikermcneil">
