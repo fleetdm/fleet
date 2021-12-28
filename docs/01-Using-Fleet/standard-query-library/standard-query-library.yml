@@ -613,3 +613,13 @@ spec:
   query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
   purpose: Informational
   contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that are not in the Applications directory
+  platforms: macOS
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  purpose: Informational
+  contributors: DominusKelvin
