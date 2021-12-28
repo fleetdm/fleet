@@ -760,7 +760,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if err != nil {
-			logging.WithErr(ctx, ctxerr.New(ctx, "error in live query ingestion"))
+			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 	}
@@ -783,6 +783,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
+			incomingResults := filterPolicyResults(policyResults, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, incomingResults); err != nil {
+				logging.WithErr(ctx, err)
+			} else {
+				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
+				go func() {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
+						logging.WithErr(ctx, err)
+					}
+				}()
+			}
+		}
+
 		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
 		if err != nil {
@@ -828,6 +842,40 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	return nil
+}
+
+// filterPolicyResults filters out policies that aren't configured for webhook automation.
+func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[uint]*bool {
+	wp := make(map[uint]struct{})
+	for _, policyID := range webhookPolicies {
+		wp[policyID] = struct{}{}
+	}
+	filtered := make(map[uint]*bool)
+	for policyID, passes := range incoming {
+		if _, ok := wp[policyID]; !ok {
+			continue
+		}
+		filtered[policyID] = passes
+	}
+	return filtered
+}
+
+func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
+	host := fleet.PolicySetHost{
+		ID:       hostID,
+		Hostname: hostname,
+	}
+	for _, policyID := range newFailing {
+		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {
+			return err
+		}
+	}
+	for _, policyID := range newPassing {
+		if err := svc.failingPolicySet.RemoveHosts(policyID, []fleet.PolicySetHost{host}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

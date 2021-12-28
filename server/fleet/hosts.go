@@ -266,6 +266,6 @@ type HostMDM struct {
 }
 
 type MacadminsData struct {
-	Munki HostMunkiInfo `json:"munki"`
-	MDM   HostMDM       `json:"mobile_device_management"`
+	Munki *HostMunkiInfo `json:"munki"`
+	MDM   *HostMDM       `json:"mobile_device_management"`
 }
