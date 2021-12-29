@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareCountResponse,
+} from "services/entities/software";
 import { ISoftware } from "interfaces/software"; // @ts-ignore
-import debounce from "utilities/debounce";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import Modal from "components/Modal";
@@ -119,7 +120,6 @@ const Software = ({
     isModalSoftwareVulnerable,
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
-  const [modalSoftwareCount, setModalSoftwareCount] = useState<number>(0);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
@@ -129,6 +129,10 @@ const Software = ({
   const [isLoadingModalSoftware, setIsLoadingModalSoftware] = useState<boolean>(
     true
   );
+  const [
+    isLoadingModalSoftwareCount,
+    setIsLoadingModalSoftwareCount,
+  ] = useState<boolean>(true);
 
   const { data: software } = useQuery<ISoftware[], Error>(
     ["software", softwarePageIndex, currentTeamId],
@@ -213,8 +217,36 @@ const Software = ({
         setIsLoadingModalSoftware(false);
       },
       onError: () => {
-        // TODO: error UX?
         setIsLoadingModalSoftware(false);
+      },
+    }
+  );
+
+  const { data: modalSoftwareCount, error: modalSoftwareCountError } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number
+  >(
+    ["modalSoftwareCount", modalSoftwareSearchText, isModalSoftwareVulnerable],
+    () => {
+      setIsLoadingModalSoftwareCount(true);
+      return softwareAPI.count({
+        query: modalSoftwareSearchText,
+        vulnerable: isModalSoftwareVulnerable,
+      });
+    },
+    {
+      enabled: isModalOpen,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+      onSuccess: () => {
+        setIsLoadingModalSoftwareCount(false);
+      },
+      onError: (err) => {
+        console.log("useQuery error: ", err);
+        setIsLoadingModalSoftwareCount(false);
       },
     }
   );
@@ -241,15 +273,6 @@ const Software = ({
 
       if (pageIndex !== modalSoftwarePageIndex) {
         setModalSoftwarePageIndex(pageIndex);
-      } else {
-        try {
-          // TODO: count loading UX?
-          const count = await softwareAPI.count(searchQuery);
-          setModalSoftwareCount(count);
-        } catch (err) {
-          // TODO: count errors UX?
-          console.log(err);
-        }
       }
     },
     300
@@ -266,6 +289,26 @@ const Software = ({
       />
     );
   };
+
+  const renderModalSoftwareCount = useCallback(() => {
+    const count = modalSoftwareCount;
+
+    if (modalSoftwareCountError) {
+      return <span className="count-error">Failed to load software count</span>;
+    }
+
+    return count !== undefined ? (
+      <span
+        className={`${isLoadingModalSoftwareCount ? "count-loading" : ""}`}
+      >{`${count} software item${count === 1 ? "" : "s"}`}</span>
+    ) : (
+      <></>
+    );
+  }, [
+    isLoadingModalSoftwareCount,
+    modalSoftwareCountError,
+    modalSoftwareCount,
+  ]);
 
   const tableHeaders = generateTableHeaders();
 
@@ -347,6 +390,7 @@ const Software = ({
               pageSize={MODAL_PAGE_SIZE}
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
+              renderCount={renderModalSoftwareCount}
             />
           </>
         </Modal>

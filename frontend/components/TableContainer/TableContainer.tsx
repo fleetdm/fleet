@@ -69,6 +69,7 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   onSelectSingleRow?: (value: Row) => void;
+  renderCount?: () => JSX.Element;
 }
 
 const baseClass = "table-container";
@@ -122,6 +123,7 @@ const TableContainer = ({
   onPrimarySelectActionClick,
   customControl,
   onSelectSingleRow,
+  renderCount,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -221,7 +223,7 @@ const TableContainer = ({
     prevSearchQuery,
   ]);
 
-  // TODO: refactor?
+  // TODO: refactor existing components relying on displayCount to use renderCount pattern
   const displayCount = useCallback((): any => {
     if (typeof filteredCount === "number") {
       return filteredCount;
@@ -245,7 +247,10 @@ const TableContainer = ({
         </div>
       )}
       <div className={`${baseClass}__header`}>
-        {data && displayCount() && !disableCount ? (
+        {renderCount && (
+          <p className={`${baseClass}__results-count`}>{renderCount()}</p>
+        )}
+        {!renderCount && data && displayCount() && !disableCount ? (
           <p className={`${baseClass}__results-count`}>
             {TableContainerUtils.generateResultsCountText(
               resultsTitle,
