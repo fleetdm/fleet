@@ -77,7 +77,6 @@ const baseClass = "table-container";
 
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE_INDEX = 0;
-const DEBOUNCE_QUERY_DELAY = 300;
 
 const TableContainer = ({
   columns,
@@ -203,7 +202,7 @@ const TableContainer = ({
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    // return data.length;
+    return data.length;
   }, [filteredCount, clientFilterCount, data]);
 
   return (
