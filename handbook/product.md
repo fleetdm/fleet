@@ -14,7 +14,7 @@ Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flag
 
 ## Fleet docs
 
-### Docs styleguide
+### Docs style guide
 
 #### Headings
 
