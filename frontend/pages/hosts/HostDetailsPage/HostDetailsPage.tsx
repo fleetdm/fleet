@@ -1148,10 +1148,10 @@ const HostDetailsPage = ({
   };
 
   const renderMdmData = () => {
-    if (!macadmins) {
+    if (!macadmins?.mobile_device_management) {
       return null;
     }
-    const { mobile_device_management: mdm } = macadmins;
+    const mdm = macadmins.mobile_device_management;
     return mdm.enrollment_status !== "Unenrolled" ? (
       <>
         <div className="info-grid__block">
