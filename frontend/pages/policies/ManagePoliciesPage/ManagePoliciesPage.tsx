@@ -54,7 +54,9 @@ const renderInheritedPoliciesButtonText = (
 };
 
 const ManagePolicyPage = (managePoliciesPageProps: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   router: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any;
 }): JSX.Element => {
   const { location, router } = managePoliciesPageProps;
