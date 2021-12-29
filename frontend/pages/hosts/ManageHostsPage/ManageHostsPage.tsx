@@ -8,12 +8,11 @@ import ReactTooltip from "react-tooltip";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
-import statusLabelsAPI from "services/entities/statusLabels";
 import teamsAPI from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
-  IHostLoadOptions,
+  ILoadHostsOptions,
   ISortOption,
 } from "services/entities/hosts";
 import hostCountAPI, {
@@ -31,20 +30,22 @@ import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { IStatusLabels } from "interfaces/status_labels";
 import { ITeam } from "interfaces/team";
-import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
-} from "utilities/constants"; // @ts-ignore
+} from "utilities/constants";
+// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
+import HostSidePanel from "components/side_panels/HostSidePanel";
+// @ts-ignore
 import LabelForm from "components/forms/LabelForm";
 import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -74,14 +75,17 @@ import {
 
 import DeleteSecretModal from "./components/DeleteSecretModal";
 import SecretEditorModal from "./components/SecretEditorModal";
-import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
+import EnrollSecretModal from "./components/EnrollSecretModal";
+// @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter";
+// @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities"; // @ts-ignore
+import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
+// @ts-ignore
 import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -94,6 +98,7 @@ interface IManageHostsProps {
   route: RouteProps;
   router: InjectedRouter;
   params: Params;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
 }
 
@@ -131,9 +136,7 @@ const ManageHostsPage = ({
     config,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainer,
     isTeamMaintainer,
-    isAnyTeamAdmin,
     isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
@@ -164,10 +167,19 @@ const ManageHostsPage = ({
     return [{ key, direction }];
   })();
 
+  const initialQuery = (() => {
+    let query = "";
+
+    if (queryParams && queryParams.query) {
+      query = queryParams.query;
+    }
+
+    return query;
+  })();
+
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
   const [
     showNoEnrollSecretBanner,
     setShowNoEnrollSecretBanner,
@@ -205,7 +217,7 @@ const ManageHostsPage = ({
     isAllMatchingHostsSelected,
     setIsAllMatchingHostsSelected,
   ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
@@ -219,6 +231,7 @@ const ManageHostsPage = ({
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
+
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -270,7 +283,6 @@ const ManageHostsPage = ({
   const {
     isLoading: isTeamSecretsLoading,
     data: teamSecrets,
-    error: teamSecretsError,
     refetch: refetchTeamSecrets,
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
     ["team secrets", currentTeam],
@@ -290,17 +302,6 @@ const ManageHostsPage = ({
     name: "No team",
     secrets: globalSecrets || null,
   };
-
-  // TODO: add counts to status dropdown
-  useQuery<IStatusLabels, Error>(
-    ["status labels"],
-    () => statusLabelsAPI.getCounts(),
-    {
-      onSuccess: (returnedLabels) => {
-        setStatusLabels(returnedLabels);
-      },
-    }
-  );
 
   const {
     data: teams,
@@ -385,7 +386,7 @@ const ManageHostsPage = ({
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  const retrieveHosts = async (options: IHostLoadOptions = {}) => {
+  const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
 
     options = {
@@ -403,7 +404,7 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
+      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
         options
       );
       setHosts(returnedHosts);
@@ -444,7 +445,7 @@ const ManageHostsPage = ({
     }
   };
 
-  const refetchHosts = (options: IHostLoadOptions) => {
+  const refetchHosts = (options: ILoadHostsOptions) => {
     retrieveHosts(options);
     if (options.sortBy) {
       delete options.sortBy;
@@ -452,10 +453,7 @@ const ManageHostsPage = ({
     retrieveHostCount(options);
   };
 
-  // triggered every time the route is changed
-  // which means every filter click and text search
-  useDeepEffect(() => {
-    // set the team object in context
+  useEffect(() => {
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
     if (selectedTeam) {
@@ -463,7 +461,6 @@ const ManageHostsPage = ({
     }
     setShowNoEnrollSecretBanner(true);
 
-    // set selected label
     const slugToFind =
       (selectedFilters.length > 0 &&
         selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
@@ -472,8 +469,7 @@ const ManageHostsPage = ({
     const selected = find(labels, ["slug", slugToFind]) as ILabel;
     setSelectedLabel(selected);
 
-    // get the hosts
-    const options: IHostLoadOptions = {
+    const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
@@ -489,46 +485,8 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
-  }, [location, labels]);
-
-  useDeepEffect(() => {
-    // set the team object in context
-    const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const selectedTeam = find(teams, ["id", teamId]);
-    if (selectedTeam) {
-      setCurrentTeam(selectedTeam);
-    }
-    setShowNoEnrollSecretBanner(true);
-
-    // set selected label
-    const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
-
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
-    setSelectedLabel(selected);
-
-    // get the hosts
-    const options: IHostLoadOptions = {
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      sortBy,
-      teamId: selectedTeam?.id,
-      policyId,
-      policyResponse,
-      softwareId,
-    };
-
     retrieveHostCount(options);
-  }, [
-    queryParams.team_id,
-    searchQuery,
-    policyId,
-    policyResponse,
-    selectedFilters,
-    softwareId,
-  ]);
+  }, [location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -696,12 +654,13 @@ const ManageHostsPage = ({
     router.goBack();
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component will call this handler.
+  // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
     if (isEqual(newTableQuery, tableQueryData)) {
       return false;
     }
+
+    setIsHostsLoading(true);
 
     setTableQueryData({ ...newTableQuery });
 
@@ -710,6 +669,7 @@ const ManageHostsPage = ({
       sortHeader,
       sortDirection,
     } = newTableQuery;
+
     const teamId = getValidatedTeamId(
       teams || [],
       currentTeam?.id as number,
@@ -764,7 +724,6 @@ const ManageHostsPage = ({
       newQueryParams.software_id = softwareId;
     }
 
-    // triggers useDeepEffect using queryParams
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -1494,11 +1453,6 @@ const ManageHostsPage = ({
           canEnrollHosts={canEnrollHosts}
         />
       );
-    }
-
-    // Hosts not ready to render
-    if (isHostsLoading && filteredHostCount === 0) {
-      return <Spinner />;
     }
 
     const secondarySelectActions: IActionButtonProps[] = [

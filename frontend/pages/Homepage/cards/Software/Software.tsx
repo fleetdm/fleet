@@ -376,7 +376,6 @@ const Software = ({
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
               hideActionButton
-              filteredCount={modalSoftwareCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptySoftware(

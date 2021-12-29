@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useRef } from "react";
 import classnames from "classnames";
-import { Row, useAsyncDebounce } from "react-table";
+import { Row } from "react-table";
 
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
-import InputField from "components/forms/fields/InputField"; // @ts-ignore
+import SearchField from "components/forms/fields/SearchField";
+// @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
-import { ButtonVariant } from "components/buttons/Button/Button"; // @ts-ignore
+import { ButtonVariant } from "components/buttons/Button/Button";
+// @ts-ignore
 import { useDeepEffect } from "utilities/hooks";
 import ReactTooltip from "react-tooltip";
 
@@ -60,7 +62,6 @@ interface ITableContainerProps {
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
-  isClientSideSearch?: boolean;
   highlightOnHover?: boolean;
   pageSize?: number;
   clearSelectionCount?: number;
@@ -112,7 +113,6 @@ const TableContainer = ({
   searchToolTipText,
   isClientSidePagination,
   isClientSideFilter,
-  isClientSideSearch,
   highlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
@@ -132,6 +132,8 @@ const TableContainer = ({
   );
   const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
+
+  const prevPageIndex = useRef(0);
 
   const wrapperClasses = classnames(baseClass, className);
 
@@ -165,21 +167,11 @@ const TableContainer = ({
     setClientFilterCount(resultsCount);
   };
 
-  // We use useRef to keep track of the previous searchQuery value. This allows us
-  // to later compare this the the current value and debounce a change handler.
-  const prevSearchQueryRef = useRef(searchQuery);
-  const prevSearchQuery = prevSearchQueryRef.current;
-  const debounceOnQueryChange = useAsyncDebounce(
-    (queryData: ITableSearchData) => {
-      onQueryChange && onQueryChange(queryData);
-    },
-    DEBOUNCE_QUERY_DELAY
-  );
-
-  // When any of our query params change, or if any additionalQueries change, we want to fire off
-  // the parent components handler function with this updated query data. There is logic in here to check
-  // different types of query updates, as we handle some of them differently than others.
   useDeepEffect(() => {
+    if (!onQueryChange) {
+      return;
+    }
+
     const queryData = {
       searchQuery,
       sortHeader,
@@ -188,31 +180,13 @@ const TableContainer = ({
       pageIndex,
     };
 
-    // Something besides the pageIndex has changed; we want to set it back to 0.
-    if (onQueryChange) {
-      if (!hasPageIndexChangedRef.current && !isClientSideSearch) {
-        const updateQueryData = {
-          ...queryData,
-          pageIndex: 0,
-        };
-        if (!isClientSideFilter) {
-          // searchQuery has changed; we want to debounce calling the handler so the
-          // user can finish typing.
-          if (searchQuery !== prevSearchQuery) {
-            debounceOnQueryChange(updateQueryData);
-          } else {
-            onQueryChange(updateQueryData);
-          }
-          setPageIndex(0);
-        } else {
-          onQueryChange(updateQueryData);
-        }
-      } else if (!isClientSideFilter) {
-        onQueryChange(queryData);
-      }
-
-      hasPageIndexChangedRef.current = false;
+    if (prevPageIndex.current === pageIndex) {
+      setPageIndex(0);
     }
+
+    onQueryChange(queryData);
+
+    prevPageIndex.current = pageIndex;
   }, [
     searchQuery,
     sortHeader,
@@ -220,7 +194,6 @@ const TableContainer = ({
     pageSize,
     pageIndex,
     additionalQueries,
-    prevSearchQuery,
   ]);
 
   // TODO: refactor existing components relying on displayCount to use renderCount pattern
@@ -237,12 +210,9 @@ const TableContainer = ({
     <div className={wrapperClasses}>
       {wideSearch && searchable && (
         <div className={`${baseClass}__search-input wide-search`}>
-          <InputField
+          <SearchField
             placeholder={inputPlaceHolder}
-            name="searchQuery"
             onChange={onSearchQueryChange}
-            value={searchQuery}
-            inputWrapperClass={`${baseClass}__input-wrapper`}
           />
         </div>
       )}
@@ -290,12 +260,9 @@ const TableContainer = ({
                 data-for="search-tooltip"
                 data-tip-disable={!searchToolTipText}
               >
-                <InputField
+                <SearchField
                   placeholder={inputPlaceHolder}
-                  name="searchQuery"
                   onChange={onSearchQueryChange}
-                  value={searchQuery}
-                  inputWrapperClass={`${baseClass}__input-wrapper`}
                 />
               </div>
               <ReactTooltip
@@ -316,7 +283,8 @@ const TableContainer = ({
       </div>
       <div className={`${baseClass}__data-table-container`}>
         {/* No entities for this result. */}
-        {!isLoading && data.length === 0 ? (
+        {(!isLoading && data.length === 0) ||
+        (searchQuery.length && data.length === 0) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
