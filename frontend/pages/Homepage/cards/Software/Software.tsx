@@ -337,7 +337,6 @@ const Software = ({
               onQueryChange={onModalSoftwareQueryChange}
               customControl={renderStatusDropdown}
               isClientSidePagination
-              isClientSideSearch
             />
           </>
         </Modal>
