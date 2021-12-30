@@ -10,6 +10,7 @@ on:
 
 jobs:
   on-pr:
+    
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     steps:
@@ -17,6 +18,7 @@ jobs:
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql redis &
+
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -24,10 +26,13 @@ jobs:
         run_id: ${{ github.event.workflow_run.id }}
         name: build
 
+    - name: Start tunnel
+      run: npm install -g localtunnel && lt --port 8080
+
     - name: Start Fleet server
+      timeout-minutes: 60
       run: |
-        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
-        npm install -g localtunnel && lt --port 8080
+        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false
 
   on-main:
     runs-on: ubuntu-latest
@@ -37,6 +42,7 @@ jobs:
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql redis &
+
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -44,8 +50,10 @@ jobs:
         branch: main
         name: build
 
-    - name: Start Fleet server
-      run: |
-        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
-        npm install -g localtunnel && lt --port 8080
+    - name: Start tunnel
+      run: npm install -g localtunnel && lt --port 8080
 
+    - name: Start Fleet server
+      timeout-minutes: 60
+      run: |
+        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false
