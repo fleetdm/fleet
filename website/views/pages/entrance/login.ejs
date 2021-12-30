@@ -2,9 +2,9 @@
   <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5">
     <h1>Welcome to Fleet Premium</h1>
     <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key</p>
-    <div class="d-flex flex-row">
+    <div  purpose="customer-portal-form" class="d-flex flex-row">
 
-      <div class="card card-body order-first flex-grow-1">
+      <div class="card card-body order-first flex-grow-1" >
 
         <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="form-group">
@@ -24,7 +24,7 @@
             <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info mt-4 btn-lg btn-block">Sign in</ajax-button>
           </div>
         </ajax-form>
-        <p class="text-center"><a href="/customers/forgot-password">Forgot your password?</a></p>
+        <span class="text-center"><a href="/customers/forgot-password">Forgot your password?</a></span>
       </div>
 
       <div class="order-last d-none d-md-block ml-auto pl-4" purpose="features-list">
