@@ -1,9 +1,6 @@
 name: Deploy staging
 
 on:
-  push:
-    branches:
-    - main
   workflow_dispatch:
   workflow_run:
     workflows:
@@ -12,47 +9,51 @@ on:
     - completed
 
 jobs:
-  echo:
-    runs-on: ubuntu-latest
-    steps:
-    - name: echo event
-      run: echo '${{ toJson(github.event) }}'
-
   on-pr:
+    
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     steps:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql redis &
+
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
+        workflow: ${{ github.event.workflow.name }}
         run_id: ${{ github.event.workflow_run.id }}
         name: build
 
+    - name: Start tunnel
+      run: npm install -g localtunnel && lt --port 8080
+
     - name: Start Fleet server
+      timeout-minutes: 60
       run: |
-        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
-        npm install -g localtunnel && lt --port 8080
+        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false
 
   on-main:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.branch == 'main' }}
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' }}
     steps:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
       run: docker-compose up -d mysql redis &
+
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
+        workflow: ${{ github.event.workflow.name }}
         branch: main
         name: build
 
-    - name: Start Fleet server
-      run: |
-        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
-        npm install -g localtunnel && lt --port 8080
+    - name: Start tunnel
+      run: npm install -g localtunnel && lt --port 8080
 
+    - name: Start Fleet server
+      timeout-minutes: 60
+      run: |
+        ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false

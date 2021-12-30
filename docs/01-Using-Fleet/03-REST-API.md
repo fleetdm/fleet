@@ -462,7 +462,8 @@ This is the callback endpoint that the identity provider will use to send securi
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
-- [List MDM and Munki information if available](#list-mdm-and-munk-information-if-available)
+- [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
+- [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 
 ### List hosts
 
@@ -1057,9 +1058,14 @@ Request (`filters` is specified):
 
 `Status: 200`
 
-### Get host device mapping
+### Get host's Google Chrome profiles
 
-Returns the mapping of users' email addresses to the host, as reported by optional osquery extensions such as the Google Chrome profiles.
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+
+Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
+user by email.
 
 `GET /api/v1/fleet/hosts/{id}/device_mapping`
 
@@ -1091,7 +1097,13 @@ Returns the mapping of users' email addresses to the host, as reported by option
 
 ---
 
-### List MDM and Munki information if available
+### Get host's mobile device management (MDM) and Munki information 
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+
+Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 `GET /api/v1/fleet/hosts/{id}/macadmins`
 

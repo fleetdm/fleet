@@ -19,11 +19,6 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v2
 
-    # # Pre-starting dependencies here means they are ready to go when we need them.
-    # - name: Start Infra Dependencies
-    #   # Use & to background this
-    #   run: docker-compose up -d mysql redis &
-
     - name: JS Dependency Cache
       id: js-cache
       uses: actions/cache@v2
@@ -74,9 +69,3 @@ jobs:
       with:
         name: build
         path: build/
-
-    # - name: Start Fleet server
-    #   run: ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
-    
-    # - name: Tunnel Fleet server
-    #   run: npm install -g localtunnel && lt --port 8080
