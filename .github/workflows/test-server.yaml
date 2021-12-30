@@ -5,25 +5,20 @@ on:
 
 jobs:
   test-server:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        go-version: ['^1.17.0']
-    runs-on: ${{ matrix.os }}
-
+    runs-on: ubuntu-latest
     steps:
     - name: Install Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: 1.17
 
     - name: Checkout Code
       uses: actions/checkout@v2
 
-    # Pre-starting dependencies here means they are ready to go when we need them.
-    - name: Start Infra Dependencies
-      # Use & to background this
-      run: docker-compose up -d mysql redis &
+    # # Pre-starting dependencies here means they are ready to go when we need them.
+    # - name: Start Infra Dependencies
+    #   # Use & to background this
+    #   run: docker-compose up -d mysql redis &
 
     - name: JS Dependency Cache
       id: js-cache
@@ -71,8 +66,13 @@ jobs:
     - name: Build binaries
       run: make
 
-    - name: Start Fleet server
-      run: ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
+    - uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: build/
+
+    # - name: Start Fleet server
+    #   run: ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
     
-    - name: Tunnel Fleet server
-      run: npm install -g localtunnel && lt --port 8080
+    # - name: Tunnel Fleet server
+    #   run: npm install -g localtunnel && lt --port 8080
