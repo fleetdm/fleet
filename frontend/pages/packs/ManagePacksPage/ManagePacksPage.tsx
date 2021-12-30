@@ -196,7 +196,9 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           )}
         </div>
         <div>
-          {!isLoadingPacks ? (
+          {isLoadingPacks ? (
+            <Spinner />
+          ) : (
             renderTable(
               onRemovePackClick,
               onEnablePackClick,
@@ -206,8 +208,6 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
               packsError,
               isLoadingPacks
             )
-          ) : (
-            <Spinner />
           )}
         </div>
         {showRemovePackModal && (

@@ -68,6 +68,7 @@ const updateCampaignStateFromResults = (campaign, { data }) => {
       failed: hostsCount.failed,
       total: newTotal,
     };
+    newErrors = [...errors];
   }
 
   return {

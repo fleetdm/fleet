@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"runtime"
 
@@ -51,7 +53,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "version",
 				Usage:       "Version for package product",
-				Value:       "0.0.3",
+				Value:       "0.0.5",
 				Destination: &opt.Version,
 			},
 			&cli.BoolFlag{
@@ -128,6 +130,13 @@ func packageCommand() *cli.Command {
 				return errors.New("Windows can only build MSI packages.")
 			}
 
+			if opt.FleetCertificate != "" {
+				err := checkPEMCertificate(opt.FleetCertificate)
+				if err != nil {
+					return fmt.Errorf("failed to read certificate %q: %w", opt.FleetCertificate, err)
+				}
+			}
+
 			var buildFunc func(packaging.Options) (string, error)
 			switch c.String("type") {
 			case "pkg":
@@ -164,4 +173,15 @@ To add other devices to Fleet, distribute this installer using Chef, Ansible, Ja
 			return nil
 		},
 	}
+}
+
+func checkPEMCertificate(path string) error {
+	cert, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if p, _ := pem.Decode(cert); p == nil {
+		return errors.New("invalid PEM file")
+	}
+	return nil
 }

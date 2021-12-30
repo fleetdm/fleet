@@ -219,7 +219,7 @@ func main() {
 		if enrollSecret != "" {
 			const enrollSecretEnvName = "ENROLL_SECRET"
 			options = append(options,
-				osquery.WithEnv([]string{enrollSecretEnvName, enrollSecret}),
+				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
 		}

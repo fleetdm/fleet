@@ -816,7 +816,7 @@ func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	args = append(args, in)
 	sqlb.WriteString(" id NOT IN (?) AND ")
 	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "h"))
-	sqlb.WriteString(` ORDER BY COALESCE(hst.seen_time, h.created_at) DESC LIMIT 10`)
+	sqlb.WriteString(` ORDER BY h.id DESC LIMIT 10`)
 
 	sql, args, err := sqlx.In(sqlb.String(), args...)
 	if err != nil {

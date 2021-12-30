@@ -16,8 +16,10 @@ builds:
       - windows
     goarch:
       - amd64
+    flags:
+      - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+      - -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
     hooks:
       post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
 

@@ -428,16 +428,26 @@ The following options are available when configuring SMTP authentication:
 
 #### Webhooks
 
+- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
+
 ##### Host Status
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts 
 are offline for the specified amount of time.
 
-- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h
 - `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
 - `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
 - `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline  
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
+
+##### Failing Policies
+
+The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
+
+- `webhook_settings.failing_policies_webhook.enable_failing_policies_webhook`: true or false. Defines whether to enable the failing policies webhook.
+- `webhook_settings.failing_policies_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
+- `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
+- `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
 
 #### Debug host
 

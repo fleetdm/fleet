@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGlobalPoliciesAuth(t *testing.T) {
@@ -41,6 +42,15 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	}
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {
 		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+					Enable: false,
+				},
+			},
+		}, nil
 	}
 
 	testCases := []struct {
@@ -115,6 +125,72 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 				},
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
+}
+
+func TestRemoveGlobalPoliciesFromWebhookConfig(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	var storedAppConfig fleet.AppConfig
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &storedAppConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		storedAppConfig = *info
+		return nil
+	}
+
+	for _, tc := range []struct {
+		name     string
+		currCfg  []uint
+		toDelete []uint
+		expCfg   []uint
+	}{
+		{
+			name:     "delete-one",
+			currCfg:  []uint{1},
+			toDelete: []uint{1},
+			expCfg:   []uint{},
+		},
+		{
+			name:     "delete-all-2",
+			currCfg:  []uint{1, 2, 3},
+			toDelete: []uint{1, 2, 3},
+			expCfg:   []uint{},
+		},
+		{
+			name:     "basic",
+			currCfg:  []uint{1, 2, 3},
+			toDelete: []uint{1, 2},
+			expCfg:   []uint{3},
+		},
+		{
+			name:     "empty-cfg",
+			currCfg:  []uint{},
+			toDelete: []uint{1},
+			expCfg:   []uint{},
+		},
+		{
+			name:     "no-deletion-cfg",
+			currCfg:  []uint{1},
+			toDelete: []uint{2, 3, 4},
+			expCfg:   []uint{1},
+		},
+		{
+			name:     "no-deletion-cfg-2",
+			currCfg:  []uint{1},
+			toDelete: []uint{},
+			expCfg:   []uint{1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = tc.currCfg
+			err := svc.removeGlobalPoliciesFromWebhookConfig(context.Background(), tc.toDelete)
+			require.NoError(t, err)
+			require.Equal(t, tc.expCfg, storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 		})
 	}
 }

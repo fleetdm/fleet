@@ -448,7 +448,6 @@ const MembersPage = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={memberIds.length > 0 || searchString !== ""}
-          isClientSideSearch
         />
       )}
       {showAddMemberModal ? (

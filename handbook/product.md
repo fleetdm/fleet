@@ -1,30 +1,7 @@
-## Product DRIs
-
-Below is a table of [directly responsible individuals (DRIs)](./people.md#directly-resonsible-individuals) for aspects of the Fleet product:
-
-|    Aspect              										| DRI     		|
-| ------------------------------------------------------------- | ------------- |
-| Wireframes (figma)	 										| Noah Talerman	|
-| How the product works 										| Noah Talerman |
-| fleetctl CLI interface (and other tools) 						| Tomás Touceda |
-| REST API interface design 							| Luke Heath	|
-| [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
-| Postman 											| Luke Heath 	|
-| Terraform 											| Ben Edwards 	|
-| Customer PoV deployments like acme.fleetdm.com 				| Ben Edwards 	|
-| dogfood.fleetdm.com 											| Ben Edwards  	|
-| Quality of core product UI 									| Luke Heath 	|
-| Quality of tickets after Noah's done with them   				| Luke Heath 	|
-| ["Escaped work"](https://docs.google.com/document/d/1vXL_WSUqASJWuNnQhUVrkudIeG4zlaiOCqJEa7xB2do/edit) | Luke Heath |
-| Customer Slack channels | Tony Gauda |
-| Quality of core product backend 									| Tomás Touceda |
-| Quality of fleetctl (and other tools)							| Tomás Touceda |
-| Final cut of what goes into each release 						| Zach Wasserman|
-| When we cut a release, version numbers, and whether to release| Zach Wasserman|
-| Release notes 												| Noah Talerman |
-| Publishing release blog post, and promoting releases 			| Mike Thomas  	|
+# Product
 
 ## Feature flags
+
 In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
 
 The following highlights should be considered when deciding if feature flags should be leveraged:
@@ -36,6 +13,21 @@ The following highlights should be considered when deciding if feature flags sho
 Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
 
 ## Fleet docs
+
+### Docs style guide
+
+#### Headings
+
+Headings help readers scan content to easily find what they need. Organize page content using clear headings, specific to the topic they describe.
+
+Keep headings brief and organize them in a logical order:
+
+* H1: Page title
+* H2: Main headings
+* H3: Subheadings
+* H4: Sub-subheadings (headings nested under subheadings)
+
+Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### Adding a link to the Fleet docs
 You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
@@ -77,17 +69,35 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
-## Manual QA
+## Product quality
 
-This living document outlines the manual quality assurance process conducted to ensure each release of Fleet meets organization standards.
+Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
-All steps should be conducted during each QA pass. All steps are possible with `fleetctl preview`. In order to target a specific version of `fleetctl preview`, the tag argument can be used together with the commit you are targeting as long as that commit is represented by a tag in [docker hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated). Without tag argument, `fleetctl preview` defaults to latest stable.
+To try stuff out with Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
 
-As new features are added to Fleet, new steps and flows will be added.
+To target a different version of Fleet, you can use the `--tag` argument to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag='main'`
+
+### Why human-oriented QA?
+
+Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether that's in the user interface, the REST API, or the command line.
+
+The goal of quality assurance is to catch unexpected behavior prior to release:
+- bugs
+- edge cases
+- error message UX
+- developer experience using the API/CLI
+- operator experience looking at logs
+- API response time latency
+- UI comprehensibility
+- simplicity
+- data accuracy
+- perceived data freshness
+- the product’s ability to save users from themselves
+
 
 ### Collecting bugs
 
-The goal of manual QA is to catch unexpected behavior prior to release. All Manual QA steps should be possible using `fleetctl preview`. Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
 

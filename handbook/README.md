@@ -1,3 +1,5 @@
+# Welcome to Fleet
+
 ## Introduction
 
 The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
@@ -26,6 +28,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
+[Feature Flags](./product.md#feature-flags)
+
 [Product DRIs](./product.md#product-dris)
 
 [Fleet docs](./product.md#fleet-docs)
@@ -52,13 +56,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Community Contributions (Pull Requests)](./community.md#community-contributions-pull-requests)
 
-### About the handbook
+### Handbook
 
-#### Why bother?
-The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+[About the handbook](./handbook.md#about-the-handbook)
 
-#### Where's the rest of the handbook?
-While this handbook is inspired by [GitLab's handbook](https://about.gitlab.com/handbook/), it is nowhere near as complete (yet!)  We will continue to add and update information in this handbook, and gradually migrate information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+[Handbook style guide](./handbook.md#handbook-style-guide)
 
 
 <meta name="maintainedBy" value="mikermcneil">
