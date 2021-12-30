@@ -48,26 +48,28 @@ describe(
       // NOT see and select "add label"
       cy.findByRole("button", { name: /new label/i }).should("not.exist");
 
-      // On the Policies page, they should...
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
 
-      // On observing team, not see the "Add a policy" button
-      cy.visit("/policies/manage");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      // On observing team, not see the "Add a policy" and "Manage automations" button
+      cy.findByText(/manage automations/i).should("not.exist");
       cy.findByText(/add a policy/i).should("not.exist");
 
-      cy.get("tbody").within(() => {
+      cy.getAttached("tbody").within(() => {
         cy.get("tr")
           .first()
           .within(() => {
             cy.get(".fleet-checkbox__input").should("not.exist");
           });
       });
-      cy.findByText(/filevault enabled/i).click();
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByRole("button", { name: /save/i }).should("not.exist");
 
-      // TODO: Uncomment out after bug fix #3364, write test where save and run exists on team maintainer test
-      // cy.findByRole("button", { name: /run/i }).should("not.exist");
+      // On observing team, cannot save or run policy
+      cy.findByText(/filevault enabled/i).click();
+
+      cy.getAttached(".policy-form__wrapper").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("not.exist");
+        cy.findByRole("button", { name: /save/i }).should("not.exist");
+      });
 
       // On the Host details page, they should…
 
@@ -235,6 +237,33 @@ describe(
       cy.contains(".table-container .data-table__table th", "Team").should(
         "be.visible"
       );
+
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+
+      // On maintaining team, not see the "Manage automations" button
+      cy.findByText(/apples/i).click();
+      cy.findByText(/oranges/i).click();
+      cy.findByText(/manage automations/i).should("not.exist");
+
+      // On maintaining team, should see "add a policy" and "save" a policy
+      // Add a default policy
+      cy.findByText(/add a policy/i).click();
+
+      cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /save policy/i }).click();
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+
+      // Confirm that policy was added successfully
+      cy.findByText(/policy created/i).should("exist");
+
+      // On maintaining team, should see "run" a policy
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
 
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section

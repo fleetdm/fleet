@@ -83,7 +83,7 @@ export interface IMDMData {
 export interface IMacadminsResponse {
   macadmins: null | {
     munki: null | IMunkiData;
-    mobile_device_management: IMDMData;
+    mobile_device_management: null | IMDMData;
   };
 }
 

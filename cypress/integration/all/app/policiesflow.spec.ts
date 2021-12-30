@@ -8,12 +8,11 @@ describe(
       cy.setup();
       cy.login();
     });
-    it("Can create, update, and delete a policy successfully", () => {
+    it("Can create, update, delete a policy successfully, and turn on failing policies webhook", () => {
       cy.visit("/policies/manage");
-      cy.get(".manage-policies-page__description").should(
-        "contain",
-        /add policies/i
-      ); // Ensure page load
+      cy.get(".manage-policies-page__description")
+        .should("contain", /add policies/i)
+        .and("contain", /manage automations/i); // Ensure page load
 
       // Add a policy
       cy.findByText(/add a policy/i).click();
@@ -115,6 +114,21 @@ describe(
       });
       cy.findByText(/removed policy/i).should("exist");
       cy.findByText(/backup/i).should("not.exist");
+
+      // Create failing policies webhook
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.get(".fleet-checkbox__input").check({ force: true });
+      });
+      cy.get("#webhook-url").click().type("www.foo.com/bar");
+      cy.findByRole("button", { name: /^Save$/ }).click();
+
+      // Confirm that failing policies webhook was added successfully
+      cy.findByText(/updated policy automations/i).should("exist");
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.get(".fleet-checkbox__input").should("be.checked");
+      });
     });
   }
 );
