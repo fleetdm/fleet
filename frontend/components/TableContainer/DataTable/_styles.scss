@@ -242,13 +242,15 @@
       }
 
       &--online:before,
-      &--enabled:before {
+      &--enabled:before,
+      &--on:before {
         background-color: $ui-success;
       }
 
       &--offline:before,
       &--disabled:before,
-      &--mia:before {
+      &--mia:before,
+      &--off:before {
         background-color: $ui-offline;
       }
 

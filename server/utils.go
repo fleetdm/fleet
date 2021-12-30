@@ -25,6 +25,10 @@ func GenerateRandomText(keySize int) (string, error) {
 	return base64.StdEncoding.EncodeToString(key), nil
 }
 
+func httpSuccessStatus(statusCode int) bool {
+	return statusCode >= 200 && statusCode <= 299
+}
+
 func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
@@ -45,7 +49,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("error posting to %s: %d. %s", url, resp.StatusCode, string(body))
 	}

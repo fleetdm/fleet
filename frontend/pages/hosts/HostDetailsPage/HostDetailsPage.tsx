@@ -936,7 +936,6 @@ const HostDetailsPage = ({
               wideSearch
               filteredCount={usersState.length}
               isClientSidePagination
-              isClientSideSearch
             />
           )}
         </div>
@@ -983,7 +982,6 @@ const HostDetailsPage = ({
                 wideSearch
                 filteredCount={softwareState.length}
                 isClientSidePagination
-                isClientSideSearch
                 highlightOnHover
               />
             )}
@@ -1150,10 +1148,10 @@ const HostDetailsPage = ({
   };
 
   const renderMdmData = () => {
-    if (!macadmins) {
+    if (!macadmins?.mobile_device_management) {
       return null;
     }
-    const { mobile_device_management: mdm } = macadmins;
+    const mdm = macadmins.mobile_device_management;
     return mdm.enrollment_status !== "Unenrolled" ? (
       <>
         <div className="info-grid__block">
