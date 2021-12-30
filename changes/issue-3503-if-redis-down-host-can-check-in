@@ -1,0 +1,1 @@
+* Allow hosts to check in even if Redis is down.

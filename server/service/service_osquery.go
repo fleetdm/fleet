@@ -517,12 +517,15 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 		queries[hostLabelQueryPrefix+name] = query
 	}
 
-	liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID)
-	if err != nil {
-		return nil, 0, osqueryError{message: "retrieve live queries: " + err.Error()}
-	}
-	for name, query := range liveQueries {
-		queries[hostDistributedQueryPrefix+name] = query
+	if liveQueries, err := svc.liveQueryStore.QueriesForHost(host.ID); err != nil {
+		// If the live query store fails to fetch queries we still want the hosts
+		// to receive all the other queries (details, policies, labels, etc.),
+		// thus we just log the error.
+		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
+	} else {
+		for name, query := range liveQueries {
+			queries[hostDistributedQueryPrefix+name] = query
+		}
 	}
 
 	policyQueries, err := svc.policyQueriesForHost(ctx, &host)
