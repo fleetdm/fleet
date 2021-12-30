@@ -5,24 +5,36 @@
   a {
     color: @core-vibrant-blue;
   }
+  a:hover {
+    // text-decoration: none;
+    color: darken(@core-vibrant-blue, 20%);
+  }
   p {
     font-size: 16px;
   }
-  label {
-    font-weight: 700;
-    margin-bottom: 4px;
+
+  [purpose="customer-portal-form"] {
+    label {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 30px;
+    }
   }
-  input {
-    height: 40px;
-    border-radius: 4px;
-  }
-  .card {
-    border-radius: 6px;
-  }
-  .card-body {
-    padding: 2em;
-  }
+
   [purpose="submit-button"] {
+
     border-radius: 4px;
     padding-top: 10px;
     padding-bottom: 10px;
@@ -33,12 +45,15 @@
       margin-right: auto;
       font-size: 14px;
       line-height: 20px;
-      align: center;
+      text-align: center;
       font-weight: 400;
     }
+
   }
 
   [purpose="features-list"] {
+    // min-width: 254px;
+    word-wrap: overflow;
    ul {
      list-style-type: none;
      padding-inline-start: 0px;
@@ -54,6 +69,5 @@
    }
 
   }
-
 
 }

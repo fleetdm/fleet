@@ -111,19 +111,22 @@ a.text-danger:hover, a.text-danger:focus {
   }
 
   &.btn-info {
-    background-color: #6b6cfa;
-    border-color: #6b6cfa;
+    background-color: #6A67FE;
+    border-color: #6A67FE;
     &:hover {
-      background-color: darken(#6b6cfa, 10%);
-      border-color: darken(#6b6cfa, 10%);
+      background-color: #6A67FE;
+      border-color: #6A67FE;
     }
     &:not(:disabled):not(.disabled):active {
-      background-color: darken(#6b6cfa, 10%);
-      border-color: darken(#6b6cfa, 10%);
+      background-color: #6A67FE;
+      border-color: #6A67FE;
     }
-    &:active {
-      background-color: darken(#6b6cfa, 10%);
-      border-color: darken(#6b6cfa, 10%);
+    &:active:focus {
+      background-color: #6A67FE;
+      border-color: #6A67FE;
+    }
+    &:not(:disabled):not(.disabled):focus{
+      box-shadow: none;
     }
   }
 }

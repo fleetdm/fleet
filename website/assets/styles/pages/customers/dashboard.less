@@ -1,33 +1,62 @@
 #dashboard {
-
+  h1 {
+    font-size: 28px;
+  }
   h3 {
     padding-bottom: 16px;
     font-size: 24px;
   }
-
+  a {
+    text-decoration: underline;
+    color: @core-vibrant-blue;
+  }
+  a:hover {
+    text-decoration: none;
+    color: darken(@core-vibrant-blue, 20%);
+  }
   p {
     font-size: 16px;
   }
-  .card {
-    border-radius: 6px;
-  }
-  .card-body {
-    // padding: 2em;
-  }
-  label {
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  input {
-    height: 40px;
-    border-radius: 6px;
+
+  [purpose="customer-portal-form"] {
+    label {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 30px;
+    }
   }
 
-  a {
-    color:@core-vibrant-blue;
-    text-decoration: underline;
+  [purpose="submit-button"] {
+
+    border-radius: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: flex;
+    span {
+      display: inline;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 14px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 400;
+    }
+
   }
-  .edit-button {
+
+  [purpose="edit-button"]{
     display: inline-block;
     margin-bottom: 3px;
     margin-left: 8px;
@@ -88,10 +117,6 @@
     a {
       text-underline-offset: 5px;
     }
-    p {
-
-
-    }
   }
 
   [purpose="billing-card"] {
@@ -111,6 +136,7 @@
     }
 
   }
+
   [purpose="license-card"]{
     padding: 30px 40px 30px 40px;
     p {
@@ -121,44 +147,46 @@
       padding-bottom: 8px;
     }
 
+    [purpose="copied-notification"]{
+      display: none;
+      font-weight: 400;
+      position: relative;
+      bottom: 0px;
+      left: 10px;
+      font-size: 16px;
+      line-height: 20px;
+      color: @core-vibrant-blue;
+      // animation-name: copiedText;
+      // animation-duration: 4s;
+      // animation-fill-mode: forwards;
+      z-index: 300;
+    }
+
     [purpose="license-key"] {
       display: block;
       text-overflow: ellipsis;
       overflow: hidden;
       white-space: nowrap;
       max-height: 20px;
+      cursor: pointer;
 
       &.show-overflow {
         overflow: unset;
         display: inline;
+        cursor: pointer;
         overflow: auto;
         white-space: normal;
       }
 
-      .copied::before {
-        content: 'Copied to clipboard!';
-        display: flex;
-        font-weight: 400;
-        position: relative;
-        top: -25px;
-        height: 0px;
-        font-size: 14px;
-        // line-height: 14px;
-        color: @core-vibrant-blue;
-        animation-name: copiedText;
-        animation-duration: 4s;
-        animation-fill-mode: forwards;
-      }
+    }
 
-      @keyframes copiedText {
-        0% {opacity: 0;}
-        20% {opacity: 100;}
-        30% {opacity: 80;}
-        50% {opacity: 60;}
-        70% {opacity: 40;}
-        80% {opacity: 20;}
-        100% {opacity: 0;}
-      }
+  }
+
+  @media (max-width: 991px) {
+
+    [purpose="details-card"] {
+      min-height: auto;
+
     }
 
   }

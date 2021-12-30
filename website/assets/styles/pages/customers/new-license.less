@@ -2,30 +2,21 @@
   h1 {
     font-size: 28px;
   }
-  h3 {
-    font-size: 20px;
-    font-weight: 700;
-  }
   a {
     color: @core-vibrant-blue;
   }
-  label {
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  .form-control {
-    height: 40px;
-    border-radius: 6px;
-  }
-  .card {
-    border-radius: 6px;
-  }
-  .card-body {
-    padding: 2em;
+  a:hover {
+    text-decoration: none;
+    color: darken(@core-vibrant-blue, 20%);
   }
   p {
     font-size: 16px;
   }
+  h3 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
   input::-webkit-outer-spin-button,
   input::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -34,7 +25,29 @@
   input[type=number] {
     -moz-appearance: textfield;
   }
+
+  [purpose="customer-portal-form"] {
+    label {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 30px;
+    }
+  }
+
   [purpose="submit-button"] {
+
     border-radius: 4px;
     padding-top: 10px;
     padding-bottom: 10px;
@@ -45,25 +58,31 @@
       margin-right: auto;
       font-size: 14px;
       line-height: 20px;
-      align: center;
+      text-align: center;
       font-weight: 400;
     }
+
   }
+
   [purpose="features-list"] {
-    // max-width: 280px;
-     ul {
-       list-style-type: none;
-       padding-inline-start: 0px;
-     }
-     li {
-      padding-bottom: 12px;
-      color: @core-fleet-black-75;
-     }
-     img {
-      display: inline;
-      height: 16px;
-      margin-right: 8px;
-     }
+    // min-width: 254px;
+    word-wrap: overflow;
+   ul {
+     list-style-type: none;
+     padding-inline-start: 0px;
+   }
+   li {
+    padding-bottom: 12px;
+    color: @core-fleet-black-75;
+   }
+   img {
+    display: inline;
+    height: 16px;
+    margin-right: 8px;
+   }
+
   }
+
+
 
 }
