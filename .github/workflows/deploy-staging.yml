@@ -13,8 +13,8 @@ jobs:
   echo:
     runs-on: ubuntu-latest
     steps:
-    - name: echo
-      run: echo '${{ github.event }}' && cat $GITHUB_EVENT_PATH
+    - name: echo event
+      run: echo '${{ toJson(github.event) }}'
 
   on-success:
     runs-on: ubuntu-latest
