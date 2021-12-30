@@ -25,8 +25,43 @@ jobs:
       # Use & to background this
       run: docker-compose up -d mysql redis &
 
-    - name: Install Dependencies
-      run: make deps
+    - name: JS Dependency Cache
+      id: js-cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          **/node_modules
+        # Use a separate cache for this from other JS jobs since we run the
+        # webpack steps and will have more to cache.
+        key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-node_modules-
+
+    - name: Go Cache
+      id: go-cache
+      uses: actions/cache@v2
+      with:
+        # In order:
+        # * Module download cache
+        # * Build cache (Linux)
+        # * Build cache (Mac)
+        # * Build cache (Windows)
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/Library/Caches/go-build
+          %LocalAppData%\go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install JS Dependencies
+      if: steps.js-cache.outputs.cache-hit != 'true'
+      run: make deps-js
+
+    - name: Install Go Dependencies
+      if: steps.go-cache.outputs.cache-hit != 'true'
+      run: make deps-go
 
     - name: Generate static files
       run: |
@@ -37,7 +72,7 @@ jobs:
       run: make
 
     - name: Start Fleet server
-      run: ./build/fleet prepare db --dev && ./build/fleet serve --dev &
+      run: ./build/fleet prepare db --dev && ./build/fleet serve --dev --server_tls=false &
     
     - name: Tunnel Fleet server
       run: npm install -g localtunnel && lt --port 8080
