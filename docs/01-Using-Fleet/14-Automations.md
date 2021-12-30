@@ -2,7 +2,7 @@
 
 You can configure automations in Fleet to send a webhook request if a certain condition is met.
 
-[Policy automations](#policy-automations) allow you to receive a list of hosts that recently failed a policy in Fleet.
+[Policy automations](#policy-automations) allow you to receive a list of hosts that recently failed a policy.
 
 [Host status automations](#host-status-automations) allow you to receive a notification when a portion of your hosts go offline.
 
