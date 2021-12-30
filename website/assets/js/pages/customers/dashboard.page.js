@@ -19,10 +19,6 @@ parasails.registerPage('dashboard', {
     // Server error state for the form
     cloudError: '',
     modal: '',
-    alert: '',
-    showFullLicenseKey: false,
-    // Note: this is the sample key from the license generator readme
-    licenseKey: 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -32,14 +28,14 @@ parasails.registerPage('dashboard', {
     //…
   },
   mounted: async function() {
-
+    //…
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+
     clickEditButton: function() {
       this.formData = {
         firstName: this.me.firstName,
@@ -50,9 +46,19 @@ parasails.registerPage('dashboard', {
       this.formRules = {
         firstName: {required: true},
         lastName: {required: true},
+        organization: {required: true},
         emailAddress: {required: true, isEmail: true},
       };
       this.modal = 'update-profile';
+    },
+
+    clickChangePassword: function() {
+      this.formData = {};
+      this.formRules = {
+        oldPassword: {required: true},
+        newPassword: {required: true, minLength: 8},
+      };
+      this.modal = 'update-password';
     },
 
     closeModal: async function() {
@@ -68,30 +74,26 @@ parasails.registerPage('dashboard', {
       await this.forceRender();
     },
 
-    submittedRemoveCardForm: async function() {
+    // submittedRemoveCardForm: async function() {
+    //   // Update billing info on success.
+    //   this.me.billingCardLast4 = undefined;
+    //   this.me.billingCardBrand = undefined;
+    //   this.me.billingCardExpMonth = undefined;
+    //   this.me.billingCardExpYear = undefined;
+    //   this.me.hasBillingCard = false;
 
-      // Update billing info on success.
-      this.me.billingCardLast4 = undefined;
-      this.me.billingCardBrand = undefined;
-      this.me.billingCardExpMonth = undefined;
-      this.me.billingCardExpYear = undefined;
-      this.me.hasBillingCard = false;
-
-      // Close the modal and clear it out.
-      this.closeModal();
-    },
+    //   // Close the modal and clear it out.
+    //   this.closeModal();
+    // },
 
     clickCopyLicenseKey: function() {
-      navigator.clipboard.writeText(this.licenseKey);
+      $('[purpose="copied-notification"]').finish();
+      $('[purpose="copied-notification"]').fadeIn(100).delay(3000).fadeOut(500);
+      navigator.clipboard.writeText(this.thisSubscription.fleetLicenseKey);
     },
+
     clickExpandLicenseKey: function() {
-      if(!this.showFullLicenseKey){
-        $('[purpose="license-key"]').addClass('show-overflow');
-        this.showFullLicenseKey = true;
-      } else {
-        $('[purpose="license-key"]').removeClass('show-overflow');
-        this.showFullLicenseKey = false;
-      }
+      $('[purpose="license-key"]').toggleClass('show-overflow');
     },
 
     clickRemoveCardButton: async function() {
@@ -120,11 +122,18 @@ parasails.registerPage('dashboard', {
     },
 
     submittedUpdateProfileForm: async function() {
-      // Redirect to the account page on success.
-      // > (Note that we re-enable the syncing state here.  This is on purpose--
-      // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/customers/dashboard';
+      Object.assign(this.me, _.pick(this.formData, ['firstName', 'lastName', 'organization', 'emailAddress']));
+      this.modal = '';
+      await this._resetForms();
+      this.syncing = false;
+    },
+
+    submittedUpdatePasswordForm: async function() {
+      this.syncing = true;
+      this.modal = '';
+      await this._resetForms();
+      this.syncing = false;
     },
   }
 });

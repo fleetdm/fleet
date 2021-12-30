@@ -235,6 +235,7 @@ module.exports.routes = {
   'POST  /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
   'POST /api/v1/customers/signup':                     { action: 'entrance/signup' },
   'POST /api/v1/account/update-profile':               { action: 'account/update-profile' },
+  'POST /api/v1/account/update-password':               { action: 'account/update-password' },
   'POST /api/v1/account/update-billing-card':          { action: 'account/update-billing-card'},
   'POST /api/v1/customers/login':                      { action: 'entrance/login' },
   '/api/v1/account/logout':                            { action: 'account/logout' },
