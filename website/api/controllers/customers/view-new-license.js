@@ -22,7 +22,7 @@ module.exports = {
 
 
   fn: async function () {
-    const stripe = require('stripe')(sails.config.custom.stripeSecret);
+
     // if the user isn't logged in, we'll redirect them to the register page.
     if (!this.req.me) {
       throw {redirect: '/customers/register'};
@@ -36,7 +36,7 @@ module.exports = {
     }
 
     // Respond with view.
-    return { stripePublishableKey: sails.config.custom.stripePublishableKey, stripe, };
+    return { stripePublishableKey: sails.config.custom.stripePublishableKey};
 
   }
 

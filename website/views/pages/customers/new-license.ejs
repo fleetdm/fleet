@@ -1,13 +1,13 @@
 <div id="new-license" v-cloak>
-  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5" v-if="!orderComplete">
+  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5 px-lg-0 px-5" v-if="!orderComplete">
     <h1>Welcome to Fleet Premium</h1>
     <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key</p>
     <div class="d-flex flex-row justify-content-between">
 
-      <div class="order-first flex-grow-1 pr-4">
+      <div purpose="customer-portal-form" class="order-first flex-grow-1 pr-md-4">
 
         <div class="card card-body">
-          <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedQuoteForm($event)">
+          <ajax-form action="createQuote" :class="[showBillingForm ? 'pb-2' : '' ]" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedQuoteForm($event)">
             <div class="d-flex flex-row">
               <div class="form-group flex-grow-1 order-first">
                 <label for="numberOfHosts">Total number of devices</label>
@@ -35,7 +35,7 @@
             <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if="!showBillingForm && showQuotedPrice">Schedule a demo</ajax-button>
         </div>
 
-        <div class="card card-body mt-3" v-if="showBillingForm">
+        <div purpose="customer-portal-form" class="card card-body mt-3" v-if="showBillingForm">
           <h3 class="pb-3">Billing information</h3>
           <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedPaymentForm()">
             <div class="form-group">
@@ -55,7 +55,7 @@
         </div>
       </div>
 
-      <div class="order-last d-none d-md-block" purpose="features-list">
+      <div purpose="features-list" class="order-last d-none d-md-block">
         <p><strong>Fleet Premium includes:</strong></p>
         <ul>
           <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
@@ -71,7 +71,7 @@
     <h1>Thank you, your order is complete.</h1>
     <p>Welcome to your admin dashboard.</p>
     <p>From here you can access your license key, change your details and update your payment method, and find to help you deploy Fleet.</p>
-    <ajax-button style="height: 40px; font-size: 14px; line-height: 24px;" :syncing="syncing" spinner="true" class="btn btn-info mt-4" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
+    <ajax-button style="height: 40px; font-size: 14px; line-height: 24px;" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-info" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

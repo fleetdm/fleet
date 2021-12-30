@@ -36,8 +36,6 @@ parasails.registerPage('new-license', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     let today = new Date(Date.now());
-
-    // note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
     this.calendlyLink = 'https://calendly.com/fleetdm/demo?month='+today.getFullYear()+'-'+today.getMonth();
   },
   mounted: async function() {
@@ -51,14 +49,13 @@ parasails.registerPage('new-license', {
   methods: {
 
     submittedPaymentForm: async function() {
-      // After payment is submitted, take the user to their dashboard
+      // After payment is submitted, Display a success message and let them navigate to the dashboard
       this.syncing = true;
       this.orderComplete = true;
       this.syncing = false;
-      // window.location = '/customers/dashboard';
     },
+
     clickGoToDashboard: async function() {
-      // After payment is submitted, take the user to their dashboard
       this.syncing = true;
       window.location = '/customers/dashboard';
     },
@@ -71,19 +68,19 @@ parasails.registerPage('new-license', {
       if(quote.numberOfHosts <= 100) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
-        // this.syncing = true;
       }
 
     },
 
     clickScheduleDemo: async function() {
       this.syncing = true;
-      // note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
+      // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
       window.location = this.calendlyLink;
     },
 
     clickResetForm: async function() {
       this.formData = {};
+      this.formErrors = {};
       this.showBillingForm = false;
       this.showQuotedPrice = false;
     },
