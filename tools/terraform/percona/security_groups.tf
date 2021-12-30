@@ -1,7 +1,7 @@
 resource "aws_security_group" "lb" {
   name        = "percona load balancer"
   description = "percona Load balancer security group"
-  vpc_id      = "vpc-0d249955b17f023c0"
+  vpc_id      = var.vpc_id
 }
 
 resource "aws_security_group_rule" "lb-ingress" {
@@ -42,7 +42,7 @@ resource "aws_security_group_rule" "backend-egress" {
 resource "aws_security_group" "backend" {
   name        = "percona backend"
   description = "percona Backend security group"
-  vpc_id      = "vpc-0d249955b17f023c0"
+  vpc_id      = var.vpc_id
 
 }
 
