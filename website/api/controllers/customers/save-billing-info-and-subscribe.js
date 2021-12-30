@@ -35,13 +35,6 @@ module.exports = {
       }
     },
 
-    // country: {
-    //   type: 'string',
-    //   required: true,
-    //   description: 'The country where the user resides'
-    // }
-
-
   },
 
 
@@ -96,14 +89,13 @@ module.exports = {
     .intercept({ type: 'StripeCardError' }, 'couldNotSaveBillingInfo');
 
     userRecord = await User.updateOne({ id: this.req.me.id })
-      .set({
-        hasBillingCard: true,
-        billingCardBrand: inputs.paymentSource.billingCardBrand,
-        billingCardLast4: inputs.paymentSource.billingCardLast4,
-        billingCardExpMonth: inputs.paymentSource.billingCardExpMonth,
-        billingCardExpYear: inputs.paymentSource.billingCardExpYear,
-        // country: inputs.country,
-      });
+    .set({
+      hasBillingCard: true,
+      billingCardBrand: inputs.paymentSource.billingCardBrand,
+      billingCardLast4: inputs.paymentSource.billingCardLast4,
+      billingCardExpMonth: inputs.paymentSource.billingCardExpMonth,
+      billingCardExpYear: inputs.paymentSource.billingCardExpYear,
+    });
 
     // Create the subscription for this order in Stripe
     const subscription = await stripe.subscriptions.create({
@@ -118,6 +110,9 @@ module.exports = {
       // trial_period_days: 30,
     });
 
+    // Generate the license key for this subscription;
+    let licenseKey = await sails.helpers.createLicenseKey.with({quoteId: inputs.quoteId, validTo: subscription.current_period_end});
+
     // Create the subscription record for this order.
     await Subscription.create({
       organization: userRecord.organization,
@@ -126,6 +121,7 @@ module.exports = {
       user: userRecord.id,
       stripeSubscriptionId: subscription.id,
       nextBillingAt: subscription.current_period_end * 1000,
+      fleetLicenseKey: licenseKey,
     });
 
     // Send the order confirmation template email
