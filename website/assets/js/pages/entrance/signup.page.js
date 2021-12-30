@@ -18,10 +18,8 @@ parasails.registerPage('signup', {
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
     },
-
     // Syncing / loading state
     syncing: false,
-
     // Server error state
     cloudError: '',
     showFullForm: false,
@@ -56,10 +54,8 @@ parasails.registerPage('signup', {
       await this.forceRender();
     },
 
-
     submittedSignUpForm: async function() {
-      // If email confirmation is enabled, show the success message.
-      // Otherwise, redirect to the logged-in dashboard.
+      // redirect to the new-license page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
