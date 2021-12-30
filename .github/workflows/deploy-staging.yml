@@ -25,6 +25,7 @@ jobs:
         workflow: ${{ github.event.workflow.name }}
         run_id: ${{ github.event.workflow_run.id }}
         name: build
+        path: build
 
     - name: Start tunnel
       run: |
@@ -52,6 +53,7 @@ jobs:
         workflow: ${{ github.event.workflow.name }}
         branch: main
         name: build
+        path: build
 
     - name: Start tunnel
       run: |
