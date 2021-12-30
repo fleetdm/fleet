@@ -20,16 +20,13 @@ Once per day, the Fleet server updates this list of hosts. The hosts that failed
 attempted webhook request are added to the list. The hosts that were included in the last successful
 webhook request are removed from the list.
 
-To enable policy automations, navigate to **Settings > Organization settings > Host
-status webhook** in the Fleet UI.
+To enable policy automations, navigate to **Policies > Manage automations** in the Fleet UI.
 
-Request:
+Example webhook payload:
 
 ```
 POST https://server.com/example
 ```
-
-Example payload:
 
 ```json
 {
@@ -69,13 +66,11 @@ checked in to Fleet for a configured number of days.
 To enable and configure host status automations, navigate to **Settings > Organization settings > Host
 status webhook** in the Fleet UI.
 
-Request:
+Example webhook payload:
 
 ```
 POST https://server.com/example
 ```
-
-Example payload:
 
 ```json
 {
