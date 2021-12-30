@@ -45,7 +45,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("error posting to %s: %d. %s", url, resp.StatusCode, string(body))
 	}
