@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: echo
-      run: echo '${{ github.event }}'
+      run: echo '${{ github.event }}' && cat $GITHUB_EVENT_PATH
 
   on-success:
     runs-on: ubuntu-latest
