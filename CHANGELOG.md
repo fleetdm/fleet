@@ -18,7 +18,7 @@
 
 * Add ability to configure Fleet to send a webhook request with all hosts that failed a
   policy. Documentation on what data is included the webhook
-  request and when the webhook request is sent can be found here on [fleedm.com/docs](fleedm.com/docs/using-fleet/automations).
+  request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations).
 
 * Add ability to find a user's device in Fleet by filtering hosts by email associated with a Google Chrome
   profile. Requires the [macadmins osquery
