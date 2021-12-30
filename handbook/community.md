@@ -1,13 +1,13 @@
 ## Fleet Community
 
-As an open-core company, Fleet endeavors build a community of engaged users, customers, and
+As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
 
 ### Community Contributions (Pull Requests)
 
 The top priority when community members contribute PRs is to help the person feel engaged with
 Fleet. This means acknowledging the contribution quickly (within 1 business day), and driving to a
-resolution (close/merge).
+resolution (close/merge) as soon as possible (may take longer than 1 business day).
 
 #### Process
 
@@ -36,3 +36,5 @@ SQL works properly and they attributed correctly. Please use your best judgement
 
 Larger changes and new features should be approved by the appropriate [Product
 DRI](./product.md#product-dris). Ask in the `#g-product` channel in Fleet Slack.
+
+<meta name="maintainedBy" value="zwass">
