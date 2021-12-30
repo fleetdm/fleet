@@ -1,4 +1,4 @@
-name: Build binaries
+name: Deploy staging
 
 on:
   workflow_run:
@@ -6,7 +6,6 @@ on:
     - Build binaries
     types:
     - completed
-
 
 jobs:
   on-success:
