@@ -1,10 +1,10 @@
-name: Test server
+name: Build binaries
 
 on:
   pull_request:
 
 jobs:
-  test-server:
+  build-binaries:
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
