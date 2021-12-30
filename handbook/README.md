@@ -54,7 +54,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Community
 
-[Community Contributions (Pull Requests)](./community.md#community-contributions-pull-requests)
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
 
 ### Handbook
 

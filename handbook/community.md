@@ -1,9 +1,9 @@
-## Fleet Community
+## Fleet community
 
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
 
-### Community Contributions (Pull Requests)
+### Community contributions (pull requests)
 
 The top priority when community members contribute PRs is to help the person feel engaged with
 Fleet. This means acknowledging the contribution quickly (within 1 business day), and driving to a
