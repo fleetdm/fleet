@@ -27,7 +27,10 @@ jobs:
         name: build
 
     - name: Start tunnel
-      run: npm install -g localtunnel && lt --port 8080
+      run: |
+        npm install -g localtunnel
+        lt --port 8080 &
+        sleep 5
 
     - name: Start Fleet server
       timeout-minutes: 60
@@ -51,7 +54,10 @@ jobs:
         name: build
 
     - name: Start tunnel
-      run: npm install -g localtunnel && lt --port 8080
+      run: |
+        npm install -g localtunnel
+        lt --port 8080 &
+        sleep 5
 
     - name: Start Fleet server
       timeout-minutes: 60
