@@ -24,4 +24,4 @@ jobs:
         fleetctl preview
         fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
-
+      shell: bash
