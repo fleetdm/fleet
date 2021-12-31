@@ -8,9 +8,21 @@ jobs:
   run-preview:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Doesn't work on Windows because Linux Docker containers are not supported.
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
+    - name: Install Docker
+      if: matrix.os == 'macos-latest'
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
     - name: Start tunnel
       run: |
         npm install -g localtunnel
@@ -22,6 +34,7 @@ jobs:
       run: |
         npm install -g fleetctl
         fleetctl preview
+        sleep 10
         fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
       shell: bash
