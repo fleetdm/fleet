@@ -11,7 +11,7 @@ jobs:
     - name: Start tunnel
       run: |
         npm install -g localtunnel
-        lt --port 8080 &
+        lt --port 1337 &
         sleep 5
 
     - name: Start Fleet server
