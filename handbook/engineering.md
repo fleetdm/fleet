@@ -4,39 +4,7 @@
 
 This section outlines the release process at Fleet.
 
-The current release cadence is once every 3 weeks and concentrated around Wednesdays. 
-
-- [Blog post](#release-day)
-
-### Blog post
-
-Fleet posts a release blogpost, to the [Fleet blog](https://blog.fleetdm.com/ ), on the same day a new minor or major release goes out.
-
-Patch releases do not have a release blogpost.
-
-Check out the [Fleet 4.1.0 blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1) for an example release blogpost. The suggested format of a release blogpost is the following:
-
-**Title** - "Fleet `<insert Fleet version here>`
-
-**Description** - "Fleet `<insert Fleet version here>` released with `<insert list of primary features here>`
-
-**Main image** - This is the image that Medium will use as the thumbnail and link preview for the blogpost.
-
-**Summary** - This section includes 3-4 sentences that answers the 'what?' and 'why should the user care?' questions for the primary features.
-
-**Link to release notes** - One sentence that includes a link to the GitHub release page.
-
-**Primary features** - Includes the each primary feature's name, availability (Free v. Premium), image/gif, and 3-4 sentences that answer the 'why should the user care?' and 'how do I find this feature?' questions.
-
-**More improvements** - Includes each additional feature's name, availability (Free v. Premium), and 1-2 sentences that answer the 'why should the user care?' questions.
-
-**Upgrade plan** - Once sentence that links to user to the upgrading Fleet documentation here: https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/08-Updating-Fleet.md
-
-### Manual QA
-
-After all changes required for release have been merged into the `main` branch, the individual tasked with managing the release should perform smoke tests. Manual smoke tests should be generated for a release via the [Release QA ticket template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&template=smoke-tests.md&title=) and assigned to the person responsible. 
-
-Further ocumentation on conducting the manual QA pass can be found [here](#manual-qa). 
+The current release cadence is once every 3 weeks and concentrated around Wednesdays.
 
 ### Release freeze period
 
@@ -47,12 +15,18 @@ Release blocking bugs are exempt from the freeze period and are defined by the s
 2. Security concerns
 3. Issues with features targeted for current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between Product and Engineering teams. 
-
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between [Product](./product.md) and Engineering teams. 
 
 ### Release day
 
-Documentation on completing the release process can be found [here](../docs/03-Contributing/05-Releasing-Fleet.md).  
+Documentation on completing the release process can be found
+[here](../docs/03-Contributing/05-Releasing-Fleet.md).
+
+## On-call rotation
+
+This section outlines the on-call rotation at Fleet.
+
+The on-call engineer is responsible for responding to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community which cannot handled by the [Customer Success team](./customer-experience.md).
 
 ### Goals
 At Fleet, our primary quality objectives are *customer service* and *defect reduction*. This entails Key Performance Indicators such as customer response time and number of bugs resolved per cycle and. 
@@ -64,18 +38,6 @@ At Fleet, our primary quality objectives are *customer service* and *defect redu
 - Celebrate contributions. 
 
 - Triage bugs, identify community feature requests, community pull requests and community questions.
-
-### Version support
-
-In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
-
-Community version supported for bug fixes: **Latest version only**
- 
-Community support for support/troubleshooting: **Current major version**
-
-Premium version supported for bug fixes: **Latest version only**
-
-Premium support for support/troubleshooting: **All versions**
 
 ### How?
 
@@ -120,8 +82,20 @@ It is often a good idea to let the original poster (OP) close their issue themse
 
 Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this.)
 
-To provide another way of tracking status without closing issues altogether, consider using the green labels that begin with "+".  To explore them, type `+` from GitHub's label picker.
+To provide another way of tracking status without closing issues altogether, consider using the
+green labels that begin with "+".  To explore them, type `+` from GitHub's label picker.
 
+### Version support
+
+In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+ 
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
 
 ### Sources
 
