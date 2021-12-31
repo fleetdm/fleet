@@ -3,17 +3,17 @@ package service
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,9 +122,10 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -167,9 +168,10 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	}
 	_, err := svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
-	invalid, ok := err.(*fleet.InvalidArgumentError)
+	var iae *fleet.InvalidArgumentError
+	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *invalid, 1)
+	require.Len(t, *iae, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -264,7 +266,7 @@ func TestChangePassword(t *testing.T) {
 			if tt.anyErr {
 				require.NotNil(t, err)
 			} else if tt.wantErr != nil {
-				require.Equal(t, tt.wantErr, errors.Cause(err))
+				require.Equal(t, tt.wantErr, ctxerr.Cause(err))
 			} else {
 				require.Nil(t, err)
 			}
@@ -330,7 +332,7 @@ func TestResetPassword(t *testing.T) {
 
 			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)
 			if tt.wantErr != nil {
-				assert.Equal(t, tt.wantErr.Error(), errors.Cause(serr).Error())
+				assert.Equal(t, tt.wantErr.Error(), ctxerr.Cause(serr).Error())
 			} else {
 				assert.Nil(t, serr)
 			}
@@ -495,7 +497,7 @@ func TestUserAuth(t *testing.T) {
 		return nil
 	}
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, fmt.Errorf("AA")
+		return nil, errors.New("AA")
 	}
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		if id == 999 {

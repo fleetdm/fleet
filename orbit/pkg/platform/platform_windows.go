@@ -3,8 +3,9 @@
 package platform
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/pkg/errors"
 
 	"github.com/hectane/go-acl"
 )
@@ -26,7 +27,7 @@ func ChmodExecutableDirectory(path string) error {
 		acl.GrantSid(fullControl, constant.AdminSID),
 		acl.GrantSid(readAndExecute, constant.UserSID),
 	); err != nil {
-		return errors.Wrap(err, "apply ACLs")
+		return fmt.Errorf("apply ACLs: %w", err)
 	}
 
 	return nil
@@ -43,7 +44,7 @@ func ChmodExecutable(path string) error {
 		acl.GrantSid(fullControl, constant.AdminSID),
 		acl.GrantSid(readAndExecute, constant.UserSID),
 	); err != nil {
-		return errors.Wrap(err, "apply ACLs")
+		return fmt.Errorf("apply ACLs: %w", err)
 	}
 
 	return nil

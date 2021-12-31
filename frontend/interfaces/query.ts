@@ -26,6 +26,16 @@ export interface IQueryFormData {
   observer_can_run?: string | number | boolean | any[] | undefined;
 }
 
+export type IQueryPlatform =
+  | ""
+  | "darwin"
+  | "windows"
+  | "linux"
+  | "darwin,windows,linux"
+  | "darwin,windows"
+  | "darwin,linux"
+  | "windows,linux";
+
 export interface IQuery {
   created_at: string;
   updated_at: string;
@@ -36,6 +46,7 @@ export interface IQuery {
   saved: boolean;
   author_id: number;
   author_name: string;
+  author_email: string;
   observer_can_run: boolean;
   packs: IPack[];
   stats?: IScheduledQueryStats;

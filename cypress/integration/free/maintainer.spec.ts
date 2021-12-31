@@ -9,6 +9,7 @@ describe(
       cy.login();
       cy.seedFree();
       cy.seedQueries();
+      cy.seedPolicies();
       cy.addDockerHost();
       cy.logout();
     });
@@ -56,6 +57,9 @@ describe(
       });
       cy.contains("button", /transfer/i).should("not.exist");
 
+      // See and select operating system
+      // TODO
+
       // Test commented out
       // Pending fix to prevent consistent failing in GitHub
 
@@ -69,6 +73,7 @@ describe(
 
       // Queries pages: Can create, edit, and run query
       cy.visit("/queries/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       // cy.get("thead").within(() => {
       //   cy.findByText(/observer can run/i).should("exist");
       // });
@@ -109,8 +114,38 @@ describe(
 
       // cy.findByText(/edit & run query/i).should("exist");
 
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "Manage automations" button
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.findByRole("button", { name: /cancel/i }).click();
+
+      // See and select the "Add a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
       // Packs pages: Can create, edit, delete a pack
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.findByRole("button", { name: /create new pack/i }).click();
 
@@ -123,6 +158,7 @@ describe(
       cy.findByRole("button", { name: /save query pack/i }).click();
 
       cy.visit("/packs/manage");
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
       cy.get(".fleet-checkbox__input").check({ force: true });
 

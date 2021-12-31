@@ -1,4 +1,4 @@
-// package badgerstore implements the go-tuf LocalStore interface using Badger
+// Package badgerstore implements the go-tuf LocalStore interface using Badger
 // as a backing store.
 package badgerstore
 
@@ -25,16 +25,9 @@ func New(db *badger.DB) client.LocalStore {
 
 // SetMeta stores the provided metadata.
 func (b *badgerStore) SetMeta(name string, meta json.RawMessage) error {
-	if err := b.db.Update(func(tx *badger.Txn) error {
-		if err := tx.Set([]byte(keyPrefix+name), meta); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	return b.db.Update(func(tx *badger.Txn) error {
+		return tx.Set([]byte(keyPrefix+name), meta)
+	})
 }
 
 // GetMeta returns all of the saved metadata.
@@ -66,4 +59,11 @@ func (b *badgerStore) GetMeta() (map[string]json.RawMessage, error) {
 	}
 
 	return res, nil
+}
+
+// DeleteMeta deletes the metadata with the provided name.
+func (b *badgerStore) DeleteMeta(name string) error {
+	return b.db.Update(func(tx *badger.Txn) error {
+		return tx.Delete([]byte(keyPrefix + name))
+	})
 }

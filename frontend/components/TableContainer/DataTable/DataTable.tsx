@@ -15,6 +15,7 @@ import { useDebouncedCallback } from "use-debounce/lib";
 
 import { useDeepEffect } from "utilities/hooks";
 import sort from "utilities/sort";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -45,14 +46,15 @@ interface IDataTableProps {
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
-  onSelectSingleRow?: (value: Row) => void;
-  onResultsCountChange?: (value: number) => void;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
+  clearSelectionCount?: number;
+  onSelectSingleRow?: (value: Row) => void;
+  onResultsCountChange?: (value: number) => void;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -78,16 +80,18 @@ const DataTable = ({
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
-  onSelectSingleRow,
   isClientSidePagination,
   isClientSideFilter,
   highlightOnHover,
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
+  clearSelectionCount,
+  onSelectSingleRow,
   onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
+  const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
     return tableColumns;
@@ -192,6 +196,10 @@ const DataTable = ({
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
   }, [selectedDropdownFilter]);
+
+  useEffect(() => {
+    toggleAllRowsSelected(false);
+  }, [clearSelectionCount]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
@@ -351,6 +359,11 @@ const DataTable = ({
     </>
   );
 
+  const tableStyles = classnames({
+    "data-table__table": true,
+    "is-observer": isOnlyObserver,
+  });
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -359,7 +372,7 @@ const DataTable = ({
         </div>
       )}
       <div className={"data-table data-table__wrapper"}>
-        <table className={"data-table__table"}>
+        <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
@@ -435,7 +448,14 @@ const DataTable = ({
                 >
                   {row.cells.map((cell: any) => {
                     return (
-                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                      <td
+                        className={
+                          cell.column.id ? `${cell.column.id}__cell` : ""
+                        }
+                        {...cell.getCellProps()}
+                      >
+                        {cell.render("Cell")}
+                      </td>
                     );
                   })}
                 </tr>

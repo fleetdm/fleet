@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,23 +15,43 @@ import (
 
 func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
-	defer ds.Close()
+	t.Cleanup(func() {
+		ds.Close()
+	})
 
 	status, err := ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.NoMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.NoMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateTables(context.Background()))
 
 	status, err = ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status.StatusCode)
+	assert.NotEmpty(t, status.MissingData)
 
 	require.Nil(t, ds.MigrateData(context.Background()))
 
 	status, err = ds.MigrationStatus(context.Background())
-	require.Nil(t, err)
-	assert.EqualValues(t, fleet.AllMigrationsCompleted, status)
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
+
+	// Insert unknown migration.
+	ds.writer.Exec(`INSERT INTO ` + tables.MigrationClient.TableName + ` (version_id, is_applied) VALUES (1638994765, 1)`)
+	status, err = ds.MigrationStatus(context.Background())
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.UnknownMigrations, status.StatusCode)
+	ds.writer.Exec(`DELETE FROM ` + tables.MigrationClient.TableName + ` WHERE version_id = 1638994765`)
+
+	status, err = ds.MigrationStatus(context.Background())
+	require.NoError(t, err)
+	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
+	assert.Empty(t, status.MissingTable)
+	assert.Empty(t, status.MissingData)
 }
 
 func TestMigrations(t *testing.T) {

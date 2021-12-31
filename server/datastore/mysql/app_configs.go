@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (d *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	info.ApplyDefaultsForNewInstalls()
 
 	if err := d.SaveAppConfig(ctx, info); err != nil {
-		return nil, errors.Wrap(err, "new app config")
+		return nil, ctxerr.Wrap(ctx, err, "new app config")
 	}
 
 	return info, nil
@@ -29,7 +29,7 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 	var bytes []byte
 	err := sqlx.GetContext(ctx, q, &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
 	if err != nil && err != sql.ErrNoRows {
-		return nil, errors.Wrap(err, "selecting app config")
+		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
 	}
 	if err == sql.ErrNoRows {
 		return &fleet.AppConfig{}, nil
@@ -39,7 +39,7 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 
 	err = json.Unmarshal(bytes, info)
 	if err != nil {
-		return nil, errors.Wrap(err, "unmarshaling config")
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling config")
 	}
 	return info, nil
 }
@@ -47,7 +47,7 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	configBytes, err := json.Marshal(info)
 	if err != nil {
-		return errors.Wrap(err, "marshaling config")
+		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
 
 	return d.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -56,13 +56,13 @@ func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 			configBytes,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert app_config_json")
 		}
 
 		if !info.SSOSettings.EnableSSO {
 			_, err = tx.ExecContext(ctx, `UPDATE users SET sso_enabled=false`)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "update users sso")
 			}
 		}
 
@@ -74,7 +74,7 @@ func (d *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	var s fleet.EnrollSecret
 	err := sqlx.GetContext(ctx, d.reader, &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
-		return nil, errors.New("no matching secret found")
+		return nil, ctxerr.New(ctx, "no matching secret found")
 	}
 
 	return &s, nil
@@ -90,12 +90,12 @@ func applyEnrollSecretsDB(ctx context.Context, exec sqlx.ExecerContext, teamID *
 	if teamID != nil {
 		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
 		if _, err := exec.ExecContext(ctx, sql, teamID); err != nil {
-			return errors.Wrap(err, "clear before insert")
+			return ctxerr.Wrap(ctx, err, "clear before insert")
 		}
 	} else {
 		sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
 		if _, err := exec.ExecContext(ctx, sql); err != nil {
-			return errors.Wrap(err, "clear before insert")
+			return ctxerr.Wrap(ctx, err, "clear before insert")
 		}
 	}
 
@@ -105,7 +105,7 @@ func applyEnrollSecretsDB(ctx context.Context, exec sqlx.ExecerContext, teamID *
 				VALUES ( ?, ? )
 			`
 		if _, err := exec.ExecContext(ctx, sql, secret.Secret, teamID); err != nil {
-			return errors.Wrap(err, "upsert secret")
+			return ctxerr.Wrap(ctx, err, "upsert secret")
 		}
 	}
 	return nil
@@ -127,7 +127,7 @@ func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint
 	}
 	var secrets []*fleet.EnrollSecret
 	if err := sqlx.SelectContext(ctx, q, &secrets, sql, args...); err != nil {
-		return nil, errors.Wrap(err, "get secrets")
+		return nil, ctxerr.Wrap(ctx, err, "get secrets")
 	}
 	return secrets, nil
 }

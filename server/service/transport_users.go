@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -18,11 +18,11 @@ func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{},
 }
 
 func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	return getUserRequest{ID: id}, nil
+	return getUserRequest{ID: uint(id)}, nil
 }
 
 func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -34,7 +34,7 @@ func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, 
 }
 
 func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
@@ -42,16 +42,16 @@ func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{},
 	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
 		return nil, err
 	}
-	req.ID = id
+	req.ID = uint(id)
 	return req, nil
 }
 
 func decodeDeleteUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
 		return nil, err
 	}
-	return deleteUserRequest{ID: id}, nil
+	return deleteUserRequest{ID: uint(id)}, nil
 }
 
 func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -63,16 +63,16 @@ func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interfac
 }
 
 func decodeRequirePasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := idFromRequest(r, "id")
+	id, err := uintFromRequest(r, "id")
 	if err != nil {
-		return nil, errors.Wrap(err, "getting ID from request")
+		return nil, ctxerr.Wrap(ctx, err, "getting ID from request")
 	}
 
 	var req requirePasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
-	req.ID = id
+	req.ID = uint(id)
 
 	return req, nil
 }
@@ -80,7 +80,7 @@ func decodeRequirePasswordResetRequest(ctx context.Context, r *http.Request) (in
 func decodePerformRequiredPasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req performRequiredPasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, errors.Wrap(err, "decoding JSON")
+		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
 	}
 	return req, nil
 }

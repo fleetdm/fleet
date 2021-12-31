@@ -2,11 +2,12 @@ package filestore
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/pkg/errors"
 	"github.com/theupdateframework/go-tuf/client"
 )
 
@@ -26,12 +27,17 @@ func New(filename string) (client.LocalStore, error) {
 	return store, nil
 }
 
+func (s *fileStore) maybeInit() error {
+	if s.metadata == nil {
+		return s.readData()
+	}
+	return nil
+}
+
 // SetMeta stores the provided metadata.
 func (s *fileStore) SetMeta(name string, meta json.RawMessage) error {
-	if s.metadata == nil {
-		if err := s.readData(); err != nil {
-			return err
-		}
+	if err := s.maybeInit(); err != nil {
+		return err
 	}
 
 	s.metadata[name] = meta
@@ -44,19 +50,30 @@ func (s *fileStore) SetMeta(name string, meta json.RawMessage) error {
 
 // GetMeta returns all of the saved metadata.
 func (s *fileStore) GetMeta() (map[string]json.RawMessage, error) {
-	if s.metadata == nil {
-		if err := s.readData(); err != nil {
-			return nil, err
-		}
+	if err := s.maybeInit(); err != nil {
+		return nil, err
 	}
 
 	return s.metadata, nil
 }
 
+func (s *fileStore) DeleteMeta(name string) error {
+	if err := s.maybeInit(); err != nil {
+		return err
+	}
+
+	delete(s.metadata, name)
+	if err := s.writeData(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *fileStore) readData() error {
 	stat, err := os.Stat(s.filename)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.Wrap(err, "stat file store")
+		return fmt.Errorf("stat file store: %w", err)
 	} else if errors.Is(err, os.ErrNotExist) {
 		// initialize empty
 		s.metadata = metadataMap{}
@@ -67,13 +84,13 @@ func (s *fileStore) readData() error {
 
 	f, err := secure.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, constant.DefaultFileMode)
 	if err != nil {
-		return errors.Wrap(err, "open file store")
+		return fmt.Errorf("open file store: %w", err)
 	}
 	defer f.Close()
 
 	var meta metadataMap
 	if err := json.NewDecoder(f).Decode(&meta); err != nil {
-		return errors.Wrap(err, "read file store")
+		return fmt.Errorf("read file store: %w", err)
 	}
 
 	s.metadata = meta
@@ -83,15 +100,15 @@ func (s *fileStore) readData() error {
 func (s *fileStore) writeData() error {
 	f, err := secure.OpenFile(s.filename, os.O_RDWR|os.O_CREATE, constant.DefaultFileMode)
 	if err != nil {
-		return errors.Wrap(err, "open file store")
+		return fmt.Errorf("open file store: %w", err)
 	}
 	defer f.Close()
 
 	if err := json.NewEncoder(f).Encode(s.metadata); err != nil {
-		return errors.Wrap(err, "write file store")
+		return fmt.Errorf("write file store: %w", err)
 	}
 	if err := f.Sync(); err != nil {
-		return errors.Wrap(err, "sync file store")
+		return fmt.Errorf("sync file store: %w", err)
 	}
 
 	return nil

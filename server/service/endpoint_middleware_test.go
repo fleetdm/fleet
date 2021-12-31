@@ -2,15 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,7 +146,7 @@ func TestGetNodeKey(t *testing.T) {
 		NodeKey int
 	}
 
-	var getNodeKeyTests = []struct {
+	getNodeKeyTests := []struct {
 		i         interface{}
 		expectKey string
 		shouldErr bool
@@ -206,9 +205,6 @@ func TestAuthenticatedHost(t *testing.T) {
 
 		}
 	}
-	ds.MarkHostSeenFunc = func(ctx context.Context, host *fleet.Host, t time.Time) error {
-		return nil
-	}
 
 	endpoint := authenticatedHost(
 		svc,
@@ -221,7 +217,7 @@ func TestAuthenticatedHost(t *testing.T) {
 		},
 	)
 
-	var authenticatedHostTests = []struct {
+	authenticatedHostTests := []struct {
 		nodeKey   string
 		shouldErr bool
 	}{
@@ -241,7 +237,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 	for _, tt := range authenticatedHostTests {
 		t.Run("", func(t *testing.T) {
-			var r = struct{ NodeKey string }{NodeKey: tt.nodeKey}
+			r := struct{ NodeKey string }{NodeKey: tt.nodeKey}
 			_, err := endpoint(context.Background(), r)
 			if tt.shouldErr {
 				assert.IsType(t, osqueryError{}, err)

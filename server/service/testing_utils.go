@@ -8,18 +8,19 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/WatchBeam/clock"
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
@@ -43,6 +44,11 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	//}
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
+
+	var ssoStore sso.SessionStore
+
+	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
+	var c clock.Clock = clock.C
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -50,17 +56,26 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		if opts[0].License != nil {
 			license = opts[0].License
 		}
+		if opts[0].Pool != nil {
+			ssoStore = sso.NewSessionStore(opts[0].Pool)
+		}
+		if opts[0].FailingPolicySet != nil {
+			failingPolicySet = opts[0].FailingPolicySet
+		}
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
 	}
 	task := &async.Task{
 		Datastore:    ds,
 		AsyncEnabled: false,
 	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, clock.C, nil, lq, ds, *license)
+	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet)
 	if err != nil {
 		panic(err)
 	}
 	if license.IsPremium() {
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, clock.C, license)
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, license)
 		if err != nil {
 			panic(err)
 		}
@@ -69,27 +84,10 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 }
 
 func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
-	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := fleet.LicenseInfo{Tier: fleet.TierFree}
 	testConfig := config.TestConfig()
-	writer, err := logging.NewFilesystemLogWriter(
-		testConfig.Filesystem.StatusLogFile,
-		kitlog.NewNopLogger(),
-		testConfig.Filesystem.EnableLogRotation,
-		testConfig.Filesystem.EnableLogCompression,
-	)
-	if err != nil {
-		panic(err)
-	}
-	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
-	}
-	svc, err := NewService(ds, task, rs, kitlog.NewNopLogger(), osqlogger, testConfig, mailer, c, nil, lq, ds, license)
-	if err != nil {
-		panic(err)
-	}
+	svc := newTestServiceWithConfig(ds, testConfig, rs, lq, TestServerOpts{
+		Clock: c,
+	})
 	return svc
 }
 
@@ -152,6 +150,9 @@ type TestServerOpts struct {
 	SkipCreateTestUsers bool
 	Rs                  fleet.QueryResultStore
 	Lq                  fleet.LiveQueryStore
+	Pool                fleet.RedisPool
+	FailingPolicySet    fleet.FailingPolicySet
+	Clock               clock.Clock
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -268,4 +269,82 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 	require.Nil(t, getJSON(resp, err))
 	assert.Equal(t, code, err.Code)
 	assert.Equal(t, message, err.Message)
+}
+
+type memFailingPolicySet struct {
+	mMu sync.RWMutex
+	m   map[uint][]fleet.PolicySetHost
+}
+
+var _ fleet.FailingPolicySet = (*memFailingPolicySet)(nil)
+
+func NewMemFailingPolicySet() *memFailingPolicySet {
+	return &memFailingPolicySet{
+		m: make(map[uint][]fleet.PolicySetHost),
+	}
+}
+
+// AddFailingPoliciesForHost adds the given host to the policy sets.
+func (m *memFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	m.m[policyID] = append(m.m[policyID], host)
+	return nil
+}
+
+// ListHosts returns the list of hosts present in the policy set.
+func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
+	for i := range m.m[policyID] {
+		hosts[i] = m.m[policyID][i]
+	}
+	return hosts, nil
+}
+
+// RemoveHosts removes the hosts from the policy set.
+func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicySetHost) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	if _, ok := m.m[policyID]; !ok {
+		return nil
+	}
+	hostsSet := make(map[uint]struct{})
+	for _, host := range hosts {
+		hostsSet[host.ID] = struct{}{}
+	}
+	n := 0
+	for _, host := range m.m[policyID] {
+		if _, ok := hostsSet[host.ID]; !ok {
+			m.m[policyID][n] = host
+			n++
+		}
+	}
+	m.m[policyID] = m.m[policyID][:n]
+	return nil
+}
+
+// RemoveSet removes a policy set.
+func (m *memFailingPolicySet) RemoveSet(policyID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	delete(m.m, policyID)
+	return nil
+}
+
+// ListSets lists all the policy sets.
+func (m *memFailingPolicySet) ListSets() ([]uint, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	var policyIDs []uint
+	for policyID := range m.m {
+		policyIDs = append(policyIDs, policyID)
+	}
+	return policyIDs, nil
 }

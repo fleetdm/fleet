@@ -1,12 +1,12 @@
 package redis
 
 import (
+	"errors"
 	"io"
 	"testing"
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 

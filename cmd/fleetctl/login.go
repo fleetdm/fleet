@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -55,14 +55,14 @@ Interactively prompts for email and password if not specified in the flags or en
 				fmt.Print("Email: ")
 				_, err := fmt.Scanln(&flEmail)
 				if err != nil {
-					return errors.Wrap(err, "error reading email")
+					return fmt.Errorf("error reading email: %w", err)
 				}
 			}
 			if flPassword == "" {
 				fmt.Print("Password: ")
 				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return errors.Wrap(err, "error reading password")
+					return fmt.Errorf("error reading password: %w", err)
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
@@ -70,21 +70,22 @@ Interactively prompts for email and password if not specified in the flags or en
 
 			token, err := fleet.Login(flEmail, flPassword)
 			if err != nil {
-				switch err.(type) {
+				root := ctxerr.Cause(err)
+				switch root.(type) {
 				case service.NotSetupErr:
 					return err
 				}
-				return errors.Wrap(err, "Login failed")
+				return fmt.Errorf("Login failed: %w", err)
 			}
 
 			configPath, context := c.String("config"), c.String("context")
 
 			if err := setConfigValue(configPath, context, "email", flEmail); err != nil {
-				return errors.Wrap(err, "error setting email for the current context")
+				return fmt.Errorf("error setting email for the current context: %w", err)
 			}
 
 			if err := setConfigValue(configPath, context, "token", token); err != nil {
-				return errors.Wrap(err, "error setting token for the current context")
+				return fmt.Errorf("error setting token for the current context: %w", err)
 			}
 
 			fmt.Printf("[+] Fleet login successful and context configured!\n")

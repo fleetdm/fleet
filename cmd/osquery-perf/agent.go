@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -83,6 +84,7 @@ func (n *nodeKeyManager) LoadKeys() {
 		return
 	}
 	n.nodekeys = strings.Split(string(data), "\n")
+	n.nodekeys = n.nodekeys[:len(n.nodekeys)-1] // remove last empty node key due to new line.
 	fmt.Printf("loaded %d node keys\n", len(n.nodekeys))
 }
 
@@ -117,37 +119,58 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type agent struct {
-	ServerAddress  string
+	agentIndex     int
+	softwareCount  entityCount
+	userCount      entityCount
+	policyPassProb float64
+	strings        map[string]string
+	serverAddress  string
+	fastClient     fasthttp.Client
+	stats          *Stats
+	nodeKeyManager *nodeKeyManager
+	nodeKey        string
+	templates      *template.Template
+
+	scheduledQueries []string
+
+	// The following are exported to be used by the templates.
+
 	EnrollSecret   string
-	NodeKey        string
 	UUID           string
-	FastClient     fasthttp.Client
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
-	Templates      *template.Template
-	Stats          *Stats
-	SoftwareCount  int
-	NodeKeyManager *nodeKeyManager
-
-	strings map[string]string
 }
 
-func newAgent(serverAddress, enrollSecret string, templates *template.Template, configInterval, queryInterval time.Duration, softwareCount int) *agent {
+type entityCount struct {
+	common int
+	unique int
+}
+
+func newAgent(
+	agentIndex int,
+	serverAddress, enrollSecret string, templates *template.Template,
+	configInterval, queryInterval time.Duration, softwareCount, userCount entityCount,
+	policyPassProb float64,
+) *agent {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	transport.DisableCompression = true
 	return &agent{
-		ServerAddress:  serverAddress,
+		agentIndex:     agentIndex,
+		serverAddress:  serverAddress,
+		softwareCount:  softwareCount,
+		userCount:      userCount,
+		strings:        make(map[string]string),
+		policyPassProb: policyPassProb,
+		fastClient: fasthttp.Client{
+			TLSConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		templates: templates,
+
 		EnrollSecret:   enrollSecret,
-		Templates:      templates,
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           uuid.New().String(),
-		FastClient: fasthttp.Client{
-			TLSConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		SoftwareCount: softwareCount,
-		strings:       make(map[string]string),
 	}
 }
 
@@ -194,28 +217,28 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 }
 
 func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
-	err := a.FastClient.Do(req, res)
+	err := a.fastClient.Do(req, res)
 	for err != nil || res.StatusCode() != http.StatusOK {
 		fmt.Println(err, res.StatusCode())
-		a.Stats.RecordStats(1, 0, 0)
+		a.stats.RecordStats(1, 0, 0)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		err = a.FastClient.Do(req, res)
+		err = a.fastClient.Do(req, res)
 	}
 }
 
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
-	a.NodeKey = a.NodeKeyManager.Get(i)
-	if a.NodeKey != "" {
-		a.Stats.RecordStats(0, 1, 0)
+	a.nodeKey = a.nodeKeyManager.Get(i)
+	if a.nodeKey != "" {
+		a.stats.RecordStats(0, 1, 0)
 		return nil
 	}
 
 	if onlyAlreadyEnrolled {
-		return fmt.Errorf("not enrolled")
+		return errors.New("not enrolled")
 	}
 
 	var body bytes.Buffer
-	if err := a.Templates.ExecuteTemplate(&body, "enroll", a); err != nil {
+	if err := a.templates.ExecuteTemplate(&body, "enroll", a); err != nil {
 		log.Println("execute template:", err)
 		return err
 	}
@@ -225,7 +248,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.ServerAddress + "/api/v1/osquery/enroll")
+	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/enroll")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -244,23 +267,23 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return err
 	}
 
-	a.NodeKey = parsedResp.NodeKey
-	a.Stats.RecordStats(0, 1, 0)
+	a.nodeKey = parsedResp.NodeKey
+	a.stats.RecordStats(0, 1, 0)
 
-	a.NodeKeyManager.Add(a.NodeKey)
+	a.nodeKeyManager.Add(a.nodeKey)
 
 	return nil
 }
 
 func (a *agent) config() {
-	body := bytes.NewBufferString(`{"node_key": "` + a.NodeKey + `"}`)
+	body := bytes.NewBufferString(`{"node_key": "` + a.nodeKey + `"}`)
 
 	req := fasthttp.AcquireRequest()
 	req.SetBody(body.Bytes())
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.ServerAddress + "/api/v1/osquery/config")
+	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/config")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -272,6 +295,24 @@ func (a *agent) config() {
 		log.Println("config status:", res.StatusCode())
 		return
 	}
+
+	parsedResp := struct {
+		Packs map[string]struct {
+			Queries map[string]interface{} `json:"queries"`
+		} `json:"packs"`
+	}{}
+	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+		log.Println("json parse at config:", err)
+		return
+	}
+
+	var scheduledQueries []string
+	for packName, pack := range parsedResp.Packs {
+		for queryName := range pack.Queries {
+			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
+		}
+	}
+	a.scheduledQueries = scheduledQueries
 
 	// No need to read the config body
 }
@@ -296,26 +337,69 @@ func (a *agent) CachedString(key string) string {
 	return val
 }
 
+func (a *agent) HostUsersMacOS() []fleet.HostUser {
+	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
+	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
+	commonUsers := make([]fleet.HostUser, a.userCount.common)
+	for i := 0; i < len(commonUsers); i++ {
+		commonUsers[i] = fleet.HostUser{
+			Uid:       uint(i),
+			Username:  fmt.Sprintf("Common_%d", i),
+			Type:      "", // Empty for macOS.
+			GroupName: groupNames[i%len(groupNames)],
+			Shell:     shells[i%len(shells)],
+		}
+	}
+	uniqueUsers := make([]fleet.HostUser, a.userCount.unique)
+	for i := 0; i < len(uniqueUsers); i++ {
+		uniqueUsers[i] = fleet.HostUser{
+			Uid:       uint(i),
+			Username:  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			Type:      "", // Empty for macOS.
+			GroupName: groupNames[i%len(groupNames)],
+			Shell:     shells[i%len(shells)],
+		}
+	}
+	users := append(commonUsers, uniqueUsers...)
+	rand.Shuffle(len(users), func(i, j int) {
+		users[i], users[j] = users[j], users[i]
+	})
+	return users
+}
+
 func (a *agent) SoftwareMacOS() []fleet.Software {
-	software := make([]fleet.Software, a.SoftwareCount)
-	for i := 0; i < len(software); i++ {
-		software[i] = fleet.Software{
-			Name:             "Placeholder_Software",
+	commonSoftware := make([]fleet.Software, a.softwareCount.common)
+	for i := 0; i < len(commonSoftware); i++ {
+		commonSoftware[i] = fleet.Software{
+			Name:             fmt.Sprintf("Common_%d", i),
 			Version:          "0.0.1",
 			BundleIdentifier: "com.fleetdm.osquery-perf",
 			Source:           "osquery-perf",
 		}
 	}
+	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
+	for i := 0; i < len(uniqueSoftware); i++ {
+		uniqueSoftware[i] = fleet.Software{
+			Name:             fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			Version:          "1.1.1",
+			BundleIdentifier: "com.fleetdm.osquery-perf",
+			Source:           "osquery-perf",
+		}
+	}
+	software := append(commonSoftware, uniqueSoftware...)
+	rand.Shuffle(len(software), func(i, j int) {
+		software[i], software[j] = software[j], software[i]
+	})
 	return software
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	req := fasthttp.AcquireRequest()
-	req.SetBody([]byte(`{"node_key": "` + a.NodeKey + `"}`))
+	req.SetBody([]byte(`{"node_key": "` + a.nodeKey + `"}`))
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.ServerAddress + "/api/v1/osquery/distributed/read")
+	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/read")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -336,20 +420,117 @@ var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
 }
 
+func (a *agent) runPolicy(query string) []map[string]string {
+	if rand.Float64() <= a.policyPassProb {
+		return []map[string]string{
+			{"1": "1"},
+		}
+	}
+	return nil
+}
+
+func (a *agent) randomQueryStats() []map[string]string {
+	var stats []map[string]string
+	for _, scheduledQuery := range a.scheduledQueries {
+		stats = append(stats, map[string]string{
+			"name":           scheduledQuery,
+			"delimiter":      "_",
+			"average_memory": fmt.Sprint(rand.Intn(200) + 10),
+			"denylisted":     "false",
+			"executions":     fmt.Sprint(rand.Intn(100) + 1),
+			"interval":       fmt.Sprint(rand.Intn(100) + 1),
+			"last_executed":  fmt.Sprint(time.Now().Unix()),
+			"output_size":    fmt.Sprint(rand.Intn(100) + 1),
+			"system_time":    fmt.Sprint(rand.Intn(4000) + 10),
+			"user_time":      fmt.Sprint(rand.Intn(4000) + 10),
+			"wall_time":      fmt.Sprint(rand.Intn(4000) + 10),
+		})
+	}
+	return stats
+}
+
+func (a *agent) mdm() []map[string]string {
+	enrolled := "true"
+	if rand.Intn(2) == 1 {
+		enrolled = "false"
+	}
+	installedFromDep := "true"
+	if rand.Intn(2) == 1 {
+		installedFromDep = "false"
+	}
+	return []map[string]string{
+		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+	}
+}
+
+func (a *agent) munkiInfo() []map[string]string {
+	return []map[string]string{
+		{"version": "1.2.3"},
+	}
+}
+
+func (a *agent) googleChromeProfiles() []map[string]string {
+	count := rand.Intn(5) // return between 0 and 4 emails
+	result := make([]map[string]string, count)
+	for i := range result {
+		email := fmt.Sprintf("user%d@example.com", i)
+		if i == len(result)-1 {
+			// if the maximum number of emails is returned, set a random domain name
+			// so that we have email addresses that match a lot of hosts, and some
+			// that match few hosts.
+			domainRand := rand.Intn(10)
+			email = fmt.Sprintf("user%d@example%d.com", i, domainRand)
+		}
+		result[i] = map[string]string{"email": email}
+	}
+	return result
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
 		Statuses: make(map[string]fleet.OsqueryStatus),
 	}
-	r.NodeKey = a.NodeKey
+	r.NodeKey = a.nodeKey
+	const hostPolicyQueryPrefix = "fleet_policy_query_"
+	const hostDetailQueryPrefix = "fleet_detail_query_"
 	for name := range queries {
 		r.Results[name] = defaultQueryResult
 		r.Statuses[name] = fleet.StatusOK
-		if t := a.Templates.Lookup(name); t == nil {
+		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+			r.Results[name] = a.runPolicy(queries[name])
+			continue
+		}
+		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
+			r.Results[name] = a.randomQueryStats()
+			continue
+		}
+		if name == hostDetailQueryPrefix+"mdm" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.mdm()
+			}
+		}
+		if name == hostDetailQueryPrefix+"munki_info" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.munkiInfo()
+			}
+		}
+		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.googleChromeProfiles()
+			}
+		}
+		if t := a.templates.Lookup(name); t == nil {
 			continue
 		}
 		var ni bytes.Buffer
-		err := a.Templates.ExecuteTemplate(&ni, name, a)
+		err := a.templates.ExecuteTemplate(&ni, name, a)
 		if err != nil {
 			panic(err)
 		}
@@ -369,8 +550,8 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	req.SetBody(body)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.ServerAddress + "/api/v1/osquery/distributed/write")
+	req.Header.Add("User-Agent", "osquery/5.0.1")
+	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/write")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -378,7 +559,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
-	a.Stats.RecordStats(0, 0, 1)
+	a.stats.RecordStats(0, 0, 1)
 	// No need to read the distributed write body
 }
 
@@ -392,7 +573,11 @@ func main() {
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
-	softwareCount := flag.Int("software_count", 10, "Number of installed applications reported to fleet")
+	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common of installed applications reported to fleet")
+	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
+	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
+	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 
 	flag.Parse()
 
@@ -417,9 +602,15 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		a := newAgent(*serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *softwareCount)
-		a.Stats = stats
-		a.NodeKeyManager = nodeKeyManager
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, entityCount{
+			common: *commonSoftwareCount,
+			unique: *uniqueSoftwareCount,
+		}, entityCount{
+			common: *commonUserCount,
+			unique: *uniqueUserCount,
+		}, *policyPassProb)
+		a.stats = stats
+		a.nodeKeyManager = nodeKeyManager
 		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)
 		time.Sleep(sleepTime)
 	}

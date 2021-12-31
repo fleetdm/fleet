@@ -6,13 +6,13 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import ReactTooltip from "react-tooltip";
 
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
-import statusLabelsAPI from "services/entities/statusLabels";
 import teamsAPI from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
-  IHostLoadOptions,
+  ILoadHostsOptions,
   ISortOption,
 } from "services/entities/hosts";
 import hostCountAPI, {
@@ -22,23 +22,30 @@ import hostCountAPI, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { ILabel, ILabelFormData } from "interfaces/label";
-import { IStatusLabels } from "interfaces/status_labels";
-import { ITeam } from "interfaces/team";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
+import { ILabel, ILabelFormData } from "interfaces/label";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
+import { ITeam } from "interfaces/team";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
+import sortUtils from "utilities/sort";
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
-} from "utilities/constants"; // @ts-ignore
+} from "utilities/constants";
+// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel"; // @ts-ignore
+import HostSidePanel from "components/side_panels/HostSidePanel";
+// @ts-ignore
 import LabelForm from "components/forms/LabelForm";
 import Modal from "components/Modal";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -46,6 +53,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
+import Spinner from "components/Spinner";
 
 import { getValidatedTeamId } from "fleet/helpers";
 import {
@@ -65,25 +73,32 @@ import {
   getNextLocationPath,
 } from "./helpers";
 
-import EnrollSecretModal from "./components/EnrollSecretModal"; // @ts-ignore
+import DeleteSecretModal from "./components/DeleteSecretModal";
+import SecretEditorModal from "./components/SecretEditorModal";
+import EnrollSecretModal from "./components/EnrollSecretModal";
+// @ts-ignore
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
-import PoliciesFilter from "./components/PoliciesFilter"; // @ts-ignore
+import PoliciesFilter from "./components/PoliciesFilter";
+// @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities"; // @ts-ignore
+import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
+// @ts-ignore
 import GenerateInstallerModal from "./components/GenerateInstallerModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
+import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 interface IManageHostsProps {
   route: RouteProps;
   router: InjectedRouter;
   params: Params;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
 }
 
@@ -113,7 +128,7 @@ const ManageHostsPage = ({
   router,
   params: routeParams,
   location,
-}: IManageHostsProps) => {
+}: IManageHostsProps): JSX.Element => {
   const dispatch = useDispatch();
   const queryParams = location.query;
   const {
@@ -121,16 +136,14 @@ const ManageHostsPage = ({
     config,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainer,
     isTeamMaintainer,
-    isAnyTeamAdmin,
     isTeamAdmin,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
+    isFreeTier,
     currentTeam,
     setCurrentTeam,
-    enrollSecret: globalSecret,
   } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -154,9 +167,29 @@ const ManageHostsPage = ({
     return [{ key, direction }];
   })();
 
+  const initialQuery = (() => {
+    let query = "";
+
+    if (queryParams && queryParams.query) {
+      query = queryParams.query;
+    }
+
+    return query;
+  })();
+
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
-  const [statusLabels, setStatusLabels] = useState<IStatusLabels>();
+  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
+  const [
+    showNoEnrollSecretBanner,
+    setShowNoEnrollSecretBanner,
+  ] = useState<boolean>(true);
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
+    false
+  );
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
+    false
+  );
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
     false
   );
@@ -184,7 +217,7 @@ const ManageHostsPage = ({
     isAllMatchingHostsSelected,
     setIsAllMatchingHostsSelected,
   ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
   const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
   const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
@@ -197,6 +230,8 @@ const ManageHostsPage = ({
     null
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
+  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
+
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
@@ -214,19 +249,10 @@ const ManageHostsPage = ({
   !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL); // "all-hosts" should always be alone
   // ===== end filter matching
 
-  const canAddNewHosts =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isAnyTeamAdmin ||
-    isAnyTeamMaintainer;
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
-
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecret,
-  };
 
   const {
     isLoading: isLabelsLoading,
@@ -241,25 +267,60 @@ const ManageHostsPage = ({
     }
   );
 
-  // TODO: add counts to status dropdown
-  useQuery<IStatusLabels, Error>(
-    ["status labels"],
-    () => statusLabelsAPI.getCounts(),
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
     {
-      onSuccess: (returnedLabels) => {
-        setStatusLabels(returnedLabels);
-      },
+      enabled: !!canEnrollGlobalHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >(["teams"], () => teamsAPI.loadAll(), {
-    enabled: !!isPremiumTier,
-    select: (data: ITeamsResponse) => data.teams,
-  });
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const generateInstallerTeam = currentTeam || {
+    name: "No team",
+    secrets: globalSecrets || null,
+  };
+
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    refetch: refetchTeams,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams: ITeam[]) => {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
+    }
+  );
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
@@ -277,6 +338,21 @@ const ManageHostsPage = ({
       },
     }
   );
+
+  const toggleDeleteSecretModal = () => {
+    // open and closes delete modal
+    setShowDeleteSecretModal(!showDeleteSecretModal);
+    // open and closes main enroll secret modal
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
+
+  // this is called when we click add or edit
+  const toggleSecretEditorModal = () => {
+    // open and closes add/edit modal
+    setShowSecretEditorModal(!showSecretEditorModal);
+    // open and closes main enroll secret modall
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  };
 
   const toggleDeleteLabelModal = () => {
     setShowDeleteLabelModal(!showDeleteLabelModal);
@@ -310,7 +386,7 @@ const ManageHostsPage = ({
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
 
-  const retrieveHosts = async (options: IHostLoadOptions = {}) => {
+  const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
 
     options = {
@@ -328,7 +404,7 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadAll(
+      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
         options
       );
       setHosts(returnedHosts);
@@ -369,7 +445,7 @@ const ManageHostsPage = ({
     }
   };
 
-  const refetchHosts = (options: IHostLoadOptions) => {
+  const refetchHosts = (options: ILoadHostsOptions) => {
     retrieveHosts(options);
     if (options.sortBy) {
       delete options.sortBy;
@@ -377,15 +453,14 @@ const ManageHostsPage = ({
     retrieveHostCount(options);
   };
 
-  // triggered every time the route is changed
-  // which means every filter click and text search
-  useDeepEffect(() => {
-    // set the team object in context
+  useEffect(() => {
     const teamId = parseInt(queryParams?.team_id, 10) || 0;
     const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
+    if (selectedTeam) {
+      setCurrentTeam(selectedTeam);
+    }
+    setShowNoEnrollSecretBanner(true);
 
-    // set selected label
     const slugToFind =
       (selectedFilters.length > 0 &&
         selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
@@ -394,8 +469,7 @@ const ManageHostsPage = ({
     const selected = find(labels, ["slug", slugToFind]) as ILabel;
     setSelectedLabel(selected);
 
-    // get the hosts
-    const options: IHostLoadOptions = {
+    const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
@@ -411,47 +485,11 @@ const ManageHostsPage = ({
     }
 
     retrieveHosts(options);
+    retrieveHostCount(options);
   }, [location, labels]);
 
-  useDeepEffect(() => {
-    // set the team object in context
-    const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const selectedTeam = find(teams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
-
-    // set selected label
-    const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
-
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
-    setSelectedLabel(selected);
-
-    // get the hosts
-    const options: IHostLoadOptions = {
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      sortBy,
-      teamId: selectedTeam?.id,
-      policyId,
-      policyResponse,
-      softwareId,
-    };
-
-    retrieveHostCount(options);
-  }, [
-    queryParams.team_id,
-    searchQuery,
-    policyId,
-    policyResponse,
-    selectedFilters,
-    softwareId,
-  ]);
-
-  const handleLabelChange = ({ slug }: ILabel) => {
+  const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
-      console.error("Slug was missing. This should not happen.");
       return false;
     }
 
@@ -499,6 +537,8 @@ const ManageHostsPage = ({
         queryParams: newQueryParams,
       })
     );
+
+    return true;
   };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
@@ -541,12 +581,11 @@ const ManageHostsPage = ({
     setSoftwareDetails(null);
   };
 
-  // The handleChange method below is for the filter-by-team dropdown rather than the dropdown used in modals
-  const handleChangeSelectedTeamFilter = (selectedTeam: number) => {
+  const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
       teams || [],
-      selectedTeam,
+      teamId,
       currentUser,
       isOnGlobalTeam as boolean
     );
@@ -568,6 +607,8 @@ const ManageHostsPage = ({
       queryParams: newQueryParams,
     });
     router.replace(nextLocation);
+    const selectedTeam = find(teams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
@@ -613,12 +654,13 @@ const ManageHostsPage = ({
     router.goBack();
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component will call this handler.
+  // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
     if (isEqual(newTableQuery, tableQueryData)) {
       return false;
     }
+
+    setIsHostsLoading(true);
 
     setTableQueryData({ ...newTableQuery });
 
@@ -627,6 +669,7 @@ const ManageHostsPage = ({
       sortHeader,
       sortDirection,
     } = newTableQuery;
+
     const teamId = getValidatedTeamId(
       teams || [],
       currentTeam?.id as number,
@@ -681,7 +724,6 @@ const ManageHostsPage = ({
       newQueryParams.software_id = softwareId;
     }
 
-    // triggers useDeepEffect using queryParams
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -690,6 +732,108 @@ const ManageHostsPage = ({
         queryParams: newQueryParams,
       })
     );
+  };
+
+  const onSaveSecret = async (enrollSecretString: string) => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // Creates new list of secrets removing selected secret and adding new secret
+    const currentSecrets = currentTeam
+      ? teamSecrets || []
+      : globalSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    if (enrollSecretString) {
+      newSecrets.push({ secret: enrollSecretString });
+    }
+
+    try {
+      if (currentTeam?.id) {
+        await enrollSecretsAPI.modifyTeamEnrollSecrets(
+          currentTeam.id,
+          newSecrets
+        );
+        refetchTeamSecrets();
+      } else {
+        await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
+        refetchGlobalSecrets();
+      }
+      toggleSecretEditorModal();
+      isPremiumTier && refetchTeams();
+
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(
+        renderFlash(
+          "success",
+          `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          `Could not ${
+            selectedSecret ? "edit" : "add"
+          } enroll secret. Please try again.`
+        )
+      );
+    }
+  };
+
+  const onDeleteSecret = async () => {
+    const { MANAGE_HOSTS } = PATHS;
+
+    // create new list of secrets removing selected secret
+    const currentSecrets = currentTeam
+      ? teamSecrets || []
+      : globalSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    try {
+      if (currentTeam?.id) {
+        await enrollSecretsAPI.modifyTeamEnrollSecrets(
+          currentTeam.id,
+          newSecrets
+        );
+        refetchTeamSecrets();
+      } else {
+        await enrollSecretsAPI.modifyGlobalEnrollSecrets(newSecrets);
+        refetchGlobalSecrets();
+      }
+      toggleDeleteSecretModal();
+      refetchTeams();
+      router.push(
+        getNextLocationPath({
+          pathPrefix: MANAGE_HOSTS,
+          routeTemplate: routeTemplate.replace("/labels/:label_id", ""),
+          routeParams,
+          queryParams,
+        })
+      );
+      dispatch(renderFlash("success", `Successfully deleted enroll secret.`));
+    } catch (error) {
+      console.error(error);
+      dispatch(
+        renderFlash(
+          "error",
+          "Could not delete enroll secret. Please try again."
+        )
+      );
+    }
   };
 
   const onEditLabel = async (formData: ILabelFormData) => {
@@ -831,6 +975,7 @@ const ManageHostsPage = ({
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
+      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash("error", "Could not transfer hosts. Please try again.")
@@ -892,13 +1037,13 @@ const ManageHostsPage = ({
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
-      teams={teams || []}
-      isLoading={isLoadingTeams}
-      currentTeamId={
+      currentUserTeams={teams || []}
+      selectedTeamId={
         (policyId && policy?.team_id) || (currentTeam?.id as number)
       }
+      isDisabled={isHostsLoading || isHostCountLoading}
       onChange={(newSelectedValue: number) =>
-        handleChangeSelectedTeamFilter(newSelectedValue)
+        handleTeamSelect(newSelectedValue)
       }
     />
   );
@@ -912,12 +1057,12 @@ const ManageHostsPage = ({
         />
         <div className={`${baseClass}__policies-filter-name-card`}>
           <img src={PolicyIcon} alt="Policy" />
-          {policy?.query_name}
+          {policy?.name}
           <Button
             className={`${baseClass}__clear-policies-filter`}
             onClick={handleClearPoliciesFilter}
             variant={"small-text-icon"}
-            title={policy?.query_name}
+            title={policy?.name}
           >
             <img src={CloseIcon} alt="Remove policy filter" />
           </Button>
@@ -978,7 +1123,7 @@ const ManageHostsPage = ({
 
     return (
       <Modal
-        title="Edit Columns"
+        title="Edit columns"
         onExit={() => setShowEditColumnsModal(false)}
         className={`${baseClass}__invite-modal`}
       >
@@ -993,6 +1138,37 @@ const ManageHostsPage = ({
           onCancelColumns={onCancelColumns}
         />
       </Modal>
+    );
+  };
+
+  const renderSecretEditorModal = () => {
+    if (!canEnrollHosts || !showSecretEditorModal) {
+      return null;
+    }
+
+    return (
+      <SecretEditorModal
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        onSaveSecret={onSaveSecret}
+        toggleSecretEditorModal={toggleSecretEditorModal}
+        selectedSecret={selectedSecret}
+      />
+    );
+  };
+
+  const renderDeleteSecretModal = () => {
+    if (!canEnrollHosts || !showDeleteSecretModal) {
+      return null;
+    }
+
+    return (
+      <DeleteSecretModal
+        onDeleteSecret={onDeleteSecret}
+        selectedTeam={currentTeam?.id || 0}
+        teams={teams || []}
+        toggleDeleteSecretModal={toggleDeleteSecretModal}
+      />
     );
   };
 
@@ -1011,7 +1187,10 @@ const ManageHostsPage = ({
           selectedTeam={currentTeam?.id || 0}
           teams={teams || []}
           onReturnToApp={() => setShowEnrollSecretModal(false)}
-          isPremiumTier={isPremiumTier as boolean}
+          toggleSecretEditorModal={toggleSecretEditorModal}
+          toggleDeleteSecretModal={toggleDeleteSecretModal}
+          setSelectedSecret={setSelectedSecret}
+          globalSecrets={globalSecrets}
         />
       </Modal>
     );
@@ -1125,7 +1304,17 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__text`}>
-          {renderTeamsFilterDropdown()}
+          <div className={`${baseClass}__title`}>
+            {isFreeTier && <h1>Hosts</h1>}
+            {isPremiumTier &&
+              teams &&
+              (teams.length > 1 || isOnGlobalTeam) &&
+              renderTeamsFilterDropdown()}
+            {isPremiumTier &&
+              !isOnGlobalTeam &&
+              teams &&
+              teams.length === 1 && <h1>{teams[0].name}</h1>}
+          </div>
         </div>
       </div>
     );
@@ -1236,7 +1425,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderTable = (selectedTeam: number) => {
+  const renderTable = () => {
     if (
       !config ||
       !currentUser ||
@@ -1251,15 +1440,18 @@ const ManageHostsPage = ({
       return <TableDataError />;
     }
 
-    // Hosts have not been set up for this instance yet.
+    // There are no hosts for this instance yet
     if (
-      (getStatusSelected() === ALL_HOSTS_LABEL && selectedLabel.count === 0) ||
-      (getStatusSelected() === ALL_HOSTS_LABEL &&
-        filteredHostCount === 0 &&
-        searchQuery === "")
+      getStatusSelected() === ALL_HOSTS_LABEL &&
+      filteredHostCount === 0 &&
+      searchQuery === "" &&
+      !isHostsLoading
     ) {
       return (
-        <NoHosts toggleGenerateInstallerModal={toggleGenerateInstallerModal} />
+        <NoHosts
+          toggleGenerateInstallerModal={toggleGenerateInstallerModal}
+          canEnrollHosts={canEnrollHosts}
+        />
       );
     }
 
@@ -1294,29 +1486,64 @@ const ManageHostsPage = ({
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
-        onActionButtonClick={onEditColumnsClick}
-        onPrimarySelectActionClick={onDeleteHostsClick}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
-        onQueryChange={onTableQueryChange}
         resultsTitle={"hosts"}
-        emptyComponent={EmptyHosts}
         showMarkAllPages
         isAllPagesSelected={isAllMatchingHostsSelected}
-        toggleAllPagesSelected={toggleAllMatchingHosts}
         searchable
-        customControl={renderStatusDropdown}
         filteredCount={filteredHostCount}
         searchToolTipText={
           "Search hosts by hostname, UUID, machine serial or IP address"
         }
+        clearSelectionCount={clearSelectionCount}
+        emptyComponent={EmptyHosts}
+        customControl={renderStatusDropdown}
+        onActionButtonClick={onEditColumnsClick}
+        onPrimarySelectActionClick={onDeleteHostsClick}
+        onQueryChange={onTableQueryChange}
+        toggleAllPagesSelected={toggleAllMatchingHosts}
       />
     );
   };
 
-  const selectedTeam = currentTeam?.id || 0;
+  const renderNoEnrollSecretBanner = () => {
+    const noTeamEnrollSecrets =
+      currentTeam &&
+      !!currentTeam?.id &&
+      !isTeamSecretsLoading &&
+      !teamSecrets?.length;
+    const noGlobalEnrollSecrets =
+      (!isPremiumTier ||
+        (isPremiumTier && !currentTeam?.id && !isLoadingTeams)) &&
+      !isGlobalSecretsLoading &&
+      !globalSecrets?.length;
+
+    return ((canEnrollHosts && noTeamEnrollSecrets) ||
+      (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
+      showNoEnrollSecretBanner ? (
+      <div className={`${baseClass}__no-enroll-secret-banner`}>
+        <div>
+          <span>
+            You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
+            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+          </span>
+        </div>
+        <div className={`dismiss-banner-button`}>
+          <button
+            className="button button--unstyled"
+            onClick={() =>
+              setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
+            }
+          >
+            <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+          </button>
+        </div>
+      </div>
+    ) : null;
+  };
 
   return (
     <div className="has-sidebar">
@@ -1335,7 +1562,7 @@ const ManageHostsPage = ({
                   <span>Manage enroll secret</span>
                 </Button>
               )}
-              {canAddNewHosts &&
+              {canEnrollHosts &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0
@@ -1354,11 +1581,19 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          {renderSoftwareVulnerabilities()}
-          {config && (!isPremiumTier || teams) && renderTable(selectedTeam)}
+          {renderNoEnrollSecretBanner() ||
+            (renderSoftwareVulnerabilities() && (
+              <div className={`${baseClass}__info-banners`}>
+                {renderNoEnrollSecretBanner()}
+                {renderSoftwareVulnerabilities()}
+              </div>
+            ))}
+          {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
         </div>
       )}
       {!isLabelsLoading && renderSidePanel()}
+      {renderDeleteSecretModal()}
+      {renderSecretEditorModal()}
       {renderEnrollSecretModal()}
       {renderEditColumnsModal()}
       {renderDeleteLabelModal()}

@@ -1,8 +1,8 @@
 package osquery_utils
 
 import (
+	"context"
 	"encoding/json"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -276,7 +276,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil)
-	require.Len(t, queriesNoConfig, 9)
+	require.Len(t, queriesNoConfig, 12)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -287,19 +287,34 @@ func TestGetDetailQueries(t *testing.T) {
 		"uptime",
 		"disk_space_unix",
 		"disk_space_windows",
+		"mdm",
+		"munki_info",
+		"google_chrome_profiles",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsers, 10)
+	require.Len(t, queriesWithUsers, 13)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
 
-	require.NoError(t, os.Setenv("FLEET_BETA_SOFTWARE_INVENTORY", "1"))
-
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 13)
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}})
+	require.Len(t, queriesWithUsersAndSoftware, 16)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+}
 
-	require.NoError(t, os.Setenv("FLEET_BETA_SOFTWARE_INVENTORY", ""))
+func TestDirectIngestMDM(t *testing.T) {
+	var host fleet.Host
+
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{}, true)
+	require.NoError(t, err)
+
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{
+		{
+			"enrolled":           "false",
+			"installed_from_dep": "",
+			"server_url":         "",
+		},
+	}, false)
+	require.NoError(t, err)
 }

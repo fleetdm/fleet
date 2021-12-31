@@ -3,7 +3,11 @@ name: Deploy Fleet website
 on:
   push:
     branches: [ main ]
-
+    paths:
+      - 'website/**'
+      - 'docs/**'
+      - 'handbook/**'
+      
 jobs:
   build:
     if: ${{ github.repository == 'fleetdm/fleet' }}

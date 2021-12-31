@@ -1,11 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -67,7 +68,7 @@ func setupCommand() *cli.Command {
 				fmt.Print("Password: ")
 				passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return errors.Wrap(err, "error reading password")
+					return fmt.Errorf("error reading password: %w", err)
 				}
 				fmt.Println()
 				flPassword = string(passBytes)
@@ -75,7 +76,7 @@ func setupCommand() *cli.Command {
 				fmt.Print("Confirm Password: ")
 				passBytes, err = terminal.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
-					return errors.Wrap(err, "error reading password confirmation")
+					return fmt.Errorf("error reading password confirmation: %w", err)
 				}
 				fmt.Println()
 				if flPassword != string(passBytes) {
@@ -86,21 +87,22 @@ func setupCommand() *cli.Command {
 
 			token, err := fleet.Setup(flEmail, flName, flPassword, flOrgName)
 			if err != nil {
-				switch err.(type) {
+				root := ctxerr.Cause(err)
+				switch root.(type) {
 				case service.SetupAlreadyErr:
 					return err
 				}
-				return errors.Wrap(err, "error setting up Fleet")
+				return fmt.Errorf("error setting up Fleet: %w", err)
 			}
 
 			configPath, context := c.String("config"), c.String("context")
 
 			if err := setConfigValue(configPath, context, "email", flEmail); err != nil {
-				return errors.Wrap(err, "error setting email for the current context")
+				return fmt.Errorf("error setting email for the current context: %w", err)
 			}
 
 			if err := setConfigValue(configPath, context, "token", token); err != nil {
-				return errors.Wrap(err, "error setting token for the current context")
+				return fmt.Errorf("error setting token for the current context: %w", err)
 			}
 
 			fmt.Println("Fleet Device Management Inc. periodically collects anonymous information about your instance.\nSending usage statistics from your Fleet instance is optional and can be disabled in settings.")

@@ -2,9 +2,9 @@ import React from "react";
 import { noop } from "lodash";
 import paths from "router/paths";
 
-import Button from "components/buttons/Button";
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
+import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 // @ts-ignore
@@ -20,25 +20,25 @@ const TAGGED_TEMPLATES = {
 };
 
 interface IPoliciesListWrapperProps {
-  policiesList: IPolicy[];
+  policiesList: IPolicyStats[];
   isLoading: boolean;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
-  toggleAddPolicyModal: () => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
+  currentAutomatedPolicies?: number[];
 }
 
 const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onRemovePoliciesClick,
-  toggleAddPolicyModal,
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
+  currentAutomatedPolicies,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
@@ -85,17 +85,6 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
-              <div className={`${noPoliciesClass}__-cta-buttons`}>
-                <Button
-                  variant="brand"
-                  className={`${noPoliciesClass}__add-policy-button`}
-                  onClick={toggleAddPolicyModal}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -108,29 +97,33 @@ const PoliciesListWrapper = ({
         canAddOrRemovePolicy ? "" : "hide-selection-column"
       }`}
     >
-      <TableContainer
-        resultsTitle={resultsTitle || "policies"}
-        columns={generateTableHeaders({
-          selectedTeamId: selectedTeamData?.id,
-          showSelectionColumn: canAddOrRemovePolicy,
-          tableType,
-        })}
-        data={generateDataSet(policiesList)}
-        isLoading={isLoading}
-        defaultSortHeader={"query_name"}
-        defaultSortDirection={"asc"}
-        manualSortBy
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        disablePagination
-        onPrimarySelectActionClick={onRemovePoliciesClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
-        emptyComponent={NoPolicies}
-        onQueryChange={noop}
-        disableCount={tableType === "inheritedPolicies"}
-      />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <TableContainer
+          resultsTitle={resultsTitle || "policies"}
+          columns={generateTableHeaders({
+            selectedTeamId: selectedTeamData?.id,
+            showSelectionColumn: canAddOrRemovePolicy,
+            tableType,
+          })}
+          data={generateDataSet(policiesList, currentAutomatedPolicies)}
+          isLoading={isLoading}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          manualSortBy
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disablePagination
+          onPrimarySelectActionClick={onRemovePoliciesClick}
+          primarySelectActionButtonVariant="text-icon"
+          primarySelectActionButtonIcon="delete"
+          primarySelectActionButtonText={"Delete"}
+          emptyComponent={NoPolicies}
+          onQueryChange={noop}
+          disableCount={tableType === "inheritedPolicies"}
+        />
+      )}
     </div>
   );
 };

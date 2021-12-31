@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 )
 
 // ListCarves lists the file carving sessions
@@ -19,12 +18,12 @@ func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata,
 	}
 	response, err := c.AuthenticatedDo("GET", endpoint, rawQuery, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET /api/v1/fleet/carves")
+		return nil, fmt.Errorf("GET /api/v1/fleet/carves: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"list carves received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -34,10 +33,10 @@ func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata,
 	var responseBody listCarvesResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode get carves response")
+		return nil, fmt.Errorf("decode get carves response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get carves: %s", responseBody.Err)
+		return nil, fmt.Errorf("get carves: %s", responseBody.Err)
 	}
 
 	carves := []*fleet.CarveMetadata{}
@@ -53,12 +52,12 @@ func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
 	endpoint := fmt.Sprintf("/api/v1/fleet/carves/%d", carveId)
 	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "GET "+endpoint)
+		return nil, fmt.Errorf("GET "+endpoint+": %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get carve received status %d %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -67,10 +66,10 @@ func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
 	var responseBody getCarveResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode carve response")
+		return nil, fmt.Errorf("decode carve response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get carve: %s", responseBody.Err)
+		return nil, fmt.Errorf("get carve: %s", responseBody.Err)
 	}
 
 	return &responseBody.Carve, nil
@@ -84,12 +83,12 @@ func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	)
 	response, err := c.AuthenticatedDo("GET", path, "", nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "GET %s", path)
+		return nil, fmt.Errorf("GET %s: %w", path, err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"get carve block received status %d: %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -99,10 +98,10 @@ func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 	var responseBody getCarveBlockResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode get carve block response")
+		return nil, fmt.Errorf("decode get carve block response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get carve block: %s", responseBody.Err)
+		return nil, fmt.Errorf("get carve block: %s", responseBody.Err)
 	}
 
 	return responseBody.Data, nil
@@ -139,7 +138,7 @@ func (r *carveReader) Read(p []byte) (n int, err error) {
 		var err error
 		r.buffer, err = r.client.getCarveBlock(r.carve.ID, r.curBlock)
 		if err != nil {
-			return 0, errors.Wrapf(err, "get block %d", r.curBlock)
+			return 0, fmt.Errorf("get block %d: %w", r.curBlock, err)
 		}
 		r.curBlock++
 	}
@@ -164,12 +163,12 @@ func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
 	path := fmt.Sprintf("/api/v1/fleet/carves/%d", id)
 	response, err := c.AuthenticatedDo("GET", path, "", nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "GET %s", path)
+		return nil, fmt.Errorf("GET %s: %w", path, err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.Errorf(
+		return nil, fmt.Errorf(
 			"download carve received status %d: %s",
 			response.StatusCode,
 			extractServerErrorText(response.Body),
@@ -179,10 +178,10 @@ func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
 	var responseBody getCarveResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "decode get carve by name response")
+		return nil, fmt.Errorf("decode get carve by name response: %w", err)
 	}
 	if responseBody.Err != nil {
-		return nil, errors.Errorf("get carve by name: %s", responseBody.Err)
+		return nil, fmt.Errorf("get carve by name: %s", responseBody.Err)
 	}
 
 	reader := newCarveReader(responseBody.Carve, c)

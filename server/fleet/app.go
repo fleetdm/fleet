@@ -2,10 +2,11 @@ package fleet
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/pkg/errors"
+	"github.com/jinzhu/copier"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -101,7 +102,7 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// AppConfig
+// AppConfig holds server configuration that can be changed via the API.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
@@ -164,13 +165,17 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		}
 		return nil
 	default:
-		return errors.Errorf("invalid duration type: %T", value)
+		return fmt.Errorf("invalid duration type: %T", value)
 	}
 }
 
 type WebhookSettings struct {
-	HostStatusWebhook HostStatusWebhookSettings `json:"host_status_webhook"`
-	Interval          Duration                  `json:"interval"`
+	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// Interval is the interval for running the webhooks.
+	//
+	// This value currently configures both the host status and failing policies webhooks.
+	Interval Duration `json:"interval"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -178,6 +183,19 @@ type HostStatusWebhookSettings struct {
 	DestinationURL string  `json:"destination_url"`
 	HostPercentage float64 `json:"host_percentage"`
 	DaysCount      int     `json:"days_count"`
+}
+
+// FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.
+type FailingPoliciesWebhookSettings struct {
+	// Enable indicates whether the webhook for failing policies is enabled.
+	Enable bool `json:"enable_failing_policies_webhook"`
+	// DestinationURL is the webhook's URL.
+	DestinationURL string `json:"destination_url"`
+	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
+	PolicyIDs []uint `json:"policy_ids"`
+	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
+	// A value of 0 means no batching.
+	HostBatchSize int `json:"host_batch_size"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
@@ -250,7 +268,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering
+	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`
@@ -258,6 +276,10 @@ type ListOptions struct {
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
 	MatchQuery string `query:"query,optional"`
+
+	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
+	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
+	After string `query:"after,optional"`
 }
 
 type ListQueryOptions struct {
@@ -394,4 +416,10 @@ type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+func (c *AppConfig) Clone() (*AppConfig, error) {
+	newAc := AppConfig{}
+	err := copier.Copy(&newAc, c)
+	return &newAc, err
 }

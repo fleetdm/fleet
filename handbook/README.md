@@ -1,3 +1,5 @@
+# Welcome to Fleet
+
 ## Introduction
 
 The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
@@ -20,17 +22,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Meetings](./people.md#meetings)
 
+### Engineering
+
+[Release process](./engineering.md#release-process)
+
 ### Product
 
-[Product DRIs](./product.md#product-dris)
+[Feature Flags](./product.md#feature-flags)
 
 [Fleet docs](./product.md#fleet-docs)
 
-[Manual QA](./product.md#manual-qa)
-
-[Release process](./product.md#release-process)
-
-[Support process](./product.md#support-process)
+[Product quality](./product.md#product-quality)
 
 [UI design](./product.md#ui-design)
 
@@ -42,19 +44,23 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Grammar guidelines](./growth.md#grammar-guidelines)
 
-### Customer first
+### Customer experience
 
-[Customer succcess](./customer-first.md#customer-success)
+[Customer succcess](./customer-experience.md#customer-success)
 
-### About the handbook
+[Support process](./customer-experience.md#support-process)
 
-#### Why bother?
-The Fleet handbook is inspired by (and heavily influenced by) the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+### Community
 
-#### Where's the rest of the handbook?
-While this handbook is inspired by [GitLab's handbook](https://about.gitlab.com/handbook/), it is nowhere near as complete (yet!)  We will continue to add and update information in this handbook, and gradually migrate information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
+### Handbook
+
+[About the handbook](./handbook.md#about-the-handbook)
+
+[Handbook style guide](./handbook.md#handbook-style-guide)
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="mikermcneil">
 
 

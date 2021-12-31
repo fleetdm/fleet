@@ -4,10 +4,9 @@
 package wix
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -35,7 +34,7 @@ func Heat(path string) error {
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "heat failed")
+		return fmt.Errorf("heat failed: %w", err)
 	}
 
 	return nil
@@ -57,7 +56,7 @@ func Candle(path string) error {
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "candle failed")
+		return fmt.Errorf("candle failed: %w", err)
 	}
 
 	return nil
@@ -81,7 +80,7 @@ func Light(path string) error {
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "light failed")
+		return fmt.Errorf("light failed: %w", err)
 	}
 
 	return nil

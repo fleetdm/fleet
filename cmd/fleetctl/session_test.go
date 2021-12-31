@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 

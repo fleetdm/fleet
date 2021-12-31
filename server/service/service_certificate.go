@@ -10,7 +10,7 @@ import (
 	"net"
 	"net/url"
 
-	"github.com/pkg/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 // Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
@@ -22,18 +22,18 @@ func (svc *Service) CertificateChain(ctx context.Context) ([]byte, error) {
 
 	u, err := url.Parse(config.ServerSettings.ServerURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing serverURL")
+		return nil, ctxerr.Wrap(ctx, err, "parsing serverURL")
 	}
 
-	conn, err := connectTLS(u)
+	conn, err := connectTLS(ctx, u)
 	if err != nil {
 		return nil, err
 	}
 
-	return chain(conn.ConnectionState(), u.Hostname())
+	return chain(ctx, conn.ConnectionState(), u.Hostname())
 }
 
-func connectTLS(serverURL *url.URL) (*tls.Conn, error) {
+func connectTLS(ctx context.Context, serverURL *url.URL) (*tls.Conn, error) {
 	var hostport string
 	if serverURL.Port() == "" {
 		hostport = net.JoinHostPort(serverURL.Host, "443")
@@ -47,7 +47,7 @@ func connectTLS(serverURL *url.URL) (*tls.Conn, error) {
 		conn, err := tls.Dial("tcp", hostport, &tls.Config{
 			InsecureSkipVerify: insecure})
 		if err != nil {
-			return nil, errors.Wrap(err, "dial tls")
+			return nil, ctxerr.Wrap(ctx, err, "dial tls")
 		}
 		defer conn.Close()
 		return conn, nil
@@ -69,7 +69,7 @@ func connectTLS(serverURL *url.URL) (*tls.Conn, error) {
 // chain builds a PEM encoded certificate chain using the PeerCertificates
 // in tls.ConnectionState. chain uses the hostname to omit the Leaf certificate
 // from the chain.
-func chain(cs tls.ConnectionState, hostname string) ([]byte, error) {
+func chain(ctx context.Context, cs tls.ConnectionState, hostname string) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte(""))
 
 	verifyEncode := func(chain []*x509.Certificate) error {
@@ -94,12 +94,12 @@ func chain(cs tls.ConnectionState, hostname string) ([]byte, error) {
 	if len(cs.VerifiedChains) != 0 {
 		for _, chain := range cs.VerifiedChains {
 			if err := verifyEncode(chain); err != nil {
-				return nil, errors.Wrap(err, "encode verified chains pem")
+				return nil, ctxerr.Wrap(ctx, err, "encode verified chains pem")
 			}
 		}
 	} else {
 		if err := verifyEncode(cs.PeerCertificates); err != nil {
-			return nil, errors.Wrap(err, "encode peer certificates pem")
+			return nil, ctxerr.Wrap(ctx, err, "encode peer certificates pem")
 		}
 	}
 	return buf.Bytes(), nil

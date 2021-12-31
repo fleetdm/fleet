@@ -23,7 +23,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/rotisserie/eris"
+	"github.com/rotisserie/eris" //nolint:depguard
 )
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and
@@ -51,7 +51,16 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 		logger: logger,
 		ttl:    ttl,
 	}
-	runHandler(ctx, eh)
+	if ttl >= 0 {
+		runHandler(ctx, eh)
+	}
+
+	// Clear out any records that exist.
+	// Temporary mitigation for #3065.
+	if _, err := eh.Flush(); err != nil {
+		level.Error(eh.logger).Log("err", err, "msg", "failed to flush redis errors")
+	}
+
 	return eh
 }
 
@@ -65,7 +74,10 @@ func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Log
 		testOnStart: onStart,
 		testOnStore: onStore,
 	}
-	runHandler(ctx, eh)
+
+	if ttl >= 0 {
+		runHandler(ctx, eh)
+	}
 	return eh
 }
 
@@ -230,11 +242,17 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
-	secs := int(h.ttl.Seconds())
-	if secs <= 0 {
-		secs = 1 // SET EX fails if ttl is <= 0
+	var args redigo.Args
+	args = args.Add(jsonKey, errorJson)
+	if h.ttl > 0 {
+		secs := int(h.ttl.Seconds())
+		if secs <= 0 {
+			secs = 1 // SET EX fails if ttl is <= 0
+		}
+		args = args.Add("EX", secs)
 	}
-	if _, err := conn.Do("SET", jsonKey, errorJson, "EX", secs); err != nil {
+
+	if _, err := conn.Do("SET", args...); err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
@@ -248,11 +266,11 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 }
 
 // Store handles the provided error by storing it into Redis if the handler is
-// still running. In any case, it always returns the error as provided.
+// still running.
 //
 // It waits for a predefined period of time to try to store the error but does
 // so in a goroutine so the call returns immediately.
-func (h *Handler) Store(err error) error {
+func (h *Handler) Store(err error) {
 	exec := func() {
 		if atomic.LoadInt32(&h.running) == 0 {
 			return
@@ -271,7 +289,6 @@ func (h *Handler) Store(err error) error {
 	} else {
 		go exec()
 	}
-	return err
 }
 
 // ServeHTTP implements an http.Handler that flushes the errors stored

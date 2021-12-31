@@ -1,5 +1,0 @@
-* Add improved UI messaging for query-platform compatibility checks in case of invalid sql syntax and
-queries that return no compatible platforms
-* Change query-platform compatibility response if query is valid sql but includes no tables (e.g.,
-`SELECT 1 WHERE FALSE`) to indicate the query is compatible on all platforms rather than none
-* Add tooltip to explain compatibility is estimated based on the tables present in the query

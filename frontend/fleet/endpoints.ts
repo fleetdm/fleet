@@ -13,8 +13,13 @@ export default {
     return `/v1/fleet/users/${id}/enable`;
   },
   FORGOT_PASSWORD: "/v1/fleet/forgot_password",
+  GLOBAL_ENROLL_SECRETS: "/v1/fleet/spec/enroll_secret",
   GLOBAL_POLICIES: "/v1/fleet/global/policies",
   GLOBAL_SCHEDULE: "/v1/fleet/global/schedule",
+  HOST_SUMMARY: (teamId: number | undefined): string => {
+    const teamString = teamId ? `?team_id=${teamId}` : "";
+    return `/v1/fleet/host_summary${teamString}`;
+  },
   HOSTS: "/v1/fleet/hosts",
   HOSTS_COUNT: "/v1/fleet/hosts/count",
   HOSTS_DELETE: "/v1/fleet/hosts/delete",
@@ -45,24 +50,24 @@ export default {
   STATUS_LIVE_QUERY: "/v1/fleet/status/live_query",
   STATUS_RESULT_STORE: "/v1/fleet/status/result_store",
   TARGETS: "/v1/fleet/targets",
-  TEAM_POLICIES: (id: number): string => {
-    return `/v1/fleet/teams/${id}/policies`;
+  TEAM_POLICIES: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/policies`;
   },
-  TEAM_SCHEDULE: (id: number): string => {
-    return `/v1/fleet/teams/${id}/schedule`;
+  TEAM_SCHEDULE: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/schedule`;
   },
   TEAMS: "/v1/fleet/teams",
+  TEAMS_AGENT_OPTIONS: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/agent_options`;
+  },
+  TEAMS_ENROLL_SECRETS: (teamId: number): string => {
+    return `/v1/fleet/teams/${teamId}/secrets`;
+  },
   TEAMS_MEMBERS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
     return `/v1/fleet/teams/${teamId}/hosts`;
-  },
-  TEAMS_ENROLL_SECRETS: (teamId: number): string => {
-    return `/v1/fleet/teams/${teamId}/secrets`;
-  },
-  TEAMS_AGENT_OPTIONS: (teamId: number): string => {
-    return `/v1/fleet/teams/${teamId}/agent_options`;
   },
   UPDATE_USER_ADMIN: (id: number): string => {
     return `/v1/fleet/users/${id}/admin`;

@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,14 +62,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID)
+		_, err = ds.Host(context.Background(), host.ID, false)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID)
+		host2, err := ds.Host(context.Background(), host.ID, false)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})
@@ -165,13 +165,57 @@ func TestSearchLike(t *testing.T) {
 			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
 			outParams: []interface{}{1, "%forty\\_\\%%", "%forty\\_\\%%"},
 		},
+		{
+			inSQL:     "SELECT * FROM HOSTS WHERE 1=1",
+			inParams:  []interface{}{1},
+			match:     "a@b.c",
+			columns:   []string{"ipv4", "uuid"},
+			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
+			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
-
 			sql, params := searchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			assert.Equal(t, tt.outSQL, sql)
+			assert.Equal(t, tt.outParams, params)
+		})
+	}
+}
+
+func TestHostSearchLike(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inSQL     string
+		inParams  []interface{}
+		match     string
+		columns   []string
+		outSQL    string
+		outParams []interface{}
+	}{
+		{
+			inSQL:     "SELECT * FROM HOSTS h WHERE TRUE",
+			inParams:  []interface{}{},
+			match:     "foobar",
+			columns:   []string{"hostname"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
+			outParams: []interface{}{"%foobar%"},
+		},
+		{
+			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
+			inParams:  []interface{}{1},
+			match:     "a@b.c",
+			columns:   []string{"ipv4"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
+			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -297,21 +341,21 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM app_configs"
+	sql := "SELECT * FROM my_table"
 	opts := fleet.ListOptions{
 		OrderKey: "name",
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM app_configs ORDER BY name ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs ORDER BY name DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -320,30 +364,29 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		PerPage: 10,
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10"
+	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	opts.Page = 2
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 10 OFFSET 20"
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
 
 	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM app_configs"
+	sql = "SELECT * FROM my_table"
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM app_configs LIMIT 1000000"
+	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
-
 }
 
 func TestWhereFilterHostsByTeams(t *testing.T) {
@@ -738,7 +781,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
 }
 
-func TestWhereFilterTeas(t *testing.T) {
+func TestWhereFilterTeams(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -798,6 +841,122 @@ func TestWhereFilterTeas(t *testing.T) {
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestCompareVersions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+
+		v1            []int64
+		v2            []int64
+		knownUnknowns map[int64]struct{}
+
+		expMissing []int64
+		expUnknown []int64
+		expEqual   bool
+	}{
+		{
+			name:     "both-empty",
+			v1:       nil,
+			v2:       nil,
+			expEqual: true,
+		},
+		{
+			name:     "equal",
+			v1:       []int64{1, 2, 3},
+			v2:       []int64{1, 2, 3},
+			expEqual: true,
+		},
+		{
+			name:     "equal-out-of-order",
+			v1:       []int64{1, 2, 3},
+			v2:       []int64{1, 3, 2},
+			expEqual: true,
+		},
+		{
+			name:       "empty-with-unknown",
+			v1:         nil,
+			v2:         []int64{1},
+			expEqual:   false,
+			expUnknown: []int64{1},
+		},
+		{
+			name:       "empty-with-missing",
+			v1:         []int64{1},
+			v2:         nil,
+			expEqual:   false,
+			expMissing: []int64{1},
+		},
+		{
+			name:       "missing",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 3},
+			expMissing: []int64{2},
+			expEqual:   false,
+		},
+		{
+			name:       "unknown",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 3, 4},
+			expUnknown: []int64{4},
+			expEqual:   false,
+		},
+		{
+			name: "known-unknown",
+			v1:   []int64{1, 2, 3},
+			v2:   []int64{1, 2, 3, 4},
+			knownUnknowns: map[int64]struct{}{
+				4: {},
+			},
+			expEqual: true,
+		},
+		{
+			name:       "unknowns",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 3, 4, 5},
+			expUnknown: []int64{5},
+			knownUnknowns: map[int64]struct{}{
+				4: {},
+			},
+			expEqual: false,
+		},
+		{
+			name:       "missing-and-unknown",
+			v1:         []int64{1, 2, 3},
+			v2:         []int64{1, 2, 4},
+			expMissing: []int64{3},
+			expUnknown: []int64{4},
+			expEqual:   false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			missing, unknown, equal := compareVersions(tc.v1, tc.v2, tc.knownUnknowns)
+			require.Equal(t, tc.expMissing, missing)
+			require.Equal(t, tc.expUnknown, unknown)
+			require.Equal(t, tc.expEqual, equal)
+		})
+	}
+}
+
+func TestRxLooseEmail(t *testing.T) {
+	testCases := []struct {
+		str   string
+		match bool
+	}{
+		{"foo", false},
+		{"", false},
+		{"foo@example", false},
+		{"foo@example.com", true},
+		{"foo+bar@example.com", true},
+		{"foo.bar@example.com", true},
+		{"foo.bar@baz.example.com", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.str, func(t *testing.T) {
+			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
 		})
 	}
 }

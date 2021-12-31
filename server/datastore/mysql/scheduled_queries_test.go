@@ -233,12 +233,16 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
 	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
-	p1 := test.NewPack(t, ds, "baz")
 	h1 := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
+	p1, err := ds.NewPack(context.Background(), &fleet.Pack{
+		Name:    "baz",
+		HostIDs: []uint{h1.ID},
+	})
+	require.NoError(t, err)
 	test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "1")
 	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "2")
 
-	_, err := ds.writer.Exec(`INSERT INTO scheduled_query_stats (
+	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
                                    host_id, scheduled_query_id, average_memory, denylisted,
                                    executions, schedule_interval, output_size, system_time,
                                    user_time, wall_time
@@ -248,7 +252,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	// Cleanup doesn't remove stats that are ok
 	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
 
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -264,7 +268,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// And we don't see it in the host
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 
@@ -281,7 +285,7 @@ func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	h1, err = ds.Host(context.Background(), h1.ID)
+	h1, err = ds.Host(context.Background(), h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, h1.PackStats, 1)
 }

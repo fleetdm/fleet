@@ -1,3 +1,4 @@
+# Company
 
 ## About Fleet
 
@@ -22,27 +23,27 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ### Quickly with craft
 
-##### Iterate by taking baby steps. 
+#### Iterate by taking baby steps. 
 
 We try to always make the minimum viable change. Small changes provide faster feedback, and help us to stay focused on quality. 
 
-##### Help each other get all the way done. 
+#### Help each other get all the way done. 
 
 We collaborate and help our teammates to see tasks through to completion.
 
-##### Focus on fewer tasks at one time. 
+#### Focus on fewer tasks at one time. 
 
 By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process. 
 
-##### Role play as a user.
+#### Role play as a user.
 
 When making changes, we put ourselves in the mindset of the end user. We keep in mind how someone might use the product for the first time, or how an existing user might react to a new change.
 
-##### Reread anything you write for users.
+#### Reread anything you write for users.
 
 We check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.
 
-##### Review and merge PRs daily. 
+#### Review and merge PRs daily. 
 
 We value constant iteration and feedback. Reviewing and merging PRs daily keeps our open source community thriving.
 
@@ -54,9 +55,9 @@ Patches improve security, usability, and performance. We may cut a patch release
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 3 continents and 5 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
 ### Openness
 The majority of the code, documentation, and content we create at Fleet is public and source-available, and we strive to be broadly open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow.  We perform better with an audience, and our audience performs better with us.
 
-<meta name="maintainedBy" value="mike-j-thomas">
+<meta name="maintainedBy" value="mikermcneil">

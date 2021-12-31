@@ -54,8 +54,8 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
 		})
-		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
+		require.NoError(t, err)
+		require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, seenTime))
 		return h
 	}
 
@@ -69,7 +69,7 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)
 	h2 := initHost(mockClock.Now().Add(-1*time.Hour), 30, 7200, &team2.ID)
 	h3 := initHost(mockClock.Now().Add(-5*time.Second), 20, 20, &team2.ID)
-	h4 := initHost(mockClock.Now().Add(-47*time.Second), 10, 10, &team2.ID)
+	h4 := initHost(mockClock.Now().Add(-127*time.Second), 10, 10, &team2.ID)
 	h5 := initHost(mockClock.Now(), 5, 5, nil)
 	const thirtyDaysAndAMinuteAgo = -1 * (30*24*60 + 1)
 	h6 := initHost(mockClock.Now().Add(thirtyDaysAndAMinuteAgo*time.Minute), 3600, 3600, nil)
@@ -174,6 +174,40 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(5), metrics.OfflineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
+
+	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	filter = fleet.TeamFilter{User: userObs}
+
+	// observer not included
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), metrics.TotalHosts)
+
+	// observer included
+	filter.IncludeObserver = true
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(6), metrics.TotalHosts)
+
+	userTeam2 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleAdmin}}}
+	filter = fleet.TeamFilter{User: userTeam2}
+
+	// user can see team 2 which is associated with 3 hosts
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
+
+	// request team1, user cannot see it
+	filter.TeamID = &team1.ID
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), metrics.TotalHosts)
+
+	// request team2, ok
+	filter.TeamID = &team2.ID
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
 }
 
 func testTargetsHostStatus(t *testing.T, ds *Datastore) {
@@ -194,27 +228,27 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 	expectOffline := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1}
 	expectMIA := fleet.TargetMetrics{TotalHosts: 1, MissingInActionHosts: 1}
 
-	var testCases = []struct {
+	testCases := []struct {
 		seenTime            time.Time
 		distributedInterval uint
 		configTLSRefresh    uint
 		metrics             fleet.TargetMetrics
 	}{
 		{mockClock.Now().Add(-30 * time.Second), 10, 3600, expectOnline},
-		{mockClock.Now().Add(-45 * time.Second), 10, 3600, expectOffline},
+		{mockClock.Now().Add(-125 * time.Second), 10, 3600, expectOffline},
 		{mockClock.Now().Add(-30 * time.Second), 3600, 10, expectOnline},
-		{mockClock.Now().Add(-45 * time.Second), 3600, 10, expectOffline},
+		{mockClock.Now().Add(-125 * time.Second), 3600, 10, expectOffline},
 
 		{mockClock.Now().Add(-70 * time.Second), 60, 60, expectOnline},
-		{mockClock.Now().Add(-91 * time.Second), 60, 60, expectOffline},
+		{mockClock.Now().Add(-121 * time.Second), 60, 60, expectOffline},
 
 		{mockClock.Now().Add(-1 * time.Second), 10, 10, expectOnline},
-		{mockClock.Now().Add(-1 * time.Minute), 10, 10, expectOffline},
+		{mockClock.Now().Add(-2 * time.Minute), 10, 10, expectOffline},
 		{mockClock.Now().Add(-31 * 24 * time.Hour), 10, 10, expectMIA},
 
 		// Ensure behavior is reasonable if we don't have the values
 		{mockClock.Now().Add(-1 * time.Second), 0, 0, expectOnline},
-		{mockClock.Now().Add(-1 * time.Minute), 0, 0, expectOffline},
+		{mockClock.Now().Add(-2 * time.Minute), 0, 0, expectOffline},
 		{mockClock.Now().Add(-31 * 24 * time.Hour), 0, 0, expectMIA},
 	}
 
@@ -223,14 +257,14 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 			// Save interval values
 			h.DistributedInterval = tt.distributedInterval
 			h.ConfigTLSRefresh = tt.configTLSRefresh
-			require.Nil(t, ds.SaveHost(context.Background(), h))
+			require.NoError(t, ds.SaveHost(context.Background(), h))
 
 			// Mark seen
-			require.Nil(t, ds.MarkHostSeen(context.Background(), h, tt.seenTime))
+			require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, tt.seenTime))
 
 			// Verify status
 			metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h.ID}}, mockClock.Now())
-			require.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.metrics, metrics)
 		})
 	}
@@ -312,6 +346,20 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
 	require.Nil(t, err)
 	assert.Equal(t, []uint{1, 3, 4, 5, 6}, ids)
+
+	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	filter = fleet.TeamFilter{User: userObs}
+
+	// observer not included
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
+	require.Nil(t, err)
+	assert.Len(t, ids, 0)
+
+	// observer included
+	filter.IncludeObserver = true
+	ids, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{1, 6}, LabelIDs: []uint{l2.ID}})
+	require.Nil(t, err)
+	assert.Len(t, ids, 5)
 }
 
 func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
@@ -334,17 +382,28 @@ func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
 		})
-		require.Nil(t, err)
-		require.Nil(t, ds.MarkHostSeen(context.Background(), h, seenTime))
+		require.NoError(t, err)
+		require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, seenTime))
 		return h
 	}
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team2"})
+	require.NoError(t, err)
 
 	h1 := initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team1.ID)
+	initHost(mockClock.Now().Add(-1*time.Second), 10, 60, &team2.ID)
 
 	targets, err := ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID}})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{h1.ID}, targets)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	filter = fleet.TeamFilter{User: userTeam1}
+
+	// user can only see team1
+	targets, err = ds.HostIDsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team2.ID}})
 	require.NoError(t, err)
 	assert.Equal(t, []uint{h1.ID}, targets)
 }

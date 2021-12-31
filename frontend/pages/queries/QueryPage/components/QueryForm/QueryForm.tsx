@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { size } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 
+import { addGravatarUrlToResource } from "fleet/helpers";
 // @ts-ignore
 import { listCompatiblePlatforms, parseSqlTables } from "utilities/sql_tools";
 
@@ -11,6 +12,7 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { IQuery, IQueryFormData } from "interfaces/query";
 
+import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce"; // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -22,6 +24,7 @@ import CompatibleIcon from "../../../../../../assets/images/icon-compatible-gree
 import IncompatibleIcon from "../../../../../../assets/images/icon-incompatible-red-16x16@2x.png";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
+import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -67,6 +70,10 @@ const QueryForm = ({
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<string[]>([]);
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
+    false
+  );
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -101,6 +108,15 @@ const QueryForm = ({
 
   useEffect(() => {
     debounceCompatiblePlatforms(lastEditedQueryBody);
+
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      lastEditedQueryBody
+    );
+    valid = isValidated;
+    setErrors({
+      ...newErrors,
+    });
   }, [lastEditedQueryBody]);
 
   const hasTeamMaintainerPermissions = isEditMode
@@ -130,6 +146,10 @@ const QueryForm = ({
     });
   };
 
+  const onChangeQuery = (sqlString: string) => {
+    setLastEditedQueryBody(sqlString);
+  };
+
   const promptSaveQuery = (forceNew = false) => (
     evt: React.MouseEvent<HTMLButtonElement>
   ) => {
@@ -143,15 +163,9 @@ const QueryForm = ({
     }
 
     let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
-      lastEditedQueryBody
-    );
+    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
 
     valid = isValidated;
-    setErrors({
-      ...errors,
-      ...newErrors,
-    });
 
     if (valid) {
       if (!isEditMode || forceNew) {
@@ -163,10 +177,29 @@ const QueryForm = ({
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
         });
-
-        setErrors({});
       }
     }
+  };
+
+  const renderAuthor = (): JSX.Element | null => {
+    return storedQuery ? (
+      <>
+        <b>Author</b>
+        <div>
+          <Avatar
+            user={addGravatarUrlToResource({
+              email: storedQuery.author_email,
+            })}
+            size="xsmall"
+          />
+          <span>
+            {storedQuery.author_name === currentUser?.name
+              ? "You"
+              : storedQuery.author_name}
+          </span>
+        </div>
+      </>
+    ) : null;
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
@@ -259,14 +292,112 @@ const QueryForm = ({
     );
   };
 
+  const renderName = () => {
+    if (isEditMode) {
+      if (isEditingName) {
+        return (
+          <InputField
+            id="query-name"
+            type="textarea"
+            name="query-name"
+            error={errors.name}
+            value={lastEditedQueryName}
+            placeholder="Add name here"
+            inputClassName={`${baseClass}__query-name`}
+            onChange={setLastEditedQueryName}
+            inputOptions={{
+              autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
+            }}
+          />
+        );
+      }
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to H1 - this is needed to avoid
+      // using a real button
+      // prettier-ignore
+      return (
+        <h1
+          role="button"
+          className={`${baseClass}__query-name`}
+          onClick={() => setIsEditingName(true)}
+        >
+          {lastEditedQueryName}
+          <img alt="Edit name" src={PencilIcon} />
+        </h1>
+      );
+      /* eslint-enable */
+    }
+
+    return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
+  };
+
+  const renderDescription = () => {
+    if (isEditMode) {
+      if (isEditingDescription) {
+        return (
+          <InputField
+            id="query-description"
+            type="textarea"
+            name="query-description"
+            value={lastEditedQueryDescription}
+            placeholder="Add description here."
+            inputClassName={`${baseClass}__query-description`}
+            onChange={setLastEditedQueryDescription}
+            inputOptions={{
+              autoFocus: true,
+              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+                // sets cursor to end of inputfield
+                const val = e.target.value;
+                e.target.value = "";
+                e.target.value = val;
+              },
+            }}
+          />
+        );
+      }
+
+      /* eslint-disable */
+      // eslint complains about the button role
+      // applied to span - this is needed to avoid
+      // using a real button
+      // prettier-ignore
+      return (
+        <span
+          role="button"
+          className={`${baseClass}__query-description`}
+          onClick={() => setIsEditingDescription(true)}
+        >
+          {lastEditedQueryDescription}
+          <img alt="Edit description" src={PencilIcon} />
+        </span>
+      );
+      /* eslint-enable */
+    }
+
+    return null;
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
-      <h1 className={`${baseClass}__query-name no-hover`}>
-        {lastEditedQueryName}
-      </h1>
-      <p className={`${baseClass}__query-description no-hover`}>
-        {lastEditedQueryDescription}
-      </p>
+      <div className={`${baseClass}__title-bar`}>
+        <div className="name-description">
+          <h1 className={`${baseClass}__query-name no-hover`}>
+            {lastEditedQueryName}
+          </h1>
+          <p className={`${baseClass}__query-description no-hover`}>
+            {lastEditedQueryDescription}
+          </p>
+        </div>
+        <div className="author">{renderAuthor()}</div>
+      </div>
       <Button
         className={`${baseClass}__toggle-sql`}
         variant="text-link"
@@ -303,31 +434,13 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isEditMode ? (
-          <InputField
-            id="query-name"
-            type="text"
-            name="query-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__query-name`}
-            onChange={setLastEditedQueryName}
-          />
-        ) : (
-          <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>
-        )}
-        {isEditMode && (
-          <InputField
-            id="query-description"
-            type="text"
-            name="query-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__query-description`}
-            onChange={setLastEditedQueryDescription}
-          />
-        )}
+        <div className={`${baseClass}__title-bar`}>
+          <div className="name-description">
+            {renderName()}
+            {renderDescription()}
+          </div>
+          <div className="author">{isEditMode && renderAuthor()}</div>
+        </div>
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}
@@ -336,9 +449,7 @@ const QueryForm = ({
           name="query editor"
           onLoad={onLoad}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          onChange={(sqlString: string) => {
-            setLastEditedQueryBody(sqlString);
-          }}
+          onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
         />
         {renderPlatformCompatibility()}

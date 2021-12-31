@@ -16,6 +16,7 @@
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
+- [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -41,7 +42,7 @@ There is, however, a way to accomplish this even though the answer to the questi
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](../02-Deploying/02-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](../02-Deploying/03-Configuration.md#osquery_label_update_interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -78,7 +79,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/02-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../02-Deploying/03-Configuration.md#osquery_result_log_file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -86,7 +87,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](../02-Deploying/02-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](../02-Deploying/03-Configuration.md#osquery_status_log_plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
@@ -96,7 +97,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/02-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../02-Deploying/03-Configuration.md#filesystem_status_log_file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why does the same query come back faster sometimes?
 
@@ -123,7 +124,7 @@ As an example, let's say you want to retrieve a host's OS version, installed sof
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./03-REST-API.md#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../02-Deploying/02-Configuration.md#feature-flags).
+The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../02-Deploying/03-Configuration.md#feature-flags).
 
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./03-REST-API.md#get-host).
 
@@ -154,3 +155,26 @@ The following are reasons why a host may not be updating a policy's response:
 * The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
 
 * The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
+
+## What should I do if my computer is showing up as an offline host?
+
+If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
+
+* Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./04-Adding-hosts.md).
+* Restart the `fleetctl preview` docker containers.
+* Uninstall and reinstall Docker.
+
+## Fleet preview fails with Invalid interpolation. What should I do?
+
+If you tried running fleet preview and you get the following error:
+
+```
+fleetctl preview
+Downloading dependencies into /root/.fleet/preview...
+Pulling Docker dependencies...
+Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
+
+Failed to run docker-compose
+```
+
+You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/

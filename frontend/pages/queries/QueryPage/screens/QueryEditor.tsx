@@ -6,10 +6,13 @@ import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query"; // @ts-ignore
+import { QueryContext } from "context/query";
+// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import PATHS from "router/paths";
+// @ts-ignore
+import debounce from "utilities/debounce";
+// @ts-ignore
 import deepDifference from "utilities/deep_difference";
 import { IQueryFormData, IQuery } from "interfaces/query";
 
@@ -44,7 +47,7 @@ const QueryEditor = ({
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
-}: IQueryEditorProps) => {
+}: IQueryEditorProps): JSX.Element | null => {
   const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
 
@@ -73,14 +76,20 @@ const QueryEditor = ({
       const { query }: { query: IQuery } = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
       dispatch(renderFlash("success", "Query created!"));
-    } catch (createError) {
+    } catch (createError: any) {
       console.error(createError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong creating your query. Please try again."
-        )
-      );
+      if (createError.errors[0].reason.includes("already exists")) {
+        dispatch(
+          renderFlash("error", "A query with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong creating your query. Please try again."
+          )
+        );
+      }
     }
   });
 
@@ -99,14 +108,20 @@ const QueryEditor = ({
     try {
       await queryAPI.update(queryIdForEdit, updatedQuery);
       dispatch(renderFlash("success", "Query updated!"));
-    } catch (updateError) {
+    } catch (updateError: any) {
       console.error(updateError);
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong updating your query. Please try again."
-        )
-      );
+      if (updateError.errors[0].reason.includes("Duplicate")) {
+        dispatch(
+          renderFlash("error", "A query with this name already exists.")
+        );
+      } else {
+        dispatch(
+          renderFlash(
+            "error",
+            "Something went wrong updating your query. Please try again."
+          )
+        );
+      }
     }
 
     return false;

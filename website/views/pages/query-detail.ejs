@@ -22,10 +22,10 @@
             <h3 class="pb-4 mb-3 m-0">Query</h3>
             <code class="pb-3">{{query.query ? query.query : '--'}}</code>  
           </div>
-          <!-- <div purpose="remediation" v-if="query.purpose === 'Detection' && query.remediation">
-            <h3 class="pt-5 pb-3">Remediation</h3>
-            <p>{{query.remediation ? query.remediation : 'N/A'}}</p>
-          </div>   -->
+          <div purpose="resolution" v-if="query.kind === 'policy' && query.resolution">
+            <h3 class="pt-5 pb-3">Resolve</h3>
+            <p>{{query.resolution}}</p>
+          </div>
         </div>
       </div>
       <div purpose="summary-sidebar" class="col-md-4 order-first order-md-last p-0 pl-md-3 pt-md-4">
@@ -44,7 +44,7 @@
         <div class="border-top py-2">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
             <h5 class="pb-md-2 m-0">Purpose</h5>
-            <p class="m-0">{{query.purpose ? query.purpose : '--'}}</p>
+            <p class="m-0">{{query.kind === 'policy' ? 'Policy' : query.kind === 'query' ? 'Informational' : '--'}}</p>
           </div>
         </div>
         <div class="border-top py-2 pb-md-4">

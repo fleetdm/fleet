@@ -15,6 +15,7 @@ import (
 
 	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -57,14 +58,13 @@ func TestSyncCPEDatabase(t *testing.T) {
 		t.Skip("set environment variable NETWORK_TEST=1 to run")
 	}
 
+	client := fleethttp.NewClient()
 	// Disabling vcr because the resulting file exceeds the 100mb limit for github
-	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, http.DefaultTransport)
+	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, client.Transport)
 	require.NoError(t, err)
 	defer r.Stop()
 
-	client := &http.Client{
-		Transport: r,
-	}
+	client.Transport = r
 
 	tempDir := os.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
@@ -213,7 +213,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
@@ -227,7 +227,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 }
 
 func TestSyncsCPESkipsIfDisableSync(t *testing.T) {
-	client := &http.Client{}
+	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 

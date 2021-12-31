@@ -1,9 +1,10 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import permissionUtils from "utilities/permissions";
+import { getSortedTeamOptions } from "fleet/helpers";
 
 export default (currentUser) => {
-  const userNavItems = [
+  const logo = [
     {
       icon: "logo",
       name: "Home",
@@ -13,6 +14,9 @@ export default (currentUser) => {
         pathname: PATHS.HOME,
       },
     },
+  ];
+
+  const userNavItems = [
     {
       icon: "hosts",
       name: "Hosts",
@@ -61,6 +65,10 @@ export default (currentUser) => {
     permissionUtils.isAnyTeamAdmin(currentUser) ||
     permissionUtils.isGlobalAdmin(currentUser)
   ) {
+    const userAdminTeams = currentUser.teams.filter(
+      (thisTeam) => thisTeam.role === "admin"
+    );
+    const sortedTeams = getSortedTeamOptions(userAdminTeams);
     const adminNavItems = [
       {
         icon: "settings",
@@ -71,11 +79,12 @@ export default (currentUser) => {
           pathname:
             currentUser.global_role === "admin"
               ? PATHS.ADMIN_SETTINGS
-              : `${PATHS.ADMIN_TEAMS}/${currentUser.teams[0].id}/members`,
+              : `${PATHS.ADMIN_TEAMS}/${sortedTeams[0].value}/members`,
         },
       },
     ];
     return [
+      ...logo,
       ...userNavItems,
       ...teamMaintainerNavItems,
       ...policiesTab,
@@ -87,8 +96,16 @@ export default (currentUser) => {
     permissionUtils.isGlobalMaintainer(currentUser) ||
     permissionUtils.isAnyTeamMaintainer(currentUser)
   ) {
-    return [...userNavItems, ...teamMaintainerNavItems, ...policiesTab];
+    return [
+      ...logo,
+      ...userNavItems,
+      ...teamMaintainerNavItems,
+      ...policiesTab,
+    ];
   }
 
-  return [...userNavItems, ...policiesTab];
+  if (permissionUtils.isNoAccess(currentUser)) {
+    return [...logo];
+  }
+  return [...logo, ...userNavItems, ...policiesTab];
 };

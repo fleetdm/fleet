@@ -21,5 +21,7 @@ then
 fi
 
 codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime "$1"
+zip -r dist/orbit_darwin_amd64 dist/orbit_darwin_amd64
+go run github.com/mitchellh/gon/cmd/gon orbit/.gon.hcl
 
 echo "Signed successfully"

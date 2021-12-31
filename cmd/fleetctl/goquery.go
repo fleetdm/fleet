@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -10,7 +11,6 @@ import (
 	gqmodels "github.com/AbGuthrie/goquery/v2/models"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
 

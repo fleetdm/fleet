@@ -2,6 +2,11 @@ package sso
 
 import (
 	"bytes"
+	"compress/flate"
+	"encoding/base64"
+	"encoding/xml"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,4 +20,80 @@ func TestRequestCompression(t *testing.T) {
 	compressed, err := deflate(buff)
 	require.Nil(t, err)
 	assert.Equal(t, expected, compressed)
+}
+
+func TestCreateAuthorizationRequest(t *testing.T) {
+	store := &mockStore{}
+	settings := &Settings{
+		Metadata: &Metadata{
+			EntityID: "test",
+			IDPSSODescriptor: IDPSSODescriptor{
+				SingleSignOnService: []SingleSignOnService{
+					{Binding: RedirectBinding, Location: "http://example.com"},
+				},
+			},
+		},
+		// Construct call back url to send to idp
+		AssertionConsumerServiceURL: "http://localhost:8001/api/v1/fleet/sso/callback",
+		SessionStore:                store,
+		OriginalURL:                 "/redir",
+	}
+
+	idpURL, err := CreateAuthorizationRequest(settings, "issuer", RelayState("abc"))
+	require.NoError(t, err)
+
+	parsed, err := url.Parse(idpURL)
+	require.NoError(t, err)
+	assert.Equal(t, "example.com", parsed.Host)
+	q := parsed.Query()
+	encoded := q.Get("SAMLRequest")
+	assert.NotEmpty(t, encoded)
+	authReq := inflate(t, encoded)
+	assert.Equal(t, "issuer", authReq.Issuer.Url)
+	assert.Equal(t, "Fleet", authReq.ProviderName)
+	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
+	assert.Equal(t, "abc", q.Get("RelayState"))
+
+	ssn := store.session
+	require.NotNil(t, ssn)
+	assert.Equal(t, "/redir", ssn.OriginalURL)
+
+	var meta Metadata
+	require.NoError(t, xml.Unmarshal([]byte(ssn.Metadata), &meta))
+	assert.Equal(t, "test", meta.EntityID)
+}
+
+func inflate(t *testing.T, s string) *AuthnRequest {
+	t.Helper()
+
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+
+	r := flate.NewReader(bytes.NewReader(decoded))
+	defer r.Close()
+
+	var req AuthnRequest
+	require.NoError(t, xml.NewDecoder(r).Decode(&req))
+	return &req
+}
+
+type mockStore struct {
+	session *Session
+}
+
+func (s *mockStore) create(requestID, originalURL, metadata string, lifetimeSecs uint) error {
+	s.session = &Session{OriginalURL: originalURL, Metadata: metadata}
+	return nil
+}
+
+func (s *mockStore) Get(requestID string) (*Session, error) {
+	if s.session == nil {
+		return nil, ErrSessionNotFound
+	}
+	return s.session, nil
+}
+
+func (s *mockStore) Expire(requestID string) error {
+	s.session = nil
+	return nil
 }

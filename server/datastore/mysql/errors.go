@@ -1,9 +1,12 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/VividCortex/mysqlerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -52,12 +55,22 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
+// Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
+// error of type *notFoundError, without having to wrap sql.ErrNoRows
+// explicitly.
+func (e *notFoundError) Is(other error) bool {
+	return other == sql.ErrNoRows
+}
+
 type existsError struct {
 	Identifier   interface{}
 	ResourceType string
 }
 
 func alreadyExists(kind string, identifier interface{}) error {
+	if s, ok := identifier.(string); ok {
+		identifier = strconv.Quote(s)
+	}
 	return &existsError{
 		Identifier:   identifier,
 		ResourceType: kind,
@@ -73,6 +86,7 @@ func (e *existsError) IsExists() bool {
 }
 
 func isDuplicate(err error) bool {
+	err = ctxerr.Cause(err)
 	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
 			return true
@@ -102,6 +116,7 @@ func (e *foreignKeyError) IsForeignKey() bool {
 }
 
 func isMySQLForeignKey(err error) bool {
+	err = ctxerr.Cause(err)
 	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		if driverErr.Number == mysqlerr.ER_ROW_IS_REFERENCED_2 {
 			return true

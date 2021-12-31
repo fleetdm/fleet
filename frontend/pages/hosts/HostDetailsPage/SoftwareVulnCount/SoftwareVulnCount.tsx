@@ -3,9 +3,9 @@ import React from "react";
 import { ISoftware } from "interfaces/software";
 import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
-const baseClass = "software-vulnerabilities";
+const baseClass = "software-vuln-count";
 
-const SoftwareVulnerabilities = (vulnProps: {
+const SoftwareVulnCount = (vulnProps: {
   softwareList: ISoftware[];
 }): JSX.Element | null => {
   const { softwareList } = vulnProps;
@@ -32,4 +32,4 @@ const SoftwareVulnerabilities = (vulnProps: {
   ) : null;
 };
 
-export default SoftwareVulnerabilities;
+export default SoftwareVulnCount;

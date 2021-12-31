@@ -1,5 +1,5 @@
 .input-field {
-  line-height: 34px;
+  line-height: 1.5;
   background-color: $ui-light-grey;
   border: solid 1px $ui-fleet-blue-15;
   border-radius: 4px;
@@ -10,8 +10,8 @@
   box-sizing: border-box;
   height: 40px;
 
-  ::placeholder {
-    color: $core-fleet-blue;
+  &::placeholder {
+    color: $ui-fleet-black-50;
   }
 
   &:focus {
@@ -30,7 +30,7 @@
     border-radius: 4px;
 
     &:focus {
-      border-bottom-color: $ui-error;
+      border-color: $ui-error;
       background-color: $core-white;
       color: $core-fleet-black;
     }

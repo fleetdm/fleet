@@ -27,7 +27,7 @@ func Up_20211102135149(tx *sql.Tx) error {
 		return errors.Wrap(err, "create host_seen_times table")
 	}
 
-	if _, err := tx.Exec(`INSERT INTO host_seen_times (host_id, seen_time) SELECT id as host_id, seen_time FROM hosts`); err != nil {
+	if _, err := tx.Exec(`INSERT IGNORE INTO host_seen_times (host_id, seen_time) SELECT DISTINCT id as host_id, seen_time FROM hosts`); err != nil {
 		return errors.Wrap(err, "migrating host seen_times")
 	}
 

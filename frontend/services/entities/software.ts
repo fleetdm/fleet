@@ -4,29 +4,46 @@ import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {
   page: number;
-  perPage: number;
+  perPage?: number;
   orderKey: string;
   orderDir: "asc" | "desc";
   query: string;
   vulnerable: boolean;
-  teamId: boolean;
+  teamId?: number;
 }
 
 interface ISoftwareResponse {
   software: ISoftware[];
 }
 
+export interface ISoftwareCountResponse {
+  count: number;
+}
+
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
-const DEFAULT_PAGE = 0;
-const PER_PAGE = 8;
-const ORDER_KEY = "hosts_count";
-const ORDER_DIRECTION = "desc";
+const ORDER_KEY = "name";
+const ORDER_DIRECTION = "asc";
+
+const buildQueryStringFromParams = (params: ISoftwareParams) => {
+  const filteredParams = Object.entries(params).filter(
+    ([key, value]) => !!value
+  );
+  if (!filteredParams.length) {
+    return "";
+  }
+  return `?${filteredParams
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join("&")}`;
+};
 
 export default {
   load: async ({
-    page = DEFAULT_PAGE,
-    perPage = PER_PAGE,
+    page,
+    perPage,
     orderKey = ORDER_KEY,
     orderDir = ORDER_DIRECTION,
     query,
@@ -34,10 +51,21 @@ export default {
     teamId,
   }: ISoftwareParams): Promise<ISoftware[]> => {
     const { SOFTWARE } = endpoints;
-    const pagination = `page=${page}&per_page=${perPage}`;
+    const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
-    const team = teamId ? `team_id=${teamId}` : "";
-    const path = `${SOFTWARE}?${pagination}&${sort}&${team}&${query}&${vulnerable}`;
+    let path = `${SOFTWARE}?${pagination}&${sort}`;
+
+    if (teamId) {
+      path += `&team_id=${teamId}`;
+    }
+
+    if (query) {
+      path += `&query=${encodeURIComponent(query)}`;
+    }
+
+    if (vulnerable) {
+      path += `&vulnerable=${vulnerable}`;
+    }
 
     try {
       const { software }: ISoftwareResponse = await sendRequest("GET", path);
@@ -45,5 +73,13 @@ export default {
     } catch (error) {
       throw error;
     }
+  },
+
+  count: async (params: ISoftwareParams): Promise<ISoftwareCountResponse> => {
+    const { SOFTWARE } = endpoints;
+    const path = `${SOFTWARE}/count`;
+    const queryString = buildQueryStringFromParams(params);
+
+    return sendRequest("GET", path.concat(queryString));
   },
 };

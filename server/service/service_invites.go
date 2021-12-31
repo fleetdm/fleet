@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"html/template"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/pkg/errors"
 )
 
 func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
@@ -24,7 +24,8 @@ func (svc Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayloa
 	if err == nil {
 		return nil, fleet.NewInvalidArgumentError("email", "a user with this account already exists")
 	}
-	if _, ok := err.(fleet.NotFoundError); !ok {
+	var nfe fleet.NotFoundError
+	if !errors.As(err, &nfe) {
 		return nil, err
 	}
 

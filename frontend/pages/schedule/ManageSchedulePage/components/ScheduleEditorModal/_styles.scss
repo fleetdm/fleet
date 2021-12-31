@@ -14,7 +14,7 @@
 
   a {
     color: $core-vibrant-blue;
-    font-weight: $regular;
+    font-weight: $bold;
     font-size: $x-small;
     text-decoration: none;
   }
@@ -25,6 +25,10 @@
 
   &__btn-wrap {
     display: flex;
+    justify-content: space-between;
+  }
+
+  &__cta-btn-wrap {
     flex-direction: row-reverse;
   }
 

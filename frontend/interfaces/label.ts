@@ -18,6 +18,7 @@ export interface ILabel {
   created_at: string;
   updated_at: string;
   id: number | string;
+  uuid?: string;
   name: string;
   description?: string;
   query: string;

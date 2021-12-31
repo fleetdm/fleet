@@ -4,7 +4,7 @@ kind: query
 spec:
   name: Count Apple applications installed
   platforms: macOS
-  description: Count the number of Apple applications installed on the machine.
+  description: Get the total number of Apple applications installed on the host system.
   query: SELECT COUNT(*) FROM apps WHERE bundle_identifier LIKE 'com.apple.%';
   purpose: Informational
   contributors: mike-j-thomas,noahtalerman,mikermcneil
@@ -136,7 +136,7 @@ spec:
   name: Get installed Windows software
   platforms: Windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
   purpose: Informational
   contributors: zwass
 ---
@@ -145,7 +145,7 @@ kind: query
 spec:
   name: Get laptops with failing batteries
   platforms: macOS
-  description:
+  description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
   contributors: zwass
@@ -175,7 +175,7 @@ kind: query
 spec:
   name: Get the version of the resident operating system
   platforms: macOS, Linux, Windows, FreeBSD
-  description: Shows system mounted devices and filesystems (not process specific).
+  description: Retrieves the version of the host(s) operating system(s).
   query: SELECT * FROM os_version;
   purpose: Informational
   contributors: zwass
@@ -255,7 +255,7 @@ kind: query
 spec:
   name: Get Windows machines with unencrypted hard disks
   platforms: Windows
-  description:
+  description: List all Windows machines with unencrypted hard disks.
   query: SELECT * FROM bitlocker_info WHERE protection_status = 0;
   purpose: Informational
   contributors: zwass
@@ -516,3 +516,90 @@ spec:
   query: select * from shimcache
   purpose: Informational
   contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get running docker containers
+  platforms: macOS, Linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications hogging memory
+  platforms: macOS, Linux, Windows
+  description: Returns top 10 applications or processes hogging memory the most.
+  query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Mac and Linux machines with unencrypted primary disks
+  platforms: macOS, Linux
+  description:
+  query: SELECT * FROM mounts m, disk_encryption d WHERE m.path= "/" AND m.device = d.name AND d.encrypted = 0;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get servers with root login in the last 24 hours
+  platforms: macOS, Linux, Windows
+  description: Returns servers with root login in the last 24 hours and the time the users where logged in.
+  query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active processes with Log4j running
+  platforms: macOS, Linux
+  description: Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename.
+  query: |
+    WITH target_jars AS (
+      SELECT DISTINCT path
+      FROM (
+          WITH split(word, str) AS(
+            SELECT '', cmdline || ' '
+            FROM processes
+            UNION ALL
+            SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)
+            FROM split
+            WHERE str != '')
+          SELECT word AS path
+          FROM split
+          WHERE word LIKE '%.jar'
+        UNION ALL
+          SELECT path
+          FROM process_open_files
+          WHERE path LIKE '%.jar'
+      )
+    )
+    SELECT path, matches
+    FROM yara
+    WHERE path IN (SELECT path FROM target_jars)
+      AND count > 0
+      AND sigrule IN (
+        'rule log4jJndiLookup {
+          strings:
+            $jndilookup = "JndiLookup"
+          condition:
+            $jndilookup
+        }',
+        'rule log4jJavaClass {
+          strings:
+            $javaclass = "org/apache/logging/log4j"
+          condition:
+            $javaclass
+        }'
+      );
+  purpose: Detection
+  contributors: zwass,tgauda
