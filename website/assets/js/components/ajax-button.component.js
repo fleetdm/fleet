@@ -15,7 +15,7 @@ parasails.registerComponent('ajaxButton', {
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
     'syncing',
-    'spinner'
+    'spinner', //
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -54,6 +54,7 @@ parasails.registerComponent('ajaxButton', {
     //…
   },
   mounted: async function(){
+    console.log(this.spinner);
     //…
   },
   beforeDestroy: function() {

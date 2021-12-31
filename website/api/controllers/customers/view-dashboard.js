@@ -30,15 +30,6 @@ module.exports = {
       throw {redirect: '/customers/new-license'};
     }
 
-    // let stripe = require('stripe')(sails.config.custom.stripeSecret);
-    // NOTE: leaving this out now 12/03
-    // let subscription = await stripe.subscriptions.retrieve(
-    //   thisSubscription.stripeSubscriptionId
-    // );
-    // if (!subscription) {
-    //   throw new Error('Stripe thinks this subscription doesnt exist.');
-    // }
-
 
 
     // Respond with view.

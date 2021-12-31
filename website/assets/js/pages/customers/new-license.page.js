@@ -9,9 +9,13 @@ parasails.registerPage('new-license', {
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
-    // Form rules
-    formRules: {
 
+    quoteFormRules: {
+      numberOfHosts: {required: true},
+    },
+
+    billingFormRules: {
+      paymentSource: {required: true},
     },
 
     // Syncing / loading state
@@ -52,6 +56,8 @@ parasails.registerPage('new-license', {
       // After payment is submitted, Display a success message and let them navigate to the dashboard
       this.syncing = true;
       this.orderComplete = true;
+      await this.forceRender();
+      this.$focus('[purpose="submit-button"]');
       this.syncing = false;
     },
 
@@ -61,7 +67,6 @@ parasails.registerPage('new-license', {
     },
 
     submittedQuoteForm: async function(quote) {
-
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
@@ -69,7 +74,9 @@ parasails.registerPage('new-license', {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }
-
+      // When the final submit has been rendered into existence, focus it for our friendly user.
+      await this.forceRender();
+      this.$focus('[purpose="submit-button"]');
     },
 
     clickScheduleDemo: async function() {
@@ -79,10 +86,14 @@ parasails.registerPage('new-license', {
     },
 
     clickResetForm: async function() {
-      this.formData = {};
+      // When the "X" is clicked...
+      // this.formData = {};
       this.formErrors = {};
       this.showBillingForm = false;
       this.showQuotedPrice = false;
+      // When the input field has been rendered back into existence, focus it for our friendly user.
+      await this.forceRender();
+      this.$focus('[purpose="quote-input"]');
     },
 
 

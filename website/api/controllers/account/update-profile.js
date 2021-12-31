@@ -150,19 +150,19 @@ module.exports = {
       }
     }
 
-    // If an email address change was requested, and re-confirmation is required,
-    // send the "confirm account" email.
-    if (desiredEmailEffect === 'begin-change' || desiredEmailEffect === 'modify-pending-change') {
-      await sails.helpers.sendTemplateEmail.with({
-        to: newEmailAddress,
-        subject: 'Your account has been updated',
-        template: 'email-verify-new-email',
-        templateData: {
-          fullName: fullName||this.req.me.fullName,
-          token: valuesToSet.emailProofToken
-        }
-      });
-    }
+    // // If an email address change was requested, and re-confirmation is required,
+    // // send the "confirm account" email.
+    // if (desiredEmailEffect === 'begin-change' || desiredEmailEffect === 'modify-pending-change') {
+    //   await sails.helpers.sendTemplateEmail.with({
+    //     to: newEmailAddress,
+    //     subject: 'Your account has been updated',
+    //     template: 'email-verify-new-email',
+    //     templateData: {
+    //       fullName: fullName||this.req.me.fullName,
+    //       token: valuesToSet.emailProofToken
+    //     }
+    //   });
+    // }
 
   }
 

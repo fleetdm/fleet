@@ -12,7 +12,7 @@ module.exports = {
     quoteId: {
       type: 'number',
       required: true,
-      description: 'TODO'
+      description: 'The quote to use (determines the price and number of hosts.)'
     },
 
     paymentSource: {
@@ -40,14 +40,6 @@ module.exports = {
 
   exits: {
 
-    forbidden: {
-      responseType: 'forbidden',
-    },
-
-    notFound: {
-      responseType: 'notFound'
-    },
-
     couldNotSaveBillingInfo: {
       description: 'The billing information provided could not be saved.',
       responseType: 'badRequest'
@@ -59,36 +51,42 @@ module.exports = {
   fn: async function (inputs) {
     const stripe = require('stripe')(sails.config.custom.stripeSecret);
 
-    let userRecord = await User.findOne({id: this.req.me.id});
     let quoteRecord = await Quote.findOne({id: inputs.quoteId});
-
-    if(!userRecord || !quoteRecord) {
-      throw 'notFound';
+    if(!quoteRecord) {
+      throw new Error(`Consistency violation: The specified quote (${inputs.quoteId}) no longer seems to exist.`);
     }
 
-    let doesUserHaveASubscription = await Subscription.findOne({user: userRecord.id});
     // If this user has a subscription, we'll throw an error.
-    if(doesUserHaveASubscription) {
-      throw 'forbidden';
+    let doesUserHaveAnExistingSubscription = await Subscription.findOne({user: this.req.me.id});
+    if(doesUserHaveAnExistingSubscription) {
+      throw new Error(`Consistency violation: The requesting user (${this.req.me.emailAddress}) already has an existing subscription!`);
     }
 
-    if(!userRecord.stripeCustomerId) {
-      let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-        emailAddress: userRecord.emailAddress
-      }).timeout(5000).retry();
-      userRecord = await User.updateOne({id: userRecord.id})
-      .set({
-        stripeCustomerId
-      });
-    }
+    // What if the stripe customer id doesn't already exist on the user?
+    // If so, handle this gracefully.  (But why gracefully? But why would this ever be the case?  TODO)
+    // let stripeCustomerId;
+    // if(this.req.me.stripeCustomerId) {
+    //   stripeCustomerId = this.req.me.stripeCustomerId;
+    // } else {
+    //   stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+    //     emailAddress: this.req.me.emailAddress
+    //   }).timeout(5000).retry();
 
+    //   await User.updateOne({id: this.req.me.id})
+    //   .set({
+    //     stripeCustomerId
+    //   });
+    // }
+
+    // Write new payment card info ("token") to Stripe's API.
     await sails.helpers.stripe.saveBillingInfo.with({
-      stripeCustomerId: userRecord.stripeCustomerId,
+      stripeCustomerId: this.req.me.stripeCustomerId,
       token: inputs.paymentSource.stripeToken
     })
     .intercept({ type: 'StripeCardError' }, 'couldNotSaveBillingInfo');
 
-    userRecord = await User.updateOne({ id: this.req.me.id })
+    // Save payment card info to our database.
+    await User.updateOne({ id: this.req.me.id })
     .set({
       hasBillingCard: true,
       billingCardBrand: inputs.paymentSource.billingCardBrand,
@@ -99,26 +97,27 @@ module.exports = {
 
     // Create the subscription for this order in Stripe
     const subscription = await stripe.subscriptions.create({
-      customer: userRecord.stripeCustomerId,
+      customer: this.req.me.stripeCustomerId,
       items: [
         {
           price: sails.config.custom.stripeSubscriptionProduct,
           quantity: quoteRecord.numberOfHosts,
         },
       ],
-      // eslint-disable-next-line camelcase
-      // trial_period_days: 30,
     });
 
-    // Generate the license key for this subscription;
-    let licenseKey = await sails.helpers.createLicenseKey.with({quoteId: inputs.quoteId, validTo: subscription.current_period_end});
+    // Generate the license key for this subscription
+    let licenseKey = await sails.helpers.createLicenseKey.with({
+      quoteId: inputs.quoteId,
+      validTo: subscription.current_period_end
+    });
 
     // Create the subscription record for this order.
     await Subscription.create({
-      organization: userRecord.organization,
+      organization: this.req.me.organization,
       numberOfHosts: quoteRecord.numberOfHosts,
       subscriptionPrice: quoteRecord.quotedPrice,
-      user: userRecord.id,
+      user: this.req.me.id,
       stripeSubscriptionId: subscription.id,
       nextBillingAt: subscription.current_period_end * 1000,
       fleetLicenseKey: licenseKey,
@@ -126,20 +125,16 @@ module.exports = {
 
     // Send the order confirmation template email
     await sails.helpers.sendTemplateEmail.with({
-      to: userRecord.emailAddress,
+      to: this.req.me.emailAddress,
       from: sails.config.custom.fromEmail,
       fromName: sails.config.custom.fromName,
-      subject: 'Your Fleet Premium Order',
+      subject: 'Your Fleet Premium order',
       template: 'email-order-confirmation',
       templateData: {
-        firstName: userRecord.firstName,
-        lastName: userRecord.lastName,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
       }
     });
-
-
-    // All done.
-    return;
 
   }
 

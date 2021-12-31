@@ -52,6 +52,12 @@ parasails.registerPage('dashboard', {
       this.modal = 'update-profile';
     },
 
+    clickUpdateBillingCardButton: function() {
+      this.modal = 'update-billing-card';
+      this.formData = { newPaymentSource: undefined };
+      this.formRules = { newPaymentSource: {required: true}};
+    },
+
     clickChangePassword: function() {
       this.formData = {};
       this.formRules = {
@@ -61,17 +67,52 @@ parasails.registerPage('dashboard', {
       this.modal = 'update-password';
     },
 
+    clickCopyLicenseKey: function() {
+      $('[purpose="copied-notification"]').finish();
+      $('[purpose="copied-notification"]').fadeIn(100).delay(2000).fadeOut(500);
+      navigator.clipboard.writeText(this.thisSubscription.fleetLicenseKey);
+    },
+
+    clickExpandLicenseKey: function() {
+      $('[purpose="license-key"]').toggleClass('show-overflow');
+    },
+
+    // clickRemoveCardButton: async function() {
+    //   this.modal = 'remove-billing-card';
+    //   this.formData.stripeToken = '';
+    // },
+
     closeModal: async function() {
       // Dismiss modal
       this.modal = '';
       await this._resetForms();
     },
-    _resetForms: async function() {
-      this.cloudError = '';
-      this.formData = {};
-      this.formRules = {};
-      this.formErrors = {};
-      await this.forceRender();
+
+    handleSubmittingUpdateBillingCard: async function(argins) {
+      var newPaymentSource = argins.newPaymentSource;
+      await Cloud.updateBillingCard.with(newPaymentSource);
+    },
+
+    submittedUpdateBillingCard: async function() {
+      Object.assign(this.me, _.pick(this.formData.newPaymentSource, ['billingCardLast4', 'billingCardBrand', 'billingCardExpMonth', 'billingCardExpYear']));
+      this.me.hasBillingCard = true;
+      // Dismiss modal
+      this.modal = '';
+      await this._resetForms();
+    },
+    submittedUpdateProfileForm: async function() {
+      this.syncing = true;
+      Object.assign(this.me, _.pick(this.formData, ['firstName', 'lastName', 'organization', 'emailAddress']));
+      this.modal = '';
+      await this._resetForms();
+      this.syncing = false;
+    },
+
+    submittedUpdatePasswordForm: async function() {
+      this.syncing = true;
+      this.modal = '';
+      await this._resetForms();
+      this.syncing = false;
     },
 
     // submittedRemoveCardForm: async function() {
@@ -86,54 +127,12 @@ parasails.registerPage('dashboard', {
     //   this.closeModal();
     // },
 
-    clickCopyLicenseKey: function() {
-      $('[purpose="copied-notification"]').finish();
-      $('[purpose="copied-notification"]').fadeIn(100).delay(3000).fadeOut(500);
-      navigator.clipboard.writeText(this.thisSubscription.fleetLicenseKey);
-    },
-
-    clickExpandLicenseKey: function() {
-      $('[purpose="license-key"]').toggleClass('show-overflow');
-    },
-
-    clickRemoveCardButton: async function() {
-      this.modal = 'remove-billing-card';
-      this.formData.stripeToken = '';
-    },
-
-    clickUpdateBillingCardButton: function() {
-      this.modal = 'update-billing-card';
-      this.formData = { newPaymentSource: undefined };
-      this.formRules = { newPaymentSource: {required: true}};
-    },
-
-    handleSubmittingUpdateBillingCard: async function(argins) {
-      var newPaymentSource = argins.newPaymentSource;
-      await Cloud.updateBillingCard.with(newPaymentSource);
-    },
-
-    submittedUpdateBillingCard: async function() {
-      Object.assign(this.me, _.pick(this.formData.newPaymentSource, ['billingCardLast4', 'billingCardBrand', 'billingCardExpMonth', 'billingCardExpYear']));
-      this.me.hasBillingCard = true;
-
-      // Dismiss modal
-      this.modal = '';
-      await this._resetForms();
-    },
-
-    submittedUpdateProfileForm: async function() {
-      this.syncing = true;
-      Object.assign(this.me, _.pick(this.formData, ['firstName', 'lastName', 'organization', 'emailAddress']));
-      this.modal = '';
-      await this._resetForms();
-      this.syncing = false;
-    },
-
-    submittedUpdatePasswordForm: async function() {
-      this.syncing = true;
-      this.modal = '';
-      await this._resetForms();
-      this.syncing = false;
+    _resetForms: async function() {
+      this.cloudError = '';
+      this.formData = {};
+      this.formRules = {};
+      this.formErrors = {};
+      await this.forceRender();
     },
   }
 });

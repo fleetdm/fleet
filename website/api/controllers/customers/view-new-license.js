@@ -27,10 +27,9 @@ module.exports = {
     if (!this.req.me) {
       throw {redirect: '/customers/register'};
     }
-    let userHasExistingSubscription = await Subscription.findOne({user: this.req.me.id});
-
 
     // If the user has a license key, we'll redirect them to the customer dashboard.
+    let userHasExistingSubscription = await Subscription.findOne({user: this.req.me.id});
     if (userHasExistingSubscription) {
       throw {redirect: '/customers/dashboard'};
     }

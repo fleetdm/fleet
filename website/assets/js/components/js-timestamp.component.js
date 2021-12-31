@@ -20,7 +20,7 @@ parasails.registerComponent('jsTimestamp', {
   props: [
     'at',// « The JS timestamp to format
     'short',// « Whether to shorten the formatted date by not including the time of day (may only be used with timeago, and even then only applicable in certain situations)
-    'format',// « one of: 'calendar', 'timeago', 'billing' (defaults to 'timeago'.  Otherwise, the "calendar" format displays data as US-style calendar dates with a four-character year, separated by dashes.  In other words: "MM-DD-YYYY". The "billing" format displays timestamp in an abrevated "timeago" format without the time of day, e.g. Dec 13, 2022 )
+    'format',// « one of: 'timeago', 'calendar', 'billing' (defaults to 'timeago'.  Otherwise, the "calendar" format displays data as US-style calendar dates with a four-character year, separated by dashes.  In other words: "MM-DD-YYYY". The "billing" format displays timestamp in an expanded calendar format without the time of day, e.g. Dec 13, 2022)
     'alwaysShowYear',// « (only for 'timeago') Whether to always include the year in the timestamp.
   ],
 
@@ -52,7 +52,7 @@ parasails.registerComponent('jsTimestamp', {
     if(this.format === undefined) {
       this.formatType = 'timeago';
     } else  {
-      if(!_.contains(['calendar', 'timeago', 'billing'], this.format)) { throw new Error('Unsupported `format` ('+this.format+') passed in to the JS timestamp component! Must be either \'calendar\' or \'timeago\'.'); }
+      if(!_.contains(['calendar', 'timeago', 'billing'], this.format)) { throw new Error('Unsupported `format` ('+this.format+') passed in to the JS timestamp component! Must be either \'calendar\', \'timeago\', or \'billing\'.'); }
       this.formatType = this.format;
     }
 

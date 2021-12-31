@@ -17,16 +17,19 @@
     font-weight: 700;
   }
 
-  input::-webkit-outer-spin-button,
-  input::-webkit-inner-spin-button {
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
-  input[type=number] {
+  input[type='number'] {
     -moz-appearance: textfield;
   }
 
-  [purpose="customer-portal-form"] {
+  [purpose='cloud-error'] {
+    max-width: fit-content;
+  }
+
+  [purpose='customer-portal-form'] {
     label {
       font-weight: 700;
       margin-bottom: 4px;
@@ -46,7 +49,7 @@
     }
   }
 
-  [purpose="submit-button"] {
+  [purpose='submit-button'] {
 
     border-radius: 4px;
     padding-top: 10px;
@@ -64,7 +67,7 @@
 
   }
 
-  [purpose="features-list"] {
+  [purpose='features-list'] {
     // min-width: 254px;
     word-wrap: overflow;
    ul {

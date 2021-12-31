@@ -21,7 +21,7 @@
             <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
           </div>
           <div class="col-12 col-lg-4 pt-3 pt-lg-0">
-            <strong>License key</strong><img class="d-inline-block ml-2" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">Copied to clipboard</span>
+            <strong>License key</strong><img class="d-inline-block ml-2" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">License key copied!</span>
             <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{thisSubscription.fleetLicenseKey}}</span></p>
           </div>
         </div>
@@ -33,29 +33,29 @@
       <h3 class="pb-4 pb-xl-3">Your details</h3>
         <div purpose="details-card" class="card card-body justify-content-top">
           <div class="row">
-            <div class="col-4">Organization:</div>
-            <div class="col-8 text-right">
+            <div class="col-sm-4 col-12 ">Organization:</div>
+            <div class="col-sm-8 col-12 text-right">
               <strong>{{me.organization}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
-            <div class="col-3">Name:</div>
-            <div class="col-9 text-right">
+            <div class="col-sm-3 col-12 ">Name:</div>
+            <div class="col-sm-9 col-12 text-right">
               <strong>{{me.firstName}} {{me.lastName}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
-            <div class="col-3">Email:</div>
-            <div class="col-9 text-right">
+            <div class="col-sm-3 col-12 ">Email:</div>
+            <div class="col-sm-9 col-12 text-right">
               <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
-            <div class="col-3">Password:</div>
-            <div class="col-9 text-right">
+            <div class="col-sm-3 col-12 ">Password:</div>
+            <div class="col-sm-9 col-12 text-right">
               <strong>••••••••</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickChangePassword()">
             </div>
           </div>
@@ -68,7 +68,7 @@
           <div class="row pb-3">
             <div class="col-1"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A small credit card"></div>
             <div class="col">
-              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"><span style="float: right; cursor: pointer;" class="text-right d-none" @click="clickRemoveCardButton()"><a>remove</a></span></p>
+              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"></p>
             </div>
           </div>
           <div class="row pb-3">
@@ -79,22 +79,24 @@
               <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
-          <div class="row" purpose="contact">
-            <div style="max-width: 32px;" class="col-1 px-0">
-              <img style="display: inline-block; height: 16px; width: 16px; margin-top: 5px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
-            </div>
-            <div class="col pl-1">
-              <p><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+            <div purpose="contact">
+            <div class="row">
+              <div style="max-width: 32px;" class="col-1 pr-0">
+                <img style="display: inline-block; height: 16px; width: 16px; margin-top: 5px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              </div>
+              <div class="col pl-1">
+                <p><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
     </div>
-    <div class="pt-4">
+    <div class="pt-4 d-block">
       <div class="btn btn-info btn-sm mr-md-3 mb-3 mb-md-0" purpose="deploy-button">
         <a href="/docs/deploying/installation">
-          Learn how to deploy Fleet
+          How to deploy Fleet
         </a>
       </div>
       <div class="btn btn-outline-secondary btn-sm" purpose="slack-button">
@@ -142,7 +144,7 @@
           </div>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -167,9 +169,10 @@
             <div class="invalid-feedback" v-else-if="formErrors.newPassword">Please enter your new password.</div>
             <p class="mt-2"> Minimum length is 8 characters</p>
           </div>
+          <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -184,10 +187,10 @@
       <ajax-form :handle-submitting="handleSubmittingUpdateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateBillingCard()">
         <div class="modal-body">
           <stripe-card-element :stripe-publishable-key="stripePublishableKey" :is-errored.sync="formErrors.newPaymentSource" v-model="formData.newPaymentSource" key="billing-card" ref="billingcardref"></stripe-card-element>
-          <p class="text-danger" v-if="cloudError"><small>An error occured while processing your request. Please check your information and try again, or <a href="/contact">contact support</a> if the error persists.</small></p>
+          <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="pt-3">
-          <ajax-button :syncing="syncing" class="btn btn-sm btn-block btn-info">Save card</ajax-button>
+          <ajax-button spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save card</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -203,7 +206,7 @@
           <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
         </div>
       </ajax-form>
     </div>

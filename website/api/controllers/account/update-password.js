@@ -36,10 +36,9 @@ module.exports = {
 
   fn: async function (inputs) {
 
-    let userRecord = await User.findOne({id: this.req.me.id});
-
-    await sails.helpers.passwords.checkPassword(inputs.oldPassword, userRecord.password)
+    await sails.helpers.passwords.checkPassword(inputs.oldPassword, this.req.me.password)
     .intercept('incorrect', 'badPassword');
+
     // Hash the new password.
     var hashed = await sails.helpers.passwords.hashPassword(inputs.newPassword);
 

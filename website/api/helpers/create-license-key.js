@@ -39,8 +39,6 @@ module.exports = {
 
     let quoteToCreateLicenseFrom = await Quote.findOne({id: inputs.quoteId});
 
-    let userRecord = await User.findOne({id: quoteToCreateLicenseFrom.user});
-
     let licenseOpts = {
       iss: 'Fleet Device Management Inc.',
       exp: inputs.validTo,
