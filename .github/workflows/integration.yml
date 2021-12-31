@@ -1,0 +1,21 @@
+name: Integration test
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  run-preview:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start tunnel
+      run: |
+        npm install -g localtunnel
+        lt --port 8080 &
+        sleep 5
+
+    - name: Start Fleet server
+      timeout-minutes: 60
+      run: |
+        npm install -g fleetctl
+        fleetctl preview
