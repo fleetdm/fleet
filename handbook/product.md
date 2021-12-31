@@ -73,9 +73,11 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
-To try stuff out with Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
+To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
-To target a different version of Fleet, you can use the `--tag` argument to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag='main'`
+To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
+
+To start preview without starting the simulated hosts, use the `--no-hosts` flag (eg. `fleetctl preview --no-hosts`).
 
 ### Why human-oriented QA?
 
