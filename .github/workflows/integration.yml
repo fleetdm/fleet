@@ -45,13 +45,12 @@ jobs:
         lt --port 1337 --subdomain ${{ needs.gen.outputs.subdomain }} &
 
     - name: Start Fleet server
-      timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
-        sleep 3600
+        sleep 900
 
   wait-server:
    runs-on: ubuntu-latest
@@ -79,6 +78,10 @@ jobs:
         done
       
   orbit-macos:
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
     runs-on: macos-latest
     needs: [gen, wait-server]
     steps:
@@ -92,7 +95,7 @@ jobs:
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
         sudo installer -pkg fleet-osquery.pkg -target /
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
@@ -101,6 +104,10 @@ jobs:
         done
 
   orbit-ubuntu:
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
     runs-on: ubuntu-latest
     needs: [gen, wait-server]
     steps:
@@ -123,12 +130,11 @@ jobs:
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
+        ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
         sudo dpkg -i fleet-osquery*
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
           sudo systemctl status orbit.service || true
-          tail /var/log/orbit/orbit.stderr.log || true
           sleep 1
         done
