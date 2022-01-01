@@ -70,7 +70,7 @@ jobs:
         ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
         until ./build/fleetctl login
         do
-          echo "Retry in 5s..."
+          echo "Retrying in 5s..."
           sleep 5
         done
       
@@ -91,3 +91,8 @@ jobs:
         echo $SECRET
         fleetctl package --type pkg --fleet-url=https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt --enroll-secret=$SECRET
         sudo installer -pkg fleet-osquery.pkg -target /
+        until fleetctl get hosts | grep $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sleep 1
+        done
