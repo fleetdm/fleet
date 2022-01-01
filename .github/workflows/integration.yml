@@ -33,4 +33,4 @@ jobs:
         check_artifacts: true
 
     - name: Start Fleet server
-      run: ./build/fleetctl preview --no-hosts
+      run: chmod +x ./build/fleetctl && ./build/fleetctl preview --no-hosts
