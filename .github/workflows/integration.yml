@@ -1,0 +1,24 @@
+name: Integration test updates
+
+on:
+  
+  pull_request: #TODO Delete
+
+  workflow_dispatch: # Manual
+  schedule:
+  - cron: '0 2 * * *' # Nightly 2AM UTC
+
+jobs:
+  gen-hostname:
+    runs-on: ubuntu-latest
+    outputs:
+      uuid: ${{ steps.gen.outputs.uuid }}
+    steps:
+    - id: gen
+      run: echo "::set-output name=uuid::$(uuidgen)"
+  
+  echo-hostname:
+    runs-on: ubuntu-latest
+    needs: gen-hostname
+    steps:
+    - run: echo ${{ needs.gen-hostname.outputs.uuid }}
