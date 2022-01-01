@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: gen-hostname
     steps:
-    - run: echo ${{ needs.gen-hostname.outputs.uuid }}
-
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
@@ -33,12 +31,15 @@ jobs:
         path: build
         check_artifacts: true
 
+    - name: Start tunnel
+      run: |
+        npm install -g localtunnel
+        lt --port 1337 --subdomain fleet-preview-${{ needs.gen-hostname.outputs.uuid }} &
+
     - name: Start Fleet server
       timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
-        lt --port 1337 --subdomain fleet-preview-${{ needs.gen-hostname.outputs.uuid }} &
-        sleep 5
         ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
         ./build/fleetctl get enroll-secret
