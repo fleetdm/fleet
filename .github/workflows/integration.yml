@@ -8,6 +8,10 @@ on:
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
+env:
+  EMAIL: admin@example.com
+  PASSWORD: admin123#
+
 jobs:
   gen-hostname:
     runs-on: ubuntu-latest
@@ -64,7 +68,6 @@ jobs:
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
-        export EMAIL=admin@example.com PASSWORD=admin123#
         until ./build/fleetctl login
         do
           echo "Retry in 5s..."
@@ -72,8 +75,17 @@ jobs:
         done
       
   macos-job:
-   runs-on: macos-latest
-   needs: wait-server
-   steps:
-   - name: Step 1
-     run: npm install -g fleetctl
+    runs-on: macos-latest
+    needs: wait-server
+    steps:
+    - name: Install dependencies
+      run: |
+        npm install -g fleetctl
+        brew install jq
+    - name: Make package
+      run: |
+        fleetctl login
+        SECRET=$(fleetctl get enroll_secret --json | jq '.spec.secrets[0].secret')
+        echo $SECRET
+        fleetctl package --type pkg --fleet-url=https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt --enroll-secret=$SECRET
+        sudo installer -pkg fleet-osquery.pkg -target /
