@@ -119,5 +119,6 @@ jobs:
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
+          sudo systemctl status orbit.service
           sleep 1
         done
