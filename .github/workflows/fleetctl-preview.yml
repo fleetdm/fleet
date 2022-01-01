@@ -2,12 +2,13 @@ name: Test fleetctl preview
 
 on:
   pull_request:
-  workflow_dispatch:
+  workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
 jobs:
   test-preview:
+    timeout-minutes: 60
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
@@ -16,7 +17,7 @@ jobs:
     steps:
     - name: Install Docker
       # Docker needs to be installed manually on macOS.
-      if: matrix.os == 'macos-latest'
+      if: contains(matrix.os, 'macos')
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
         brew install --cask docker
@@ -33,7 +34,6 @@ jobs:
         sleep 5
 
     - name: Test fleetctl preview
-      timeout-minutes: 60
       run: |
         npm install -g fleetctl
         fleetctl preview
