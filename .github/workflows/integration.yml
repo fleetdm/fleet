@@ -43,6 +43,7 @@ jobs:
         ./build/fleetctl preview --no-hosts
         ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
         ./build/fleetctl get enroll-secret
+        sleep 3600
 
   wait-server:
    runs-on: ubuntu-latest
@@ -66,7 +67,7 @@ jobs:
         export EMAIL=admin@example.com PASSWORD=admin123#
         until ./build/fleetctl login
         do
-          echo "Retry"
+          echo "Retry in 5s..."
           sleep 5
         done
       
