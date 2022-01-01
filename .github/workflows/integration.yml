@@ -23,6 +23,7 @@ jobs:
     steps:
     - run: echo ${{ needs.gen-hostname.outputs.uuid }}
 
+    # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -33,4 +34,8 @@ jobs:
         check_artifacts: true
 
     - name: Start Fleet server
-      run: chmod +x ./build/fleetctl && ./build/fleetctl preview --no-hosts
+      run: |
+        chmod +x ./build/fleetctl
+        ./build/fleetctl preview --no-hosts
+        false
+        echo hello
