@@ -90,6 +90,7 @@ jobs:
         npm install -g fleetctl
     - name: Install Orbit
       run: |
+        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
@@ -124,6 +125,7 @@ jobs:
         check_artifacts: true
     - name: Install Orbit
       run: |
+        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         chmod +x ./build/fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
