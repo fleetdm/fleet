@@ -61,6 +61,7 @@ jobs:
     - name: Attempt login
       timeout-minutes: 5
       run: |
+        chmod +x ./build/fleetctl
         ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
         export EMAIL=admin@example.com PASSWORD=admin123#
         until ./build/fleetctl login
