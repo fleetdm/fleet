@@ -1,7 +1,6 @@
 name: Test fleetctl preview
 
 on:
-  pull_request:
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
