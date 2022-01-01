@@ -117,7 +117,8 @@ jobs:
         check_artifacts: true
     - name: Install Orbit
       run: |
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        chmod +x ./build/fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
