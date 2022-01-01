@@ -26,10 +26,11 @@ jobs:
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
-        workflow: Build binaries
+        workflow: build-binaries.yaml
         branch: main
         name: build
         path: build
+        check_artifacts: true
 
     - name: Start Fleet server
       run: ./build/fleetctl preview --no-hosts
