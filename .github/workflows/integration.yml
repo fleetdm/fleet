@@ -76,7 +76,7 @@ jobs:
       
   macos-job:
     runs-on: macos-latest
-    needs: wait-server
+    needs: [gen-hostname, wait-server]
     steps:
     - name: Install dependencies
       run: |
