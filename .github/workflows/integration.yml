@@ -77,6 +77,7 @@ jobs:
           sleep 5
         done
       
+      # 4203018E-580F-C1B5-9525-B745CECA79EB
   orbit-macos:
     strategy:
       matrix:
@@ -125,7 +126,7 @@ jobs:
         check_artifacts: true
     - name: Install Orbit
       run: |
-        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         chmod +x ./build/fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
