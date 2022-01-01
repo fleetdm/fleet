@@ -107,16 +107,22 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+    - name: Download binaries
+      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      with:
+        workflow: build-binaries.yaml
+        branch: main
+        name: build
+        path: build
+        check_artifacts: true
     - name: Install Orbit
       run: |
-        fleetctl config set --address ${{ needs.gen.outputs.address }}
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
+        ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
         sudo dpkg -i fleet-osquery*
         sudo systemctl start orbit.service
         until fleetctl get hosts | grep -iF $(hostname -s);
