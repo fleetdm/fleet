@@ -34,8 +34,11 @@ jobs:
         check_artifacts: true
 
     - name: Start Fleet server
+      timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
-        false
-        echo hello
+        lt --port 1337 --subdomain fleet-preview-${{ needs.gen-hostname.outputs.uuid }} &
+        sleep 5
+        ./build/fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
+        ./build/fleetctl get enroll-secret
