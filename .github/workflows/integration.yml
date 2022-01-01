@@ -115,7 +115,7 @@ jobs:
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
-        sudo dpkg -i fleet-osquery*
+        sudo apt install fleet-osquery*
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
