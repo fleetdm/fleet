@@ -84,6 +84,8 @@ jobs:
         brew install jq
     - name: Make package
       run: |
+        hostname
+        fleetctl config set --address https://fleet-preview-${{ needs.gen-hostname.outputs.uuid }}.loca.lt
         fleetctl login
         SECRET=$(fleetctl get enroll_secret --json | jq '.spec.secrets[0].secret')
         echo $SECRET
