@@ -78,7 +78,7 @@ jobs:
           sleep 5
         done
       
-  macos-job:
+  orbit-macos:
     runs-on: macos-latest
     needs: [gen, wait-server]
     steps:
@@ -94,6 +94,28 @@ jobs:
         echo "Hostname: $(hostname -s)"
         fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
         sudo installer -pkg fleet-osquery.pkg -target /
+        until fleetctl get hosts | grep -iF $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sleep 1
+        done
+
+  orbit-ubuntu:
+    runs-on: macos-latest
+    needs: [gen, wait-server]
+    steps:
+    - name: Install dependencies
+      run: |
+        npm install -g fleetctl
+    - name: Make package
+      run: |
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
+        fleetctl login
+        SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        echo "Hostname: $(hostname -s)"
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
+        sudo dpkg -i fleet-osquery*
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
