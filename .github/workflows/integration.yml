@@ -107,7 +107,6 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
-        apt install jq
     - name: Install Orbit
       run: |
         fleetctl config set --address ${{ needs.gen.outputs.address }}
@@ -120,6 +119,7 @@ jobs:
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sudo systemctl status orbit.service
+          sudo systemctl status orbit.service || true
+          tail /var/log/orbit/orbit.stderr.log || true
           sleep 1
         done
