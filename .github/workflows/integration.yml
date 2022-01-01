@@ -107,6 +107,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
+        apt install jq
     - name: Install Orbit
       run: |
         fleetctl config set --address ${{ needs.gen.outputs.address }}
