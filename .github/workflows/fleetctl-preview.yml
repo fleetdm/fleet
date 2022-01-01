@@ -1,18 +1,21 @@
-name: Integration test
+name: Test fleetctl preview
 
 on:
-  workflow_dispatch:
   pull_request:
+  workflow_dispatch:
+  schedule:
+  - cron: '0 2 * * *' # Nightly 2AM UTC
 
 jobs:
-  run-preview:
+  test-preview:
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Docker
+      # Docker needs to be installed manually on macOS.
       if: matrix.os == 'macos-latest'
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
@@ -29,7 +32,7 @@ jobs:
         lt --port 1337 &
         sleep 5
 
-    - name: Start Fleet server
+    - name: Test fleetctl preview
       timeout-minutes: 60
       run: |
         npm install -g fleetctl
