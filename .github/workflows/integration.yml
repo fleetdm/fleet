@@ -85,7 +85,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
-    - name: Make package
+    - name: Install Orbit
       run: |
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
@@ -101,13 +101,13 @@ jobs:
         done
 
   orbit-ubuntu:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: [gen, wait-server]
     steps:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
-    - name: Make package
+    - name: Install Orbit
       run: |
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl login
@@ -115,7 +115,7 @@ jobs:
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET
-        sudo apt install fleet-osquery*
+        sudo dpkg -i fleet-osquery*
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
