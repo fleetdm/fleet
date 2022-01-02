@@ -194,6 +194,9 @@ jobs:
       run: |
         msiexec /a /quiet /passive /lv ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+
     - name: Check installation
       shell: bash 
       run: |
