@@ -192,12 +192,13 @@ jobs:
     
     - name: Install Orbit
       run: |
+        Rename-Computer -NewName windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
 
     - name: Check installation
       shell: bash 
       run: |
-        until fleetctl get hosts | grep -iF $(hostname -s);
+        until fleetctl get hosts | grep -iF 'windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}';
         do
           echo "Awaiting enrollment..."
           sudo systemctl status orbit.service || true
