@@ -194,52 +194,13 @@ jobs:
     
 
     - name: Install Orbit
-      # change hostname from https://www.nickdu.com/?p=655
       run: |
-        $hostname = "windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}"
-        echo Modifying registry keys...
-
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName" /v "ComputerName" /d "$hostname
-        " -f
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName" /v "ComputerName" /d "$hostname
-        " -f 
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\ControlSet002\Control\ComputerName\ComputerName" /v "ComputerName" /d "$hostname
-        " -f 
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Control\ComputerName\ActiveComputerName" /v "ComputerName" /d "$hostname
-        " -f 
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Control\ComputerName\ComputerName" /v "ComputerName" /d "$hostname
-        " -f 
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\services\Tcpip\Parameters" /v "Hostname" /d "$hostname
-        " -f 
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\services\Tcpip\Parameters" /v "NV Hostname" /d "$hostname
-        " -f
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\Tcpip\Parameters" /v "Hostname" /d "$hostname
-        " -f
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\Tcpip\Parameters" /v "NV Hostname" /d "$hostname
-        " -f
-        reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v "DefaultDomainName" /d "$hostname
-        " -f
-        reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v "AltDefaultDomainName" /d "$hostname
-        " -f
-
-        echo Finish updating registry...
-
-        echo Update DNS...
-        ipconfig /renew
-        ipconfig /flushdns
-        ipconfig /registerdns
-        echo Finish updating DNS...
-
-        set computername=$hostname
-
-        cmd /c "wmic computersystem where name='%computername%' call rename name='windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}'"
-
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
 
     - name: Check installation
       shell: bash 
       run: |
-        until fleetctl get hosts | grep -iF 'windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}';
+        until fleetctl get hosts | grep -iF $(hostname);
         do
           echo "Awaiting enrollment..."
           sleep 1
