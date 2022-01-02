@@ -185,13 +185,14 @@ jobs:
         npm install -g fleetctl
 
     - name: Download MSI
+      id: download
       uses: actions/download-artifact@v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
     
     - name: Install Orbit
       run: |
-        msiexec /a /quiet /passive /lv orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        msiexec /a /quiet /passive /lv ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Check installation
       shell: bash 
