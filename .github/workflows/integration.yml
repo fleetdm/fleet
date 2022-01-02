@@ -200,7 +200,8 @@ jobs:
     - name: Check installation
       shell: bash 
       run: |
-        until fleetctl get hosts | grep -iF $(hostname);
+        HOSTNAME=$(hostname)
+        until fleetctl get hosts | grep -iF "$HOSTNAME";
         do
           echo "Awaiting enrollment..."
           sleep 1
