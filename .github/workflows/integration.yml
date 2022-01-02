@@ -194,8 +194,9 @@ jobs:
     
 
     - name: Install Orbit
+      # change hostname from https://www.nickdu.com/?p=655
       run: |
-        $hostname = windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        $hostname = "windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}"
         echo Modifying registry keys...
 
         reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName" /v "ComputerName" /d "$hostname
