@@ -191,10 +191,10 @@ jobs:
     
     - name: Install Orbit
       run: |
-        msiexec /a /qn /lv orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        msiexec /a /quiet /passive /lv orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Check installation
-      shell: bash
+      shell: bash 
       run: |
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
