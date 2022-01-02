@@ -80,7 +80,7 @@ jobs:
           echo "Retrying in 5s..."
           sleep 5
         done
-        TOKEN=cat ~/.fleet/config| grep token | awk '{ print $2 }'
+        TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
         echo "::set-output name=token::$TOKEN"
       
   orbit-macos:
@@ -176,6 +176,7 @@ jobs:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
         osqueryd-channel: ['stable', 'edge' ]
+    needs: [gen, login, orbit-windows-build]
     runs-on: windows-latest
     steps:
     - name: Install dependencies
@@ -187,3 +188,14 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+    
+    - name: Install and check
+      shell: bash
+      run: |
+        msiexec /i orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        until fleetctl get hosts | grep -iF $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sudo systemctl status orbit.service || true
+          sleep 1
+        done
