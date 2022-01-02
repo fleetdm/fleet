@@ -11,6 +11,8 @@ on:
 env:
   EMAIL: admin@example.com
   PASSWORD: admin123#
+  # Use instance identifier to allow for duplicate UUIDs
+  FLEET_OSQUERY_HOST_IDENTIFIER: instance
 
 jobs:
   gen:
