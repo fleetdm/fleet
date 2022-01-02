@@ -78,7 +78,6 @@ jobs:
           sleep 5
         done
       
-      # 4203018E-580F-C1B5-9525-B745CECA79EB
   orbit-macos:
     strategy:
       matrix:
@@ -142,3 +141,31 @@ jobs:
           sudo systemctl status orbit.service || true
           sleep 1
         done
+
+
+  orbit-windows-build:
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
+    runs-on: ubuntu-latest
+    needs: [gen, wait-server]
+    steps:
+    - name: Install dependencies
+      run: |
+        docker pull fleetdm/wix:latest &
+        npm install -g fleetctl
+    - name: Install Orbit
+      run: |
+        fleetctl config set --address ${{ needs.gen.outputs.address }}
+        fleetctl login
+        SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        echo "Hostname: $(hostname -s)"
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi        
