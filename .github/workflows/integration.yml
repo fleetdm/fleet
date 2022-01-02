@@ -142,7 +142,15 @@ jobs:
           sleep 1
         done
 
-
+  test-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm install -g fleetctl
+        fleetctl --version
+        
   orbit-windows-build:
     strategy:
       matrix:
