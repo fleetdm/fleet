@@ -192,7 +192,7 @@ jobs:
     
     - name: Install Orbit
       run: |
-        Rename-Computer -NewName windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        Rename-Computer -NewName windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }} -Force
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
 
     - name: Check installation
