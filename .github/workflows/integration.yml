@@ -1,9 +1,7 @@
-name: Integration test updates
+name: Test Orbit & Preview
 
 on:
-  
-  pull_request: #TODO Delete
-
+  pull_request: #TODO remove
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
@@ -47,12 +45,13 @@ jobs:
         lt --port 1337 --subdomain ${{ needs.gen.outputs.subdomain }} &
 
     - name: Start Fleet server
+      timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl preview --no-hosts
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
-        sleep 900
+        sleep 600
 
   wait-server:
    runs-on: ubuntu-latest
