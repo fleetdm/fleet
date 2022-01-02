@@ -96,10 +96,10 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
@@ -122,6 +122,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -134,7 +135,6 @@ jobs:
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         chmod +x ./build/fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
@@ -159,9 +159,9 @@ jobs:
       run: |
         docker pull fleetdm/wix:latest &
         npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
     - name: Build Orbit
       run: |
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
         SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
@@ -185,6 +185,7 @@ jobs:
       shell: bash
       run: |
         npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Download MSI
       id: download
