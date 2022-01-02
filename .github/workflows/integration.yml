@@ -51,6 +51,8 @@ jobs:
         ./build/fleetctl preview --no-hosts
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
+        cd ~/.fleet/preview
+        docker compose logs --follow fleet01 fleet02
         sleep 600
 
   login:
@@ -190,17 +192,18 @@ jobs:
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
     
+
     - name: Install Orbit
       run: |
+        cmd /c "wmic computersystem where name='%computername%' call rename name='windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}'"
         Rename-Computer -NewName windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }} -Force
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
 
     - name: Check installation
       shell: bash 
       run: |
-        until fleetctl get hosts | grep -iF 'windows-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}';
+        until fleetctl get hosts | grep -iF $(hostname);
         do
           echo "Awaiting enrollment..."
-          sudo systemctl status orbit.service || true
           sleep 1
         done
