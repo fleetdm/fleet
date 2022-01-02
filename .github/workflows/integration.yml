@@ -192,7 +192,7 @@ jobs:
     - name: Install and check
       shell: bash
       run: |
-        msiexec /i orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        msiexec /a /qn /lv orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
