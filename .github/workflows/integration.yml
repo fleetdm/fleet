@@ -52,7 +52,7 @@ jobs:
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
         cd ~/.fleet/preview
-        docker compose logs --follow fleet01 fleet02
+        docker compose logs --follow fleet01 fleet02 &
         sleep 600
 
   login:
