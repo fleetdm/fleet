@@ -1,12 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { connect, useDispatch } from "react-redux";
+import { useQuery } from "react-query";
 import { size } from "lodash";
 
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
 import { IConfig } from "interfaces/config";
 import { IError } from "interfaces/errors";
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
+
+import enrollSecretsAPI from "services/entities/enroll_secret";
+import configAPI from "services/entities/config";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 // @ts-ignore
@@ -28,31 +35,67 @@ interface IFormData {}
 
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
+
+  // ===== local state
+  const [appConfig, setAppConfig] = useState<any>();
+  const [smtpConfigured, setSmtpConfigured] = useState<any>();
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isLoadingConfigError, setIsLoadingConfigError] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
 
   const onFormSubmit = (formData: IFormData) => {
-    const diff = deepDifference(formData, appConfig);
+    // const diff = deepDifference(formData, appConfig);
 
-    dispatch(updateConfig(diff))
-      .then(() => {
-        dispatch(renderFlash("success", "Settings updated."));
+    // dispatch(updateConfig(diff))
+    //   .then(() => {
+    //     dispatch(renderFlash("success", "Settings updated."));
 
-        return false;
-      })
-      .catch((errors: any) => {
-        // TODO: Check out this error handling REP
-        if (errors.base) {
-          dispatch(renderFlash("error", errors.base));
-        }
+    //     return false;
+    //   })
+    //   .catch((errors: any) => {
+    //     // TODO: Check out this error handling REP
+    //     if (errors.base) {
+    //       dispatch(renderFlash("error", errors.base));
+    //     }
 
-        return false;
-      });
+    //     return false;
+    //   });
 
     return false;
   };
 
-  const { configured: smtpConfigured } = appConfig; // there's a interface for config to find these
+  const getConfig = useCallback(async () => {
+    setIsLoadingConfig(true);
+    setIsLoadingConfigError(false);
+    let result;
+    try {
+      result = await configAPI.loadAll().then((response) => response);
+      setAppConfig(result);
+      setSmtpConfigured(result.configured);
+    } catch (error) {
+      console.log(error);
+      setIsLoadingConfigError(true);
+    } finally {
+      setIsLoadingConfig(false);
+    }
+    return result;
+  }, []);
+
   const formData = { ...appConfig, enable_smtp: smtpConfigured };
+
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    error: loadingGlobalSecretsError,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
+    {
+      enabled: true,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
 
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -64,7 +107,7 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a href="#organization-info">Organization info</a>
+              <a href="#organization-info">Organization infozzz</a>
             </li>
             <li>
               <a href="#fleet-web-address">Fleet web address</a>
@@ -97,9 +140,9 @@ const AppSettingsPage = (): JSX.Element => {
         <AppConfigForm
           formData={formData}
           handleSubmit={onFormSubmit}
-          serverErrors={error} // this will be handled in the form itself with local state
+          serverErrors={undefined} // this will be handled in the form itself with local state
           smtpConfigured={smtpConfigured}
-          enrollSecret={enrollSecret}
+          enrollSecret={globalSecrets}
         />
       </div>
     </div>
