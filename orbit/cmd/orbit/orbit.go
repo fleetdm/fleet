@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -116,23 +117,27 @@ func main() {
 
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
+			if logDir := filepath.Dir(logf); logDir != "." {
+				if err := secure.MkdirAll(logDir, constant.DefaultDirMode); err != nil {
+					panic(err)
+				}
+			}
 			logFile = &lumberjack.Logger{
 				Filename:   logf,
 				MaxSize:    25, // megabytes
 				MaxBackups: 3,
 				MaxAge:     28, // days
 			}
-			// First, MultiLevelWriter acts similar to io.MultiWriter: "If a listed writer returns
-			// an error, that overall write operation stops and returns the error; it does not
-			// continue down the list."
-			// Second, on Windows Orbit runs as a Windows Service, which fails to write to os.Stderr
-			// (#3100).
-			//
-			// For those two reasons, we set the logFile first here.
-			log.Logger = log.Output(zerolog.MultiLevelWriter(
-				zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-			))
+			if runtime.GOOS == "windows" {
+				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
+				// "write /dev/stderr: The handle is invalid" (see #3100). Thus, we log to the logFile only.
+				log.Logger = log.Output(zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true})
+			} else {
+				log.Logger = log.Output(zerolog.MultiLevelWriter(
+					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				))
+			}
 		} else {
 			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
 		}
@@ -225,7 +230,7 @@ func main() {
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
 		if logFile != nil {
-			// Redirect osqueryd's stderr to the logFile.
+			// If set, redirect osqueryd's stderr to the logFile.
 			options = append(options, osquery.WithStderr(logFile))
 		}
 
@@ -361,7 +366,6 @@ func main() {
 		r, _ := osquery.NewRunner(osquerydPath, options...)
 		g.Add(r.Execute, r.Interrupt)
 
-		// Extension tables not yet supported on Windows.
 		ext := table.NewRunner(r.ExtensionSocketPath())
 		g.Add(ext.Execute, ext.Interrupt)
 

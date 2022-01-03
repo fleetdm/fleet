@@ -82,7 +82,7 @@ func WithDataPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
 		r.dataPath = path
 
-		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
