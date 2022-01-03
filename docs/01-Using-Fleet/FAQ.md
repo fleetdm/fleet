@@ -17,6 +17,7 @@
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
+- [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -178,3 +179,7 @@ Failed to run docker-compose
 ```
 
 You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
+
+## How does Fleet deal with IP duplication?
+
+Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - Fleet's teams feature can be used to restrict queries to specific hosts.
