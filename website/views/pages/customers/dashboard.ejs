@@ -118,7 +118,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label for="organization">Organization</label>
-            <input class="form-control" id="organization" type="text" v-model.trim="formData.organization" autocomplete="">
+            <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" autocomplete="">
             <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
           </div>
           <div class="row">
@@ -144,7 +144,7 @@
           </div>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -159,7 +159,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label for="oldPassword">Current password</label>
-            <input class="form-control" type="password" id="oldPassword" v-model.trim="formData.oldPassword" autocomplete="password">
+            <input class="form-control" type="password" id="oldPassword" :class="[formErrors.oldPassword ? 'is-invalid' : '']" v-model.trim="formData.oldPassword" autocomplete="password">
             <div class="invalid-feedback" v-if="formErrors.oldPassword">Please enter your current password.</div>
           </div>
           <div class="form-group">
@@ -169,10 +169,11 @@
             <div class="invalid-feedback" v-else-if="formErrors.newPassword">Please enter your new password.</div>
             <p class="mt-2"> Minimum length is 8 characters</p>
           </div>
-          <cloud-error v-if="cloudError"></cloud-error>
+          <cloud-error v-if="cloudError === 'badPassword'">Incorrect current password.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save</ajax-button>
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -190,7 +191,7 @@
           <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="pt-3">
-          <ajax-button spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info">Save card</ajax-button>
+          <ajax-button spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save card</ajax-button>
         </div>
       </ajax-form>
     </div>

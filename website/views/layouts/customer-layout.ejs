@@ -62,7 +62,7 @@
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
           </a>
           <div>
-            <a href="/logout" class="header-link justify-content-end px-3 py-2 mr-4 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+            <a href="/logout" class="header-link justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
           </div>
         </div>
       </div>
@@ -76,7 +76,6 @@
             <div class="d-flex">
               © 2021 Fleet Device Management Inc.
               <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
-              <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" href="/logout">Log out</a>
             </div>
           </div>
         </div>

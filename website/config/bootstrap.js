@@ -59,7 +59,7 @@ module.exports.bootstrap = async function() {
   }//∞
 
   // By convention, this is a good place to set up fake data during development.
-  let adminRecord = await User.create({
+  let adminUser = await User.create({
     emailAddress: 'admin@example.com',
     firstName: 'Ryan',
     lastName: 'Dahl',
@@ -69,10 +69,10 @@ module.exports.bootstrap = async function() {
   }).fetch();
 
   let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-    emailAddress: adminRecord.emailAddress
+    emailAddress: adminUser.emailAddress
   }).timeout(5000).retry();
 
-  await User.updateOne({id: adminRecord.id})
+  await User.updateOne({id: adminUser.id})
   .set({
     stripeCustomerId
   });

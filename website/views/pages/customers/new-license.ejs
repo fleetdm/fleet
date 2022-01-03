@@ -43,7 +43,9 @@
               <stripe-card-element class="mb-3" id="card" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
               v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
             </div>
-            <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">The billing card provided could not be used. Please use another card or <a href="/contact">contact support</a></cloud-error>
+            <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
+              <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a></p>
+            </cloud-error>
             <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
             <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4">Get license key</ajax-button>
           </ajax-form>

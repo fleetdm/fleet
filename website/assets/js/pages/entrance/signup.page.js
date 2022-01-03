@@ -24,11 +24,6 @@ parasails.registerPage('signup', {
     cloudError: '',
     showFullForm: false,
     // Success state when form has been submitted
-    cloudSuccess: false,
-    quoteFormData: {},
-    quotedPrice: undefined,
-    showQuote: false,
-    quoteFormRules: {},
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

@@ -128,14 +128,6 @@ module.exports.routes = {
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
-  'GET /customers/edit-profile': {
-    action: 'account/view-edit-profile',
-    locals: {
-      layout: 'layouts/customer-layout',
-      pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
-      pageDescriptionForMeta: 'Edit your Fleet Premium license information.',
-    }
-  },
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
