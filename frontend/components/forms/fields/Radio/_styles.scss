@@ -22,8 +22,8 @@
         height: 10px;
         box-shadow: inset 1em 1em $core-vibrant-blue;
         border-radius: 50%;
-        top: 5px;
-        left: 5px;
+        top: 3px;
+        left: 3px;
         transition: 180ms transform ease-in-out;
         transform: scale(0);
       }
@@ -41,15 +41,15 @@
   &__control {
     position: relative;
     display: flex;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     border: 2px solid $ui-fleet-blue-15;
     transform: translateY(-0.05em);
   }
 
   &__label {
-    margin-left: $pad-xsmall;
+    margin-left: $pad-small;
     line-height: 1;
   }
 }

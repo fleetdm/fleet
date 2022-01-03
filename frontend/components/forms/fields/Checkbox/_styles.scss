@@ -41,7 +41,7 @@
   &__tick {
     @include size(20px);
     @include position(absolute, 50% null null 0);
-    transform: translateY(-10px);
+    transform: translateY(-8px);
     display: inline-block;
 
     &::after {
