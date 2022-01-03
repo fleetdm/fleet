@@ -386,6 +386,14 @@
     text-align: center;
   }
 
+  &__device-mapping {
+    .device-user-tooltip {
+      flex-direction: column;
+      justify-content: start;
+      text-align: left;
+    }
+  }
+
   &__wrapper {
     border: solid 1px $ui-fleet-blue-15;
     border-radius: 6px;

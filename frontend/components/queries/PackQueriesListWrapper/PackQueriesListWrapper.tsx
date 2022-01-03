@@ -99,21 +99,7 @@ const PackQueriesListWrapper = ({
 
   return (
     <div className={`${baseClass} body-wrap`}>
-      {!scheduledQueries?.length ? (
-        <div className={`${baseClass}__no-queries`}>
-          <p>Your pack has no queries.</p>
-          <Button
-            onClick={onAddPackQuery}
-            variant={"text-icon"}
-            className={`${baseClass}__no-queries-action-button`}
-          >
-            <>
-              Add query
-              <img src={AddQueryIcon} alt={`Add query icon`} />
-            </>
-          </Button>
-        </div>
-      ) : (
+      {scheduledQueries?.length ? (
         <TableContainer
           columns={tableHeaders}
           data={tableData}
@@ -136,8 +122,21 @@ const PackQueriesListWrapper = ({
           searchable
           disablePagination
           isAllPagesSelected={false}
-          isClientSideSearch
         />
+      ) : (
+        <div className={`${baseClass}__no-queries`}>
+          <p>Your pack has no queries.</p>
+          <Button
+            onClick={onAddPackQuery}
+            variant={"text-icon"}
+            className={`${baseClass}__no-queries-action-button`}
+          >
+            <>
+              Add query
+              <img src={AddQueryIcon} alt={`Add query icon`} />
+            </>
+          </Button>
+        </div>
       )}
     </div>
   );

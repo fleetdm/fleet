@@ -208,6 +208,9 @@ describe(
 
         // On the policies manage page, they should…
         cy.contains("a", "Policies").click();
+        // See and select the "Manage automations" button
+        cy.findByRole("button", { name: /manage automations/i }).click();
+        cy.findByRole("button", { name: /cancel/i }).click();
 
         // See and select the "Add a policy", "delete", and "edit" policy
         cy.findByRole("button", { name: /add a policy/i })
@@ -235,10 +238,10 @@ describe(
           cy.findByRole("button", { name: /cancel/i }).click();
         });
         cy.findByText(/filevault enabled/i).click();
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        cy.findByRole("button", { name: /save/i }).should("exist");
-        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("exist");
+          cy.findByRole("button", { name: /save/i }).should("exist");
+        });
 
         // On the Packs pages (manage, new, and edit), they should…
         // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts

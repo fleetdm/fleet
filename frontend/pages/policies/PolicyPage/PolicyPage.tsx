@@ -126,7 +126,8 @@ const PolicyPage = ({
   // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
-    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
+    () =>
+      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids,
       select: (data: IHostResponse) => data.host,

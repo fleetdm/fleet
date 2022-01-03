@@ -16,10 +16,29 @@ interface ISoftwareResponse {
   software: ISoftware[];
 }
 
+export interface ISoftwareCountResponse {
+  count: number;
+}
+
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
+
+const buildQueryStringFromParams = (params: ISoftwareParams) => {
+  const filteredParams = Object.entries(params).filter(
+    ([key, value]) => !!value
+  );
+  if (!filteredParams.length) {
+    return "";
+  }
+  return `?${filteredParams
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join("&")}`;
+};
 
 export default {
   load: async ({
@@ -41,7 +60,7 @@ export default {
     }
 
     if (query) {
-      path += `&query=${query}`;
+      path += `&query=${encodeURIComponent(query)}`;
     }
 
     if (vulnerable) {
@@ -54,5 +73,13 @@ export default {
     } catch (error) {
       throw error;
     }
+  },
+
+  count: async (params: ISoftwareParams): Promise<ISoftwareCountResponse> => {
+    const { SOFTWARE } = endpoints;
+    const path = `${SOFTWARE}/count`;
+    const queryString = buildQueryStringFromParams(params);
+
+    return sendRequest("GET", path.concat(queryString));
   },
 };

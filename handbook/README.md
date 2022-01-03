@@ -30,11 +30,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Feature Flags](./product.md#feature-flags)
 
-[Product DRIs](./product.md#product-dris)
-
 [Fleet docs](./product.md#fleet-docs)
 
-[Manual QA](./product.md#manual-qa)
+[Product quality](./product.md#product-quality)
 
 [UI design](./product.md#ui-design)
 
@@ -52,11 +50,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customer-experience.md#support-process)
 
+### Community
+
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
+
 ### Handbook
 
 [About the handbook](./handbook.md#about-the-handbook)
 
-[Handbook styleguide](./handbook.md#handbook-styleguide)
+[Handbook style guide](./handbook.md#handbook-style-guide)
 
 
 <meta name="maintainedBy" value="mikermcneil">

@@ -435,22 +435,24 @@ const ManageSchedulePage = ({
         <div className={`${baseClass}__description`}>
           {!isLoadingTeams && (
             <div>
-              {!selectedTeamId ? (
-                <p>
-                  Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
-                </p>
-              ) : (
+              {selectedTeamId ? (
                 <p>
                   Schedule queries for{" "}
                   <strong>all hosts assigned to this team.</strong>
+                </p>
+              ) : (
+                <p>
+                  Schedule queries to run at regular intervals across{" "}
+                  <strong>all of your hosts.</strong>
                 </p>
               )}
             </div>
           )}
         </div>
         <div>
-          {!isLoadingTeams ? (
+          {isLoadingTeams ? (
+            <Spinner />
+          ) : (
             renderTable(
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
@@ -460,8 +462,6 @@ const ManageSchedulePage = ({
               isOnGlobalTeam || false,
               selectedTeamData
             )
-          ) : (
-            <Spinner />
           )}
         </div>
         {/* must use ternary for NaN */}

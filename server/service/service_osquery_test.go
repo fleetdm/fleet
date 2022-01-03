@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"sort"
 	"strconv"
@@ -2353,4 +2354,51 @@ func TestPolicyWebhooks(t *testing.T) {
 		return err == nil
 	}, 5*time.Second, 250*time.Millisecond)
 	require.NoError(t, err)
+}
+
+// If the live query store (Redis) is down we still (see #3503)
+// want hosts to get queries and continue to check in.
+func TestLiveQueriesFailing(t *testing.T) {
+	ds := new(mock.Store)
+	lq := new(live_query.MockLiveQuery)
+	cfg := config.TestConfig()
+	buf := new(bytes.Buffer)
+	logger := log.NewLogfmtLogger(buf)
+	svc := newTestServiceWithConfig(ds, cfg, nil, lq, TestServerOpts{
+		Logger: logger,
+	})
+
+	hostID := uint(1)
+	host := &fleet.Host{
+		ID:       hostID,
+		Platform: "darwin",
+	}
+	lq.On("QueriesForHost", hostID).Return(
+		map[string]string{},
+		errors.New("failed to get queries for host"),
+	)
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	ctx := hostctx.NewContext(context.Background(), *host)
+
+	queries, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, expectedDetailQueries)
+
+	logs, err := ioutil.ReadAll(buf)
+	require.NoError(t, err)
+	require.Contains(t, string(logs), "level=error")
+	require.Contains(t, string(logs), "failed to get queries for host")
 }
