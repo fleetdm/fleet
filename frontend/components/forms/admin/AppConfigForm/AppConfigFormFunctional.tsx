@@ -1,5 +1,4 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React, { useState, useCallback } from "react";
 import { syntaxHighlight } from "fleet/helpers";
 
 import Button from "components/buttons/Button";
@@ -86,7 +85,7 @@ const formFields = [
 ];
 
 interface IAppConfigFormProps {
-  fields: {
+  formData: {
     authentication_method: IFormField;
     authentication_type: IFormField;
     domain: IFormField;
@@ -120,7 +119,7 @@ interface IAppConfigFormProps {
     days_count?: IFormField;
     enable_analytics: IFormField;
   };
-  enrollSecret: IEnrollSecret[];
+  enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
   smtpConfigured: boolean;
 }
@@ -150,43 +149,56 @@ interface IAppConfigFormErrors {
   // sso_enabled: boolean | null;
 }
 
-class AppConfigFormFunctional extends Component<
-  IAppConfigFormProps,
-  IAppConfigFormState
-> {
-  constructor(props: IAppConfigFormProps) {
-    super(props);
+const AppConfigFormFunctional = ({
+  formData,
+  enrollSecret,
+  handleSubmit,
+  smtpConfigured,
+}: IAppConfigFormProps): JSX.Element => {
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
+    false
+  );
+  const [
+    showHostStatusWebhookPreviewModal,
+    setShowHostStatusWebhookPreviewModal,
+  ] = useState<boolean>(false);
+  const [
+    showUsageStatsPreviewModal,
+    setShowUsageStatsPreviewModal,
+  ] = useState<boolean>(false);
 
-    this.state = {
-      showHostStatusWebhookPreviewModal: false,
-      showUsageStatsPreviewModal: false,
-      showAdvancedOptions: false,
-    };
-  }
+  const [domain, setDomain] = useState<string>("");
+  const [verifySSLCerts, setVerifySSLCerts] = useState<IFormField>(
+    formData.verify_ssl_certs
+  );
+
+  const onChangeDomain = useCallback(
+    (value: string) => {
+      setDomain(value);
+    },
+    [setDomain]
+  );
+  const onChangeSSLCerts = useCallback(
+    (value: IFormField) => {
+      setVerifySSLCerts(value);
+    },
+    [setVerifySSLCerts]
+  );
 
   // don't need this with evt.preventDefault
-  onToggleAdvancedOptions = () => {
-    const { showAdvancedOptions } = this.state;
-
-    this.setState({ showAdvancedOptions: !showAdvancedOptions });
-
+  const onToggleAdvancedOptions = () => {
+    setShowAdvancedOptions(!showAdvancedOptions);
     return false;
   };
 
-  // refactor to setShow...
-  toggleHostStatusWebhookPreviewModal = () => {
-    const { showHostStatusWebhookPreviewModal } = this.state;
-    this.setState({
-      showHostStatusWebhookPreviewModal: !showHostStatusWebhookPreviewModal,
-    });
+  const toggleHostStatusWebhookPreviewModal = () => {
+    setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
+    return false;
   };
 
-  // refactor to setShow...
-  toggleUsageStatsPreviewModal = () => {
-    const { showUsageStatsPreviewModal } = this.state;
-    this.setState({
-      showUsageStatsPreviewModal: !showUsageStatsPreviewModal,
-    });
+  const toggleUsageStatsPreviewModal = () => {
+    setShowUsageStatsPreviewModal(!showUsageStatsPreviewModal);
+    return false;
   };
 
   // add validate here?
@@ -195,9 +207,7 @@ class AppConfigFormFunctional extends Component<
   - remove spread operator of fields
   - use local states with their hooks to remember form 
   */
-  renderAdvancedOptions = () => {
-    const { fields } = this.props;
-
+  const renderAdvancedOptions = () => {
     return (
       <div className={`${baseClass}__advanced-options`}>
         <p className={`${baseClass}__section-description`}>
@@ -206,7 +216,11 @@ class AppConfigFormFunctional extends Component<
         <div className={`${baseClass}__inputs`}>
           <div className={`${baseClass}__form-fields`}>
             <div className="tooltip-wrap tooltip-wrap--input">
-              <InputField {...fields.domain} label="Domain" />
+              <InputField
+                label="Domain"
+                onChange={onChangeDomain}
+                value={domain}
+              />
               <IconToolTip
                 isHtml
                 text={
@@ -215,7 +229,7 @@ class AppConfigFormFunctional extends Component<
               />
             </div>
             <div className="tooltip-wrap">
-              <Checkbox>Verify SSL certs</Checkbox>
+              <Checkbox onChange={onChangeSSLCerts}>Verify SSL certs</Checkbox>
               <IconToolTip
                 isHtml
                 text={
@@ -243,8 +257,7 @@ class AppConfigFormFunctional extends Component<
             </div>
             <div className="tooltip-wrap tooltip-wrap--input">
               <InputField
-                {...fields.host_expiry_window}
-                disabled={!fields.host_expiry_enabled.value}
+                // disabled={false} TODO!
                 label="Host Expiry Window"
               />
               <IconToolTip
@@ -269,23 +282,16 @@ class AppConfigFormFunctional extends Component<
     );
   };
 
-  renderSmtpSection = () => {
-    const { fields } = this.props;
-
-    if (fields.authentication_type.value === "authtype_none") {
-      return false;
-    }
+  const renderSmtpSection = () => {
+    // if (authentication_type.value === "authtype_none") {
+    //   return false;
+    // }
 
     return (
       <div className={`${baseClass}__smtp-section`}>
-        <InputField {...fields.user_name} label="SMTP username" />
-        <InputField
-          {...fields.password}
-          label="SMTP password"
-          type="password"
-        />
+        <InputField label="SMTP username" />
+        <InputField label="SMTP password" type="password" />
         <Dropdown
-          {...fields.authentication_method}
           label="Auth method"
           options={authMethodOptions}
           placeholder=""
@@ -294,10 +300,7 @@ class AppConfigFormFunctional extends Component<
     );
   };
 
-  renderHostStatusWebhookPreviewModal = () => {
-    const { toggleHostStatusWebhookPreviewModal } = this;
-    const { showHostStatusWebhookPreviewModal } = this.state;
-
+  const renderHostStatusWebhookPreviewModal = () => {
     if (!showHostStatusWebhookPreviewModal) {
       return null;
     }
@@ -335,10 +338,7 @@ class AppConfigFormFunctional extends Component<
     );
   };
 
-  renderUsageStatsPreviewModal = () => {
-    const { toggleUsageStatsPreviewModal } = this;
-    const { showUsageStatsPreviewModal } = this.state;
-
+  const renderUsageStatsPreviewModal = () => {
     if (!showUsageStatsPreviewModal) {
       return null;
     }
@@ -377,411 +377,362 @@ class AppConfigFormFunctional extends Component<
     );
   };
 
-  render() {
-    const { fields, handleSubmit, smtpConfigured, enrollSecret } = this.props;
-    const {
-      renderAdvancedOptions,
-      renderSmtpSection,
-      toggleHostStatusWebhookPreviewModal,
-      toggleUsageStatsPreviewModal,
-      renderHostStatusWebhookPreviewModal,
-      renderUsageStatsPreviewModal,
-    } = this;
-
-    return (
-      <>
-        <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="organization-info">Organization infozzzz</a>
-            </h2>
-            <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.org_name} label="Organization name" />
-              <InputField
-                {...fields.org_logo_url}
-                label="Organization avatar URL"
-              />
-            </div>
-            <div
-              className={`${baseClass}__details ${baseClass}__avatar-preview`}
-            >
-              <OrgLogoIcon src={fields.org_logo_url.value} />
-            </div>
+  return (
+    <>
+      <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="organization-info">
+              Organization infozzzzfunctional component
+            </a>
+          </h2>
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="Organization name" />
+            <InputField label="Organization avatar URL" />
           </div>
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="fleet-web-address">Fleet web address</a>
-            </h2>
-            <div className={`${baseClass}__inputs`}>
-              <InputField
-                {...fields.server_url}
-                label="Fleet app URL"
-                hint={
-                  <span>
-                    Include base path only (eg. no <code>/v1</code>)
-                  </span>
-                }
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={"The base URL of this instance for use in Fleet links."}
-              />
-            </div>
+          <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
+            {/* <OrgLogoIcon src={fields.org_logo_url.value} /> */}
+          </div>
+        </div>
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="fleet-web-address">Fleet web address</a>
+          </h2>
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              label="Fleet app URL"
+              hint={
+                <span>
+                  Include base path only (eg. no <code>/v1</code>)
+                </span>
+              }
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={"The base URL of this instance for use in Fleet links."}
+            />
+          </div>
+        </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="saml">SAML single sign on options</a>
+          </h2>
+
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox>Enable single sign on</Checkbox>
           </div>
 
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="saml">SAML single sign on options</a>
-            </h2>
-
-            <div className={`${baseClass}__inputs`}>
-              <Checkbox>Enable single sign on</Checkbox>
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_name} label="Identity provider name" />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={
-                  "A required human friendly name for the identity provider that will provide single sign on authentication."
-                }
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField
-                {...fields.entity_id}
-                label="Entity ID"
-                hint={
-                  <span>
-                    The URI you provide here must exactly match the Entity ID
-                    field used in identity provider configuration.
-                  </span>
-                }
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={
-                  "The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
-                }
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.issuer_uri} label="Issuer URI" />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={"The issuer URI supplied by the identity provider."}
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.idp_image_url} label="IDP image URL" />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={
-                  "An optional link to an image such as a logo for the identity provider."
-                }
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField
-                {...fields.metadata}
-                label="Metadata"
-                type="textarea"
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={
-                  "Metadata provided by the identity provider. Either metadata or a metadata url must be provided."
-                }
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <InputField
-                {...fields.metadata_url}
-                label="Metadata URL"
-                hint={
-                  <span>
-                    If available from the identity provider, this is the
-                    preferred means of providing metadata.
-                  </span>
-                }
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={"A URL that references the identity provider metadata."}
-              />
-            </div>
-
-            <div className={`${baseClass}__inputs`}>
-              <Checkbox>
-                Allow SSO login initiated by Identity Provider
-              </Checkbox>
-            </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="Identity provider name" />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={
+                "A required human friendly name for the identity provider that will provide single sign on authentication."
+              }
+            />
           </div>
 
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="smtp">
-                SMTP options{" "}
-                <small
-                  className={`smtp-options smtp-options--${
-                    smtpConfigured ? "configured" : "notconfigured"
-                  }`}
-                >
-                  STATUS:{" "}
-                  <em>{smtpConfigured ? "CONFIGURED" : "NOT CONFIGURED"}</em>
-                </small>
-              </a>
-            </h2>
-            <div className={`${baseClass}__inputs`}>
-              <Checkbox>Enable SMTP</Checkbox>
-            </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              label="Entity ID"
+              hint={
+                <span>
+                  The URI you provide here must exactly match the Entity ID
+                  field used in identity provider configuration.
+                </span>
+              }
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={
+                "The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
+              }
+            />
+          </div>
 
-            <div className={`${baseClass}__inputs`}>
-              <InputField {...fields.sender_address} label="Sender address" />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip text={"The sender address for emails from Fleet."} />
-            </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="Issuer URI" />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={"The issuer URI supplied by the identity provider."}
+            />
+          </div>
 
-            <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
-              <InputField {...fields.server} label="SMTP server" />
-              <InputField {...fields.port} label="&nbsp;" type="number" />
-              <Checkbox>Use SSL/TLS to connect (recommended)</Checkbox>
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                text={
-                  "The hostname / IP address and corresponding port of your organization's SMTP server."
-                }
-              />
-            </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="IDP image URL" />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={
+                "An optional link to an image such as a logo for the identity provider."
+              }
+            />
+          </div>
 
-            <div className={`${baseClass}__inputs`}>
-              <Dropdown
-                {...fields.authentication_type}
-                label="Authentication type"
-                options={authTypeOptions}
-              />
-              {renderSmtpSection()}
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="Metadata" type="textarea" />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={
+                "Metadata provided by the identity provider. Either metadata or a metadata url must be provided."
+              }
+            />
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              label="Metadata URL"
+              hint={
+                <span>
+                  If available from the identity provider, this is the preferred
+                  means of providing metadata.
+                </span>
+              }
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={"A URL that references the identity provider metadata."}
+            />
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox>Allow SSO login initiated by Identity Provider</Checkbox>
+          </div>
+        </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="smtp">
+              SMTP options{" "}
+              <small
+                className={`smtp-options smtp-options--${
+                  smtpConfigured ? "configured" : "notconfigured"
+                }`}
+              >
+                STATUS:{" "}
+                <em>{smtpConfigured ? "CONFIGURED" : "NOT CONFIGURED"}</em>
+              </small>
+            </a>
+          </h2>
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox>Enable SMTP</Checkbox>
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <InputField label="Sender address" />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip text={"The sender address for emails from Fleet."} />
+          </div>
+
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
+            <InputField label="SMTP server" />
+            <InputField label="&nbsp;" type="number" />
+            <Checkbox>Use SSL/TLS to connect (recommended)</Checkbox>
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              text={
+                "The hostname / IP address and corresponding port of your organization's SMTP server."
+              }
+            />
+          </div>
+
+          <div className={`${baseClass}__inputs`}>
+            <Dropdown label="Authentication type" options={authTypeOptions} />
+            {renderSmtpSection()}
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              isHtml
+              text={
+                "\
                   <p>If your mail server requires authentication, you need to specify the authentication type here.</p> \
                   <p><strong>No Authentication</strong> - Select this if your SMTP is open.</p> \
                   <p><strong>Username & Password</strong> - Select this if your SMTP server requires authentication with a username and password.</p>\
                 "
-                }
-              />
-            </div>
+              }
+            />
           </div>
+        </div>
 
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="osquery-enrollment-secrets">Osquery enrollment secrets</a>
-            </h2>
-            <div className={`${baseClass}__inputs`}>
-              <p className={`${baseClass}__enroll-secret-label`}>
-                Manage secrets with <code>fleetctl</code>. Active secrets:
-              </p>
-              <EnrollSecretTable secrets={enrollSecret} />
-            </div>
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="osquery-enrollment-secrets">Osquery enrollment secrets</a>
+          </h2>
+          <div className={`${baseClass}__inputs`}>
+            <p className={`${baseClass}__enroll-secret-label`}>
+              Manage secrets with <code>fleetctl</code>. Active secrets:
+            </p>
+            <EnrollSecretTable secrets={enrollSecret} />
           </div>
+        </div>
 
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="agent-options">Global agent options</a>
-            </h2>
-            <div className={`${baseClass}__yaml`}>
-              <p className={`${baseClass}__section-description`}>
-                This code will be used by osquery when it checks for
-                configuration options.
-                <br />
-                <b>
-                  Changes to these configuration options will be applied to all
-                  hosts in your organization that do not belong to any team.
-                </b>
-              </p>
-              <InfoBanner className={`${baseClass}__config-docs`}>
-                How do global agent options interact with team-level agent
-                options?&nbsp;
-                <a
-                  href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
-                  className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Learn more about agent options&nbsp;
-                  <img
-                    className="icon"
-                    src={OpenNewTabIcon}
-                    alt="open new tab"
-                  />
-                </a>
-              </InfoBanner>
-              <p className={`${baseClass}__component-label`}>
-                <b>YAML</b>
-              </p>
-              <YamlAce
-                {...fields.agent_options}
-                error={fields.agent_options.error}
-                wrapperClassName={`${baseClass}__text-editor-wrapper`}
-              />
-              {/* this might be tricky */}
-            </div>
-          </div>
-
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="host-status-webhook">Host status webhook</a>
-            </h2>
-            <div className={`${baseClass}__host-status-webhook`}>
-              <p className={`${baseClass}__section-description`}>
-                Send an alert if a portion of your hosts go offline.
-              </p>
-              <Checkbox>Enable host status webhook</Checkbox>
-              <p className={`${baseClass}__section-description`}>
-                A request will be sent to your configured <b>Destination URL</b>{" "}
-                if the configured <b>Percentage of hosts</b> have not checked
-                into Fleet for the configured <b>Number of days</b>.
-              </p>
-            </div>
-            <div
-              className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}
-            >
-              <Button
-                type="button"
-                variant="inverse"
-                onClick={toggleHostStatusWebhookPreviewModal}
-              >
-                Preview request
-              </Button>
-            </div>
-            <div className={`${baseClass}__inputs`}>
-              <InputField
-                {...fields.destination_url}
-                placeholder="https://server.com/example"
-                label="Destination URL"
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-                  <center><p>Provide a URL to deliver <br/>the webhook request to.</p></center>\
-                "
-                }
-              />
-            </div>
-            <div
-              className={`${baseClass}__inputs ${baseClass}__host-percentage`}
-            >
-              <Dropdown
-                {...fields.host_percentage}
-                label="Percentage of hosts"
-                options={percentageOfHosts}
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-                  <center><p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p></center>\
-                "
-                }
-              />
-            </div>
-            <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
-              <Dropdown
-                {...fields.days_count}
-                label="Number of days"
-                options={numberOfDays}
-              />
-            </div>
-            <div className={`${baseClass}__details`}>
-              <IconToolTip
-                isHtml
-                text={
-                  "\
-                  <center><p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p></center>\
-                "
-                }
-              />
-            </div>
-          </div>
-
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="usage-stats">Usage statistics</a>
-            </h2>
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="agent-options">Global agent options</a>
+          </h2>
+          <div className={`${baseClass}__yaml`}>
             <p className={`${baseClass}__section-description`}>
-              Help improve Fleet by sending anonymous usage statistics.
+              This code will be used by osquery when it checks for configuration
+              options.
               <br />
-              <br />
-              This information helps our team better understand feature adoption
-              and usage, and allows us to see how Fleet is adding value, so that
-              we can make better product decisions.
-              <br />
-              <br />
+              <b>
+                Changes to these configuration options will be applied to all
+                hosts in your organization that do not belong to any team.
+              </b>
+            </p>
+            <InfoBanner className={`${baseClass}__config-docs`}>
+              How do global agent options interact with team-level agent
+              options?&nbsp;
               <a
-                href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md"
-                className={`${baseClass}__learn-more`}
+                href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/1-Fleet-UI.md#configuring-agent-options"
+                className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Learn more about usage statistics&nbsp;
+                Learn more about agent options&nbsp;
                 <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
               </a>
+            </InfoBanner>
+            <p className={`${baseClass}__component-label`}>
+              <b>YAML</b>
             </p>
-            <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-              <Checkbox>Enable usage statistics</Checkbox>
-            </div>
-            <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-              <Button
-                type="button"
-                variant="inverse"
-                onClick={toggleUsageStatsPreviewModal}
-              >
-                Preview payload
-              </Button>
-            </div>
+            <YamlAce
+              // error={fields.agent_options.error} TODO
+              wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            />
+            {/* this might be tricky */}
           </div>
+        </div>
 
-          <div className={`${baseClass}__section`}>
-            <h2>
-              <a id="advanced-options">Advanced options</a>
-            </h2>
-            {renderAdvancedOptions()}
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="host-status-webhook">Host status webhook</a>
+          </h2>
+          <div className={`${baseClass}__host-status-webhook`}>
+            <p className={`${baseClass}__section-description`}>
+              Send an alert if a portion of your hosts go offline.
+            </p>
+            <Checkbox>Enable host status webhook</Checkbox>
+            <p className={`${baseClass}__section-description`}>
+              A request will be sent to your configured <b>Destination URL</b>{" "}
+              if the configured <b>Percentage of hosts</b> have not checked into
+              Fleet for the configured <b>Number of days</b>.
+            </p>
           </div>
-          <Button type="submit" variant="brand">
-            Update settings
-          </Button>
-          {/* this should rerender the page or scroll to top */}
-        </form>
-        {renderUsageStatsPreviewModal()}
-        {renderHostStatusWebhookPreviewModal()}
-      </>
-    );
-  }
-}
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}>
+            <Button
+              type="button"
+              variant="inverse"
+              onClick={toggleHostStatusWebhookPreviewModal}
+            >
+              Preview request
+            </Button>
+          </div>
+          <div className={`${baseClass}__inputs`}>
+            <InputField
+              placeholder="https://server.com/example"
+              label="Destination URL"
+            />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              isHtml
+              text={
+                "\
+                  <center><p>Provide a URL to deliver <br/>the webhook request to.</p></center>\
+                "
+              }
+            />
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__host-percentage`}>
+            <Dropdown label="Percentage of hosts" options={percentageOfHosts} />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              isHtml
+              text={
+                "\
+                  <center><p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p></center>\
+                "
+              }
+            />
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
+            <Dropdown label="Number of days" options={numberOfDays} />
+          </div>
+          <div className={`${baseClass}__details`}>
+            <IconToolTip
+              isHtml
+              text={
+                "\
+                  <center><p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p></center>\
+                "
+              }
+            />
+          </div>
+        </div>
 
-export default Form(AppConfigFormFunctional, {
-  fields: formFields,
-  validate,
-});
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="usage-stats">Usage statistics</a>
+          </h2>
+          <p className={`${baseClass}__section-description`}>
+            Help improve Fleet by sending anonymous usage statistics.
+            <br />
+            <br />
+            This information helps our team better understand feature adoption
+            and usage, and allows us to see how Fleet is adding value, so that
+            we can make better product decisions.
+            <br />
+            <br />
+            <a
+              href="https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md"
+              className={`${baseClass}__learn-more`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more about usage statistics&nbsp;
+              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+            </a>
+          </p>
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
+            <Checkbox>Enable usage statistics</Checkbox>
+          </div>
+          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
+            <Button
+              type="button"
+              variant="inverse"
+              onClick={toggleUsageStatsPreviewModal}
+            >
+              Preview payload
+            </Button>
+          </div>
+        </div>
+
+        <div className={`${baseClass}__section`}>
+          <h2>
+            <a id="advanced-options">Advanced options</a>
+          </h2>
+          {renderAdvancedOptions()}
+        </div>
+        <Button type="submit" variant="brand">
+          Update settings
+        </Button>
+        {/* this should rerender the page or scroll to top */}
+      </form>
+      {renderUsageStatsPreviewModal()}
+      {renderHostStatusWebhookPreviewModal()}
+    </>
+  );
+};
+
+export default AppConfigFormFunctional;

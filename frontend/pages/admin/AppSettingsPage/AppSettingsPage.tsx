@@ -140,7 +140,6 @@ const AppSettingsPage = (): JSX.Element => {
         <AppConfigForm
           formData={formData}
           handleSubmit={onFormSubmit}
-          serverErrors={undefined} // this will be handled in the form itself with local state
           smtpConfigured={smtpConfigured}
           enrollSecret={globalSecrets}
         />
