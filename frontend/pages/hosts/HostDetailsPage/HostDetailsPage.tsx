@@ -434,7 +434,7 @@ const HostDetailsPage = ({
       : setLastEditedQueryName(osPolicyLabel);
     setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
-      "Returns yes or no for detecting operating system and version"
+      "Checks to see if the exact operating system and version are installed on a host."
     );
     setLastEditedQueryBody(osPolicy);
     setLastEditedQueryResolution("");
