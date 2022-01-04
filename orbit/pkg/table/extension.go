@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -29,8 +29,8 @@ func NewRunner(socket string) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
-	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
-		return errors.Wrapf(err, "waiting for socket to be available: %s", r.socket)
+	if err := waitForSocket(r.socket, 3*time.Second); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -103,7 +103,7 @@ func waitForSocket(sockPath string, timeout time.Duration) error {
 			case os.IsNotExist(err):
 				continue
 			default:
-				return errors.Wrapf(err, "stat socket: %s", sockPath)
+				return fmt.Errorf("stat socket %s failed: %w", sockPath, err)
 			}
 		}
 	}
