@@ -4513,7 +4513,7 @@ None.
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
-       "destination_url": "https://server.com",
+      "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },

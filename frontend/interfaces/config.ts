@@ -146,21 +146,21 @@ export interface IConfigNested {
     live_query_disabled: boolean;
     enable_analytics: boolean;
   };
-  enable_smtp: boolean;
-  configured: boolean;
-  sender_address: string;
-  server: string;
-  port: number;
-  authentication_type: string;
-  user_name: string;
-  password: string;
-  enable_ssl_tls: boolean;
-  authentication_method: string;
-  domain: string;
   smtp_settings: {
+    enable_smtp: boolean;
+    configured: boolean;
+    sender_address: string;
+    server: string;
+    port?: number;
+    authentication_type: string;
+    user_name: string;
+    password: string;
+    enable_ssl_tls: boolean;
+    authentication_method: string;
+    domain: string;
     verify_ssl_certs: boolean;
+    enable_start_tls: boolean;
   };
-  enable_start_tls: boolean;
   sso_settings: {
     entity_id: string;
     issuer_uri: string;
@@ -173,8 +173,10 @@ export interface IConfigNested {
   };
   enable_sso: boolean;
   enable_sso_idp_login: boolean;
-  host_expiry_enabled: boolean;
-  host_expiry_window: number;
+  host_expiry_settings: {
+    host_expiry_enabled: boolean;
+    host_expiry_window: number;
+  };
   agent_options: string;
   osquery_detail: number;
   osquery_policy: number;
@@ -184,10 +186,6 @@ export interface IConfigNested {
   expiration: string;
   note: string;
   // vulnerability_settings: any; TODO
-  enable_host_status_webhook: boolean;
-  destination_url: string;
-  host_percentage: number;
-  days_count: number;
   logging: {
     debug: boolean;
     json: boolean;
@@ -211,6 +209,12 @@ export interface IConfigNested {
     };
   };
   webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: boolean;
+      destination_url: string;
+      host_percentage: number;
+      days_count: number;
+    };
     failing_policies_webhook: IWebhookFailingPolicies;
   };
 }
