@@ -28,4 +28,8 @@
       font-family: "SourceCodePro", $monospace;
     }
   }
+
+  &--checkbox {
+    margin-bottom: $pad-medium;
+  }
 }

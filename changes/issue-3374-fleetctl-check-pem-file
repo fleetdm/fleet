@@ -1,1 +1,0 @@
-* Make `fleetctl package` check `--fleet-certificate` is a valid PEM file.
