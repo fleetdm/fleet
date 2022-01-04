@@ -44,9 +44,9 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 - **Be relatable**, friendly and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations. 
 
-- **Project confidence**, and be informative. Clearly tell users what they need to know, remembering to always stay positive and never overconfident.
+- **Project confidence**, and be informative. Clearly tell users what they need to know, remembering to always stay positive so as NOT to sound overconfident.
 
-- **Manage risk, not fear**. Risk management is smart, while focusing on fear can lead to poor choices. Educate users about security threats positively, and never use fear as a communication and marketing tactic. 
+- **Manage risk, not fear**. Educate users about security threats positively. Risk management is smart, but focusing on fear can lead to poor decisions. We NEVER use fear as a communication and marketing tactic. 
 
 ## Voice and grammar guidelines
 
