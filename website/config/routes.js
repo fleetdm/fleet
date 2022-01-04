@@ -99,7 +99,7 @@ module.exports.routes = {
   'GET /customers/new-license': {
     action: 'customers/view-new-license',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Get Fleet Premium | Fleet for osquery',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
@@ -107,7 +107,7 @@ module.exports.routes = {
   'GET /customers/register': {
     action: 'entrance/view-signup',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Sign up | Fleet for osquery',
       pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
     }
@@ -115,7 +115,7 @@ module.exports.routes = {
   'GET /customers/login': {
     action: 'entrance/view-login',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Log in | Fleet for osquery',
       pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
     }
@@ -123,7 +123,7 @@ module.exports.routes = {
   'GET /customers/dashboard': {
     action: 'customers/view-dashboard',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -131,7 +131,7 @@ module.exports.routes = {
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Forgot password | Fleet for osquery',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -139,7 +139,7 @@ module.exports.routes = {
   'GET /customers/new-password': {
     action: 'entrance/view-new-password',
     locals: {
-      layout: 'layouts/customer-layout',
+      layout: 'layouts/layout-customer',
       pageTitleForMeta: 'New password | Fleet for osquery',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
