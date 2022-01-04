@@ -1,5 +1,6 @@
 # Adding hosts
 - [Osquery installer](#osquery-installer)
+- [Signing installers](#signing-installers)
 - [Plain osquery](#plain-osquery)
 
 Fleet is powered by the open source osquery tool. To add a host to Fleet, you must install osquery on this host.
@@ -27,7 +28,7 @@ When you install the generated osquery installer on a host, this host will be au
 
 ### Adding multiple hosts
 
-If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts. 
+If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
 
 You can distribute your osquery installer and add all your hosts to Fleet using your software management tool of choice.
 
@@ -133,7 +134,7 @@ sudo osqueryd \
  --logger_tls_period=10
 ```
 
-If your osquery server certificate is deployed to a path that is not `/etc/osquery/fleet.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enroll secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`. Then, be sure to update the `--enroll_secret_env` environment variable. 
+If your osquery server certificate is deployed to a path that is not `/etc/osquery/fleet.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enroll secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`. Then, be sure to update the `--enroll_secret_env` environment variable.
 
 If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
 
