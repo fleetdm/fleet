@@ -172,6 +172,9 @@ jobs:
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+    - name: Debug
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
 
   orbit-windows:
     strategy:
