@@ -38,7 +38,17 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
-## Grammar guidelines
+## Communicating as Fleet
+
+- **Sound positive**, and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet.
+
+- **Be relatable**, friendly and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations. 
+
+- **Project confidence**, and be informative. Clearly tell users what they need to know, remembering to always stay positive and never overconfident.
+
+- **Manage risk, not fear**. Risk management is smart, while focusing on fear can lead to poor choices. Educate users about security threats positively, and never use fear as a communication and marketing tactic. 
+
+## Voice and grammar guidelines
 
 ### How to write headings & subheadings
 Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.

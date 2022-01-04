@@ -42,7 +42,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Website](./growth.md#website)
 
-[Grammar guidelines](./growth.md#grammar-guidelines)
+[Communicating as Fleet](./growth.md#communicating-as-fleet)
+
+[Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
 
 ### Customer experience
 
