@@ -107,9 +107,9 @@ func applyChangesForNewSoftwareDB(ctx context.Context, tx sqlx.ExtContext, host 
 	current := softwareSliceToIdMap(storedCurrentSoftware)
 	incoming := softwareSliceToSet(host.Software)
 
-	if err = deleteUninstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
-		return err
-	}
+	//if err = deleteUninstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
+	//	return err
+	//}
 
 	if err = insertNewInstalledHostSoftwareDB(ctx, tx, host.ID, current, incoming); err != nil {
 		return err
