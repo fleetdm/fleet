@@ -146,6 +146,25 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	return backoff.Retry(operation, bo)
 }
 
+func (d *Datastore) withRetryWriter(fn txFn) (err error) {
+	operation := func() error {
+		if err := fn(d.writer); err != nil {
+			if retryableError(err) {
+				return err
+			}
+
+			// Consider any other errors to be non-retryable
+			return backoff.Permanent(err)
+		}
+
+		return nil
+	}
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 5 * time.Second
+	return backoff.Retry(operation, bo)
+}
+
 // withTx provides a common way to commit/rollback a txFn
 func (d *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	tx, err := d.writer.BeginTxx(ctx, nil)
