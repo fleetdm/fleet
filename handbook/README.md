@@ -28,13 +28,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
-[Feature Flags](./product.md#feature-flags)
-
-[Product DRIs](./product.md#product-dris)
+[Feature flags](./product.md#feature-flags)
 
 [Fleet docs](./product.md#fleet-docs)
 
-[Manual QA](./product.md#manual-qa)
+[Product quality](./product.md#product-quality)
 
 [UI design](./product.md#ui-design)
 
@@ -44,13 +42,19 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Website](./growth.md#website)
 
-[Grammar guidelines](./growth.md#grammar-guidelines)
+[Communicating as Fleet](./growth.md#communicating-as-fleet)
+
+[Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
 
 ### Customer experience
 
 [Customer succcess](./customer-experience.md#customer-success)
 
 [Support process](./customer-experience.md#support-process)
+
+### Community
+
+[Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
 
 ### Handbook
 
