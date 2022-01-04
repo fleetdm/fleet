@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/kolide/osquery-go"
@@ -9,6 +10,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,6 +29,10 @@ func NewRunner(socket string) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
+	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
+		return errors.Wrapf(err, "waiting for socket to be available: %s", r.socket)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
 
@@ -74,5 +80,31 @@ func (r *Runner) Interrupt(err error) {
 
 	if r.srv != nil {
 		r.srv.Shutdown(context.Background())
+	}
+}
+
+// waitForSocket waits for the osquery socket to exist.
+//
+// This method was copied from osquery-go because we can't rely on option.ServerTimeout.
+// Such timeout is used both for waiting for the socket and for the thrift transport.
+func waitForSocket(sockPath string, timeout time.Duration) error {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			switch _, err := os.Stat(sockPath); {
+			case err == nil:
+				return nil
+			case os.IsNotExist(err):
+				continue
+			default:
+				return errors.Wrapf(err, "stat socket: %s", sockPath)
+			}
+		}
 	}
 }
