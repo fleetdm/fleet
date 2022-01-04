@@ -61,7 +61,7 @@ jobs:
    outputs:
      token: ${{ steps.login.outputs.token }}
    steps:
-        # Download fleet and fleetctl binaries from last successful build on main
+    # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -71,6 +71,7 @@ jobs:
         path: build
         check_artifacts: true
     
+    # Login only here and share the token because otherwise we could hit rate limits.
     - id: login
       name: Attempt login
       timeout-minutes: 5
@@ -97,6 +98,7 @@ jobs:
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -123,6 +125,7 @@ jobs:
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
     - name: Download binaries
       uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
       with:
@@ -131,6 +134,7 @@ jobs:
         name: build
         path: build
         check_artifacts: true
+
     - name: Install Orbit
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -160,19 +164,24 @@ jobs:
         docker pull fleetdm/wix:latest &
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
     - name: Build Orbit
       run: |
-        SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
+        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+
     - name: Upload MSI
       uses: actions/upload-artifact@v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
-    - name: Debug
+
+    - name: Debug on failure
       if: failure()
       uses: mxschmitt/action-tmate@v3
 
