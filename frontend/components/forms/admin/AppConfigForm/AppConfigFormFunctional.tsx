@@ -1,14 +1,21 @@
 import React, { useState, useCallback } from "react";
 import { syntaxHighlight } from "fleet/helpers";
+import { size } from "lodash";
+
 import yaml from "js-yaml";
+// @ts-ignore
+import validate from "components/forms/admin/AppConfigForm/validate";
+// @ts-ignore
+import constructErrorString from "utilities/yaml";
+
+import { IConfigNested } from "interfaces/config";
+import { IFormField } from "interfaces/form_field";
+import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { IConfigNested } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/EnrollSecretTable";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -234,9 +241,9 @@ const AppConfigFormFunctional = ({
     setSMTPAuthenticationMethod,
   ] = useState<string>(formData.smtp_settings.authentication_method || "");
   // Global agent options
-  // const [agentOptions, setAgentOptions] = useState<any>(
-  //   yaml.load(formData.agent_options) || {}
-  // );
+  const [agentOptions, setAgentOptions] = useState<any>(
+    yaml.dump(formData.agent_options) || {}
+  );
   // Host status webhook
   const [
     enableHostStatusWebhook,
@@ -323,7 +330,6 @@ const AppConfigFormFunctional = ({
     },
     [setEntityID]
   );
-
   const onChangeIssuerURI = useCallback(
     (value: string) => {
       setIssuerURI(value);
@@ -487,6 +493,9 @@ const AppConfigFormFunctional = ({
     [setDisableLiveQuery]
   );
 
+  // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
+  // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
+
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
     return false;
@@ -497,9 +506,17 @@ const AppConfigFormFunctional = ({
     return false;
   };
 
-  // █░█ ▄▀█ █░░ █ █▀▄ ▄▀█ ▀█▀ █▀█ █▀█ █▀
-  // ▀▄▀ █▀█ █▄▄ █ █▄▀ █▀█ ░█░ █▄█ █▀▄ ▄█
-  // add validate here?
+  // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ █░█ █▄▄ █▀▄▀█ █ ▀█▀
+  // █▀░ █▄█ █▀▄ █░▀░█   ▄█ █▄█ █▄█ █░▀░█ █ ░█░
+  const onFormSubmit = () => {
+    // Validator
+
+    handleSubmit({
+      name: packName,
+      description: packDescription,
+      targets: [...packFormTargets],
+    });
+  };
 
   // █▀ █▀▀ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
   // ▄█ ██▄ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
