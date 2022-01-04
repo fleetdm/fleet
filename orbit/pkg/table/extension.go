@@ -36,7 +36,7 @@ func (r *Runner) Execute() error {
 		r.srv, err = osquery.NewExtensionManagerServer(
 			"com.fleetdm.orbit.osquery_extension.v1",
 			r.socket,
-			osquery.ServerTimeout(3*time.Second))
+			osquery.ServerTimeout(1*time.Minute))
 		if err == nil {
 			ticker.Stop()
 			break
