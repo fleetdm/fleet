@@ -37,10 +37,8 @@ const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
   // ===== local state
-  const [appConfig, setAppConfig] = useState<any>();
   const [smtpConfigured, setSmtpConfigured] = useState<any>();
-  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const [isLoadingConfigError, setIsLoadingConfigError] = useState(false);
+  const [formData, setFormData] = useState<any>();
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
 
   const onFormSubmit = (formData: IFormData) => {
@@ -64,24 +62,19 @@ const AppSettingsPage = (): JSX.Element => {
     return false;
   };
 
-  const getConfig = useCallback(async () => {
-    setIsLoadingConfig(true);
-    setIsLoadingConfigError(false);
-    let result;
-    try {
-      result = await configAPI.loadAll().then((response) => response);
-      setAppConfig(result);
-      setSmtpConfigured(result.configured);
-    } catch (error) {
-      console.log(error);
-      setIsLoadingConfigError(true);
-    } finally {
-      setIsLoadingConfig(false);
-    }
-    return result;
-  }, []);
+  const {
+    data: appConfig,
+    isLoading: isLoadingConfig,
+    refetch: refetchConfig,
+  } = useQuery<any, Error, any>(["config"], () => configAPI.loadAll(), {
+    select: (data: any) => data,
+    onSuccess: (response: any) => {
+      setSmtpConfigured(response.configured);
+      setFormData({ ...response, enable_smtp: smtpConfigured });
+    },
+  });
 
-  const formData = { ...appConfig, enable_smtp: smtpConfigured };
+  console.log("AppSettingsPage -  formData:", formData);
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -137,12 +130,14 @@ const AppSettingsPage = (): JSX.Element => {
             </li>
           </ul>
         </nav>
-        <AppConfigForm
-          formData={formData}
-          handleSubmit={onFormSubmit}
-          smtpConfigured={smtpConfigured}
-          enrollSecret={globalSecrets}
-        />
+        {isLoadingConfig ? null : (
+          <AppConfigForm
+            formData={formData}
+            handleSubmit={onFormSubmit}
+            smtpConfigured={smtpConfigured}
+            enrollSecret={globalSecrets}
+          />
+        )}
       </div>
     </div>
   );

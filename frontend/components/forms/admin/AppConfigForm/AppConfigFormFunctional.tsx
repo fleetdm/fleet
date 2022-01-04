@@ -5,8 +5,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import Form from "components/forms/Form";
+import { IConfigNested } from "interfaces/config";
 import { IFormField } from "interfaces/form_field";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import EnrollSecretTable from "components/EnrollSecretTable";
@@ -54,24 +53,24 @@ const formFields = [
   "domain",
   "enable_ssl_tls",
   "enable_start_tls",
-  "server_url",
-  "org_logo_url",
-  "org_name",
+  // "server_url",
+  // "org_logo_url",
+  // "org_name",
   "osquery_enroll_secret",
   "password",
   "port",
   "sender_address",
   "server",
   "user_name",
-  "verify_ssl_certs",
-  "idp_name",
-  "entity_id",
-  "issuer_uri",
-  "idp_image_url",
-  "metadata",
-  "metadata_url",
-  "enable_sso",
-  "enable_sso_idp_login",
+  // "verify_ssl_certs",
+  // "idp_name",
+  // "entity_id",
+  // "issuer_uri",
+  // "idp_image_url",
+  // "metadata",
+  // "metadata_url",
+  // "enable_sso",
+  // "enable_sso_idp_login",
   "enable_smtp",
   "host_expiry_enabled",
   "host_expiry_window",
@@ -85,40 +84,41 @@ const formFields = [
 ];
 
 interface IAppConfigFormProps {
-  formData: {
-    authentication_method: IFormField;
-    authentication_type: IFormField;
-    domain: IFormField;
-    enable_ssl_tls: IFormField;
-    enable_start_tls: IFormField;
-    server_url: IFormField;
-    org_logo_url: IFormField;
-    org_name: IFormField;
-    password: IFormField;
-    port: IFormField;
-    sender_address: IFormField;
-    server: IFormField;
-    user_name: IFormField;
-    verify_ssl_certs: IFormField;
-    entity_id: IFormField;
-    issuer_uri: IFormField;
-    idp_image_url: IFormField;
-    metadata: IFormField;
-    metadata_url: IFormField;
-    idp_name: IFormField;
-    enable_sso: IFormField;
-    enable_sso_idp_login: IFormField;
-    enable_smtp: IFormField;
-    host_expiry_enabled: IFormField;
-    host_expiry_window: IFormField;
-    live_query_disabled: IFormField;
-    agent_options: IFormField;
-    enable_host_status_webhook: IFormField;
-    destination_url?: IFormField;
-    host_percentage?: IFormField;
-    days_count?: IFormField;
-    enable_analytics: IFormField;
-  };
+  // formData: {
+  //   authentication_method: IFormField;
+  //   authentication_type: IFormField;
+  //   domain: IFormField;
+  //   enable_ssl_tls: IFormField;
+  //   enable_start_tls: IFormField;
+  //   server_url: IFormField;
+  //   org_logo_url: string;
+  //   org_name: string;
+  //   password: IFormField;
+  //   port: IFormField;
+  //   sender_address: IFormField;
+  //   server: IFormField;
+  //   user_name: IFormField;
+  //   verify_ssl_certs: IFormField;
+  //   entity_id: IFormField;
+  //   issuer_uri: IFormField;
+  //   idp_image_url: IFormField;
+  //   metadata: IFormField;
+  //   metadata_url: IFormField;
+  //   idp_name: IFormField;
+  //   enable_sso: IFormField;
+  //   enable_sso_idp_login: IFormField;
+  //   enable_smtp: IFormField;
+  //   host_expiry_enabled: IFormField;
+  //   host_expiry_window: IFormField;
+  //   live_query_disabled: IFormField;
+  //   agent_options: IFormField;
+  //   enable_host_status_webhook: IFormField;
+  //   destination_url?: IFormField;
+  //   host_percentage?: IFormField;
+  //   days_count?: IFormField;
+  //   enable_analytics: IFormField;
+  // };
+  formData: IConfigNested;
   enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
   smtpConfigured: boolean;
@@ -155,6 +155,8 @@ const AppConfigFormFunctional = ({
   handleSubmit,
   smtpConfigured,
 }: IAppConfigFormProps): JSX.Element => {
+  // State
+
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
@@ -167,11 +169,149 @@ const AppConfigFormFunctional = ({
     setShowUsageStatsPreviewModal,
   ] = useState<boolean>(false);
 
+  // Organization info
+  const [orgName, setOrgName] = useState<string>(
+    formData.org_info.org_name || ""
+  );
+  const [orgLogoUrl, setOrgLogoUrl] = useState<string>(
+    formData.org_info.org_logo_url || ""
+  );
+  // Fleet web address
+  const [serverURL, setServerURL] = useState<string>(
+    formData.server_settings.server_url || ""
+  );
+  // SAML single sign on options
+  const [enableSSO, setEnableSSO] = useState<boolean>(
+    formData.sso_settings.enable_sso || false
+  );
+  const [idpName, setIDPName] = useState<string>(
+    formData.sso_settings.idp_name || ""
+  );
+  const [entityID, setEntityID] = useState<string>(
+    formData.sso_settings.entity_id || ""
+  );
+  const [issuerURI, setIssuerURI] = useState<string>(
+    formData.sso_settings.issuer_uri || ""
+  );
+  const [idpImageURL, setIDPImageURL] = useState<string>(
+    formData.sso_settings.idp_image_url || ""
+  );
+  const [metadata, setMetadata] = useState<string>(
+    formData.sso_settings.metadata || ""
+  );
+  const [metadataURL, setMetadataURL] = useState<string>(
+    formData.sso_settings.metadata_url || ""
+  );
+  const [enableSSOIDLLogin, setEnableSSOIDPLogin] = useState<boolean>(
+    formData.sso_settings.enable_sso_idp_login || false
+  );
+  // SMTP options
+
+  // stopped here
+
+  // Osquery enrollment secrets
+
+  // Global agent options
+
+  // Host status webhook
+
+  // Usage statistics
+
+  // Advanced options
+
+  // const [, set] = useState<>(
+  //   formData. ||
+  // );
+
   const [domain, setDomain] = useState<string>("");
-  const [verifySSLCerts, setVerifySSLCerts] = useState<IFormField>(
-    formData.verify_ssl_certs
+  const [verifySSLCerts, setVerifySSLCerts] = useState<boolean>(
+    formData.smtp_settings.verify_ssl_certs || false
   );
 
+  // Form onChange functions
+  // Organization info
+  const onChangeOrgName = useCallback(
+    (value: string) => {
+      setOrgName(value);
+    },
+    [setOrgName]
+  );
+  const onChangeOrgLogoUrl = useCallback(
+    (value: string) => {
+      setOrgLogoUrl(value);
+    },
+    [setOrgLogoUrl]
+  );
+  // Fleet web address
+  const onChangeServerURL = useCallback(
+    (value: string) => {
+      setServerURL(value);
+    },
+    [setServerURL]
+  );
+  // SAML single sign on options
+  const onChangeEnableSSO = useCallback(
+    (value: boolean) => {
+      setEnableSSO(value);
+    },
+    [setEnableSSO]
+  );
+  const onChangeIDPName = useCallback(
+    (value: string) => {
+      setIDPName(value);
+    },
+    [setIDPName]
+  );
+  const onChangeEntityID = useCallback(
+    (value: string) => {
+      setEntityID(value);
+    },
+    [setEntityID]
+  );
+
+  const onChangeIssuerURI = useCallback(
+    (value: string) => {
+      setIssuerURI(value);
+    },
+    [setIssuerURI]
+  );
+  const onChangeIDPImageURL = useCallback(
+    (value: string) => {
+      setIDPImageURL(value);
+    },
+    [setIDPImageURL]
+  );
+  const onChangeMetadata = useCallback(
+    (value: string) => {
+      setMetadata(value);
+    },
+    [setMetadata]
+  );
+  const onChangeMetadataURL = useCallback(
+    (value: string) => {
+      setMetadataURL(value);
+    },
+    [setMetadataURL]
+  );
+  const onChangeEnableSSOIDPLogin = useCallback(
+    (value: boolean) => {
+      setEnableSSOIDPLogin(value);
+    },
+    [setEnableSSOIDPLogin]
+  );
+  // SMTP options
+
+  // stopped here
+
+  // Osquery enrollment secrets
+
+  // Global agent options
+
+  // Host status webhook
+
+  // Usage statistics
+
+  // Advanced options
   const onChangeDomain = useCallback(
     (value: string) => {
       setDomain(value);
@@ -179,7 +319,7 @@ const AppConfigFormFunctional = ({
     [setDomain]
   );
   const onChangeSSLCerts = useCallback(
-    (value: IFormField) => {
+    (value: boolean) => {
       setVerifySSLCerts(value);
     },
     [setVerifySSLCerts]
@@ -377,6 +517,7 @@ const AppConfigFormFunctional = ({
     );
   };
 
+  console.log("orgName", orgName);
   return (
     <>
       <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
@@ -387,11 +528,19 @@ const AppConfigFormFunctional = ({
             </a>
           </h2>
           <div className={`${baseClass}__inputs`}>
-            <InputField label="Organization name" />
-            <InputField label="Organization avatar URL" />
+            <InputField
+              label="Organization name"
+              onChange={onChangeOrgName}
+              value={orgName}
+            />
+            <InputField
+              label="Organization avatar URL"
+              onChange={onChangeOrgLogoUrl}
+              value={orgLogoUrl}
+            />
           </div>
           <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
-            {/* <OrgLogoIcon src={fields.org_logo_url.value} /> */}
+            <OrgLogoIcon src={orgLogoUrl} />
           </div>
         </div>
         <div className={`${baseClass}__section`}>
@@ -406,6 +555,8 @@ const AppConfigFormFunctional = ({
                   Include base path only (eg. no <code>/v1</code>)
                 </span>
               }
+              onChange={onChangeServerURL}
+              value={serverURL}
             />
           </div>
           <div className={`${baseClass}__details`}>
@@ -421,11 +572,17 @@ const AppConfigFormFunctional = ({
           </h2>
 
           <div className={`${baseClass}__inputs`}>
-            <Checkbox>Enable single sign on</Checkbox>
+            <Checkbox onChange={onChangeEnableSSO} value={enableSSO}>
+              Enable single sign on
+            </Checkbox>
           </div>
 
           <div className={`${baseClass}__inputs`}>
-            <InputField label="Identity provider name" />
+            <InputField
+              label="Identity provider name"
+              onChange={onChangeIDPName}
+              value={idpName}
+            />
           </div>
           <div className={`${baseClass}__details`}>
             <IconToolTip
@@ -444,6 +601,8 @@ const AppConfigFormFunctional = ({
                   field used in identity provider configuration.
                 </span>
               }
+              onChange={onChangeEntityID}
+              value={entityID}
             />
           </div>
           <div className={`${baseClass}__details`}>
@@ -455,7 +614,11 @@ const AppConfigFormFunctional = ({
           </div>
 
           <div className={`${baseClass}__inputs`}>
-            <InputField label="Issuer URI" />
+            <InputField
+              label="Issuer URI"
+              onChange={onChangeIssuerURI}
+              value={issuerURI}
+            />
           </div>
           <div className={`${baseClass}__details`}>
             <IconToolTip
@@ -464,7 +627,11 @@ const AppConfigFormFunctional = ({
           </div>
 
           <div className={`${baseClass}__inputs`}>
-            <InputField label="IDP image URL" />
+            <InputField
+              label="IDP image URL"
+              onChange={onChangeIDPImageURL}
+              value={idpImageURL}
+            />
           </div>
           <div className={`${baseClass}__details`}>
             <IconToolTip
@@ -475,7 +642,12 @@ const AppConfigFormFunctional = ({
           </div>
 
           <div className={`${baseClass}__inputs`}>
-            <InputField label="Metadata" type="textarea" />
+            <InputField
+              label="Metadata"
+              type="textarea"
+              onChange={onChangeMetadata}
+              value={metadata}
+            />
           </div>
           <div className={`${baseClass}__details`}>
             <IconToolTip
@@ -494,6 +666,8 @@ const AppConfigFormFunctional = ({
                   means of providing metadata.
                 </span>
               }
+              onChange={onChangeMetadataURL}
+              value={metadataURL}
             />
           </div>
           <div className={`${baseClass}__details`}>
@@ -503,7 +677,12 @@ const AppConfigFormFunctional = ({
           </div>
 
           <div className={`${baseClass}__inputs`}>
-            <Checkbox>Allow SSO login initiated by Identity Provider</Checkbox>
+            <Checkbox
+              onChange={onChangeEnableSSOIDPLogin}
+              value={enableSSOIDLLogin}
+            >
+              Allow SSO login initiated by Identity Provider
+            </Checkbox>
           </div>
         </div>
 

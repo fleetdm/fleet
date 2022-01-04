@@ -26,6 +26,7 @@ export default PropTypes.shape({
   issuer_uri: PropTypes.string,
   idp_image_url: PropTypes.string,
   metadata: PropTypes.string,
+  metadata_url: PropTypes.string,
   idp_name: PropTypes.string,
   enable_sso: PropTypes.bool,
   enable_sso_idp_login: PropTypes.bool,
@@ -89,7 +90,87 @@ export interface IConfig {
   issuer_uri: string;
   idp_image_url: string;
   metadata: string;
+  metadata_url: string;
   idp_name: string;
+  enable_sso: boolean;
+  enable_sso_idp_login: boolean;
+  host_expiry_enabled: boolean;
+  host_expiry_window: number;
+  agent_options: string;
+  osquery_detail: number;
+  osquery_policy: number;
+  tier: string;
+  organization: string;
+  device_count: number;
+  expiration: string;
+  note: string;
+  // vulnerability_settings: any; TODO
+  enable_host_status_webhook: boolean;
+  destination_url: string;
+  host_percentage: number;
+  days_count: number;
+  logging: {
+    debug: boolean;
+    json: boolean;
+    result: {
+      plugin: string;
+      config: {
+        status_log_file: string;
+        result_log_file: string;
+        enable_log_rotation: boolean;
+        enable_log_compression: boolean;
+      };
+    };
+    status: {
+      plugin: string;
+      config: {
+        status_log_file: string;
+        result_log_file: string;
+        enable_log_rotation: boolean;
+        enable_log_compression: boolean;
+      };
+    };
+  };
+  webhook_settings: {
+    failing_policies_webhook: IWebhookFailingPolicies;
+  };
+}
+
+export interface IConfigNested {
+  org_info: {
+    org_name: string;
+    org_logo_url: string;
+  };
+  server_settings: {
+    server_url: string;
+    live_query_disabled: boolean;
+    enable_analytics: boolean;
+  };
+  enable_smtp: boolean;
+  configured: boolean;
+  sender_address: string;
+  server: string;
+  port: number;
+  authentication_type: string;
+  user_name: string;
+  password: string;
+  enable_ssl_tls: boolean;
+  authentication_method: string;
+  domain: string;
+  smtp_settings: {
+    verify_ssl_certs: boolean;
+  };
+  enable_start_tls: boolean;
+  sso_settings: {
+    entity_id: string;
+    issuer_uri: string;
+    idp_image_url: string;
+    metadata: string;
+    metadata_url: string;
+    idp_name: string;
+    enable_sso: boolean;
+    enable_sso_idp_login: boolean;
+  };
   enable_sso: boolean;
   enable_sso_idp_login: boolean;
   host_expiry_enabled: boolean;
