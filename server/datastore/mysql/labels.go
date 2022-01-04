@@ -355,19 +355,19 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			}
 		}
 
-		//// Complete deletions if necessary
-		//if len(removes) > 0 {
-		//	sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
-		//	query, args, err := sqlx.In(sql, host.ID, removes)
-		//	if err != nil {
-		//		return ctxerr.Wrap(ctx, err, "IN for DELETE FROM label_membership")
-		//	}
-		//	query = tx.Rebind(query)
-		//	_, err = tx.ExecContext(ctx, query, args...)
-		//	if err != nil {
-		//		return ctxerr.Wrap(ctx, err, "delete label query executions")
-		//	}
-		//}
+		// Complete deletions if necessary
+		if len(removes) > 0 {
+			sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+			query, args, err := sqlx.In(sql, host.ID, removes)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "IN for DELETE FROM label_membership")
+			}
+			query = tx.Rebind(query)
+			_, err = tx.ExecContext(ctx, query, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete label query executions")
+			}
+		}
 
 		// if we are deferring host updates, we return at this point and do the change outside of the tx
 		if deferredSaveHost {
