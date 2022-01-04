@@ -197,7 +197,7 @@ jobs:
       shell: bash
       run: |
         npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
 
     - name: Download MSI
       id: download
@@ -209,9 +209,6 @@ jobs:
     - name: Install Orbit
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
-
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
 
     - name: Check installation
       shell: bash 
