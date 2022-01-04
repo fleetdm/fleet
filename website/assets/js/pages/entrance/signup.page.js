@@ -49,6 +49,12 @@ parasails.registerPage('signup', {
       await this.forceRender();
     },
 
+    typeClearOneFormError: async function(field) {
+      if(this.formErrors[field]){
+        this.formErrors = _.omit(this.formErrors, field);
+      }
+    },
+
     submittedSignUpForm: async function() {
       // redirect to the new-license page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
