@@ -28,7 +28,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
-[Feature Flags](./product.md#feature-flags)
+[Feature flags](./product.md#feature-flags)
 
 [Fleet docs](./product.md#fleet-docs)
 
