@@ -16,8 +16,8 @@ const createErrorMessage = (error: any): string => {
 const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
-  data?: any
-) => {
+  data?: unknown
+): Promise<unknown> => {
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
