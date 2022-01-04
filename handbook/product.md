@@ -73,9 +73,11 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
-To try stuff out with Fleet locally for QA purposes, you can run `fleetctl preview`, which defaults to running the latest stable release.
+To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
-To target a different version of Fleet, you can use the `--tag` argument to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag='main'`
+To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
+
+To start preview without starting the simulated hosts, use the `--no-hosts` flag (eg. `fleetctl preview --no-hosts`).
 
 ### Why human-oriented QA?
 
@@ -244,4 +246,37 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 
 <meta name="maintainedBy" value="noahtalerman">
+
+## Release 
+
+This section outlines 
+
+### Goal
+
+Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders are able to communicate
+with customers and users.
+
+### Blog post
+
+The Product team is responsible for providing the [Growth team](./growth.md) with necessary information for writing
+the release blog post. This is accomplished by filing a release blog post issue and adding
+the issue to the growth board on GitHub.
+
+The release blog post issue includes a list of the primary features included in the upcoming
+release. This list of features should point the reader to the GitHub issue that explains each
+feature in more detail.
+
+An example release blog post issue can be found [here](https://github.com/fleetdm/fleet/issues/3465).
+
+### Customer announcement
+
+The Product team is responsible for providing the [Customer success team](./customer-experience.md) with necessary information
+for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
+the issue to the customer success board on GitHub. 
+
+
+The release blog post issue is filed in the private fleetdm/confidential repository because the
+comment section may contain private information about Fleet's customers.
+
+An example release customer announcement blog post issue can be found [here](https://github.com/fleetdm/confidential/issues/747).
 

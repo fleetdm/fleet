@@ -34,6 +34,7 @@ const (
 	licenseKeyFlagName      = "license-key"
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"
+	noHostsFlagName         = "no-hosts"
 )
 
 func previewCommand() *cli.Command {
@@ -64,6 +65,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  previewConfigFlagName,
 				Usage: "Run a specific branch of the preview repository",
 				Value: "production",
+			},
+			&cli.BoolFlag{
+				Name:  noHostsFlagName,
+				Usage: "Start the server without adding any hosts",
+				Value: false,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -242,38 +248,44 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error disabling anonymous analytics collection in app config: %w", err)
 			}
 
-			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
+			fmt.Println("Fleet will now log you into the UI automatically.")
 			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
 			fmt.Println("Email:", email)
 			fmt.Println("Password:", password)
 
-			fmt.Println("Downloading Orbit and osqueryd...")
+			if !c.Bool(noHostsFlagName) {
+				fmt.Println("Enrolling local host...")
 
-			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
-				return fmt.Errorf("downloading orbit and osqueryd: %w", err)
-			}
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
+					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
+				}
 
-			// Give it a bit of time so the current device is the one with id 1
-			fmt.Println("Waiting for current host to enroll...")
-			if err := waitFirstHost(client); err != nil {
-				return fmt.Errorf("wait for current host: %w", err)
-			}
+				// Give it a bit of time so the current device is the one with id 1
+				fmt.Println("Waiting for host to enroll...")
+				if err := waitFirstHost(client); err != nil {
+					return fmt.Errorf("wait for current host: %w", err)
+				}
 
-			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
-				fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
-			}
+				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				}
 
-			fmt.Println("Starting simulated Linux hosts...")
-			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
-			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(os.Environ(),
-				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
-				"FLEET_URL="+address,
-			)
-			out, err = cmd.CombinedOutput()
-			if err != nil {
-				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				fmt.Println("Starting simulated Linux hosts...")
+				cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+				cmd.Dir = filepath.Join(previewDir, "osquery")
+				cmd.Env = append(os.Environ(),
+					"ENROLL_SECRET="+secrets.Secrets[0].Secret,
+					"FLEET_URL="+address,
+				)
+				out, err = cmd.CombinedOutput()
+				if err != nil {
+					fmt.Println(string(out))
+					return errors.New("Failed to run docker-compose")
+				}
+			} else {
+				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				}
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")

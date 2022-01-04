@@ -1,3 +1,0 @@
-* Fix server-side pagination for homepage software results
-* Migrate homepage software counts to use `/count` endpoint
-* Improve error and loading states for homepage software tables

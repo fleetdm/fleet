@@ -802,7 +802,7 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 // definitely not cut out any valid address is to just check for
 // the presence of @, which is arguably the most important check
 // in this.
-var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]\..+$`)
+var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
 
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
 	base, args := searchLike(sql, params, match, columns...)
