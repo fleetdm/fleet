@@ -29,7 +29,7 @@ func NewRunner(socket string) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
-	if err := waitForSocket(r.socket, 3*time.Second); err != nil {
+	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
