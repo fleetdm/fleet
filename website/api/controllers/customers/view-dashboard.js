@@ -14,7 +14,7 @@ module.exports = {
     },
 
     redirect: {
-      description: 'The requesting user has a subscription, redirecting to the customer dashboard.',
+      description: 'The requesting user does not have a subscription, redirecting to the new license page.',
       responseType: 'redirect',
     },
 

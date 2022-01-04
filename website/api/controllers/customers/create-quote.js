@@ -19,19 +19,13 @@ module.exports = {
 
   exits: {
 
-    notFound: {
-      responseType: 'notFound'
-    },
-
-    forbidden: {
-      responseType: 'forbidden'
-    }
   },
 
 
   fn: async function ({ numberOfHosts }) {
 
-    let price = numberOfHosts * 12;
+    // Determine the price, 1 dollar * host * month (Billed anually)
+    let price = 1.00 * numberOfHosts * 12;
 
     let quote = await Quote.create({
       numberOfHosts: numberOfHosts,

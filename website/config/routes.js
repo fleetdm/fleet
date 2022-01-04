@@ -224,16 +224,16 @@ module.exports.routes = {
   //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
-  'POST  /api/v1/deliver-contact-form-message':        { action: 'deliver-contact-form-message' },
-  'POST  /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
+  'POST /api/v1/deliver-contact-form-message':        { action: 'deliver-contact-form-message' },
+  'POST /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
   'POST /api/v1/customers/signup':                     { action: 'entrance/signup' },
   'POST /api/v1/account/update-profile':               { action: 'account/update-profile' },
-  'POST /api/v1/account/update-password':               { action: 'account/update-password' },
+  'POST /api/v1/account/update-password':              { action: 'account/update-password' },
   'POST /api/v1/account/update-billing-card':          { action: 'account/update-billing-card'},
   'POST /api/v1/customers/login':                      { action: 'entrance/login' },
   '/api/v1/account/logout':                            { action: 'account/logout' },
-  'GET /api/v1/customers/create-quote':                   { action: 'customers/create-quote' },
+  'POST /api/v1/customers/create-quote':               { action: 'customers/create-quote' },
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
-  'POST  /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
+  'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
 
 };

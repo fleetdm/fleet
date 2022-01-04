@@ -22,8 +22,8 @@ parasails.registerPage('signup', {
     syncing: false,
     // Server error state
     cloudError: '',
+    // For displaying the full signup form.
     showFullForm: false,
-    // Success state when form has been submitted
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

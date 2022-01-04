@@ -63,20 +63,9 @@ module.exports = {
     }
 
     // What if the stripe customer id doesn't already exist on the user?
-    // If so, handle this gracefully.  (But why gracefully? But why would this ever be the case?  TODO)
-    // let stripeCustomerId;
-    // if(this.req.me.stripeCustomerId) {
-    //   stripeCustomerId = this.req.me.stripeCustomerId;
-    // } else {
-    //   stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-    //     emailAddress: this.req.me.emailAddress
-    //   }).timeout(5000).retry();
-
-    //   await User.updateOne({id: this.req.me.id})
-    //   .set({
-    //     stripeCustomerId
-    //   });
-    // }
+    if (!this.req.me.stripeCustomerId) {
+      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) Stripe customer id has somehow gone missing!`);
+    }
 
     // Write new payment card info ("token") to Stripe's API.
     await sails.helpers.stripe.saveBillingInfo.with({
@@ -108,7 +97,8 @@ module.exports = {
 
     // Generate the license key for this subscription
     let licenseKey = await sails.helpers.createLicenseKey.with({
-      quoteId: inputs.quoteId,
+      numberOfHosts: quoteRecord.numberOfHosts,
+      organization: this.req.me.organization,
       validTo: subscription.current_period_end
     });
 

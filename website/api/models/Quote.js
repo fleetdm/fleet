@@ -15,6 +15,7 @@ module.exports = {
     organization: { // Note: the current organization exists on the user model, this reflects the organization at the time the quote was created.
       type: 'string',
       description: 'The organization the user entered when they generated a quote',
+      maxLength: 120,
     },
 
     numberOfHosts: {
@@ -25,7 +26,7 @@ module.exports = {
 
     quotedPrice: {
       type: 'number',
-      description: 'The price of the Fleet Premium license subscription that was generated',
+      description: 'The price of the Fleet Premium license that was quoted to the user',
       required: true,
     },
 
@@ -40,7 +41,7 @@ module.exports = {
     user: {
       model: 'User',
       required: true,
-      description: 'The user who created this quote, if they created an account.'
+      description: 'The user who created this quote.'
     },
   },
 

@@ -40,7 +40,7 @@ module.exports = {
     fleetLicenseKey: {
       type: 'string',
       example:'1234 1234 1234 1234 1234',
-      description: 'The user\'s Fleet Premium License key'
+      description: 'The user\'s Fleet Premium license key'
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
