@@ -7,7 +7,7 @@ Fleet is powered by the open source osquery tool. To add a host to Fleet, you mu
 
 The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here fleetdm.com](https://fleetdm.com/get-started)
+To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
 
 Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
@@ -25,6 +25,18 @@ fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR E
   >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance you'll need to specify a `--fleet-url` and `--enroll-secret`
 
 When you install the generated osquery installer on a host, this host will be automatically enrolled in the specified Fleet instance.
+
+## Signing installers
+
+  >**Note:** Windows signing is not yet supported within `fleetctl` (working on that this week), but the resulting MSI could be signed after building.
+
+`fleetctl` provides suppport for signing and notarizing macOS osquery packages via the `package` command. To do
+this, modify the command to create an osquery installer to look similar to the example below:
+
+```sh
+  fleetctl package --type=pkg --sign-identity=[Path to Identity to use for macOS codesigning] --notarize
+```
+
 
 ### Adding multiple hosts
 
