@@ -374,10 +374,10 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			return nil
 		}
 
-		//_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
-		//if err != nil {
-		//	return ctxerr.Wrap(ctx, err, "updating hosts label updated at")
-		//}
+		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating hosts label updated at")
+		}
 
 		return nil
 	})

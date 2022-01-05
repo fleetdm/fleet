@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	badrand "math/rand"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -958,5 +960,180 @@ func TestRxLooseEmail(t *testing.T) {
 		t.Run(tc.str, func(t *testing.T) {
 			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
 		})
+	}
+}
+
+func setupDeleteList(b *testing.B) *Datastore {
+	ds := CreateMySQLDS(b)
+
+	_, err := ds.writer.Exec(`DROP TABLE IF EXISTS label_membership`)
+	require.NoError(b, err)
+
+	_, err = ds.writer.Exec(`
+CREATE TABLE label_membership (
+  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  label_id int(10) unsigned NOT NULL,
+  host_id int(10) unsigned NOT NULL,
+  PRIMARY KEY (host_id, label_id),
+  KEY idx_lm_label_id (label_id)
+)
+`)
+	require.NoError(b, err)
+	return ds
+}
+
+func runBenchmarkDeleteList(b *testing.B, ds *Datastore) {
+	hosts := 100
+	// generate random results map[uint]*bool
+	results := make(map[uint]*bool)
+	orderedIDs := make([]uint, 0, 1000)
+	for j := 0; j < 1000; j++ {
+		v := false
+		if badrand.Intn(2) > 0 {
+			v = true
+		}
+		results[uint(j)] = &v
+		orderedIDs = append(orderedIDs, uint(j))
+	}
+	// detect the insertions and removes
+	vals := []interface{}{}
+	bindvars := []string{}
+	removes := []uint{}
+	hostID := badrand.Intn(hosts)
+	updated := time.Now()
+	for _, labelID := range orderedIDs {
+		matches := results[labelID]
+		if matches != nil && *matches {
+			// Add/update row
+			bindvars = append(bindvars, "(?,?,?)")
+			vals = append(vals, updated, labelID, hostID)
+		} else {
+			// Delete row
+			removes = append(removes, labelID)
+		}
+	}
+
+	// Complete inserts if necessary
+	if len(vals) > 0 {
+		sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
+		sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+
+		_, err := ds.writer.Exec(sql, vals...)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+
+	// Complete deletions if necessary
+	if len(removes) > 0 {
+		sql := `DELETE FROM label_membership WHERE host_id = ? AND label_id IN (?)`
+		query, args, err := sqlx.In(sql, hostID, removes)
+		if err != nil {
+			b.Error(err)
+		}
+		query = ds.writer.Rebind(query)
+		_, err = ds.writer.Exec(query, args...)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkDeleteLists(b *testing.B) {
+	ds := setupDeleteList(b)
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		for i := 0; i < 1000; i++ {
+			hostID := badrand.Intn(100)
+			var labels []uint
+			err := ds.writer.Select(&labels, `select label_id from label_membership where host_id = ?`, hostID)
+			if err != nil {
+				//b.Log(err)
+			}
+		}
+	}()
+
+	for i := 0; i < b.N; i++ {
+		runBenchmarkDeleteList(b, ds)
+	}
+}
+
+func setupUpdateList(b *testing.B) *Datastore {
+	ds := CreateMySQLDS(b)
+
+	_, err := ds.writer.Exec(`DROP TABLE IF EXISTS label_membership`)
+	require.NoError(b, err)
+
+	_, err = ds.writer.Exec(`
+CREATE TABLE label_membership (
+  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  label_id int(10) unsigned NOT NULL,
+  host_id int(10) unsigned NOT NULL,
+  member boolean not null default false,
+  PRIMARY KEY (host_id, label_id),
+  KEY idx_lm_label_id (label_id),
+  KEY idx_asd (host_id, member)
+)
+`)
+	require.NoError(b, err)
+	return ds
+}
+
+func runBenchmarkUpdateList(b *testing.B, ds *Datastore) {
+	hosts := 100
+	// generate random results map[uint]*bool
+	results := make(map[uint]*bool)
+	orderedIDs := make([]uint, 0, 1000)
+	for j := 0; j < 1000; j++ {
+		v := false
+		if badrand.Intn(2) > 0 {
+			v = true
+		}
+		results[uint(j)] = &v
+		orderedIDs = append(orderedIDs, uint(j))
+	}
+	// detect the insertions and removes
+	vals := []interface{}{}
+	bindvars := []string{}
+	hostID := badrand.Intn(hosts)
+	updated := time.Now()
+	for _, labelID := range orderedIDs {
+		matches := results[labelID]
+		bindvars = append(bindvars, "(?,?,?,?)")
+		vals = append(vals, updated, labelID, hostID, *matches)
+	}
+
+	// Complete inserts if necessary
+	if len(vals) > 0 {
+		sql := `INSERT INTO label_membership (updated_at, label_id, host_id, member) VALUES `
+		sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), member = VALUES(member)`
+
+		_, err := ds.writer.Exec(sql, vals...)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkUpdateLists(b *testing.B) {
+	ds := setupUpdateList(b)
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		for i := 0; i < 1000; i++ {
+			hostID := badrand.Intn(100)
+			var labels []uint
+			err := ds.writer.Select(&labels, `select label_id from label_membership where host_id = ? and member`, hostID)
+			if err != nil {
+				//b.Log(err)
+			}
+		}
+	}()
+
+	for i := 0; i < b.N; i++ {
+		runBenchmarkUpdateList(b, ds)
 	}
 }
