@@ -89,16 +89,14 @@ parasails.registerPage('basic-documentation', {
   },
 
   mounted: async function() {
-
     // Algolia DocSearch
     docsearch({
-      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      appId: 'NZXAYZXDGH',
+      apiKey: 'f3c02b646222734376a5e94408d6fead',
       indexName: 'fleetdm',
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
       debug: false,
-      algoliaOptions: {
-        'facetFilters': ['tags:docs']
-      },
+      filters: 'section: "docs"',
     });
 
     // Handle hashes in urls when coming from an external page.
