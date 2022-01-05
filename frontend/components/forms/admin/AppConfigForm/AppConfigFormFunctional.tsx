@@ -6,9 +6,11 @@ import yaml from "js-yaml";
 // @ts-ignore
 import validate from "components/forms/admin/AppConfigForm/validate";
 // @ts-ignore
+import validateYaml from "components/forms/validators/validate_yaml";
+// @ts-ignore
 import constructErrorString from "utilities/yaml";
 
-import { IConfigNested } from "interfaces/config";
+import { IConfigNested, IConfigFormData } from "interfaces/config";
 import { IFormField } from "interfaces/form_field";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
@@ -29,6 +31,8 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
+import { string } from "prop-types";
+import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -92,40 +96,6 @@ const formFields = [
 ];
 
 interface IAppConfigFormProps {
-  // formData: {
-  //   authentication_method: IFormField;
-  //   authentication_type: IFormField;
-  //   domain: IFormField;
-  //   enable_ssl_tls: IFormField;
-  //   enable_start_tls: IFormField;
-  //   server_url: IFormField;
-  //   org_logo_url: string;
-  //   org_name: string;
-  //   password: IFormField;
-  //   port: IFormField;
-  //   sender_address: IFormField;
-  //   server: IFormField;
-  //   user_name: IFormField;
-  //   verify_ssl_certs: IFormField;
-  //   entity_id: IFormField;
-  //   issuer_uri: IFormField;
-  //   idp_image_url: IFormField;
-  //   metadata: IFormField;
-  //   metadata_url: IFormField;
-  //   idp_name: IFormField;
-  //   enable_sso: IFormField;
-  //   enable_sso_idp_login: IFormField;
-  //   enable_smtp: IFormField;
-  //   host_expiry_enabled: IFormField;
-  //   host_expiry_window: IFormField;
-  //   live_query_disabled: IFormField;
-  //   agent_options: IFormField;
-  //   enable_host_status_webhook: IFormField;
-  //   destination_url?: IFormField;
-  //   host_percentage?: IFormField;
-  //   days_count?: IFormField;
-  //   enable_analytics: IFormField;
-  // };
   formData: IConfigNested;
   enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
@@ -148,12 +118,21 @@ interface IAppConfigFormState {
   showHostStatusWebhookPreviewModal: boolean;
   showUsageStatsPreviewModal: boolean;
 }
-
 interface IAppConfigFormErrors {
-  // email: string | null;
-  // name: string | null;
-  // password: string | null;
-  // sso_enabled: boolean | null;
+  metadata_url: string | null;
+  entity_id: string | null;
+  idp_name: string | null;
+  server_url: string | null;
+  org_name: string | null;
+  sender_address: string | null;
+  server: string | null;
+  user_name: string | null;
+  password: string | null;
+  destination_url: string | null;
+  host_percentage: string | null;
+  days_count: string | null;
+  host_expiry_window: string | null;
+  agent_options: string | null;
 }
 
 const AppConfigFormFunctional = ({
@@ -175,11 +154,12 @@ const AppConfigFormFunctional = ({
 
   // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀
   // █▀░ █▄█ █▀▄ █░▀░█   ▄█ ░█░ █▀█ ░█░ ██▄
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
   // Organization info
   const [orgName, setOrgName] = useState<string>(
     formData.org_info.org_name || ""
   );
-  const [orgLogoUrl, setOrgLogoUrl] = useState<string>(
+  const [orgLogoURL, setOrgLogoURL] = useState<string>(
     formData.org_info.org_logo_url || ""
   );
   // Fleet web address
@@ -208,7 +188,7 @@ const AppConfigFormFunctional = ({
   const [metadataURL, setMetadataURL] = useState<string>(
     formData.sso_settings.metadata_url || ""
   );
-  const [enableSSOIDLLogin, setEnableSSOIDPLogin] = useState<boolean>(
+  const [enableSSOIDPLogin, setEnableSSOIDPLogin] = useState<boolean>(
     formData.sso_settings.enable_sso_idp_login || false
   );
   // SMTP options
@@ -282,8 +262,8 @@ const AppConfigFormFunctional = ({
   const [enableHostExpiry, setEnableHostExpiry] = useState<boolean>(
     formData.host_expiry_settings.host_expiry_enabled || false
   );
-  const [hostExpiryWindow, setHostExpiryWindow] = useState<number | undefined>(
-    formData.host_expiry_settings.host_expiry_window || undefined
+  const [hostExpiryWindow, setHostExpiryWindow] = useState<number>(
+    formData.host_expiry_settings.host_expiry_window || 0
   );
   const [disableLiveQuery, setDisableLiveQuery] = useState<boolean>(
     formData.server_settings.live_query_disabled || false
@@ -298,11 +278,11 @@ const AppConfigFormFunctional = ({
     },
     [setOrgName]
   );
-  const onChangeOrgLogoUrl = useCallback(
+  const onChangeOrgLogoURL = useCallback(
     (value: string) => {
-      setOrgLogoUrl(value);
+      setOrgLogoURL(value);
     },
-    [setOrgLogoUrl]
+    [setOrgLogoURL]
   );
   // Fleet web address
   const onChangeServerURL = useCallback(
@@ -510,12 +490,123 @@ const AppConfigFormFunctional = ({
   // █▀░ █▄█ █▀▄ █░▀░█   ▄█ █▄█ █▄█ █░▀░█ █ ░█░
   const onFormSubmit = () => {
     // Validator
+    const formDataToSubmit = {
+      org_logo_url: orgLogoURL,
+      org_name: orgName,
+      server_url: serverURL,
+      enable_sso: enableSSO,
+      idp_name: idpName,
+      entity_id: entityID,
+      issuer_uri: issuerURI,
+      idp_image_url: idpImageURL,
+      metadata: metadata,
+      metadata_url: metadataURL,
+      enable_sso_idp_login: enableSSOIDPLogin,
+      enable_smtp: enableSMTP,
+      sender_address: smtpSenderAddress,
+      server: smtpServer,
+      port: smtpPort,
+      enable_ssl_tls: smtpEnableSSLTLS,
+      authentication_type: smtpAuthenticationType,
+      user_name: smtpUsername,
+      password: smtpPassword,
+      authentication_method: smtpAuthenticationMethod,
+      agent_options: agentOptions,
+      enable_host_status_webhook: enableHostStatusWebhook,
+      destination_url: hostStatusWebhookDestinationURL,
+      host_percentage: hostStatusWebhookHostPercentage,
+      days_count: hostStatusWebhookDaysCount,
+      enable_analytics: enableUsageStatistics,
+      domain: domain,
+      verify_ssl_certs: verifySSLCerts,
+      enable_start_tls: enableStartTLS,
+      host_expiry_enabled: enableHostExpiry,
+      host_expiry_window: hostExpiryWindow,
+      live_query_disabled: disableLiveQuery,
+    };
 
-    handleSubmit({
-      name: packName,
-      description: packDescription,
-      targets: [...packFormTargets],
-    });
+    const errors: any = {};
+
+    if (enableSSO) {
+      if (!metadata && !metadataURL) {
+        errors.metadata_url = "Metadata URL must be present";
+      }
+      if (!entityID) {
+        errors.entity_id = "Entity ID must be present";
+      }
+      if (!idpName) {
+        errors.idp_name = "Identity Provider Name must be present";
+      }
+    }
+
+    if (!serverURL) {
+      errors.server_url = "Fleet server URL must be present";
+    }
+
+    if (!orgName) {
+      errors.org_name = "Organization name must be present";
+    }
+
+    if (enableSMTP) {
+      if (!smtpSenderAddress) {
+        errors.sender_address = "SMTP sender address must be present";
+      }
+
+      if (!smtpServer) {
+        errors.server = "SMTP server must be present";
+      }
+
+      if (!smtpPort) {
+        errors.server = "SMTP server port must be present";
+      }
+
+      if (smtpAuthenticationType !== "authtype_none") {
+        if (!smtpUsername) {
+          errors.user_name = "SMTP username must be present";
+        }
+
+        if (!smtpPassword) {
+          errors.password = "SMTP password must be present";
+        }
+      }
+    }
+
+    if (enableHostStatusWebhook) {
+      if (!setHostStatusWebhookDestinationURL) {
+        errors.destination_url = "Destination URL must be present";
+      }
+
+      if (!hostStatusWebhookHostPercentage) {
+        errors.host_percentage = "Host percentage must be present";
+      }
+
+      if (!hostStatusWebhookDaysCount) {
+        errors.days_count = "Days count must be present";
+      }
+    }
+
+    if (enableHostExpiry) {
+      if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
+        errors.host_expiry_window =
+          "Host expiry window must be a positive number";
+      }
+    }
+
+    if (agentOptions) {
+      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
+
+      if (!yamlValid) {
+        errors.agent_options = constructErrorString(yamlError);
+      }
+    }
+
+    setFormErrors(errors);
+
+    if (errors) {
+      return false;
+    }
+
+    handleSubmit(formDataToSubmit);
   };
 
   // █▀ █▀▀ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
@@ -531,15 +622,16 @@ const AppConfigFormFunctional = ({
             label="Organization name"
             onChange={onChangeOrgName}
             value={orgName}
+            error={formErrors.org_name}
           />
           <InputField
             label="Organization avatar URL"
-            onChange={onChangeOrgLogoUrl}
-            value={orgLogoUrl}
+            onChange={onChangeOrgLogoURL}
+            value={orgLogoURL}
           />
         </div>
         <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
-          <OrgLogoIcon src={orgLogoUrl} />
+          <OrgLogoIcon src={orgLogoURL} />
         </div>
       </div>
     );
@@ -561,6 +653,7 @@ const AppConfigFormFunctional = ({
             }
             onChange={onChangeServerURL}
             value={serverURL}
+            error={formErrors.server_url}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -590,6 +683,7 @@ const AppConfigFormFunctional = ({
             label="Identity provider name"
             onChange={onChangeIDPName}
             value={idpName}
+            error={formErrors.idp_name}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -611,6 +705,7 @@ const AppConfigFormFunctional = ({
             }
             onChange={onChangeEntityID}
             value={entityID}
+            error={formErrors.entity_id}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -676,6 +771,7 @@ const AppConfigFormFunctional = ({
             }
             onChange={onChangeMetadataURL}
             value={metadataURL}
+            error={formErrors.metadata_url}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -687,7 +783,7 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={onChangeEnableSSOIDPLogin}
-            value={enableSSOIDLLogin}
+            value={enableSSOIDPLogin}
           >
             Allow SSO login initiated by Identity Provider
           </Checkbox>
@@ -856,7 +952,7 @@ const AppConfigFormFunctional = ({
           <YamlAce
             // onChange={onChangeAgentOptions} TODO
             // value={agentOptions} TODO
-            // error={fields.agent_options.error} TODO
+            error={formErrors.agent_options}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
           />
           {/* this might be tricky */}

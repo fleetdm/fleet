@@ -41,25 +41,38 @@ const AppSettingsPage = (): JSX.Element => {
   const [formData, setFormData] = useState<any>();
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
 
-  const onFormSubmit = (formData: IFormData) => {
-    // const diff = deepDifference(formData, appConfig);
+  // const onFormSubmit = (formData: IFormData) => {
+  // const diff = deepDifference(formData, appConfig);
 
-    // dispatch(updateConfig(diff))
-    //   .then(() => {
-    //     dispatch(renderFlash("success", "Settings updated."));
+  // dispatch(updateConfig(diff))
+  //   .then(() => {
+  //     dispatch(renderFlash("success", "Settings updated."));
 
-    //     return false;
-    //   })
-    //   .catch((errors: any) => {
-    //     // TODO: Check out this error handling REP
-    //     if (errors.base) {
-    //       dispatch(renderFlash("error", errors.base));
-    //     }
+  //     return false;
+  //   })
+  //   .catch((errors: any) => {
+  //     // TODO: Check out this error handling REP
+  //     if (errors.base) {
+  //       dispatch(renderFlash("error", errors.base));
+  //     }
 
-    //     return false;
-    //   });
+  //     return false;
+  //   });
 
-    return false;
+  //   return false;
+  // };
+
+  const onFormSubmit = async (formData: any) => {
+    try {
+      const request = configAPI.update(formData);
+      await request.then(() => {
+        dispatch(renderFlash("success", "Successfully updated settings."));
+      });
+    } catch (errors) {
+      if (errors.base) {
+        dispatch(renderFlash("error", errors.base));
+      }
+    }
   };
 
   const {

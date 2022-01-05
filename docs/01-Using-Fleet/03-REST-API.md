@@ -4675,10 +4675,6 @@ Modifies the Fleet's configuration with the supplied information.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
   "agent_options": {
     "spec": {
       "config": {

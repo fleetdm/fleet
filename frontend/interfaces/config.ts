@@ -109,7 +109,7 @@ export interface IConfig {
   destination_url: string;
   host_percentage: number;
   days_count: number;
-  logging: {
+  logging?: {
     debug: boolean;
     json: boolean;
     result: {
@@ -131,9 +131,44 @@ export interface IConfig {
       };
     };
   };
-  webhook_settings: {
+  webhook_settings?: {
     failing_policies_webhook: IWebhookFailingPolicies;
   };
+}
+
+export interface IConfigFormData {
+  authentication_method: string;
+  authentication_type: string;
+  domain: string;
+  enable_ssl_tls: boolean;
+  enable_start_tls: boolean;
+  server_url: string;
+  org_logo_url: string;
+  org_name: string;
+  password: string;
+  port?: number;
+  sender_address: string;
+  server: string;
+  user_name: string;
+  verify_ssl_certs: boolean;
+  entity_id: number;
+  issuer_uri: string;
+  idp_image_url: string;
+  metadata: string;
+  metadata_url: string;
+  idp_name: string;
+  enable_sso: boolean;
+  enable_sso_idp_login: boolean;
+  enable_smtp: boolean;
+  host_expiry_enabled: boolean;
+  host_expiry_window: number;
+  live_query_disabled: boolean;
+  agent_options: any;
+  enable_host_status_webhook: boolean;
+  destination_url?: string;
+  host_percentage?: number;
+  days_count?: number;
+  enable_analytics: boolean;
 }
 
 export interface IConfigNested {
@@ -171,21 +206,34 @@ export interface IConfigNested {
     enable_sso: boolean;
     enable_sso_idp_login: boolean;
   };
-  enable_sso: boolean;
-  enable_sso_idp_login: boolean;
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
   agent_options: string;
-  osquery_detail: number;
-  osquery_policy: number;
-  tier: string;
-  organization: string;
-  device_count: number;
-  expiration: string;
-  note: string;
-  // vulnerability_settings: any; TODO
+  update_interval: {
+    osquery_detail: number;
+    osquery_policy: number;
+  };
+  license: {
+    organization: string;
+    device_count: number;
+    tier: string;
+    expiration: string;
+    note: string;
+  };
+  vulnerability_settings: {
+    databases_path: string;
+  };
+  webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: boolean;
+      destination_url: string;
+      host_percentage: number;
+      days_count: number;
+    };
+    failing_policies_webhook: IWebhookFailingPolicies;
+  };
   logging: {
     debug: boolean;
     json: boolean;
@@ -207,14 +255,5 @@ export interface IConfigNested {
         enable_log_compression: boolean;
       };
     };
-  };
-  webhook_settings: {
-    host_status_webhook: {
-      enable_host_status_webhook: boolean;
-      destination_url: string;
-      host_percentage: number;
-      days_count: number;
-    };
-    failing_policies_webhook: IWebhookFailingPolicies;
   };
 }
