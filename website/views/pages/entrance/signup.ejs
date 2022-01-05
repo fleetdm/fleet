@@ -1,50 +1,71 @@
 <div id="signup" v-cloak>
-  <div class="container-fluid pt-5 pb-5" v-if="!cloudSuccess">
-    <h1 class="text-center">Create an account</h1>
-    <div style="max-width: 450px;" class="mx-auto" >
-      <p class="text-center">Let's get started! Becoming a member is free and only takes a few minutes.</p>
-      <hr/>
-      <ajax-form action="signup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedForm()">
-        <div class="form-group">
-          <label for="full-name">Full name</label>
-          <input class="form-control" id="full-name" type="text"  :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" placeholder="Sturgis P. Sturgeon" autocomplete="name" focus-first>
-          <div class="invalid-feedback" v-if="formErrors.fullName">Please enter your full name.</div>
+  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5 px-lg-0 px-5">
+    <h1>Welcome to Fleet Premium</h1>
+    <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key.</p>
+    <div class="mx-auto">
+      <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
+        <div class="order-first flex-grow-1 pr-md-4">
+          <div class="card card-body">
+            <ajax-form action="signup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
+              <div class="form-group">
+                <label for="email-address">Email</label>
+                <span style="float: right" class="text-right"><a href="/customers/login">I have an account</a></span>
+                <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+                <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+              </div>
+              <div v-show="formData.emailAddress || showFullForm">
+                <div class="form-group">
+                  <label for="password">Choose a password</label>
+                  <input class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
+                  <div class="invalid-feedback" v-if="formErrors.password === 'minLength'">Password too short.</div>
+                  <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
+                  <p class="mt-2"> Minimum length is 8 characters</p>
+                </div>
+                <div class="form-group">
+                  <label for="organization">Organization</label>
+                  <input class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
+                  <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
+                </div>
+                <div class="row">
+                  <div class="col-6">
+                    <div class="form-group">
+                      <label for="first-name">First name</label>
+                      <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
+                      <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="form-group">
+                      <label for="last-name">Last name</label>
+                      <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
+                      <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <cloud-error v-if="cloudError==='emailAlreadyInUse'">
+                <p>This email is already linked to a Fleet account.<br> Please <a href="/customers/login">sign in</a> with your email and password.</p>
+              </cloud-error>
+              <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+              <p>By signing up you agree to our <a href="/legal/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
+              <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+              <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
+            </ajax-form>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="email-address">Email address</label>
-          <input class="form-control" id="email-address" type="email"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="sturgeon@example.com" autocomplete="email">
-          <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address.</div>
+
+        <div class="order-last d-none d-md-block" purpose="features-list">
+          <p><strong>Fleet Premium includes:</strong></p>
+          <ul>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Multiple teams (RBAC)</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Self-hosted agent auto-updates</li>
+            <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Enterprise support</li>
+          </ul>
         </div>
-        <div class="form-group">
-          <label for="password">Choose a password</label>
-          <input class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" placeholder="••••••••" autocomplete="new-password">
-          <div class="invalid-feedback" v-if="formErrors.password">Please enter a password.</div>
-        </div>
-        <div class="form-group">
-          <label for="confirm-password">Confirm password</label>
-          <input class="form-control" id="confirm-password" type="password"  :class="[formErrors.confirmPassword ? 'is-invalid' : '']" v-model.trim="formData.confirmPassword" placeholder="••••••••" autocomplete="new-password">
-          <div class="invalid-feedback" v-if="formErrors.confirmPassword">Your password and confirmation do not match.</div>
-        </div>
-        <div class="form-group form-check">
-          <input class="form-check-input" id="terms-agreement" type="checkbox" v-model="formData.agreed">
-          <label for="terms-agreement" class="form-check-label" :class="[formErrors.agreed ? 'text-danger' : '']">I have read &amp; agree to the <a target="_blank" href="/terms">terms of service</a>.</label>
-        </div>
-        <cloud-error v-if="cloudError==='emailAlreadyInUse'">It looks like there's already an account with your email address. If you forgot your password, you can recover it <a href="password/forgot">here</a>.</cloud-error>
-        <cloud-error v-else-if="cloudError"></cloud-error>
-        <div class="form-group">
-          <ajax-button type="submit" :syncing="syncing" class="btn-dark btn-lg btn-block">Create account</ajax-button>
-        </div>
-      </ajax-form>
-      <p class="text-center">Have an account? <a href="/login">Sign in</a></p>
-    </div>
-  </div>
-  <div class="container-fluid pt-5 pb-5" v-if="cloudSuccess">
-    <h1 class="text-center">Check your email!</h1>
-    <div class="text-center">
-      <hr/>
-      <p>Your account is nearly ready. All you have to do is click the link we sent to <strong>{{formData.emailAddress}}</strong>.</p>
-      <p>(You can still access your dashboard now, but some features will be unvavailable until we've verified your email address.)</p>
-      <p><a class="btn btn-outline-info" href="/">Go to dashboard</a></p>
+
+      </div>
+
     </div>
   </div>
 </div>

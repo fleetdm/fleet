@@ -140,7 +140,8 @@ E2E tests are constantly evolving and running them or examining CI results is th
     add hosts
     label flows
 4. Queries flows
-5. Schedule flows
+5. Policies flows
+6. Schedule flows
     scheduling
     packs
 6. Permissions
