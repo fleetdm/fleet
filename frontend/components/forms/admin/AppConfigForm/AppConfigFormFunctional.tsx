@@ -56,68 +56,16 @@ const numberOfDays = [
   { label: "14 days", value: 14 },
 ];
 
-// consider breaking this up into components
+// TODO: consider breaking this up into separate components/files
+
 const baseClass = "app-config-form";
-// these will all be states...
-const formFields = [
-  // "authentication_method",
-  // "authentication_type",
-  // "domain",
-  // "enable_ssl_tls",
-  // "enable_start_tls",
-  // "server_url",
-  // "org_logo_url",
-  // "org_name",
-  // "osquery_enroll_secret", // not modified in UI
-  // "password",
-  // "port",
-  // "sender_address",
-  // "server",
-  // "user_name",
-  // "verify_ssl_certs",
-  // "idp_name",
-  // "entity_id",
-  // "issuer_uri",
-  // "idp_image_url",
-  // "metadata",
-  // "metadata_url",
-  // "enable_sso",
-  // "enable_sso_idp_login",
-  // "enable_smtp",
-  // "host_expiry_enabled",
-  // "host_expiry_window",
-  // "live_query_disabled",
-  "agent_options",
-  // "enable_host_status_webhook",
-  // "destination_url",
-  // "host_percentage",
-  // "days_count",
-  // "enable_analytics",
-];
 
 interface IAppConfigFormProps {
   formData: IConfigNested;
   enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
-  smtpConfigured: boolean;
 }
 
-export interface IFormData {
-  // email: string;
-  // name: string;
-  // newUserType?: NewUserType | null;
-  // password?: string | null;
-  // sso_enabled?: boolean;
-  // global_role: string | null;
-  // teams: ITeam[];
-  // currentUserId?: number;
-  // invited_by?: number;
-}
-
-interface IAppConfigFormState {
-  showHostStatusWebhookPreviewModal: boolean;
-  showUsageStatsPreviewModal: boolean;
-}
 interface IAppConfigFormErrors {
   metadata_url?: string | null;
   entity_id?: string | null;
@@ -251,7 +199,9 @@ const AppConfigFormFunctional = ({
     formData.server_settings.enable_analytics || false
   );
   // Advanced options
-  const [domain, setDomain] = useState<string>("");
+  const [domain, setDomain] = useState<string>(
+    formData.smtp_settings.domain || ""
+  );
   const [verifySSLCerts, setVerifySSLCerts] = useState<boolean>(
     formData.smtp_settings.verify_ssl_certs || false
   );
@@ -395,13 +345,12 @@ const AppConfigFormFunctional = ({
     [setSMTPAuthenticationMethod]
   );
   // Global agent options
-  // const onChangeAgentOptions = useCallback(
-  //   (value: string) => {
-  //     setAgentOptions(value);
-  //   },
-  //   [setAgentOptions]
-  // );
-
+  const onChangeAgentOptions = useCallback(
+    (value: string) => {
+      setAgentOptions(value);
+    },
+    [setAgentOptions]
+  );
   // Host status webhook
   const onChangeEnableHostStatusWebhook = useCallback(
     (value: boolean) => {
@@ -488,42 +437,7 @@ const AppConfigFormFunctional = ({
   // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ █░█ █▄▄ █▀▄▀█ █ ▀█▀
   // █▀░ █▄█ █▀▄ █░▀░█   ▄█ █▄█ █▄█ █░▀░█ █ ░█░
   const onFormSubmit = () => {
-    // Validator
-    const formDataToSubmit = {
-      org_logo_url: orgLogoURL,
-      org_name: orgName,
-      server_url: serverURL,
-      enable_sso: enableSSO,
-      idp_name: idpName,
-      entity_id: entityID,
-      issuer_uri: issuerURI,
-      idp_image_url: idpImageURL,
-      metadata: metadata,
-      metadata_url: metadataURL,
-      enable_sso_idp_login: enableSSOIDPLogin,
-      enable_smtp: enableSMTP,
-      sender_address: smtpSenderAddress,
-      server: smtpServer,
-      port: smtpPort,
-      enable_ssl_tls: smtpEnableSSLTLS,
-      authentication_type: smtpAuthenticationType,
-      user_name: smtpUsername,
-      password: smtpPassword,
-      authentication_method: smtpAuthenticationMethod,
-      agent_options: agentOptions,
-      enable_host_status_webhook: enableHostStatusWebhook,
-      destination_url: hostStatusWebhookDestinationURL,
-      host_percentage: hostStatusWebhookHostPercentage,
-      days_count: hostStatusWebhookDaysCount,
-      enable_analytics: enableUsageStatistics,
-      domain: domain,
-      verify_ssl_certs: verifySSLCerts,
-      enable_start_tls: enableStartTLS,
-      host_expiry_enabled: enableHostExpiry,
-      host_expiry_window: hostExpiryWindow,
-      live_query_disabled: disableLiveQuery,
-    };
-
+    // Validators
     const errors: any = {};
 
     if (enableSSO) {
@@ -601,10 +515,61 @@ const AppConfigFormFunctional = ({
 
     setFormErrors(errors);
 
-    if (errors) {
+    if (Object.keys(errors).length !== 0) {
       return false;
     }
 
+    // formDataToSubmit mirrors formatting of API not UI
+    const formDataToSubmit = {
+      org_info: {
+        org_logo_url: orgLogoURL,
+        org_name: orgName,
+      },
+      server_settings: {
+        server_url: serverURL,
+        live_query_disabled: disableLiveQuery,
+        enable_analytics: enableUsageStatistics,
+      },
+      smtp_settings: {
+        enable_smtp: enableSMTP,
+        sender_address: smtpSenderAddress,
+        server: smtpServer,
+        port: smtpPort,
+        authentication_type: smtpAuthenticationType,
+        user_name: smtpUsername,
+        password: smtpPassword,
+        enable_ssl_tls: smtpEnableSSLTLS,
+        authentication_method: smtpAuthenticationMethod,
+        domain: domain,
+        verify_ssl_certs: verifySSLCerts,
+        enable_start_tls: enableStartTLS,
+      },
+      sso_settings: {
+        entity_id: entityID,
+        issuer_uri: issuerURI,
+        idp_image_url: idpImageURL,
+        metadata: metadata,
+        metadata_url: metadataURL,
+        idp_name: idpName,
+        enable_sso: enableSSO,
+        enable_sso_idp_login: enableSSOIDPLogin,
+      },
+      host_expiry_settings: {
+        host_expiry_enabled: enableHostExpiry,
+        host_expiry_window: hostExpiryWindow,
+      },
+      agent_options: agentOptions,
+      webhook_settings: {
+        host_status_webhook: {
+          enable_host_status_webhook: enableHostStatusWebhook,
+          destination_url: hostStatusWebhookDestinationURL,
+          host_percentage: hostStatusWebhookHostPercentage,
+          days_count: hostStatusWebhookDaysCount,
+        },
+      },
+    };
+    console.log("formDataToSubmit", formDataToSubmit);
+    debugger;
     handleSubmit(formDataToSubmit);
   };
 
@@ -955,8 +920,8 @@ const AppConfigFormFunctional = ({
             <b>YAML</b>
           </p>
           <YamlAce
-            // onChange={onChangeAgentOptions} TODO
-            // value={agentOptions} TODO
+            onChange={onChangeAgentOptions} //TODO
+            value={agentOptions} //TODO
             error={formErrors.agent_options}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
           />
@@ -1286,7 +1251,7 @@ const AppConfigFormFunctional = ({
   // █▀▄ ██▄ █░▀█ █▄▀ ██▄ █▀▄
   return (
     <>
-      <form className={baseClass} onSubmit={handleSubmit} autoComplete="off">
+      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
         {renderOrganizationInfoSection()}
         {renderFleetWebAddressSection()}
         {renderSAMLSingleSignOnOptionsSection()}
@@ -1299,7 +1264,6 @@ const AppConfigFormFunctional = ({
         <Button type="submit" variant="brand">
           Update settings
         </Button>
-        {/* this should rerender the page or scroll to top */}
       </form>
       {renderUsageStatsPreviewModal()}
       {renderHostStatusWebhookPreviewModal()}

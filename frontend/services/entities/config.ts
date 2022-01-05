@@ -41,14 +41,15 @@ export default {
       return sendRequest("PATCH", CONFIG, formData);
     }
 
-    const configData = helpers.formatConfigDataForServer(formData);
+    return sendRequest("PATCH", CONFIG, formData);
+    // const configData = helpers.formatConfigDataForServer(formData);
 
-    if (get(configData, "smtp_settings.port")) {
-      configData.smtp_settings.port = parseInt(
-        configData.smtp_settings.port,
-        10
-      );
-    }
-    return sendRequest("PATCH", CONFIG, configData);
+    // if (get(configData, "smtp_settings.port")) {
+    //   configData.smtp_settings.port = parseInt(
+    //     configData.smtp_settings.port,
+    //     10
+    //   );
+    // }
+    // return sendRequest("PATCH", CONFIG, configData);
   },
 };

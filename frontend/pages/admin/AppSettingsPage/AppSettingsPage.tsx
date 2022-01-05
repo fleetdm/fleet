@@ -5,8 +5,6 @@ import { size } from "lodash";
 
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
-import { IConfig } from "interfaces/config";
-import { IError } from "interfaces/errors";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -19,28 +17,19 @@ import deepDifference from "utilities/deep_difference";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
-import { updateConfig } from "redux/nodes/app/actions";
 
 export const baseClass = "app-settings";
-
-interface IRootState {
-  app: {
-    config: IConfig;
-    error: IError[];
-    enrollSecret: IEnrollSecret;
-  };
-}
-
-interface IFormData {}
 
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
   // ===== local state
-  const [smtpConfigured, setSmtpConfigured] = useState<any>();
-  const [formData, setFormData] = useState<any>();
-  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
 
+  // Unused if we take out configured/enable_smtp replacement in UI
+  // const [smtpConfigured, setSmtpConfigured] = useState<any>();
+  // const [formData, setFormData] = useState<any>();
+
+  // Old onSubmit function
   // const onFormSubmit = (formData: IFormData) => {
   // const diff = deepDifference(formData, appConfig);
 
@@ -63,10 +52,17 @@ const AppSettingsPage = (): JSX.Element => {
   // };
 
   const onFormSubmit = async (formData: any) => {
+    console.log("onFormSubmit formData", formData);
     try {
+      // const diff = deepDifference(formData, appConfig);
+
+      // console.log("appConfig", appConfig);
+      // console.log("diff", diff);
+      // debugger;
       const request = configAPI.update(formData);
       await request.then(() => {
         dispatch(renderFlash("success", "Successfully updated settings."));
+        refetchConfig();
       });
     } catch (errors: any) {
       if (errors.base) {
@@ -87,8 +83,6 @@ const AppSettingsPage = (): JSX.Element => {
     // setFormData({ ...response, enable_smtp: smtpConfigured });
     // },
   });
-
-  console.log("AppSettingsPage -  formData:", formData);
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -148,7 +142,6 @@ const AppSettingsPage = (): JSX.Element => {
           <AppConfigForm
             formData={appConfig}
             handleSubmit={onFormSubmit}
-            smtpConfigured={smtpConfigured}
             enrollSecret={globalSecrets}
           />
         )}
