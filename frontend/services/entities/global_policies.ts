@@ -1,7 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IPolicyFormData } from "interfaces/policy";
+import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
+
+export interface IGlobalPoliciesStatsResponse {
+  policies: IPolicyStats[];
+}
 
 export default {
   // TODO: How does the frontend need to support legacy policies?
@@ -28,7 +32,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: () => {
+  loadAll: (): Promise<IGlobalPoliciesStatsResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
     return sendRequest("GET", GLOBAL_POLICIES);

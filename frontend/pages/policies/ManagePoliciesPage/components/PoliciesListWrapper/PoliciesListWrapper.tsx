@@ -26,7 +26,7 @@ interface IPoliciesListWrapperProps {
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
-  selectedTeamData: ITeam | undefined;
+  currentTeam: ITeam | undefined;
   currentAutomatedPolicies?: number[];
 }
 
@@ -37,7 +37,7 @@ const PoliciesListWrapper = ({
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
-  selectedTeamData,
+  currentTeam,
   currentAutomatedPolicies,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
@@ -45,25 +45,23 @@ const PoliciesListWrapper = ({
   const NoPolicies = () => {
     return (
       <div
-        className={`${noPoliciesClass} ${
-          selectedTeamData?.id && "no-team-policy"
-        }`}
+        className={`${noPoliciesClass} ${currentTeam?.id && "no-team-policy"}`}
       >
         <div className={`${noPoliciesClass}__inner`}>
           <img src={policySvg} alt="No Policies" />
           <div className={`${noPoliciesClass}__inner-text`}>
             <p>
               <b>
-                {selectedTeamData ? (
+                {currentTeam ? (
                   <>
                     Ask yes or no questions about hosts assigned to{" "}
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
                       }
                     >
-                      {selectedTeamData.name}
+                      {currentTeam.name}
                     </a>
                     .
                   </>
@@ -103,7 +101,7 @@ const PoliciesListWrapper = ({
         <TableContainer
           resultsTitle={resultsTitle || "policies"}
           columns={generateTableHeaders({
-            selectedTeamId: selectedTeamData?.id,
+            selectedTeamId: currentTeam?.id,
             showSelectionColumn: canAddOrRemovePolicy,
             tableType,
           })}

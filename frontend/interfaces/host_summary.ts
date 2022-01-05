@@ -7,14 +7,14 @@ export default PropTypes.shape({
   new_count: PropTypes.number,
 });
 
-export interface IHostSummaryPlatforms {
+export interface IHostSummaryPlatform {
   platform: string;
   hosts_count: number;
 }
 
 export interface IHostSummary {
   totals_hosts_count: number;
-  platforms: IHostSummaryPlatforms[] | null;
+  platforms: IHostSummaryPlatform[] | null;
   online_count: number;
   offline_count: number;
   mia_count: number;

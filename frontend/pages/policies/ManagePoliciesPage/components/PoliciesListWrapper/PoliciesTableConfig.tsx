@@ -193,6 +193,7 @@ const generateDataSet = (
   policiesList = policiesList.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
+  console.log("before: ", JSON.stringify(policiesList));
 
   policiesList.forEach((policy) => {
     policy.webhook =
@@ -200,6 +201,7 @@ const generateDataSet = (
         ? "On"
         : "Off";
   });
+  console.log("after: ", JSON.stringify(policiesList));
 
   return policiesList;
 };
