@@ -346,8 +346,8 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 	err := d.withRetryWriter(func(tx sqlx.ExtContext) error {
 		// Complete inserts if necessary
 		if len(vals) > 0 {
-			sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
-			sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
+			sql := `INSERT IGNORE INTO label_membership (updated_at, label_id, host_id) VALUES `
+			sql += strings.Join(bindvars, ",")
 
 			_, err := tx.ExecContext(ctx, sql, vals...)
 			if err != nil {
@@ -374,10 +374,10 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 			return nil
 		}
 
-		_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating hosts label updated at")
-		}
+		//_, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id=?`, host.LabelUpdatedAt, host.ID)
+		//if err != nil {
+		//	return ctxerr.Wrap(ctx, err, "updating hosts label updated at")
+		//}
 
 		return nil
 	})

@@ -778,6 +778,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			if err := svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now(), true); err != nil {
 				logging.WithErr(ctx, err)
 			}
+			host.LabelUpdatedAt = svc.clock.Now()
 		} else {
 			if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now()); err != nil {
 				logging.WithErr(ctx, err)
@@ -799,7 +800,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
-
 		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
 		if err != nil {

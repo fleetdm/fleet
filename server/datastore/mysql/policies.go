@@ -201,7 +201,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 
 	query := fmt.Sprintf(
 		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
-				VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
+				VALUES %s ON DUPLICATE KEY UPDATE passes=VALUES(passes)`,
 		strings.Join(bindvars, ","),
 	)
 
@@ -216,10 +216,10 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 			return nil
 		}
 
-		_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
-		}
+		//_, err = tx.ExecContext(ctx, `UPDATE hosts SET policy_updated_at = ? WHERE id=?`, updated, host.ID)
+		//if err != nil {
+		//	return ctxerr.Wrap(ctx, err, "updating hosts policy updated at")
+		//}
 		return nil
 	})
 	if err != nil {
