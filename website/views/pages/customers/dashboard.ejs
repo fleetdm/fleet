@@ -1,0 +1,217 @@
+<div id="dashboard" v-cloak>
+  <div style="padding-top: 80px;" class="container pb-5 px-xl-0">
+    <div class="pb-4">
+      <h3>Your license</h3>
+      <div purpose="license-card" class="card card-body">
+        <div class="row">
+          <div class="col-6 col-lg-2">
+            <strong>Item</strong>
+            <p>Fleet Premium</p>
+          </div>
+          <div class="col-6 col-lg-2">
+            <strong>Cost</strong>
+            <p>${{thisSubscription.subscriptionPrice}}.00/year</p>
+          </div>
+          <div class="col-6 col-lg-2 pt-3 pt-lg-0">
+            <strong>No. of devices</strong>
+            <p>{{thisSubscription.numberOfHosts}}</p>
+          </div>
+          <div class="col-6 col-lg-2 pt-3 pt-lg-0">
+            <strong>Expires</strong>
+            <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+          </div>
+          <div class="col-12 col-lg-4 pt-3 pt-lg-0">
+            <strong>License key</strong><img class="d-inline-block ml-2" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">License key copied!</span>
+            <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{thisSubscription.fleetLicenseKey}}</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row pt-3">
+      <div class="col-12 col-lg-6">
+      <h3 class="pb-4 pb-xl-3">Your details</h3>
+        <div purpose="details-card" class="card card-body justify-content-top">
+          <div class="row">
+            <div class="col-sm-4 col-12 ">Organization:</div>
+            <div class="col-sm-8 col-12 text-right">
+              <strong>{{me.organization}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-sm-3 col-12 ">Name:</div>
+            <div class="col-sm-9 col-12 text-right">
+              <strong>{{me.firstName}} {{me.lastName}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-sm-3 col-12 ">Email:</div>
+            <div class="col-sm-9 col-12 text-right">
+              <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+            </div>
+          </div>
+          <hr/>
+          <div class="row">
+            <div class="col-sm-3 col-12 ">Password:</div>
+            <div class="col-sm-9 col-12 text-right">
+              <strong>••••••••</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickChangePassword()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6 pt-4 pt-lg-0">
+        <h3 class="pb-4 pb-xl-3">Billing and payment</h3>
+        <div purpose="billing-card" class="card card-body justify-content-center">
+          <div class="row pb-3">
+            <div class="col-1"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A small credit card"></div>
+            <div class="col">
+              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"></p>
+            </div>
+          </div>
+          <div class="row pb-3">
+            <div class="col-1"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A small credit card"></div>
+            <div class="col">
+              <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
+              <p>Billed anually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
+              <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+            </div>
+          </div>
+            <div purpose="contact">
+            <div class="row">
+              <div style="max-width: 32px;" class="col-1 pr-0">
+                <img style="display: inline-block; height: 16px; width: 16px; margin-top: 3px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              </div>
+              <div class="col ml-1 pl-1">
+                <p><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="pt-4 d-block">
+      <div class="btn btn-info btn-sm mr-md-3 mb-3 mb-md-0" purpose="deploy-button">
+        <a href="/docs/deploying/installation">
+          How to deploy Fleet
+        </a>
+      </div>
+      <div class="btn btn-outline-secondary btn-sm" purpose="slack-button">
+        <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank">
+          <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
+          Ask for help on Slack
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <modal v-if="modal === 'update-profile'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
+    <div class="container" purpose="customer-portal-form">
+      <div class="modal-header">
+        <h3 class="modal-title text-left">Edit your details?</h3>
+      </div>
+      <ajax-form action="updateProfile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateProfileForm()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="organization">Organization</label>
+            <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" autocomplete="">
+            <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
+          </div>
+          <div class="row">
+            <div class="col-6 pr-2">
+              <div class="form-group">
+                <label for="first-name">First name</label>
+                <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
+                <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+              </div>
+            </div>
+            <div class="col-6 pl-2">
+              <div class="form-group">
+                <label for="last-name">Last name</label>
+                <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
+                <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="email-address">Email</label>
+            <input class="form-control" id="email-address" type="email"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="sturgeon@example.com" autocomplete="email">
+            <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address.</div>
+          </div>
+        </div>
+        <div class="border-0 justify-content-center">
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+  </modal>
+
+  <modal v-if="modal === 'update-password'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
+    <div class="container" purpose="customer-portal-form">
+      <div class="modal-header">
+        <h3 class="modal-title text-left">Change your password?</h3>
+      </div>
+      <ajax-form action="updatePassword" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdatePasswordForm()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="oldPassword">Current password</label>
+            <input class="form-control" type="password" id="oldPassword" :class="[formErrors.oldPassword ? 'is-invalid' : '']" v-model.trim="formData.oldPassword" autocomplete="password">
+            <div class="invalid-feedback" v-if="formErrors.oldPassword">Please enter your current password.</div>
+          </div>
+          <div class="form-group">
+            <label for="password">New password</label>
+            <input class="form-control" type="password" id="password" :class="[formErrors.newPassword ? 'is-invalid' : '']" v-model.trim="formData.newPassword">
+            <div class="invalid-feedback" v-if="formErrors.newPassword === 'minLength'">Password too short!</div>
+            <div class="invalid-feedback" v-else-if="formErrors.newPassword">Please enter your new password.</div>
+            <p class="mt-2"> Minimum length is 8 characters</p>
+          </div>
+          <cloud-error v-if="cloudError === 'badPassword'">Incorrect current password.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
+        </div>
+        <div class="border-0 justify-content-center">
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+  </modal>
+
+  <modal v-if="modal === 'update-billing-card'" data-backdrop="false" @close="closeModal()" v-cloak purpose="modal">
+    <div class="container" purpose="customer-portal-form">
+      <div class="modal-header text-left">
+        <h3 class="modal-title">Edit card?</h3>
+        <p class="muted">Currently using: {{me.billingCardBrand}} ending in {{me.billingCardLast4}}</p>
+      </div>
+      <ajax-form :handle-submitting="handleSubmittingUpdateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateBillingCard()">
+        <div class="modal-body">
+          <stripe-card-element :stripe-publishable-key="stripePublishableKey" :is-errored.sync="formErrors.newPaymentSource" v-model="formData.newPaymentSource" key="billing-card" ref="billingcardref"></stripe-card-element>
+          <cloud-error v-if="cloudError"></cloud-error>
+        </div>
+        <div class="pt-3">
+          <ajax-button spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save card</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+  </modal>
+
+  <modal v-if="modal === 'remove-billing-card'" @close="closeModal()" v-cloak>
+    <div class="container">
+      <h3>Remove Card Info?</h3>
+      <ajax-form action="updateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedRemoveCardForm()">
+        <div class="modal-body text-center">
+          <p>Are you sure you want to remove your {{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong>?</p>
+          <p class="text-muted mb-0">This may restrict your access to paid features.</p>
+          <cloud-error v-if="cloudError"></cloud-error>
+        </div>
+        <div class="border-0 justify-content-center">
+          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
+        </div>
+      </ajax-form>
+    </div>
+  </modal>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -59,9 +59,24 @@ module.exports.bootstrap = async function() {
   }//∞
 
   // By convention, this is a good place to set up fake data during development.
-  await User.createEach([
-    { emailAddress: 'admin@example.com', fullName: 'Ryan Dahl', isSuperAdmin: true, password: await sails.helpers.passwords.hashPassword('abc123') },
-  ]);
+  let adminUser = await User.create({
+    emailAddress: 'admin@example.com',
+    firstName: 'Ryan',
+    lastName: 'Dahl',
+    organization: 'Golaith Industries',
+    isSuperAdmin: true,
+    password: await sails.helpers.passwords.hashPassword('abc123')
+  }).fetch();
+
+  let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+    emailAddress: adminUser.emailAddress
+  }).timeout(5000).retry();
+
+  await User.updateOne({id: adminUser.id})
+  .set({
+    stripeCustomerId
+  });
+
 
   // Save new bootstrap version
   await sails.helpers.fs.writeJson.with({

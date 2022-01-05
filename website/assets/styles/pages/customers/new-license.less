@@ -1,12 +1,32 @@
-#signup {
+#new-license {
   h1 {
     font-size: 28px;
   }
   a {
     color: @core-vibrant-blue;
   }
+  a:hover {
+    text-decoration: none;
+    color: darken(@core-vibrant-blue, 20%);
+  }
   p {
     font-size: 16px;
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  [purpose='cloud-error'] {
+    max-width: fit-content;
   }
 
   [purpose='customer-portal-form'] {
@@ -56,7 +76,6 @@
    li {
     padding-bottom: 12px;
     color: @core-fleet-black-75;
-    white-space: nowrap;
    }
    img {
     display: inline;
@@ -65,5 +84,7 @@
    }
 
   }
+
+
 
 }
