@@ -119,27 +119,26 @@ interface IAppConfigFormState {
   showUsageStatsPreviewModal: boolean;
 }
 interface IAppConfigFormErrors {
-  metadata_url: string | null;
-  entity_id: string | null;
-  idp_name: string | null;
-  server_url: string | null;
-  org_name: string | null;
-  sender_address: string | null;
-  server: string | null;
-  user_name: string | null;
-  password: string | null;
-  destination_url: string | null;
-  host_percentage: string | null;
-  days_count: string | null;
-  host_expiry_window: string | null;
-  agent_options: string | null;
+  metadata_url?: string | null;
+  entity_id?: string | null;
+  idp_name?: string | null;
+  server_url?: string | null;
+  org_name?: string | null;
+  sender_address?: string | null;
+  server?: string | null;
+  user_name?: string | null;
+  password?: string | null;
+  destination_url?: string | null;
+  host_percentage?: string | null;
+  days_count?: string | null;
+  host_expiry_window?: string | null;
+  agent_options?: string | null;
 }
 
 const AppConfigFormFunctional = ({
   formData,
   enrollSecret,
   handleSubmit,
-  smtpConfigured,
 }: IAppConfigFormProps): JSX.Element => {
   // █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀
   // ▄█ ░█░ █▀█ ░█░ ██▄
@@ -829,11 +828,17 @@ const AppConfigFormFunctional = ({
             SMTP options{" "}
             <small
               className={`smtp-options smtp-options--${
-                smtpConfigured ? "configured" : "notconfigured"
+                formData.smtp_settings.configured
+                  ? "configured"
+                  : "notconfigured"
               }`}
             >
               STATUS:{" "}
-              <em>{smtpConfigured ? "CONFIGURED" : "NOT CONFIGURED"}</em>
+              <em>
+                {formData.smtp_settings.configured
+                  ? "CONFIGURED"
+                  : "NOT CONFIGURED"}
+              </em>
             </small>
           </a>
         </h2>

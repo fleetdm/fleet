@@ -68,7 +68,7 @@ const AppSettingsPage = (): JSX.Element => {
       await request.then(() => {
         dispatch(renderFlash("success", "Successfully updated settings."));
       });
-    } catch (errors) {
+    } catch (errors: any) {
       if (errors.base) {
         dispatch(renderFlash("error", errors.base));
       }
@@ -81,10 +81,11 @@ const AppSettingsPage = (): JSX.Element => {
     refetch: refetchConfig,
   } = useQuery<any, Error, any>(["config"], () => configAPI.loadAll(), {
     select: (data: any) => data,
-    onSuccess: (response: any) => {
-      setSmtpConfigured(response.configured);
-      setFormData({ ...response, enable_smtp: smtpConfigured });
-    },
+    // Original configured key replacing the enable_smtp key on frontend
+    // onSuccess: (response: any) => {
+    // setSmtpConfigured(response.configured);
+    // setFormData({ ...response, enable_smtp: smtpConfigured });
+    // },
   });
 
   console.log("AppSettingsPage -  formData:", formData);
@@ -145,7 +146,7 @@ const AppSettingsPage = (): JSX.Element => {
         </nav>
         {isLoadingConfig ? null : (
           <AppConfigForm
-            formData={formData}
+            formData={appConfig}
             handleSubmit={onFormSubmit}
             smtpConfigured={smtpConfigured}
             enrollSecret={globalSecrets}
