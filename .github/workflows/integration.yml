@@ -60,7 +60,7 @@ jobs:
           echo " / $EXPECTED"
           sleep 10
         done
-        echo "$EXPECTED hosts enrolled"
+        echo "Success! $EXPECTED hosts enrolled."
           
 
   login:
