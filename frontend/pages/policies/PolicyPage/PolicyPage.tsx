@@ -94,7 +94,6 @@ const PolicyPage = ({
     isLoading: isStoredPolicyLoading,
     data: storedPolicy,
     error: storedPolicyError,
-    refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
     () =>
@@ -102,7 +101,7 @@ const PolicyPage = ({
         ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
         : globalPoliciesAPI.load(policyIdForEdit as number),
     {
-      enabled: !!policyTeamId,
+      enabled: !!policyIdForEdit,
       refetchOnWindowFocus: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {

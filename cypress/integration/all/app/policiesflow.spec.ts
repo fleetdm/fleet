@@ -62,11 +62,12 @@ describe(
 
       cy.visit("/policies/manage");
 
-      // Click on link in table and confirm that policies filter block diplays as expected on manage hosts page
+      // Click on link in table and confirm that policies filter block diplays as expected on manage
+      // hosts page
       cy.getAttached(".failing_host_count__cell")
         .first()
         .within(() => {
-          cy.findByRole("button", { name: /0 hosts/i }).click();
+          cy.getAttached(".button--text-link").click();
         });
 
       // confirm policy functionality on manage host page
@@ -78,21 +79,18 @@ describe(
         cy.findByText(/user named 'backup'/i).should("not.exist");
       });
 
-      // Click on policies tab to return to manage policies page
-      cy.get(".site-nav-container").within(() => {
-        cy.findByText(/policies/i).click();
-      });
+      cy.visit("/policies/manage");
 
       // Update policy
-      cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".name__cell .button--text-link").last().click();
 
-      cy.get(".ace_scroller")
+      cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );
 
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__save").click();
 
       // Confirm that policy was added successfully
       cy.findByText(/policy updated/i).should("exist");
@@ -101,14 +99,14 @@ describe(
       cy.visit("/policies/manage");
 
       cy.getAttached("tbody").within(() => {
-        cy.get("tr")
+        cy.getAttached("tr")
           .first()
           .within(() => {
-            cy.get(".fleet-checkbox__input").check({ force: true });
+            cy.getAttached(".fleet-checkbox__input").check({ force: true });
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.get(".remove-policies-modal").within(() => {
+      cy.getAttached(".remove-policies-modal").within(() => {
         cy.findByRole("button", { name: /cancel/i }).should("exist");
         cy.findByRole("button", { name: /delete/i }).click();
       });
@@ -118,16 +116,16 @@ describe(
       // Create failing policies webhook
       cy.findByRole("button", { name: /manage automations/i }).click();
       cy.getAttached(".manage-automations-modal").within(() => {
-        cy.get(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
-      cy.get("#webhook-url").click().type("www.foo.com/bar");
+      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
 
       // Confirm that failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");
       cy.findByRole("button", { name: /manage automations/i }).click();
       cy.getAttached(".manage-automations-modal").within(() => {
-        cy.get(".fleet-checkbox__input").should("be.checked");
+        cy.getAttached(".fleet-checkbox__input").should("be.checked");
       });
     });
   }
