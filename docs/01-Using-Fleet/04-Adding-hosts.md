@@ -30,9 +30,9 @@ When you install the generated osquery installer on a host, this host will be au
 
   >**Note:** Windows signing is not yet supported within `fleetctl` (working on that this week), but the resulting MSI could be signed after building.
 
-`fleetctl` provides suppport for signing and notarizing macOS osquery packages via the `package` command. To do
-this, modify the command to create an osquery installer to look with the `--sign-identity` and
-`--notarize` flags like the example below:
+The `fleetctl package` command provides suppport for signing and notarizing macOS osquery packages via the
+`--sign-identity` and `--notarize` flags.
+Check out the example below:
 
 ```sh
   fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
