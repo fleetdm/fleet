@@ -66,10 +66,9 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, tt.status, resp.StatusCode)
 
 		jsn := struct {
-			User           *fleet.User         `json:"user"`
-			AvailableTeams []*fleet.Team       `json:"available_teams,omitempty"`
-			Token          string              `json:"token"`
-			Err            []map[string]string `json:"errors,omitempty"`
+			User  *fleet.User         `json:"user"`
+			Token string              `json:"token"`
+			Err   []map[string]string `json:"errors,omitempty"`
 		}{}
 		err = json.NewDecoder(resp.Body).Decode(&jsn)
 		require.Nil(t, err)
