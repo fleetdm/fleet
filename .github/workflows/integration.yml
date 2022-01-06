@@ -95,6 +95,7 @@ jobs:
         echo "::set-output name=token::$TOKEN"
       
   orbit-macos:
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -124,6 +125,7 @@ jobs:
         done
 
   orbit-ubuntu:
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -164,6 +166,7 @@ jobs:
         done
 
   orbit-windows-build:
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
@@ -198,6 +201,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
 
   orbit-windows:
+    timeout-minutes: 15
     strategy:
       matrix:
         orbit-channel: [ 'stable', 'edge' ]
