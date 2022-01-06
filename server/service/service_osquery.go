@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -37,8 +36,6 @@ func (e osqueryError) Error() string {
 func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
-
-var counter = int64(0)
 
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (uint, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
@@ -162,21 +159,6 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	return nodeKey, nil
 }
 
-func (svc Service) serialSaveHost(host *fleet.Host) {
-	newVal := atomic.AddInt64(&counter, 1)
-	defer func() {
-		atomic.AddInt64(&counter, -1)
-	}()
-	level.Debug(svc.logger).Log("background", newVal)
-
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancelFunc()
-	err := svc.ds.SerialSaveHost(ctx, host)
-	if err != nil {
-		level.Error(svc.logger).Log("background-err", err)
-	}
-}
-
 func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
 	switch identifierOption {
 	case "provided":
@@ -258,7 +240,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, osqueryError{message: "internal error: load host primary data: " + err.Error()}
 	}
 
-	baseConfig, err := svc.agentOptionsForHost(ctx, hostPrimaryData.TeamID, hostPrimaryData.Platform)
+	baseConfig, err := svc.AgentOptionsForHost(ctx, hostPrimaryData.TeamID, hostPrimaryData.Platform)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
 	}
@@ -325,6 +307,8 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
+	// TODO(lucas): Maybe fetch intervals as part of primary data?
+	// Or have HostLite not load the other useless information.
 	intervals, err := svc.ds.HostOsqueryIntervals(ctx, hostID)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: load host intervals: " + err.Error()}

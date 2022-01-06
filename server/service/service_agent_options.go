@@ -8,9 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// agentOptionsForHost gets the agent options for the provided host.
+// AgentOptionsForHost gets the agent options for the provided host.
 // The host information should be used for filtering based on team, platform, etc.
-func (svc *Service) agentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error) {
+func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error) {
 	// Team agent options have priority over global options.
 	if hostTeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *hostTeamID)

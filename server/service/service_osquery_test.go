@@ -96,7 +96,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		}, nil
 	}
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -332,10 +332,10 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}
@@ -498,8 +498,20 @@ func TestGetClientConfig(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
+	}
+	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
+		if id == 1 || id == 2 {
+			return &fleet.HostPrimaryData{}, nil
+		}
+		return nil, errors.New("not found")
+	}
+	ds.HostOsqueryIntervalsFunc = func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
+		if id == 1 || id == 2 {
+			return &fleet.HostOsqueryIntervals{}, nil
+		}
+		return nil, errors.New("not found")
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -580,7 +592,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := fleet.Host{Platform: "windows"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "windows",
+	}
 	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -591,6 +606,12 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == 1 {
+			return host, nil
+		}
+		return nil, errors.New("not found")
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -695,14 +716,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
-		gotHost.Additional = host.Additional
 		return nil
-	}
-
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
-		return &host, nil
 	}
 
 	// Verify that results are ingested properly
@@ -754,7 +770,10 @@ func TestDetailQueries(t *testing.T) {
 	lq := new(live_query.MockLiveQuery)
 	svc := newTestServiceWithClock(ds, nil, lq, mockClock)
 
-	host := fleet.Host{Platform: "linux"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "linux",
+	}
 	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -777,6 +796,12 @@ func TestDetailQueries(t *testing.T) {
 	ds.SetOrUpdateMunkiVersionFunc = func(ctx context.Context, hostID uint, version string) error {
 		require.Equal(t, "3.4.5", version)
 		return nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == 1 {
+			return host, nil
+		}
+		return nil, errors.New("not found")
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -929,14 +954,25 @@ func TestDetailQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
-		gotHost.Additional = host.Additional
 		return nil
 	}
-
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
-		return &host, nil
+	var gotUsers []fleet.HostUser
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		if hostID != 1 {
+			return errors.New("not found")
+		}
+		gotUsers = users
+		return nil
+	}
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+		if hostID != 1 {
+			return errors.New("not found")
+		}
+		gotSoftware = software
+		return nil
 	}
 
 	// Verify that results are ingested properly
@@ -967,24 +1003,24 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, uint(60), gotHost.LoggerTLSPeriod)
 
 	// users
-	require.Len(t, gotHost.Users, 2)
+	require.Len(t, gotUsers, 2)
 	assert.Equal(t, fleet.HostUser{
 		Uid:       1234,
 		Username:  "user1",
 		Type:      "sometype",
 		GroupName: "somegroup",
 		Shell:     "someloginshell",
-	}, gotHost.Users[0])
+	}, gotUsers[0])
 	assert.Equal(t, fleet.HostUser{
 		Uid:       5678,
 		Username:  "user2",
 		Type:      "sometype",
 		GroupName: "somegroup",
 		Shell:     "",
-	}, gotHost.Users[1])
+	}, gotUsers[1])
 
 	// software
-	require.Len(t, gotHost.HostSoftware.Software, 2)
+	require.Len(t, gotSoftware, 2)
 	assert.Equal(t, []fleet.Software{
 		{
 			Name:    "app1",
@@ -997,7 +1033,7 @@ func TestDetailQueries(t *testing.T) {
 			BundleIdentifier: "somebundle",
 			Source:           "source2",
 		},
-	}, gotHost.HostSoftware.Software)
+	}, gotSoftware)
 
 	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
 	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
@@ -1112,14 +1148,26 @@ func TestDistributedQueryResults(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "windows",
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return host, nil
+	}
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+		if host.ID != 1 {
+			return errors.New("not found")
+		}
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
 	}
 
-	host := &fleet.Host{ID: 1, Platform: "windows"}
 	hostCtx := hostctx.NewContext(context.Background(), host.ID)
 
 	lq.On("QueriesForHost", uint(1)).Return(
@@ -1452,17 +1500,17 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 
 	testCases := []struct {
-		initHost       fleet.Host
-		finalHost      fleet.Host
+		initIntervals  fleet.HostOsqueryIntervals
+		finalIntervals fleet.HostOsqueryIntervals
 		configOptions  json.RawMessage
 		saveHostCalled bool
 	}{
 		// Both updated
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh: 60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1476,11 +1524,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Only logger_tls_period updated
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1493,11 +1541,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Only distributed_interval updated
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh: 60,
 				LoggerTLSPeriod:  33,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1510,11 +1558,11 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// Fleet not managing distributed_interval
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				ConfigTLSRefresh:    60,
 				DistributedInterval: 11,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1526,12 +1574,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// config_refresh should also cause an update
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    42,
@@ -1545,12 +1593,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 		},
 		// SaveHost should not be called with no changes
 		{
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
 			},
-			fleet.Host{
+			fleet.HostOsqueryIntervals{
 				DistributedInterval: 11,
 				LoggerTLSPeriod:     33,
 				ConfigTLSRefresh:    60,
@@ -1565,22 +1613,36 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			ctx := hostctx.NewContext(context.Background(), tt.initHost.ID)
+			ctx := hostctx.NewContext(context.Background(), 1)
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":` + string(tt.configOptions) + `}`))}, nil
 			}
 
-			saveHostCalled := false
-			ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-				saveHostCalled = true
-				assert.Equal(t, tt.finalHost, *host)
+			ds.HostOsqueryIntervalsFunc = func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
+				if id != 1 {
+					return nil, errors.New("not found")
+				}
+				return &tt.initIntervals, nil
+			}
+
+			updateIntervalsCalled := false
+			ds.UpdateHostOsqueryIntervalsFunc = func(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error {
+				updateIntervalsCalled = true
+				assert.Equal(t, tt.finalIntervals, *intervals)
 				return nil
+			}
+
+			ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
+				if id != 1 {
+					return nil, errors.New("not found")
+				}
+				return &fleet.HostPrimaryData{}, nil
 			}
 
 			_, err := svc.GetClientConfig(ctx)
 			require.NoError(t, err)
-			assert.Equal(t, tt.saveHostCalled, saveHostCalled)
+			assert.Equal(t, tt.saveHostCalled, updateIntervalsCalled)
 		})
 	}
 }
@@ -1716,9 +1778,18 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	host := &fleet.Host{Platform: "darwin"}
+	host := &fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+	}
 
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
+		}
+		return host, nil
+	}
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
@@ -1726,6 +1797,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveHostAdditionalFunc = func(ctx context.Context, hostID uint, additional *json.RawMessage) error {
+		return errors.New("something went wrong")
 	}
 
 	lCtx := &fleetLogging.LoggingContext{}
@@ -1751,7 +1825,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	logData := make(map[string]json.RawMessage)
 	err = json.Unmarshal([]byte(parts[0]), &logData)
 	require.NoError(t, err)
-	assert.Equal(t, json.RawMessage(`"something went wrong"`), logData["err"])
+	assert.Equal(t, json.RawMessage(`"something went wrong || something went wrong"`), logData["err"])
 	assert.Equal(t, json.RawMessage(`"Missing authorization check"`), logData["internal"])
 }
 
@@ -1759,16 +1833,22 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	host := &fleet.Host{ID: 42, Platform: "darwin"}
+	host := &fleet.Host{
+		ID:       42,
+		Platform: "darwin",
+	}
 	ip := "1.1.1.1"
 
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		assert.Equal(t, ip, host.PrimaryIP)
+	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		require.Equal(t, uint(42), id)
-		return &fleet.Host{ID: 42, Platform: "darwin", PrimaryIP: ip}, nil
+		return &fleet.Host{
+			ID:        42,
+			Platform:  "darwin",
+			PrimaryIP: ip,
+		}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -1779,13 +1859,14 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostDetailQueryPrefix + "1": {{"col1": "val1"}},
+			hostDetailQueryPrefix + "network_interface": {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
 	)
 	require.NoError(t, err)
-	assert.True(t, ds.HostFuncInvoked)
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.True(t, ds.SaveHostLiteFuncInvoked)
 }
 
 func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
@@ -1932,10 +2013,10 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}
@@ -2115,10 +2196,10 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}
@@ -2381,7 +2462,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

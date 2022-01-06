@@ -225,6 +225,13 @@ type Service interface {
 	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// AgentOptionsService
+
+	// AgentOptionsForHost gets the agent options for the provided host. The host information should be used for
+	// filtering based on team, platform, etc.
+	AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// HostService
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
