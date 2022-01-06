@@ -2478,7 +2478,9 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 Runs one or more live queries against the specified hosts and responds with the results
 over a fixed period of 90 seconds.
 
-WARNING: this endpoint collects responses in memory and the elapsed time is capped at 90 seconds, regardless of whether all results have been gathered or not.  If you are using this API to run multiple queries at the same time, they are started simultaneously and will time out after 90 seconds from when the API request was received.  This may cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
+If you are using this API to run multiple queries at the same time, they are started simultaneously.  Response time is capped at 90 seconds from when the API request was received, regardless of how many queries you are running, and regardless whether all results have been gathered or not.
+
+> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
 `GET /api/v1/fleet/queries/run`
 
