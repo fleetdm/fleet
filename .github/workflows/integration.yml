@@ -111,7 +111,7 @@ jobs:
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
-        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
@@ -151,7 +151,7 @@ jobs:
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         chmod +x ./build/fleetctl
-        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
@@ -182,7 +182,7 @@ jobs:
 
     - name: Build Orbit
       run: |
-        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
