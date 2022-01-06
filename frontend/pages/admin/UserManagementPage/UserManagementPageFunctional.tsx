@@ -51,7 +51,13 @@ interface IAppSettingsPageProps {
   teams: ITeam[];
 }
 
+
+// TODO: Try 1: define interface for formData and will get more helpful debugging
+// TODO: Try 2: Consider re-writing this function all together....
+
 const generateUpdateData = (currentUserData: any, formData: any) => {
+
+  // array of updatable fields
   const updatableFields = [
     "global_role",
     "teams",
@@ -59,6 +65,8 @@ const generateUpdateData = (currentUserData: any, formData: any) => {
     "email",
     "sso_enabled",
   ];
+
+  // go over all the keys in the form data, reduce 
   return Object.keys(formData).reduce((updatedAttributes, attr) => {
     // attribute can be updated and is different from the current value.
     if (
@@ -252,7 +260,7 @@ const UserManagementPage = ({
       >
         <>
           <EditUserModal
-            serverErrors={inviteErrors}
+            serverErrors={inviteErrors} // TODO: WTF, TYPES DON'T MATCH BETWEEN PAGES
             defaultEmail={userData?.email}
             defaultName={userData?.name}
             defaultGlobalRole={userData?.global_role}
@@ -260,7 +268,7 @@ const UserManagementPage = ({
             onCancel={toggleEditUserModal}
             onSubmit={onEditUser}
             availableTeams={teams}
-            currentTeam={currentTeam} // TODO: WTF
+            currentTeam={currentTeam} // TODO: WTF, get this from context API
             isPremiumTier={isPremiumTier}
             smtpConfigured={config.configured}
             canUseSso={config.enable_sso}
@@ -280,6 +288,8 @@ const UserManagementPage = ({
         userErrors,
         isPremiumTier,
       } = this.props;
+
+      // TODO: REFACTOR TO TYPESCRIPT FOR THIS RENDER
       const { showCreateUserModal, isFormSubmitting } = this.state;
       const { onCreateUserSubmit, toggleCreateUserModal } = this;
 
@@ -288,7 +298,7 @@ const UserManagementPage = ({
       return (
         <CreateUserModal
           serverErrors={userErrors}
-          currentUserId={currentUser.id}
+          currentUserId={currentUser.id} // TODO: This is not used in CreateUserModal?!
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           availableTeams={teams}
@@ -306,6 +316,8 @@ const UserManagementPage = ({
       );
     };
 
+  
+    // TODO: START UP REFACTORING HERE FRIDAY
     const renderDeleteUserModal = () => {
       const { showDeleteUserModal, userEditing } = this.state;
       const { toggleDeleteUserModal, onDeleteUser } = this;
