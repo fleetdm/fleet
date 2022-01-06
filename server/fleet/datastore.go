@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -184,10 +185,8 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
-	// AuthenticateHost authenticates and returns host metadata by node key. This method should not return the host
-	// "additional" information as this is not typically necessary for the operations performed by the osquery
-	// endpoints.
-	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
+	// AuthenticateHost authenticates a host by its nodeKey and returns the host ID.
+	AuthenticateHost(ctx context.Context, nodeKey string) (uint, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
@@ -425,6 +424,47 @@ type Datastore interface {
 
 	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
+
+	HostLite(ctx context.Context, id uint) (*Host, error)
+
+	HostPrimaryData(ctx context.Context, id uint) (*HostPrimaryData, error)
+
+	HostOsqueryIntervals(ctx context.Context, id uint) (*HostOsqueryIntervals, error)
+	UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *HostOsqueryIntervals) error
+
+	TeamAgentOptions(ctx context.Context, id uint) (*json.RawMessage, error)
+
+	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
+	SaveHostUsers(ctx context.Context, hostID uint, users []HostUser) error
+	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
+	SaveHostLite(ctx context.Context, host *Host) error
+
+	///////////////////////////////////////////////////////////////////////////////
+}
+
+// HostPrimaryData holds an osquery host's primary data.
+type HostPrimaryData struct {
+	ID uint `json:"id"`
+	// OsqueryHostID is the key used in the request context that is
+	// used to retrieve host information.  It is sent from osquery and may currently be
+	// a GUID or a Host Name, but in either case, it MUST be unique
+	OsqueryHostID string `json:"-" db:"osquery_host_id"`
+	Hostname      string `json:"hostname" db:"hostname"` // there is a fulltext index on this field
+	UUID          string `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
+	NodeKey       string `json:"-" db:"node_key"`
+	// Platform is the host's platform as defined by osquery's os_version.platform.
+	Platform string `json:"platform" db:"platform"`
+	TeamID   *uint  `json:"team_id" db:"team_id"`
+}
+
+// HostOsqueryIntervals holds an osquery host's osquery interval configurations.
+type HostOsqueryIntervals struct {
+	DistributedInterval uint `json:"distributed_interval" db:"distributed_interval"`
+	ConfigTLSRefresh    uint `json:"config_tls_refresh" db:"config_tls_refresh"`
+	LoggerTLSPeriod     uint `json:"logger_tls_period" db:"logger_tls_period"`
 }
 
 type MigrationStatus struct {

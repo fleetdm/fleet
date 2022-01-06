@@ -147,7 +147,7 @@ func (svc *launcherWrapper) CheckHealth(ctx context.Context) (int32, error) {
 // In the fleet.OsqueryService authentication is done via endpoint middleware, but all launcher endpoints require
 // an explicit return for NodeInvalid, so we check in this helper method instead.
 func (svc *launcherWrapper) authenticateHost(ctx context.Context, nodeKey string) (context.Context, bool, error) {
-	node, _, err := svc.tls.AuthenticateHost(ctx, nodeKey)
+	nodeID, _, err := svc.tls.AuthenticateHost(ctx, nodeKey)
 	if err != nil {
 		var authErr nodeInvalidErr
 		if errors.As(err, &authErr) {
@@ -156,7 +156,7 @@ func (svc *launcherWrapper) authenticateHost(ctx context.Context, nodeKey string
 		return ctx, false, err
 	}
 
-	ctx = host.NewContext(ctx, *node)
+	ctx = host.NewContext(ctx, nodeID)
 	return ctx, false, nil
 }
 

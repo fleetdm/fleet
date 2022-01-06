@@ -154,6 +154,7 @@ export interface IHost {
   };
   status: string;
   display_text: string;
+  target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;

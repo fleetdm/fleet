@@ -4,6 +4,7 @@ package mock
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -151,7 +152,7 @@ type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey stri
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
+type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (uint, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
@@ -338,6 +339,26 @@ type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type HostLiteFunc func(ctx context.Context, id uint) (*fleet.Host, error)
+
+type HostPrimaryDataFunc func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error)
+
+type HostOsqueryIntervalsFunc func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error)
+
+type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error
+
+type TeamAgentOptionsFunc func(ctx context.Context, id uint) (*json.RawMessage, error)
+
+type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
+
+type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
+
+type SaveHostUsersFunc func(ctx context.Context, hostID uint, users []fleet.HostUser) error
+
+type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *json.RawMessage) error
+
+type SaveHostLiteFunc func(ctx context.Context, host *fleet.Host) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -831,6 +852,36 @@ type DataStore struct {
 
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
+
+	HostLiteFunc        HostLiteFunc
+	HostLiteFuncInvoked bool
+
+	HostPrimaryDataFunc        HostPrimaryDataFunc
+	HostPrimaryDataFuncInvoked bool
+
+	HostOsqueryIntervalsFunc        HostOsqueryIntervalsFunc
+	HostOsqueryIntervalsFuncInvoked bool
+
+	UpdateHostOsqueryIntervalsFunc        UpdateHostOsqueryIntervalsFunc
+	UpdateHostOsqueryIntervalsFuncInvoked bool
+
+	TeamAgentOptionsFunc        TeamAgentOptionsFunc
+	TeamAgentOptionsFuncInvoked bool
+
+	SaveHostPackStatsFunc        SaveHostPackStatsFunc
+	SaveHostPackStatsFuncInvoked bool
+
+	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
+	UpdateHostSoftwareFuncInvoked bool
+
+	SaveHostUsersFunc        SaveHostUsersFunc
+	SaveHostUsersFuncInvoked bool
+
+	SaveHostAdditionalFunc        SaveHostAdditionalFunc
+	SaveHostAdditionalFuncInvoked bool
+
+	SaveHostLiteFunc        SaveHostLiteFunc
+	SaveHostLiteFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1183,7 +1234,7 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	return s.ListHostsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (uint, error) {
 	s.AuthenticateHostFuncInvoked = true
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
@@ -1651,4 +1702,54 @@ func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) err
 func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	s.UpdateQueryAggregatedStatsFuncInvoked = true
 	return s.UpdateQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	s.HostLiteFuncInvoked = true
+	return s.HostLiteFunc(ctx, id)
+}
+
+func (s *DataStore) HostPrimaryData(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
+	s.HostPrimaryDataFuncInvoked = true
+	return s.HostPrimaryDataFunc(ctx, id)
+}
+
+func (s *DataStore) HostOsqueryIntervals(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
+	s.HostOsqueryIntervalsFuncInvoked = true
+	return s.HostOsqueryIntervalsFunc(ctx, id)
+}
+
+func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {
+	s.UpdateHostOsqueryIntervalsFuncInvoked = true
+	return s.UpdateHostOsqueryIntervalsFunc(ctx, id, intervals)
+}
+
+func (s *DataStore) TeamAgentOptions(ctx context.Context, id uint) (*json.RawMessage, error) {
+	s.TeamAgentOptionsFuncInvoked = true
+	return s.TeamAgentOptionsFunc(ctx, id)
+}
+
+func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+	s.SaveHostPackStatsFuncInvoked = true
+	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
+}
+
+func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
+	s.UpdateHostSoftwareFuncInvoked = true
+	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
+}
+
+func (s *DataStore) SaveHostUsers(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+	s.SaveHostUsersFuncInvoked = true
+	return s.SaveHostUsersFunc(ctx, hostID, users)
+}
+
+func (s *DataStore) SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error {
+	s.SaveHostAdditionalFuncInvoked = true
+	return s.SaveHostAdditionalFunc(ctx, hostID, additional)
+}
+
+func (s *DataStore) SaveHostLite(ctx context.Context, host *fleet.Host) error {
+	s.SaveHostLiteFuncInvoked = true
+	return s.SaveHostLiteFunc(ctx, host)
 }

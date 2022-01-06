@@ -537,7 +537,7 @@ func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
-func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.ScheduledQuery) *fleet.Host {
+func randomPackStatsForHost(packID uint, scheduledQueries []*fleet.ScheduledQuery) []fleet.PackStats {
 	var queryStats []fleet.ScheduledQueryStats
 
 	amount := rand.Intn(5000)
@@ -561,13 +561,10 @@ func randomPackStatsForHost(hostID, packID uint, scheduledQueries []*fleet.Sched
 			WallTime:           rand.Intn(1000),
 		})
 	}
-	return &fleet.Host{
-		ID: hostID,
-		PackStats: []fleet.PackStats{
-			{
-				PackID:     packID,
-				QueryStats: queryStats,
-			},
+	return []fleet.PackStats{
+		{
+			PackID:     packID,
+			QueryStats: queryStats,
 		},
 	}
 }
@@ -604,7 +601,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				schedQueries, err := ds.ListScheduledQueriesInPack(context.Background(), pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))
 			}
 		}
 	}()
@@ -655,7 +652,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					schedQueries, err := ds.ListScheduledQueriesInPack(context.Background(), pack.ID, fleet.ListOptions{})
 					require.NoError(t, err)
 
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, randomPackStatsForHost(host.ID, pack.ID, schedQueries)))
+					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))
 				}
 			}
 		}()

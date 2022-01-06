@@ -14,7 +14,8 @@ import (
 
 func TestAgentOptionsForHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svcc := newTestService(ds, nil, nil)
+	svc := svcc.(*Service)
 
 	teamID := uint(1)
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
@@ -33,23 +34,23 @@ func TestAgentOptionsForHost(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	opt, err := svc.AgentOptionsForHost(context.Background(), host)
+	opt, err := svc.agentOptionsForHost(context.Background(), host.TeamID, host.Platform)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"foo":"override"}`, string(opt))
 
 	host.Platform = "windows"
-	opt, err = svc.AgentOptionsForHost(context.Background(), host)
+	opt, err = svc.agentOptionsForHost(context.Background(), host.TeamID, host.Platform)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"foo":"bar"}`, string(opt))
 
 	// Should take gobal option with no team
 	host.TeamID = nil
-	opt, err = svc.AgentOptionsForHost(context.Background(), host)
+	opt, err = svc.agentOptionsForHost(context.Background(), host.TeamID, host.Platform)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"baz":"bar"}`, string(opt))
 
 	host.Platform = "darwin"
-	opt, err = svc.AgentOptionsForHost(context.Background(), host)
+	opt, err = svc.agentOptionsForHost(context.Background(), host.TeamID, host.Platform)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }

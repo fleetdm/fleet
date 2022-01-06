@@ -21,9 +21,14 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	host, ok := hostctx.FromContext(ctx)
+	hostID, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	hostPrimaryData, err := svc.ds.HostPrimaryData(ctx, hostID)
+	if err != nil {
+		return nil, osqueryError{message: "internal error: load host: " + err.Error()}
 	}
 
 	if payload.CarveSize == 0 {
@@ -51,8 +56,8 @@ func (svc *Service) CarveBegin(ctx context.Context, payload fleet.CarveBeginPayl
 
 	now := time.Now().UTC()
 	carve := &fleet.CarveMetadata{
-		Name:       fmt.Sprintf("%s-%s-%s", host.Hostname, now.Format(time.RFC3339), payload.RequestId),
-		HostId:     host.ID,
+		Name:       fmt.Sprintf("%s-%s-%s", hostPrimaryData.Hostname, now.Format(time.RFC3339), payload.RequestId),
+		HostId:     hostID,
 		BlockCount: payload.BlockCount,
 		BlockSize:  payload.BlockSize,
 		CarveSize:  payload.CarveSize,

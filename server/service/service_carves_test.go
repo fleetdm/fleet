@@ -37,7 +37,7 @@ func TestCarveBegin(t *testing.T) {
 		return metadata, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	metadata, err := svc.CarveBegin(ctx, payload)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 		return nil, errors.New("ouch!")
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -72,7 +72,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 func TestCarveBeginEmptyError(t *testing.T) {
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ctx := hostctx.NewContext(context.Background(), fleet.Host{})
+	ctx := hostctx.NewContext(context.Background(), 0)
 
 	_, err := svc.CarveBegin(ctx, fleet.CarveBeginPayload{})
 	require.Error(t, err)
@@ -99,7 +99,7 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -117,7 +117,7 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -134,7 +134,7 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 	}
 	ms := new(mock.Store)
 	svc := &Service{carveStore: ms}
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx := hostctx.NewContext(context.Background(), host.ID)
 
 	// Too big
 	_, err := svc.CarveBegin(ctx, payload)

@@ -35,8 +35,12 @@ The weekly on-call retro at Fleet provides time to discuss highlights and answer
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
 ### For customer requests
-- Locate the appropriate issue, or create it if it doesn't already exist.  (To avoid duplication, be creative when searching GitHub for issues- it can often take a couple of tries with different keywords to find an existing issue.)
+Locate the appropriate issue, or create it if it doesn't already exist. (To avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue.) 
+
+When creating a new issue, ensure the following:
+
 - Make sure the issue has a "customer request" label.
+- "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet, or otherwise that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. (At which point our bot will automatically remove the +-prefixed label.)
 - Is the issue clear and easy to understand, with appropriate context?  (Default to public: declassify into public issues in fleetdm/fleet whenever possible)
 - Is there a key date or timeframe that the customer is hoping to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
