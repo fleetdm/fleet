@@ -1,28 +1,29 @@
-# Updating Fleet
-- [Overview](#overview)
-- [Updating the Fleet binary](#updating-the-fleet-binary)
-  - [Raw binaries](#raw-binaries)
-  - [Docker container](#docker-container)
-- [Running database migrations](#running-database-migrations)
+# Upgrading Fleet
 
-## Overview
+This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](./02-Server-Installation.md).
 
-This guide explains how to update and run new versions of Fleet. For initial installation instructions, see [Installing Fleet](../02-Deploying/02-Server-Installation.md).
+There are three steps to perform a typical Fleet upgrade. 
 
-There are two steps to perform a typical Fleet update. If any other steps are required, they will be noted in the release notes.
+1. [Installing the latest version](#install-the-latest-version-of-fleet)
+2. [Preparing the database](#running-database-migrations)
+3. [Serving the new Fleet instance](#starting-the-upgraded-server)
 
-1. [Update the Fleet binary](#updating-the-fleet-binary)
-2. [Run database migrations](#running-database-migrations)
+## Install the latest version of Fleet
 
-As with any enterprise software update, it's a good idea to back up your MySQL data before updating Fleet.
+Fleet may be installed locally, or used in a Docker container. Follow the appropriate method for your environment. 
 
-## Updating the Fleet binary
+### Local Installation
 
-To update to a new version of Fleet, follow the [same binary install instructions](../02-Deploying/02-Server-Installation.md) from the original installation method you used to install Fleet.
+[Download](https://github.com/fleetdm/fleet/releases) the latest version of Fleet. Check the `Upgrading` section of the release notes for any additional steps that may need to be taken for a specific release. 
 
-### Raw binaries
+Unzip the newly downloaded version, and replace the existing Fleet version with the new, unzipped version.
 
-Download, unzip, and replace the existing Fleet binary with the newly unzipped binary.
+For example, after downloading:
+
+```sh
+unzip fleet.zip 'linux/*' -d fleet
+sudo cp fleet/linux/fleet* /usr/bin/
+```
 
 ### Docker container
 
@@ -32,9 +33,11 @@ Pull the latest Fleet docker image:
 docker pull fleetdm/fleet
 ```
 
-## Running database migrations
+## Prepare the database
 
-Before running the updated server, perform necessary database migrations. It is always advised to back up the database before running migrations.
+Changes to Fleet may include changes to the database. Running the built-in database migrations will ensure that your database is set up properly for the currently installed version. 
+
+It is always advised to [back up the database](https://dev.mysql.com/doc/refman/8.0/en/backup-methods.html) before running migrations. 
 
 Database migrations in Fleet are intended to be run while the server is offline. Osquery is designed to be resilient to short downtime from the server, so no data will be lost from `osqueryd` clients in this process. Even on large Fleet installations, downtime during migrations is usually only seconds to minutes.
 
@@ -46,9 +49,9 @@ Run database migrations:
 fleet prepare db
 ```
 
-Note, if you would like to run this in a script, you can use the `--no-prompt` option to disable prompting before the migrations.
+## Serve the new version:
 
-Start new Fleet server instances:
+Once fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
 
 ```
 fleet serve
