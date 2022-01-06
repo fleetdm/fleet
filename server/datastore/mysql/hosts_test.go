@@ -92,7 +92,7 @@ func TestHosts(t *testing.T) {
 		{"ListByPolicy", testHostsListByPolicy},
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
-		{"AuthenticateHostLoadsDisk", testHostLiteLoadsDisk},
+		{"HostLiteWithDetailsLoadsDisk", testHostLiteWithDetailsLoadsDisk},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -1368,7 +1368,7 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostsByName[0], hosts[0].ID)
 }
 
-func testHostLiteLoadsDisk(t *testing.T, ds *Datastore) {
+func testHostLiteWithDetailsLoadsDisk(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1384,10 +1384,7 @@ func testHostLiteLoadsDisk(t *testing.T, ds *Datastore) {
 	h.GigsDiskSpaceAvailable = 1.24
 	h.PercentDiskSpaceAvailable = 42.0
 	require.NoError(t, ds.SaveHost(context.Background(), h))
-	h, err = ds.Host(context.Background(), h.ID, false)
-	require.NoError(t, err)
-
-	h, err = ds.HostLite(context.Background(), h.ID)
+	h, err = ds.HostLite(context.Background(), h.ID, fleet.WithDetails())
 	require.NoError(t, err)
 	assert.NotZero(t, h.GigsDiskSpaceAvailable)
 	assert.NotZero(t, h.PercentDiskSpaceAvailable)

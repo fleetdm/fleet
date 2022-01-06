@@ -358,6 +358,8 @@ type SaveHostLiteFunc func(ctx context.Context, host *fleet.Host) error
 
 type ListScheduledQueriesInPackLiteFunc func(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error)
 
+type UpdateHostRefetchRequestedFunc func(ctx context.Context, id uint, value bool) error
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -877,6 +879,9 @@ type DataStore struct {
 
 	ListScheduledQueriesInPackLiteFunc        ListScheduledQueriesInPackLiteFunc
 	ListScheduledQueriesInPackLiteFuncInvoked bool
+
+	UpdateHostRefetchRequestedFunc        UpdateHostRefetchRequestedFunc
+	UpdateHostRefetchRequestedFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1742,4 +1747,9 @@ func (s *DataStore) SaveHostLite(ctx context.Context, host *fleet.Host) error {
 func (s *DataStore) ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
 	s.ListScheduledQueriesInPackLiteFuncInvoked = true
 	return s.ListScheduledQueriesInPackLiteFunc(ctx, id)
+}
+
+func (s *DataStore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
+	s.UpdateHostRefetchRequestedFuncInvoked = true
+	return s.UpdateHostRefetchRequestedFunc(ctx, id, value)
 }

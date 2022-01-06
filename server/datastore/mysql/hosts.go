@@ -1315,12 +1315,15 @@ func (d *Datastore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoa
 		ds = ds.ClearSelect() // SELECT *
 	}
 
-	sql, args, err := ds.ToSQL()
+	query, args, err := ds.ToSQL()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
 	var host fleet.Host
-	if err := sqlx.GetContext(ctx, d.reader, &host, sql, args...); err != nil {
+	if err := sqlx.GetContext(ctx, d.reader, &host, query, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
+		}
 		return nil, ctxerr.Wrapf(ctx, err, "load host %d", id)
 	}
 	return &host, nil
@@ -1341,7 +1344,16 @@ func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, int
 		id,
 	)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update host intervals for host %d", id)
+		return ctxerr.Wrapf(ctx, err, "update host %d osquery intervals", id)
+	}
+	return nil
+}
+
+func (d *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
+	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
+	_, err := d.writer.ExecContext(ctx, sqlStatement, value, id)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
 	}
 	return nil
 }

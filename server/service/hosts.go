@@ -286,9 +286,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 
 func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
-		// TODO(lucas): Do you really need the whole host here?
-		// Idea: Define a lite svc.ds.HostForAuthorize method.
-		host, err := svc.ds.Host(ctx, id, false)
+		host, err := svc.ds.HostLite(ctx, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host for delete")
 		}
@@ -417,9 +415,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// TODO(lucas): Do you really need the whole host here?
-	// Idea: Define a lite svc.ds.HostForAuthorize method.
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host for delete")
 	}
@@ -552,20 +548,17 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	// TODO(lucas): Do you really need the whole host here?
-	// Idea: Define a lite svc.ds.HostForAuthorize method.
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find host for refetch")
 	}
 
+	// TODO(lucas): Shouldn't this be fleet.ActionWrite?
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	host.RefetchRequested = true
-	// TODO(lucas): You only need to update refetch_requested here.
-	if err := svc.ds.SaveHost(ctx, host); err != nil {
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
@@ -668,15 +661,7 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 		return nil, err
 	}
 
-	// TODO(mna): this is a pattern that is used elsewhere for hosts, authorize
-	// on list, then load the host to get the team info, and authorize properly
-	// (read, with team_id filled). I wonder if we should add a "quick load" of
-	// host when used just for that purpose, because loading even without the
-	// extra info is still a big-ish query with potentially lots of columns and
-	// at least 4 tables involved.
-	// TODO(lucas): Agree with mna. Do you really need the whole host here?
-	// Idea: Define a lite svc.ds.HostForAuthorize method.
-	host, err := svc.ds.Host(ctx, id, true)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -718,8 +703,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		return nil, err
 	}
 
-	// TODO(lucas): Do you really need the whole host here?
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
 	}

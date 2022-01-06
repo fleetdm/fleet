@@ -441,6 +441,8 @@ type Datastore interface {
 
 	ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*ScheduledQuery, error)
 
+	UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error
+
 	///////////////////////////////////////////////////////////////////////////////
 }
 
