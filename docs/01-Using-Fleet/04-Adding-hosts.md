@@ -26,7 +26,7 @@ fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR E
 
 When you install the generated osquery installer on a host, this host will be automatically enrolled in the specified Fleet instance.
 
-## Signing installers
+### Signing installers
 
   >**Note:** Windows signing is not yet supported within `fleetctl` (working on that this week), but the resulting MSI could be signed after building.
 
