@@ -357,6 +357,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	// TODO(lucas): We just need to update the three interval configs above.
 	if saveHost {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -707,6 +708,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// any existing host additional info.
 	for query := range results {
 		if strings.HasPrefix(query, hostDetailQueryPrefix) {
+			// TODO(lucas): Do you really need the whole host here?
+			// Idea: Define a lite svc.ds.HostForAuthorize method.
 			fullHost, err := svc.ds.Host(ctx, host.ID, true)
 			if err != nil {
 				// leave this error return here, we don't want to drop host additionals
