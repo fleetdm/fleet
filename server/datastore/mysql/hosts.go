@@ -1285,31 +1285,45 @@ func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func (d *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
-	sql := `SELECT * FROM hosts WHERE id = ?`
+func (d *Datastore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	var hopts fleet.HostLoadOpts
+	for _, fn := range opts {
+		fn(&hopts)
+	}
+
+	ds := dialect.From(goqu.I("hosts")).Select(
+		"id",
+		"created_at",
+		"updated_at",
+		"osquery_host_id",
+		"node_key",
+		"hostname",
+		"uuid",
+		"platform",
+		"team_id",
+		"distributed_interval",
+		"logger_tls_period",
+		"config_tls_refresh",
+		"detail_updated_at",
+		"label_updated_at",
+		"last_enrolled_at",
+		"policy_updated_at",
+		"refetch_requested",
+	).Where(goqu.I("id").Eq(id))
+
+	if hopts.WithDetails {
+		ds = ds.ClearSelect() // SELECT *
+	}
+
+	sql, args, err := ds.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sql build")
+	}
 	var host fleet.Host
-	if err := sqlx.GetContext(ctx, d.reader, &host, sql, id); err != nil {
+	if err := sqlx.GetContext(ctx, d.reader, &host, sql, args...); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "load host %d", id)
 	}
 	return &host, nil
-}
-
-func (d *Datastore) HostPrimaryData(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-	sql := `SELECT id, osquery_host_id, hostname, uuid, node_key, platform, team_id FROM hosts WHERE id = ?`
-	var hostPrimaryData fleet.HostPrimaryData
-	if err := sqlx.GetContext(ctx, d.reader, &hostPrimaryData, sql, id); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "load host primary data: %d", id)
-	}
-	return &hostPrimaryData, nil
-}
-
-func (d *Datastore) HostOsqueryIntervals(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
-	sql := `SELECT distributed_interval, logger_tls_period, config_tls_refresh FROM hosts WHERE id = ?`
-	var hostOsqueryIntervals fleet.HostOsqueryIntervals
-	if err := sqlx.GetContext(ctx, d.reader, &hostOsqueryIntervals, sql, id); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "load host primary data: %d", id)
-	}
-	return &hostOsqueryIntervals, nil
 }
 
 func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {

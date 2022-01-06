@@ -40,13 +40,13 @@ func TestCarveBegin(t *testing.T) {
 		metadata.ID = 7
 		return metadata, nil
 	}
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if host.ID == id {
-			return &fleet.HostPrimaryData{
-				Hostname: host.Hostname,
-			}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), host.ID)
@@ -77,13 +77,13 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 		return nil, errors.New("ouch!")
 	}
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if host.ID == id {
-			return &fleet.HostPrimaryData{
-				Hostname: host.Hostname,
-			}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), host.ID)
@@ -102,11 +102,11 @@ func TestCarveBeginEmptyError(t *testing.T) {
 	}
 	ctx := hostctx.NewContext(context.Background(), 1)
 
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if id == 1 {
-			return &fleet.HostPrimaryData{}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{}, nil
 	}
 
 	_, err := svc.CarveBegin(ctx, fleet.CarveBeginPayload{})
@@ -138,13 +138,13 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 		ds:         ds,
 	}
 
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if id == host.ID {
-			return &fleet.HostPrimaryData{
-				Hostname: host.Hostname,
-			}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), host.ID)
@@ -169,13 +169,13 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 		ds:         ds,
 	}
 
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if id == host.ID {
-			return &fleet.HostPrimaryData{
-				Hostname: host.Hostname,
-			}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
 	}
 
 	ctx := hostctx.NewContext(context.Background(), host.ID)
@@ -201,13 +201,13 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 	}
 	ctx := hostctx.NewContext(context.Background(), host.ID)
 
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if id == host.ID {
-			return &fleet.HostPrimaryData{
-				Hostname: host.Hostname,
-			}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if host.ID != id {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return &fleet.Host{
+			Hostname: host.Hostname,
+		}, nil
 	}
 
 	// Too big

@@ -235,12 +235,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	hostPrimaryData, err := svc.ds.HostPrimaryData(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: load host primary data: " + err.Error()}
 	}
 
-	baseConfig, err := svc.AgentOptionsForHost(ctx, hostPrimaryData.TeamID, hostPrimaryData.Platform)
+	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
 	if err != nil {
 		return nil, osqueryError{message: "internal error: fetch base config: " + err.Error()}
 	}
@@ -307,27 +307,20 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		config["packs"] = json.RawMessage(packJSON)
 	}
 
-	// TODO(lucas): Maybe fetch intervals as part of primary data?
-	// Or have HostLite not load the other useless information.
-	intervals, err := svc.ds.HostOsqueryIntervals(ctx, hostID)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: load host intervals: " + err.Error()}
-	}
-
 	// Save interval values if they have been updated.
 	intervalsModified := false
 	if options, ok := config["options"].(map[string]interface{}); ok {
 		distributedIntervalVal, ok := options["distributed_interval"]
 		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
-		if ok && err == nil && intervals.DistributedInterval != distributedInterval {
-			intervals.DistributedInterval = distributedInterval
+		if ok && err == nil && host.DistributedInterval != distributedInterval {
+			host.DistributedInterval = distributedInterval
 			intervalsModified = true
 		}
 
 		loggerTLSPeriodVal, ok := options["logger_tls_period"]
 		loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
-		if ok && err == nil && intervals.LoggerTLSPeriod != loggerTLSPeriod {
-			intervals.LoggerTLSPeriod = loggerTLSPeriod
+		if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
+			host.LoggerTLSPeriod = loggerTLSPeriod
 			intervalsModified = true
 		}
 
@@ -336,14 +329,18 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		// here.
 		configRefreshVal, ok := options["config_refresh"]
 		configRefresh, err := cast.ToUintE(configRefreshVal)
-		if ok && err == nil && intervals.ConfigTLSRefresh != configRefresh {
-			intervals.ConfigTLSRefresh = configRefresh
+		if ok && err == nil && host.ConfigTLSRefresh != configRefresh {
+			host.ConfigTLSRefresh = configRefresh
 			intervalsModified = true
 		}
 	}
 
 	if intervalsModified {
-		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, hostID, intervals); err != nil {
+		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, hostID, &fleet.HostOsqueryIntervals{
+			DistributedInterval: host.DistributedInterval,
+			ConfigTLSRefresh:    host.ConfigTLSRefresh,
+			LoggerTLSPeriod:     host.LoggerTLSPeriod,
+		}); err != nil {
 			return nil, osqueryError{message: "internal error: update host intervals: " + err.Error()}
 		}
 	}
@@ -477,7 +474,6 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 
 	queries := make(map[string]string)
 
-	// TODO(lucas): We don't need to load all the secondary information (CPU, memory, etc.).
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
 		return nil, 0, osqueryError{message: "load host: " + err.Error()}
@@ -684,7 +680,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.HostLite(ctx, hostID, fleet.WithDetails())
 	if err != nil {
 		return osqueryError{message: "load host: " + err.Error()}
 	}

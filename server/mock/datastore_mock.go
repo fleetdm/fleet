@@ -340,11 +340,7 @@ type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
-type HostLiteFunc func(ctx context.Context, id uint) (*fleet.Host, error)
-
-type HostPrimaryDataFunc func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error)
-
-type HostOsqueryIntervalsFunc func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error)
+type HostLiteFunc func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error)
 
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error
 
@@ -857,12 +853,6 @@ type DataStore struct {
 
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
-
-	HostPrimaryDataFunc        HostPrimaryDataFunc
-	HostPrimaryDataFuncInvoked bool
-
-	HostOsqueryIntervalsFunc        HostOsqueryIntervalsFunc
-	HostOsqueryIntervalsFuncInvoked bool
 
 	UpdateHostOsqueryIntervalsFunc        UpdateHostOsqueryIntervalsFunc
 	UpdateHostOsqueryIntervalsFuncInvoked bool
@@ -1709,19 +1699,9 @@ func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }
 
-func (s *DataStore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+func (s *DataStore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 	s.HostLiteFuncInvoked = true
-	return s.HostLiteFunc(ctx, id)
-}
-
-func (s *DataStore) HostPrimaryData(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-	s.HostPrimaryDataFuncInvoked = true
-	return s.HostPrimaryDataFunc(ctx, id)
-}
-
-func (s *DataStore) HostOsqueryIntervals(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
-	s.HostOsqueryIntervalsFuncInvoked = true
-	return s.HostOsqueryIntervalsFunc(ctx, id)
+	return s.HostLiteFunc(ctx, id, opts...)
 }
 
 func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {

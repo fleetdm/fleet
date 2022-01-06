@@ -427,11 +427,8 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 
-	HostLite(ctx context.Context, id uint) (*Host, error)
+	HostLite(ctx context.Context, id uint, opts ...HostLoadOpt) (*Host, error)
 
-	HostPrimaryData(ctx context.Context, id uint) (*HostPrimaryData, error)
-
-	HostOsqueryIntervals(ctx context.Context, id uint) (*HostOsqueryIntervals, error)
 	UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *HostOsqueryIntervals) error
 
 	TeamAgentOptions(ctx context.Context, id uint) (*json.RawMessage, error)
@@ -447,19 +444,20 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 }
 
-// HostPrimaryData holds an osquery host's primary data.
-type HostPrimaryData struct {
-	ID uint `json:"id"`
-	// OsqueryHostID is the key used in the request context that is
-	// used to retrieve host information.  It is sent from osquery and may currently be
-	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID string `json:"-" db:"osquery_host_id"`
-	Hostname      string `json:"hostname" db:"hostname"` // there is a fulltext index on this field
-	UUID          string `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
-	NodeKey       string `json:"-" db:"node_key"`
-	// Platform is the host's platform as defined by osquery's os_version.platform.
-	Platform string `json:"platform" db:"platform"`
-	TeamID   *uint  `json:"team_id" db:"team_id"`
+type HostLoadOpts struct {
+	WithDetails bool
+}
+
+// HostLoadOpt allows configuring host loading.
+type HostLoadOpt func(*HostLoadOpts)
+
+// WithDetails loads the host details into the returned *Host.
+//
+// By default, HostLite won't load the details.
+func WithDetails() HostLoadOpt {
+	return func(h *HostLoadOpts) {
+		h.WithDetails = true
+	}
 }
 
 // HostOsqueryIntervals holds an osquery host's osquery interval configurations.

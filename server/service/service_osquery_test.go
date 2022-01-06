@@ -332,7 +332,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -501,17 +501,11 @@ func TestGetClientConfig(t *testing.T) {
 	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-		if id == 1 || id == 2 {
-			return &fleet.HostPrimaryData{}, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if id != 1 && id != 2 {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
-	}
-	ds.HostOsqueryIntervalsFunc = func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
-		if id == 1 || id == 2 {
-			return &fleet.HostOsqueryIntervals{}, nil
-		}
-		return nil, errors.New("not found")
+		return &fleet.Host{ID: id}, nil
 	}
 
 	svc := newTestService(ds, nil, nil)
@@ -607,11 +601,11 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		if id == 1 {
-			return host, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return host, nil
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -797,11 +791,11 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		if id == 1 {
-			return host, nil
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if id != 1 {
+			return nil, errors.New("not found")
 		}
-		return nil, errors.New("not found")
+		return host, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -1152,7 +1146,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		ID:       1,
 		Platform: "windows",
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -1619,11 +1613,15 @@ func TestUpdateHostIntervals(t *testing.T) {
 				return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":` + string(tt.configOptions) + `}`))}, nil
 			}
 
-			ds.HostOsqueryIntervalsFunc = func(ctx context.Context, id uint) (*fleet.HostOsqueryIntervals, error) {
+			ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 				if id != 1 {
 					return nil, errors.New("not found")
 				}
-				return &tt.initIntervals, nil
+				return &fleet.Host{
+					DistributedInterval: tt.initIntervals.DistributedInterval,
+					ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
+					LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
+				}, nil
 			}
 
 			updateIntervalsCalled := false
@@ -1631,13 +1629,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 				updateIntervalsCalled = true
 				assert.Equal(t, tt.finalIntervals, *intervals)
 				return nil
-			}
-
-			ds.HostPrimaryDataFunc = func(ctx context.Context, id uint) (*fleet.HostPrimaryData, error) {
-				if id != 1 {
-					return nil, errors.New("not found")
-				}
-				return &fleet.HostPrimaryData{}, nil
 			}
 
 			_, err := svc.GetClientConfig(ctx)
@@ -1783,7 +1774,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -1842,7 +1833,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		require.Equal(t, uint(42), id)
 		return &fleet.Host{
 			ID:        42,
@@ -2013,7 +2004,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -2196,7 +2187,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -2462,7 +2453,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
