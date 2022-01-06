@@ -55,10 +55,11 @@ jobs:
         docker compose logs --follow fleet01 fleet02 &
         # Wait for all of the hosts to be enrolled
         EXPECTED=8
-        until [ $(fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
+          sleep 10
         done
         echo "$EXPECTED hosts enrolled"
           
