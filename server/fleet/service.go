@@ -373,6 +373,8 @@ type Service interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeamUsers lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// ListAvailableTeamsForUser lists the teams the user is permitted to view
+	ListAvailableTeamsForUser(ctx context.Context, user *User) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.

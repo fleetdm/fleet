@@ -237,28 +237,6 @@ func (d *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User) 
 		user.Teams = append(user.Teams, r.UserTeam)
 	}
 
-	// Get all teams and append to global users as AvailableTeams
-	allTeams := []*fleet.Team{}
-	if err := sqlx.SelectContext(ctx, d.reader, &allTeams, "SELECT * FROM teams"); err != nil {
-		return ctxerr.Wrap(ctx, err, "select all teams loadTeamsForUsers")
-	}
-	for _, u := range idToUser {
-		availableTeams := []fleet.Team{}
-		if u.GlobalRole != nil {
-			for _, t := range allTeams {
-				// Should the full Team struct be included for global users here
-				// or should it be recast to a smaller struct?
-				availableTeams = append(availableTeams, *t)
-			}
-		} else {
-			for _, t := range u.Teams {
-				// Cast from UserTeam to Team (i.e. omit the role field)
-				availableTeams = append(availableTeams, t.Team)
-			}
-		}
-		u.AvailableTeams = availableTeams
-	}
-
 	return nil
 }
 

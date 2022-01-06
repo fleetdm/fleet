@@ -211,6 +211,29 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	return svc.ds.ListTeams(ctx, filter, opt)
 }
 
+func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.Team, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	availableTeams := []*fleet.Team{}
+	if user.GlobalRole != nil {
+		allTeams, err := svc.ds.ListTeams(ctx, fleet.TeamFilter{User: user, IncludeObserver: true}, fleet.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		// Should the full Team struct be included here for global users or should it be cast to a smaller struct?
+		availableTeams = append(availableTeams, allTeams...)
+	} else {
+		for _, t := range user.Teams {
+			// Convert from UserTeam to Team (i.e. omit the role field)
+			availableTeams = append(availableTeams, &t.Team)
+		}
+	}
+
+	return availableTeams, nil
+}
+
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return err

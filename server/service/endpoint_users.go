@@ -58,8 +58,9 @@ type getUserRequest struct {
 }
 
 type getUserResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
+	User           *fleet.User   `json:"user,omitempty"`
+	AvailableTeams []*fleet.Team `json:"available_teams"`
+	Err            error         `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
@@ -71,7 +72,11 @@ func makeGetUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 		if err != nil {
 			return getUserResponse{Err: err}, nil
 		}
-		return getUserResponse{User: user}, nil
+		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
+		return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
 	}
 }
 
@@ -81,7 +86,11 @@ func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 		if err != nil {
 			return getUserResponse{Err: err}, nil
 		}
-		return getUserResponse{User: user}, nil
+		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+		if err != nil {
+			return getUserResponse{Err: err}, nil
+		}
+		return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
 	}
 }
 

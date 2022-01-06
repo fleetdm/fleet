@@ -22,7 +22,7 @@ import (
 
 func TestLogin(t *testing.T) {
 	ds, users, server := setupAuthTest(t)
-	var loginTests = []struct {
+	loginTests := []struct {
 		email    string
 		status   int
 		password string
@@ -65,10 +65,11 @@ func TestLogin(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, tt.status, resp.StatusCode)
 
-		var jsn = struct {
-			User  *fleet.User         `json:"user"`
-			Token string              `json:"token"`
-			Err   []map[string]string `json:"errors,omitempty"`
+		jsn := struct {
+			User           *fleet.User         `json:"user"`
+			AvailableTeams []*fleet.Team       `json:"available_teams,omitempty"`
+			Token          string              `json:"token"`
+			Err            []map[string]string `json:"errors,omitempty"`
 		}{}
 		err = json.NewDecoder(resp.Body).Decode(&jsn)
 		require.Nil(t, err)
@@ -178,7 +179,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 	require.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var jsn = struct {
+	jsn := struct {
 		User  *fleet.User         `json:"user"`
 		Token string              `json:"token"`
 		Err   []map[string]string `json:"errors,omitempty"`

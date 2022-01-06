@@ -23,13 +23,8 @@ type User struct {
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 
-	// Teams is the teams this user has roles in.
-	// For users with a global role, Teams is expected to be empty.
+	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
-
-	// For users with a global role, AvailableTeams includes all teams for the organization.
-	// For non-global users, AvailableTeams includes only the teams where the user has been assigned a role.
-	AvailableTeams []Team `json:"available_teams"`
 }
 
 func (u *User) IsAdminForcedPasswordReset() bool {
