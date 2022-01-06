@@ -106,7 +106,6 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
         dispatch(
           renderFlash("success", `Successfully deleted ${packOrPacks}.`)
         );
-        toggleRemovePackModal();
       })
       .catch(() => {
         dispatch(
