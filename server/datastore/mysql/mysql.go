@@ -146,7 +146,7 @@ func (d *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 	return backoff.Retry(operation, bo)
 }
 
-func (d *Datastore) withRetryWriter(fn txFn) (err error) {
+func (d *Datastore) withRetryNoTx(fn txFn) (err error) {
 	operation := func() error {
 		if err := fn(d.writer); err != nil {
 			if retryableError(err) {

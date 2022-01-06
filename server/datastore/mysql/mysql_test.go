@@ -346,7 +346,7 @@ func TestWithRetryWriterNoRetrySuccess(t *testing.T) {
 
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 
-	assert.NoError(t, ds.withRetryWriter(func(tx sqlx.ExtContext) error {
+	assert.NoError(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
@@ -362,7 +362,7 @@ func TestWithRetryWriterRetrySuccess(t *testing.T) {
 	mock.ExpectExec("SELECT 1").WillReturnError(&mysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
 
-	assert.NoError(t, ds.withRetryWriter(func(tx sqlx.ExtContext) error {
+	assert.NoError(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
@@ -376,7 +376,7 @@ func TestWithRetryWriterUnretriableError(t *testing.T) {
 
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
 
-	assert.Error(t, ds.withRetryWriter(func(tx sqlx.ExtContext) error {
+	assert.Error(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))
