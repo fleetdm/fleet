@@ -237,6 +237,21 @@ func (d *Datastore) loadTeamsForUsers(ctx context.Context, users []*fleet.User) 
 		user.Teams = append(user.Teams, r.UserTeam)
 	}
 
+	for _, u := range idToUser {
+		availableTeams := []fleet.Team{}
+		if u.GlobalRole != nil {
+			teams, _ := d.ListTeams(ctx, fleet.TeamFilter{User: u, IncludeObserver: true}, fleet.ListOptions{})
+			for _, t := range teams {
+				availableTeams = append(availableTeams, *t)
+			}
+		} else {
+			for _, t := range u.Teams {
+				availableTeams = append(availableTeams, t.Team)
+			}
+		}
+		u.AvailableTeams = availableTeams
+	}
+
 	return nil
 }
 

@@ -40,7 +40,7 @@ func TestUsers(t *testing.T) {
 }
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email             string
 		isAdmin, passwordReset, sso bool
 		resultingPasswordReset      bool
@@ -87,7 +87,7 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 }
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
-	var createTests = []struct {
+	createTests := []struct {
 		password, email        string
 		isAdmin, passwordReset bool
 	}{
@@ -123,7 +123,7 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	for _, user := range users {
-		randomText, err := server.GenerateRandomText(8) //GenerateRandomText(8)
+		randomText, err := server.GenerateRandomText(8) // GenerateRandomText(8)
 		assert.Nil(t, err)
 		user.Password = []byte(randomText)
 		err = ds.SaveUser(context.Background(), user)
@@ -228,7 +228,11 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assert.Len(t, users[0].Teams, 1)
+	// For user with a global role, Teams should be empty
 	assert.Len(t, users[1].Teams, 0)
+	assert.Len(t, users[0].AvailableTeams, 1)
+	// But AvailableTeams should list all teams for global users
+	assert.Len(t, users[1].AvailableTeams, 10)
 
 	users[1].Teams = []fleet.UserTeam{
 		{
@@ -258,6 +262,9 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 
 	assert.Len(t, users[0].Teams, 1)
 	assert.Len(t, users[1].Teams, 3)
+	assert.Len(t, users[0].AvailableTeams, 1)
+	// Prior global user has been assigned to teams so AvailableTeams should now only list those teams
+	assert.Len(t, users[1].AvailableTeams, 3)
 
 	// Clear teams
 	users[1].Teams = []fleet.UserTeam{}
@@ -275,6 +282,9 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 
 	assert.Len(t, users[0].Teams, 1)
 	assert.Len(t, users[1].Teams, 0)
+	assert.Len(t, users[0].AvailableTeams, 1)
+	// User has been reassigned to global so AvailableTeams should again list all teams
+	assert.Len(t, users[1].AvailableTeams, 10)
 }
 
 func testUsersCreateWithTeams(t *testing.T, ds *Datastore) {
