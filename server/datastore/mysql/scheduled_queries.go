@@ -47,6 +47,35 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 	return results, nil
 }
 
+func (d *Datastore) ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+	query := `
+		SELECT
+			sq.id,
+			sq.pack_id,
+			sq.name,
+			sq.query_name,
+			sq.description,
+			sq.interval,
+			sq.snapshot,
+			sq.removed,
+			sq.platform,
+			sq.version,
+			sq.shard,
+			sq.denylist,
+			q.query,
+			q.id AS query_id,
+		FROM scheduled_queries sq
+		JOIN queries q ON (sq.query_name = q.name)
+		WHERE sq.pack_id = ?
+	`
+	results := []*fleet.ScheduledQuery{}
+	if err := sqlx.SelectContext(ctx, d.reader, &results, query, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
+	}
+
+	return results, nil
+}
+
 func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
 	return insertScheduledQueryDB(ctx, d.writer, sq)
 }

@@ -360,6 +360,8 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 
 type SaveHostLiteFunc func(ctx context.Context, host *fleet.Host) error
 
+type ListScheduledQueriesInPackLiteFunc func(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error)
+
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
@@ -882,6 +884,9 @@ type DataStore struct {
 
 	SaveHostLiteFunc        SaveHostLiteFunc
 	SaveHostLiteFuncInvoked bool
+
+	ListScheduledQueriesInPackLiteFunc        ListScheduledQueriesInPackLiteFunc
+	ListScheduledQueriesInPackLiteFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1752,4 +1757,9 @@ func (s *DataStore) SaveHostAdditional(ctx context.Context, hostID uint, additio
 func (s *DataStore) SaveHostLite(ctx context.Context, host *fleet.Host) error {
 	s.SaveHostLiteFuncInvoked = true
 	return s.SaveHostLiteFunc(ctx, host)
+}
+
+func (s *DataStore) ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+	s.ListScheduledQueriesInPackLiteFuncInvoked = true
+	return s.ListScheduledQueriesInPackLiteFunc(ctx, id)
 }

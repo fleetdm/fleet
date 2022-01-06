@@ -442,6 +442,8 @@ type Datastore interface {
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 	SaveHostLite(ctx context.Context, host *Host) error
 
+	ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*ScheduledQuery, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 }
 
