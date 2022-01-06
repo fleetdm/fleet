@@ -51,10 +51,8 @@ jobs:
         ./build/fleetctl preview --no-hosts
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
-        cd ~/.fleet/preview
-        docker compose logs --follow fleet01 fleet02 &
+        docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
         # Wait for all of the hosts to be enrolled
-        cd ~
         EXPECTED=8
         until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
@@ -112,7 +110,9 @@ jobs:
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
-        SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
+        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
@@ -149,7 +149,9 @@ jobs:
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
         chmod +x ./build/fleetctl
-        SECRET=$(fleetctl get enroll_secret --json | jq -r '.spec.secrets[0].secret')
+        SECRET_JSON=$(fleetctl get enroll_secret --json)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
         ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
