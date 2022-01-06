@@ -68,14 +68,18 @@ describe(
 
       cy.findByText(/select query/i).click();
       cy.findByText(/query all/i).click();
-      cy.getAttached(".pack-query-editor-modal__form-field--frequency > .input-field")
+      cy.getAttached(
+        ".pack-query-editor-modal__form-field--frequency > .input-field"
+      )
         .click()
         .type("3600");
       cy.getAttached(
         ".pack-query-editor-modal__form-field--osquer-vers > .Select"
       ).click();
       cy.findByText(/4.7/i).click();
-      cy.getAttached(".pack-query-editor-modal__form-field--shard > .input-field")
+      cy.getAttached(
+        ".pack-query-editor-modal__form-field--shard > .input-field"
+      )
         .click()
         .type("50");
 
