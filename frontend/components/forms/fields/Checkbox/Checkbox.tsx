@@ -16,6 +16,7 @@ export interface ICheckboxProps {
   value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
+  target?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -28,9 +29,14 @@ const Checkbox = (props: ICheckboxProps) => {
     value,
     wrapperClassName,
     indeterminate,
+    target,
   } = props;
 
   const handleChange = () => {
+    if (target) {
+      return onChange({ name, value: !value });
+    }
+
     return onChange(!value);
   };
 

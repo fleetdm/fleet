@@ -11,7 +11,6 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import constructErrorString from "utilities/yaml";
 
 import { IConfigNested, IConfigFormData } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Button from "components/buttons/Button";
@@ -66,6 +65,11 @@ interface IAppConfigFormProps {
   handleSubmit: any;
 }
 
+interface IFormField {
+  name: string;
+  value: string | boolean | number;
+}
+
 interface IAppConfigFormErrors {
   metadata_url?: string | null;
   entity_id?: string | null;
@@ -101,325 +105,102 @@ const AppConfigFormFunctional = ({
 
   // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀
   // █▀░ █▄█ █▀▄ █░▀░█   ▄█ ░█░ █▀█ ░█░ ██▄
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
-  // Organization info
-  const [orgName, setOrgName] = useState<string>(
-    formData.org_info.org_name || ""
-  );
-  const [orgLogoURL, setOrgLogoURL] = useState<string>(
-    formData.org_info.org_logo_url || ""
-  );
-  // Fleet web address
-  const [serverURL, setServerURL] = useState<string>(
-    formData.server_settings.server_url || ""
-  );
-  // SAML single sign on options
-  const [enableSSO, setEnableSSO] = useState<boolean>(
-    formData.sso_settings.enable_sso || false
-  );
-  const [idpName, setIDPName] = useState<string>(
-    formData.sso_settings.idp_name || ""
-  );
-  const [entityID, setEntityID] = useState<string>(
-    formData.sso_settings.entity_id || ""
-  );
-  const [issuerURI, setIssuerURI] = useState<string>(
-    formData.sso_settings.issuer_uri || ""
-  );
-  const [idpImageURL, setIDPImageURL] = useState<string>(
-    formData.sso_settings.idp_image_url || ""
-  );
-  const [metadata, setMetadata] = useState<string>(
-    formData.sso_settings.metadata || ""
-  );
-  const [metadataURL, setMetadataURL] = useState<string>(
-    formData.sso_settings.metadata_url || ""
-  );
-  const [enableSSOIDPLogin, setEnableSSOIDPLogin] = useState<boolean>(
-    formData.sso_settings.enable_sso_idp_login || false
-  );
-  // SMTP options
-  const [enableSMTP, setEnableSMTP] = useState<boolean>(
-    formData.smtp_settings.enable_smtp || false
-  );
-  const [smtpSenderAddress, setSMTPSenderAddress] = useState<string>(
-    formData.smtp_settings.sender_address || ""
-  );
-  const [smtpServer, setSMTPServer] = useState<string>(
-    formData.smtp_settings.server || ""
-  );
-  const [smtpPort, setSMTPPort] = useState<number | undefined>(
-    formData.smtp_settings.port || undefined
-  );
-  const [smtpEnableSSLTLS, setSMTPEnableSSLTLS] = useState<boolean>(
-    formData.smtp_settings.enable_ssl_tls || false
-  );
-  const [smtpAuthenticationType, setSMTPAuthenticationType] = useState<string>(
-    formData.smtp_settings.authentication_type || ""
-  );
-  const [smtpUsername, setSMTPUsername] = useState<string>(
-    formData.smtp_settings.user_name || ""
-  );
-  const [smtpPassword, setSMTPPassword] = useState<string>(
-    formData.smtp_settings.password || ""
-  );
-  const [
+  const [iterateFormData, setIterateFormData] = useState<any>({
+    // Organization info
+    orgName: formData.org_info.org_name || "",
+    orgLogoURL: formData.org_info.org_logo_url || "",
+    // Fleet web address
+    serverURL: formData.server_settings.server_url || "",
+    // SAML single sign on options
+    enableSSO: formData.sso_settings.enable_sso || false,
+    idpName: formData.sso_settings.idp_name || "",
+    entityID: formData.sso_settings.entity_id || "",
+    issuerURI: formData.sso_settings.issuer_uri || "",
+    idpImageURL: formData.sso_settings.idp_image_url || "",
+    metadata: formData.sso_settings.metadata || "",
+    metadataURL: formData.sso_settings.metadata_url || "",
+    enableSSOIDPLogin: formData.sso_settings.enable_sso_idp_login || false,
+    // SMTP options
+    enableSMTP: formData.smtp_settings.enable_smtp || false,
+    smtpSenderAddress: formData.smtp_settings.sender_address || "",
+    smtpServer: formData.smtp_settings.server || "",
+    smtpPort: formData.smtp_settings.port,
+    smtpEnableSSLTLS: formData.smtp_settings.enable_ssl_tls || false,
+    smtpAuthenticationType: formData.smtp_settings.authentication_type || "",
+    smtpUsername: formData.smtp_settings.user_name || "",
+    smtpPassword: formData.smtp_settings.password || "",
+    smtpAuthenticationMethod:
+      formData.smtp_settings.authentication_method || "",
+    // Global agent options
+    agentOptions: yaml.dump(formData.agent_options) || {},
+    // Host status webhook
+    enableHostStatusWebhook:
+      formData.webhook_settings.host_status_webhook
+        .enable_host_status_webhook || false,
+    hostStatusWebhookDestinationURL:
+      formData.webhook_settings.host_status_webhook.destination_url || "",
+    hostStatusWebhookHostPercentage:
+      formData.webhook_settings.host_status_webhook.host_percentage ||
+      undefined,
+    hostStatusWebhookDaysCount:
+      formData.webhook_settings.host_status_webhook.days_count || undefined,
+    // Usage statistics
+    enableUsageStatistics: formData.server_settings.enable_analytics,
+    // Advanced options
+    domain: formData.smtp_settings.domain || "",
+    verifySSLCerts: formData.smtp_settings.verify_ssl_certs || false,
+    enableStartTLS: formData.smtp_settings.enable_start_tls,
+    enableHostExpiry:
+      formData.host_expiry_settings.host_expiry_enabled || false,
+    hostExpiryWindow: formData.host_expiry_settings.host_expiry_window || 0,
+    disableLiveQuery: formData.server_settings.live_query_disabled || false,
+  });
+
+  const {
+    orgName,
+    orgLogoURL,
+    serverURL,
+    enableSSO,
+    idpName,
+    entityID,
+    issuerURI,
+    idpImageURL,
+    metadata,
+    metadataURL,
+    enableSSOIDPLogin,
+    enableSMTP,
+    smtpSenderAddress,
+    smtpServer,
+    smtpPort,
+    smtpEnableSSLTLS,
+    smtpAuthenticationType,
+    smtpUsername,
+    smtpPassword,
     smtpAuthenticationMethod,
-    setSMTPAuthenticationMethod,
-  ] = useState<string>(formData.smtp_settings.authentication_method || "");
-  // Global agent options
-  const [agentOptions, setAgentOptions] = useState<any>(
-    yaml.dump(formData.agent_options) || {}
-  );
-  // Host status webhook
-  const [
+    agentOptions,
     enableHostStatusWebhook,
-    setEnableHostStatusWebhook,
-  ] = useState<boolean>(
-    formData.webhook_settings.host_status_webhook.enable_host_status_webhook ||
-      false
-  );
-  const [
     hostStatusWebhookDestinationURL,
-    setHostStatusWebhookDestinationURL,
-  ] = useState<string>(
-    formData.webhook_settings.host_status_webhook.destination_url || ""
-  );
-  const [
     hostStatusWebhookHostPercentage,
-    setHostStatusWebhookHostPercentage,
-  ] = useState<number | undefined>(
-    formData.webhook_settings.host_status_webhook.host_percentage || undefined
-  );
-  const [hostStatusWebhookDaysCount, setHostStatusWebhookDaysCount] = useState<
-    number | undefined
-  >(formData.webhook_settings.host_status_webhook.days_count || undefined);
-  // Usage statistics
-  const [enableUsageStatistics, setEnableUsageStatistics] = useState<boolean>(
-    formData.server_settings.enable_analytics || false
-  );
-  // Advanced options
-  const [domain, setDomain] = useState<string>(
-    formData.smtp_settings.domain || ""
-  );
-  const [verifySSLCerts, setVerifySSLCerts] = useState<boolean>(
-    formData.smtp_settings.verify_ssl_certs || false
-  );
-  const [enableStartTLS, setEnableStartTLS] = useState<boolean>(
-    formData.smtp_settings.enable_start_tls || false
-  );
-  const [enableHostExpiry, setEnableHostExpiry] = useState<boolean>(
-    formData.host_expiry_settings.host_expiry_enabled || false
-  );
-  const [hostExpiryWindow, setHostExpiryWindow] = useState<number>(
-    formData.host_expiry_settings.host_expiry_window || 0
-  );
-  const [disableLiveQuery, setDisableLiveQuery] = useState<boolean>(
-    formData.server_settings.live_query_disabled || false
-  );
+    hostStatusWebhookDaysCount,
+    enableUsageStatistics,
+    domain,
+    verifySSLCerts,
+    enableStartTLS,
+    enableHostExpiry,
+    hostExpiryWindow,
+    disableLiveQuery,
+  } = iterateFormData;
+
+  // OLD
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   // █▀▀ █▀█ █▀█ █▀▄▀█   █▀▀ █░█ ▄▀█ █▄░█ █▀▀ █▀▀
   // █▀░ █▄█ █▀▄ █░▀░█   █▄▄ █▀█ █▀█ █░▀█ █▄█ ██▄
-  // Organization info
-  const onChangeOrgName = useCallback(
-    (value: string) => {
-      setOrgName(value);
-    },
-    [setOrgName]
-  );
-  const onChangeOrgLogoURL = useCallback(
-    (value: string) => {
-      setOrgLogoURL(value);
-    },
-    [setOrgLogoURL]
-  );
-  // Fleet web address
-  const onChangeServerURL = useCallback(
-    (value: string) => {
-      setServerURL(value);
-    },
-    [setServerURL]
-  );
-  // SAML single sign on options
-  const onChangeEnableSSO = useCallback(
-    (value: boolean) => {
-      setEnableSSO(value);
-    },
-    [setEnableSSO]
-  );
-  const onChangeIDPName = useCallback(
-    (value: string) => {
-      setIDPName(value);
-    },
-    [setIDPName]
-  );
-  const onChangeEntityID = useCallback(
-    (value: string) => {
-      setEntityID(value);
-    },
-    [setEntityID]
-  );
-  const onChangeIssuerURI = useCallback(
-    (value: string) => {
-      setIssuerURI(value);
-    },
-    [setIssuerURI]
-  );
-  const onChangeIDPImageURL = useCallback(
-    (value: string) => {
-      setIDPImageURL(value);
-    },
-    [setIDPImageURL]
-  );
-  const onChangeMetadata = useCallback(
-    (value: string) => {
-      setMetadata(value);
-    },
-    [setMetadata]
-  );
-  const onChangeMetadataURL = useCallback(
-    (value: string) => {
-      setMetadataURL(value);
-    },
-    [setMetadataURL]
-  );
-  const onChangeEnableSSOIDPLogin = useCallback(
-    (value: boolean) => {
-      setEnableSSOIDPLogin(value);
-    },
-    [setEnableSSOIDPLogin]
-  );
-  // SMTP options
-  const onChangeEnableSMTP = useCallback(
-    (value: boolean) => {
-      setEnableSMTP(value);
-    },
-    [setEnableSMTP]
-  );
-  const onChangeSMTPSenderAddress = useCallback(
-    (value: string) => {
-      setSMTPSenderAddress(value);
-    },
-    [setSMTPSenderAddress]
-  );
-  const onChangeSMTPServer = useCallback(
-    (value: string) => {
-      setSMTPServer(value);
-    },
-    [setSMTPServer]
-  );
-  const onChangeSMTPPort = useCallback(
-    (value: number) => {
-      setSMTPPort(value);
-    },
-    [setSMTPPort]
-  );
-  const onChangeSMTPEnableSSLTLS = useCallback(
-    (value: boolean) => {
-      setSMTPEnableSSLTLS(value);
-    },
-    [setSMTPEnableSSLTLS]
-  );
-  const onChangeSMTPAuthenticationType = useCallback(
-    (value: string) => {
-      setSMTPAuthenticationType(value);
-    },
-    [setSMTPAuthenticationType]
-  );
-  const onChangeSMTPUsername = useCallback(
-    (value: string) => {
-      setSMTPUsername(value);
-    },
-    [setSMTPUsername]
-  );
-  const onChangeSMTPPassword = useCallback(
-    (value: string) => {
-      setSMTPPassword(value);
-    },
-    [setSMTPPassword]
-  );
-  const onChangeSMTPAuthenticationMethod = useCallback(
-    (value: string) => {
-      setSMTPAuthenticationMethod(value);
-    },
-    [setSMTPAuthenticationMethod]
-  );
-  // Global agent options
-  const onChangeAgentOptions = useCallback(
-    (value: string) => {
-      setAgentOptions(value);
-    },
-    [setAgentOptions]
-  );
-  // Host status webhook
-  const onChangeEnableHostStatusWebhook = useCallback(
-    (value: boolean) => {
-      setEnableHostStatusWebhook(value);
-    },
-    [setEnableHostStatusWebhook]
-  );
-  const onChangeHostStatusWebhookDestinationURL = useCallback(
-    (value: string) => {
-      setHostStatusWebhookDestinationURL(value);
-    },
-    [setHostStatusWebhookDestinationURL]
-  );
-  const onChangeHostStatusWebhookHostPercentage = useCallback(
-    (value: number) => {
-      setHostStatusWebhookHostPercentage(value);
-    },
-    [setHostStatusWebhookHostPercentage]
-  );
-  const onChangeHostStatusWebhookDaysCount = useCallback(
-    (value: number) => {
-      setHostStatusWebhookDaysCount(value);
-    },
-    [setHostStatusWebhookDaysCount]
-  );
-  // Usage statistics
-  const onChangeEnableUsageStatistics = useCallback(
-    (value: boolean) => {
-      setEnableUsageStatistics(value);
-    },
-    [setEnableUsageStatistics]
-  );
-  // Advanced options
-  const onChangeDomain = useCallback(
-    (value: string) => {
-      setDomain(value);
-    },
-    [setDomain]
-  );
-  const onChangeVerifySSLCerts = useCallback(
-    (value: boolean) => {
-      setVerifySSLCerts(value);
-    },
-    [setVerifySSLCerts]
-  );
-  const onChangeEnableStartTLS = useCallback(
-    (value: boolean) => {
-      setEnableStartTLS(value);
-    },
-    [setEnableStartTLS]
-  );
-  const onChangeEnableHostExpiry = useCallback(
-    (value: boolean) => {
-      setEnableHostExpiry(value);
-    },
-    [setEnableHostExpiry]
-  );
-  const onChangeHostExpiryWindow = useCallback(
-    (value: number) => {
-      setHostExpiryWindow(value);
-    },
-    [setHostExpiryWindow]
-  );
-  const onChangeDisableLiveQuery = useCallback(
-    (value: boolean) => {
-      setDisableLiveQuery(value);
-    },
-    [setDisableLiveQuery]
-  );
+  const handleInputChange = ({ name, value }: IFormField) => {
+    setIterateFormData({ ...iterateFormData, [name]: value });
+  };
+
+  console.log("iterateFormData", iterateFormData);
 
   // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
   // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
@@ -485,7 +266,7 @@ const AppConfigFormFunctional = ({
     }
 
     if (enableHostStatusWebhook) {
-      if (!setHostStatusWebhookDestinationURL) {
+      if (!hostStatusWebhookDestinationURL) {
         errors.destination_url = "Destination URL must be present";
       }
 
@@ -579,18 +360,22 @@ const AppConfigFormFunctional = ({
     return (
       <div className={`${baseClass}__section`}>
         <h2>
-          <a id="organization-info">Organization info</a>
+          <a id="organization-info">Organization info?</a>
         </h2>
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Organization name"
-            onChange={onChangeOrgName}
+            onChange={handleInputChange}
+            target
+            name="orgName"
             value={orgName}
             error={formErrors.org_name}
           />
           <InputField
             label="Organization avatar URL"
-            onChange={onChangeOrgLogoURL}
+            onChange={handleInputChange}
+            name="orgLogoURL"
+            target
             value={orgLogoURL}
           />
         </div>
@@ -615,7 +400,9 @@ const AppConfigFormFunctional = ({
                 Include base path only (eg. no <code>/v1</code>)
               </span>
             }
-            onChange={onChangeServerURL}
+            onChange={handleInputChange}
+            target
+            name="serverurl"
             value={serverURL}
             error={formErrors.server_url}
           />
@@ -637,7 +424,12 @@ const AppConfigFormFunctional = ({
         </h2>
 
         <div className={`${baseClass}__inputs`}>
-          <Checkbox onChange={onChangeEnableSSO} value={enableSSO}>
+          <Checkbox
+            onChange={handleInputChange}
+            target
+            name="enableSSO"
+            value={enableSSO}
+          >
             Enable single sign on
           </Checkbox>
         </div>
@@ -645,7 +437,7 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Identity provider name"
-            onChange={onChangeIDPName}
+            onChange={handleInputChange}
             value={idpName}
             error={formErrors.idp_name}
           />
@@ -667,7 +459,9 @@ const AppConfigFormFunctional = ({
                 used in identity provider configuration.
               </span>
             }
-            onChange={onChangeEntityID}
+            onChange={handleInputChange}
+            target
+            name="entityID"
             value={entityID}
             error={formErrors.entity_id}
           />
@@ -683,7 +477,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Issuer URI"
-            onChange={onChangeIssuerURI}
+            onChange={handleInputChange}
+            target
+            name="issuerURI"
             value={issuerURI}
           />
         </div>
@@ -696,7 +492,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="IDP image URL"
-            onChange={onChangeIDPImageURL}
+            onChange={handleInputChange}
+            target
+            name="idpImageURL"
             value={idpImageURL}
           />
         </div>
@@ -712,7 +510,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="Metadata"
             type="textarea"
-            onChange={onChangeMetadata}
+            onChange={handleInputChange}
+            target
+            name="metadata"
             value={metadata}
           />
         </div>
@@ -733,7 +533,9 @@ const AppConfigFormFunctional = ({
                 means of providing metadata.
               </span>
             }
-            onChange={onChangeMetadataURL}
+            onChange={handleInputChange}
+            target
+            name="metadataURL"
             value={metadataURL}
             error={formErrors.metadata_url}
           />
@@ -746,7 +548,9 @@ const AppConfigFormFunctional = ({
 
         <div className={`${baseClass}__inputs`}>
           <Checkbox
-            onChange={onChangeEnableSSOIDPLogin}
+            onChange={handleInputChange}
+            target
+            name="enableSSOIDPLogin"
             value={enableSSOIDPLogin}
           >
             Allow SSO login initiated by Identity Provider
@@ -766,20 +570,26 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__smtp-section`}>
           <InputField
             label="SMTP username"
-            onChange={onChangeSMTPUsername}
+            onChange={handleInputChange}
+            target
+            name="smtpUsername"
             value={smtpUsername}
           />
           <InputField
             label="SMTP password"
             type="password"
-            onChange={onChangeSMTPPassword}
+            onChange={handleInputChange}
+            target
+            name="smtpPassword"
             value={smtpPassword}
           />
           <Dropdown
             label="Auth method"
             options={authMethodOptions}
             placeholder=""
-            onChange={onChangeSMTPAuthenticationMethod}
+            onChange={handleInputChange}
+            target
+            name="smtpAuthenticationMethod"
             value={smtpAuthenticationMethod}
           />
         </div>
@@ -808,7 +618,12 @@ const AppConfigFormFunctional = ({
           </a>
         </h2>
         <div className={`${baseClass}__inputs`}>
-          <Checkbox onChange={onChangeEnableSMTP} value={enableSMTP}>
+          <Checkbox
+            onChange={handleInputChange}
+            target
+            name="enableSMTP"
+            value={enableSMTP}
+          >
             Enable SMTP
           </Checkbox>
         </div>
@@ -816,7 +631,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Sender address"
-            onChange={onChangeSMTPSenderAddress}
+            onChange={handleInputChange}
+            target
+            name="smtpSenderAddress"
             value={smtpSenderAddress}
           />
         </div>
@@ -827,17 +644,23 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
           <InputField
             label="SMTP server"
-            onChange={onChangeSMTPServer}
+            onChange={handleInputChange}
+            target
+            name="smtpServer"
             value={smtpServer}
           />
           <InputField
             label="&nbsp;"
             type="number"
-            onChange={onChangeSMTPPort}
+            onChange={handleInputChange}
+            target
+            name="smtpPort"
             value={smtpPort}
           />
           <Checkbox
-            onChange={onChangeSMTPEnableSSLTLS}
+            onChange={handleInputChange}
+            target
+            name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
           >
             Use SSL/TLS to connect (recommended)
@@ -920,7 +743,9 @@ const AppConfigFormFunctional = ({
             <b>YAML</b>
           </p>
           <YamlAce
-            onChange={onChangeAgentOptions} //TODO
+            onChange={handleInputChange}
+            target
+            name="agentOptions" //TODO
             value={agentOptions} //TODO
             error={formErrors.agent_options}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
@@ -942,7 +767,9 @@ const AppConfigFormFunctional = ({
             Send an alert if a portion of your hosts go offline.
           </p>
           <Checkbox
-            onChange={onChangeEnableHostStatusWebhook}
+            onChange={handleInputChange}
+            target
+            name="enableHostStatusWebhook"
             value={enableHostStatusWebhook}
           >
             Enable host status webhook
@@ -966,7 +793,9 @@ const AppConfigFormFunctional = ({
           <InputField
             placeholder="https://server.com/example"
             label="Destination URL"
-            onChange={onChangeHostStatusWebhookDestinationURL}
+            onChange={handleInputChange}
+            target
+            name="hostStatusWebhookDestinationURL"
             value={hostStatusWebhookDestinationURL}
           />
         </div>
@@ -984,7 +813,9 @@ const AppConfigFormFunctional = ({
           <Dropdown
             label="Percentage of hosts"
             options={percentageOfHosts}
-            onChange={onChangeHostStatusWebhookHostPercentage}
+            onChange={handleInputChange}
+            target
+            name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
           />
         </div>
@@ -1002,7 +833,9 @@ const AppConfigFormFunctional = ({
           <Dropdown
             label="Number of days"
             options={numberOfDays}
-            onChange={onChangeHostStatusWebhookDaysCount}
+            onChange={handleInputChange}
+            target
+            name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
           />
         </div>
@@ -1047,7 +880,9 @@ const AppConfigFormFunctional = ({
         </p>
         <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
           <Checkbox
-            onChange={onChangeEnableUsageStatistics}
+            onChange={handleInputChange}
+            target
+            name="enableUsageStatistics"
             value={enableUsageStatistics}
           >
             Enable usage statistics
@@ -1081,7 +916,9 @@ const AppConfigFormFunctional = ({
               <div className="tooltip-wrap tooltip-wrap--input">
                 <InputField
                   label="Domain"
-                  onChange={onChangeDomain}
+                  onChange={handleInputChange}
+                  target
+                  name="domain"
                   value={domain}
                 />
                 <IconToolTip
@@ -1093,7 +930,9 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
-                  onChange={onChangeVerifySSLCerts}
+                  onChange={handleInputChange}
+                  target
+                  name="verifySSLCerts"
                   value={verifySSLCerts}
                 >
                   Verify SSL certs
@@ -1107,7 +946,9 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
-                  onChange={onChangeEnableStartTLS}
+                  onChange={handleInputChange}
+                  target
+                  name="enableStartTLS"
                   value={enableStartTLS}
                 >
                   Enable STARTTLS
@@ -1121,7 +962,9 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
-                  onChange={onChangeEnableHostExpiry}
+                  onChange={handleInputChange}
+                  target
+                  name="enableHostExpiry"
                   value={enableHostExpiry}
                 >
                   Host expiry
@@ -1135,9 +978,11 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap tooltip-wrap--input">
                 <InputField
-                  onChange={onChangeHostExpiryWindow}
+                  onChange={handleInputChange}
+                  target
+                  name="hostExpiryWindow"
                   value={hostExpiryWindow}
-                  // disabled={false} TODO!
+                  disabled={!enableHostExpiry}
                   label="Host Expiry Window"
                 />
                 <IconToolTip
@@ -1149,7 +994,9 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap">
                 <Checkbox
-                  onChange={onChangeDisableLiveQuery}
+                  onChange={handleInputChange}
+                  target
+                  name="disableLiveQuery"
                   value={disableLiveQuery}
                 >
                   Disable live queries

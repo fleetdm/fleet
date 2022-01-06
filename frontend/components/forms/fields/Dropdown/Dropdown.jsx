@@ -31,6 +31,7 @@ class Dropdown extends Component {
       PropTypes.number,
     ]),
     wrapperClassName: PropTypes.string,
+    target: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -43,6 +44,7 @@ class Dropdown extends Component {
     multi: false,
     name: "targets",
     placeholder: "Select One...",
+    target: false,
   };
 
   onMenuOpen = () => {
@@ -56,14 +58,26 @@ class Dropdown extends Component {
   };
 
   handleChange = (selected) => {
-    const { multi, onChange, clearable } = this.props;
+    const { multi, onChange, clearable, name, target } = this.props;
 
-    if (clearable && selected === null) {
-      onChange(null);
-    } else if (multi) {
-      onChange(selected.map((obj) => obj.value).join(","));
+    console.log("onchange dropdown!");
+    console.log("target", target);
+    console.log("name", name);
+    console.log("selected.value", selected.value);
+    if (target) {
+      if (clearable && selected === null) {
+        onChange(name, null);
+      } else {
+        onChange(name, selected.value);
+      }
     } else {
-      onChange(selected.value);
+      if (clearable && selected === null) {
+        onChange(null);
+      } else if (multi) {
+        onChange(selected.map((obj) => obj.value).join(","));
+      } else {
+        onChange(selected.value);
+      }
     }
   };
 

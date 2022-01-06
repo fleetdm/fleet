@@ -108,7 +108,7 @@ const AppSettingsPage = (): JSX.Element => {
         <nav>
           <ul className={`${baseClass}__form-nav-list`}>
             <li>
-              <a href="#organization-info">Organization infozzz</a>
+              <a href="#organization-info">Organization info</a>
             </li>
             <li>
               <a href="#fleet-web-address">Fleet web address</a>

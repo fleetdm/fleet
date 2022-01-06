@@ -26,6 +26,7 @@ class InputField extends Component {
       PropTypes.string,
       PropTypes.number,
     ]).isRequired,
+    target: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -38,6 +39,7 @@ class InputField extends Component {
     type: "text",
     blockAutoComplete: false,
     value: "",
+    target: false,
   };
 
   componentDidMount() {
@@ -54,8 +56,14 @@ class InputField extends Component {
   onInputChange = (evt) => {
     evt.preventDefault();
 
-    const { value } = evt.target;
-    const { onChange } = this.props;
+    const { value, name } = evt.target;
+    const { onChange, target } = this.props;
+
+    console.log("name", name);
+    console.log("value", value);
+    if (target) {
+      return onChange({ value, name });
+    }
 
     return onChange(value);
   };
