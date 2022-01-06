@@ -317,3 +317,59 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 
 	require.NoDirExists(t, vulnPath)
 }
+
+// TestCronWebhooksLockDuration tests that the Lock method is being called
+// for the current webhook crons and that their duration is always one hour (see #3584).
+func TestCronWebhooksLockDuration(t *testing.T) {
+	ds := new(mock.Store)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				Interval: fleet.Duration{Duration: 1 * time.Second},
+			},
+		}, nil
+	}
+	hostStatus := make(chan struct{})
+	hostStatusClosed := false
+	failingPolicies := make(chan struct{})
+	failingPoliciesClosed := false
+	unknownName := false
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		if expiration != time.Hour {
+			return false, nil
+		}
+		switch name {
+		case lockKeyWebhooksHostStatus:
+			if !hostStatusClosed {
+				close(hostStatus)
+				hostStatusClosed = true
+			}
+		case lockKeyWebhooksFailingPolicies:
+			if !failingPoliciesClosed {
+				close(failingPolicies)
+				failingPoliciesClosed = true
+			}
+		default:
+			unknownName = true
+		}
+		return true, nil
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet())
+
+	select {
+	case <-failingPolicies:
+	case <-time.After(5 * time.Second):
+		t.Error("failing policies timeout")
+	}
+	select {
+	case <-hostStatus:
+	case <-time.After(5 * time.Second):
+		t.Error("host status timeout")
+	}
+	require.False(t, unknownName)
+}

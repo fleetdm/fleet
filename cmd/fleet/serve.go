@@ -714,8 +714,8 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			ticker.Reset(interval)
 		}
 
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, time.Hour)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, time.Hour, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -727,9 +727,9 @@ func maybeTriggerHostStatus(
 	logger kitlog.Logger,
 	identifier string,
 	appConfig *fleet.AppConfig,
-	interval time.Duration,
+	lockDuration time.Duration,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, interval); err != nil || !locked {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil || !locked {
 		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
 		return
 	}
@@ -747,10 +747,10 @@ func maybeTriggerGlobalFailingPoliciesWebhook(
 	logger kitlog.Logger,
 	identifier string,
 	appConfig *fleet.AppConfig,
-	interval time.Duration,
+	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil || !locked {
 		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
 		return
 	}
