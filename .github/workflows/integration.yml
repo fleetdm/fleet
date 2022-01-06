@@ -53,7 +53,15 @@ jobs:
         ./build/fleetctl get enroll-secret
         cd ~/.fleet/preview
         docker compose logs --follow fleet01 fleet02 &
-        sleep 600
+        # Wait for all of the hosts to be enrolled
+        EXPECTED=8
+        until [ $(fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+          echo -n "Waiting for hosts to enroll: "
+          cat hostcount | xargs echo -n
+          echo " / $EXPECTED"
+        done
+        echo "$EXPECTED hosts enrolled"
+          
 
   login:
    runs-on: ubuntu-latest
@@ -210,12 +218,6 @@ jobs:
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
 
-    - name: Check installation
-      shell: bash 
-      run: |
-        HOSTNAME=$(hostname)
-        until fleetctl get hosts | grep -iF "$HOSTNAME";
-        do
-          echo "Awaiting enrollment..."
-          sleep 1
-        done
+    # We can't very accurately check the install on these Windows hosts since the hostnames tend to
+    # overlap and we can't control the hostnames. Instead we just return and have the run-server job
+    # wait until he expected number of hosts enroll.
