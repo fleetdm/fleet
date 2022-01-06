@@ -21,7 +21,7 @@ interface IEditUserModalProps {
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
-  serverErrors?: IUserFormErrors;
+  serverErrors?: { base: string; email: string };
   isModifiedByGlobalAdmin?: boolean | false;
 }
 
@@ -68,7 +68,7 @@ const EditUserModal = ({
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-        currentTeam={currentTeam}
+        currentTeam={currentTeam} // TODO: WTF
         dispatch={dispatch}
       />
     </Modal>

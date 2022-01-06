@@ -21,7 +21,7 @@ interface ICreateUserModalProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
   isFormSubmitting?: boolean | false;
-  serverErrors?: IUserFormErrors;
+  serverErrors?: { base: string; email: string };
 }
 
 const baseClass = "create-user-modal";
