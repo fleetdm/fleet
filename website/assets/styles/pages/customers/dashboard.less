@@ -1,4 +1,5 @@
 #dashboard {
+  padding-top: 80px;
   h1 {
     font-size: 28px;
   }
@@ -31,7 +32,7 @@
       border-radius: 6px;
     }
     .card-body {
-      padding: 30px;
+      padding: 2em;
     }
   }
 
@@ -72,9 +73,10 @@
     border: 1px solid #C5C7D1;
     border-radius: 4px;
     padding: 8px 40px;
-    line-height: 24px;
+    line-height: 20px;
     &:hover {
       background: #fff;
+      color: @core-fleet-black;
     }
     &:focus {
       box-shadow: none;
@@ -84,20 +86,22 @@
       height: 20px;
       width: auto;
       padding-right: 4px;
+      margin-bottom: 1px;
     }
     a {
       color: @core-fleet-black;
-      text-decoration: none;
     }
+    text-decoration: none;
   }
   [purpose='deploy-button'] {
     font-size: 16px;
-    line-height: 24px;
+    line-height: 20px;
     padding: 8px 40px;
     border-radius: 4px;
-    a {
+    color: white;
+    text-decoration: none;
+    &:hover {
       color: white;
-      text-decoration: none;
     }
   }
 
@@ -113,6 +117,7 @@
     padding: 16px;
     p {
       font-size: 14px;
+      margin-block-end: 0px;
     }
     a {
       font-size: 14px;

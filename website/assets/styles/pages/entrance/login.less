@@ -1,12 +1,12 @@
 #login {
+
+  padding-top: 80px;
+
   h1 {
     font-size: 28px;
   }
   a {
     color: @core-vibrant-blue;
-  }
-  p {
-    font-size: 16px;
   }
 
   [purpose='customer-portal-form'] {
@@ -22,12 +22,11 @@
       border-radius: 6px;
     }
     .card-body {
-      padding: 30px;
+      padding: 2em;
     }
   }
 
   [purpose='submit-button'] {
-    width: 200px;
     margin-left: auto;
     margin-right: auto;
     border-radius: 4px;
@@ -47,8 +46,10 @@
   }
 
   [purpose='features-list'] {
-    // min-width: 254px;
+
     word-wrap: overflow;
+    padding-left: 40px;
+    font-size: 14px;
    ul {
      list-style-type: none;
      padding-inline-start: 0px;
@@ -63,6 +64,14 @@
     margin-right: 8px;
    }
 
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+  }
+
+  @media (max-width: 576px) {
+    padding-top: 40px;
   }
 
 }

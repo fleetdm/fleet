@@ -1,4 +1,6 @@
 #new-license {
+  padding-top: 80px;
+
   h1 {
     font-size: 28px;
   }
@@ -8,9 +10,6 @@
   a:hover {
     text-decoration: none;
     color: darken(@core-vibrant-blue, 20%);
-  }
-  p {
-    font-size: 16px;
   }
   h3 {
     font-size: 20px;
@@ -30,6 +29,7 @@
   }
 
   [purpose='customer-portal-form'] {
+
     label {
       font-weight: 700;
       margin-bottom: 4px;
@@ -42,12 +42,12 @@
       border-radius: 6px;
     }
     .card-body {
-      padding: 30px;
+      padding: 2em;
     }
   }
 
   [purpose='submit-button'] {
-    width: 200px;
+
     margin-left: auto;
     margin-right: auto;
     border-radius: 4px;
@@ -67,7 +67,8 @@
   }
 
   [purpose='features-list'] {
-    // min-width: 254px;
+    padding-left: 40px;
+    font-size: 14px;
     word-wrap: overflow;
    ul {
      list-style-type: none;
@@ -83,6 +84,19 @@
     margin-right: 8px;
    }
 
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+  }
+
+  @media (max-width: 576px) {
+    padding-top: 40px;
+    [purpose='customer-portal-form'] {
+      .card-body {
+        padding: 16px;
+      }
+    }
   }
 
 

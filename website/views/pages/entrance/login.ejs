@@ -1,15 +1,14 @@
 <div id="login" v-cloak>
-  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5 px-lg-0 px-5">
+  <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3">
     <h1>Welcome to Fleet Premium</h1>
     <p class="pb-2">Sign in to view your Fleet Premium dashboard.</p>
-    <div  purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
-
-      <div class="order-first flex-grow-1 pr-md-4">
+    <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
+      <div class="order-first flex-grow-1">
         <div class="card card-body">
           <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
             <div class="form-group">
               <label for="email">Email</label>
-              <span style="float: right" class="text-right"><a href="/customers/register">Create an account</a></span>
+              <span style="float: right" class="text-right small"><a href="/customers/register">Create an account</a></span>
               <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
               <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
             </div>
@@ -18,13 +17,13 @@
               <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
               <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
             </div>
-            <cloud-error v-if="cloudError==='badCombo'">Something’s not quite right with your email or password.</cloud-error>
+            <cloud-error v-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
-            <div class="form-group">
+            <div class="pb-3">
               <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-info mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
           </ajax-form>
-          <span class="text-center"><a href="/customers/forgot-password">Forgot your password?</a></span>
+          <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
         </div>
       </div>
 

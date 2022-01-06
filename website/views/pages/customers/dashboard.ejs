@@ -1,5 +1,5 @@
 <div id="dashboard" v-cloak>
-  <div style="padding-top: 80px;" class="container pb-5 px-xl-0">
+  <div class="container pb-5 px-3 px-xl-0">
     <div class="pb-4">
       <h3>Your license</h3>
       <div purpose="license-card" class="card card-body">
@@ -54,8 +54,8 @@
           </div>
           <hr/>
           <div class="row">
-            <div class="col-sm-3 col-12 ">Password:</div>
-            <div class="col-sm-9 col-12 text-right">
+            <div class="col-sm-4 col-12 ">Password:</div>
+            <div class="col-sm-8 col-12 text-right">
               <strong>••••••••</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickChangePassword()">
             </div>
           </div>
@@ -65,15 +65,15 @@
       <div class="col-12 col-lg-6 pt-4 pt-lg-0">
         <h3 class="pb-4 pb-xl-3">Billing and payment</h3>
         <div purpose="billing-card" class="card card-body justify-content-center">
-          <div class="row pb-3">
-            <div class="col-1"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A small credit card"></div>
-            <div class="col">
+          <div class="row pb-3 mx-0">
+            <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A credit card Icon"></div>
+            <div class="col pl-3">
               <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"></p>
             </div>
           </div>
-          <div class="row pb-3">
-            <div class="col-1"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A small credit card"></div>
-            <div class="col">
+          <div class="row pb-3 mx-0">
+            <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
+            <div class="col pl-3">
               <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
               <p>Billed anually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
               <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
@@ -84,8 +84,8 @@
               <div style="max-width: 32px;" class="col-1 pr-0">
                 <img style="display: inline-block; height: 16px; width: 16px; margin-top: 3px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
               </div>
-              <div class="col ml-1 pl-1">
-                <p><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+              <div class="col ml-1 pl-1 small">
+                <p class="small"><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
               </div>
             </div>
           </div>
@@ -94,17 +94,13 @@
 
     </div>
     <div class="pt-4 d-block">
-      <div class="btn btn-info btn-sm mr-md-3 mb-3 mb-md-0" purpose="deploy-button">
-        <a href="/docs/deploying/introduction">
+        <a class="btn btn-info btn-sm mr-md-3 mb-3 mb-md-0" purpose="deploy-button" href="/docs/deploying/introduction">
           How to deploy Fleet
         </a>
-      </div>
-      <div class="btn btn-outline-secondary btn-sm" purpose="slack-button">
-        <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank">
+        <a class="btn btn-outline-secondary btn-sm" purpose="slack-button" href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/" target="_blank">
           <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
           Ask for help on Slack
         </a>
-      </div>
     </div>
 
   </div>
@@ -144,7 +140,7 @@
           </div>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -173,7 +169,7 @@
           <cloud-error v-else-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -191,7 +187,7 @@
           <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="pt-3">
-          <ajax-button spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save card</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save card</ajax-button>
         </div>
       </ajax-form>
     </div>
@@ -207,7 +203,7 @@
           <cloud-error v-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
         </div>
       </ajax-form>
     </div>
