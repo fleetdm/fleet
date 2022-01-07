@@ -13,7 +13,6 @@ func init() {
 
 func Up_20220107155700(tx *sql.Tx) error {
 	tables := []string{
-		"policy_membership_history",
 		"host_additional",
 		"host_users",
 		"policy_membership",
