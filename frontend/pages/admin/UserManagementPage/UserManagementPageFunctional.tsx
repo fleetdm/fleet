@@ -1,4 +1,4 @@
-import React, { useState, Component } from "react";
+import React, { useState, useCallback, Component } from "react";
 import { connect, useDispatch } from "react-redux";
 import { isEqual } from "lodash";
 import { push } from "react-router-redux";
@@ -134,35 +134,53 @@ const UserManagementPage = ({
   // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
   // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
     
-  const toggleCreateUserModal = () => {
-    setShowCreateUserModal(!showCreateUserModal);
-
-    // clear errors on close
+ 
+    const toggleCreateUserModal = useCallback(() => {
+      setShowCreateUserModal(!showCreateUserModal);
+      
+          // clear errors on close
     if (!showCreateUserModal) {
       setCreateUserErrors({ DEFAULT_CREATE_USER_ERRORS });
     }
-  };
+  }, [showCreateUserModal, setShowCreateUserModal]);
 
-  // added IInvite and undefined due to toggleeditusermodal being used later
-  const toggleEditUserModal = (user?: IUser | IInvite| undefined) => {
-    setShowEditUserModal(!showEditUserModal);
-    setUserEditing(!showEditUserModal ? user : null);
-  };
 
-  const toggleDeleteUserModal = (user: IUser) => {
-    setShowDeleteUserModal(!showDeleteUserModal);
-    setUserEditing(!showDeleteUserModal ? user : null);
-  };
-
-  const toggleResetPasswordUserModal = (user: IUser) => {
+    const toggleDeleteUserModal = useCallback(
+    (user?: IUser) => {
+        setShowDeleteUserModal(!showDeleteUserModal);
+        // TODO: Decide which of these to use!
+      user ? setUserEditing(user) : setUserEditing(undefined);
+      setUserEditing(!showDeleteUserModal ? user : null);
+    },
+    [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
+    );
+  
+    // added IInvite and undefined due to toggleeditusermodal being used later
+    const toggleEditUserModal = useCallback(
+    (user?: IUser) => {
+        setShowEditUserModal(!showEditUserModal);
+        // TODO: Decide which of these to use!
+        user ? setUserEditing(user) : setUserEditing(undefined);
+            setUserEditing(!showEditUserModal ? user : null);
+    },
+    [showEditUserModal, setShowEditUserModal, setUserEditing]
+  );
+  
+  const toggleResetPasswordUserModal = useCallback(
+    (user?: IUser) => {
     setShowResetPasswordModal(!showResetPasswordModal);
     setUserEditing(!showResetPasswordModal ? user : null);
-  };
+    },
+    [showResetPasswordModal, setShowResetPasswordModal, setUserEditing]
+  );
 
-  const toggleResetSessionsUserModal = (user: IUser) => {
+  const toggleResetSessionsUserModal = useCallback(
+    (user?: IUser) => {
     setShowResetSessionsModal(!showResetSessionsModal);
     setUserEditing(!showResetSessionsModal ? user : null);
-  };
+    },
+    [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
+  );
 
   // █▀▀ █░█ █▄░█ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
   // █▀░ █▄█ █░▀█ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
@@ -268,7 +286,6 @@ const UserManagementPage = ({
             onCancel={toggleEditUserModal}
             onSubmit={onEditUser}
             availableTeams={teams}
-            currentTeam={currentTeam} // TODO: WTF, get this from context API
             isPremiumTier={isPremiumTier}
             smtpConfigured={config.configured}
             canUseSso={config.enable_sso}

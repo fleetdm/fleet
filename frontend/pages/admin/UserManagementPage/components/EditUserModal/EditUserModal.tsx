@@ -16,7 +16,7 @@ interface IEditUserModalProps {
   defaultTeamRole?: string;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
-  currentTeam: ITeam;
+  currentTeam?: ITeam;
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
@@ -68,7 +68,7 @@ const EditUserModal = ({
         canUseSso={canUseSso}
         isSsoEnabled={isSsoEnabled}
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-        currentTeam={currentTeam} // TODO: WTF
+        currentTeam={currentTeam}
         dispatch={dispatch}
       />
     </Modal>
