@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -164,7 +165,7 @@ func TestCronWebhooks(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), "1234", failingPoliciesSet)
+	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), "1234", failingPoliciesSet, 5*time.Minute)
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -359,7 +360,7 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet())
+	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 5*time.Minute)
 
 	select {
 	case <-failingPolicies:
@@ -372,4 +373,64 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 		t.Error("host status timeout")
 	}
 	require.False(t, unknownName)
+}
+
+func TestCronWebhooksIntervalChange(t *testing.T) {
+	ds := new(mock.Store)
+
+	interval := struct {
+		sync.Mutex
+		value time.Duration
+	}{
+		value: 5 * time.Hour,
+	}
+	configLoaded := make(chan struct{}, 1)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		select {
+		case configLoaded <- struct{}{}:
+		default:
+			// OK
+		}
+
+		interval.Lock()
+		defer interval.Unlock()
+
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				Interval: fleet.Duration{Duration: interval.value},
+			},
+		}, nil
+	}
+
+	lockCalled := make(chan struct{}, 1)
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		select {
+		case lockCalled <- struct{}{}:
+		default:
+			// OK
+		}
+		return true, nil
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 200*time.Millisecond)
+
+	select {
+	case <-configLoaded:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: initial config load")
+	}
+
+	interval.Lock()
+	interval.value = 1 * time.Second
+	interval.Unlock()
+
+	select {
+	case <-lockCalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout: interval change did not trigger lock call")
+	}
 }

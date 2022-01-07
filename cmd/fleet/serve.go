@@ -538,7 +538,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 5*time.Minute)
 
 	return cancelBackground
 }
@@ -684,7 +684,14 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
+func cronWebhooks(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	failingPoliciesSet fleet.FailingPolicySet,
+	intervalReload time.Duration,
+) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -694,6 +701,7 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
 	level.Debug(logger).Log("interval", interval.String())
 	ticker := time.NewTicker(interval)
+	start := time.Now()
 	for {
 		level.Debug(logger).Log("waiting", "on ticker")
 		select {
@@ -702,20 +710,29 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
+		case <-time.After(intervalReload):
+			// Reload interval and check if it has been reduced.
+			if appConfig, err := ds.AppConfig(ctx); err != nil {
+				level.Error(logger).Log("config", "couldn't read app config", "err", err)
+			} else {
+				if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
+					continue
+				}
+			}
 		}
 
 		// Reread app config to be able to read latest data used by the webhook
-		// and update any intervals for next run.
+		// and update the ticker for the next run.
 		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
 		} else {
-			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-			ticker.Reset(interval)
+			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
+			start = time.Now()
 		}
 
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, time.Hour)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, time.Hour, failingPoliciesSet)
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, 1*time.Hour)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, 1*time.Hour, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
