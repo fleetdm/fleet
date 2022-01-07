@@ -89,7 +89,7 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 		NumPolicies:               amountPolicies,
 		NumLabels:                 amountLabels,
 		SoftwareInventoryEnabled:  appConfig.HostSettings.EnableSoftwareInventory,
-		VulnDetectionEnabled:      &appConfig.VulnerabilitySettings.DatabasesPath != nil,
+		VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
 		SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
 		HostsStatusWebHookEnabled: appConfig.WebhookSettings.HostStatusWebhook.Enable,
 	}, true, nil

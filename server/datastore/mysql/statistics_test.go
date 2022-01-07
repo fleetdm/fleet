@@ -89,7 +89,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	config.HostSettings.EnableSoftwareInventory = false
 	config.HostSettings.EnableHostUsers = false
-	config.VulnerabilitySettings.DatabasesPath = "foo/bar"
+	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
 
 	err = ds.SaveAppConfig(context.Background(), config)
@@ -111,7 +111,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumLabels, 1)
 	assert.Equal(t, stats.SoftwareInventoryEnabled, false)
 	assert.Equal(t, stats.SystemUsersEnabled, false)
-	assert.Equal(t, stats.VulnDetectionEnabled, true)
+	assert.Equal(t, stats.VulnDetectionEnabled, false)
 	assert.Equal(t, stats.HostsStatusWebHookEnabled, true)
 
 	firstIdentifier := stats.AnonymousIdentifier
