@@ -28,7 +28,7 @@ When you install the generated osquery installer on a host, this host will be au
 
 ### Signing installers
 
-  >**Note:** Windows signing is not yet supported within `fleetctl` (working on that this week), but the resulting MSI could be signed after building.
+  >**Note:** Currently, the fleetctl package command does not provide support for signing Windows osquery installers. Windows installers can be signed after building.
 
 The `fleetctl package` command provides suppport for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
