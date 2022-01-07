@@ -63,7 +63,7 @@ func (d *Datastore) ListScheduledQueriesInPackLite(ctx context.Context, id uint)
 			sq.shard,
 			sq.denylist,
 			q.query,
-			q.id AS query_id,
+			q.id AS query_id
 		FROM scheduled_queries sq
 		JOIN queries q ON (sq.query_name = q.name)
 		WHERE sq.pack_id = ?
