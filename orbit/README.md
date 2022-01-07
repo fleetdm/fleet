@@ -190,6 +190,10 @@ Following are the destination of logs for each platform (to access such location
 - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.lg` (the log file is rotated).
 
+#### Debug
+
+You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
+
 ### Uninstall
 #### Windows
 
