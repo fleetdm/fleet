@@ -44,7 +44,7 @@ jobs:
         npm install -g localtunnel
         lt --port 1337 --subdomain ${{ needs.gen.outputs.subdomain }} &
 
-    - name: Start Fleet server
+    - name: Run Fleet server
       timeout-minutes: 15
       run: |
         chmod +x ./build/fleetctl
@@ -60,6 +60,7 @@ jobs:
           echo " / $EXPECTED"
           sleep 10
         done
+        ./build/fleetctl get hosts
         echo "Success! $EXPECTED hosts enrolled."
           
 
