@@ -15,12 +15,6 @@
     &:hover {
       background-color: transparent;
     }
-
-    .site-nav-item__link {
-      border-right: 3px solid $core-vibrant-blue;
-      background-color: $core-fleet-black;
-      height: 50px;
-    }
   }
 
   &__icon {
@@ -30,13 +24,6 @@
     width: 16px;
     height: 16px;
     vertical-align: sub;
-  }
-
-  .logo {
-    @include size(48px);
-    border-radius: 20%;
-    padding: 0;
-    margin: -12px -15px 0;
   }
 
   &__name {
@@ -61,13 +48,20 @@
     }
   }
 
-  a {
+  &__link {
     color: $core-white;
     text-align: center;
     display: flex;
     align-items: center;
     padding: 14px 20px 17px;
     text-decoration: none;
+  }
+
+  &__logo {
+    text-align: center;
+    display: table-cell;
+    vertical-align: middle;
+    width: 64px;
   }
 
   &--active {
