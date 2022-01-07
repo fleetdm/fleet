@@ -186,7 +186,7 @@ Press Enter to continue, or Control-c to exit.
 
 Orbit captures and streams osqueryd's stdout/stderr into its own stdout/stderr output.
 Following are the destination of logs for each platform (to access such locations the user will need administrative permissions on the host):
-- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog`).
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems and `/var/log/messages` on CentOS).
 - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.lg` (the log file is rotated).
 
