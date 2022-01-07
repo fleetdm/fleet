@@ -222,7 +222,7 @@ func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.U
 		if err != nil {
 			return nil, err
 		}
-		// Should the full Team struct be included here for global users or should it be cast to a smaller struct?
+		// TODO: Should the full Team struct be included here for global users or should it be cast to a smaller struct?
 		availableTeams = append(availableTeams, allTeams...)
 	} else {
 		for _, t := range user.Teams {
