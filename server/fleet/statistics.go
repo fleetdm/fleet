@@ -10,6 +10,7 @@ type StatisticsPayload struct {
 	NumUsers                  int    `json:"numUsers"`
 	NumTeams                  int    `json:"numTeams"`
 	NumPolicies               int    `json:"numPolicies"`
+	NumLabels                 int    `json:"numLabels"`
 	SoftwareInventoryEnabled  bool   `json:"softwareInventoryEnabled"`
 	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`

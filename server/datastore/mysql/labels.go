@@ -763,3 +763,12 @@ func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []ui
 		return ctxerr.Wrap(ctx, err, "update hosts.label_updated_at")
 	})
 }
+
+func amountLabelsDB(db sqlx.Queryer) (int, error) {
+	var amount int
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM labels`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}

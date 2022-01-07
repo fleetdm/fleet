@@ -32,7 +32,11 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 	}
 	amountPolicies, err := amountPoliciesDB(d.writer)
 	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount teams")
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount policies")
+	}
+	amountLabels, err := amountLabelsDB(d.writer)
+	if err != nil {
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount labels")
 	}
 	appConfig, err := d.AppConfig(ctx)
 	if err != nil {
@@ -59,6 +63,7 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 				NumUsers:                  amountUsers,
 				NumTeams:                  amountTeams,
 				NumPolicies:               amountPolicies,
+				NumLabels:                 amountLabels,
 				SoftwareInventoryEnabled:  appConfig.HostSettings.EnableSoftwareInventory,
 				VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
 				SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
@@ -82,6 +87,7 @@ func (d *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 		NumUsers:                  amountUsers,
 		NumTeams:                  amountTeams,
 		NumPolicies:               amountPolicies,
+		NumLabels:                 amountLabels,
 		SoftwareInventoryEnabled:  appConfig.HostSettings.EnableSoftwareInventory,
 		VulnDetectionEnabled:      &appConfig.VulnerabilitySettings.DatabasesPath != nil,
 		SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
