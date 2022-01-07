@@ -1334,7 +1334,7 @@ func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, int
 		UPDATE hosts SET
 			distributed_interval = ?,
 			config_tls_refresh = ?,
-			logger_tls_period = ?,
+			logger_tls_period = ?
 		WHERE id = ?
 	`
 	_, err := d.writer.ExecContext(ctx, sqlStatement,
