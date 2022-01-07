@@ -337,7 +337,7 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	failingPoliciesClosed := false
 	unknownName := false
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		if expiration != time.Hour {
+		if expiration != 1*time.Hour {
 			return false, nil
 		}
 		switch name {
@@ -360,7 +360,7 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 5*time.Minute)
+	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 1*time.Hour)
 
 	select {
 	case <-failingPolicies:

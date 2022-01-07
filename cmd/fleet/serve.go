@@ -538,7 +538,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 5*time.Minute)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 
 	return cancelBackground
 }
@@ -731,8 +731,9 @@ func cronWebhooks(
 			start = time.Now()
 		}
 
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, 1*time.Hour)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, 1*time.Hour, failingPoliciesSet)
+		// We set the db lock durations to match the intervalReload.
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
