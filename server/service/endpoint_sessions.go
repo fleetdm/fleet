@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"html/template"
 	"time"
 
@@ -44,7 +45,11 @@ func makeLoginEndpoint(svc fleet.Service) endpoint.Endpoint {
 		ctx = viewer.NewContext(ctx, *v)
 		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
 		if err != nil {
-			return loginResponse{Err: err}, nil
+			if errors.Is(err, fleet.ErrMissingLicense) {
+				availableTeams = []*fleet.Team{}
+			} else {
+				return loginResponse{Err: err}, nil
+			}
 		}
 		return loginResponse{user, availableTeams, token, nil}, nil
 	}
