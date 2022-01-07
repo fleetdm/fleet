@@ -94,6 +94,10 @@ func InitializeUpdates(updateOpt update.Options) error {
 	}
 	log.Debug().Str("path", orbitPath).Msg("got orbit")
 
+	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
+		updater.CopyDevBuild("orbit", updateOpt.OrbitChannel, devBuildPath)
+	}
+
 	return nil
 }
 
