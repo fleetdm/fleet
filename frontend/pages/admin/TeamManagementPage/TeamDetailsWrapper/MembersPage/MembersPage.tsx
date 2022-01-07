@@ -124,11 +124,15 @@ const MembersPage = ({
     return state.app.config;
   });
 
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
-  const [showEditUserModal, setShowEditUserModal] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
+    false
+  );
+  const [showEditUserModal, setShowEditUserModal] = useState<boolean>(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
+    false
+  );
+  const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
   const [createUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);

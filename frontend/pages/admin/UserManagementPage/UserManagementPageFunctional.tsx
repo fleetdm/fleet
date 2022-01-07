@@ -44,19 +44,17 @@ interface IAppSettingsPageProps {
   currentUser: IUser;
   loadingTableData: boolean;
   invites: IInvite[];
-  inviteErrors: { base: string; email: string;};
+  inviteErrors: { base: string; email: string };
   isPremiumTier: boolean;
   users: IUser[];
-  userErrors: { base: string; name: string;};
+  userErrors: { base: string; name: string };
   teams: ITeam[];
 }
-
 
 // TODO: Try 1: define interface for formData and will get more helpful debugging
 // TODO: Try 2: Consider re-writing this function all together....
 
 const generateUpdateData = (currentUserData: any, formData: any) => {
-
   // array of updatable fields
   const updatableFields = [
     "global_role",
@@ -66,14 +64,14 @@ const generateUpdateData = (currentUserData: any, formData: any) => {
     "sso_enabled",
   ];
 
-  // go over all the keys in the form data, reduce 
+  // go over all the keys in the form data, reduce
   return Object.keys(formData).reduce((updatedAttributes, attr) => {
     // attribute can be updated and is different from the current value.
     if (
       updatableFields.includes(attr) &&
       !isEqual(formData[attr], currentUserData[attr])
     ) {
-      updatedAttributes[attr]: = formData[attr];
+      updatedAttributes[attr] = formData[attr];
     }
     return updatedAttributes;
   }, {});
@@ -98,7 +96,7 @@ const UserManagementPage = ({
   }
 
   // TODO: IMPLEMENT
-    // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
+  // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
   // `config` will not have been loaded at that point. Accordingly, we need this lifecycle hook so
   // that `teams` information will be available to the edit user form.
   // componentDidUpdate(prevProps) {
@@ -133,59 +131,97 @@ const UserManagementPage = ({
 
   // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
   // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
-    
- 
-    const toggleCreateUserModal = useCallback(() => {
-      setShowCreateUserModal(!showCreateUserModal);
-      
-          // clear errors on close
+
+  const toggleCreateUserModal = useCallback(() => {
+    setShowCreateUserModal(!showCreateUserModal);
+
+    // clear errors on close
     if (!showCreateUserModal) {
       setCreateUserErrors({ DEFAULT_CREATE_USER_ERRORS });
     }
   }, [showCreateUserModal, setShowCreateUserModal]);
 
-
-    const toggleDeleteUserModal = useCallback(
+  const toggleDeleteUserModal = useCallback(
     (user?: IUser) => {
-        setShowDeleteUserModal(!showDeleteUserModal);
-        // TODO: Decide which of these to use!
+      setShowDeleteUserModal(!showDeleteUserModal);
+      // TODO: Decide which of these to use!
       user ? setUserEditing(user) : setUserEditing(undefined);
       setUserEditing(!showDeleteUserModal ? user : null);
     },
     [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
-    );
-  
-    // added IInvite and undefined due to toggleeditusermodal being used later
-    const toggleEditUserModal = useCallback(
+  );
+
+  // added IInvite and undefined due to toggleeditusermodal being used later
+  const toggleEditUserModal = useCallback(
     (user?: IUser) => {
-        setShowEditUserModal(!showEditUserModal);
-        // TODO: Decide which of these to use!
-        user ? setUserEditing(user) : setUserEditing(undefined);
-            setUserEditing(!showEditUserModal ? user : null);
+      setShowEditUserModal(!showEditUserModal);
+      // TODO: Decide which of these to use!
+      user ? setUserEditing(user) : setUserEditing(undefined);
+      setUserEditing(!showEditUserModal ? user : null);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
-  
+
   const toggleResetPasswordUserModal = useCallback(
     (user?: IUser) => {
-    setShowResetPasswordModal(!showResetPasswordModal);
-    setUserEditing(!showResetPasswordModal ? user : null);
+      setShowResetPasswordModal(!showResetPasswordModal);
+      setUserEditing(!showResetPasswordModal ? user : null);
     },
     [showResetPasswordModal, setShowResetPasswordModal, setUserEditing]
   );
 
   const toggleResetSessionsUserModal = useCallback(
     (user?: IUser) => {
-    setShowResetSessionsModal(!showResetSessionsModal);
-    setUserEditing(!showResetSessionsModal ? user : null);
+      setShowResetSessionsModal(!showResetSessionsModal);
+      setUserEditing(!showResetSessionsModal ? user : null);
     },
     [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
   );
 
+  const combineUsersAndInvites = memoize((users, invites, currentUserId) => {
+    return combineDataSets(users, invites, currentUserId);
+  });
   // █▀▀ █░█ █▄░█ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
   // █▀░ █▄█ █░▀█ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
-  
-  const   getUser = (type: string, id: number) => {
+
+  const goToUserSettingsPage = () => {
+    const { USER_SETTINGS } = paths;
+
+    dispatch(push(USER_SETTINGS));
+  };
+
+  const goToAppConfigPage = (evt: any) => {
+    evt.preventDefault();
+
+    const { ADMIN_SETTINGS } = paths;
+
+    dispatch(push(ADMIN_SETTINGS));
+  };
+
+  const onActionSelect = (action: string, user: IUser) => {
+    switch (action) {
+      case "edit":
+        toggleEditUserModal(user);
+        break;
+      case "delete":
+        toggleDeleteUserModal(user);
+        break;
+      case "passwordReset":
+        toggleResetPasswordUserModal(user);
+        break;
+      case "resetSessions":
+        toggleResetSessionsUserModal(user);
+        break;
+      case "editMyAccount":
+        goToUserSettingsPage();
+        break;
+      default:
+        return null;
+    }
+    return null;
+  };
+
+  const getUser = (type: string, id: number) => {
     let userData;
     if (type === "user") {
       userData = users.find((user) => user.id === id);
@@ -193,6 +229,79 @@ const UserManagementPage = ({
       userData = invites.find((invite) => invite.id === id);
     }
     return userData;
+  };
+
+  const onCreateUserSubmit = (formData: any) => {
+    setIsFormSubmitting(true);
+
+    if (formData.newUserType === NewUserType.AdminInvited) {
+      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
+      const requestData = {
+        ...formData,
+        invited_by: formData.currentUserId,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      delete requestData.password; // this field is not needed for the request
+      dispatch(inviteActions.create(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash(
+              "success",
+              `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+            )
+          );
+          toggleCreateUserModal();
+        })
+        .catch((userErrors: any) => {
+          if (userErrors.base?.includes("Duplicate")) {
+            dispatch(
+              renderFlash(
+                "error",
+                "A user with this email address already exists."
+              )
+            );
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          setIsFormSubmitting(false);
+        });
+    } else {
+      // Do some data formatting deleteing uncessary fields
+      const requestData = {
+        ...formData,
+      };
+      delete requestData.currentUserId; // this field is not needed for the request
+      delete requestData.newUserType; // this field is not needed for the request
+      dispatch(userActions.createUserWithoutInvitation(requestData))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully created ${requestData.name}.`)
+          );
+          toggleCreateUserModal();
+        })
+        .catch((userErrors: any) => {
+          if (userErrors.base?.includes("Duplicate")) {
+            dispatch(
+              renderFlash(
+                "error",
+                "A user with this email address already exists."
+              )
+            );
+          } else {
+            dispatch(
+              renderFlash("error", "Could not create user. Please try again.")
+            );
+          }
+        })
+        .finally(() => {
+          setIsFormSubmitting(false);
+        });
+    }
   };
 
   const onEditUser = (formData: any) => {
@@ -264,8 +373,80 @@ const UserManagementPage = ({
       });
   };
 
-  const renderEditUserModal = () => {
+  const onDeleteUser = () => {
+    if (userEditing.type === "invite") {
+      dispatch(inviteActions.destroy(userEditing))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+          );
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete ${userEditing?.name}. Please try again.`
+            )
+          );
+        });
+      toggleDeleteUserModal();
+    } else {
+      dispatch(userActions.destroy(userEditing))
+        .then(() => {
+          dispatch(
+            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+          );
+        })
+        .catch(() => {
+          dispatch(
+            renderFlash(
+              "error",
+              `Could not delete ${userEditing?.name}. Please try again.`
+            )
+          );
+        });
+      toggleDeleteUserModal();
+    }
+  };
 
+  const onResetSessions = () => {
+    const isResettingCurrentUser = currentUser.id === userEditing.id;
+
+    dispatch(userActions.deleteSessions(userEditing, isResettingCurrentUser))
+      .then(() => {
+        if (!isResettingCurrentUser) {
+          dispatch(renderFlash("success", "Sessions reset"));
+        }
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            "Could not reset sessions for the selected user. Please try again."
+          )
+        );
+      });
+    toggleResetSessionsUserModal();
+  };
+
+  const resetPassword = (user: IUser) => {
+    const { requirePasswordReset } = userActions;
+
+    return dispatch(requirePasswordReset(user.id, { require: true })).then(
+      () => {
+        dispatch(
+          renderFlash(
+            "success",
+            "User required to reset password",
+            requirePasswordReset(user.id, { require: false }) // this is an undo action.
+          )
+        );
+        toggleResetPasswordUserModal();
+      }
+    );
+  };
+
+  const renderEditUserModal = () => {
     if (!showEditUserModal) return null;
 
     const userData = getUser(userEditing.type, userEditing.id);
@@ -297,96 +478,73 @@ const UserManagementPage = ({
     );
   };
 
-    const renderCreateUserModal = () => {
-      const {
-        currentUser,
-        config,
-        teams,
-        userErrors,
-        isPremiumTier,
-      } = this.props;
+  const renderCreateUserModal = () => {
+    if (!showCreateUserModal) return null;
 
-      // TODO: REFACTOR TO TYPESCRIPT FOR THIS RENDER
-      const { showCreateUserModal, isFormSubmitting } = this.state;
-      const { onCreateUserSubmit, toggleCreateUserModal } = this;
+    return (
+      <CreateUserModal
+        serverErrors={userErrors}
+        currentUserId={currentUser.id} // TODO: This is not used in CreateUserModal?!
+        onCancel={toggleCreateUserModal}
+        onSubmit={onCreateUserSubmit}
+        availableTeams={teams}
+        defaultGlobalRole={"observer"}
+        defaultTeams={[]}
+        defaultNewUserType={false}
+        submitText={"Create"}
+        isPremiumTier={isPremiumTier}
+        smtpConfigured={config.configured}
+        canUseSso={config.enable_sso}
+        isFormSubmitting={isFormSubmitting}
+        isModifiedByGlobalAdmin
+        isNewUser
+      />
+    );
+  };
 
-      if (!showCreateUserModal) return null;
+  const renderDeleteUserModal = () => {
+    if (!showDeleteUserModal) return null;
 
-      return (
-        <CreateUserModal
-          serverErrors={userErrors}
-          currentUserId={currentUser.id} // TODO: This is not used in CreateUserModal?!
-          onCancel={toggleCreateUserModal}
-          onSubmit={onCreateUserSubmit}
-          availableTeams={teams}
-          defaultGlobalRole={"observer"}
-          defaultTeams={[]}
-          defaultNewUserType={false}
-          submitText={"Create"}
-          isPremiumTier={isPremiumTier}
-          smtpConfigured={config.configured}
-          canUseSso={config.enable_sso}
-          isFormSubmitting={isFormSubmitting}
-          isModifiedByGlobalAdmin
-          isNewUser
+    return (
+      <Modal
+        title={"Delete user"}
+        onExit={toggleDeleteUserModal}
+        className={`${baseClass}__delete-user-modal`}
+      >
+        <DeleteUserForm
+          name={userEditing.name}
+          onDelete={onDeleteUser}
+          onCancel={toggleDeleteUserModal}
         />
-      );
-    };
+      </Modal>
+    );
+  };
 
-  
-    // TODO: START UP REFACTORING HERE FRIDAY
-    const renderDeleteUserModal = () => {
-      const { showDeleteUserModal, userEditing } = this.state;
-      const { toggleDeleteUserModal, onDeleteUser } = this;
+  const renderResetPasswordModal = () => {
+    if (!showResetPasswordModal) return null;
 
-      if (!showDeleteUserModal) return null;
+    return (
+      <ResetPasswordModal
+        user={userEditing}
+        modalBaseClass={baseClass}
+        onResetConfirm={resetPassword}
+        onResetCancel={toggleResetPasswordUserModal}
+      />
+    );
+  };
 
-      return (
-        <Modal
-          title={"Delete user"}
-          onExit={toggleDeleteUserModal}
-          className={`${baseClass}__delete-user-modal`}
-        >
-          <DeleteUserForm
-            name={userEditing.name}
-            onDelete={onDeleteUser}
-            onCancel={toggleDeleteUserModal}
-          />
-        </Modal>
-      );
-    };
+  const renderResetSessionsModal = () => {
+    if (!showResetSessionsModal) return null;
 
-    const renderResetPasswordModal = () => {
-      const { showResetPasswordModal, userEditing } = this.state;
-      const { toggleResetPasswordUserModal, resetPassword } = this;
-
-      if (!showResetPasswordModal) return null;
-
-      return (
-        <ResetPasswordModal
-          user={userEditing}
-          modalBaseClass={baseClass}
-          onResetConfirm={resetPassword}
-          onResetCancel={toggleResetPasswordUserModal}
-        />
-      );
-    };
-
-    const renderResetSessionsModal = () => {
-      const { showResetSessionsModal, userEditing } = this.state;
-      const { toggleResetSessionsUserModal, onResetSessions } = this;
-
-      if (!showResetSessionsModal) return null;
-
-      return (
-        <ResetSessionsModal
-          user={userEditing}
-          modalBaseClass={baseClass}
-          onResetConfirm={onResetSessions}
-          onResetCancel={toggleResetSessionsUserModal}
-        />
-      );
-    };
+    return (
+      <ResetSessionsModal
+        user={userEditing}
+        modalBaseClass={baseClass}
+        onResetConfirm={onResetSessions}
+        onResetCancel={toggleResetSessionsUserModal}
+      />
+    );
+  };
 
   //   render() {
   //     const {
@@ -409,17 +567,17 @@ const UserManagementPage = ({
   //       userErrors,
   //     } = this.props;
 
-  //     const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
+  const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
 
-  //     let tableData = [];
-  //     if (!loadingTableData) {
-  //       tableData = this.combineUsersAndInvites(
-  //         users,
-  //         invites,
-  //         currentUser.id,
-  //         onActionSelect
-  //       );
-  //     }
+  let tableData: any = [];
+  if (!loadingTableData) {
+    tableData = combineUsersAndInvites(
+      users,
+      invites,
+      currentUser.id,
+      onActionSelect
+    );
+  }
 
   return (
     <div className={`${baseClass} body-wrap`}>
@@ -444,6 +602,8 @@ const UserManagementPage = ({
           resultsTitle={"users"}
           emptyComponent={EmptyUsers}
           searchable
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
         />
       )}
       {renderCreateUserModal()}
@@ -456,375 +616,3 @@ const UserManagementPage = ({
 };
 
 export default UserManagementPage;
-
-// export class UserManagementPage extends Component {
-//   static propTypes = {
-//     appConfigLoading: PropTypes.bool,
-//     config: configInterface,
-//     currentUser: userInterface,
-//     dispatch: PropTypes.func,
-//     loadingTableData: PropTypes.bool,
-//     invites: PropTypes.arrayOf(inviteInterface),
-//     inviteErrors: PropTypes.shape({
-//       base: PropTypes.string,
-//       email: PropTypes.string,
-//     }),
-//     isPremiumTier: PropTypes.bool,
-//     users: PropTypes.arrayOf(userInterface),
-//     userErrors: PropTypes.shape({
-//       base: PropTypes.string,
-//       name: PropTypes.string,
-//     }),
-//     teams: PropTypes.arrayOf(teamInterface),
-//   };
-
-//   constructor(props) {
-//     super(props);
-
-//     this.state = {
-//       showCreateUserModal: false,
-//       showEditUserModal: false,
-//       showDeleteUserModal: false,
-//       showResetPasswordModal: false,
-//       showResetSessionsModal: false,
-//       isFormSubmitting: false,
-//       userEditing: null,
-//       usersEditing: [],
-//       createUserErrors: { DEFAULT_CREATE_USER_ERRORS },
-//     };
-//   }
-
-//   componentDidMount() {
-//     const { dispatch, isPremiumTier } = this.props;
-//     if (isPremiumTier) {
-//       dispatch(teamActions.loadAll({}));
-//     }
-//   }
-
-//   // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
-//   // `config` will not have been loaded at that point. Accordingly, we need this lifecycle hook so
-//   // that `teams` information will be available to the edit user form.
-//   componentDidUpdate(prevProps) {
-//     const { dispatch, isPremiumTier } = this.props;
-//     if (prevProps.isPremiumTier !== isPremiumTier) {
-//       isPremiumTier && dispatch(teamActions.loadAll({}));
-//     }
-//   }
-
-//   onCreateUserSubmit = (formData) => {
-//     const { dispatch, config } = this.props;
-
-//     this.setState({ isFormSubmitting: true });
-
-//     if (formData.newUserType === NewUserType.AdminInvited) {
-//       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
-//       const requestData = {
-//         ...formData,
-//         invited_by: formData.currentUserId,
-//       };
-//       delete requestData.currentUserId; // this field is not needed for the request
-//       delete requestData.newUserType; // this field is not needed for the request
-//       delete requestData.password; // this field is not needed for the request
-//       dispatch(inviteActions.create(requestData))
-//         .then(() => {
-//           dispatch(
-//             renderFlash(
-//               "success",
-//               `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
-//             )
-//           );
-//           this.toggleCreateUserModal();
-//         })
-//         .catch((userErrors) => {
-//           if (userErrors.base?.includes("Duplicate")) {
-//             dispatch(
-//               renderFlash(
-//                 "error",
-//                 "A user with this email address already exists."
-//               )
-//             );
-//           } else {
-//             dispatch(
-//               renderFlash("error", "Could not create user. Please try again.")
-//             );
-//           }
-//         })
-//         .finally(() => {
-//           this.setState({ isFormSubmitting: false });
-//         });
-//     } else {
-//       // Do some data formatting deleteing uncessary fields
-//       const requestData = {
-//         ...formData,
-//       };
-//       delete requestData.currentUserId; // this field is not needed for the request
-//       delete requestData.newUserType; // this field is not needed for the request
-//       dispatch(userActions.createUserWithoutInvitation(requestData))
-//         .then(() => {
-//           dispatch(
-//             renderFlash("success", `Successfully created ${requestData.name}.`)
-//           );
-//           this.toggleCreateUserModal();
-//         })
-//         .catch((userErrors) => {
-//           if (userErrors.base?.includes("Duplicate")) {
-//             dispatch(
-//               renderFlash(
-//                 "error",
-//                 "A user with this email address already exists."
-//               )
-//             );
-//           } else {
-//             dispatch(
-//               renderFlash("error", "Could not create user. Please try again.")
-//             );
-//           }
-//         })
-//         .finally(() => {
-//           this.setState({ isFormSubmitting: false });
-//         });
-//     }
-//   };
-
-//   onCreateCancel = (evt) => {
-//     evt.preventDefault();
-//     this.toggleCreateUserModal();
-//   };
-
-//   onDeleteUser = () => {
-//     const { dispatch } = this.props;
-//     const { userEditing } = this.state;
-//     const { toggleDeleteUserModal } = this;
-
-//     if (userEditing.type === "invite") {
-//       dispatch(inviteActions.destroy(userEditing))
-//         .then(() => {
-//           dispatch(
-//             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-//           );
-//         })
-//         .catch(() => {
-//           dispatch(
-//             renderFlash(
-//               "error",
-//               `Could not delete ${userEditing?.name}. Please try again.`
-//             )
-//           );
-//         });
-//       toggleDeleteUserModal();
-//     } else {
-//       dispatch(userActions.destroy(userEditing))
-//         .then(() => {
-//           dispatch(
-//             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-//           );
-//         })
-//         .catch(() => {
-//           dispatch(
-//             renderFlash(
-//               "error",
-//               `Could not delete ${userEditing?.name}. Please try again.`
-//             )
-//           );
-//         });
-//       toggleDeleteUserModal();
-//     }
-//   };
-
-//   onResetSessions = () => {
-//     const { currentUser, dispatch } = this.props;
-//     const { userEditing } = this.state;
-//     const { toggleResetSessionsUserModal } = this;
-//     const isResettingCurrentUser = currentUser.id === userEditing.id;
-
-//     dispatch(userActions.deleteSessions(userEditing, isResettingCurrentUser))
-//       .then(() => {
-//         if (!isResettingCurrentUser) {
-//           dispatch(renderFlash("success", "Sessions reset"));
-//         }
-//       })
-//       .catch(() => {
-//         dispatch(
-//           renderFlash(
-//             "error",
-//             "Could not reset sessions for the selected user. Please try again."
-//           )
-//         );
-//       });
-//     toggleResetSessionsUserModal();
-//   };
-
-//   // NOTE: this is called once on the initial rendering. The initial render of
-//   // the TableContainer child component calls this handler.
-//   onTableQueryChange = (queryData) => {
-//     const { dispatch } = this.props;
-//     const {
-//       pageIndex,
-//       pageSize,
-//       searchQuery,
-//       sortHeader,
-//       sortDirection,
-//     } = queryData;
-//     let sortBy = [];
-//     if (sortHeader !== "") {
-//       sortBy = [{ id: sortHeader, direction: sortDirection }];
-//     }
-//     dispatch(
-//       userActions.loadAll({
-//         page: pageIndex,
-//         perPage: pageSize,
-//         globalFilter: searchQuery,
-//         sortBy,
-//       })
-//     );
-//     dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy));
-//   };
-
-//   onActionSelect = (action, user) => {
-//     const {
-//       toggleEditUserModal,
-//       toggleDeleteUserModal,
-//       goToUserSettingsPage,
-//       toggleResetPasswordUserModal,
-//       toggleResetSessionsUserModal,
-//     } = this;
-//     switch (action) {
-//       case "edit":
-//         toggleEditUserModal(user);
-//         break;
-//       case "delete":
-//         toggleDeleteUserModal(user);
-//         break;
-//       case "passwordReset":
-//         toggleResetPasswordUserModal(user);
-//         break;
-//       case "resetSessions":
-//         toggleResetSessionsUserModal(user);
-//         break;
-//       case "editMyAccount":
-//         goToUserSettingsPage();
-//         break;
-//       default:
-//         return null;
-//     }
-//     return null;
-//   };
-
-//   getUser = (type, id) => {
-//     const { users, invites } = this.props;
-//     let userData;
-//     if (type === "user") {
-//       userData = users.find((user) => user.id === id);
-//     } else {
-//       userData = invites.find((invite) => invite.id === id);
-//     }
-//     return userData;
-//   };
-
-//   combineUsersAndInvites = memoize((users, invites, currentUserId) => {
-//     return combineDataSets(users, invites, currentUserId);
-//   });
-
-//   resetPassword = (user) => {
-//     const { dispatch } = this.props;
-//     const { toggleResetPasswordUserModal } = this;
-//     const { requirePasswordReset } = userActions;
-
-//     return dispatch(requirePasswordReset(user.id, { require: true })).then(
-//       () => {
-//         dispatch(
-//           renderFlash(
-//             "success",
-//             "User required to reset password",
-//             requirePasswordReset(user.id, { require: false }) // this is an undo action.
-//           )
-//         );
-//         toggleResetPasswordUserModal();
-//       }
-//     );
-//   };
-
-//   goToUserSettingsPage = () => {
-//     const { USER_SETTINGS } = paths;
-//     const { dispatch } = this.props;
-
-//     dispatch(push(USER_SETTINGS));
-//   };
-
-//   goToAppConfigPage = (evt) => {
-//     evt.preventDefault();
-
-//     const { ADMIN_SETTINGS } = paths;
-//     const { dispatch } = this.props;
-
-//     dispatch(push(ADMIN_SETTINGS));
-//   };
-
-
-//   render() {
-//     const {
-//       renderCreateUserModal,
-//       renderEditUserModal,
-//       renderDeleteUserModal,
-//       renderResetPasswordModal,
-//       renderResetSessionsModal,
-//       toggleCreateUserModal,
-//       onTableQueryChange,
-//       onActionSelect,
-//     } = this;
-
-//     const {
-//       loadingTableData,
-//       users,
-//       invites,
-//       currentUser,
-//       isPremiumTier,
-//       userErrors,
-//     } = this.props;
-
-//     const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
-
-//     let tableData = [];
-//     if (!loadingTableData) {
-//       tableData = this.combineUsersAndInvites(
-//         users,
-//         invites,
-//         currentUser.id,
-//         onActionSelect
-//       );
-//     }
-//   }
-// }
-
-// const mapStateToProps = (state) => {
-//   const stateEntityGetter = entityGetter(state);
-//   const { config } = state.app;
-//   const { loading: appConfigLoading } = state.app;
-//   const { user: currentUser } = state.auth;
-//   const { entities: users } = stateEntityGetter.get("users");
-//   const { entities: invites } = stateEntityGetter.get("invites");
-//   const { entities: teams } = stateEntityGetter.get("teams");
-//   const {
-//     errors: inviteErrors,
-//     loading: loadingInvites,
-//   } = state.entities.invites;
-//   const { errors: userErrors, loading: loadingUsers } = state.entities.users;
-//   const loadingTableData = loadingUsers || loadingInvites;
-//   const isPremiumTier = permissionUtils.isPremiumTier(config);
-
-//   return {
-//     appConfigLoading,
-//     config,
-//     currentUser,
-//     users,
-//     userErrors,
-//     invites,
-//     inviteErrors,
-//     isPremiumTier,
-//     loadingTableData,
-//     teams,
-//   };
-// };
-
-// export default connect(mapStateToProps)(UserManagementPage);
-
