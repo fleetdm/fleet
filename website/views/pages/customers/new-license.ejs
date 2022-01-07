@@ -13,7 +13,7 @@
                 <label for="numberOfHosts">Total number of devices</label>
                 <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!showQuotedPrice">
                 <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
-                <span style="position: relative; cursor: text;" class="form-control" @click="clickResetForm()" v-if="showQuotedPrice">{{formData.numberOfHosts}}<span style="position: absolute; bottom: 10px; right: 5px;" class="text-muted fa fa-times-circle pl-2"></span></span>
+                <span style="position: relative; cursor: text;" class="form-control" @click="clickResetForm()" v-if="showQuotedPrice">{{formData.numberOfHosts}}<span style="position: absolute; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
               </div>
 
               <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
@@ -66,10 +66,10 @@
     </div>
   </div>
 
-  <div style="max-width: 650px; padding-top: 80px;" class="container-fluid pb-5 text-center" v-else>
+  <div style="max-width: 650px;" class="container-fluid pb-5 text-center" v-else>
     <h1>Thank you, your order is complete.</h1>
-    <p class="mb-4">Welcome to your admin dashboard.</p>
-    <p>From here you can access your license key, change your details and update your payment method, and find to help you deploy Fleet.</p>
+    <p class="mb-4 text-bold">Welcome to your admin dashboard.</p>
+    <p>From here you can access your license key, change your details and update your payment method.</p>
     <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-info mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
   </div>
 </div>
