@@ -558,8 +558,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	err := ds.SaveHostPackStats(ctx, host.ID, packStats)
-	if err != nil {
+	if err := ds.SaveHostPackStats(ctx, host.ID, packStats); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host pack stats")
 	}
 
