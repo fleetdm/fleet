@@ -1,6 +1,6 @@
 <div id="dashboard" v-cloak>
   <div class="container pb-5 px-3 px-xl-0">
-    <div class="pb-4">
+    <div class="pb-3">
       <h3>Your license</h3>
       <div purpose="license-card" class="card card-body">
         <div class="row">
@@ -12,15 +12,15 @@
             <strong>Cost</strong>
             <p>${{thisSubscription.subscriptionPrice}}.00/year</p>
           </div>
-          <div class="col-12 col-md-6 col-lg-2 pt-3 pt-md-0">
+          <div class="col-12 col-md-6 col-lg-2 pt-3 pt-lg-0">
             <strong>No. of devices</strong>
             <p>{{thisSubscription.numberOfHosts}}</p>
           </div>
-          <div class="col-12 col-md-6 col-lg-2 pt-3 pt-md-0">
+          <div class="col-12 col-md-6 col-lg-2 pt-3 pt-lg-0">
             <strong>Expires</strong>
             <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
           </div>
-          <div class="col-12 col-lg-4 pt-3 pt-md-0">
+          <div class="col-12 col-lg-4 pt-3 pt-lg-0">
             <strong>License key</strong><img class="d-inline-block ml-2" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">License key copied!</span>
             <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{thisSubscription.fleetLicenseKey}}</span></p>
           </div>
