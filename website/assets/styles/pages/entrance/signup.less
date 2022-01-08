@@ -1,12 +1,11 @@
 #signup {
+  padding-top: 80px;
   h1 {
     font-size: 28px;
+    line-height: 38px;
   }
   a {
     color: @core-vibrant-blue;
-  }
-  p {
-    font-size: 16px;
   }
 
   [purpose='customer-portal-form'] {
@@ -22,12 +21,12 @@
       border-radius: 6px;
     }
     .card-body {
-      padding: 30px;
+      padding: 2em;
     }
   }
 
   [purpose='submit-button'] {
-    width: 200px;
+
     margin-left: auto;
     margin-right: auto;
     border-radius: 4px;
@@ -47,13 +46,14 @@
   }
 
   [purpose='features-list'] {
-    // min-width: 254px;
+    padding-left: 40px;
+    font-size: 14px;
     word-wrap: overflow;
-   ul {
+    ul {
      list-style-type: none;
      padding-inline-start: 0px;
-   }
-   li {
+    }
+    li {
     padding-bottom: 12px;
     color: @core-fleet-black-75;
     white-space: nowrap;
@@ -64,6 +64,19 @@
     margin-right: 8px;
    }
 
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+  }
+
+  @media (max-width: 576px) {
+    padding-top: 40px;
+    [purpose='customer-portal-form'] {
+      .card-body {
+        padding: 1.5em 1em;
+      }
+    }
   }
 
 }
