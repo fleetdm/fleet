@@ -10,7 +10,7 @@
               <div class="form-group">
                 <label for="email-address">Email</label>
                 <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>
-                <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="showFullForm = true">
+                <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
                 <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
               </div>
               <div v-show="formData.emailAddress || showFullForm">
