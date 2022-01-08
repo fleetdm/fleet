@@ -7,7 +7,7 @@
 
       <div purpose="customer-portal-form" class="order-first flex-grow-1">
         <div class="card card-body">
-          <ajax-form action="createQuote" :class="[showBillingForm ? 'pb-2' : '' ]" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedQuoteForm($event)">
+          <ajax-form action="createQuote" :class="[showBillingForm ? 'pb-2' : '' ]" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
             <div class="d-flex flex-column flex-sm-row">
               <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
                 <label for="numberOfHosts">Total number of devices</label>
