@@ -11,11 +11,12 @@ these changes to the engineering team.
 * Move an issue that is assigned to you from the "Ready" column of the ["Product team" GitHub
   project](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
 
-* Create a page in the Fleet (scratchpad, dev-ready) Figma and combine your issue's number and
+* Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=3923%3A208793) and combine your issue's number and
   title to name the Figma page.
 
 * Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
-  yourself in the shoes of a user while drafting changes.
+  yourself in the shoes of a user while drafting changes. Place these drafts in the corresponding
+  Figma page in Fleet EE (scratchpad, dev-ready)
 
 * While drafting, reach out to sales, customer success, and marketing for a new perspective.
 
