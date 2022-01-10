@@ -73,7 +73,10 @@ func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet
 	key := fmt.Sprintf("%s_%d", packsKey, hid)
 	cachedPacks, found := ds.c.Get(key)
 	if found && cachedPacks != nil {
-		return cachedPacks.([]*fleet.Pack), nil
+		casted, ok := cachedPacks.([]*fleet.Pack)
+		if ok {
+			return casted, nil
+		}
 	}
 
 	packs, err := ds.Datastore.ListPacksForHost(ctx, hid)
@@ -89,7 +92,10 @@ func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint, 
 	key := fmt.Sprintf("%s_%d", scheduledQueriesKey, id)
 	cachedScheduledQueries, found := ds.c.Get(key)
 	if found && cachedScheduledQueries != nil {
-		return cachedScheduledQueries.([]*fleet.ScheduledQuery), nil
+		casted, ok := cachedScheduledQueries.([]*fleet.ScheduledQuery)
+		if ok {
+			return casted, nil
+		}
 	}
 
 	ac, err := ds.Datastore.ListScheduledQueriesInPack(ctx, id, opts)
