@@ -69,27 +69,27 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 	return nil
 }
 
-func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	key := fmt.Sprintf("%s_%d", packsKey, hid)
 	cachedPacks, found := ds.c.Get(key)
-	if found {
+	if found && cachedPacks != nil {
 		return cachedPacks.([]*fleet.Pack), nil
 	}
 
-	ac, err := ds.Datastore.ListPacksForHost(ctx, hid)
+	packs, err := ds.Datastore.ListPacksForHost(ctx, hid)
 	if err != nil {
 		return nil, err
 	}
 
-	ds.c.Set(key, ac, defaultPacksExpiration)
+	ds.c.Set(key, packs, defaultPacksExpiration)
 
 	return cachedPacks.([]*fleet.Pack), nil
 }
 func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	key := fmt.Sprintf("%s_%d", scheduledQueriesKey, id)
-	cachedPacks, found := ds.c.Get(key)
-	if found {
-		return cachedPacks.([]*fleet.ScheduledQuery), nil
+	cachedScheduledQueries, found := ds.c.Get(key)
+	if found && cachedScheduledQueries != nil {
+		return cachedScheduledQueries.([]*fleet.ScheduledQuery), nil
 	}
 
 	ac, err := ds.Datastore.ListScheduledQueriesInPack(ctx, id, opts)
@@ -99,5 +99,5 @@ func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint, 
 
 	ds.c.Set(key, ac, defaultScheduledQueriesExpiration)
 
-	return cachedPacks.([]*fleet.ScheduledQuery), nil
+	return cachedScheduledQueries.([]*fleet.ScheduledQuery), nil
 }
