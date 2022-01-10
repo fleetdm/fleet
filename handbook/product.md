@@ -3,7 +3,7 @@
 ## Product design process
 
 The product team is responsible for product design tasks. These include drafting
-changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marking counterparts, and delivering
+changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
 these changes to the engineering team.
 
 ### Drafting
