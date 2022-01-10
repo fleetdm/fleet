@@ -1,25 +1,27 @@
 
 <div id="new-license" v-cloak>
-  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5 px-lg-0 px-5" v-if="!showSuccessMessage">
+  <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3" v-if="!showSuccessMessage">
     <h1>Welcome to Fleet Premium</h1>
     <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key.</p>
-    <div class="d-flex flex-row justify-content-between">
+    <div class="d-flex flex-row justify-content-between mx-auto">
 
-      <div purpose="customer-portal-form" class="order-first flex-grow-1 pr-md-4">
+      <div purpose="customer-portal-form" class="order-first flex-grow-1">
         <div class="card card-body">
           <ajax-form action="createQuote" :class="[showBillingForm ? 'pb-2' : '' ]" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
-            <div class="d-flex flex-row">
-              <div class="form-group flex-grow-1 col-6 order-first pl-0">
+            <div class="d-flex flex-column flex-sm-row">
+              <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
                 <label for="numberOfHosts">Total number of devices</label>
                 <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!showQuotedPrice">
-                <span style="position: relative; cursor: text;" class="form-control" @click="clickResetForm()" v-else>{{formData.numberOfHosts}}<span style="position: absolute; bottom: 10px; right: 5px;" class="text-muted fa fa-times-circle pl-2"></span></span>
                 <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
+                <span style="position: relative; cursor: text;" class="form-control" @click="clickResetForm()" v-if="showQuotedPrice">{{formData.numberOfHosts}}<span style="position: absolute; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
               </div>
-              <div style="color: #515774;" class="order-last text-right col-6 pr-0 pl-md-4 pl-1 pt-4">
-                <p>
+
+              <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
+                <p class="small">
                   <strong class="pr-1" style="font-size: 18px; color: #192147">$1.00</strong>/month/device<br>(Billed annually at $12/device)
                 </p>
               </div>
+
             </div>
             <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
             <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!showBillingForm && !showQuotedPrice">Continue</ajax-button>
@@ -64,10 +66,10 @@
     </div>
   </div>
 
-  <div style="max-width: 650px; padding-top: 80px;" class="container-fluid pb-5 text-center" v-else>
+  <div style="max-width: 650px;" class="container-fluid pb-5 text-center" v-else>
     <h1>Thank you, your order is complete.</h1>
-    <p>Welcome to your admin dashboard.</p>
-    <p>From here you can access your license key, change your details and update your payment method, and find to help you deploy Fleet.</p>
+    <p class="mb-4 font-weight-bold">Welcome to your admin dashboard.</p>
+    <p>From here you can access your license key, change your details and update your payment method.</p>
     <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-info mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
   </div>
 </div>
