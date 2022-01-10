@@ -19,9 +19,11 @@ const (
 	appConfigKey                      = "AppConfig"
 	packsKey                          = "Packs"
 	scheduledQueriesKey               = "ScheduledQueries"
+	hostsKey                          = "Hosts"
 	defaultAppConfigExpiration        = 1 * time.Second
 	defaultPacksExpiration            = 1 * time.Minute
 	defaultScheduledQueriesExpiration = 1 * time.Minute
+	defaultHostsExpiration            = 1 * time.Minute
 )
 
 func New(ds fleet.Datastore) fleet.Datastore {
@@ -106,4 +108,24 @@ func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint, 
 	ds.c.Set(key, scheduledQueries, defaultScheduledQueriesExpiration)
 
 	return scheduledQueries, nil
+}
+
+func (ds *cachedMysql) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	key := fmt.Sprintf("%s_%s", hostsKey, nodeKey)
+	cachedHost, found := ds.c.Get(key)
+	if found && cachedHost != nil {
+		casted, ok := cachedHost.(*fleet.Host)
+		if ok {
+			return casted, nil
+		}
+	}
+
+	host, err := ds.Datastore.AuthenticateHost(ctx, nodeKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, host, defaultHostsExpiration)
+
+	return host, nil
 }
