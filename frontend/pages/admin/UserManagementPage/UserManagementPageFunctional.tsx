@@ -2,19 +2,15 @@ import React, { useState, useCallback, useContext } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 
-import { isEqual } from "lodash";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
-// @ts-ignore
-import Fleet from "fleet";
 import { IInvite } from "interfaces/invite";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
@@ -92,7 +88,6 @@ const UserManagementPage = (): JSX.Element => {
     data: teams,
     isLoading: isLoadingTeams,
     error: loadingTeamsError,
-    refetch: refetchTeams,
   } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
@@ -106,7 +101,7 @@ const UserManagementPage = (): JSX.Element => {
     data: users,
     isLoading: isLoadingUsers,
     error: loadingUsersError,
-    refetch: refetchusers,
+    refetch: refetchUsers,
   } = useQuery<IUser[], Error, IUser[]>(["users"], () => usersAPI.loadAll(), {
     select: (data: IUser[]) => data,
   });
@@ -137,8 +132,7 @@ const UserManagementPage = (): JSX.Element => {
   //   }
   // }
 
-  // █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀ █▀
-  // ▄█ ░█░ █▀█ ░█░ ██▄ ▄█
+  // STATES
 
   const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
     false
@@ -155,13 +149,11 @@ const UserManagementPage = (): JSX.Element => {
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [usersEditing, setUsersEditing] = useState<any>([]);
   const [createUserErrors, setCreateUserErrors] = useState<any>({
     DEFAULT_CREATE_USER_ERRORS,
   });
 
-  // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
-  // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
+  // TOGGLE MODALS
 
   const toggleCreateUserModal = useCallback(() => {
     setShowCreateUserModal(!showCreateUserModal);
@@ -209,12 +201,13 @@ const UserManagementPage = (): JSX.Element => {
     [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
   );
 
-  // █▀▀ █░█ █▄░█ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
-  // █▀░ █▄█ █░▀█ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
+  // FUNCTIONS
 
-  const combineUsersAndInvites = memoize((users, invites, currentUserId) => {
-    return combineDataSets(users, invites, currentUserId);
-  });
+  const combineUsersAndInvites = memoize(
+    (usersData, invitesData, currentUserId) => {
+      return combineDataSets(usersData, invitesData, currentUserId);
+    }
+  );
 
   const goToUserSettingsPage = () => {
     const { USER_SETTINGS } = paths;
@@ -306,6 +299,7 @@ const UserManagementPage = (): JSX.Element => {
             )
           );
           toggleCreateUserModal();
+          refetchInvites();
         })
         .catch((userErrors: any) => {
           if (userErrors.base?.includes("Duplicate")) {
@@ -338,6 +332,7 @@ const UserManagementPage = (): JSX.Element => {
             renderFlash("success", `Successfully created ${requestData.name}.`)
           );
           toggleCreateUserModal();
+          refetchUsers();
         })
         .catch((userErrors: any) => {
           if (userErrors.base?.includes("Duplicate")) {
@@ -375,9 +370,8 @@ const UserManagementPage = (): JSX.Element => {
             dispatch(
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
             );
-            toggleEditUserModal();
           })
-          .then(() => invitesAPI.loadAll({}))
+          .then(() => refetchInvites())
           .catch(() => {
             dispatch(
               renderFlash(
@@ -385,6 +379,8 @@ const UserManagementPage = (): JSX.Element => {
                 `Could not edit ${userEditing?.name}. Please try again.`
               )
             );
+          })
+          .finally(() => {
             toggleEditUserModal();
           })
       );
@@ -398,8 +394,8 @@ const UserManagementPage = (): JSX.Element => {
           dispatch(
             renderFlash("success", `Successfully edited ${userEditing?.name}`)
           );
-          toggleEditUserModal();
         })
+        .then(() => refetchUsers())
         .catch(() => {
           dispatch(
             renderFlash(
@@ -407,8 +403,8 @@ const UserManagementPage = (): JSX.Element => {
               `Could not edit ${userEditing?.name}. Please try again.`
             )
           );
-          toggleEditUserModal();
-        });
+        })
+        .finally(() => toggleEditUserModal());
     }
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
@@ -421,8 +417,8 @@ const UserManagementPage = (): JSX.Element => {
       .update(userData, formData)
       .then(() => {
         dispatch(renderFlash("success", userUpdatedFlashMessage));
-        toggleEditUserModal();
       })
+      .then(() => refetchUsers())
       .catch(() => {
         dispatch(
           renderFlash(
@@ -430,6 +426,8 @@ const UserManagementPage = (): JSX.Element => {
             `Could not edit ${userEditing?.name}. Please try again.`
           )
         );
+      })
+      .finally(() => {
         toggleEditUserModal();
       });
   };
@@ -450,8 +448,11 @@ const UserManagementPage = (): JSX.Element => {
               `Could not delete ${userEditing?.name}. Please try again.`
             )
           );
+        })
+        .finally(() => {
+          toggleDeleteUserModal();
+          refetchInvites();
         });
-      toggleDeleteUserModal();
     } else {
       usersAPI
         .destroy(userEditing)
@@ -467,8 +468,11 @@ const UserManagementPage = (): JSX.Element => {
               `Could not delete ${userEditing?.name}. Please try again.`
             )
           );
+        })
+        .finally(() => {
+          toggleDeleteUserModal();
+          refetchUsers();
         });
-      toggleDeleteUserModal();
     }
   };
 
@@ -605,7 +609,9 @@ const UserManagementPage = (): JSX.Element => {
 
   const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
 
-  const loadingTableData = isLoadingUsers || isLoadingInvites;
+  const loadingTableData = isLoadingUsers || isLoadingInvites || isLoadingTeams;
+  const tableDataError =
+    loadingUsersError || loadingInvitesError || loadingTeamsError;
 
   let tableData: any = [];
   if (!loadingTableData) {
@@ -619,7 +625,8 @@ const UserManagementPage = (): JSX.Element => {
         Fleet.
       </p>
       {/* TODO: find a way to move these controls into the table component */}
-      {users?.length === 0 && Object.keys(createUserErrors).length > 0 ? (
+      {(users?.length === 0 && Object.keys(createUserErrors).length > 0) ||
+      tableDataError ? (
         <TableDataError />
       ) : (
         <TableContainer
