@@ -69,7 +69,7 @@ describe(
 
         // Go to host details page
         cy.location("pathname").should("match", /hosts\/[0-9]/i);
-        cy.get("span.status").should("contain", /online/i);
+        cy.getAttached("span.status").should("contain", /online/i);
 
         // Run policy on host
         let policyname = "";
