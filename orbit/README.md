@@ -167,6 +167,33 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+#### Orbit Development
+
+For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
+custom orbit executable using the `FLEETCTL_ORBIT_DEV_BUILD_PATH` environment variable:
+```sh
+FLEETCTL_ORBIT_DEV_BUILD_PATH=$(pwd)/orbit.exe ./build/fleetctl package --type=msi --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value
+Generating your osquery installer...
+2022/01/03 20:31:10 root pinning is not supported in Spec 1.0.19
+WARNING: You are attempting to override orbit with a dev build.
+Press Enter to continue, or Control-c to exit.
+[...]
+```
+
+### Troubleshooting
+
+#### Logs
+
+Orbit captures and streams osqueryd's stdout/stderr into its own stdout/stderr output.
+Following are the destination of logs for each platform (to access such locations the user will need administrative permissions on the host):
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems and `/var/log/messages` on CentOS).
+- macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+- Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.lg` (the log file is rotated).
+
+#### Debug
+
+You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
+
 ### Uninstall
 #### Windows
 
