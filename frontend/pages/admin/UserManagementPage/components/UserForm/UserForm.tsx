@@ -91,7 +91,9 @@ interface ICreateUserFormProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isNewUser?: boolean;
-  serverErrors?: IUserFormErrors; // "server" because this form does its own client validation
+  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
+  createUserErrors?: IUserFormErrors;
+  editUserErrors?: IUserFormErrors;
   dispatch: Dispatch;
 }
 

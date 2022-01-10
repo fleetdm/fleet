@@ -10,6 +10,7 @@ import {
   IDestroyUser,
   IUser,
 } from "interfaces/user";
+import { IInvite } from "interfaces/invite";
 
 interface IUserSearchOptions {
   page?: number;
@@ -136,9 +137,12 @@ export default {
     const { RESET_PASSWORD } = endpoints;
     return sendRequest("POST", RESET_PASSWORD, formData);
   },
-  update: (user: IUpdateUser, formData: IUpdateUserFormData) => {
+  update: (
+    user: IUser | IInvite | undefined,
+    formData: IUpdateUserFormData
+  ) => {
     const { USERS } = endpoints;
-    const path = `${USERS}/${user.id}`;
+    const path = `${USERS}/${user?.id}`;
 
     return sendRequest("PATCH", path, formData).then((response) =>
       helpers.addGravatarUrlToResource(response.user)

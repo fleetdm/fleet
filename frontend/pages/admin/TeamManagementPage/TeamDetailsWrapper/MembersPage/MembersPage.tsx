@@ -461,7 +461,7 @@ const MembersPage = ({
       ) : null}
       {showEditUserModal ? (
         <EditUserModal
-          serverErrors={editUserErrors}
+          editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
           onSubmit={onEditMemberSubmit}
           defaultName={userEditing?.name}
@@ -480,7 +480,7 @@ const MembersPage = ({
       ) : null}
       {showCreateUserModal ? (
         <CreateUserModal
-          serverErrors={createUserErrors}
+          createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
           onSubmit={onCreateMemberSubmit}
           defaultGlobalRole={userEditing?.global_role}

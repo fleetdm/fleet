@@ -14,7 +14,7 @@ interface ICreateUserModalProps {
   defaultGlobalRole?: string | null;
   defaultTeamRole?: string;
   defaultTeams?: ITeam[];
-  availableTeams: ITeam[];
+  availableTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   currentTeam?: ITeam;
@@ -22,6 +22,8 @@ interface ICreateUserModalProps {
   isModifiedByGlobalAdmin?: boolean | false;
   isFormSubmitting?: boolean | false;
   serverErrors?: { base: string; email: string };
+  userErrors?: { base: string; email: string };
+  createUserErrors: IUserFormErrors;
 }
 
 const baseClass = "create-user-modal";
@@ -40,6 +42,7 @@ const CreateUserModal = ({
   isModifiedByGlobalAdmin,
   isFormSubmitting,
   serverErrors,
+  createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
   const dispatch = useDispatch();
 
@@ -53,12 +56,13 @@ const CreateUserModal = ({
         )}
         <UserForm
           serverErrors={serverErrors}
+          createUserErrors={createUserErrors}
           defaultGlobalRole={defaultGlobalRole}
           defaultTeamRole={defaultTeamRole}
           defaultTeams={defaultTeams}
           onCancel={onCancel}
           onSubmit={onSubmit}
-          availableTeams={availableTeams}
+          availableTeams={availableTeams || []}
           submitText={"Create"}
           isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}

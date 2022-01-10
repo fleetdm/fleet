@@ -14,7 +14,7 @@ interface IInviteSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
-  sortBy: any[];
+  sortBy?: any[];
 }
 
 export default {
@@ -25,7 +25,7 @@ export default {
       helpers.addGravatarUrlToResource(response.invite)
     );
   },
-  update: (invite: IEditInvite, formData: IEditInviteFormData) => {
+  update: (invite: IEditInvite | any, formData: IEditInviteFormData) => {
     const { INVITES } = endpoints;
     const path = `${INVITES}/${invite.id}`;
 
