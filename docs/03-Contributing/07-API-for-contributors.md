@@ -1231,6 +1231,8 @@ o
 
 Creates and/or modifies the policies included in the specs list. To modify an existing policy, the name of the query included in `specs` must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
 
+NOTE: when updating a policy, team and platform will be ignored.
+
 `POST /api/v1/fleet/spec/policies`
 
 #### Parameters
