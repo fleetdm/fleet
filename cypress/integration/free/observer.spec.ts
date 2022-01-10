@@ -4,6 +4,7 @@ describe("Free tier - Observer user", () => {
     cy.login();
     cy.seedFree();
     cy.seedQueries();
+    cy.seedPolicies();
     cy.addDockerHost();
     cy.logout();
   });
@@ -74,11 +75,34 @@ describe("Free tier - Observer user", () => {
     cy.findByText(/show sql/i).click();
     cy.findByRole("button", { name: /run query/i }).should("exist");
 
+    // On the policies manage page, they should…
+    cy.contains("a", "Policies").click();
+    // Not see the "Manage automations" button
+    cy.findByRole("button", { name: /manage automations/i }).should(
+      "not.exist"
+    );
+
+    // Not see the "Add a policy", "delete", "save", "run" policy
+    cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
+
+    cy.get("tbody").within(() => {
+      cy.get("tr")
+        .first()
+        .within(() => {
+          cy.get(".fleet-checkbox__input").should("not.exist");
+        });
+    });
+    cy.findByText(/filevault enabled/i).click();
+    cy.getAttached(".policy-form__wrapper").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("not.exist");
+      cy.findByRole("button", { name: /save/i }).should("not.exist");
+    });
+
     // On the Profile page, they should…
     // See Observer in Role section, and no Team section
     cy.visit("/profile");
 
-    cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.findByText(/teams/i).should("not.exist");
     cy.findByText("Role")
       .next()

@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -89,7 +90,7 @@ the way that the Fleet server works.
 
 			if devLicense {
 				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjU2NjMzNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY0MTIzMjI3OX0.WriTJfRA-R-ffN_sJwYSkllLGzgDxs1xTUCJX7W02BA5FTGfIYq9CCvcTXAgR5GeMuLEOBs21tY-jpSc6GNe6Q"
 			} else if devExpiredLicense {
 				// An expired license key
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -262,6 +263,8 @@ the way that the Fleet server works.
 				initFatal(err, "initializing osquery logging")
 			}
 
+			failingPolicySet := redis_policy_set.NewFailing(redisPool)
+
 			task := &async.Task{
 				Datastore:          ds,
 				Pool:               redisPool,
@@ -274,7 +277,7 @@ the way that the Fleet server works.
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 			}
-			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license)
+			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -286,7 +289,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
 
 			// Flush seen hosts every second
 			go func() {
@@ -490,9 +493,10 @@ the way that the Fleet server works.
 }
 
 const (
-	lockKeyLeader          = "leader"
-	lockKeyVulnerabilities = "vulnerabilities"
-	lockKeyWebhooks        = "webhooks"
+	lockKeyLeader                  = "leader"
+	lockKeyVulnerabilities         = "vulnerabilities"
+	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
+	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 )
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
@@ -519,7 +523,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo) context.CancelFunc {
+func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -534,7 +538,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet)
 
 	return cancelBackground
 }
@@ -680,7 +684,7 @@ func cronVulnerabilities(
 	}
 }
 
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string) {
+func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -699,18 +703,9 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if locked, err := ds.Lock(ctx, lockKeyWebhooks, identifier, interval); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-			continue
-		}
 
-		err := webhooks.TriggerHostStatusWebhook(
-			ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig)
-		if err != nil {
-			level.Error(logger).Log("err", "triggering host status webhook", "details", err)
-		}
-
-		// Reread app config to be able to change interval somewhat on the fly
+		// Reread app config to be able to read latest data used by the webhook
+		// and update any intervals for next run.
 		appConfig, err = ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
@@ -719,7 +714,51 @@ func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			ticker.Reset(interval)
 		}
 
+		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
+		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
+
 		level.Debug(logger).Log("loop", "done")
+	}
+}
+
+func maybeTriggerHostStatus(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	appConfig *fleet.AppConfig,
+	interval time.Duration,
+) {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, interval); err != nil || !locked {
+		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
+		return
+	}
+
+	if err := webhooks.TriggerHostStatusWebhook(
+		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
+	); err != nil {
+		level.Error(logger).Log("err", "triggering host status webhook", "details", err)
+	}
+}
+
+func maybeTriggerGlobalFailingPoliciesWebhook(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	identifier string,
+	appConfig *fleet.AppConfig,
+	interval time.Duration,
+	failingPoliciesSet fleet.FailingPolicySet,
+) {
+	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
+		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
+		return
+	}
+
+	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
+		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
+	); err != nil {
+		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
 	}
 }
 

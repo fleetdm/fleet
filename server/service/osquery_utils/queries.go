@@ -363,6 +363,10 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 	},
+	"google_chrome_profiles": {
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		DirectIngestFunc: directIngestChromeProfiles,
+	},
 }
 
 var softwareMacOS = DetailQuery{
@@ -557,6 +561,23 @@ var usersQuery = DetailQuery{
 	},
 }
 
+func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		// assume the extension is not there
+		return nil
+	}
+
+	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
+	for _, row := range rows {
+		mapping = append(mapping, &fleet.HostDeviceMapping{
+			HostID: host.ID,
+			Email:  row["email"],
+			Source: "google_chrome_profiles",
+		})
+	}
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+}
+
 func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	software := fleet.HostSoftware{Modified: true}
 
@@ -625,14 +646,22 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
-
+	enrolledVal := rows[0]["enrolled"]
+	if enrolledVal == "" {
+		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
+	}
+	enrolled, err := strconv.ParseBool(enrolledVal)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing enrolled")
+	}
+	if !enrolled {
+		// A row with enrolled=false and all other columns empty is a host with the osquery
+		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
+		return nil
+	}
 	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
-	}
-	enrolled, err := strconv.ParseBool(rows[0]["enrolled"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)

@@ -24,6 +24,11 @@ declare namespace Cypress {
     seedQueries(): Chainable<Element>;
 
     /**
+     * Custom command to add new queries by default.
+     */
+    seedPolicies(): Chainable<Element>;
+
+    /**
      * Custom command to add a new user in Fleet (via fleetctl).
      */
     addUser(options?: {

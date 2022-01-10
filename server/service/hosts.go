@@ -632,6 +632,55 @@ func processHostFilters(ctx context.Context, opt fleet.HostListOptions, lid *uin
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// List Host Device Mappings
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostDeviceMappingRequest struct {
+	ID uint `url:"id"`
+}
+
+type listHostDeviceMappingResponse struct {
+	HostID        uint                       `json:"host_id"`
+	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
+	Err           error                      `json:"error,omitempty"`
+}
+
+func (r listHostDeviceMappingResponse) error() error { return r.Err }
+
+func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listHostDeviceMappingRequest)
+	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
+	if err != nil {
+		return listHostDeviceMappingResponse{Err: err}, nil
+	}
+	return listHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
+}
+
+func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	// TODO(mna): this is a pattern that is used elsewhere for hosts, authorize
+	// on list, then load the host to get the team info, and authorize properly
+	// (read, with team_id filled). I wonder if we should add a "quick load" of
+	// host when used just for that purpose, because loading even without the
+	// extra info is still a big-ish query with potentially lots of columns and
+	// at least 4 tables involved.
+	host, err := svc.ds.Host(ctx, id, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.ListHostDeviceMapping(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Macadmins
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -669,29 +718,38 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		return nil, err
 	}
 
-	version, err := svc.ds.GetMunkiVersion(ctx, id)
-	if err != nil && !fleet.IsNotFound(err) {
+	var munkiInfo *fleet.HostMunkiInfo
+	switch version, err := svc.ds.GetMunkiVersion(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
+	case err == nil:
+		munkiInfo = &fleet.HostMunkiInfo{Version: version}
 	}
 
-	enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id)
-	if err != nil && !fleet.IsNotFound(err) {
+	var mdm *fleet.HostMDM
+	switch enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
+	case err == nil:
+		enrollmentStatus := "Unenrolled"
+		if enrolled && !installedFromDep {
+			enrollmentStatus = "Enrolled (manual)"
+		} else if enrolled && installedFromDep {
+			enrollmentStatus = "Enrolled (automated)"
+		}
+		mdm = &fleet.HostMDM{
+			EnrollmentStatus: enrollmentStatus,
+			ServerURL:        serverURL,
+		}
 	}
 
-	enrollmentStatus := "Unenrolled"
-	if enrolled && !installedFromDep {
-		enrollmentStatus = "Enrolled (manual)"
-	} else if enrolled && installedFromDep {
-		enrollmentStatus = "Enrolled (automated)"
+	if munkiInfo == nil && mdm == nil {
+		return nil, nil
 	}
 
 	data := &fleet.MacadminsData{
-		Munki: fleet.HostMunkiInfo{Version: version},
-		MDM: fleet.HostMDM{
-			EnrollmentStatus: enrollmentStatus,
-			ServerURL:        serverURL,
-		},
+		Munki: munkiInfo,
+		MDM:   mdm,
 	}
 
 	return data, nil

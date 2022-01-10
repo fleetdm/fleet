@@ -469,6 +469,23 @@ func (a *agent) munkiInfo() []map[string]string {
 	}
 }
 
+func (a *agent) googleChromeProfiles() []map[string]string {
+	count := rand.Intn(5) // return between 0 and 4 emails
+	result := make([]map[string]string, count)
+	for i := range result {
+		email := fmt.Sprintf("user%d@example.com", i)
+		if i == len(result)-1 {
+			// if the maximum number of emails is returned, set a random domain name
+			// so that we have email addresses that match a lot of hosts, and some
+			// that match few hosts.
+			domainRand := rand.Intn(10)
+			email = fmt.Sprintf("user%d@example%d.com", i, domainRand)
+		}
+		result[i] = map[string]string{"email": email}
+	}
+	return result
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -500,6 +517,13 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.munkiInfo()
+			}
+		}
+		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
+			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Results[name] = nil
+			if r.Statuses[name] == fleet.StatusOK {
+				r.Results[name] = a.googleChromeProfiles()
 			}
 		}
 		if t := a.templates.Lookup(name); t == nil {

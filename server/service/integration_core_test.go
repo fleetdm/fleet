@@ -1566,12 +1566,56 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", sq1.ID), nil, http.StatusNotFound, &getResp)
 }
 
+func (s *integrationTestSuite) TestHostDeviceMapping() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+
+	// get host device mappings of invalid host
+	var listResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[2].ID+1), nil, http.StatusNotFound, &listResp)
+
+	// existing host but none yet
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 0)
+
+	// create some mappings
+	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 2)
+	require.Equal(t, "a@b.c", listResp.DeviceMapping[0].Email)
+	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[0].Source)
+	require.Zero(t, listResp.DeviceMapping[0].HostID)
+	require.Equal(t, "b@b.c", listResp.DeviceMapping[1].Email)
+	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[1].Source)
+	require.Zero(t, listResp.DeviceMapping[1].HostID)
+	require.Equal(t, hosts[0].ID, listResp.HostID)
+
+	// other host still has none
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.DeviceMapping, 0)
+
+	// search host by email address finds the corresponding host
+	var listHosts listHostsResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "a@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	assert.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	require.Len(t, listHosts.Hosts, 0)
+}
+
 func (s *integrationTestSuite) TestGetMacadminsData() {
 	t := s.T()
 
 	ctx := context.Background()
 
-	host, err := s.ds.NewHost(ctx, &fleet.Host{
+	hostAll, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -1581,36 +1625,103 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OsqueryHostID:   "1",
 	})
 	require.NoError(t, err)
-	require.NotNil(t, host)
+	require.NotNil(t, hostAll)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, host.ID, "1.3.0"))
+	hostNothing, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "2",
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		OsqueryHostID:   "2",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostNothing)
+
+	hostOnlyMunki, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "3",
+		UUID:            t.Name() + "3",
+		Hostname:        t.Name() + "foo.local3",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-5F",
+		OsqueryHostID:   "3",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostOnlyMunki)
+
+	hostOnlyMDM, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "4",
+		UUID:            t.Name() + "4",
+		Hostname:        t.Name() + "foo.local4",
+		PrimaryIP:       "192.168.1.4",
+		PrimaryMac:      "30-65-EC-6F-C4-5A",
+		OsqueryHostID:   "4",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostOnlyMDM)
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
 
 	macadminsData := getMacadminsDataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, "url2", true))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, host.ID, "1.5.0"))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url2", true))
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.5.0"))
 
 	macadminsData = getMacadminsDataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url2", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Equal(t, "1.5.0", macadminsData.Macadmins.Munki.Version)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, "url2", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
 
 	macadminsData = getMacadminsDataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", host.ID), nil, http.StatusOK, &macadminsData)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// nothing returns null
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
+	require.Nil(t, macadminsData.Macadmins)
+
+	// only munki info returns null on mdm
+	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	require.Nil(t, macadminsData.Macadmins.MDM)
+	require.NotNil(t, macadminsData.Macadmins.Munki)
+	assert.Equal(t, "3.2.0", macadminsData.Macadmins.Munki.Version)
+
+	// only mdm returns null on munki info
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "AAA", true))
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	require.NotNil(t, macadminsData.Macadmins.MDM)
+	require.Nil(t, macadminsData.Macadmins.Munki)
+	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 }
 
 func (s *integrationTestSuite) TestLabels() {
@@ -1845,4 +1956,41 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// delete invalid user
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
+	t := s.T()
+
+	gpParams := globalPolicyRequest{
+		Name:  "policy1",
+		Query: "select 41;",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"webhook_settings": {
+    		"failing_policies_webhook": {
+     	 		"enable_failing_policies_webhook": true,
+     	 		"destination_url": "http://some/url",
+     			"policy_ids": [%d],
+				"host_batch_size": 1000
+    		},
+    		"interval": "1h"
+  		}
+	}`, gpResp.Policy.ID)), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{gpResp.Policy.ID}, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
+	require.Equal(t, 1000, config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
+	deletePolicyResp := deleteGlobalPoliciesResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
+
+	config = s.getConfig()
+	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }

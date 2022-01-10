@@ -175,6 +175,10 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
+type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
+
+type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
+
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
@@ -294,6 +298,8 @@ type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.Po
 type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
+
+type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
@@ -580,6 +586,12 @@ type DataStore struct {
 	CountHostsInLabelFunc        CountHostsInLabelFunc
 	CountHostsInLabelFuncInvoked bool
 
+	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
+	ListHostDeviceMappingFuncInvoked bool
+
+	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
+	ReplaceHostDeviceMappingFuncInvoked bool
+
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
 
@@ -759,6 +771,9 @@ type DataStore struct {
 
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
+
+	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
+	FlippingPoliciesForHostFuncInvoked bool
 
 	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
 	RecordPolicyQueryExecutionsFuncInvoked bool
@@ -1228,6 +1243,16 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	return s.CountHostsInLabelFunc(ctx, filter, lid, opt)
 }
 
+func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+	s.ListHostDeviceMappingFuncInvoked = true
+	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
+	s.ReplaceHostDeviceMappingFuncInvoked = true
+	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+}
+
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
 	return s.ListPoliciesForHostFunc(ctx, host)
@@ -1526,6 +1551,11 @@ func (s *DataStore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) 
 func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	s.SavePolicyFuncInvoked = true
 	return s.SavePolicyFunc(ctx, p)
+}
+
+func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	s.FlippingPoliciesForHostFuncInvoked = true
+	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }
 
 func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {

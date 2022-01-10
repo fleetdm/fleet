@@ -382,6 +382,11 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
 
+	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id=?`, hid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
+	}
+
 	return nil
 }
 
@@ -525,7 +530,7 @@ func (d *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filt
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
-	sql, params = searchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
+	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
 	return sql, params
@@ -811,7 +816,7 @@ func (d *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	args = append(args, in)
 	sqlb.WriteString(" id NOT IN (?) AND ")
 	sqlb.WriteString(d.whereFilterHostsByTeams(filter, "h"))
-	sqlb.WriteString(` ORDER BY COALESCE(hst.seen_time, h.created_at) DESC LIMIT 10`)
+	sqlb.WriteString(` ORDER BY h.id DESC LIMIT 10`)
 
 	sql, args, err := sqlx.In(sqlb.String(), args...)
 	if err != nil {
@@ -1003,6 +1008,16 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host seen times")
 	}
+
+	query, args, err = sqlx.In(`DELETE FROM host_emails WHERE host_id in (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
+	}
+
+	_, err = d.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host emails")
+	}
 	return nil
 }
 
@@ -1075,6 +1090,10 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired host software")
 		}
+		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired host emails")
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
@@ -1085,6 +1104,111 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
 	return nil
+}
+
+func (d *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+	stmt := `
+    SELECT
+      id,
+      host_id,
+      email,
+      source
+    FROM
+      host_emails
+    WHERE
+      host_id = ?
+    ORDER BY
+      email, source`
+
+	var mappings []*fleet.HostDeviceMapping
+	err := sqlx.SelectContext(ctx, d.reader, &mappings, stmt, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host emails by host id")
+	}
+	return mappings, nil
+}
+
+func (d *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mappings []*fleet.HostDeviceMapping) error {
+	for _, m := range mappings {
+		if hid != m.HostID {
+			return ctxerr.Errorf(ctx, "host device mapping are not all for the provided host id %d, found %d", hid, m.HostID)
+		}
+	}
+
+	// the following SQL statements assume a small number of emails reported
+	// per host.
+	const (
+		selStmt = `
+      SELECT
+        id,
+        email,
+        source
+      FROM
+        host_emails
+      WHERE
+        host_id = ?`
+
+		delStmt = `
+      DELETE FROM
+        host_emails
+      WHERE
+        id IN (?)`
+
+		insStmt = `
+      INSERT INTO
+        host_emails (host_id, email, source)
+      VALUES`
+
+		insPart = ` (?, ?, ?),`
+	)
+
+	// index the mappings by email and source, to quickly check which ones
+	// need to be deleted and inserted
+	toIns := make(map[string]*fleet.HostDeviceMapping)
+	for _, m := range mappings {
+		toIns[m.Email+"\n"+m.Source] = m
+	}
+
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var prevMappings []*fleet.HostDeviceMapping
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "select previous host emails")
+		}
+
+		var delIDs []uint
+		for _, pm := range prevMappings {
+			key := pm.Email + "\n" + pm.Source
+			if _, ok := toIns[key]; ok {
+				// already exists, no need to insert
+				delete(toIns, key)
+			} else {
+				// does not exist anymore, must be deleted
+				delIDs = append(delIDs, pm.ID)
+			}
+		}
+
+		if len(delIDs) > 0 {
+			stmt, args, err := sqlx.In(delStmt, delIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare delete statement")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host emails")
+			}
+		}
+
+		if len(toIns) > 0 {
+			var args []interface{}
+			for _, m := range toIns {
+				args = append(args, hid, m.Email, m.Source)
+			}
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(toIns)), ",")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host emails")
+			}
+		}
+		return nil
+	})
 }
 
 func (d *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {

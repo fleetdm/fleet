@@ -165,13 +165,57 @@ func TestSearchLike(t *testing.T) {
 			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
 			outParams: []interface{}{1, "%forty\\_\\%%", "%forty\\_\\%%"},
 		},
+		{
+			inSQL:     "SELECT * FROM HOSTS WHERE 1=1",
+			inParams:  []interface{}{1},
+			match:     "a@b.c",
+			columns:   []string{"ipv4", "uuid"},
+			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
+			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			t.Parallel()
-
 			sql, params := searchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			assert.Equal(t, tt.outSQL, sql)
+			assert.Equal(t, tt.outParams, params)
+		})
+	}
+}
+
+func TestHostSearchLike(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inSQL     string
+		inParams  []interface{}
+		match     string
+		columns   []string
+		outSQL    string
+		outParams []interface{}
+	}{
+		{
+			inSQL:     "SELECT * FROM HOSTS h WHERE TRUE",
+			inParams:  []interface{}{},
+			match:     "foobar",
+			columns:   []string{"hostname"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
+			outParams: []interface{}{"%foobar%"},
+		},
+		{
+			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
+			inParams:  []interface{}{1},
+			match:     "a@b.c",
+			columns:   []string{"ipv4"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
+			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -737,7 +781,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
 }
 
-func TestWhereFilterTeas(t *testing.T) {
+func TestWhereFilterTeams(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -892,6 +936,27 @@ func TestCompareVersions(t *testing.T) {
 			require.Equal(t, tc.expMissing, missing)
 			require.Equal(t, tc.expUnknown, unknown)
 			require.Equal(t, tc.expEqual, equal)
+		})
+	}
+}
+
+func TestRxLooseEmail(t *testing.T) {
+	testCases := []struct {
+		str   string
+		match bool
+	}{
+		{"foo", false},
+		{"", false},
+		{"foo@example", false},
+		{"foo@example.com", true},
+		{"foo+bar@example.com", true},
+		{"foo.bar@example.com", true},
+		{"foo.bar@baz.example.com", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.str, func(t *testing.T) {
+			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
 		})
 	}
 }

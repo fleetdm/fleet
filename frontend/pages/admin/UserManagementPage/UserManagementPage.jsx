@@ -174,7 +174,7 @@ export class UserManagementPage extends Component {
         dispatch(
           renderFlash(
             "error",
-            `Couldn not edit ${userEditing?.name}. Please try again.`
+            `Could not edit ${userEditing?.name}. Please try again.`
           )
         );
         toggleEditUserModal();
@@ -206,7 +206,7 @@ export class UserManagementPage extends Component {
           this.toggleCreateUserModal();
         })
         .catch((userErrors) => {
-          if (userErrors.base.includes("Duplicate")) {
+          if (userErrors.base?.includes("Duplicate")) {
             dispatch(
               renderFlash(
                 "error",
@@ -237,7 +237,7 @@ export class UserManagementPage extends Component {
           this.toggleCreateUserModal();
         })
         .catch((userErrors) => {
-          if (userErrors.base.includes("Duplicate")) {
+          if (userErrors.base?.includes("Duplicate")) {
             dispatch(
               renderFlash(
                 "error",
@@ -665,7 +665,6 @@ export class UserManagementPage extends Component {
             resultsTitle={"users"}
             emptyComponent={EmptyUsers}
             searchable
-            isClientSideSearch
           />
         )}
         {renderCreateUserModal()}

@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { Link } from "react-router";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
@@ -35,7 +36,6 @@ class SiteTopNav extends Component {
   renderNavItem = (navItem) => {
     const { name, iconName } = navItem;
     const {
-      onNavItemClick,
       pathname,
       config: { org_logo_url: orgLogoURL },
     } = this.props;
@@ -51,12 +51,12 @@ class SiteTopNav extends Component {
     if (iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <a
+          <Link
             className={`${navItemBaseClass}__link`}
-            onClick={onNavItemClick(navItem.location.pathname)}
+            to={navItem.location.pathname}
           >
             <OrgLogoIcon className="logo" src={orgLogoURL} />
-          </a>
+          </Link>
         </li>
       );
     }
@@ -82,9 +82,9 @@ class SiteTopNav extends Component {
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        <a
+        <Link
           className={`${navItemBaseClass}__link`}
-          onClick={onNavItemClick(navItem.location.pathname)}
+          to={navItem.location.pathname}
         >
           {icon}
           <span
@@ -93,7 +93,7 @@ class SiteTopNav extends Component {
           >
             {name}
           </span>
-        </a>
+        </Link>
       </li>
     );
   };

@@ -46,14 +46,15 @@ interface IDataTableProps {
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
-  onSelectSingleRow?: (value: Row) => void;
-  onResultsCountChange?: (value: number) => void;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
   highlightOnHover?: boolean;
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
+  clearSelectionCount?: number;
+  onSelectSingleRow?: (value: Row) => void;
+  onResultsCountChange?: (value: number) => void;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -79,13 +80,14 @@ const DataTable = ({
   onPrimarySelectActionClick,
   primarySelectActionButtonText,
   secondarySelectActions,
-  onSelectSingleRow,
   isClientSidePagination,
   isClientSideFilter,
   highlightOnHover,
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
+  clearSelectionCount,
+  onSelectSingleRow,
   onResultsCountChange,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
@@ -194,6 +196,10 @@ const DataTable = ({
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
   }, [selectedDropdownFilter]);
+
+  useEffect(() => {
+    toggleAllRowsSelected(false);
+  }, [clearSelectionCount]);
 
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.

@@ -136,4 +136,10 @@
       }
     }
   }
+  .count-loading {
+    color: $ui-fleet-black-50;
+  }
+  .count-error {
+    color: $ui-error;
+  }
 }

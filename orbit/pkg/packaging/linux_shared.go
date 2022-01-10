@@ -225,10 +225,10 @@ var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
 set -e
 
 # If we have a systemd, daemon-reload away now
-if [ -x /bin/systemctl ] && pidof systemd ; then
-  /bin/systemctl daemon-reload 2>/dev/null 2>&1
+if which systemctl; then
+  systemctl daemon-reload 2>/dev/null 2>&1
 {{ if .StartService -}}
-  /bin/systemctl restart orbit.service 2>&1
+  systemctl restart orbit.service 2>&1
 {{- end}}
 fi
 `))

@@ -1,3 +1,52 @@
+## Fleet 4.8.0 (Dec 31, 2021)
+
+* Add ability to configure Fleet to send a webhook request with all hosts that failed a
+  policy. Documentation on what data is included the webhook
+  request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations).
+
+* Add ability to find a user's device in Fleet by filtering hosts by email associated with a Google Chrome
+  profile. Requires the [macadmins osquery
+  extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+  installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+  
+* Add ability to see a host's Google Chrome profile information using the [`GET
+  api/v1/fleet/hosts/{id}/device_mapping` API
+  route](https://fleetdm.com/docs/using-fleet/rest-api#get-host-device-mapping).
+
+* Add ability to see a host's mobile device management (MDM) enrollment status, MDM server URL,
+  and Munki version on a host's **Host details** page. Requires the [macadmins osquery
+  extension](https://github.com/macadmins/osquery-extension) which comes bundled in [Fleet's osquery
+  installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). 
+
+* Add ability to see a host's MDM and Munki information with the [`GET
+  api/v1/fleet/hosts/{id}/macadmins` API
+  route](https://fleetdm.com/docs/using-fleet/rest-api#list-mdm-and-munki-information-if-available).
+
+* Improve the handling of certificates in the `fleetctl package` command by adding a check for a
+  valid PEM file.
+
+* Update [Prometheus Go client library](https://github.com/prometheus/client_golang) which
+  results in the following breaking changes to the [`GET /metrics` API
+  route](https://fleetdm.com/docs/using-fleet/monitoring-fleet#metrics):
+  `http_request_duration_microseconds` is now `http_request_duration_seconds_bucket`,
+  `http_request_duration_microseconds_sum` is now `http_request_duration_seconds_sum`,
+  `http_request_duration_microseconds_count` is now `http_request_duration_seconds_count`,
+  `http_request_size_bytes` is now `http_request_size_bytes_bucket`, and `http_response_size_bytes`
+  is now `http_response_size_bytes_bucket`
+
+* Improve performance when searching and sorting hosts in the Fleet UI.
+
+* Improve performance when running a live query feature by reducing the load on Redis.
+
+* Improve performance when viewing software installed across all hosts in the Fleet
+  UI.
+
+* Fix a bug in which the Fleet UI presented the option to download an undefined certificate in the "Generate installer" instructions.
+
+* Fix a bug in which database migrations failed when using MariaDB due to a migration introduced in Fleet 4.7.0.
+
+* Fix a bug that prevented hosts from checking in to Fleet when Redis was down.
+
 ## Fleet 4.7.0 (Dec 14, 2021)
 
 * Add ability to create, modify, or delete policies in Fleet without modifying saved queries. Fleet

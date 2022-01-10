@@ -5,6 +5,10 @@
 
   &__input {
     opacity: 0;
+    width: 16px;
+    height: 16px;
+    margin: 2px;
+    transform: translateY(3px);
 
     &:focus + .fleet-checkbox__tick {
       &::after {
@@ -37,7 +41,7 @@
   &__tick {
     @include size(20px);
     @include position(absolute, 50% null null 0);
-    transform: translateY(-10px);
+    transform: translateY(-8px);
     display: inline-block;
 
     &::after {
@@ -80,6 +84,6 @@
 
   &__label {
     font-size: $x-small;
-    padding-left: $pad-xsmall;
+    padding-left: $pad-small;
   }
 }
