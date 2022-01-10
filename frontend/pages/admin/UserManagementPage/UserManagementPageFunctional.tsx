@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Component } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { connect, useDispatch } from "react-redux";
 import { isEqual } from "lodash";
 import { push } from "react-router-redux";
@@ -10,7 +10,10 @@ import { IInvite } from "interfaces/invite";
 import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
-import permissionUtils from "utilities/permissions";
+
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
+
 import paths from "router/paths";
 import entityGetter from "redux/utilities/entityGetter";
 // @ts-ignore
@@ -51,6 +54,19 @@ interface IAppSettingsPageProps {
   teams: ITeam[];
 }
 
+interface ISortBy {
+  id: boolean;
+  sorting: IConfig;
+  currentUser: IUser;
+  loadingTableData: boolean;
+  invites: IInvite[];
+  inviteErrors: { base: string; email: string };
+  isPremiumTier: boolean;
+  users: IUser[];
+  userErrors: { base: string; name: string };
+  teams: ITeam[];
+}
+
 // TODO: Try 1: define interface for formData and will get more helpful debugging
 // TODO: Try 2: Consider re-writing this function all together....
 
@@ -78,18 +94,16 @@ const generateUpdateData = (currentUserData: any, formData: any) => {
 };
 
 const UserManagementPage = ({
-  appConfigLoading,
-  config,
-  currentUser,
   loadingTableData,
   invites,
   inviteErrors,
-  isPremiumTier,
   users,
   userErrors,
   teams,
 }: IAppSettingsPageProps): JSX.Element => {
   const dispatch = useDispatch();
+
+  const { config, currentUser, isPremiumTier } = useContext(AppContext);
 
   if (isPremiumTier) {
     // TODO: LOAD ALL TEAMS
@@ -178,11 +192,12 @@ const UserManagementPage = ({
     [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
   );
 
+  // █▀▀ █░█ █▄░█ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
+  // █▀░ █▄█ █░▀█ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
+
   const combineUsersAndInvites = memoize((users, invites, currentUserId) => {
     return combineDataSets(users, invites, currentUserId);
   });
-  // █▀▀ █░█ █▄░█ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
-  // █▀░ █▄█ █░▀█ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
 
   const goToUserSettingsPage = () => {
     const { USER_SETTINGS } = paths;
@@ -190,12 +205,29 @@ const UserManagementPage = ({
     dispatch(push(USER_SETTINGS));
   };
 
-  const goToAppConfigPage = (evt: any) => {
-    evt.preventDefault();
-
-    const { ADMIN_SETTINGS } = paths;
-
-    dispatch(push(ADMIN_SETTINGS));
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component calls this handler.
+  const onTableQueryChange = (queryData: any) => {
+    const {
+      pageIndex,
+      pageSize,
+      searchQuery,
+      sortHeader,
+      sortDirection,
+    } = queryData;
+    let sortBy: ISortBy = []; // TODO:
+    if (sortHeader !== "") {
+      sortBy = [{ id: sortHeader, direction: sortDirection }];
+    }
+    dispatch(
+      userActions.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
+        sortBy,
+      })
+    );
+    dispatch(inviteActions.loadAll(pageIndex, pageSize, searchQuery, sortBy));
   };
 
   const onActionSelect = (action: string, user: IUser) => {
@@ -332,7 +364,7 @@ const UserManagementPage = ({
         });
     }
 
-    if (currentUser.id === userEditing.id) {
+    if (currentUser?.id === userEditing.id) {
       return dispatch(updateUser(userData, updatedAttrs))
         .then(() => {
           dispatch(
@@ -354,7 +386,7 @@ const UserManagementPage = ({
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config.sender_address} to ${formData.email}`;
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
     }
 
     return dispatch(userActions.silentUpdate(userData, formData))
@@ -467,9 +499,9 @@ const UserManagementPage = ({
             onCancel={toggleEditUserModal}
             onSubmit={onEditUser}
             availableTeams={teams}
-            isPremiumTier={isPremiumTier}
-            smtpConfigured={config.configured}
-            canUseSso={config.enable_sso}
+            isPremiumTier={isPremiumTier || false}
+            smtpConfigured={config?.configured || false}
+            canUseSso={config?.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
             isModifiedByGlobalAdmin
           />
@@ -484,7 +516,7 @@ const UserManagementPage = ({
     return (
       <CreateUserModal
         serverErrors={userErrors}
-        currentUserId={currentUser.id} // TODO: This is not used in CreateUserModal?!
+        currentUserId={currentUser?.id} // TODO: This is not used in CreateUserModal?!
         onCancel={toggleCreateUserModal}
         onSubmit={onCreateUserSubmit}
         availableTeams={teams}
@@ -492,9 +524,9 @@ const UserManagementPage = ({
         defaultTeams={[]}
         defaultNewUserType={false}
         submitText={"Create"}
-        isPremiumTier={isPremiumTier}
-        smtpConfigured={config.configured}
-        canUseSso={config.enable_sso}
+        isPremiumTier={isPremiumTier || false}
+        smtpConfigured={config?.configured || false}
+        canUseSso={config?.enable_sso || false}
         isFormSubmitting={isFormSubmitting}
         isModifiedByGlobalAdmin
         isNewUser
@@ -545,27 +577,6 @@ const UserManagementPage = ({
       />
     );
   };
-
-  //   render() {
-  //     const {
-  //       renderCreateUserModal,
-  //       renderEditUserModal,
-  //       renderDeleteUserModal,
-  //       renderResetPasswordModal,
-  //       renderResetSessionsModal,
-  //       toggleCreateUserModal,
-  //       onTableQueryChange,
-  //       onActionSelect,
-  //     } = this;
-
-  //     const {
-  //       loadingTableData,
-  //       users,
-  //       invites,
-  //       currentUser,
-  //       isPremiumTier,
-  //       userErrors,
-  //     } = this.props;
 
   const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
 

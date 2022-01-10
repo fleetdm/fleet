@@ -469,15 +469,6 @@ export class UserManagementPage extends Component {
     dispatch(push(USER_SETTINGS));
   };
 
-  goToAppConfigPage = (evt) => {
-    evt.preventDefault();
-
-    const { ADMIN_SETTINGS } = paths;
-    const { dispatch } = this.props;
-
-    dispatch(push(ADMIN_SETTINGS));
-  };
-
   renderEditUserModal = () => {
     const {
       currentUser,
