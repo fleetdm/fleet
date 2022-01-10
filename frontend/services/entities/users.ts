@@ -2,25 +2,14 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import helpers from "fleet/helpers";
-import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import {
-  ICreateUserFormData,
   ICreateUserFormDataNoInvite,
+  IUpdateUser,
+  IUpdateUserFormData,
+  IDeleteSessionsUser,
+  IDestroyUser,
   IUser,
 } from "interfaces/user";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-
-interface ILoadAllTeamsResponse {
-  teams: ITeam[];
-}
-
-interface ILoadTeamResponse {
-  team: ITeam;
-}
-
-interface ITeamEnrollSecretsResponse {
-  secrets: IEnrollSecret[];
-}
 
 interface IUserSearchOptions {
   page?: number;
@@ -30,18 +19,26 @@ interface IUserSearchOptions {
   teamId?: number;
 }
 
-interface IEditTeamFormData {
-  name: string;
+interface IForgotPassword {
+  email: string;
+}
+interface IEnable {
+  enabled: boolean;
 }
 
-export default {
-  create: (formData: ICreateUserFormData) => {
-    const { USERS } = endpoints;
+interface IUpdateAdmin {
+  admin: boolean;
+}
 
-    return sendRequest("POST", USERS, formData).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
-  },
+interface IRequirePasswordReset {
+  require: boolean;
+}
+
+// TODO
+// interface IResetPassword {
+// }
+
+export default {
   createUserWithoutInvitation: (formData: ICreateUserFormDataNoInvite) => {
     const { USERS_ADMIN } = endpoints;
 
@@ -49,23 +46,33 @@ export default {
       (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
     );
   },
-  deleteSessions: (user: IUser) => {
+  deleteSessions: (user: IDeleteSessionsUser) => {
     const { USER_SESSIONS } = endpoints;
     const path = USER_SESSIONS(user.id);
 
     return sendRequest("DELETE", path);
   },
-  destroy: (user: IUser) => {
+  destroy: (user: IDestroyUser) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${user.id}`;
 
     return sendRequest("DELETE", path);
   },
-  // TODO: forgotPassword
+  forgotPassword: ({ email }: IForgotPassword) => {
+    const { FORGOT_PASSWORD } = endpoints;
+
+    return sendRequest("POST", FORGOT_PASSWORD, { email });
+  },
   // TODO: changePassword
   // TODO: confirmEmailChange
-  // TODO: enable
+  enable: (user: IUser, { enabled }: IEnable) => {
+    const { ENABLE_USER } = endpoints;
+    const path = ENABLE_USER(user.id);
 
+    return sendRequest("POST", path, { enabled }).then(
+      (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
+    );
+  },
   loadAll: ({
     page = 0,
     perPage = 100,
@@ -106,11 +113,30 @@ export default {
       return users.map((u: IUser) => helpers.addGravatarUrlToResource(u));
     });
   },
-  // TODO: me
+  me: () => {
+    const { ME } = endpoints;
+
+    return sendRequest("GET", ME).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   // TODO: performRequiredPasswordReset
-  // TODO: requirePasswordReset
-  // TODO: resetPassword
-  update: (user: IUser, formData: IUpdateUserFormData) => {
+  requirePasswordReset: (
+    userId: number,
+    { require }: IRequirePasswordReset
+  ) => {
+    const { USERS } = endpoints;
+    const path = `${USERS}/${userId}/require_password_reset`;
+
+    return sendRequest("POST", path, { require }).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
+  resetPassword: (formData: any) => {
+    const { RESET_PASSWORD } = endpoints;
+    return sendRequest("POST", RESET_PASSWORD, formData);
+  },
+  update: (user: IUpdateUser, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${user.id}`;
 
@@ -118,5 +144,12 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  // TODO: updateAdmin
+  updateAdmin: (user: IUser, { admin }: IUpdateAdmin) => {
+    const { UPDATE_USER_ADMIN } = endpoints;
+    const path = UPDATE_USER_ADMIN(user.id);
+
+    return sendRequest("POST", path, { admin }).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
 };

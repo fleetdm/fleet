@@ -48,3 +48,59 @@ export interface IUserFormErrors {
   password: string | null;
   sso_enabled: boolean | null;
 }
+
+export interface ICreateUserFormDataNoInvite {
+  email: string;
+  global_role: string | null;
+  name: string;
+  password: string;
+  sso_enabled?: boolean | undefined;
+  teams: ITeam[];
+}
+
+export interface IDeleteSessionsUser {
+  actions: { label: string; disabled: boolean; value: string }[];
+  email: string;
+  id: number;
+  name: string;
+  roles?: string;
+  status: string;
+  teams?: string;
+  type: string;
+}
+
+export interface IDestroyUser {
+  actions: { label: string; disabled: boolean; value: string }[];
+  email: string;
+  id: number;
+  name: string;
+  roles?: string;
+  status: string;
+  teams?: string | null;
+  type: string;
+}
+
+export interface IUpdateUser {
+  api_only: boolean;
+  created_at: string;
+  updated_at: string;
+  email: string;
+  force_password_reset: boolean;
+  global_role?: string | null;
+  gravatarURL?: string;
+  gravatar_url: string;
+  id: number;
+  name: string;
+  sso_enabled?: boolean;
+  teams: ITeam[];
+}
+
+export interface IUpdateUserFormData {
+  currentUserId?: number;
+  email: string;
+  global_role?: string | null;
+  name: string;
+  password?: string | null;
+  sso_enabled?: boolean;
+  teams: ITeam[];
+}
