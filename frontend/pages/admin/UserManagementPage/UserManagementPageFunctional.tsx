@@ -22,8 +22,8 @@ import invitesAPI from "services/entities/invites";
 import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import { updateUser } from "redux/nodes/auth/actions";
+// // @ts-ignore
+// import { updateUser } from "redux/nodes/auth/actions";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -57,39 +57,31 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
-interface IUsersResponse {
-  users: IUser[];
-}
-
-interface IInvitesResponse {
-  invites: IInvite[];
-}
-
 // TODO: Try 1: define interface for formData and will get more helpful debugging
 // TODO: Try 2: Consider re-writing this function all together....
 
-const generateUpdateData = (currentUserData: any, formData: any) => {
-  // array of updatable fields
-  const updatableFields = [
-    "global_role",
-    "teams",
-    "name",
-    "email",
-    "sso_enabled",
-  ];
+// const generateUpdateData = (currentUserData: any, formData: any) => {
+//   // array of updatable fields
+//   const updatableFields = [
+//     "global_role",
+//     "teams",
+//     "name",
+//     "email",
+//     "sso_enabled",
+//   ];
 
-  // go over all the keys in the form data, reduce
-  return Object.keys(formData).reduce((updatedAttributes, attr) => {
-    // attribute can be updated and is different from the current value.
-    if (
-      updatableFields.includes(attr) &&
-      !isEqual(formData[attr], currentUserData[attr])
-    ) {
-      updatedAttributes[attr] = formData[attr];
-    }
-    return updatedAttributes;
-  }, {});
-};
+//   // go over all the keys in the form data, reduce
+//   return Object.keys(formData).reduce((updatedAttributes, attr) => {
+//     // attribute can be updated and is different from the current value.
+//     if (
+//       updatableFields.includes(attr) &&
+//       !isEqual(formData[attr], currentUserData[attr])
+//     ) {
+//       updatedAttributes[attr] = formData[attr];
+//     }
+//     return updatedAttributes;
+//   }, {});
+// };
 
 const UserManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -115,24 +107,22 @@ const UserManagementPage = (): JSX.Element => {
     isLoading: isLoadingUsers,
     error: loadingUsersError,
     refetch: refetchusers,
-  } = useQuery<IUsersResponse, Error, IUser[]>(
-    ["users"],
-    () => usersAPI.loadAll(),
-    {
-      select: (data: IUsersResponse) => data.users,
-    }
-  );
+  } = useQuery<IUser[], Error, IUser[]>(["users"], () => usersAPI.loadAll(), {
+    select: (data: IUser[]) => data,
+  });
 
   const {
     data: invites,
     isLoading: isLoadingInvites,
     error: loadingInvitesError,
     refetch: refetchInvites,
-  } = useQuery<IInvitesResponse, Error, IInvite[]>(
+  } = useQuery<IInvite[], Error, IInvite[]>(
     ["invites"],
     () => invitesAPI.loadAll({}),
     {
-      select: (data: IInvitesResponse) => data.invites,
+      select: (data: IInvite[]) => {
+        return data;
+      },
     }
   );
 
@@ -372,7 +362,7 @@ const UserManagementPage = (): JSX.Element => {
   const onEditUser = (formData: any) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
-    const updatedAttrs = generateUpdateData(userData, formData);
+    // const updatedAttrs = generateUpdateData(userData, formData);
     if (userEditing.type === "invite") {
       // Note: The edit invite action in this if block is occuring outside of Redux (unlike the
       // other cases below this block). Therefore, we must dispatch the loadAll action to ensure the
@@ -401,7 +391,9 @@ const UserManagementPage = (): JSX.Element => {
     }
 
     if (currentUser?.id === userEditing.id) {
-      return dispatch(updateUser(userData, updatedAttrs))
+      // return dispatch(updateUser(userData, updatedAttrs))
+      return usersAPI
+        .update(userData, formData)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully edited ${userEditing?.name}`)
