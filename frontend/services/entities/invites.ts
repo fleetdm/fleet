@@ -2,19 +2,19 @@
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import helpers from "fleet/helpers";
-import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
-import { ICreateInviteFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
-import { IInvite } from "interfaces/invite";
+import {
+  IInvite,
+  ICreateInviteFormData,
+  IEditInviteFormData,
+  IEditInvite,
+  IDeleteInviteFormData,
+} from "interfaces/invite";
 
 interface IInviteSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
   sortBy: any[];
-}
-
-interface IEditTeamFormData {
-  name: string;
 }
 
 export default {
@@ -25,13 +25,13 @@ export default {
       helpers.addGravatarUrlToResource(response.invite)
     );
   },
-  update: (invite: IInvite, formData: IEditInviteFormData) => {
+  update: (invite: IEditInvite, formData: IEditInviteFormData) => {
     const { INVITES } = endpoints;
     const path = `${INVITES}/${invite.id}`;
 
     return sendRequest("PATCH", path, formData);
   },
-  destroy: (invite: IInvite) => {
+  destroy: (invite: IDeleteInviteFormData) => {
     const { INVITES } = endpoints;
     const path = `${INVITES}/${invite.id}`;
 
