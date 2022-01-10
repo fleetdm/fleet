@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,13 @@ func testLocksLockUnlock(t *testing.T, ds *Datastore) {
 }
 
 func testLocksDBLocks(t *testing.T, ds *Datastore) {
+	row := ds.reader.QueryRowxContext(context.Background(), "SELECT VERSION()")
+	var version string
+	require.NoError(t, row.Scan(&version))
+	if strings.HasPrefix(version, "8.") {
+		t.Skip("#3626: DBLocks is not supported for mysql 8 yet.")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
