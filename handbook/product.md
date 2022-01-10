@@ -27,8 +27,7 @@ these changes to the engineering team.
 * Move the issue into the "Ready for review" column. The drafted changes that correspond to each
   issue in this column will be reviewed during the recurring product huddle meeting.
 
-* During the product huddle meeting, record any feedback on the drafted changes for each
-  of your issues.
+* During the product huddle meeting, record any feedback on the drafted changes.
 
 ### Deliver
 
