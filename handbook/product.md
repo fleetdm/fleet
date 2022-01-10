@@ -1,73 +1,69 @@
 # Product
 
-## Feature flags
+## Product design process
 
-In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
+The product team is responsible for product design tasks. These include drafting
+changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marking counterparts, and delivering
+these changes to the engineering team.
 
-The following highlights should be considered when deciding if feature flags should be leveraged:
+### Drafting
 
-- The feature flag must be disabled by default.
-- The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
-- The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+* Move an issue that is assigned to you in the "Ready" column of the ["Product team" GitHub
+  project](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
 
-Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
+* Create a page in the Fleet (scratchpad, dev-ready) Figma and combine your issue's number and
+  title to name the Figma page.
 
-## Fleet docs
+* Draft changes to the Fleet product that solve the problem specified in the issue. Constantly place
+  yourself in the shoes of a user while drafting changes.
 
-### Docs style guide
+* While drafting, reach out to sales, customer success, and marketing for a new perspective.
 
-#### Headings
+* While drafting, engage engineering to gain insight into technical costs and feasibility.
 
-Headings help readers scan content to easily find what they need. Organize page content using clear headings, specific to the topic they describe.
+### Review
 
-Keep headings brief and organize them in a logical order:
+* Move the issue into the "Ready for review" column. The drafted changes that correspond to each
+  issue in this column will be reviewed during the recurring product huddle meeting.
 
-* H1: Page title
-* H2: Main headings
-* H3: Subheadings
-* H4: Sub-subheadings (headings nested under subheadings)
+* During the product huddle meeting, record any feedback on the drafted changes for each
+  of your issues.
 
-Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+### Deliver
 
-### Adding a link to the Fleet docs
-You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+* Once your work is complete and all feedback is addressed, make sure that the issue is updated with
+  a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
+  specifications live.
 
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+* Add the ":product" and ":architect" labels to the issue and remove all other labels. This will add the issue to the product
+  board on ZenHub. In the ZenHub board, move the issue into the "Architect" column in the product
+  board so an architect on the engineering team knows that this issue is ready for engineering specification and later,
+  engineering estimation.
 
-When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./02-Configuration.md#osquery-result-log-plugin`.
+#### Priority drafting
 
-### Linking to a location on GitHub
-When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
+Priority drafting is the revision of drafted changes that are currently being developed by
+the engineering team. The goal of priority drafting is to quickly adapt to unknown edge cases and
+changing specification while ensuring
+that Fleet meets our brand and quality guidelines. 
 
-To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+Priority drafting occurs in the following scenarios:
 
-### How to fix a broken link
-For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+* A drafted UI change is missing crucial information that prevents the engineering team from
+  continuing the development task.
 
-An example of a link that lives outside of `/docs` is:
+* Functionality included in a drafted UI change must be cut down in order to ship the improvement in
+  the current scheduled release.
 
-```
-../../tools/app/prometheus
-```
+What happens during priority drafting?
 
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+1. Everyone on the product team and engineering team is made aware that a drafted change was brought back
+   to drafting and prioritized. 
 
-> Note that the instructions above also apply to adding links in the Fleet handbook.
+2. Drafts are updated to cover edge cases or reduce functionality.
 
-### Adding an image to the Fleet docs
-Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
-
-When adding images to the Fleet documentation, follow these guidelines:
-- Keep the images as simple as possible to maintain (screenshots can get out of date quickly as UIs change)
-- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
-- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
-- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
-
-Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
-The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
-
-> Note that the instructions above also apply to adding images in the Fleet handbook.
+3. UI changes are reviewed and the UI changes are brought back to the engineering team to continue
+  the development task.
 
 ## Product quality
 
@@ -101,7 +97,9 @@ The goal of quality assurance is to catch unexpected behavior prior to release:
 
 All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/03-Contributing/02-Testing.md](https://github.com/fleetdm/fleet/blob/main/docs/03-Contributing/02-Testing.md) for flows that cannot be completed using `fleetctl preview`.
 
-Please start the manual QA process by creating a blank GitHub issue. As you complete each of the flows, record a list of the bugs you encounter in this new issue. Each item in this list should contain one sentence describing the bug and a screenshot if the item is a frontend bug.
+Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
+flows, record a list of the bugs you encounter in this new issue. Each item in this list should
+contain one sentence describing the bug and a screenshot if the item is a frontend bug.
 
 ### Fleet UI
 
@@ -215,6 +213,63 @@ Create a new user by running the `fleetctl user create` command.
 
 Logout of your current user and log in with the newly created user.
 
+## Fleet docs
+
+### Docs style guide
+
+#### Headings
+
+Headings help readers scan content to easily find what they need. Organize page content using clear headings, specific to the topic they describe.
+
+Keep headings brief and organize them in a logical order:
+
+* H1: Page title
+* H2: Main headings
+* H3: Subheadings
+* H4: Sub-subheadings (headings nested under subheadings)
+
+Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+
+### Adding a link to the Fleet docs
+You can link documentation pages to each other using relative paths. For example, in `docs/01-Using-Fleet/01-Fleet-UI.md`, you can link to `docs/01-Using-Fleet/09-Permissions.md` by writing `[permissions](./09-Permissions.md)`. This will be automatically transformed into the appropriate URL for `fleetdm.com/docs`.
+
+However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
+Therefore, when adding a link to Fleet docs, it is important to always use the absolute file path.
+
+When directly linking to a specific section within a page in the Fleet documentation, always format the spaces within a section name to use a hyphen `-` instead of an underscore `_`. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./02-Configuration.md#osquery-result-log-plugin`.
+
+### Linking to a location on GitHub
+When adding a link to a location on GitHub that is outside of `/docs`, be sure to use the canonical form of the URL.
+
+To do this, navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+
+### How to fix a broken link
+For instances in which a broken link is discovered on fleetdm.com, check if the link is a relative link to a directory outside of `/docs`. 
+
+An example of a link that lives outside of `/docs` is:
+
+```
+../../tools/app/prometheus
+```
+
+If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the markdown file.
+
+> Note that the instructions above also apply to adding links in the Fleet handbook.
+
+### Adding an image to the Fleet docs
+Try to keep images in the docs at a minimum. Images can be a quick way to help a user understand a concept or direct them towards a specific UI element, but too many can make the documentation feel cluttered and more difficult to maintain.
+
+When adding images to the Fleet documentation, follow these guidelines:
+- Keep the images as simple as possible to maintain (screenshots can get out of date quickly as UIs change)
+- Exclude unnecessary images. An image should be used to help emphasize information in the docs, not replace it.
+- Minimize images per doc page. More than one or two per page can get overwhelming, for doc maintainers and users.
+- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity and beyond. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure that it is easily readable at all widths.
+
+Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-sidebar.png)`
+The images used in the docs live in `docs/images/`. Note that you must provide the url of the image in the Fleet Github repo for it to display properly on both Github and the Fleet website.
+
+> Note that the instructions above also apply to adding images in the Fleet handbook.
+
 ## UI design
 
 ### Communicating design changes to the engineering team
@@ -224,7 +279,7 @@ For something NEW that has been added to [Figma Fleet EE (current, dev-ready)](h
 
 <img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current, dev-ready) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented._
 
 3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), and hit “+ Add cards”, pick the new issue, and drag it into the “🤩Inspire me” column. 
 
@@ -249,7 +304,8 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 ## Release 
 
-This section outlines 
+This section outlines the communication between the product team and growth team and product team
+and customer success team prior to a release of Fleet.
 
 ### Goal
 
@@ -258,7 +314,7 @@ with customers and users.
 
 ### Blog post
 
-The Product team is responsible for providing the [Growth team](./growth.md) with necessary information for writing
+The product team is responsible for providing the [growth team](./growth.md) with necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
@@ -270,7 +326,7 @@ An example release blog post issue can be found [here](https://github.com/fleetd
 
 ### Customer announcement
 
-The Product team is responsible for providing the [Customer success team](./customer-experience.md) with necessary information
+The product team is responsible for providing the [customer success team](./customer-experience.md) with necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 
@@ -280,3 +336,14 @@ comment section may contain private information about Fleet's customers.
 
 An example release customer announcement blog post issue can be found [here](https://github.com/fleetdm/confidential/issues/747).
 
+## Feature flags
+
+In Fleet, features are placed behind feature flags if the changes could affect Fleet's availability of existing functionalities.
+
+The following highlights should be considered when deciding if feature flags should be leveraged:
+
+- The feature flag must be disabled by default.
+- The feature flag will not be permanent. This means that the individual who decides that a feature flag should be introduced is responsible for creating an issue to track the feature's progress towards removing the feature flag and including the feature in a stable release.
+- The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
+
+Fleet's feature flag guidelines borrows from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation on the costs of introducing feature flags.
