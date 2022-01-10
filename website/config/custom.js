@@ -26,16 +26,6 @@ module.exports.custom = {
 
   /**************************************************************************
   *                                                                         *
-  * Display dates for your app                                              *
-  *                                                                         *
-  * > This is here to make it easier to change out the copyright date       *
-  * > that is displayed all over the app when it's first generated.         *
-  *                                                                         *
-  **************************************************************************/
-  platformCopyrightYear: '2021',
-
-  /**************************************************************************
-  *                                                                         *
   * The TTL (time-to-live) for various sorts of tokens before they expire.  *
   *                                                                         *
   **************************************************************************/

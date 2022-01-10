@@ -3,7 +3,6 @@
  */
 import React from "react";
 import Button from "components/buttons/Button";
-import { ITeam } from "interfaces/team";
 
 import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.png";
 

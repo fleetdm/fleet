@@ -96,6 +96,91 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return nil
 }
 
+// FlippingPoliciesForHost fetches previous policy membership results and returns:
+//	- a list of "new" failing policies; "new" here means those that fail on their first
+//	run, and those that were passing on the previous run and are failing on the incoming execution.
+//	- a list of "new" passing policies; "new" here means those that failed on a previous
+//	run and are passing now.
+//
+// "Failure" here means the policy query executed successfully but didn't return any rows,
+// so policies that did not execute (incomingResults with nil bool) are ignored.
+//
+// NOTES(lucas):
+//	- If a policy has been deleted (also deleted on `policy_membership` via cascade)
+// 	and osquery agents bring in new failing results from them then those will be returned here
+// 	(in newFailing or newPassing).
+//	- Similar in case a host was deleted.
+// Trying to filter those out here would make this operation more expensive (fetch policies from the
+// `policies` table and querying the `hosts` table).
+func (ds *Datastore) FlippingPoliciesForHost(
+	ctx context.Context,
+	hostID uint,
+	incomingResults map[uint]*bool,
+) (newFailing []uint, newPassing []uint, err error) {
+	orderedIDs := make([]uint, 0, len(incomingResults))
+	filteredIncomingResults := filterNotExecuted(incomingResults)
+	for policyID := range filteredIncomingResults {
+		orderedIDs = append(orderedIDs, policyID)
+	}
+	if len(orderedIDs) == 0 {
+		return nil, nil, nil
+	}
+	// Sort the results to have generated SQL queries ordered to minimize deadlocks (see #1146).
+	sort.Slice(orderedIDs, func(i, j int) bool {
+		return orderedIDs[i] < orderedIDs[j]
+	})
+	// By using `passes IS NOT NULL` we filter out those policies that never executed properly.
+	selectQuery := fmt.Sprintf(
+		`SELECT policy_id, passes FROM policy_membership
+		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`,
+	)
+	var fetchedPolicyResults []struct {
+		ID     uint `db:"policy_id"`
+		Passes bool `db:"passes"`
+	}
+	selectQuery, args, err := sqlx.In(selectQuery, hostID, orderedIDs)
+	if err != nil {
+		return nil, nil, ctxerr.Wrapf(ctx, err, "build select policy_membership query")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &fetchedPolicyResults, selectQuery, args...); err != nil {
+		return nil, nil, ctxerr.Wrapf(ctx, err, "select policy_membership")
+	}
+	prevPolicyResults := make(map[uint]bool)
+	for _, result := range fetchedPolicyResults {
+		prevPolicyResults[result.ID] = result.Passes
+	}
+	newFailing, newPassing = flipping(prevPolicyResults, filteredIncomingResults)
+	return newFailing, newPassing, nil
+}
+
+func flipping(prevResults map[uint]bool, incomingResults map[uint]bool) (newFailing, newPassing []uint) {
+	for policyID, incomingPasses := range incomingResults {
+		prevPasses, ok := prevResults[policyID]
+		if !ok { // first run
+			if !incomingPasses {
+				newFailing = append(newFailing, policyID)
+			}
+		} else { // it run previously
+			if !prevPasses && incomingPasses {
+				newPassing = append(newPassing, policyID)
+			} else if prevPasses && !incomingPasses {
+				newFailing = append(newFailing, policyID)
+			}
+		}
+	}
+	return newFailing, newPassing
+}
+
+func filterNotExecuted(results map[uint]*bool) map[uint]bool {
+	filtered := make(map[uint]bool)
+	for id, result := range results {
+		if result != nil {
+			filtered[id] = *result
+		}
+	}
+	return filtered
+}
+
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.

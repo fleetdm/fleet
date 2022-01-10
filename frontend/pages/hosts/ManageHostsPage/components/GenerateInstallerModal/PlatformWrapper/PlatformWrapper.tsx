@@ -1,15 +1,24 @@
 import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
-import { AppContext } from "context/app"; // @ts-ignore
-import Fleet from "fleet"; // @ts-ignore
+import { useDispatch } from "react-redux";
+// @ts-ignore
+import { renderFlash } from "redux/nodes/notifications/actions";
+
+import configAPI from "services/entities/config";
+import { AppContext } from "context/app";
+// @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TabsWrapper from "components/TabsWrapper";
+
+import { isValidPemCertificate } from "../../../helpers";
 
 import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import DownloadIcon from "../../../../../../../assets/images/icon-download-12x12@2x.png";
@@ -51,32 +60,33 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProp): JSX.Element => {
   const { config } = useContext(AppContext);
   const [copyMessage, setCopyMessage] = useState<string>("");
-  const [certificate, setCertificate] = useState<string | undefined>(undefined);
-  const [fetchCertificateError, setFetchCertificateError] = useState<
-    string | undefined
-  >(undefined);
 
-  Fleet.config
-    .loadCertificate()
-    .then((loadedCertificate: any) => {
-      setCertificate(loadedCertificate);
-    })
-    .catch(() => {
-      setFetchCertificateError(
-        "Failed to load certificate. Is Fleet app URL configured properly?"
-      );
-    });
+  const dispatch = useDispatch();
+
+  const { data: certificate, isFetching: isFetchingCertificate } = useQuery<
+    string,
+    Error
+  >(["certificate"], () => configAPI.loadCertificate(), {
+    refetchOnWindowFocus: false,
+  });
 
   const onDownloadCertificate = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    if (certificate) {
+    if (certificate && isValidPemCertificate(certificate)) {
       const filename = "fleet.pem";
       const file = new global.window.File([certificate], filename, {
         type: "application/x-pem-file",
       });
 
       FileSaver.saveAs(file);
+    } else {
+      dispatch(
+        renderFlash(
+          "error",
+          "Your certificate could not be downloaded. Please check your Fleet configuration."
+        )
+      );
     }
     return false;
   };
@@ -144,15 +154,16 @@ const PlatformWrapper = ({
       <>
         {(platform === "rpm" || platform === "deb") && (
           <>
-            <span className={`${baseClass}__cta`}>
+            <p className={`${baseClass}__cta`}>
               Download your Fleet certificate:
-            </span>
-            <p>
-              {fetchCertificateError ? (
-                <span className={`${baseClass}__error`}>
-                  {fetchCertificateError}
-                </span>
-              ) : (
+            </p>
+            {isFetchingCertificate && (
+              <p className={`${baseClass}__certificate-loading`}>
+                Loading your certificate
+              </p>
+            )}
+            {!isFetchingCertificate &&
+              (certificate ? (
                 <a
                   href="#downloadCertificate"
                   className={`${baseClass}__fleet-certificate-download`}
@@ -161,8 +172,16 @@ const PlatformWrapper = ({
                   Download
                   <img src={DownloadIcon} alt="download" />
                 </a>
-              )}
-            </p>
+              ) : (
+                <p className={`${baseClass}__certificate-error`}>
+                  <em>Fleet failed to load your certificate.</em>
+                  <span>
+                    If you&apos;re able to access Fleet at a private or secure
+                    (HTTPS) IP address, please log into Fleet at this address to
+                    load your certificate.
+                  </span>
+                </p>
+              ))}
           </>
         )}
         <InputField

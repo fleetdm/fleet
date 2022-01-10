@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,15 +25,22 @@ func TestPackage(t *testing.T) {
 	// --insecure and --fleet-certificate are mutually exclusive
 	runAppCheckErr(t, []string{"package", "--type=deb", "--insecure", "--fleet-certificate=test123"}, "--insecure and --fleet-certificate may not be provided together")
 
+	// Test invalid PEM file provided in --fleet-certificate.
+	certDir := t.TempDir()
+	fleetCertificate := filepath.Join(certDir, "fleet.pem")
+	err := ioutil.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0644))
+	require.NoError(t, err)
+	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
+
 	// run package tests, each should output their respective package type
 	// fleet-osquery_0.0.3_amd64.deb
 	runAppForTest(t, []string{"package", "--type=deb", "--insecure"})
-	info, err := os.Stat("fleet-osquery_0.0.3_amd64.deb")
+	info, err := os.Stat("fleet-osquery_0.0.5_amd64.deb")
 	require.NoError(t, err)
 	require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	// fleet-osquery-0.0.3.x86_64.rpm
 	runAppForTest(t, []string{"package", "--type=rpm", "--insecure"})
-	info, err = os.Stat("fleet-osquery-0.0.3.x86_64.rpm")
+	info, err = os.Stat("fleet-osquery-0.0.5.x86_64.rpm")
 	require.NoError(t, err)
 	require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	// fleet-osquery.msi

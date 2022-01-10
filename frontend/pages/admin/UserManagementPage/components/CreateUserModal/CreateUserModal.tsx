@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
+import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -40,6 +41,8 @@ const CreateUserModal = ({
   isFormSubmitting,
   serverErrors,
 }: ICreateUserModalProps): JSX.Element => {
+  const dispatch = useDispatch();
+
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>
@@ -63,6 +66,7 @@ const CreateUserModal = ({
           isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
           currentTeam={currentTeam}
           isNewUser
+          dispatch={dispatch}
         />
       </>
     </Modal>

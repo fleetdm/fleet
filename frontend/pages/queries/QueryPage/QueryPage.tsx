@@ -3,12 +3,12 @@ import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 // @ts-ignore
-import Fleet from "fleet"; // @ts-ignore
+import Fleet from "fleet";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
-import queryAPI from "services/entities/queries"; // @ts-ignore
-import hostAPI from "services/entities/hosts"; // @ts-ignore
+import queryAPI from "services/entities/queries";
+import hostAPI from "services/entities/hosts";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
@@ -79,7 +79,7 @@ const QueryPage = ({
     ["query", queryIdForEdit],
     () => queryAPI.load(queryIdForEdit as number),
     {
-      enabled: false,
+      enabled: !!queryIdForEdit,
       refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
@@ -91,23 +91,18 @@ const QueryPage = ({
     }
   );
 
-  // if URL is like `/queries/1?host_ids=22`, add the host
-  // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
-    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
+    () =>
+      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
-      onSuccess: (data) => {
+      onSuccess: (host) => {
         const targets = selectedTargets;
-        const hostTarget = data as any; // intentional so we can add to the object
-
-        hostTarget.target_type = "hosts";
-
-        targets.push(hostTarget as IHost);
+        host.target_type = "hosts";
+        targets.push(host);
         setSelectedTargets([...targets]);
-
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
@@ -119,15 +114,14 @@ const QueryPage = ({
     queryAPI.create(formData)
   );
 
-  useEffect(() => {
-    const detectIsFleetQueryRunnable = () => {
-      Fleet.status.live_query().catch(() => {
-        setIsLiveQueryRunnable(false);
-      });
-    };
+  const detectIsFleetQueryRunnable = () => {
+    Fleet.status.live_query().catch(() => {
+      setIsLiveQueryRunnable(false);
+    });
+  };
 
+  useEffect(() => {
     detectIsFleetQueryRunnable();
-    !!queryIdForEdit && refetchStoredQuery();
     setLastEditedQueryName(DEFAULT_QUERY.name);
     setLastEditedQueryDescription(DEFAULT_QUERY.description);
     setLastEditedQueryBody(DEFAULT_QUERY.query);

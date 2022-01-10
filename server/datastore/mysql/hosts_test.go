@@ -1017,6 +1017,13 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 	require.Len(t, hosts, 1)
 	assert.Equal(t, hosts[0].ID, h2.ID)
+
+	// sorted by ids desc
+	filter = fleet.TeamFilter{User: userObs, IncludeObserver: true}
+	hits, err = ds.SearchHosts(context.Background(), filter, "")
+	require.NoError(t, err)
+	assert.Len(t, hits, 3)
+	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
 }
 
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {

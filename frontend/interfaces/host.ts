@@ -64,18 +64,27 @@ export default PropTypes.shape({
 
 export interface IDeviceUser {
   email: string;
+  source: string;
+}
+
+export interface IDeviceMappingResponse {
+  device_mapping: IDeviceUser[];
 }
 
 export interface IMunkiData {
   version: string;
-  last_run_time: string;
-  packages_intalled_count: number;
-  errors_count: number;
 }
 
 export interface IMDMData {
-  health: string;
-  enrollment_url: string;
+  enrollment_status: string;
+  server_url: string;
+}
+
+export interface IMacadminsResponse {
+  macadmins: null | {
+    munki: null | IMunkiData;
+    mobile_device_management: null | IMDMData;
+  };
 }
 
 export interface IPackStats {
@@ -145,6 +154,7 @@ export interface IHost {
   };
   status: string;
   display_text: string;
+  target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;

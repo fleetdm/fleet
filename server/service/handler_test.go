@@ -34,7 +34,7 @@ func TestAPIRoutes(t *testing.T) {
 	handler := mux.NewRouter()
 	handler.PathPrefix("/").Handler(r)
 
-	var routes = []struct {
+	routes := []struct {
 		verb string
 		uri  string
 	}{

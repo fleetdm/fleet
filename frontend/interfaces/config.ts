@@ -1,5 +1,6 @@
 /* Config interface is a flattened version of the fleet/config API response */
 
+import { IWebhookFailingPolicies } from "interfaces/webhook";
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
@@ -127,5 +128,8 @@ export interface IConfig {
         enable_log_compression: boolean;
       };
     };
+  };
+  webhook_settings: {
+    failing_policies_webhook: IWebhookFailingPolicies;
   };
 }

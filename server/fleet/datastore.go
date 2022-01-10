@@ -367,6 +367,16 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
+	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
+	//	- a list of "new" failing policies; "new" here means those that fail on their first
+	//	run, and those that were passing on the previous run and are failing on the incoming execution.
+	//	- a list of "new" passing policies; "new" here means those that failed on a previous
+	//	run and are passing now.
+	//
+	// "Failure" here means the policy query executed successfully but didn't return any rows,
+	// so policies that did not execute (incomingResults with nil bool) are ignored.
+	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
+	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
 	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)

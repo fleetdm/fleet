@@ -781,7 +781,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
 }
 
-func TestWhereFilterTeas(t *testing.T) {
+func TestWhereFilterTeams(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -936,6 +936,27 @@ func TestCompareVersions(t *testing.T) {
 			require.Equal(t, tc.expMissing, missing)
 			require.Equal(t, tc.expUnknown, unknown)
 			require.Equal(t, tc.expEqual, equal)
+		})
+	}
+}
+
+func TestRxLooseEmail(t *testing.T) {
+	testCases := []struct {
+		str   string
+		match bool
+	}{
+		{"foo", false},
+		{"", false},
+		{"foo@example", false},
+		{"foo@example.com", true},
+		{"foo+bar@example.com", true},
+		{"foo.bar@example.com", true},
+		{"foo.bar@baz.example.com", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.str, func(t *testing.T) {
+			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
 		})
 	}
 }

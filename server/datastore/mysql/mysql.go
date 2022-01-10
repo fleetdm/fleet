@@ -406,6 +406,12 @@ var (
 		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
 		// column doesn't exist anymore).
 		20171212182459: {},
+		// Deleted in
+		// https://github.com/fleetdm/fleet/commit/fd61dcab67f341c9e47fb6cb968171650c19a681
+		20161223115449: {},
+		20170309091824: {},
+		20171027173700: {},
+		20171212182458: {},
 	}
 )
 
@@ -796,7 +802,7 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 // definitely not cut out any valid address is to just check for
 // the presence of @, which is arguably the most important check
 // in this.
-var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]\..+$`)
+var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
 
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
 	base, args := searchLike(sql, params, match, columns...)

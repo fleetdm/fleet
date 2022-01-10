@@ -136,7 +136,7 @@ spec:
   name: Get installed Windows software
   platforms: Windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note, this does not included other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
   purpose: Informational
   contributors: zwass
 ---
@@ -603,6 +603,36 @@ spec:
       );
   purpose: Detection
   contributors: zwass,tgauda
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that were opened within the last 24 hours
+  platforms: macOS
+  description: Returns applications that were opened within the last 24 hours starting with the last opened application.
+  query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that are not in the Applications directory
+  platforms: macOS
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  purpose: Informational
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get subscription-based applications that have not been opened for the last 30 days
+  platforms: macOS
+  description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
+  query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
+  purpose: Informational
+  contributors: DominusKelvin
 ---
 apiVersion: v1
 kind: policy

@@ -4,15 +4,18 @@
 [parasails-component='stripe-card-element'] {
   .card-element-wrapper {
     position: relative;
+    .form-control {
+      height: 40px;
+    }
     .card-element {
       padding-top: 0;
       padding-bottom: 0;
       padding-right: 30px;
       &.pseudofocused {
         // These should mimic your normal form inputs' :focus styles:
-        border-color: #80bdff;
+        border-color: #6a67fe;
         outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        box-shadow: none;
       }
     }
     .status-indicator {

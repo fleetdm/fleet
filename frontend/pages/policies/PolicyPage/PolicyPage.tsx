@@ -79,12 +79,6 @@ const PolicyPage = ({
     }
   }
 
-  if (!policyTeamId && !currentUser) {
-    // Window is loading new policy,
-    // return to manage policies because we have no data in state
-    router.push(PATHS.MANAGE_POLICIES);
-  }
-
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
@@ -100,7 +94,6 @@ const PolicyPage = ({
     isLoading: isStoredPolicyLoading,
     data: storedPolicy,
     error: storedPolicyError,
-    refetch: refetchStoredPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["query", policyIdForEdit],
     () =>
@@ -108,7 +101,7 @@ const PolicyPage = ({
         ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
         : globalPoliciesAPI.load(policyIdForEdit as number),
     {
-      enabled: false,
+      enabled: !!policyIdForEdit,
       refetchOnWindowFocus: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
@@ -122,21 +115,17 @@ const PolicyPage = ({
     }
   );
 
-  // if URL is like `/policies/1?host_ids=22`, add the host
-  // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
-    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
+    () =>
+      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids,
       select: (data: IHostResponse) => data.host,
-      onSuccess: (data) => {
+      onSuccess: (host) => {
         const targets = selectedTargets;
-        const hostTarget = data as any; // intentional so we can add to the object
-
-        hostTarget.target_type = "hosts";
-
-        targets.push(hostTarget as IHost);
+        host.target_type = "hosts";
+        targets.push(host);
         setSelectedTargets([...targets]);
       },
     }
@@ -150,15 +139,14 @@ const PolicyPage = ({
     }
   );
 
-  useEffect(() => {
-    const detectIsFleetQueryRunnable = () => {
-      Fleet.status.live_query().catch(() => {
-        setIsLiveQueryRunnable(false);
-      });
-    };
+  const detectIsFleetQueryRunnable = () => {
+    Fleet.status.live_query().catch(() => {
+      setIsLiveQueryRunnable(false);
+    });
+  };
 
+  useEffect(() => {
     detectIsFleetQueryRunnable();
-    !!policyIdForEdit && refetchStoredPolicy();
   }, []);
 
   useEffect(() => {

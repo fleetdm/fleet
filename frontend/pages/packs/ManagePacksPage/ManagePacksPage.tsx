@@ -106,7 +106,6 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
         dispatch(
           renderFlash("success", `Successfully deleted ${packOrPacks}.`)
         );
-        toggleRemovePackModal();
       })
       .catch(() => {
         dispatch(
@@ -196,7 +195,9 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           )}
         </div>
         <div>
-          {!isLoadingPacks ? (
+          {isLoadingPacks ? (
+            <Spinner />
+          ) : (
             renderTable(
               onRemovePackClick,
               onEnablePackClick,
@@ -206,8 +207,6 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
               packsError,
               isLoadingPacks
             )
-          ) : (
-            <Spinner />
           )}
         </div>
         {showRemovePackModal && (

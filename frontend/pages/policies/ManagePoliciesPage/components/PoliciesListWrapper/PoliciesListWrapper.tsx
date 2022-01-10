@@ -4,6 +4,7 @@ import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
+import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 // @ts-ignore
@@ -26,7 +27,7 @@ interface IPoliciesListWrapperProps {
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
   selectedTeamData: ITeam | undefined;
-  toggleAddPolicyModal?: () => void;
+  currentAutomatedPolicies?: number[];
 }
 
 const PoliciesListWrapper = ({
@@ -37,7 +38,7 @@ const PoliciesListWrapper = ({
   canAddOrRemovePolicy,
   tableType,
   selectedTeamData,
-  toggleAddPolicyModal,
+  currentAutomatedPolicies,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
@@ -96,29 +97,33 @@ const PoliciesListWrapper = ({
         canAddOrRemovePolicy ? "" : "hide-selection-column"
       }`}
     >
-      <TableContainer
-        resultsTitle={resultsTitle || "policies"}
-        columns={generateTableHeaders({
-          selectedTeamId: selectedTeamData?.id,
-          showSelectionColumn: canAddOrRemovePolicy,
-          tableType,
-        })}
-        data={generateDataSet(policiesList)}
-        isLoading={isLoading}
-        defaultSortHeader={"name"}
-        defaultSortDirection={"asc"}
-        manualSortBy
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        disablePagination
-        onPrimarySelectActionClick={onRemovePoliciesClick}
-        primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText={"Delete"}
-        emptyComponent={NoPolicies}
-        onQueryChange={noop}
-        disableCount={tableType === "inheritedPolicies"}
-      />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <TableContainer
+          resultsTitle={resultsTitle || "policies"}
+          columns={generateTableHeaders({
+            selectedTeamId: selectedTeamData?.id,
+            showSelectionColumn: canAddOrRemovePolicy,
+            tableType,
+          })}
+          data={generateDataSet(policiesList, currentAutomatedPolicies)}
+          isLoading={isLoading}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          manualSortBy
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disablePagination
+          onPrimarySelectActionClick={onRemovePoliciesClick}
+          primarySelectActionButtonVariant="text-icon"
+          primarySelectActionButtonIcon="delete"
+          primarySelectActionButtonText={"Delete"}
+          emptyComponent={NoPolicies}
+          onQueryChange={noop}
+          disableCount={tableType === "inheritedPolicies"}
+        />
+      )}
     </div>
   );
 };
