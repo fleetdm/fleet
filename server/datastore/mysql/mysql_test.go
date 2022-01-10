@@ -329,10 +329,54 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 
 	mock.ExpectBegin()
 	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
-	// Return a retryable error
+	// Return a non retryable error
 	mock.ExpectCommit().WillReturnError(errors.New("fail"))
 
 	assert.Error(t, ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryWriterNoRetrySuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	assert.NoError(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryWriterRetrySuccess(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	// Return a retryable error
+	mock.ExpectExec("SELECT 1").WillReturnError(&mysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK})
+	mock.ExpectExec("SELECT 1").WillReturnResult(sqlmock.NewResult(1, 1))
+
+	assert.NoError(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "SELECT 1")
+		return err
+	}))
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithRetryWriterUnretriableError(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("fail"))
+
+	assert.Error(t, ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(context.Background(), "SELECT 1")
 		return err
 	}))

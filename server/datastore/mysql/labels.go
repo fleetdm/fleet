@@ -360,7 +360,7 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		}
 	}
 
-	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := d.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		// Complete inserts if necessary
 		if len(vals) > 0 {
 			sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `

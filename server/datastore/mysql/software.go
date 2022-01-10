@@ -62,7 +62,7 @@ func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) erro
 		return nil
 	}
 
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return d.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		return saveHostSoftwareDB(ctx, tx, host)
 	})
 }

@@ -205,7 +205,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		strings.Join(bindvars, ","),
 	)
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryNoTx(func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, query, vals...)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "insert policy_membership (%v)", vals)
