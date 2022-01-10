@@ -188,7 +188,7 @@ func applyCommand() *cli.Command {
 
 			if len(specs.Policies) > 0 {
 				if err := fleetClient.ApplyPolicies(specs.Policies); err != nil {
-					return fmt.Errorf("applying labels: %w", err)
+					return fmt.Errorf("applying policies: %w", err)
 				}
 				logf(c, "[+] applied %d policies\n", len(specs.Policies))
 			}

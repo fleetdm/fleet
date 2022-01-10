@@ -21,6 +21,7 @@ Unlike the [Fleet REST API documentation](../01-Using-Fleet/03-REST-API.md), the
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
 - [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 - [Run live query by name](#run-live-query-by-name)
+- [Apply policies spec](#apply-policies-spec)
 
 ### Get queries spec
 
@@ -1225,3 +1226,45 @@ o
   }
 ]
 ```
+
+### Apply policies spec
+
+Creates and/or modifies the policies included in the specs list. To modify an existing policy, the name of the query included in `specs` must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
+
+`POST /api/v1/fleet/spec/policies`
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                       |
+| ----- | ---- | ---- | ----------------------------------------------------------------- |
+| specs | list | body | **Required.** The list of the policies to be created or modified. |
+
+#### Example
+
+`POST /api/v1/fleet/spec/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "new policy",
+      "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
+      "query": "SELECT * FROM osquery_info",
+      "resolution": "some resolution steps here"
+    },
+    {
+      "name": "Is Filevault enabled on macOS devices?",
+      "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "description": "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+      "platform": "darwin"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
