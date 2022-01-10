@@ -48,12 +48,12 @@ export interface IEditInvite {
 }
 export interface IEditInviteFormData {
   currentUserId?: number;
-  email: string;
+  email?: string;
   global_role: string | null;
-  name: string;
+  name?: string;
   password: null;
   sso_enabled: boolean;
-  teams: ITeam[];
+  teams?: ITeam[];
 }
 
 export interface IDeleteInviteFormData {

@@ -99,8 +99,8 @@ export interface IUpdateUserFormData {
   currentUserId?: number;
   email?: string;
   global_role?: string | null;
-  name: string;
+  name?: string;
   password?: string | null;
   sso_enabled?: boolean;
-  teams: ITeam[];
+  teams?: ITeam[];
 }
