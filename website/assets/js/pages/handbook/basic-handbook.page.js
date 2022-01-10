@@ -31,7 +31,9 @@ parasails.registerPage('basic-handbook', {
       inputSelector: '#docsearch-query',
       debug: false,
       clickAnalytics: true,
-      filters: 'section: "handbook"',
+      algoliaOptions: {
+        'facetFilters': ['section:handbook']
+      },
     });
 
     this.subtopics = (() => {

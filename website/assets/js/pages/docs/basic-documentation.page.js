@@ -96,7 +96,9 @@ parasails.registerPage('basic-documentation', {
       indexName: 'fleetdm',
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
       debug: false,
-      filters: 'section: "docs"',
+      algoliaOptions: {
+        'facetFilters': ['section:docs']
+      },
     });
 
     // Handle hashes in urls when coming from an external page.
