@@ -52,7 +52,7 @@ class SiteTopNav extends Component {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <Link
-            className={`${navItemBaseClass}__link`}
+            className={`${navItemBaseClass}__logo`}
             to={navItem.location.pathname}
           >
             <OrgLogoIcon className="logo" src={orgLogoURL} />
