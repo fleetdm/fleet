@@ -38,6 +38,9 @@ class QueryPageWrapper extends Component {
 
 const mapStateToProps = (state, { params }) => {
   const { id: queryID } = params;
+  // START HERE
+  // Continue to track down entityGetter to understand the full life cycle of the query page request
+  // And why it's failing to render an error messagea.
   const query = entityGetter(state).get("queries").findBy({ id: queryID });
 
   return { query, queryID };

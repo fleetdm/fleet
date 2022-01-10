@@ -245,7 +245,6 @@ const Software = ({
         setIsLoadingModalSoftwareCount(false);
       },
       onError: (err) => {
-        console.log("useQuery error: ", err);
         setIsLoadingModalSoftwareCount(false);
       },
     }
