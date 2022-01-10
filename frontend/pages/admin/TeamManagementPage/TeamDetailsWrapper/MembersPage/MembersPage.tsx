@@ -11,11 +11,9 @@ import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import userActions from "redux/nodes/entities/users/actions";
-import teamActions from "redux/nodes/entities/teams/actions";
-// @ts-ignore
-import inviteActions from "redux/nodes/entities/invites/actions";
+import usersAPI from "services/entities/users";
+import inviteAPI from "services/entities/invites";
+import teamsAPI from "services/entities/teams";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -172,7 +170,8 @@ const MembersPage = ({
 
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
-    dispatch(teamActions.removeMembers(teamId, removedUsers))
+    teamsAPI
+      .removeMembers(teamId, removedUsers)
       .then(() => {
         dispatch(
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
@@ -199,7 +198,8 @@ const MembersPage = ({
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
-      dispatch(teamActions.addMembers(teamId, newMembers))
+      teamsAPI
+        .addMembers(teamId, newMembers)
         .then(() => {
           dispatch(
             renderFlash(
@@ -221,14 +221,12 @@ const MembersPage = ({
   const fetchUsers = useCallback(
     (fetchParams: IFetchParams) => {
       const { pageIndex, pageSize, searchQuery } = fetchParams;
-      dispatch(
-        userActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-          teamId,
-        })
-      );
+      usersAPI.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
+        teamId,
+      });
     },
     [dispatch, teamId]
   );
@@ -244,7 +242,8 @@ const MembersPage = ({
       delete requestData.currentUserId;
       delete requestData.newUserType;
       delete requestData.password;
-      dispatch(inviteActions.create(requestData))
+      inviteAPI
+        .create(requestData)
         .then(() => {
           dispatch(
             renderFlash(
@@ -278,7 +277,8 @@ const MembersPage = ({
       };
       delete requestData.currentUserId;
       delete requestData.newUserType;
-      dispatch(userActions.createUserWithoutInvitation(requestData))
+      usersAPI
+        .createUserWithoutInvitation(requestData)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully created ${requestData.name}.`)
@@ -323,7 +323,8 @@ const MembersPage = ({
       setIsFormSubmitting(true);
 
       const userName = userEditing?.name;
-      dispatch(userActions.update(userEditing, updatedAttrs))
+      usersAPI
+        .update(userEditing, updatedAttrs)
         .then(() => {
           dispatch(renderFlash("success", `Successfully edited ${userName}.`));
           if (currentUser && userEditing && currentUser.id === userEditing.id) {

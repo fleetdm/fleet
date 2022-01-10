@@ -53,7 +53,7 @@ export interface ICreateUserFormDataNoInvite {
   email: string;
   global_role: string | null;
   name: string;
-  password: string;
+  password?: string | null;
   sso_enabled?: boolean | undefined;
   teams: ITeam[];
 }
@@ -84,7 +84,7 @@ export interface IUpdateUser {
   api_only: boolean;
   created_at: string;
   updated_at: string;
-  email: string;
+  email?: string;
   force_password_reset: boolean;
   global_role?: string | null;
   gravatarURL?: string;
@@ -97,7 +97,7 @@ export interface IUpdateUser {
 
 export interface IUpdateUserFormData {
   currentUserId?: number;
-  email: string;
+  email?: string;
   global_role?: string | null;
   name: string;
   password?: string | null;

@@ -4,7 +4,6 @@ import endpoints from "fleet/endpoints";
 import helpers from "fleet/helpers";
 import {
   ICreateUserFormDataNoInvite,
-  IUpdateUser,
   IUpdateUserFormData,
   IDeleteSessionsUser,
   IDestroyUser,
@@ -64,7 +63,7 @@ export default {
 
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
-  // TODO: changePassword
+  // TODO: changePassword (UserSettingsPage.jsx refactor)
   // TODO: confirmEmailChange
   enable: (user: IUser, { enabled }: IEnable) => {
     const { ENABLE_USER } = endpoints;
