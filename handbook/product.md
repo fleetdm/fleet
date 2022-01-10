@@ -8,7 +8,7 @@ these changes to the engineering team.
 
 ### Drafting
 
-* Move an issue that is assigned to you in the "Ready" column of the ["Product team" GitHub
+* Move an issue that is assigned to you from the "Ready" column of the ["Product team" GitHub
   project](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
 
 * Create a page in the Fleet (scratchpad, dev-ready) Figma and combine your issue's number and
