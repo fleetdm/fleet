@@ -116,8 +116,8 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		AuthenticateHostFunc: func(
 			ctx context.Context,
 			nodeKey string,
-		) (hostID uint, debug bool, err error) {
-			return 0, false, nil
+		) (host *fleet.Host, debug bool, err error) {
+			return nil, false, nil
 		},
 		GetClientConfigFunc: func(
 			ctx context.Context,

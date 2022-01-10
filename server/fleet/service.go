@@ -14,7 +14,7 @@ type OsqueryService interface {
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
 	// TODO(lucas): Move debug somewhere else.
-	AuthenticateHost(ctx context.Context, nodeKey string) (id uint, debug bool, err error)
+	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
 	// the provided context. These may be (depending on update intervals):

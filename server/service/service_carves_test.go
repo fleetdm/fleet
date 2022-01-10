@@ -49,7 +49,7 @@ func TestCarveBegin(t *testing.T) {
 		}, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host.ID)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	metadata, err := svc.CarveBegin(ctx, payload)
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 		}, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host.ID)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -100,7 +100,7 @@ func TestCarveBeginEmptyError(t *testing.T) {
 		carveStore: ms,
 		ds:         ds,
 	}
-	ctx := hostctx.NewContext(context.Background(), 1)
+	ctx := hostctx.NewContext(context.Background(), &fleet.Host{ID: 1})
 
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		if id != 1 {
@@ -147,7 +147,7 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 		}, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host.ID)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -178,7 +178,7 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 		}, nil
 	}
 
-	ctx := hostctx.NewContext(context.Background(), host.ID)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	_, err := svc.CarveBegin(ctx, payload)
 	require.Error(t, err)
@@ -199,7 +199,7 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 		carveStore: ms,
 		ds:         ds,
 	}
-	ctx := hostctx.NewContext(context.Background(), host.ID)
+	ctx := hostctx.NewContext(context.Background(), &host)
 
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		if host.ID != id {

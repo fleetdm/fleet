@@ -830,15 +830,15 @@ func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		returned, err := ds.AuthenticateHost(context.Background(), h.NodeKey)
+		returned, err := ds.LoadHostByNodeKey(context.Background(), h.NodeKey)
 		require.NoError(t, err)
-		assert.Equal(t, h.ID, returned)
+		assert.Equal(t, h, returned)
 	}
 
-	_, err := ds.AuthenticateHost(context.Background(), "7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
+	_, err := ds.LoadHostByNodeKey(context.Background(), "7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
 	assert.Error(t, err)
 
-	_, err = ds.AuthenticateHost(context.Background(), "")
+	_, err = ds.LoadHostByNodeKey(context.Background(), "")
 	assert.Error(t, err)
 }
 
@@ -848,7 +848,7 @@ func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		_, err = ds.AuthenticateHost(context.Background(), strings.ToUpper(h.NodeKey))
+		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(h.NodeKey))
 		require.Error(t, err, "node key authentication should be case sensitive")
 	}
 }

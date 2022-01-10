@@ -152,7 +152,7 @@ type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey stri
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
-type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (uint, error)
+type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
@@ -571,8 +571,8 @@ type DataStore struct {
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
 
-	AuthenticateHostFunc        AuthenticateHostFunc
-	AuthenticateHostFuncInvoked bool
+	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
+	LoadHostByNodeKeyFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -1234,9 +1234,9 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	return s.ListHostsFunc(ctx, filter, opt)
 }
 
-func (s *DataStore) AuthenticateHost(ctx context.Context, nodeKey string) (uint, error) {
-	s.AuthenticateHostFuncInvoked = true
-	return s.AuthenticateHostFunc(ctx, nodeKey)
+func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	s.LoadHostByNodeKeyFuncInvoked = true
+	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {

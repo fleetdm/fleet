@@ -37,28 +37,28 @@ func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
 
-func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (uint, bool, error) {
+func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	if nodeKey == "" {
-		return 0, false, osqueryError{
+		return nil, false, osqueryError{
 			message:     "authentication error: missing node key",
 			nodeInvalid: true,
 		}
 	}
 
-	hostID, err := svc.ds.AuthenticateHost(ctx, nodeKey)
+	host, err := svc.ds.LoadHostByNodeKey(ctx, nodeKey)
 	switch {
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return 0, false, osqueryError{
+		return nil, false, osqueryError{
 			message:     "authentication error: invalid node key: " + nodeKey,
 			nodeInvalid: true,
 		}
 	default:
-		return 0, false, osqueryError{
+		return nil, false, osqueryError{
 			message: "authentication error: " + err.Error(),
 		}
 	}
@@ -69,9 +69,9 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (uint, 
 	// updating the seen time for these hosts. This seems to be an acceptable
 	// tradeoff as an online host will continue to check in and quickly be
 	// marked online again.
-	svc.seenHostSet.addHostID(hostID)
+	svc.seenHostSet.addHostID(host.ID)
 
-	return hostID, svc.debugEnabledForHost(ctx, hostID), nil
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
 func (svc Service) debugEnabledForHost(ctx context.Context, id uint) bool {
@@ -230,14 +230,9 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	hostID, ok := hostctx.FromContext(ctx)
+	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, osqueryError{message: "internal error: missing host from request context"}
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, osqueryError{message: "internal error: load host primary data: " + err.Error()}
 	}
 
 	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
@@ -253,7 +248,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
-	packs, err := svc.ds.ListPacksForHost(ctx, hostID)
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
 		return nil, osqueryError{message: "database error: " + err.Error()}
 	}
@@ -309,18 +304,23 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 
 	// Save interval values if they have been updated.
 	intervalsModified := false
+	intervals := &fleet.HostOsqueryIntervals{
+		DistributedInterval: host.DistributedInterval,
+		ConfigTLSRefresh:    host.ConfigTLSRefresh,
+		LoggerTLSPeriod:     host.LoggerTLSPeriod,
+	}
 	if options, ok := config["options"].(map[string]interface{}); ok {
 		distributedIntervalVal, ok := options["distributed_interval"]
 		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
-		if ok && err == nil && host.DistributedInterval != distributedInterval {
-			host.DistributedInterval = distributedInterval
+		if ok && err == nil && intervals.DistributedInterval != distributedInterval {
+			intervals.DistributedInterval = distributedInterval
 			intervalsModified = true
 		}
 
 		loggerTLSPeriodVal, ok := options["logger_tls_period"]
 		loggerTLSPeriod, err := cast.ToUintE(loggerTLSPeriodVal)
-		if ok && err == nil && host.LoggerTLSPeriod != loggerTLSPeriod {
-			host.LoggerTLSPeriod = loggerTLSPeriod
+		if ok && err == nil && intervals.LoggerTLSPeriod != loggerTLSPeriod {
+			intervals.LoggerTLSPeriod = loggerTLSPeriod
 			intervalsModified = true
 		}
 
@@ -329,18 +329,14 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		// here.
 		configRefreshVal, ok := options["config_refresh"]
 		configRefresh, err := cast.ToUintE(configRefreshVal)
-		if ok && err == nil && host.ConfigTLSRefresh != configRefresh {
-			host.ConfigTLSRefresh = configRefresh
+		if ok && err == nil && intervals.ConfigTLSRefresh != configRefresh {
+			intervals.ConfigTLSRefresh = configRefresh
 			intervalsModified = true
 		}
 	}
 
 	if intervalsModified {
-		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, hostID, &fleet.HostOsqueryIntervals{
-			DistributedInterval: host.DistributedInterval,
-			ConfigTLSRefresh:    host.ConfigTLSRefresh,
-			LoggerTLSPeriod:     host.LoggerTLSPeriod,
-		}); err != nil {
+		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, host.ID, intervals); err != nil {
 			return nil, osqueryError{message: "internal error: update host intervals: " + err.Error()}
 		}
 	}
@@ -467,17 +463,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (map[string]strin
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	hostID, ok := hostctx.FromContext(ctx)
+	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
 	queries := make(map[string]string)
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, 0, osqueryError{message: "load host: " + err.Error()}
-	}
 
 	detailQueries, err := svc.detailQueriesForHost(ctx, host)
 	if err != nil {
@@ -675,39 +666,31 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	hostID, ok := hostctx.FromContext(ctx)
+	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return osqueryError{message: "internal error: missing host from request context"}
 	}
 
-	host, err := svc.ds.HostLite(ctx, hostID, fleet.WithDetails())
-	if err != nil {
-		return osqueryError{message: "load host: " + err.Error()}
-	}
-
-	detailUpdated := false // Whether detail or additional was updated
+	detailUpdated := false
 	additionalResults := make(fleet.OsqueryDistributedQueryResults)
 	additionalUpdated := false
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
+
 	for query, rows := range results {
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
+		var err error
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
-
 			var ingested bool
 			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
-
 			if !ingested && err == nil {
 				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
 				detailUpdated = true
 			}
-
-		// Additional, label membership, and policy membership accumulate results and update later
-		// Additional could be stored separately from host easily and follow a similar pattern as the memberships
 		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
 			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
 			additionalResults[name] = rows
@@ -716,11 +699,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 		case strings.HasPrefix(query, hostPolicyQueryPrefix):
 			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-
-		// Distributed (or Live) queries get handled completely in the ingestion
 		case strings.HasPrefix(query, hostDistributedQueryPrefix):
 			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
-
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
@@ -770,7 +750,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	if detailUpdated || additionalUpdated {
+	if detailUpdated {
 		host.Modified = true
 		host.DetailUpdatedAt = svc.clock.Now()
 	}

@@ -196,12 +196,12 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.AuthenticateHostFunc = func(ctx context.Context, nodeKey string) (uint, error) {
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		switch nodeKey {
 		case goodNodeKey:
-			return expectedHost.ID, nil
+			return &expectedHost, nil
 		default:
-			return 0, errors.New("no host found")
+			return nil, errors.New("no host found")
 
 		}
 	}
@@ -212,7 +212,7 @@ func TestAuthenticatedHost(t *testing.T) {
 		func(ctx context.Context, request interface{}) (interface{}, error) {
 			host, ok := hostctx.FromContext(ctx)
 			assert.True(t, ok)
-			assert.Equal(t, expectedHost.ID, host)
+			assert.Equal(t, &expectedHost, host)
 			return nil, nil
 		},
 	)

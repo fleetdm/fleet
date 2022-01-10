@@ -185,8 +185,9 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
-	// AuthenticateHost authenticates a host by its nodeKey and returns the host ID.
-	AuthenticateHost(ctx context.Context, nodeKey string) (uint, error)
+	// LoadHostByNodeKey loads the whole host identified by the node key.
+	// If the node key is invalid it returns a NotFoundError.
+	LoadHostByNodeKey(ctx context.Context, nodeKey string) (*Host, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead

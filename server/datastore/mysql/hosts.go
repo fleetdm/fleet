@@ -734,16 +734,18 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 	return &host, nil
 }
 
-func (d *Datastore) AuthenticateHost(ctx context.Context, nodeKey string) (uint, error) {
-	sqlStatement := `SELECT id FROM hosts WHERE node_key = ?`
-	var hostID uint
-	switch err := sqlx.GetContext(ctx, d.reader, &hostID, sqlStatement, nodeKey); {
+// LoadHostByNodeKey loads the whole host identified by the node key.
+// If the node key is invalid it returns a NotFoundError.
+func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	sqlStatement := `SELECT * FROM hosts WHERE node_key = ?`
+	var host fleet.Host
+	switch err := sqlx.GetContext(ctx, d.reader, &host, sqlStatement, nodeKey); {
 	case err == nil:
-		return hostID, nil
+		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
-		return 0, ctxerr.Wrap(ctx, notFound("Host"))
+		return nil, ctxerr.Wrap(ctx, notFound("Host"))
 	default:
-		return 0, ctxerr.Wrap(ctx, err, "find host")
+		return nil, ctxerr.Wrap(ctx, err, "find host")
 	}
 }
 
