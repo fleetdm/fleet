@@ -86,6 +86,14 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts, false)
 	}
 
+	// TODO(mna): regarding migrations of previous version to this one, first of
+	// all I believe we don't know of any user that activated the feature, but in
+	// any case, given that we use the same key names, just that we maintain an
+	// additional set of sets, there is no migration required - when the hosts
+	// start reporting new results, we will update their existing keys, set the
+	// new TTLs and insert the host IDs in the set of sets, resulting in the
+	// pending data being collected.
+
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
 	keyTs := fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
