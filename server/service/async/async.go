@@ -89,6 +89,19 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
 	keyTs := fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
+	// TODO(mna): set an expiration on both keys (set and ts), ensuring that a
+	// deleted host (eventually) does not use any redis space. Ensure that TTL
+	// is reasonably big to avoid deleting information that hasn't been collected
+	// yet - e.g. 1 week or 10 * the collector interval, whichever is biggest.
+	// Or should it be a multiple of osquery.label_update_interval?
+	//
+	// This means that it will only expire if that host hasn't reported labels
+	// during that (TTL) time (each time it does report, the TTL is reset), and
+	// the collector will have plenty of time to run (multiple times) to try to
+	// persist all the data in mysql.
+
+	// TODO(mna): also add the host ID to the "set of sets", to avoid a SCAN KEYS.
+
 	script := redigo.NewScript(2, `
     redis.call('ZADD', KEYS[1], unpack(ARGV, 2))
     return redis.call('SET', KEYS[2], ARGV[1])
@@ -117,9 +130,13 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
+// TODO(mna): not needed anymore with the "set of sets"
 var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
 
 func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	// TODO(mna): scan from the "set of sets" instead, that contains all host IDs
+	// to collect.
+
 	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, t.RedisScanKeysCount)
 	if err != nil {
 		return err
@@ -205,7 +222,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	insertBatch := make([][2]uint, 0, t.InsertBatch)
 	deleteBatch := make([][2]uint, 0, t.DeleteBatch)
 	hostIDs := make([]uint, 0, len(keys))
-	for _, key := range keys {
+	for _, key := range keys { // TODO(mna): range over host IDs, not keys
 		hostID, ins, del, err := getKeyTuples(key)
 		if err != nil {
 			return err
