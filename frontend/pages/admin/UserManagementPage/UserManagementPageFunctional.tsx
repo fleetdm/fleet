@@ -5,9 +5,10 @@ import { useQuery } from "react-query";
 import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
-import { IInvite } from "interfaces/invite";
+import { IApiError } from "interfaces/errors";
+import { IInvite, ICreateInviteFormData } from "interfaces/invite";
 import { IConfig } from "interfaces/config";
-import { IUser } from "interfaces/user";
+import { IUser, ICreateUserFormDataNoInvite } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
@@ -18,8 +19,6 @@ import invitesAPI from "services/entities/invites";
 import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// // @ts-ignore
-// import { updateUser } from "redux/nodes/auth/actions";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -52,32 +51,6 @@ interface ISortBy {
 interface ITeamsResponse {
   teams: ITeam[];
 }
-
-// TODO: Try 1: define interface for formData and will get more helpful debugging
-// TODO: Try 2: Consider re-writing this function all together....
-
-// const generateUpdateData = (currentUserData: any, formData: any) => {
-//   // array of updatable fields
-//   const updatableFields = [
-//     "global_role",
-//     "teams",
-//     "name",
-//     "email",
-//     "sso_enabled",
-//   ];
-
-//   // go over all the keys in the form data, reduce
-//   return Object.keys(formData).reduce((updatedAttributes, attr) => {
-//     // attribute can be updated and is different from the current value.
-//     if (
-//       updatableFields.includes(attr) &&
-//       !isEqual(formData[attr], currentUserData[attr])
-//     ) {
-//       updatedAttributes[attr] = formData[attr];
-//     }
-//     return updatedAttributes;
-//   }, {});
-// };
 
 const UserManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -167,8 +140,6 @@ const UserManagementPage = (): JSX.Element => {
   const toggleDeleteUserModal = useCallback(
     (user?: IUser | IInvite) => {
       setShowDeleteUserModal(!showDeleteUserModal);
-      // TODO: Decide which of these to use!
-      user ? setUserEditing(user) : setUserEditing(undefined);
       setUserEditing(!showDeleteUserModal ? user : null);
     },
     [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
@@ -178,8 +149,6 @@ const UserManagementPage = (): JSX.Element => {
   const toggleEditUserModal = useCallback(
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
-      // TODO: Decide which of these to use!
-      user ? setUserEditing(user) : setUserEditing(undefined);
       setUserEditing(!showEditUserModal ? user : null);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
@@ -301,8 +270,8 @@ const UserManagementPage = (): JSX.Element => {
           toggleCreateUserModal();
           refetchInvites();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base?.includes("Duplicate")) {
+        .catch((userErrors: IApiError) => {
+          if (userErrors.errors?.[0].reason.includes("already exists")) {
             dispatch(
               renderFlash(
                 "error",
@@ -319,7 +288,7 @@ const UserManagementPage = (): JSX.Element => {
           setIsFormSubmitting(false);
         });
     } else {
-      // Do some data formatting deleteing uncessary fields
+      // Do some data formatting deleting unnecessary fields
       const requestData = {
         ...formData,
       };
@@ -334,8 +303,8 @@ const UserManagementPage = (): JSX.Element => {
           toggleCreateUserModal();
           refetchUsers();
         })
-        .catch((userErrors: any) => {
-          if (userErrors.base?.includes("Duplicate")) {
+        .catch((userErrors: IApiError) => {
+          if (userErrors.errors?.[0].reason.includes("already exists")) {
             dispatch(
               renderFlash(
                 "error",
@@ -357,11 +326,7 @@ const UserManagementPage = (): JSX.Element => {
   const onEditUser = (formData: any) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
-    // const updatedAttrs = generateUpdateData(userData, formData);
     if (userEditing.type === "invite") {
-      // Note: The edit invite action in this if block is occuring outside of Redux (unlike the
-      // other cases below this block). Therefore, we must dispatch the loadAll action to ensure the
-      // Redux store is updated.
       return (
         userData &&
         invitesAPI
@@ -387,7 +352,6 @@ const UserManagementPage = (): JSX.Element => {
     }
 
     if (currentUser?.id === userEditing.id) {
-      // return dispatch(updateUser(userData, updatedAttrs))
       return usersAPI
         .update(userData, formData)
         .then(() => {
