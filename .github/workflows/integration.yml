@@ -35,11 +35,13 @@ jobs:
 
     - name: Start tunnel
       env: 
-        TUNNEL_ORIGIN_CERT: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT }}
+        TUNNEL_ORIGIN_CERT: cert.pem
       run: |
         # Install cloudflared
         wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
+        # Add secret
+        echo "${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT }}" > $TUNNEL_ORIGIN_CERT
         # Start tunnel
         cloudflared tunnel --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
 
