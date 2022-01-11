@@ -23,7 +23,7 @@ export default {
       helpers.addGravatarUrlToResource(response.invite)
     );
   },
-  update: (inviteId: number | any, formData: IEditInviteFormData) => {
+  update: (inviteId: number, formData: IEditInviteFormData) => {
     const { INVITES } = endpoints;
     const path = `${INVITES}/${inviteId}`;
 
