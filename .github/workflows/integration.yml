@@ -45,6 +45,10 @@ jobs:
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
 
+    - name: Debug on failure
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+
     - name: Run Fleet server
       timeout-minutes: 15
       env:
