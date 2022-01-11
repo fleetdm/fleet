@@ -31,8 +31,7 @@ interface ISoftwareCardProps {
   currentTeamId?: number;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
-  isLoadingSoftware: boolean;
-  setIsLoadingSoftware: (isLoading: boolean) => void;
+  setShowSoftwareTitle: (showSoftwareTitle: boolean) => void;
 }
 
 const VULNERABLE_OPTIONS = [
@@ -109,8 +108,7 @@ const Software = ({
   currentTeamId,
   isModalOpen,
   setIsSoftwareModalOpen,
-  isLoadingSoftware,
-  setIsLoadingSoftware,
+  setShowSoftwareTitle,
 }: ISoftwareCardProps): JSX.Element => {
   const [softwarePageIndex, setSoftwarePageIndex] = useState<number>(0);
   const [vSoftwarePageIndex, setVSoftwarePageIndex] = useState<number>(0);
@@ -137,6 +135,7 @@ const Software = ({
     isLoadingModalSoftwareCount,
     setIsLoadingModalSoftwareCount,
   ] = useState<boolean>(true);
+  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
 
   const { data: software } = useQuery<ISoftware[], Error>(
     ["software", softwarePageIndex, currentTeamId],
@@ -157,6 +156,7 @@ const Software = ({
       // So we manage our own load states
       keepPreviousData: true,
       onSuccess: () => {
+        setShowSoftwareTitle(true);
         setIsLoadingSoftware(false);
         console.log("should be reset to false");
       },
@@ -317,9 +317,7 @@ const Software = ({
 
   const tableHeaders = generateTableHeaders();
 
-  return isLoadingSoftware ? (
-    <Spinner />
-  ) : (
+  return (
     <div className={baseClass}>
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>

@@ -20,8 +20,7 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 const baseClass = "activity-feed";
 
 interface IActvityCardProps {
-  isLoadingActivityFeed: boolean;
-  setIsLoadingActivityFeed: (isLoading: boolean) => void;
+  setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
 }
 
 const DEFAULT_GRAVATAR_URL =
@@ -61,13 +60,15 @@ const TAGGED_TEMPLATES = {
 };
 
 const ActivityFeed = ({
-  isLoadingActivityFeed,
-  setIsLoadingActivityFeed,
+  setShowActivityFeedTitle,
 }: IActvityCardProps): JSX.Element => {
-  const [activities, setActivities] = useState([]);
-  const [isLoadingError, setIsLoadingError] = useState(false);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [showMore, setShowMore] = useState(true);
+  const [activities, setActivities] = useState<IActivity[] | []>([]);
+  const [isLoadingError, setIsLoadingError] = useState<boolean>(false);
+  const [pageIndex, setPageIndex] = useState<number>(0);
+  const [showMore, setShowMore] = useState<boolean>(true);
+  const [isLoadingActivityFeed, setIsLoadingActivityFeed] = useState<boolean>(
+    true
+  );
 
   useEffect((): void => {
     const getActivities = async (): Promise<void> => {
@@ -81,7 +82,7 @@ const ActivityFeed = ({
         } else {
           setShowMore(false);
         }
-
+        setShowActivityFeedTitle(true);
         setIsLoadingActivityFeed(false);
         console.log("should be set to false!");
       } catch (err) {
@@ -187,15 +188,24 @@ const ActivityFeed = ({
     renderActivityBlock(activity, i)
   );
 
+  // Renders opaque information as activity feed is loading
+  const opacity = isLoadingActivityFeed ? { opacity: 0.4 } : { opacity: 1 };
+
   return (
     <div className={baseClass}>
       {isLoadingError && renderError()}
       {!isLoadingError && !isLoadingActivityFeed && isEmpty(activities) ? (
         renderNoActivities()
       ) : (
-        <div>{renderActivities}</div>
+        <>
+          {isLoadingActivityFeed && (
+            <div className="spinner">
+              <Spinner />
+            </div>
+          )}
+          <div style={opacity}>{renderActivities}</div>
+        </>
       )}
-      {isLoadingActivityFeed && <Spinner />}
       {!isLoadingError && !isEmpty(activities) && (
         <div className={`${baseClass}__pagination`}>
           <Button

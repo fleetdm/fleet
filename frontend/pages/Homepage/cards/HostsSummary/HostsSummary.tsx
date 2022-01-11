@@ -15,6 +15,8 @@ interface IHostSummaryProps {
   currentTeamId: number | undefined;
   macCount: string | undefined;
   windowsCount: string | undefined;
+  setIsLoadingHostsSummary: (isLoadingHostSummary: boolean) => void;
+  isLoadingHostsSummary: boolean;
 }
 
 interface ILabelsResponse {
@@ -29,6 +31,8 @@ const HostsSummary = ({
   currentTeamId,
   macCount,
   windowsCount,
+  setIsLoadingHostsSummary,
+  isLoadingHostsSummary,
 }: IHostSummaryProps): JSX.Element => {
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
@@ -39,9 +43,16 @@ const HostsSummary = ({
   };
   const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
     ["labels"],
-    () => labelsAPI.loadAll(),
+    () => {
+      setIsLoadingHostsSummary(true);
+      return labelsAPI.loadAll();
+    },
     {
       select: (data: ILabelsResponse) => data.labels,
+      onSuccess: () => {
+        setIsLoadingHostsSummary(false);
+        console.log("should be reset to false");
+      },
     }
   );
 
@@ -63,8 +74,11 @@ const HostsSummary = ({
     }
   );
 
+  // Renders opaque information as host information is loading
+  const opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
+
   return (
-    <div className={baseClass}>
+    <div className={baseClass} style={opacity}>
       <div className={`${baseClass}__tile mac-tile`}>
         <div className={`${baseClass}__tile-icon`}>
           <img src={MacIcon} alt="mac icon" id="mac-icon" />

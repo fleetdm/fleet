@@ -2,6 +2,7 @@
   margin-top: $pad-large;
   display: flex;
   flex-direction: column;
+  position: relative;
 
   &__header-wrap {
     .form-field {
@@ -146,5 +147,16 @@
         margin-top: 10px;
       }
     }
+  }
+
+  .spinner {
+    z-index: 11;
+    opacity: 1;
+    position: absolute;
+    width: 100%;
+    height: 90%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 }

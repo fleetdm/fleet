@@ -6,15 +6,20 @@ interface IHostSummaryProps {
   onlineCount: string | undefined;
   offlineCount: string | undefined;
   newCount: string | undefined;
+  isLoadingHosts: boolean;
 }
 
 const HostsStatus = ({
   onlineCount,
   offlineCount,
   newCount,
+  isLoadingHosts,
 }: IHostSummaryProps): JSX.Element => {
+  // Renders opaque information as host information is loading
+  const opacity = isLoadingHosts ? { opacity: 0.4 } : { opacity: 1 };
+
   return (
-    <div className={baseClass}>
+    <div className={baseClass} style={opacity}>
       <div className={`${baseClass}__tile online-tile`}>
         <div>
           <div
