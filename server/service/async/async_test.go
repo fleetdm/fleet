@@ -43,9 +43,6 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 
 	hostIDs := createHosts(t, ds, 4, time.Now().Add(-24*time.Hour))
 	hid := func(id int) int {
-		if id < 0 {
-			return id
-		}
 		return int(hostIDs[id-1])
 	}
 
@@ -53,9 +50,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 	// previous one's state, so they are not run as distinct sub-tests.
 	cases := []struct {
 		name string
-		// map of host ID to label IDs to insert (true) or delete (false), a
-		// negative host id is stored as an invalid redis key that should be
-		// ignored.
+		// map of host ID to label IDs to insert (true) or delete (false)
 		reported map[int]map[int]bool
 		want     []labelMembership
 	}{
@@ -135,23 +130,12 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 			},
 		},
 		{
-			"report host -99 labels 1, ignored",
-			map[int]map[int]bool{hid(-99): {1: true}},
-			[]labelMembership{
-				{HostID: hid(1), LabelID: 1},
-				{HostID: hid(1), LabelID: 2},
-				{HostID: hid(2), LabelID: 2},
-				{HostID: hid(2), LabelID: 3},
-			},
-		},
-		{
-			"report hosts 1, 2, 3, 4, -99 labels 1, 2, -3, 4",
+			"report hosts 1, 2, 3, 4 labels 1, 2, -3, 4",
 			map[int]map[int]bool{
-				hid(1):   {1: true, 2: true, 3: false, 4: true},
-				hid(2):   {1: true, 2: true, 3: false, 4: true},
-				hid(3):   {1: true, 2: true, 3: false, 4: true},
-				hid(4):   {1: true, 2: true, 3: false, 4: true},
-				hid(-99): {1: true, 2: true, 3: false, 4: true},
+				hid(1): {1: true, 2: true, 3: false, 4: true},
+				hid(2): {1: true, 2: true, 3: false, 4: true},
+				hid(3): {1: true, 2: true, 3: false, 4: true},
+				hid(4): {1: true, 2: true, 3: false, 4: true},
 			},
 			[]labelMembership{
 				{HostID: hid(1), LabelID: 1},
@@ -192,13 +176,16 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 				}
 				_, err := conn.Do("ZADD", args...)
 				require.NoError(t, err)
+				_, err = conn.Do("ZADD", labelMembershipActiveHostIDsKey, time.Now().Unix(), hostID)
+				require.NoError(t, err)
 			}
-			wantStats.Keys++
-			if hostID >= 0 {
-				wantStats.Items += len(res)
-				wantStats.RedisCmds++
-				wantStats.RedisCmds += len(res) / batchSizes
-			}
+
+			cnt, err := redigo.Int(conn.Do("ZCARD", labelMembershipActiveHostIDsKey))
+			require.NoError(t, err)
+			wantStats.Keys = cnt
+			wantStats.Items += len(res)
+			wantStats.RedisCmds++
+			wantStats.RedisCmds += len(res) / batchSizes
 		}
 		return wantStats
 	}
