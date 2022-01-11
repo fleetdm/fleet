@@ -17,10 +17,11 @@ import (
 )
 
 const (
-	labelMembershipHostKeyPattern = "label_membership:{*}"
-	labelMembershipHostKey        = "label_membership:{%d}"
-	labelMembershipReportedKey    = "label_membership_reported:{%d}"
-	collectorLockKey              = "locks:async_collector:{%s}"
+	labelMembershipActiveHostIDsKey = "label_membership:active_host_ids"
+	labelMembershipHostKey          = "label_membership:{%d}"
+	labelMembershipReportedKey      = "label_membership_reported:{%d}"
+	labelMembershipKeysMinTTL       = 7 * 24 * time.Hour // 1 week
+	collectorLockKey                = "locks:async_collector:{%s}"
 )
 
 type Task struct {
@@ -37,23 +38,24 @@ type Task struct {
 	UpdateBatch        int
 	RedisPopCount      int
 	RedisScanKeysCount int
+	CollectorInterval  time.Duration
 }
 
 // Collect runs the various collectors as distinct background goroutines if
 // async processing is enabled.  Each collector will stop processing when ctx
 // is done.
-func (t *Task) StartCollectors(ctx context.Context, interval time.Duration, jitterPct int, logger kitlog.Logger) {
+func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog.Logger) {
 	if !t.AsyncEnabled {
 		level.Debug(logger).Log("task", "async disabled, not starting collectors")
 		return
 	}
-	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", interval, "jitter", jitterPct)
+	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", t.CollectorInterval, "jitter", jitterPct)
 
 	labelColl := &collector{
 		name:         "collect_labels",
 		pool:         t.Pool,
 		ds:           t.Datastore,
-		execInterval: interval,
+		execInterval: t.CollectorInterval,
 		jitterPct:    jitterPct,
 		lockTimeout:  t.LockTimeout,
 		handler:      t.collectLabelQueryExecutions,
@@ -92,7 +94,8 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// additional set of sets, there is no migration required - when the hosts
 	// start reporting new results, we will update their existing keys, set the
 	// new TTLs and insert the host IDs in the set of sets, resulting in the
-	// pending data being collected.
+	// pending data being collected. The only edge case would be if that host
+	// never checks in again, those keys would stick around (no TTL set before).
 
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
 	keyTs := fmt.Sprintf(labelMembershipReportedKey, host.ID)
@@ -108,16 +111,30 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// the collector will have plenty of time to run (multiple times) to try to
 	// persist all the data in mysql.
 
-	// TODO(mna): also add the host ID to the "set of sets", to avoid a SCAN KEYS.
+	ttl := labelMembershipKeysMinTTL
+	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+		ttl = maxTTL
+	}
 
+	// TODO(mna): also add the host ID to the "set of sets", to avoid a SCAN KEYS.
+	// (outside the script, as in Redis Cluster the key may not live on the same node).
+
+	// keys and arguments passed to the script are:
+	// KEYS[1]: keySet (labelMembershipHostKey)
+	// KEYS[2]: keyTs  (labelMembershipReportedKey)
+	// ARGV[1]: timestamp for "reported at"
+	// ARGV[2]: ttl for both keys
+	// ARGV[3..]: the arguments to ZADD to keySet
 	script := redigo.NewScript(2, `
-    redis.call('ZADD', KEYS[1], unpack(ARGV, 2))
-    return redis.call('SET', KEYS[2], ARGV[1])
+    redis.call('ZADD', KEYS[1], unpack(ARGV, 3))
+    redis.call('EXPIRE', KEYS[1], ARGV[2])
+    redis.call('SET', KEYS[2], ARGV[1])
+    return redis.call('EXPIRE', KEYS[2], ARGV[2])
   `)
 
 	// convert results to ZADD arguments, store as -1 for delete, +1 for insert
-	args := make(redigo.Args, 0, 3+(len(results)*2))
-	args = args.Add(keySet, keyTs, ts.Unix())
+	args := make(redigo.Args, 0, 4+(len(results)*2))
+	args = args.Add(keySet, keyTs, ts.Unix(), int(ttl.Seconds()))
 	for k, v := range results {
 		score := -1
 		if v != nil && *v {
@@ -145,6 +162,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	// TODO(mna): scan from the "set of sets" instead, that contains all host IDs
 	// to collect.
 
+	labelMembershipHostKeyPattern := "label_membership:{*}"
 	keys, err := redis.ScanKeys(pool, labelMembershipHostKeyPattern, t.RedisScanKeysCount)
 	if err != nil {
 		return err

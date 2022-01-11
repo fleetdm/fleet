@@ -276,6 +276,7 @@ the way that the Fleet server works.
 				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
+				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
 			}
 			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
@@ -532,8 +533,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
-		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
 
 	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
