@@ -23,16 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: gen
     steps:
-    # Download fleet and fleetctl binaries from last successful build on main
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
-      with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
-
     - name: Start tunnel
       env: 
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
@@ -48,6 +38,16 @@ jobs:
           echo "Awaiting tunnel ready..."
           sleep 5
         done
+
+    # Download fleet and fleetctl binaries from last successful build on main
+    - name: Download binaries
+      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      with:
+        workflow: build-binaries.yaml
+        branch: main
+        name: build
+        path: build
+        check_artifacts: true
 
     - name: Run Fleet server
       timeout-minutes: 15
@@ -237,6 +237,7 @@ jobs:
     - name: Install Orbit
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
+        sleep 30
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
