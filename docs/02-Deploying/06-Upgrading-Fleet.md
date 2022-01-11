@@ -51,7 +51,7 @@ fleet prepare db
 
 ## Serve the new version:
 
-Once fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
+Once Fleet has been replaced with the latest version and the database migrations have been completed, serve the newly upgraded Fleet instance:
 
 ```
 fleet serve
