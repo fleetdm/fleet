@@ -41,7 +41,7 @@ jobs:
         wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
         # Add secret
-        echo "${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}" | base64 -d > cert.pem
+        echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
 
