@@ -1,1 +1,1 @@
-export { default } from "./UserManagementPageFunctional";
+export { default } from "./UserManagementPage";
