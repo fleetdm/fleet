@@ -70,7 +70,10 @@ jobs:
         done
         ./build/fleetctl get hosts
         echo "Success! $EXPECTED hosts enrolled."
-          
+
+    - name: Cleanup tunnel
+      if: always()
+      run: cloudflared tunnel --origincert cert.pem delete ${{ needs.gen.outputs.subdomain }}    
 
   login:
    runs-on: ubuntu-latest
