@@ -41,10 +41,9 @@ jobs:
         wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
         # Add secret
-        mkdir -p /etc/cloudflare
-        echo "$CERT_PEM" > /etc/cloudflare/cert.pem
+        echo "$CERT_PEM" > cert.pem
         # Start tunnel
-        cloudflared tunnel --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
 
     - name: Run Fleet server
       timeout-minutes: 15
