@@ -44,7 +44,7 @@ jobs:
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
-        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') -eq false ]; do
+        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
           echo "Awaiting tunnel ready..."
           sleep 5
         done
