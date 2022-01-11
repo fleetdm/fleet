@@ -79,10 +79,10 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 	}
 }
 
-func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time) error {
+func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
 	if !t.AsyncEnabled {
 		host.LabelUpdatedAt = ts
-		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts, false)
+		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts, deferred)
 	}
 
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)

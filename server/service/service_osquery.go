@@ -480,7 +480,8 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 }
 
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval) && !host.RefetchRequested {
+	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval) && !host.RefetchRequested {
 		return nil, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
@@ -774,15 +775,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		if ac.ServerSettings.DeferredSaveHost {
-			if err := svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now(), true); err != nil {
-				logging.WithErr(ctx, err)
-			}
-		} else {
-			if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now()); err != nil {
-				logging.WithErr(ctx, err)
-			}
+		// TODO(mna): should async host processing overrule deferred save host? It
+		// is strictly "more async". We could pass the deferred save host setting to
+		// task.RecordLabelQueryExecutions and let it dispatch appropriately (to async
+		// or datastore).
+
+		//if ac.ServerSettings.DeferredSaveHost {
+		//	if err := svc.ds.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now(), true); err != nil {
+		//		logging.WithErr(ctx, err)
+		//	}
+		//} else {
+		if err := svc.task.RecordLabelQueryExecutions(ctx, &host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
+		//}
 	}
 
 	if len(policyResults) > 0 {
@@ -799,6 +805,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
+		// TODO(mna): is it an issue for the webhook if the policy executions are
+		// temporarily recorded in redis? Obviously it wouldn't see the new flipped
+		// policies on the next run, but would it typically run before the redis async
+		// data is collected and persisted in mysql? Should FlippingPoliciesForHost
+		// take pending redis data into consideration? Should we impose restrictions
+		// between async collection interval and policy update interval?
 
 		host.PolicyUpdatedAt = svc.clock.Now()
 		err = svc.ds.RecordPolicyQueryExecutions(ctx, &host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
