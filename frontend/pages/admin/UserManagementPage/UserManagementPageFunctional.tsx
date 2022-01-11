@@ -52,47 +52,18 @@ interface ITeamsResponse {
   teams: ITeam[];
 }
 
+export interface ITableSearchData {
+  searchQuery: string;
+  sortHeader: string;
+  sortDirection: string;
+  pageSize?: number;
+  pageIndex?: number;
+}
+
 const UserManagementPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-
-  const {
-    data: teams,
-    isLoading: isLoadingTeams,
-    error: loadingTeamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
-    }
-  );
-
-  const {
-    data: users,
-    isLoading: isLoadingUsers,
-    error: loadingUsersError,
-    refetch: refetchUsers,
-  } = useQuery<IUser[], Error, IUser[]>(["users"], () => usersAPI.loadAll(), {
-    select: (data: IUser[]) => data,
-  });
-
-  const {
-    data: invites,
-    isLoading: isLoadingInvites,
-    error: loadingInvitesError,
-    refetch: refetchInvites,
-  } = useQuery<IInvite[], Error, IInvite[]>(
-    ["invites"],
-    () => invitesAPI.loadAll({}),
-    {
-      select: (data: IInvite[]) => {
-        return data;
-      },
-    }
-  );
 
   // TODO: IMPLEMENT
   // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
@@ -125,6 +96,49 @@ const UserManagementPage = (): JSX.Element => {
   const [createUserErrors, setCreateUserErrors] = useState<any>({
     DEFAULT_CREATE_USER_ERRORS,
   });
+  const [querySearchText, setQuerySearchText] = useState<string>("");
+
+  // API CALLS
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    error: loadingTeamsError,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) => data.teams,
+    }
+  );
+
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: loadingUsersError,
+    refetch: refetchUsers,
+  } = useQuery<IUser[], Error, IUser[]>(
+    ["users", querySearchText],
+    () => usersAPI.loadAll({ globalFilter: querySearchText }),
+    {
+      select: (data: IUser[]) => data,
+    }
+  );
+
+  const {
+    data: invites,
+    isLoading: isLoadingInvites,
+    error: loadingInvitesError,
+    refetch: refetchInvites,
+  } = useQuery<IInvite[], Error, IInvite[]>(
+    ["invites", querySearchText],
+    () => invitesAPI.loadAll({ globalFilter: querySearchText }),
+    {
+      select: (data: IInvite[]) => {
+        return data;
+      },
+    }
+  );
 
   // TOGGLE MODALS
 
@@ -186,7 +200,7 @@ const UserManagementPage = (): JSX.Element => {
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component calls this handler.
-  const onTableQueryChange = (queryData: any) => {
+  const onTableQueryChange = (queryData: ITableSearchData) => {
     const {
       pageIndex,
       pageSize,
@@ -199,18 +213,28 @@ const UserManagementPage = (): JSX.Element => {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
 
-    usersAPI.loadAll({
-      page: pageIndex,
-      perPage: pageSize,
-      globalFilter: searchQuery,
-      sortBy,
-    });
-    invitesAPI.loadAll({
-      page: pageIndex,
-      perPage: pageSize,
-      globalFilter: searchQuery,
-      sortBy,
-    });
+    // if (!searchQuery) {
+    //   setQuerySearchText("");
+    //   return;
+    // }
+
+    setQuerySearchText(searchQuery);
+    console.log("searchQuery", searchQuery);
+
+    refetchUsers();
+    refetchInvites();
+    // usersAPI.loadAll({
+    //   page: pageIndex,
+    //   perPage: pageSize,
+    //   globalFilter: searchQuery,
+    //   sortBy,
+    // });
+    // invitesAPI.loadAll({
+    //   page: pageIndex,
+    //   perPage: pageSize,
+    //   globalFilter: searchQuery,
+    //   sortBy,
+    // });
   };
 
   const onActionSelect = (value: string, user: IUser | IInvite) => {
@@ -589,8 +613,7 @@ const UserManagementPage = (): JSX.Element => {
         Fleet.
       </p>
       {/* TODO: find a way to move these controls into the table component */}
-      {(users?.length === 0 && Object.keys(createUserErrors).length > 0) ||
-      tableDataError ? (
+      {tableDataError ? (
         <TableDataError />
       ) : (
         <TableContainer
