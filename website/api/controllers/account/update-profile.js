@@ -9,7 +9,15 @@ module.exports = {
 
   inputs: {
 
-    fullName: {
+    firstName: {
+      type: 'string'
+    },
+
+    lastName: {
+      type: 'string'
+    },
+
+    organization: {
       type: 'string'
     },
 
@@ -30,7 +38,7 @@ module.exports = {
   },
 
 
-  fn: async function ({fullName, emailAddress}) {
+  fn: async function ({firstName, lastName, organization, emailAddress}) {
 
     var newEmailAddress = emailAddress;
     if (newEmailAddress !== undefined) {
@@ -75,7 +83,9 @@ module.exports = {
     // Start building the values to set in the db.
     // (We always set the fullName if provided.)
     var valuesToSet = {
-      fullName,
+      firstName,
+      lastName,
+      organization,
     };
 
     switch (desiredEmailEffect) {
@@ -143,15 +153,16 @@ module.exports = {
     // If an email address change was requested, and re-confirmation is required,
     // send the "confirm account" email.
     if (desiredEmailEffect === 'begin-change' || desiredEmailEffect === 'modify-pending-change') {
-      await sails.helpers.sendTemplateEmail.with({
-        to: newEmailAddress,
-        subject: 'Your account has been updated',
-        template: 'email-verify-new-email',
-        templateData: {
-          fullName: fullName||this.req.me.fullName,
-          token: valuesToSet.emailProofToken
-        }
-      });
+      throw new Error('Not yet supported: the email confirmation feature is unused and has not been adapted for fleetdm.com.  This error should never be displayed.');
+      // await sails.helpers.sendTemplateEmail.with({
+      //   to: newEmailAddress,
+      //   subject: 'Your account has been updated',
+      //   template: 'email-verify-new-email',
+      //   templateData: {
+      //     fullName: fullName||this.req.me.fullName,
+      //     token: valuesToSet.emailProofToken
+      //   }
+      // });
     }
 
   }

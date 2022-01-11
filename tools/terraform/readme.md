@@ -40,6 +40,14 @@ fleet_license = "<your license key here"
 
 Check out [AWS Chatbot](https://docs.aws.amazon.com/chatbot/latest/adminguide/setting-up.html) for a quick and easy way to hook up Cloudwatch Alarms into a Slack channel. 
 
+**To deploy Percona PMM advanced MySQL monitoring**
+1. See [Percona deployment](https://www.percona.com/doc/percona-monitoring-and-management/1.x/deploy/server/ami.html#running-pmm-server-using-aws-marketplace) scenario for details
+2. Deploy infrastructure using `percona` directory
+   1. Create tfvars file
+   2. Add the required variables (vpc_id, subnets, etc.)
+   3. run `terraform apply -var-file=default.tfvars`
+3. Add RDS Aurora MySQL by following this [guide](https://www.percona.com/doc/percona-monitoring-and-management/1.x/amazon-rds.html)
+
 ### Configuration
 
 Typical settings to override in an existing environment:
