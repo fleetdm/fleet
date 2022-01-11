@@ -163,20 +163,9 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 	stats.Keys = len(hosts)
 
 	getKeyTuples := func(hostID uint) (inserts, deletes [][2]uint, err error) {
-		// TODO(mna): in the SCAN KEYS implementation, only keys that had some
-		// members were processed, because the last processing removed all items
-		// via ZPOPMIN and removing the last item removes the key (a missing key is
-		// the same as an empty set).  With the set of active hosts, however, we
-		// always have to process each host's key as we can't know if it is empty
-		// or not. Might still be faster than the SCAN KEYS approach, but annoying
-		// that it might execute a lot of commands for nothing.
-
 		keySet := fmt.Sprintf(labelMembershipHostKey, hostID)
 		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
-
-		// TODO(mna): how to detect that one id isn't used anymore? So that the
-		// active hosts set doesn't grow indefinitely with obsolete ids.
 
 		for {
 			stats.RedisCmds++
@@ -294,10 +283,10 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 			hostIDs = hostIDs[n:]
 		}
 
-		// TODO(mna): batch-remove any host ID from the active set that still has its
-		// score to the initial value, so that the active set does not keep all
-		// (potentially 100K+) host IDs to process at all times - only those with
-		// reported results to process.
+		// batch-remove any host ID from the active set that still has its score to
+		// the initial value, so that the active set does not keep all (potentially
+		// 100K+) host IDs to process at all times - only those with reported
+		// results to process.
 		if err := removeProcessedHostIDs(pool, hosts); err != nil {
 			return ctxerr.Wrap(ctx, err, "remove processed host ids")
 		}
@@ -346,6 +335,27 @@ func storePurgeActiveHostID(pool fleet.RedisPool, hid uint, reportedAt, purgeOld
 }
 
 func removeProcessedHostIDs(pool fleet.RedisPool, batch []hostIDLastReported) error {
+	// This script removes from the set of active hosts for label membership all
+	// those that still have the same score as when the batch was read (via
+	// loadActiveHostIDs). This is so that any host that would've reported new
+	// data since the call to loadActiveHostIDs would *not* get deleted (as the
+	// score would change if that was the case).
+	//
+	// Note that this approach is correct - in that it is safe and won't delete
+	// any host that has unsaved reported data - but it is potentially slow, as
+	// it needs to check the score of each member before deleting it. Should that
+	// become too slow, we have some options:
+	//
+	// * split the batch in smaller, capped ones (that would be if the redis
+	//   server gets blocked for too long processing a single batch)
+	// * use ZREMRANGEBYSCORE to remove in one command all members with a score
+	//   (reported-at timestamp) lower than the maximum timestamp in batch.
+	//   While this would be almost certainly faster, it might be incorrect as
+	//   new data could be reported with timestamps older than the maximum one,
+	//   e.g. if the clocks are not exactly in sync between fleet instances, or
+	//   if hosts report new data while the ZSCAN is going on and don't get picked
+	//   up by the SCAN (this is possible, as part of the guarantees of SCAN).
+
 	// KEYS[1]: labelMembershipActiveHostIDsKey
 	// ARGV...: the list of host ID-last reported timestamp pairs
 	script := redigo.NewScript(1, `
