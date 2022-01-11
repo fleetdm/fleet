@@ -52,6 +52,13 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
+  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
+  const [isLoadingActivityFeed, setIsLoadingActivityFeed] = useState<boolean>(
+    true
+  );
+
+  console.log("isLoadingSoftware", isLoadingSoftware);
+  console.log("isLoadingActivityFeed", isLoadingActivityFeed);
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -135,6 +142,7 @@ const Homepage = (): JSX.Element => {
               text: "View all hosts",
             }}
             total_host_count={totalCount}
+            showTitle
           >
             <HostsSummary
               currentTeamId={currentTeam?.id}
@@ -175,16 +183,27 @@ const Homepage = (): JSX.Element => {
               text: "View all software",
               onClick: () => setIsSoftwareModalOpen(true),
             }}
+            isLoadingSoftware={isLoadingSoftware}
+            showTitle={!isLoadingSoftware}
           >
             <Software
               currentTeamId={currentTeam?.id}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
+              isLoadingSoftware={isLoadingSoftware}
+              setIsLoadingSoftware={setIsLoadingSoftware}
             />
           </InfoCard>
           {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
-            <InfoCard title="Activity">
-              <ActivityFeed />
+            <InfoCard
+              title="Activity"
+              isLoadingActivityFeed={isLoadingActivityFeed}
+              showTitle={!isLoadingActivityFeed}
+            >
+              <ActivityFeed
+                isLoadingActivityFeed={isLoadingActivityFeed}
+                setIsLoadingActivityFeed={setIsLoadingActivityFeed}
+              />
             </InfoCard>
           )}
         </div>

@@ -19,6 +19,11 @@ import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.p
 
 const baseClass = "activity-feed";
 
+interface IActvityCardProps {
+  isLoadingActivityFeed: boolean;
+  setIsLoadingActivityFeed: (isLoading: boolean) => void;
+}
+
 const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
@@ -55,9 +60,11 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-const ActivityFeed = (): JSX.Element => {
+const ActivityFeed = ({
+  isLoadingActivityFeed,
+  setIsLoadingActivityFeed,
+}: IActvityCardProps): JSX.Element => {
   const [activities, setActivities] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingError, setIsLoadingError] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [showMore, setShowMore] = useState(true);
@@ -75,10 +82,11 @@ const ActivityFeed = (): JSX.Element => {
           setShowMore(false);
         }
 
-        setIsLoading(false);
+        setIsLoadingActivityFeed(false);
+        console.log("should be set to false!");
       } catch (err) {
         setIsLoadingError(true);
-        setIsLoading(false);
+        setIsLoadingActivityFeed(false);
       }
     };
 
@@ -86,13 +94,13 @@ const ActivityFeed = (): JSX.Element => {
   }, [pageIndex]);
 
   const onLoadPrevious = () => {
-    setIsLoading(true);
+    setIsLoadingActivityFeed(true);
     setShowMore(true);
     setPageIndex(pageIndex - 1);
   };
 
   const onLoadNext = () => {
-    setIsLoading(true);
+    setIsLoadingActivityFeed(true);
     setPageIndex(pageIndex + 1);
   };
 
@@ -182,16 +190,16 @@ const ActivityFeed = (): JSX.Element => {
   return (
     <div className={baseClass}>
       {isLoadingError && renderError()}
-      {!isLoadingError && !isLoading && isEmpty(activities) ? (
+      {!isLoadingError && !isLoadingActivityFeed && isEmpty(activities) ? (
         renderNoActivities()
       ) : (
         <div>{renderActivities}</div>
       )}
-      {isLoading && <Spinner />}
+      {isLoadingActivityFeed && <Spinner />}
       {!isLoadingError && !isEmpty(activities) && (
         <div className={`${baseClass}__pagination`}>
           <Button
-            disabled={isLoading || pageIndex === 0}
+            disabled={isLoadingActivityFeed || pageIndex === 0}
             onClick={onLoadPrevious}
             variant="unstyled"
             className={`${baseClass}__load-activities-button`}
@@ -201,7 +209,7 @@ const ActivityFeed = (): JSX.Element => {
             </>
           </Button>
           <Button
-            disabled={isLoading || !showMore}
+            disabled={isLoadingActivityFeed || !showMore}
             onClick={onLoadNext}
             variant="unstyled"
             className={`${baseClass}__load-activities-button`}

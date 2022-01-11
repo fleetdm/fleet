@@ -12,6 +12,7 @@ import Modal from "components/Modal";
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer"; // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import Spinner from "components/Spinner";
 
 import {
   generateTableHeaders,
@@ -30,6 +31,8 @@ interface ISoftwareCardProps {
   currentTeamId?: number;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
+  isLoadingSoftware: boolean;
+  setIsLoadingSoftware: (isLoading: boolean) => void;
 }
 
 const VULNERABLE_OPTIONS = [
@@ -106,6 +109,8 @@ const Software = ({
   currentTeamId,
   isModalOpen,
   setIsSoftwareModalOpen,
+  isLoadingSoftware,
+  setIsLoadingSoftware,
 }: ISoftwareCardProps): JSX.Element => {
   const [softwarePageIndex, setSoftwarePageIndex] = useState<number>(0);
   const [vSoftwarePageIndex, setVSoftwarePageIndex] = useState<number>(0);
@@ -121,7 +126,6 @@ const Software = ({
     setIsModalSoftwareVulnerable,
   ] = useState<boolean>(false);
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
-  const [isLoadingSoftware, setIsLoadingSoftware] = useState<boolean>(true);
   const [
     isLoadingVulnerableSoftware,
     setIsLoadingVulnerableSoftware,
@@ -154,6 +158,7 @@ const Software = ({
       keepPreviousData: true,
       onSuccess: () => {
         setIsLoadingSoftware(false);
+        console.log("should be reset to false");
       },
       // TODO: error UX?
       onError: () => {
@@ -312,7 +317,9 @@ const Software = ({
 
   const tableHeaders = generateTableHeaders();
 
-  return (
+  return isLoadingSoftware ? (
+    <Spinner />
+  ) : (
     <div className={baseClass}>
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
