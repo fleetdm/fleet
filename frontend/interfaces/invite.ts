@@ -34,18 +34,6 @@ export interface ICreateInviteFormData {
   teams: ITeam[];
 }
 
-export interface IEditInvite {
-  created_at: string;
-  updated_at: string;
-  email: string;
-  global_role: string | null;
-  gravatarURL: string;
-  id: number;
-  invited_by: number;
-  name: string;
-  sso_enabled: boolean;
-  teams: ITeam[];
-}
 export interface IEditInviteFormData {
   currentUserId?: number;
   email?: string;
@@ -54,16 +42,4 @@ export interface IEditInviteFormData {
   password: null;
   sso_enabled: boolean;
   teams?: ITeam[];
-}
-
-export interface IDeleteInviteFormData {
-  created_at: string;
-  updated_at: string;
-  id: number;
-  invited_by: number;
-  email: string;
-  name: string;
-  sso_enabled: boolean;
-  global_role: string | null;
-  teams: ITeam[];
 }

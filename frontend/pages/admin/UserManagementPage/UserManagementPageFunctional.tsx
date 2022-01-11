@@ -65,17 +65,6 @@ const UserManagementPage = (): JSX.Element => {
 
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
 
-  // TODO: IMPLEMENT
-  // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
-  // `config` will not have been loaded at that point. Accordingly, we need this lifecycle hook so
-  // that `teams` information will be available to the edit user form.
-  // componentDidUpdate(prevProps) {
-  //   const { dispatch, isPremiumTier } = this.props;
-  //   if (prevProps.isPremiumTier !== isPremiumTier) {
-  //     isPremiumTier && dispatch(teamActions.loadAll({}));
-  //   }
-  // }
-
   // STATES
 
   const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
@@ -354,7 +343,7 @@ const UserManagementPage = (): JSX.Element => {
       return (
         userData &&
         invitesAPI
-          .update(userData, formData)
+          .update(userData.id, formData)
           .then(() => {
             dispatch(
               renderFlash("success", `Successfully edited ${userEditing?.name}`)
@@ -376,12 +365,40 @@ const UserManagementPage = (): JSX.Element => {
     }
 
     if (currentUser?.id === userEditing.id) {
-      return usersAPI
-        .update(userData, formData)
+      return (
+        userData &&
+        usersAPI
+          .update(userData.id, formData)
+          .then(() => {
+            dispatch(
+              renderFlash("success", `Successfully edited ${userEditing?.name}`)
+            );
+          })
+          .then(() => refetchUsers())
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${userEditing?.name}. Please try again.`
+              )
+            );
+          })
+          .finally(() => toggleEditUserModal())
+      );
+    }
+
+    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
+
+    if (userData?.email !== formData.email) {
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
+    }
+
+    return (
+      userData &&
+      usersAPI
+        .update(userData.id, formData)
         .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully edited ${userEditing?.name}`)
-          );
+          dispatch(renderFlash("success", userUpdatedFlashMessage));
         })
         .then(() => refetchUsers())
         .catch(() => {
@@ -392,38 +409,16 @@ const UserManagementPage = (): JSX.Element => {
             )
           );
         })
-        .finally(() => toggleEditUserModal());
-    }
-
-    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
-
-    if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
-    }
-
-    return usersAPI
-      .update(userData, formData)
-      .then(() => {
-        dispatch(renderFlash("success", userUpdatedFlashMessage));
-      })
-      .then(() => refetchUsers())
-      .catch(() => {
-        dispatch(
-          renderFlash(
-            "error",
-            `Could not edit ${userEditing?.name}. Please try again.`
-          )
-        );
-      })
-      .finally(() => {
-        toggleEditUserModal();
-      });
+        .finally(() => {
+          toggleEditUserModal();
+        })
+    );
   };
 
   const onDeleteUser = () => {
     if (userEditing.type === "invite") {
       invitesAPI
-        .destroy(userEditing)
+        .destroy(userEditing.id)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
@@ -443,7 +438,7 @@ const UserManagementPage = (): JSX.Element => {
         });
     } else {
       usersAPI
-        .destroy(userEditing)
+        .destroy(userEditing.id)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
@@ -468,7 +463,7 @@ const UserManagementPage = (): JSX.Element => {
     const isResettingCurrentUser = currentUser?.id === userEditing.id;
 
     usersAPI
-      .deleteSessions(userEditing)
+      .deleteSessions(userEditing.id)
       .then(() => {
         if (!isResettingCurrentUser) {
           dispatch(renderFlash("success", "Sessions reset"));
@@ -539,7 +534,7 @@ const UserManagementPage = (): JSX.Element => {
         createUserErrors={createUserErrors}
         onCancel={toggleCreateUserModal}
         onSubmit={onCreateUserSubmit}
-        availableTeams={teams}
+        availableTeams={teams || []}
         defaultGlobalRole={"observer"}
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
@@ -595,7 +590,10 @@ const UserManagementPage = (): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders(onActionSelect, isPremiumTier);
+  const tableHeaders = generateTableHeaders(
+    onActionSelect,
+    isPremiumTier || false
+  );
 
   const loadingTableData = isLoadingUsers || isLoadingInvites || isLoadingTeams;
   const tableDataError =

@@ -6,8 +6,6 @@ import {
   IInvite,
   ICreateInviteFormData,
   IEditInviteFormData,
-  IEditInvite,
-  IDeleteInviteFormData,
 } from "interfaces/invite";
 
 interface IInviteSearchOptions {
@@ -25,15 +23,15 @@ export default {
       helpers.addGravatarUrlToResource(response.invite)
     );
   },
-  update: (invite: IEditInvite | any, formData: IEditInviteFormData) => {
+  update: (inviteId: number | any, formData: IEditInviteFormData) => {
     const { INVITES } = endpoints;
-    const path = `${INVITES}/${invite.id}`;
+    const path = `${INVITES}/${inviteId}`;
 
     return sendRequest("PATCH", path, formData);
   },
-  destroy: (invite: IDeleteInviteFormData) => {
+  destroy: (inviteId: number) => {
     const { INVITES } = endpoints;
-    const path = `${INVITES}/${invite.id}`;
+    const path = `${INVITES}/${inviteId}`;
 
     return sendRequest("DELETE", path);
   },

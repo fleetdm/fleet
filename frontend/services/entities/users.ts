@@ -5,8 +5,6 @@ import helpers from "fleet/helpers";
 import {
   ICreateUserFormDataNoInvite,
   IUpdateUserFormData,
-  IDeleteSessionsUser,
-  IDestroyUser,
   IUser,
 } from "interfaces/user";
 import { IInvite } from "interfaces/invite";
@@ -21,9 +19,6 @@ interface IUserSearchOptions {
 
 interface IForgotPassword {
   email: string;
-}
-interface IEnable {
-  enabled: boolean;
 }
 
 interface IUpdateAdmin {
@@ -46,15 +41,15 @@ export default {
       (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
     );
   },
-  deleteSessions: (user: IDeleteSessionsUser) => {
+  deleteSessions: (userId: number) => {
     const { USER_SESSIONS } = endpoints;
-    const path = USER_SESSIONS(user.id);
+    const path = USER_SESSIONS(userId);
 
     return sendRequest("DELETE", path);
   },
-  destroy: (user: IDestroyUser) => {
+  destroy: (userId: number) => {
     const { USERS } = endpoints;
-    const path = `${USERS}/${user.id}`;
+    const path = `${USERS}/${userId}`;
 
     return sendRequest("DELETE", path);
   },
@@ -64,15 +59,6 @@ export default {
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
   // TODO: changePassword (UserSettingsPage.jsx refactor)
-  // TODO: confirmEmailChange
-  enable: (user: IUser, { enabled }: IEnable) => {
-    const { ENABLE_USER } = endpoints;
-    const path = ENABLE_USER(user.id);
-
-    return sendRequest("POST", path, { enabled }).then(
-      (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
-    );
-  },
   loadAll: ({
     page = 0,
     perPage = 100,
@@ -120,7 +106,6 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  // TODO: performRequiredPasswordReset
   requirePasswordReset: (
     userId: number,
     { require }: IRequirePasswordReset
@@ -136,22 +121,11 @@ export default {
     const { RESET_PASSWORD } = endpoints;
     return sendRequest("POST", RESET_PASSWORD, formData);
   },
-  update: (
-    user: IUser | IInvite | undefined,
-    formData: IUpdateUserFormData
-  ) => {
+  update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
-    const path = `${USERS}/${user?.id}`;
+    const path = `${USERS}/${userId}`;
 
     return sendRequest("PATCH", path, formData).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
-    );
-  },
-  updateAdmin: (user: IUser, { admin }: IUpdateAdmin) => {
-    const { UPDATE_USER_ADMIN } = endpoints;
-    const path = UPDATE_USER_ADMIN(user.id);
-
-    return sendRequest("POST", path, { admin }).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },

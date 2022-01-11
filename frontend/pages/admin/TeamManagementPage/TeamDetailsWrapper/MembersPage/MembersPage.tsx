@@ -323,32 +323,43 @@ const MembersPage = ({
       setIsFormSubmitting(true);
 
       const userName = userEditing?.name;
-      usersAPI
-        .update(userEditing, updatedAttrs)
-        .then(() => {
-          dispatch(renderFlash("success", `Successfully edited ${userName}.`));
-          if (currentUser && userEditing && currentUser.id === userEditing.id) {
-            const currentTeam = formData.teams.filter(
-              (thisTeam) => thisTeam.id === teamId
+
+      userEditing &&
+        usersAPI
+          .update(userEditing.id, updatedAttrs)
+          .then(() => {
+            dispatch(
+              renderFlash("success", `Successfully edited ${userName}.`)
             );
-            if (currentTeam && currentTeam[0].role !== "admin") {
-              window.location.href = "/";
+
+            if (
+              currentUser &&
+              userEditing &&
+              currentUser.id === userEditing.id
+            ) {
+              // If user edits self and removes "admin" role,
+              // redirect to home
+              const currentTeam = formData.teams.filter(
+                (thisTeam) => thisTeam.id === teamId
+              );
+              if (currentTeam && currentTeam[0].role !== "admin") {
+                window.location.href = "/";
+              }
+            } else {
+              fetchUsers(tableQueryData);
             }
-          } else {
-            fetchUsers(tableQueryData);
-          }
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userName}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
-          setIsFormSubmitting(false);
-        });
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${userName}. Please try again.`
+              )
+            );
+          })
+          .finally(() => {
+            setIsFormSubmitting(false);
+          });
       toggleEditMemberModal();
     },
     [dispatch, toggleEditMemberModal, userEditing, fetchUsers]

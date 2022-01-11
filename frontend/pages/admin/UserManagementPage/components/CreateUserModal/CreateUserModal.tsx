@@ -23,7 +23,7 @@ interface ICreateUserModalProps {
   isFormSubmitting?: boolean | false;
   serverErrors?: { base: string; email: string };
   userErrors?: { base: string; email: string };
-  createUserErrors: IUserFormErrors;
+  createUserErrors?: IUserFormErrors;
 }
 
 const baseClass = "create-user-modal";
