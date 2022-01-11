@@ -73,7 +73,7 @@ jobs:
 
     - name: Cleanup tunnel
       if: always()
-      run: cloudflared tunnel --origincert cert.pem delete ${{ needs.gen.outputs.subdomain }}    
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
 
   login:
    runs-on: ubuntu-latest
