@@ -40,7 +40,7 @@ jobs:
         sudo dpkg -i cloudflared-linux-amd64.deb
         # Add secret
         mkdir -p ~/.cloudflared
-        echo ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT }} > ~/.cloudflared/cert.pem
+        echo "${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT }}" > ~/.cloudflared/cert.pem
         # Start tunnel
         cloudflared tunnel --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }}
 
