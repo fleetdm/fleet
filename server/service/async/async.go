@@ -91,11 +91,13 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 	}
 }
 
-func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, reportedAt, purgeOlder time.Time) error {
+func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, reportedAt, purgeOlder time.Time) (int, error) {
 	// KEYS[1]: the zsetKey
 	// ARGV[1]: the host ID to add
 	// ARGV[2]: the added host's reported-at timestamp
 	// ARGV[3]: purge any entry with score older than this (purgeOlder timestamp)
+	//
+	// returns how many hosts were removed
 	script := redigo.NewScript(1, `
     redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
     return redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[3])
@@ -105,13 +107,14 @@ func storePurgeActiveHostID(pool fleet.RedisPool, zsetKey string, hid uint, repo
 	defer conn.Close()
 
 	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
-		return fmt.Errorf("bind redis connection: %w", err)
+		return 0, fmt.Errorf("bind redis connection: %w", err)
 	}
 
-	if _, err := script.Do(conn, zsetKey, hid, reportedAt.Unix(), purgeOlder.Unix()); err != nil {
-		return fmt.Errorf("run redis script: %w", err)
+	count, err := redigo.Int(script.Do(conn, zsetKey, hid, reportedAt.Unix(), purgeOlder.Unix()))
+	if err != nil {
+		return 0, fmt.Errorf("run redis script: %w", err)
 	}
-	return nil
+	return count, nil
 }
 
 type hostIDLastReported struct {
@@ -147,7 +150,7 @@ func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]h
 	}
 }
 
-func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostIDLastReported) error {
+func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostIDLastReported) (int, error) {
 	// This script removes from the set of active hosts all those that still have
 	// the same score as when the batch was read (via loadActiveHostIDs). This is
 	// so that any host that would've reported new data since the call to
@@ -171,6 +174,7 @@ func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostID
 
 	// KEYS[1]: zsetKey
 	// ARGV...: the list of host ID-last reported timestamp pairs
+	// returns the count of hosts removed
 	script := redigo.NewScript(1, `
     local count = 0
     for i = 1, #ARGV, 2 do
@@ -187,15 +191,16 @@ func removeProcessedHostIDs(pool fleet.RedisPool, zsetKey string, batch []hostID
 	defer conn.Close()
 
 	if err := redis.BindConn(pool, conn, zsetKey); err != nil {
-		return fmt.Errorf("bind redis connection: %w", err)
+		return 0, fmt.Errorf("bind redis connection: %w", err)
 	}
 
 	args := redigo.Args{zsetKey}
 	for _, host := range batch {
 		args = args.Add(host.HostID, host.LastReported)
 	}
-	if _, err := script.Do(conn, args...); err != nil {
-		return fmt.Errorf("run redis script: %w", err)
+	count, err := redigo.Int(script.Do(conn, args...))
+	if err != nil {
+		return 0, fmt.Errorf("run redis script: %w", err)
 	}
-	return nil
+	return count, nil
 }
