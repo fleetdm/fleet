@@ -268,12 +268,15 @@ describe(
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section
       cy.visit("/profile");
-      cy.findByText("Teams")
-        .next()
-        .contains(/2 teams/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/various/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText("Teams")
+          .next()
+          .contains(/2 teams/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/various/i);
+      });
     });
   }
 );

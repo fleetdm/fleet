@@ -39,12 +39,13 @@ describe("Reset user sessions flow", () => {
     cy.login();
 
     cy.visit("/profile");
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-    cy.findByRole("button", { name: /get api token/i }).click();
-    cy.findByText(/reveal token/i).click();
-    cy.get(".user-settings__secret-input").within(() => {
-      cy.get("input").invoke("val").as("token2");
+    cy.getAttached(".user-settings__additional").within(() => {
+      cy.findByRole("button", { name: /get api token/i }).click();
+      cy.findByText(/reveal token/i).click();
+      cy.get(".user-settings__secret-input").within(() => {
+        cy.get("input").invoke("val").as("token2");
+      });
     });
 
     // new token should not equal old token

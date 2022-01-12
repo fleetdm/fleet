@@ -121,12 +121,15 @@ describe(
       // On the Profile page, they should…
       // See Global in the Team section and Maintainer in the Role section
       cy.visit("/profile");
-      cy.findByText(/team/i)
-        .next()
-        .contains(/global/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/maintainer/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText(/team/i)
+          .next()
+          .contains(/global/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/maintainer/i);
+      });
     });
   }
 );
