@@ -390,7 +390,7 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 }
 
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
-// already exist (a policy is identified by its name and the team it belongs to).
+// already exist (a policy is identified by its name).
 //
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.

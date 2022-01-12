@@ -63,6 +63,8 @@ type PoolConfig struct {
 	IdleTimeout               time.Duration
 	ConnWaitTimeout           time.Duration
 	TLSSkipVerify             bool
+	WriteTimeout              time.Duration
+	ReadTimeout               time.Duration
 
 	// allows for testing dial retries and other dial-related scenarios
 	testRedisDialFunc func(net, addr string, opts ...redis.DialOption) (redis.Conn, error)
@@ -248,8 +250,8 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 		redis.DialConnectTimeout(conf.ConnTimeout),
 		redis.DialKeepAlive(conf.KeepAlive),
 		redis.DialPassword(conf.Password),
-		// Read/Write timeouts not set here because we may see results
-		// only rarely on the pub/sub channel.
+		redis.DialWriteTimeout(conf.WriteTimeout),
+		redis.DialReadTimeout(conf.ReadTimeout),
 	}
 
 	if conf.UseTLS {
