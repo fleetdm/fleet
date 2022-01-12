@@ -129,11 +129,18 @@ func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *flee
 
 func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := d.writer.ExecContext(ctx, `DELETE FROM scheduled_queries WHERE id = ?`, id)
+		res, err := tx.ExecContext(ctx, `DELETE FROM scheduled_queries WHERE id = ?`, id)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries")
 		}
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?`, id)
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries: rows affeted")
+		}
+		if rowsAffected == 0 {
+			return ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(uint(id)))
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?`, id)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries_stats")
 		}
