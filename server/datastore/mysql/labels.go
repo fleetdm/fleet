@@ -228,17 +228,17 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
-		err := d.writer.GetContext(ctx, &labelID, `select id FROM labels WHERE name = ?`, name)
+		err := tx.GetContext(ctx, &labelID, `select id FROM labels WHERE name = ?`, name)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
 		}
 
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete label_membership")
 		}
