@@ -1,7 +1,6 @@
 name: Test Orbit & Preview
 
 on:
-  pull_request: #TODO remove
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
@@ -241,4 +240,4 @@ jobs:
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
-    # wait until he expected number of hosts enroll.
+    # wait until the expected number of hosts enroll.
