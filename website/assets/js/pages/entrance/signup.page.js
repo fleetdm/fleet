@@ -50,6 +50,7 @@ parasails.registerPage('signup', {
     },
 
     typeClearOneFormError: async function(field) {
+      this.showFullForm = true;
       if(this.formErrors[field]){
         this.formErrors = _.omit(this.formErrors, field);
       }

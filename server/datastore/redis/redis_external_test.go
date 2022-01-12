@@ -2,6 +2,7 @@ package redis_test
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -281,4 +282,70 @@ func TestRedisMode(t *testing.T) {
 		pool := redistest.SetupRedis(t, true, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisCluster)
 	})
+}
+
+func rawTCPServer(t *testing.T, handler func(c net.Conn, done <-chan struct{})) (addr string) {
+	// start a server on localhost, on a random free port
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err, "net.Listen")
+	_, port, _ := net.SplitHostPort(l.Addr().String())
+	done, exited := make(chan struct{}), make(chan struct{})
+
+	go func() {
+		defer close(exited)
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+			handler(conn, done)
+		}
+	}()
+
+	t.Cleanup(func() {
+		require.NoError(t, l.Close())
+		close(done)
+		select {
+		case <-exited:
+		case <-time.After(time.Second):
+			t.Fatalf("timed out stopping TCP server")
+		}
+	})
+
+	return "127.0.0.1:" + port
+}
+
+func TestReadTimeout(t *testing.T) {
+	var count int
+	addr := rawTCPServer(t, func(c net.Conn, done <-chan struct{}) {
+		count++
+		if count == 1 {
+			// the CLUSTER REFRESH request, return error so that it is not seen as a
+			// cluster setup
+			fmt.Fprint(c, "-ERR unknown command `CLUSTER`\r\n")
+			return
+		}
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			fmt.Fprint(c, "+OK\r\n") // the "simple string OK result" in redis protocol
+		}
+	})
+
+	pool, err := redis.NewPool(redis.PoolConfig{
+		Server:       addr,
+		ConnTimeout:  2 * time.Second,
+		KeepAlive:    2 * time.Second,
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	start := time.Now()
+	conn := pool.Get()
+	_, err = redigo.String(conn.Do("PING"))
+	require.Less(t, time.Since(start), 2*time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "i/o timeout")
 }

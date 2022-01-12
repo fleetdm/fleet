@@ -247,6 +247,8 @@ the way that the Fleet server works.
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
 				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
+				WriteTimeout:              config.Redis.WriteTimeout,
+				ReadTimeout:               config.Redis.ReadTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")

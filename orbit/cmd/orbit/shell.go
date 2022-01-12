@@ -79,7 +79,6 @@ var shellCommand = &cli.Command{
 		)
 		g.Add(r.Execute, r.Interrupt)
 
-		// Extension tables not yet supported on Windows.
 		ext := table.NewRunner(r.ExtensionSocketPath())
 		g.Add(ext.Execute, ext.Interrupt)
 
