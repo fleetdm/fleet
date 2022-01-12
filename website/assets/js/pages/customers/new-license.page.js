@@ -10,7 +10,7 @@ parasails.registerPage('new-license', {
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
 
-    qutoeFormRules: {
+    quoteFormRules: {
       numberOfHosts: {required: true},
     },
 
