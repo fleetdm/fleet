@@ -235,5 +235,5 @@ type PolicySetHost struct {
 type PolicyMembershipResult struct {
 	HostID   uint
 	PolicyID uint
-	Passes   bool
+	Passes   *bool
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -202,6 +203,13 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		bindvars = append(bindvars, "(?,?,?,?)")
 		vals = append(vals, updated, policyID, host.ID, matches)
 	}
+
+	// NOTE: the insert of policy membership that follows must be kept in sync
+	// with the async implementation in AsyncBatchInsertPolicyMembership, and the
+	// update of the policy_updated_at timestamp in sync with the
+	// AsyncBatchUpdatePolicyTimestamp method (that is, their processing must be
+	// semantically equivalent, even though here it processes a single host and
+	// in async mode it processes a batch of hosts).
 
 	query := fmt.Sprintf(
 		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
@@ -441,21 +449,19 @@ func amountPoliciesDB(db sqlx.Queryer) (int, error) {
 func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
 	// NOTE: this is tested via the server/service/async package tests.
 
-	panic("unimplemented")
-	//// TODO: INSERT IGNORE, to avoid failing if policy id does not exist? Or this should
-	//// never happen as policies cannot come and go like labels do?
-	//sql := `INSERT INTO policy_membership_history (policy_id, host_id, passes) VALUES `
-	//sql += strings.Repeat(`(?, ?, ?),`, len(batch))
-	//sql = strings.TrimSuffix(sql, ",")
+	// TODO: INSERT IGNORE, to avoid failing if policy / host does not exist?
+	sql := `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES `
+	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
+	sql = strings.TrimSuffix(sql, ",")
 
-	//vals := make([]interface{}, 0, len(batch)*3)
-	//for _, tup := range batch {
-	//	vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
-	//}
-	//return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-	//	_, err := tx.ExecContext(ctx, sql, vals...)
-	//	return errors.Wrap(err, "insert into policy_membership_history")
-	//})
+	vals := make([]interface{}, 0, len(batch)*3)
+	for _, tup := range batch {
+		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return errors.Wrap(err, "insert into policy_membership")
+	})
 }
 
 // AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
@@ -463,20 +469,19 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
 	// NOTE: this is tested via the server/service/async package tests.
 
-	panic("unimplemented")
-	//sql := `
-	//    UPDATE
-	//      hosts
-	//    SET
-	//      policy_updated_at = ?
-	//    WHERE
-	//      id IN (?)`
-	//query, args, err := sqlx.In(sql, ts, ids)
-	//if err != nil {
-	//	return errors.Wrap(err, "building query to update hosts.policy_updated_at")
-	//}
-	//return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-	//	_, err := tx.ExecContext(ctx, query, args...)
-	//	return errors.Wrap(err, "update hosts.policy_updated_at")
-	//})
+	sql := `
+	    UPDATE
+	      hosts
+	    SET
+	      policy_updated_at = ?
+	    WHERE
+	      id IN (?)`
+	query, args, err := sqlx.In(sql, ts, ids)
+	if err != nil {
+		return errors.Wrap(err, "building query to update hosts.policy_updated_at")
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, args...)
+		return errors.Wrap(err, "update hosts.policy_updated_at")
+	})
 }
