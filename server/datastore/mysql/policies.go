@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 )
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -461,7 +460,7 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, sql, vals...)
-		return errors.Wrap(err, "insert into policy_membership")
+		return ctxerr.Wrap(ctx, err, "insert into policy_membership")
 	})
 }
 
@@ -479,10 +478,10 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	      id IN (?)`
 	query, args, err := sqlx.In(sql, ts, ids)
 	if err != nil {
-		return errors.Wrap(err, "building query to update hosts.policy_updated_at")
+		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, query, args...)
-		return errors.Wrap(err, "update hosts.policy_updated_at")
+		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
 	})
 }
