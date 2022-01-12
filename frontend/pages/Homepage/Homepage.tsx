@@ -53,11 +53,11 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
-  const [showSoftwareTitle, setShowSoftwareTitle] = useState<boolean>(false);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
     false
   );
-  const [showHostsData, setShowHostsData] = useState<boolean>(false); // Hides UI on first load only
+  const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
+  const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
   const [isLoadingHostsSummary, setIsLoadingHostsSummary] = useState<boolean>(
     true
   ); // Opaque UI on subsequent loads
@@ -104,7 +104,7 @@ const Homepage = (): JSX.Element => {
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
         setIsLoadingHostsSummary(false);
-        setShowHostsData(true);
+        setShowHostsUI(true);
       },
     }
   );
@@ -164,7 +164,7 @@ const Homepage = (): JSX.Element => {
                   windowsCount={windowsCount}
                   setIsLoadingHostsSummary={setIsLoadingHostsSummary}
                   isLoadingHostsSummary={isLoadingHostsSummary}
-                  showHostsData={showHostsData}
+                  showHostsUI={showHostsUI}
                 />
               </InfoCard>
             </div>
@@ -175,7 +175,7 @@ const Homepage = (): JSX.Element => {
                   offlineCount={offlineCount}
                   newCount={newCount}
                   isLoadingHosts={isLoadingHostsSummary}
-                  showHostsData={showHostsData}
+                  showHostsUI={showHostsUI}
                 />
               </InfoCard>
             </div>
@@ -204,13 +204,14 @@ const Homepage = (): JSX.Element => {
               text: "View all software",
               onClick: () => setIsSoftwareModalOpen(true),
             }}
-            showTitle={showSoftwareTitle}
+            showTitle={showSoftwareUI}
           >
             <Software
               currentTeamId={currentTeam?.id}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
-              setShowSoftwareTitle={setShowSoftwareTitle}
+              setShowSoftwareUI={setShowSoftwareUI}
+              showSoftwareUI={showSoftwareUI}
             />
           </InfoCard>
           {!isPreviewMode && !currentTeam && isOnGlobalTeam && (

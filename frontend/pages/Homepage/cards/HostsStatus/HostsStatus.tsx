@@ -7,7 +7,7 @@ interface IHostSummaryProps {
   offlineCount: string | undefined;
   newCount: string | undefined;
   isLoadingHosts: boolean;
-  showHostsData: boolean;
+  showHostsUI: boolean;
 }
 
 const HostsStatus = ({
@@ -15,11 +15,11 @@ const HostsStatus = ({
   offlineCount,
   newCount,
   isLoadingHosts,
-  showHostsData,
+  showHostsUI,
 }: IHostSummaryProps): JSX.Element => {
   // Renders opaque information as host information is loading
   let opacity = { opacity: 0 };
-  if (showHostsData) {
+  if (showHostsUI) {
     opacity = isLoadingHosts ? { opacity: 0.4 } : { opacity: 1 };
   }
 

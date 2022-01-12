@@ -158,9 +158,10 @@
     opacity: 1;
     position: absolute;
     width: 100%;
-    height: 90%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+    margin-top: 40px; // Aligns with software table spinner
   }
 }

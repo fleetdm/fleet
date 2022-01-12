@@ -31,7 +31,8 @@ interface ISoftwareCardProps {
   currentTeamId?: number;
   isModalOpen: boolean;
   setIsSoftwareModalOpen: (isOpen: boolean) => void;
-  setShowSoftwareTitle: (showSoftwareTitle: boolean) => void;
+  setShowSoftwareUI: (showSoftwareTitle: boolean) => void;
+  showSoftwareUI: boolean;
 }
 
 const VULNERABLE_OPTIONS = [
@@ -108,7 +109,8 @@ const Software = ({
   currentTeamId,
   isModalOpen,
   setIsSoftwareModalOpen,
-  setShowSoftwareTitle,
+  setShowSoftwareUI,
+  showSoftwareUI,
 }: ISoftwareCardProps): JSX.Element => {
   const [softwarePageIndex, setSoftwarePageIndex] = useState<number>(0);
   const [vSoftwarePageIndex, setVSoftwarePageIndex] = useState<number>(0);
@@ -156,7 +158,7 @@ const Software = ({
       // So we manage our own load states
       keepPreviousData: true,
       onSuccess: () => {
-        setShowSoftwareTitle(true);
+        setShowSoftwareUI(true);
         setIsLoadingSoftware(false);
       },
       // TODO: error UX?
@@ -316,88 +318,98 @@ const Software = ({
 
   const tableHeaders = generateTableHeaders();
 
+  // Renders opaque information as host information is loading
+  const opacity = showSoftwareUI ? { opacity: 1 } : { opacity: 0 };
+
   return (
     <div className={baseClass}>
-      <TabsWrapper>
-        <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
-          <TabList>
-            <Tab>All</Tab>
-            <Tab>Vulnerable</Tab>
-          </TabList>
-          <TabPanel>
-            <TableContainer
-              columns={tableHeaders}
-              data={software || []}
-              isLoading={isLoadingSoftware}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              hideActionButton
-              resultsTitle={"software"}
-              emptyComponent={EmptySoftware}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disableCount
-              disableActionButton
-              pageSize={PAGE_SIZE}
-              onQueryChange={onAllSoftwareQueryChange}
-            />
-          </TabPanel>
-          <TabPanel>
-            <TableContainer
-              columns={tableHeaders}
-              data={vulnerableSoftware || []}
-              isLoading={isLoadingVulnerableSoftware}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              hideActionButton
-              resultsTitle={"software"}
-              emptyComponent={() => EmptySoftware("vulnerable")}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disableCount
-              disableActionButton
-              pageSize={PAGE_SIZE}
-              onQueryChange={onVulnerableSoftwareQueryChange}
-            />
-          </TabPanel>
-        </Tabs>
-      </TabsWrapper>
-      {isModalOpen && (
-        <Modal
-          title="Software"
-          onExit={() => setIsSoftwareModalOpen(false)}
-          className={`${baseClass}__software-modal`}
-        >
-          <>
-            <p>
-              Search for a specific software version to find the hosts that have
-              it installed.
-            </p>
-            <TableContainer
-              columns={generateModalSoftwareTableHeaders()}
-              data={modalSoftware || []}
-              isLoading={isLoadingModalSoftware}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              hideActionButton
-              resultsTitle={"software items"}
-              emptyComponent={() =>
-                EmptySoftware(
-                  modalSoftwareSearchText === "" ? "modal" : "search"
-                )
-              }
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              searchable
-              disableActionButton
-              pageSize={MODAL_PAGE_SIZE}
-              onQueryChange={onModalSoftwareQueryChange}
-              customControl={renderStatusDropdown}
-              renderCount={renderModalSoftwareCount}
-            />
-          </>
-        </Modal>
+      {!showSoftwareUI && (
+        <div className="spinner">
+          <Spinner />
+        </div>
       )}
+      <div style={opacity}>
+        <TabsWrapper>
+          <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
+            <TabList>
+              <Tab>All</Tab>
+              <Tab>Vulnerable</Tab>
+            </TabList>
+            <TabPanel>
+              <TableContainer
+                columns={tableHeaders}
+                data={software || []}
+                isLoading={isLoadingSoftware}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                hideActionButton
+                resultsTitle={"software"}
+                emptyComponent={EmptySoftware}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                disableCount
+                disableActionButton
+                pageSize={PAGE_SIZE}
+                onQueryChange={onAllSoftwareQueryChange}
+              />
+            </TabPanel>
+            <TabPanel>
+              <TableContainer
+                columns={tableHeaders}
+                data={vulnerableSoftware || []}
+                isLoading={isLoadingVulnerableSoftware}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                hideActionButton
+                resultsTitle={"software"}
+                emptyComponent={() => EmptySoftware("vulnerable")}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                disableCount
+                disableActionButton
+                pageSize={PAGE_SIZE}
+                onQueryChange={onVulnerableSoftwareQueryChange}
+              />
+            </TabPanel>
+          </Tabs>
+        </TabsWrapper>
+        {isModalOpen && (
+          <Modal
+            title="Software"
+            onExit={() => setIsSoftwareModalOpen(false)}
+            className={`${baseClass}__software-modal`}
+          >
+            <>
+              <p>
+                Search for a specific software version to find the hosts that
+                have it installed.
+              </p>
+              <TableContainer
+                columns={generateModalSoftwareTableHeaders()}
+                data={modalSoftware || []}
+                isLoading={isLoadingModalSoftware}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                hideActionButton
+                resultsTitle={"software items"}
+                emptyComponent={() =>
+                  EmptySoftware(
+                    modalSoftwareSearchText === "" ? "modal" : "search"
+                  )
+                }
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                searchable
+                disableActionButton
+                pageSize={MODAL_PAGE_SIZE}
+                onQueryChange={onModalSoftwareQueryChange}
+                customControl={renderStatusDropdown}
+                renderCount={renderModalSoftwareCount}
+              />
+            </>
+          </Modal>
+        )}
+      </div>
     </div>
   );
 };
