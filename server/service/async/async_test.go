@@ -59,6 +59,15 @@ func TestRecordQueryExecutions(t *testing.T) {
 	ds.AsyncBatchUpdateLabelTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
 		return nil
 	}
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
+		return nil
+	}
+	ds.AsyncBatchInsertPolicyMembershipFunc = func(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
+		return nil
+	}
+	ds.AsyncBatchUpdatePolicyTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
+		return nil
+	}
 
 	t.Run("Label", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
@@ -71,6 +80,20 @@ func TestRecordQueryExecutions(t *testing.T) {
 			pool := redistest.SetupRedis(t, true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
+		})
+	})
+
+	t.Run("Policy", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, false, false, false)
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, true, true, false)
+			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
 		})
 	})
 }

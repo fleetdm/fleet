@@ -66,7 +66,7 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	// convert results to LPUSH arguments, store as policy_id=1 for pass,
 	// policy_id=-1 for fail, policy_id=0 for null result.
 	args := make(redigo.Args, 0, 5+len(results))
-	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost, ttl)
+	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost, int(ttl.Seconds()))
 	for k, v := range results {
 		pass := 0
 		if v != nil {
