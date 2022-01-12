@@ -57,9 +57,10 @@ const Homepage = (): JSX.Element => {
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
     false
   );
+  const [showHostsData, setShowHostsData] = useState<boolean>(false); // Hides UI on first load only
   const [isLoadingHostsSummary, setIsLoadingHostsSummary] = useState<boolean>(
     true
-  );
+  ); // Opaque UI on subsequent loads
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -103,6 +104,7 @@ const Homepage = (): JSX.Element => {
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
         setIsLoadingHostsSummary(false);
+        setShowHostsData(true);
       },
     }
   );
@@ -162,6 +164,7 @@ const Homepage = (): JSX.Element => {
                   windowsCount={windowsCount}
                   setIsLoadingHostsSummary={setIsLoadingHostsSummary}
                   isLoadingHostsSummary={isLoadingHostsSummary}
+                  showHostsData={showHostsData}
                 />
               </InfoCard>
             </div>
@@ -172,6 +175,7 @@ const Homepage = (): JSX.Element => {
                   offlineCount={offlineCount}
                   newCount={newCount}
                   isLoadingHosts={isLoadingHostsSummary}
+                  showHostsData={showHostsData}
                 />
               </InfoCard>
             </div>

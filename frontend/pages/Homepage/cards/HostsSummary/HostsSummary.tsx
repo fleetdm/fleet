@@ -17,6 +17,7 @@ interface IHostSummaryProps {
   windowsCount: string | undefined;
   setIsLoadingHostsSummary: (isLoadingHostSummary: boolean) => void;
   isLoadingHostsSummary: boolean;
+  showHostsData: boolean;
 }
 
 interface ILabelsResponse {
@@ -33,6 +34,7 @@ const HostsSummary = ({
   windowsCount,
   setIsLoadingHostsSummary,
   isLoadingHostsSummary,
+  showHostsData,
 }: IHostSummaryProps): JSX.Element => {
   const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
@@ -51,7 +53,6 @@ const HostsSummary = ({
       select: (data: ILabelsResponse) => data.labels,
       onSuccess: () => {
         setIsLoadingHostsSummary(false);
-        console.log("should be reset to false");
       },
     }
   );
@@ -75,7 +76,10 @@ const HostsSummary = ({
   );
 
   // Renders opaque information as host information is loading
-  const opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
+  let opacity = { opacity: 0 };
+  if (showHostsData) {
+    opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
+  }
 
   return (
     <div className={baseClass} style={opacity}>

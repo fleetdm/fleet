@@ -158,7 +158,6 @@ const Software = ({
       onSuccess: () => {
         setShowSoftwareTitle(true);
         setIsLoadingSoftware(false);
-        console.log("should be reset to false");
       },
       // TODO: error UX?
       onError: () => {
