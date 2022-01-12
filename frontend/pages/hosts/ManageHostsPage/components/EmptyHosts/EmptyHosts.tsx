@@ -10,7 +10,6 @@ interface IEmptyHostsProps {
 }
 
 const EmptyHosts = ({ pageIndex }: IEmptyHostsProps): JSX.Element => {
-  console.log("pageIndex", pageIndex);
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
