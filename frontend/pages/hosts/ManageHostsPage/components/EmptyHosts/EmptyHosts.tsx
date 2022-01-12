@@ -5,7 +5,12 @@ import React from "react";
 
 const baseClass = "empty-hosts";
 
-const EmptyHosts = (pageIndex: number): JSX.Element => {
+interface IEmptyHostsProps {
+  pageIndex: number;
+}
+
+const EmptyHosts = ({ pageIndex }: IEmptyHostsProps): JSX.Element => {
+  console.log("pageIndex", pageIndex);
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
