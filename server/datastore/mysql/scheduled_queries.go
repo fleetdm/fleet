@@ -138,7 +138,7 @@ func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries: rows affeted")
 		}
 		if rowsAffected == 0 {
-			return ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(uint(id)))
+			return ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(id))
 		}
 		_, err = tx.ExecContext(ctx, `DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?`, id)
 		if err != nil {
