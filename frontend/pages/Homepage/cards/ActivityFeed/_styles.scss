@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  min-height: 400px;
 
   &__header-wrap {
     .form-field {
@@ -59,12 +60,15 @@
   }
 
   &__pagination {
-    display: flex;
-    justify-content: flex-end;
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
   }
 
   &__load-activities-button {
     color: $core-vibrant-blue;
+    height: 20px;
+    vertical-align: bottom;
 
     .fleeticon-chevronleft,
     .fleeticon-chevronright {
