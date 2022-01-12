@@ -36,7 +36,7 @@ const HostSidePanel = ({
   canAddNewLabel,
   isLabelsLoading,
 }: IHostSidePanelProps): JSX.Element => {
-  if (isLabelsLoading || !labels) {
+  if (isLabelsLoading) {
     return (
       <SecondarySidePanelContainer className={`${baseClass}`}>
         <Spinner />

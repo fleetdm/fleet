@@ -1586,7 +1586,6 @@ const ManageHostsPage = ({
               </div>
             ))}
           {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
-          {/* TODO: Check out spinner here */}
         </div>
       )}
       {renderSidePanel()}
