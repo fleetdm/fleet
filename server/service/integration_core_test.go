@@ -35,21 +35,36 @@ func (s *integrationTestSuite) SetupSuite() {
 }
 
 func (s *integrationTestSuite) TearDownTest() {
+	t := s.T()
+	ctx := context.Background()
+
 	u := s.users["admin1@example.com"]
 	filter := fleet.TeamFilter{User: &u}
-	hosts, _ := s.ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
+	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
 	var ids []uint
 	for _, host := range hosts {
 		ids = append(ids, host.ID)
 	}
-	s.ds.DeleteHosts(context.Background(), ids)
+	if len(ids) > 0 {
+		require.NoError(t, s.ds.DeleteHosts(ctx, ids))
+	}
 
-	lbls, err := s.ds.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
-	require.NoError(s.T(), err)
+	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.ds.DeleteLabel(context.Background(), lbl.Name)
-			require.NoError(s.T(), err)
+			err := s.ds.DeleteLabel(ctx, lbl.Name)
+			require.NoError(t, err)
+		}
+	}
+
+	users, err := s.ds.ListUsers(ctx, fleet.UserListOptions{})
+	require.NoError(t, err)
+	for _, u := range users {
+		if _, ok := s.users[u.Email]; !ok {
+			err := s.ds.DeleteUser(ctx, u.ID)
+			require.NoError(t, err)
 		}
 	}
 }
@@ -439,6 +454,9 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Name, policiesResponse.Policies[0].Name)
 	assert.Equal(t, qr.Query, policiesResponse.Policies[0].Query)
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
+
+	// Get an unexistent policy
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", 9999), nil, http.StatusNotFound)
 
 	singlePolicyResponse := getPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
@@ -1461,6 +1479,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("POST", "/api/v1/fleet/packs", reqPack, http.StatusOK, &createPackResp)
 	pack := createPackResp.Pack.Pack
 
+	// try a non existent query
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", 9999), nil, http.StatusNotFound)
+
 	// create a query
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
@@ -1505,7 +1526,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		QueryID:  query.ID + 1,
 		Interval: 3,
 	}
-	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusInternalServerError, &createResp)
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusNotFound, &createResp)
 
 	// list scheduled queries in pack
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
@@ -1865,6 +1886,82 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/v1/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
+}
+
+func (s *integrationTestSuite) TestUsers() {
+	t := s.T()
+
+	// list existing users
+	var listResp listUsersResponse
+	s.DoJSON("GET", "/api/v1/fleet/users", nil, http.StatusOK, &listResp)
+	assert.Len(t, listResp.Users, len(s.users))
+
+	// create a new user
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:       ptr.String("extra"),
+		Email:      ptr.String("extra@asd.com"),
+		Password:   ptr.String("pass"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/v1/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+
+	// get that user
+	var getResp getUserResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, u.ID, getResp.User.ID)
+
+	// get non-existing user
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)
+
+	// modify that user - simple name change
+	var modResp modifyUserResponse
+	params = fleet.UserPayload{
+		Name: ptr.String("extraz"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
+	assert.Equal(t, u.ID, modResp.User.ID)
+	assert.Equal(t, u.Name+"z", modResp.User.Name)
+
+	// modify user - email change, password does not match
+	params = fleet.UserPayload{
+		Email:    ptr.String("extra2@asd.com"),
+		Password: ptr.String("wrongpass"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusForbidden, &modResp)
+
+	// modify user - email change, password ok
+	params = fleet.UserPayload{
+		Email:    ptr.String("extra2@asd.com"),
+		Password: ptr.String("pass"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
+	assert.Equal(t, u.ID, modResp.User.ID)
+	assert.NotEqual(t, u.ID, modResp.User.Email)
+
+	// modify invalid user
+	params = fleet.UserPayload{
+		Name: ptr.String("nosuchuser"),
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
+
+	// require a password reset
+	var reqResetResp requirePasswordResetResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/users/%d/require_password_reset", u.ID), map[string]bool{"require": true}, http.StatusOK, &reqResetResp)
+	assert.Equal(t, u.ID, reqResetResp.User.ID)
+	assert.True(t, reqResetResp.User.AdminForcedPasswordReset)
+
+	// require a password reset to invalid user
+	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/users/%d/require_password_reset", u.ID+1), map[string]bool{"require": true}, http.StatusNotFound, &reqResetResp)
+
+	// delete user
+	var delResp deleteUserResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusOK, &delResp)
+
+	// delete invalid user
+	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {

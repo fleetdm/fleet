@@ -10,7 +10,7 @@ parasails.registerPage('new-license', {
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
 
-    quoteFormRules: {
+    qutoeFormRules: {
       numberOfHosts: {required: true},
     },
 
@@ -82,7 +82,7 @@ parasails.registerPage('new-license', {
 
     clickResetForm: async function() {
       // When the "X" is clicked...
-      // this.formData = {};
+      this.formData.numberOfHosts = undefined;
       this.formErrors = {};
       this.showBillingForm = false;
       this.showQuotedPrice = false;
