@@ -84,7 +84,6 @@ const ActivityFeed = ({
         }
         setShowActivityFeedTitle(true);
         setIsLoadingActivityFeed(false);
-        console.log("should be set to false!");
       } catch (err) {
         setIsLoadingError(true);
         setIsLoadingActivityFeed(false);
