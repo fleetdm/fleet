@@ -455,6 +455,9 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Query, policiesResponse.Policies[0].Query)
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
 
+	// Get an unexistent policy
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", 9999), nil, http.StatusNotFound)
+
 	singlePolicyResponse := getPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policiesResponse.Policies[0].ID)
 	s.DoJSON("GET", singlePolicyURL, nil, http.StatusOK, &singlePolicyResponse)
@@ -1476,6 +1479,9 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("POST", "/api/v1/fleet/packs", reqPack, http.StatusOK, &createPackResp)
 	pack := createPackResp.Pack.Pack
 
+	// try a non existent query
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/queries/%d", 9999), nil, http.StatusNotFound)
+
 	// create a query
 	var createQueryResp createQueryResponse
 	reqQuery := &fleet.QueryPayload{
@@ -1520,7 +1526,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		QueryID:  query.ID + 1,
 		Interval: 3,
 	}
-	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusInternalServerError, &createResp)
+	s.DoJSON("POST", "/api/v1/fleet/schedule", reqSQ, http.StatusNotFound, &createResp)
 
 	// list scheduled queries in pack
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)

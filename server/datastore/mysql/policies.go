@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -67,6 +68,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		WHERE p.id=? AND %s`, teamWhere),
 		args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
 	return &policy, nil
