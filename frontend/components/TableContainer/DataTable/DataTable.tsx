@@ -1,6 +1,8 @@
+/* eslint-disable react/prop-types */
+// disable this rule as it was throwing an error in Header and Cell component
+// definitions for the selection row for some reason when we dont really need it.
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 import {
   useTable,
@@ -9,6 +11,8 @@ import {
   Row,
   usePagination,
   useFilters,
+  HeaderGroup,
+  Column,
 } from "react-table";
 import { isString, kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
@@ -28,7 +32,7 @@ import ActionButton, { IActionButtonProps } from "./ActionButton";
 const baseClass = "data-table-container";
 
 interface IDataTableProps {
-  columns: any;
+  columns: Column[];
   data: any;
   isLoading: boolean;
   manualSortBy?: boolean;
@@ -159,6 +163,27 @@ const DataTable = ({
         }),
         []
       ),
+      // // @ts-ignore
+      // filterTypes: React.useMemo(
+      //   () => ({
+      //     // Add a new fuzzyTextFilterFn filter type.
+      //     // fuzzyText: fuzzyTextFilterFn,
+      //     // Or, override the default text filter to use
+      //     // "startWith"
+      //     text: (r, id: any, filterValue) => {
+      //       console.log("filter args: ", r.entries, id, filterValue);
+      //       return r.filter((row) => {
+      //         const rowValue = row.values[id];
+      //         return rowValue !== undefined
+      //           ? String(rowValue)
+      //               .toLowerCase()
+      //               .startsWith(String(filterValue).toLowerCase())
+      //           : true;
+      //       });
+      //     },
+      //   }),
+      //   []
+      // ),
     },
     useFilters,
     useSortBy,
@@ -255,6 +280,15 @@ const DataTable = ({
     },
     [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
+
+  const renderColumnHeader = (column: HeaderGroup) => {
+    return (
+      <div className="column-header">
+        {column.render("Header")}
+        {column.Filter && column.render("Filter")}
+      </div>
+    );
+  };
 
   const renderSelectedCount = (): JSX.Element => {
     return (
@@ -422,7 +456,7 @@ const DataTable = ({
                     className={column.id ? `${column.id}__header` : ""}
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                   >
-                    <div>{column.render("Header")}</div>
+                    {renderColumnHeader(column)}
                   </th>
                 ))}
               </tr>
@@ -486,15 +520,15 @@ const DataTable = ({
   );
 };
 
-DataTable.propTypes = {
-  columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  isLoading: PropTypes.bool,
-  sortHeader: PropTypes.string,
-  sortDirection: PropTypes.string,
-  onSort: PropTypes.func,
-  onPrimarySelectActionClick: PropTypes.func,
-  secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
-};
+// DataTable.propTypes = {
+//   columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+//   data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
+//   isLoading: PropTypes.bool,
+//   sortHeader: PropTypes.string,
+//   sortDirection: PropTypes.string,
+//   onSort: PropTypes.func,
+//   onPrimarySelectActionClick: PropTypes.func,
+//   secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
+// };
 
 export default DataTable;
