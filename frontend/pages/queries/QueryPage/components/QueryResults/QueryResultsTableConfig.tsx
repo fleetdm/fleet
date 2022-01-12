@@ -40,8 +40,11 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
 };
 
 const resultsTableHeaders = (results: ICampaignQueryResult[]): Column[] => {
-  // Derive the table headers based on the shape of the first result
-  // TODO: Investigate how best to detect and handle cases where the results are not all the same shape
+  // Table headers are derived from the shape of the first result.
+  // Note: It is possible that results may vary from the shape of the first result.
+  // For example, different versions of osquery may have new columns in a table
+  // However, this is believed to be a very unlikely scenario and there have been
+  // no reported issues.
   const keys = results[0] ? Object.keys(results[0]) : [];
   const headers = keys.map((key) => {
     return {
