@@ -42,10 +42,12 @@ describe("Reset user sessions flow", () => {
 
     cy.getAttached(".user-settings__additional").within(() => {
       cy.findByRole("button", { name: /get api token/i }).click();
+    });
+    cy.getAttached(".modal__content").within(() => {
       cy.findByText(/reveal token/i).click();
-      cy.get(".user-settings__secret-input").within(() => {
-        cy.get("input").invoke("val").as("token2");
-      });
+    });
+    cy.getAttached(".user-settings__secret-input").within(() => {
+      cy.get("input").invoke("val").as("token2");
     });
 
     // new token should not equal old token
