@@ -714,6 +714,7 @@ func cronWebhooks(
 			// Reload interval and check if it has been reduced.
 			if appConfig, err := ds.AppConfig(ctx); err != nil {
 				level.Error(logger).Log("config", "couldn't read app config", "err", err)
+				continue
 			} else {
 				if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
 					continue
