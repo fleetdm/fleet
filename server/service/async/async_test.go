@@ -332,7 +332,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
 	require.True(t, labelReportedAt.Equal(lastYear))
 
-	err := task.RecordLabelQueryExecutions(ctx, host, results, now)
+	err := task.RecordLabelQueryExecutions(ctx, host, results, now, false)
 	require.NoError(t, err)
 	require.True(t, ds.RecordLabelQueryExecutionsFuncInvoked)
 	ds.RecordLabelQueryExecutionsFuncInvoked = false
@@ -385,7 +385,7 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
 	require.True(t, labelReportedAt.Equal(lastYear))
 
-	err := task.RecordLabelQueryExecutions(ctx, host, results, now)
+	err := task.RecordLabelQueryExecutions(ctx, host, results, now, false)
 	require.NoError(t, err)
 	require.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
 
