@@ -85,17 +85,17 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		// drop all foreign keys in the replica, as that causes issues even with
 		// FOREIGN_KEY_CHECKS=0
 		var fks []struct {
-			TableName      string `db:"table_name"`
-			ConstraintName string `db:"constraint_name"`
+			TableName      string `db:"TABLE_NAME"`
+			ConstraintName string `db:"CONSTRAINT_NAME"`
 		}
 		err := primary.SelectContext(ctx, &fks, `
           SELECT
-            table_name, constraint_name
+            TABLE_NAME, CONSTRAINT_NAME
           FROM
-            information_schema.key_column_usage
+            INFORMATION_SCHEMA.KEY_COLUMN_USAGE
           WHERE
-            table_schema = ? AND
-            referenced_table_name IS NOT NULL`, testName)
+            TABLE_SCHEMA = ? AND
+            REFERENCED_TABLE_NAME IS NOT NULL`, testName)
 		require.NoError(t, err)
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)

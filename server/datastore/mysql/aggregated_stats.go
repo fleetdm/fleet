@@ -17,7 +17,7 @@ const scheduledQueryPercentileQuery = `
 SELECT
 	coalesce((t1.%s / t1.executions), 0)
 FROM (
-	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+	SELECT (@rownum := @rownum + 1) AS row_number_value, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
 		FROM scheduled_query_stats d
 		WHERE d.scheduled_query_id=?
@@ -30,13 +30,13 @@ FROM (
 	FROM scheduled_query_stats d
 	WHERE d.scheduled_query_id=?
 ) AS t2
-WHERE t1.row_number = floor(total_rows * %s) + 1;`
+WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
 const queryPercentileQuery = `
 SELECT
 	coalesce((t1.%s / t1.executions), 0)
 FROM (
-	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+	SELECT @rownum := @rownum + 1 AS row_number_value, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
 		FROM scheduled_query_stats d
 		JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
@@ -51,10 +51,12 @@ FROM (
 	JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
 	WHERE sq.query_id=?
 ) AS t2
-WHERE t1.row_number = floor(total_rows * %s) + 1;`
+WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
-const scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
-const queryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
+const (
+	scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
+	queryTotalExecutions          = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
+)
 
 func getPercentileQuery(aggregate string, time string, percentile string) string {
 	switch aggregate {

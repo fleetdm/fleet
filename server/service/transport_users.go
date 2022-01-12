@@ -10,69 +10,9 @@ import (
 
 func decodeCreateUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req createUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-func decodeGetUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return getUserRequest{ID: uint(id)}, nil
-}
-
-func decodeListUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	opt, err := userListOptionsFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-	return listUsersRequest{ListOptions: opt}, nil
-}
-
-func decodeModifyUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	var req modifyUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req.payload); err != nil {
-		return nil, err
-	}
-	req.ID = uint(id)
-	return req, nil
-}
-
-func decodeDeleteUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	return deleteUserRequest{ID: uint(id)}, nil
-}
-
-func decodeChangePasswordRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var req changePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	return req, nil
-}
-
-func decodeRequirePasswordResetRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting ID from request")
-	}
-
-	var req requirePasswordResetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding JSON")
-	}
-	req.ID = uint(id)
 
 	return req, nil
 }

@@ -12,8 +12,7 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type getScheduledQueriesInPackRequest struct {
-	ID uint `url:"id"`
-	// TODO(mna): was not set in the old pattern
+	ID          uint              `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 

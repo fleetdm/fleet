@@ -4,6 +4,7 @@ package osquery
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +82,7 @@ func WithDataPath(path string) func(*Runner) error {
 	return func(r *Runner) error {
 		r.dataPath = path
 
-		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
@@ -90,6 +91,14 @@ func WithDataPath(path string) func(*Runner) error {
 			"--database_path="+filepath.Join(path, "osquery.db"),
 			"--extensions_socket="+r.ExtensionSocketPath(),
 		)
+		return nil
+	}
+}
+
+// WithStderr sets the runner's cmd's stderr to the given writer.
+func WithStderr(w io.Writer) func(*Runner) error {
+	return func(r *Runner) error {
+		r.cmd.Stderr = w
 		return nil
 	}
 }

@@ -92,40 +92,6 @@ func makeGetInfoAboutSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Info About Sessions For User
-////////////////////////////////////////////////////////////////////////////////
-
-type getInfoAboutSessionsForUserRequest struct {
-	ID uint
-}
-
-type getInfoAboutSessionsForUserResponse struct {
-	Sessions []getInfoAboutSessionResponse `json:"sessions"`
-	Err      error                         `json:"error,omitempty"`
-}
-
-func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
-
-func makeGetInfoAboutSessionsForUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(getInfoAboutSessionsForUserRequest)
-		sessions, err := svc.GetInfoAboutSessionsForUser(ctx, req.ID)
-		if err != nil {
-			return getInfoAboutSessionsForUserResponse{Err: err}, nil
-		}
-		var resp getInfoAboutSessionsForUserResponse
-		for _, session := range sessions {
-			resp.Sessions = append(resp.Sessions, getInfoAboutSessionResponse{
-				SessionID: session.ID,
-				UserID:    session.UserID,
-				CreatedAt: session.CreatedAt,
-			})
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Session
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -147,31 +113,6 @@ func makeDeleteSessionEndpoint(svc fleet.Service) endpoint.Endpoint {
 			return deleteSessionResponse{Err: err}, nil
 		}
 		return deleteSessionResponse{}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Sessions For User
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteSessionsForUserRequest struct {
-	ID uint
-}
-
-type deleteSessionsForUserResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSessionsForUserResponse) error() error { return r.Err }
-
-func makeDeleteSessionsForUserEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(deleteSessionsForUserRequest)
-		err := svc.DeleteSessionsForUser(ctx, req.ID)
-		if err != nil {
-			return deleteSessionsForUserResponse{Err: err}, nil
-		}
-		return deleteSessionsForUserResponse{}, nil
 	}
 }
 
