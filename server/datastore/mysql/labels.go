@@ -240,7 +240,7 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = d.writer.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries")
+			return ctxerr.Wrapf(ctx, err, "delete label_membership")
 		}
 		return nil
 	})
