@@ -228,18 +228,15 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var labelID uint
-		row := tx.QueryRowxContext(ctx, `select id FROM labels WHERE name = ?`, name)
-		if err := row.Err(); err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
-		}
-		if err := row.Scan(&labelID); err != nil {
+		err := sqlx.GetContext(ctx, tx, &labelID, `select id FROM labels WHERE name = ?`, name)
+		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
 			}
-			return ctxerr.Wrapf(ctx, err, "getting label id to delete: scan")
+			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
 		}
 
-		_, err := tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
