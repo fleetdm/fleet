@@ -459,7 +459,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 	t.Run("lists everything", func(t *testing.T) {
 		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{})
-		expected := []fleet.Software{foo001, foo002, foo003, bar003}
+		expected := []fleet.Software{bar003, foo001, foo003, foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -542,5 +542,13 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 	count, err := ds.CountSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
+	for _, s := range software {
+		sort.Slice(s.Vulnerabilities, func(i, j int) bool {
+			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
+		})
+	}
+	sort.Slice(software, func(i, j int) bool {
+		return software[i].Name+software[i].Version < software[j].Name+software[j].Version
+	})
 	return software
 }
