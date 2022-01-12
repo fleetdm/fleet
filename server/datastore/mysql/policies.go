@@ -453,6 +453,7 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 	sql := `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES `
 	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
 	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
 
 	vals := make([]interface{}, 0, len(batch)*3)
 	for _, tup := range batch {
