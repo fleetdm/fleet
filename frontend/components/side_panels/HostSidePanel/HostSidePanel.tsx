@@ -36,13 +36,6 @@ const HostSidePanel = ({
   canAddNewLabel,
   isLabelsLoading,
 }: IHostSidePanelProps): JSX.Element => {
-  if (isLabelsLoading || !labels) {
-    return (
-      <SecondarySidePanelContainer className={`${baseClass}`}>
-        <Spinner />
-      </SecondarySidePanelContainer>
-    );
-  }
   const [labelFilter, setLabelFilter] = useState<string>("");
 
   const onFilterLabels = useCallback(
@@ -51,6 +44,14 @@ const HostSidePanel = ({
     },
     [setLabelFilter]
   );
+
+  if (isLabelsLoading || !labels) {
+    return (
+      <SecondarySidePanelContainer className={`${baseClass}`}>
+        <Spinner />
+      </SecondarySidePanelContainer>
+    );
+  }
 
   const allHostLabels = filter(labels, { type: "all" });
 

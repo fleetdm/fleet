@@ -11,6 +11,7 @@ import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 
 import TeamsDropdown from "components/TeamsDropdown";
+import Spinner from "components/Spinner";
 import InfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -18,7 +19,6 @@ import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
-import Spinner from "components/Spinner";
 
 interface ITeamsResponse {
   teams: ITeam[];
