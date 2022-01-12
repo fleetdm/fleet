@@ -9,34 +9,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create Team
-////////////////////////////////////////////////////////////////////////////////
-
-type createTeamRequest struct {
-	payload fleet.TeamPayload
-}
-
-type teamResponse struct {
-	Team *fleet.Team `json:"team,omitempty"`
-	Err  error       `json:"error,omitempty"`
-}
-
-func (r teamResponse) error() error { return r.Err }
-
-func makeCreateTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(createTeamRequest)
-
-		team, err := svc.NewTeam(ctx, req.payload)
-		if err != nil {
-			return teamResponse{Err: err}, nil
-		}
-
-		return teamResponse{Team: team}, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Modify Team
 ////////////////////////////////////////////////////////////////////////////////
 

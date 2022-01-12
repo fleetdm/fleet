@@ -9,6 +9,44 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+////////////////////////////////////////////////////////////////////////////////
+// Create Team
+////////////////////////////////////////////////////////////////////////////////
+
+type createTeamRequest struct {
+	fleet.TeamPayload
+}
+
+type teamResponse struct {
+	Team *fleet.Team `json:"team,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r teamResponse) error() error { return r.Err }
+
+func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*createTeamRequest)
+
+	team, err := svc.NewTeam(ctx, req.TeamPayload)
+	if err != nil {
+		return teamResponse{Err: err}, nil
+	}
+
+	return teamResponse{Team: team}, nil
+}
+
+func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Apply Team Specs
+////////////////////////////////////////////////////////////////////////////////
+
 type applyTeamSpecsRequest struct {
 	Specs []*fleet.TeamSpec `json:"specs"`
 }
