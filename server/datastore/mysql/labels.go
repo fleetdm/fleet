@@ -233,6 +233,9 @@ func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
 			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
 		}
 		if err := row.Scan(&labelID); err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+			}
 			return ctxerr.Wrapf(ctx, err, "getting label id to delete: scan")
 		}
 
