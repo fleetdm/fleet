@@ -3,15 +3,15 @@ package async
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -35,20 +35,46 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	keyList := fmt.Sprintf(policyPassHostKey, host.ID)
 	keyTs := fmt.Sprintf(policyPassReportedKey, host.ID)
 
+	// set an expiration on both keys (list and ts), ensuring that a deleted host
+	// (eventually) does not use any redis space. Ensure that TTL is reasonably
+	// big to avoid deleting information that hasn't been collected yet - 1 week
+	// or 10 * the collector interval, whichever is biggest.
+	//
+	// This means that it will only expire if that host hasn't reported policies
+	// during that (TTL) time (each time it does report, the TTL is reset), and
+	// the collector will have plenty of time to run (multiple times) to try to
+	// persist all the data in mysql.
+	ttl := policyPassKeysMinTTL
+	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+		ttl = maxTTL
+	}
+
+	// KEYS[1]: keyList (policyPassHostKey)
+	// KEYS[2]: keyTs (policyPassReportedKey)
+	// ARGV[1]: timestamp for "reported at"
+	// ARGV[2]: max policy results to keep per host (list is trimmed to that size)
+	// ARGV[3]: ttl for both keys
+	// ARGV[4..]: policy_id=pass entries to LPUSH to the list
 	script := redigo.NewScript(2, `
-    redis.call('LPUSH', KEYS[1], unpack(ARGV, 3))
+    redis.call('LPUSH', KEYS[1], unpack(ARGV, 4))
     redis.call('LTRIM', KEYS[1], 0, ARGV[2])
-    return redis.call('SET', KEYS[2], ARGV[1])
+    redis.call('EXPIRE', KEYS[1], ARGV[3])
+    redis.call('SET', KEYS[2], ARGV[1])
+    return redis.call('EXPIRE', KEYS[2], ARGV[3])
   `)
 
 	// convert results to LPUSH arguments, store as policy_id=1 for pass,
-	// policy_id=-1 for fail.
-	args := make(redigo.Args, 0, 4+len(results))
-	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost)
+	// policy_id=-1 for fail, policy_id=0 for null result.
+	args := make(redigo.Args, 0, 5+len(results))
+	args = args.Add(keyList, keyTs, ts.Unix(), maxRedisPolicyResultsPerHost, ttl)
 	for k, v := range results {
-		pass := -1
-		if v != nil && *v {
-			pass = 1
+		pass := 0
+		if v != nil {
+			if *v {
+				pass = 1
+			} else {
+				pass = -1
+			}
 		}
 		args = args.Add(fmt.Sprintf("%d=%d", k, pass))
 	}
@@ -56,22 +82,29 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	conn := t.Pool.Get()
 	defer conn.Close()
 	if err := redis.BindConn(t.Pool, conn, keyList, keyTs); err != nil {
-		return errors.Wrap(err, "bind redis connection")
+		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
 	if _, err := script.Do(conn, args...); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "run redis script")
+	}
+
+	// Storing the host id in the set of active host IDs for policy membership
+	// outside of the redis script because in Redis Cluster mode the key may not
+	// live on the same node as the host's keys. At the same time, purge any
+	// entry in the set that is older than now - TTL.
+	if err := storePurgeActiveHostID(t.Pool, policyPassHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
+		return ctxerr.Wrap(ctx, err, "store active host id")
 	}
 	return nil
 }
 
 func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	policyPassHostKeyPattern := "policy_pass:{*}"
-	keys, err := redis.ScanKeys(pool, policyPassHostKeyPattern, t.RedisScanKeysCount)
+	hosts, err := loadActiveHostIDs(pool, policyPassHostIDsKey, t.RedisScanKeysCount)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "load active host ids")
 	}
-	stats.Keys = len(keys)
+	stats.Keys = len(hosts)
 
 	// need to use a script as the RPOP command only supports a COUNT since
 	// 6.2. Because we use LTRIM when inserting, we know the total number
@@ -83,27 +116,15 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
     return res
   `)
 
-	var reHostFromKey = regexp.MustCompile(`\{(\d+)\}$`)
-	getKeyTuples := func(key string) (inserts []fleet.PolicyMembershipResult, err error) {
-		var hostID uint
-		if matches := reHostFromKey.FindStringSubmatch(key); matches != nil {
-			if id, _ := strconv.ParseUint(matches[1], 10, 32); id > 0 {
-				hostID = uint(id)
-			}
-		}
-
-		// just ignore if there is no valid host id
-		if hostID == 0 {
-			return nil, nil
-		}
-
+	getKeyTuples := func(hostID uint) (inserts []fleet.PolicyMembershipResult, err error) {
+		keyList := fmt.Sprintf(policyPassHostKey, hostID)
 		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
 
 		stats.RedisCmds++
-		res, err := redigo.Strings(script.Do(conn, key))
+		res, err := redigo.Strings(script.Do(conn, keyList))
 		if err != nil {
-			return nil, errors.Wrap(err, "redis LRANGE script")
+			return nil, ctxerr.Wrap(ctx, err, "redis LRANGE script")
 		}
 
 		inserts = make([]fleet.PolicyMembershipResult, 0, len(res))
@@ -120,9 +141,11 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 				tup.PolicyID = uint(id)
 				switch parts[1] {
 				case "1":
-					tup.Passes = true
+					tup.Passes = ptr.Bool(true)
 				case "-1":
-					tup.Passes = false
+					tup.Passes = ptr.Bool(false)
+				case "0":
+					tup.Passes = nil
 				default:
 					continue
 				}
@@ -143,9 +166,9 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 	}
 
 	insertBatch := make([]fleet.PolicyMembershipResult, 0, t.InsertBatch)
-	hostIDs := make([]uint, 0, len(keys))
-	for _, key := range keys {
-		ins, err := getKeyTuples(key)
+	for _, host := range hosts {
+		hid := host.HostID
+		ins, err := getKeyTuples(hid)
 		if err != nil {
 			return err
 		}
@@ -157,9 +180,6 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 			}
 			insertBatch = insertBatch[:0]
 		}
-		if len(ins) > 0 {
-			hostIDs = append(hostIDs, ins[0].HostID)
-		}
 	}
 
 	// process any remaining batch that did not reach the batchSize limit in the
@@ -169,7 +189,12 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 			return err
 		}
 	}
-	if len(hostIDs) > 0 {
+	if len(hosts) > 0 {
+		hostIDs := make([]uint, len(hosts))
+		for i, host := range hosts {
+			hostIDs[i] = host.HostID
+		}
+
 		ts := time.Now()
 		updateBatch := make([]uint, t.UpdateBatch)
 		for {
@@ -181,6 +206,14 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 				return err
 			}
 			hostIDs = hostIDs[n:]
+		}
+
+		// batch-remove any host ID from the active set that still has its score to
+		// the initial value, so that the active set does not keep all (potentially
+		// 100K+) host IDs to process at all times - only those with reported
+		// results to process.
+		if err := removeProcessedHostIDs(pool, policyPassHostIDsKey, hosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "remove processed host ids")
 		}
 	}
 

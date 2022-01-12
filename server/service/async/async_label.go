@@ -79,14 +79,14 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// outside of the redis script because in Redis Cluster mode the key may not
 	// live on the same node as the host's keys. At the same time, purge any
 	// entry in the set that is older than now - TTL.
-	if err := storePurgeActiveHostID(t.Pool, host.ID, ts, ts.Add(-ttl)); err != nil {
+	if err := storePurgeActiveHostID(t.Pool, labelMembershipActiveHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return ctxerr.Wrap(ctx, err, "store active host id")
 	}
 	return nil
 }
 
 func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	hosts, err := loadActiveHostIDs(pool, t.RedisScanKeysCount)
+	hosts, err := loadActiveHostIDs(pool, labelMembershipActiveHostIDsKey, t.RedisScanKeysCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load active host ids")
 	}
@@ -217,7 +217,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		// the initial value, so that the active set does not keep all (potentially
 		// 100K+) host IDs to process at all times - only those with reported
 		// results to process.
-		if err := removeProcessedHostIDs(pool, hosts); err != nil {
+		if err := removeProcessedHostIDs(pool, labelMembershipActiveHostIDsKey, hosts); err != nil {
 			return ctxerr.Wrap(ctx, err, "remove processed host ids")
 		}
 	}
@@ -239,113 +239,4 @@ func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) tim
 		}
 	}
 	return host.LabelUpdatedAt
-}
-
-func storePurgeActiveHostID(pool fleet.RedisPool, hid uint, reportedAt, purgeOlder time.Time) error {
-	// KEYS[1]: labelMembershipActiveHostIDsKey
-	// ARGV[1]: the host ID to add
-	// ARGV[2]: the added host's reported-at timestamp
-	// ARGV[3]: purge any entry with score older than this (purgeOlder timestamp)
-	script := redigo.NewScript(1, `
-    redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
-    return redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[3])
-  `)
-
-	conn := pool.Get()
-	defer conn.Close()
-
-	if err := redis.BindConn(pool, conn, labelMembershipActiveHostIDsKey); err != nil {
-		return fmt.Errorf("bind redis connection: %w", err)
-	}
-
-	if _, err := script.Do(conn, labelMembershipActiveHostIDsKey, hid, reportedAt.Unix(), purgeOlder.Unix()); err != nil {
-		return fmt.Errorf("run redis script: %w", err)
-	}
-	return nil
-}
-
-func removeProcessedHostIDs(pool fleet.RedisPool, batch []hostIDLastReported) error {
-	// This script removes from the set of active hosts for label membership all
-	// those that still have the same score as when the batch was read (via
-	// loadActiveHostIDs). This is so that any host that would've reported new
-	// data since the call to loadActiveHostIDs would *not* get deleted (as the
-	// score would change if that was the case).
-	//
-	// Note that this approach is correct - in that it is safe and won't delete
-	// any host that has unsaved reported data - but it is potentially slow, as
-	// it needs to check the score of each member before deleting it. Should that
-	// become too slow, we have some options:
-	//
-	// * split the batch in smaller, capped ones (that would be if the redis
-	//   server gets blocked for too long processing a single batch)
-	// * use ZREMRANGEBYSCORE to remove in one command all members with a score
-	//   (reported-at timestamp) lower than the maximum timestamp in batch.
-	//   While this would be almost certainly faster, it might be incorrect as
-	//   new data could be reported with timestamps older than the maximum one,
-	//   e.g. if the clocks are not exactly in sync between fleet instances, or
-	//   if hosts report new data while the ZSCAN is going on and don't get picked
-	//   up by the SCAN (this is possible, as part of the guarantees of SCAN).
-
-	// KEYS[1]: labelMembershipActiveHostIDsKey
-	// ARGV...: the list of host ID-last reported timestamp pairs
-	script := redigo.NewScript(1, `
-    local count = 0
-    for i = 1, #ARGV, 2 do
-      local member, ts = ARGV[i], ARGV[i+1]
-      if redis.call('ZSCORE', KEYS[1], member) == ts then
-        count = count + 1
-        redis.call('ZREM', KEYS[1], member)
-      end
-    end
-    return count
-  `)
-
-	conn := pool.Get()
-	defer conn.Close()
-
-	if err := redis.BindConn(pool, conn, labelMembershipActiveHostIDsKey); err != nil {
-		return fmt.Errorf("bind redis connection: %w", err)
-	}
-
-	args := redigo.Args{labelMembershipActiveHostIDsKey}
-	for _, host := range batch {
-		args = args.Add(host.HostID, host.LastReported)
-	}
-	if _, err := script.Do(conn, args...); err != nil {
-		return fmt.Errorf("run redis script: %w", err)
-	}
-	return nil
-}
-
-type hostIDLastReported struct {
-	HostID       uint
-	LastReported int64 // timestamp in unix epoch
-}
-
-func loadActiveHostIDs(pool fleet.RedisPool, scanCount int) ([]hostIDLastReported, error) {
-	conn := redis.ConfigureDoer(pool, pool.Get())
-	defer conn.Close()
-
-	// using ZSCAN instead of fetching in one shot, as there may be 100K+ hosts
-	// and we don't want to block the redis server too long.
-	var hosts []hostIDLastReported
-	cursor := 0
-	for {
-		res, err := redigo.Values(conn.Do("ZSCAN", labelMembershipActiveHostIDsKey, cursor, "COUNT", scanCount))
-		if err != nil {
-			return nil, fmt.Errorf("scan active host ids: %w", err)
-		}
-		var hostVals []uint
-		if _, err := redigo.Scan(res, &cursor, &hostVals); err != nil {
-			return nil, fmt.Errorf("convert scan results: %w", err)
-		}
-		for i := 0; i < len(hostVals); i += 2 {
-			hosts = append(hosts, hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])})
-		}
-
-		if cursor == 0 {
-			// iteration completed
-			return hosts, nil
-		}
-	}
 }
