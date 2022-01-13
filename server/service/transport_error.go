@@ -68,22 +68,7 @@ type existsErrorInterface interface {
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	ctxerr.Handle(ctx, err)
-
-	v, haveUser := viewer.FromContext(ctx)
-	h, haveHost := host.FromContext(ctx)
-	localHub := sentry.CurrentHub().Clone()
-	if haveUser {
-		localHub.ConfigureScope(func(scope *sentry.Scope) {
-			scope.SetTag("email", v.User.Email)
-			scope.SetTag("user_id", fmt.Sprint(v.User.ID))
-		})
-	} else if haveHost {
-		localHub.ConfigureScope(func(scope *sentry.Scope) {
-			scope.SetTag("hostname", h.Hostname)
-			scope.SetTag("host_id", fmt.Sprint(h.ID))
-		})
-	}
-	localHub.CaptureException(err)
+	sendToSentry(ctx, err)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -201,4 +186,22 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 		enc.Encode(je)
 	}
+}
+
+func sendToSentry(ctx context.Context, err error) {
+	v, haveUser := viewer.FromContext(ctx)
+	h, haveHost := host.FromContext(ctx)
+	localHub := sentry.CurrentHub().Clone()
+	if haveUser {
+		localHub.ConfigureScope(func(scope *sentry.Scope) {
+			scope.SetTag("email", v.User.Email)
+			scope.SetTag("user_id", fmt.Sprint(v.User.ID))
+		})
+	} else if haveHost {
+		localHub.ConfigureScope(func(scope *sentry.Scope) {
+			scope.SetTag("hostname", h.Hostname)
+			scope.SetTag("host_id", fmt.Sprint(h.ID))
+		})
+	}
+	localHub.CaptureException(err)
 }
