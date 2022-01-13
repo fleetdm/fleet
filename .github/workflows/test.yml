@@ -4,6 +4,21 @@ on:
       - main
       - patch-*
   pull_request:
+    paths:
+      - assets/**
+      - cypress/**
+      - ee/**
+      - frontend/**
+      - pkg/**
+      - server/**
+      - tools/**
+      - go.mod
+      - go.sum
+      - package.json
+      - yarn.lock
+      - docker-compose.yml
+      - webpack.config.js
+      - tsconfig.json
 
 name: Run Tests
 
