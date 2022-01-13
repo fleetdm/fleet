@@ -57,17 +57,6 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	return result
 }
 
-// TODO(lucas): SaveHostSoftware is only used in tests, replace the occurrences with UpdateHostSoftware.
-func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
-	if !host.HostSoftware.Modified {
-		return nil
-	}
-
-	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return saveHostSoftwareDB(ctx, tx, host)
-	})
-}
-
 // UpdateHostSoftware updates the software list of a host.
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.

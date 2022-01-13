@@ -188,15 +188,11 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	soft := fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
-	host.HostSoftware = soft
-	err = ds.SaveHostSoftware(context.Background(), host)
+	err = ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
 
 	err = ds.DeleteHost(context.Background(), host.ID)
@@ -1785,21 +1781,15 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
 
-	soft := fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-			{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
 	}
 	host1 := hosts[0]
 	host2 := hosts[1]
-	host1.HostSoftware = soft
-	host2.HostSoftware = soft
-
-	require.NoError(t, ds.SaveHostSoftware(context.Background(), host1))
-	require.NoError(t, ds.SaveHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))

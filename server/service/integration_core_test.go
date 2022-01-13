@@ -346,15 +346,11 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	soft := fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-			{Name: "bar", Version: "0.0.3", Source: "apps"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
 	}
-	host.HostSoftware = soft
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	soft1 := host.Software[0]
@@ -746,13 +742,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
 	host := hosts[2]
-	host.HostSoftware = fleet.HostSoftware{
-		Modified: true,
-		Software: []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		},
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	require.NoError(t, s.ds.SaveHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
 
 	s.DoJSON("GET", "/api/v1/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
