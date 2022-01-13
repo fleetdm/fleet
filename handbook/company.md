@@ -99,7 +99,6 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - finish what you start, or at least throw it away loudly in case someone wants it
   - focus on fewer tasks at one time
 - legendary execution
-- 
 
 ### 出来 Think, fast
 - think for yourself (only you can)
