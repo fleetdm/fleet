@@ -539,6 +539,9 @@ func (man Manager) addConfigs() {
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
 		"Allow serve to run even if migrations are missing.")
+
+	// Sentry
+	man.addConfigString("sentry.dsn", "", "DSN for Sentry")
 }
 
 // LoadConfig will load the config variables into a fully initialized
