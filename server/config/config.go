@@ -225,6 +225,10 @@ type UpgradesConfig struct {
 	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
 }
 
+type SentryConfig struct {
+	Dsn string `json:"dsn"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -249,6 +253,7 @@ type FleetConfig struct {
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
 	Upgrades         UpgradesConfig
+	Sentry           SentryConfig
 }
 
 type TLS struct {
@@ -706,6 +711,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
+		},
+		Sentry: SentryConfig{
+			Dsn: man.getConfigString("sentry.dsn"),
 		},
 	}
 }

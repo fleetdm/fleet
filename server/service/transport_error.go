@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/getsentry/sentry-go"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 )
@@ -64,6 +65,7 @@ type existsErrorInterface interface {
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	ctxerr.Handle(ctx, err)
+	sentry.CaptureException(err)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

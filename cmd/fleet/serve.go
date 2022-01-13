@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
@@ -279,6 +280,22 @@ the way that the Fleet server works.
 				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
 				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
 			}
+
+			if config.Sentry.Dsn != "" {
+				v := version.Version()
+				err = sentry.Init(sentry.ClientOptions{
+					Dsn:     config.Sentry.Dsn,
+					Release: fmt.Sprintf("%s_%s_%s", v.Version, v.Branch, v.Revision),
+				})
+				if err != nil {
+					initFatal(err, "initializing sentry")
+				}
+				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn)
+
+				defer sentry.Recover()
+				defer sentry.Flush(2 * time.Second)
+			}
+
 			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
 			if err != nil {
 				initFatal(err, "initializing service")
