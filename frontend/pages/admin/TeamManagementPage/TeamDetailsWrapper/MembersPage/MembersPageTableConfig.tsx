@@ -31,7 +31,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface IMembersTableData {
+export interface IMembersTableData {
   name: string;
   email: string;
   role: string;
@@ -106,9 +106,7 @@ const generateRole = (teamId: number, teams: ITeam[]): string => {
 
 const enhanceMembersData = (
   teamId: number,
-  users: {
-    [id: number]: IUser;
-  }
+  users: IUser[]
 ): IMembersTableData[] => {
   return Object.values(users).map((user) => {
     return {
@@ -126,9 +124,7 @@ const enhanceMembersData = (
 
 const generateDataSet = (
   teamId: number,
-  users: {
-    [id: number]: IUser;
-  }
+  users: IUser[]
 ): IMembersTableData[] => {
   return [...enhanceMembersData(teamId, users)];
 };
