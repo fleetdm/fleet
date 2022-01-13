@@ -75,12 +75,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 			&cli.StringFlag{
 				Name:  orbitChannel,
-				Usage: "Use a custom orbit channel (default: stable)",
+				Usage: "Use a custom orbit channel",
 				Value: "stable",
 			},
 			&cli.StringFlag{
 				Name:  osquerydChannel,
-				Usage: "Use a custom osqueryd channel (default: stable)",
+				Usage: "Use a custom osqueryd channel",
 				Value: "stable",
 			},
 		},
