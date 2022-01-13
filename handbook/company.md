@@ -101,6 +101,9 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - legendary execution
 
 ### 出来 Think, fast
+
+Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_(philosophy)).
+
 - think for yourself (only you can)
 - from first principles
 - use reason
