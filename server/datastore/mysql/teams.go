@@ -263,8 +263,7 @@ func amountTeamsDB(db sqlx.Queryer) (int, error) {
 	return amount, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
+// TeamAgentOptions loads the agents options of a team.
 func (d *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
 	sql := `SELECT agent_options FROM teams WHERE id = ?`
 	var agentOptions json.RawMessage

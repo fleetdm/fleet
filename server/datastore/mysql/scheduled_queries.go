@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
 func (d *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
@@ -47,6 +48,7 @@ func (d *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id 
 	return results, nil
 }
 
+// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
 func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT

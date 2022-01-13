@@ -332,7 +332,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -501,7 +501,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 && id != 2 {
 			return nil, errors.New("not found")
 		}
@@ -601,7 +601,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -791,7 +791,7 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -1146,7 +1146,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		ID:       1,
 		Platform: "windows",
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -1988,7 +1988,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -2171,7 +2171,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
@@ -2437,7 +2437,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

@@ -1218,14 +1218,12 @@ func (d *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool
 	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
-func (d *Datastore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
-	var hopts fleet.HostLoadOpts
-	for _, fn := range opts {
-		fn(&hopts)
-	}
-
+// HostLite will load the primary data of the host with the given id.
+// We define "primary data" as all host information except the
+// details (like cpu, memory, gigs_disk_space_available, etc.).
+//
+// If the host doesn't exist, a NotFoundError is returned.
+func (d *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) {
 	ds := dialect.From(goqu.I("hosts")).Select(
 		"id",
 		"created_at",
@@ -1245,11 +1243,6 @@ func (d *Datastore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoa
 		"policy_updated_at",
 		"refetch_requested",
 	).Where(goqu.I("id").Eq(id))
-
-	if hopts.WithDetails {
-		ds = ds.ClearSelect() // SELECT *
-	}
-
 	query, args, err := ds.ToSQL()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
@@ -1264,6 +1257,7 @@ func (d *Datastore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoa
 	return &host, nil
 }
 
+// UpdateHostOsqueryIntervals updates the osquery intervals of a host.
 func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {
 	sqlStatement := `
 		UPDATE hosts SET
@@ -1284,6 +1278,7 @@ func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, int
 	return nil
 }
 
+// UpdateHostRefetchRequested updates a host's refetch requested field.
 func (d *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
 	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
 	_, err := d.writer.ExecContext(ctx, sqlStatement, value, id)
@@ -1293,6 +1288,10 @@ func (d *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, val
 	return nil
 }
 
+// UpdateHost updates a host.
+//
+// UpdateHost updates all columns of the `hosts` table.
+// It only updates `hosts` table, other additional host information is ignored.
 func (d *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	sqlStatement := `
 		UPDATE hosts SET

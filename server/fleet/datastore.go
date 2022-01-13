@@ -410,7 +410,9 @@ type Datastore interface {
 	// HostLite will load the primary data of the host with the given id.
 	// We define "primary data" as all host information except the
 	// details (like cpu, memory, gigs_disk_space_available, etc.).
-	HostLite(ctx context.Context, hostID uint, opts ...HostLoadOpt) (*Host, error)
+	//
+	// If the host doesn't exist, a NotFoundError is returned.
+	HostLite(ctx context.Context, hostID uint) (*Host, error)
 
 	// UpdateHostOsqueryIntervals updates the osquery intervals of a host.
 	UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals *HostOsqueryIntervals) error
@@ -477,22 +479,6 @@ type Datastore interface {
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
-}
-
-type HostLoadOpts struct {
-	WithDetails bool
-}
-
-// HostLoadOpt allows configuring host loading.
-type HostLoadOpt func(*HostLoadOpts)
-
-// WithDetails loads the host details into the returned *Host.
-//
-// By default, HostLite won't load the details.
-func WithDetails() HostLoadOpt {
-	return func(h *HostLoadOpts) {
-		h.WithDetails = true
-	}
 }
 
 // HostOsqueryIntervals holds an osquery host's osquery interval configurations.

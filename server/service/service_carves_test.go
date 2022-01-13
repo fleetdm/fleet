@@ -40,7 +40,7 @@ func TestCarveBegin(t *testing.T) {
 		metadata.ID = 7
 		return metadata, nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if host.ID != id {
 			return nil, errors.New("not found")
 		}
@@ -77,7 +77,7 @@ func TestCarveBeginNewCarveError(t *testing.T) {
 	ms.NewCarveFunc = func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 		return nil, errors.New("ouch!")
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if host.ID != id {
 			return nil, errors.New("not found")
 		}
@@ -102,7 +102,7 @@ func TestCarveBeginEmptyError(t *testing.T) {
 	}
 	ctx := hostctx.NewContext(context.Background(), &fleet.Host{ID: 1})
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
 		}
@@ -138,7 +138,7 @@ func TestCarveBeginBlockSizeMaxError(t *testing.T) {
 		ds:         ds,
 	}
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if host.ID != id {
 			return nil, errors.New("not found")
 		}
@@ -169,7 +169,7 @@ func TestCarveBeginCarveSizeMaxError(t *testing.T) {
 		ds:         ds,
 	}
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if host.ID != id {
 			return nil, errors.New("not found")
 		}
@@ -201,7 +201,7 @@ func TestCarveBeginCarveSizeError(t *testing.T) {
 	}
 	ctx := hostctx.NewContext(context.Background(), &host)
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if host.ID != id {
 			return nil, errors.New("not found")
 		}

@@ -47,18 +47,18 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		hostID, debug, err := svc.AuthenticateHost(ctx, nodeKey)
+		host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
 		if err != nil {
 			logging.WithErr(ctx, err)
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host-id", hostID)
+		hlogger := log.With(logger, "host-id", host.ID)
 		if debug {
 			logJSON(hlogger, request, "request")
 		}
 
-		ctx = hostctx.NewContext(ctx, hostID)
+		ctx = hostctx.NewContext(ctx, host)
 		instrumentHostLogger(ctx)
 
 		resp, err := next(ctx, request)

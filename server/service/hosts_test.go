@@ -65,7 +65,7 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}
@@ -372,7 +372,7 @@ func TestRefetchHost(t *testing.T) {
 
 	host := &fleet.Host{ID: 3}
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
@@ -394,7 +394,7 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
-	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {

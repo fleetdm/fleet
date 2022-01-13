@@ -318,7 +318,7 @@ type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type HostLiteFunc func(ctx context.Context, hostID uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error)
+type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error
 
@@ -1639,9 +1639,9 @@ func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
 }
 
-func (s *DataStore) HostLite(ctx context.Context, hostID uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	s.HostLiteFuncInvoked = true
-	return s.HostLiteFunc(ctx, hostID, opts...)
+	return s.HostLiteFunc(ctx, hostID)
 }
 
 func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error {

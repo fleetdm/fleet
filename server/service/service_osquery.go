@@ -701,6 +701,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	labelResults := map[uint]*bool{}
 	policyResults := map[uint]*bool{}
 
+	svc.maybeDebugHost(ctx, host, results, statuses, messages)
+
 	for query, rows := range results {
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
@@ -787,8 +789,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 	}
-
-	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
 	if detailUpdated {
 		host.DetailUpdatedAt = svc.clock.Now()

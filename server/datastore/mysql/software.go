@@ -67,6 +67,9 @@ func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) erro
 	})
 }
 
+// UpdateHostSoftware updates the software list of a host.
+// The update consists of deleting existing entries that are not in the given `software`
+// slice, updating existing entries and inserting new entries.
 func (d *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software)

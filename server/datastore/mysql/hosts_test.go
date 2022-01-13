@@ -74,8 +74,8 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"Enroll", testHostsEnroll},
-		{"Authenticate", testHostsAuthenticate},
-		{"AuthenticateCaseSensitive", testHostsAuthenticateCaseSensitive},
+		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
+		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
 		{"Search", testHostsSearch},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
@@ -92,7 +92,7 @@ func TestHosts(t *testing.T) {
 		{"ListByPolicy", testHostsListByPolicy},
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
-		{"HostLiteWithDetailsLoadsDisk", testHostLiteWithDetailsLoadsDisk},
+		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -824,7 +824,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHostsAuthenticate(t *testing.T, ds *Datastore) {
+func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -842,7 +842,7 @@ func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 }
 
-func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
+func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
@@ -1368,7 +1368,7 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostsByName[0], hosts[0].ID)
 }
 
-func testHostLiteWithDetailsLoadsDisk(t *testing.T, ds *Datastore) {
+func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1384,7 +1384,7 @@ func testHostLiteWithDetailsLoadsDisk(t *testing.T, ds *Datastore) {
 	h.GigsDiskSpaceAvailable = 1.24
 	h.PercentDiskSpaceAvailable = 42.0
 	require.NoError(t, ds.SaveHost(context.Background(), h))
-	h, err = ds.HostLite(context.Background(), h.ID, fleet.WithDetails())
+	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
 	require.NoError(t, err)
 	assert.NotZero(t, h.GigsDiskSpaceAvailable)
 	assert.NotZero(t, h.PercentDiskSpaceAvailable)
