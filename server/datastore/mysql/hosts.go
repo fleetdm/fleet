@@ -871,7 +871,9 @@ func saveHostAdditionalDB(ctx context.Context, exec sqlx.ExecerContext, hostID u
 }
 
 func (d *Datastore) SaveHostUsers(ctx context.Context, hostID uint, users []fleet.HostUser) error {
-	return saveHostUsersDB(ctx, d.writer, hostID, users)
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return saveHostUsersDB(ctx, tx, hostID, users)
+	})
 }
 
 func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, users []fleet.HostUser) error {

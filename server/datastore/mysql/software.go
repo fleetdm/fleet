@@ -57,6 +57,7 @@ func softwareSliceToIdMap(softwareSlice []fleet.Software) map[string]uint {
 	return result
 }
 
+// TODO(lucas): SaveHostSoftware is only used in tests, replace the occurrences with UpdateHostSoftware.
 func (d *Datastore) SaveHostSoftware(ctx context.Context, host *fleet.Host) error {
 	if !host.HostSoftware.Modified {
 		return nil
