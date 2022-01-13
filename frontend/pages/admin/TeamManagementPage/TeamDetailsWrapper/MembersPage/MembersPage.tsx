@@ -109,8 +109,8 @@ const MembersPage = ({
     error: loadingUsersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IMembersTableData[]>(
-    ["users", teamId],
-    () => usersAPI.loadAll({ teamId }),
+    ["users", teamId, searchString],
+    () => usersAPI.loadAll({ teamId, globalFilter: searchString }),
     {
       select: (data: IUser[]) => generateDataSet(teamId, data),
       onSuccess: (data) => {
@@ -344,7 +344,7 @@ const MembersPage = ({
                 window.location.href = "/";
               }
             } else {
-              fetchUsers(tableQueryData);
+              refetchUsers(tableQueryData);
             }
           })
           .catch(() => {
@@ -360,23 +360,18 @@ const MembersPage = ({
           });
       toggleEditMemberModal();
     },
-    [dispatch, toggleEditMemberModal, userEditing, fetchUsers]
+    [dispatch, toggleEditMemberModal, userEditing, refetchUsers]
   );
-
-  useEffect(() => {
-    // Fetch users when team_id state changes
-    fetchUsers(tableQueryData);
-  }, [team_id]);
 
   const onQueryChange = useCallback(
     (queryData) => {
       if (members) {
         setSearchString(queryData.searchQuery);
         tableQueryData = { ...queryData, teamId };
-        fetchUsers(queryData);
+        refetchUsers(queryData);
       }
     },
-    [fetchUsers, teamId, setSearchString]
+    [refetchUsers, teamId, setSearchString]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {

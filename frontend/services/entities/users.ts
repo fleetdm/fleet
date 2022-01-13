@@ -29,10 +29,6 @@ interface IRequirePasswordReset {
   require: boolean;
 }
 
-// TODO
-// interface IResetPassword {
-// }
-
 export default {
   createUserWithoutInvitation: (formData: ICreateUserFormDataNoInvite) => {
     const { USERS_ADMIN } = endpoints;
