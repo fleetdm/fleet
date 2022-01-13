@@ -11,6 +11,7 @@ import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 
 import TeamsDropdown from "components/TeamsDropdown";
+import Spinner from "components/Spinner";
 import InfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -63,6 +64,14 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
+  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
+    false
+  );
+  const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
+  const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
+  const [isLoadingHostsSummary, setIsLoadingHostsSummary] = useState<boolean>(
+    true
+  ); // Opaque UI on subsequent loads
 
   const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -87,6 +96,7 @@ const Homepage = (): JSX.Element => {
   useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam],
     () => {
+      setIsLoadingHostsSummary(true);
       return hostSummaryAPI.getSummary(currentTeam?.id);
     },
     {
@@ -104,7 +114,8 @@ const Homepage = (): JSX.Element => {
           (platform: IHostSummaryPlatform) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
-        setLinuxCount(getLinuxCount(data.platforms).toLocaleString("en-US"));
+        setIsLoadingHostsSummary(false);
+        setShowHostsUI(true);
       },
     }
   );
@@ -136,34 +147,50 @@ const Homepage = (): JSX.Element => {
             </div>
           </div>
         </div>
-        <div className={`${baseClass}__section one-column`}>
-          <InfoCard
-            title="Hosts"
-            action={{
-              type: "link",
-              to:
-                MANAGE_HOSTS +
-                TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
-              text: "View all hosts",
-            }}
-            total_host_count={totalCount}
-          >
-            <HostsSummary
-              // currentTeamId={currentTeam?.id}
-              macCount={macCount}
-              windowsCount={windowsCount}
-              linuxCount={linuxCount}
-            />
-          </InfoCard>
-        </div>
-        <div className={`${baseClass}__section one-column`}>
-          <InfoCard title="">
-            <HostsStatus
-              onlineCount={onlineCount}
-              offlineCount={offlineCount}
-              newCount={newCount}
-            />
-          </InfoCard>
+        <div className="host-sections">
+          <>
+            {isLoadingHostsSummary && (
+              <div className="spinner">
+                <Spinner />
+              </div>
+            )}
+            <div className={`${baseClass}__section one-column`}>
+              <InfoCard
+                title="Hosts"
+                action={{
+                  type: "link",
+                  to:
+                    MANAGE_HOSTS +
+                    TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
+                  text: "View all hosts",
+                }}
+                total_host_count={
+                  !isLoadingHostsSummary ? totalCount : undefined
+                }
+                showTitle
+              >
+                <HostsSummary
+                  currentTeamId={currentTeam?.id}
+                  macCount={macCount}
+                  windowsCount={windowsCount}
+                  setIsLoadingHostsSummary={setIsLoadingHostsSummary}
+                  isLoadingHostsSummary={isLoadingHostsSummary}
+                  showHostsUI={showHostsUI}
+                />
+              </InfoCard>
+            </div>
+            <div className={`${baseClass}__section one-column`}>
+              <InfoCard title="">
+                <HostsStatus
+                  onlineCount={onlineCount}
+                  offlineCount={offlineCount}
+                  newCount={newCount}
+                  isLoadingHosts={isLoadingHostsSummary}
+                  showHostsUI={showHostsUI}
+                />
+              </InfoCard>
+            </div>
+          </>
         </div>
         {isPreviewMode && (
           <div className={`${baseClass}__section two-column`}>
@@ -188,16 +215,21 @@ const Homepage = (): JSX.Element => {
               text: "View all software",
               onClick: () => setIsSoftwareModalOpen(true),
             }}
+            showTitle={showSoftwareUI}
           >
             <Software
               currentTeamId={currentTeam?.id}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
+              setShowSoftwareUI={setShowSoftwareUI}
+              showSoftwareUI={showSoftwareUI}
             />
           </InfoCard>
           {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
-            <InfoCard title="Activity">
-              <ActivityFeed />
+            <InfoCard title="Activity" showTitle={showActivityFeedTitle}>
+              <ActivityFeed
+                setShowActivityFeedTitle={setShowActivityFeedTitle}
+              />
             </InfoCard>
           )}
         </div>

@@ -83,7 +83,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - be valuable (consider business impact)
 - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand why
+  - understand why, or tell me why I'm wrong
   - agree, or disagree and commit anyway
 - make time for self-care (to help you bring your best self when communicating with others, making decisions, etc)
    - consider taking a break and going for a walk
@@ -99,9 +99,11 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - finish what you start, or at least throw it away loudly in case someone wants it
   - focus on fewer tasks at one time
 - legendary execution
-- 
 
 ### 出来 Think, fast
+
+Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_(philosophy)).
+
 - think for yourself (only you can)
 - from first principles
 - use reason

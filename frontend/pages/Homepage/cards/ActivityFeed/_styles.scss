@@ -2,6 +2,8 @@
   margin-top: $pad-large;
   display: flex;
   flex-direction: column;
+  position: relative;
+  min-height: 400px;
 
   &__header-wrap {
     .form-field {
@@ -58,12 +60,15 @@
   }
 
   &__pagination {
-    display: flex;
-    justify-content: flex-end;
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
   }
 
   &__load-activities-button {
     color: $core-vibrant-blue;
+    height: 20px;
+    vertical-align: bottom;
 
     .fleeticon-chevronleft,
     .fleeticon-chevronright {
@@ -146,5 +151,17 @@
         margin-top: 10px;
       }
     }
+  }
+
+  .spinner {
+    z-index: 11;
+    opacity: 1;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 40px; // Aligns with software table spinner
   }
 }

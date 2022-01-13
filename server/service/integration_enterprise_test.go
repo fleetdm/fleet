@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -247,4 +249,77 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
+	t := s.T()
+
+	// create a new team
+	team := &fleet.Team{
+		Name:        "Available Team",
+		Description: "Available Team description",
+	}
+
+	s.Do("POST", "/api/v1/fleet/teams", team, http.StatusOK)
+
+	team, err := s.ds.TeamByName(context.Background(), "Available Team")
+	require.NoError(t, err)
+
+	// create a new user
+	user := &fleet.User{
+		Name:       "Available Teams User",
+		Email:      "available@example.com",
+		GlobalRole: ptr.String("observer"),
+	}
+	err = user.SetPassword("foobar123#", 10, 10)
+	require.Nil(t, err)
+	user, err = s.ds.NewUser(context.Background(), user)
+	require.Nil(t, err)
+
+	// test available teams for user assigned to global role
+	var getResp getUserResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", user.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, user.ID, getResp.User.ID)
+	assert.Equal(t, ptr.String("observer"), getResp.User.GlobalRole)
+	assert.Len(t, getResp.User.Teams, 0)     // teams is empty if user has a global role
+	assert.Len(t, getResp.AvailableTeams, 1) // available teams includes all teams if user has a global role
+	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
+
+	// assign user to a team
+	user.GlobalRole = nil
+	user.Teams = []fleet.UserTeam{{Team: *team, Role: "maintainer"}}
+	err = s.ds.SaveUser(context.Background(), user)
+	require.NoError(t, err)
+
+	// test available teams for user assigned to team role
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", user.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, user.ID, getResp.User.ID)
+	assert.Nil(t, getResp.User.GlobalRole)
+	assert.Len(t, getResp.User.Teams, 1)
+	assert.Equal(t, getResp.User.Teams[0].Name, "Available Team")
+	assert.Len(t, getResp.AvailableTeams, 1)
+	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
+
+	// test available teams returned by `/me` endpoint
+	key := make([]byte, 64)
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
+		UserID:     user.ID,
+		Key:        sessionKey,
+		AccessedAt: time.Now().UTC(),
+	}
+
+	_, err = s.ds.NewSession(context.Background(), session)
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+	})
+	err = json.NewDecoder(resp.Body).Decode(&getResp)
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, getResp.User.ID)
+	assert.Nil(t, getResp.User.GlobalRole)
+	assert.Len(t, getResp.User.Teams, 1)
+	assert.Equal(t, getResp.User.Teams[0].Name, "Available Team")
+	assert.Len(t, getResp.AvailableTeams, 1)
+	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
 }

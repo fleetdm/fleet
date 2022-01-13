@@ -1,7 +1,18 @@
-## Fleet community
+## Community
 
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
+
+### Posting on social media as Fleet
+
+Self-promotional tweets are non-ideal tweets.  (Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else.)  See also https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU
+
+Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
+
+### Press releases
+
+If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story, if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  See also https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work
+
 
 ### Community contributions (pull requests)
 
