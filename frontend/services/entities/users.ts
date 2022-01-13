@@ -33,7 +33,7 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  deleteSessions: (userId: number) => {
+  deleteSessions: (userId: number, isResettingCurrentUser: boolean) => {
     const { USER_SESSIONS } = endpoints;
     const path = USER_SESSIONS(userId);
 

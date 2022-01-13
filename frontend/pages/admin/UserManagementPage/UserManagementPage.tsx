@@ -19,6 +19,8 @@ import invitesAPI from "services/entities/invites";
 import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
+// @ts-ignore
+import { logoutUser } from "redux/nodes/auth/actions";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -431,7 +433,7 @@ const UserManagementPage = (): JSX.Element => {
     const isResettingCurrentUser = currentUser?.id === userEditing.id;
 
     usersAPI
-      .deleteSessions(userEditing.id)
+      .deleteSessions(userEditing.id, isResettingCurrentUser)
       .then(() => {
         if (!isResettingCurrentUser) {
           dispatch(renderFlash("success", "Sessions reset"));
