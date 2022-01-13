@@ -660,6 +660,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		"--insecure",
 		"--debug",
 		"--enroll-secret", enrollSecret,
+		"--orbit-channel", updateOpt.OrbitChannel,
+		"--osqueryd-channel", updateOpt.OsquerydChannel,
 		"--log-file", path.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {
