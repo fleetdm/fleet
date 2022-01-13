@@ -24,6 +24,14 @@
     font-style: normal;
 }
 @font-face{
+    font-family:'Nunito Sans';
+    src:url('/fonts/nunito-sans/Nunito-Sans-ExtraBold.eot') format('embedded-opentype'),
+        url('/fonts/nunito-sans/Nunito-Sans-ExtraBold.woff') format('woff'),
+        url('/fonts/nunito-sans/Nunito-Sans-ExtraBold.tff') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+}
+@font-face{
     font-family:'Nunito';
     src:url('/fonts/nunito/Nunito-Italic.eot') format('embedded-opentype'),
         url('/fonts/nunito/Nunito-Italic.woff') format('woff'),
