@@ -106,9 +106,9 @@ type getUserRequest struct {
 }
 
 type getUserResponse struct {
-	User           *fleet.User   `json:"user,omitempty"`
-	AvailableTeams []*fleet.Team `json:"available_teams"`
-	Err            error         `json:"error,omitempty"`
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Err            error                `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
@@ -122,7 +122,7 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, fleet.ErrMissingLicense) {
-			availableTeams = []*fleet.Team{}
+			availableTeams = []*fleet.TeamSummary{}
 		} else {
 			return getUserResponse{Err: err}, nil
 		}

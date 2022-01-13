@@ -211,23 +211,22 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	return svc.ds.ListTeams(ctx, filter, opt)
 }
 
-func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.Team, error) {
+func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	availableTeams := []*fleet.Team{}
+	availableTeams := []*fleet.TeamSummary{}
 	if user.GlobalRole != nil {
-		allTeams, err := svc.ds.ListTeams(ctx, fleet.TeamFilter{User: user, IncludeObserver: true}, fleet.ListOptions{})
+		ts, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
 			return nil, err
 		}
-		// TODO: Should the full Team struct be included here for global users or should it be cast to a smaller struct?
-		availableTeams = append(availableTeams, allTeams...)
+		availableTeams = append(availableTeams, ts...)
 	} else {
 		for _, t := range user.Teams {
-			// Convert from UserTeam to Team (i.e. omit the role field)
-			availableTeams = append(availableTeams, &t.Team)
+			// Convert from UserTeam to TeamSummary (i.e. omit the role, counts, agent options)
+			availableTeams = append(availableTeams, &fleet.TeamSummary{ID: t.ID, Name: t.Name, Description: t.Description})
 		}
 	}
 

@@ -22,10 +22,10 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	User           *fleet.User   `json:"user,omitempty"`
-	AvailableTeams []*fleet.Team `json:"available_teams"`
-	Token          string        `json:"token,omitempty"`
-	Err            error         `json:"error,omitempty"`
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Token          string               `json:"token,omitempty"`
+	Err            error                `json:"error,omitempty"`
 }
 
 func (r loginResponse) error() error { return r.Err }
@@ -46,7 +46,7 @@ func makeLoginEndpoint(svc fleet.Service) endpoint.Endpoint {
 		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
 		if err != nil {
 			if errors.Is(err, fleet.ErrMissingLicense) {
-				availableTeams = []*fleet.Team{}
+				availableTeams = []*fleet.TeamSummary{}
 			} else {
 				return loginResponse{Err: err}, nil
 			}

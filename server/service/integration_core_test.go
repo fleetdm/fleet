@@ -1908,10 +1908,18 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.NotZero(t, createResp.User.ID)
 	u := *createResp.User
 
-	// get that user
+	// login as that user and check that teams info is empty
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/v1/fleet/login", params, http.StatusOK, &loginResp)
+	assert.Len(t, loginResp.User.Teams, 0)
+	assert.Len(t, loginResp.AvailableTeams, 0)
+
+	// get that user and check that teams info is empty
 	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
+	assert.Len(t, getResp.User.Teams, 0)
+	assert.Len(t, getResp.AvailableTeams, 0)
 
 	// get non-existing user
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)

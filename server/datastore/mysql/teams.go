@@ -219,6 +219,14 @@ func loadSecretsForTeamsDB(ctx context.Context, q sqlx.QueryerContext, teams []*
 	return nil
 }
 
+func (d *Datastore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, error) {
+	teamsSummary := []*fleet.TeamSummary{}
+	if err := sqlx.SelectContext(ctx, d.reader, &teamsSummary, "SELECT id, name, description FROM teams"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "teams summary")
+	}
+	return teamsSummary, nil
+}
+
 func (d *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,

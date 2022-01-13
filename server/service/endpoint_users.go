@@ -33,7 +33,7 @@ func makeGetSessionUserEndpoint(svc fleet.Service) endpoint.Endpoint {
 		availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
 		if err != nil {
 			if errors.Is(err, fleet.ErrMissingLicense) {
-				availableTeams = []*fleet.Team{}
+				availableTeams = []*fleet.TeamSummary{}
 			} else {
 				return getUserResponse{Err: err}, nil
 			}
