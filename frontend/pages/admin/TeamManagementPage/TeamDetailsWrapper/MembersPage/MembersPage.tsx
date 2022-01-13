@@ -87,7 +87,7 @@ const MembersPage = ({
   const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
   const [members, setMembers] = useState<IMembersTableData[]>([]);
   const [memberIds, setMemberIds] = useState<number[]>([]);
-  const [team, setTeam] = useState<ITeam>();
+  const [currentTeam, setCurrentTeam] = useState<ITeam>();
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -130,7 +130,7 @@ const MembersPage = ({
     {
       select: (data: ITeamsResponse) => data.teams,
       onSuccess: (data) => {
-        setTeam(data.find((team) => team.id === teamId));
+        setCurrentTeam(data.find((team) => team.id === teamId));
       },
     }
   );
@@ -199,7 +199,7 @@ const MembersPage = ({
           dispatch(
             renderFlash(
               "success",
-              `${newMembers.users.length} members successfully added to ${team?.name}.`
+              `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
             )
           );
         })
@@ -213,7 +213,7 @@ const MembersPage = ({
           refetchUsers();
         });
     },
-    [dispatch, teamId, toggleAddUserModal, team?.name, refetchUsers]
+    [dispatch, teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
   );
 
   const fetchUsers = useCallback(
@@ -337,10 +337,10 @@ const MembersPage = ({
             ) {
               // If user edits self and removes "admin" role,
               // redirect to home
-              const currentTeam = formData.teams.filter(
+              const selectedTeam = formData.teams.filter(
                 (thisTeam) => thisTeam.id === teamId
               );
-              if (currentTeam && currentTeam[0].role !== "admin") {
+              if (selectedTeam && selectedTeam[0].role !== "admin") {
                 window.location.href = "/";
               }
             } else {
@@ -435,7 +435,7 @@ const MembersPage = ({
       </p>
       {loadingUsersError ||
       loadingTeamsError ||
-      (!team && !isLoadingTeams && !isLoadingUsers) ? (
+      (!currentTeam && !isLoadingTeams && !isLoadingUsers) ? (
         <TableDataError />
       ) : (
         <TableContainer
@@ -457,9 +457,9 @@ const MembersPage = ({
           searchable={memberIds.length > 0 || searchString !== ""}
         />
       )}
-      {showAddMemberModal && team ? (
+      {showAddMemberModal && currentTeam ? (
         <AddMemberModal
-          team={team}
+          team={currentTeam}
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
@@ -482,7 +482,7 @@ const MembersPage = ({
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          currentTeam={team}
+          currentTeam={currentTeam}
         />
       ) : null}
       {showCreateUserModal ? (
@@ -497,15 +497,15 @@ const MembersPage = ({
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
-          currentTeam={team}
+          currentTeam={currentTeam}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isFormSubmitting={isFormSubmitting}
         />
       ) : null}
-      {showRemoveMemberModal && team ? (
+      {showRemoveMemberModal && currentTeam ? (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
-          teamName={team.name}
+          teamName={currentTeam.name}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />
