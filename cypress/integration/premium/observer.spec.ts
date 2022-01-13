@@ -139,11 +139,14 @@ describe("Premium tier - Observer user", () => {
     // On the Profile page, they should…
     // See Global in the Team section and Observer in the Role section
     cy.visit("/profile");
-    cy.findByText(/team/i)
-      .next()
-      .contains(/apples/i);
-    cy.findByText("Role")
-      .next()
-      .contains(/observer/i);
+
+    cy.getAttached(".user-settings__additional").within(() => {
+      cy.findByText(/team/i)
+        .next()
+        .contains(/apples/i);
+      cy.findByText("Role")
+        .next()
+        .contains(/observer/i);
+    });
   });
 });
