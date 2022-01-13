@@ -15,11 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	"github.com/getsentry/sentry-go"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -69,13 +67,6 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 			}
 		}
 	}
-
-	sentry.ConfigureScope(func(scope *sentry.Scope) {
-		scope.SetContext("host", map[string]interface{}{
-			"id":       host.ID,
-			"hostname": host.Hostname,
-		})
-	})
 
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done

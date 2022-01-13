@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -129,14 +128,6 @@ func authenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		}
 
 		ctx = viewer.NewContext(ctx, *v)
-
-		sentry.ConfigureScope(func(scope *sentry.Scope) {
-			scope.SetContext("user", map[string]interface{}{
-				"id":    v.User.ID,
-				"email": v.User.Email,
-			})
-		})
-
 		return next(ctx, request)
 	}
 
