@@ -231,6 +231,10 @@ const ManageHostsPage = ({
   );
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
+  const [
+    currentQueryOptions,
+    setCurrentQueryOptions,
+  ] = useState<ILoadHostsOptions>();
 
   // ======== end states
 
@@ -477,15 +481,17 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      page: tableQueryData ? tableQueryData.pageIndex : 0,
+      perPage: tableQueryData ? tableQueryData.pageSize : 100,
     };
 
-    if (tableQueryData) {
-      options.page = tableQueryData.pageIndex;
-      options.perPage = tableQueryData.pageSize;
+    if (isEqual(options, currentQueryOptions)) {
+      return;
     }
 
     retrieveHosts(options);
     retrieveHostCount(options);
+    setCurrentQueryOptions(options);
   }, [location, labels]);
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
@@ -657,10 +663,8 @@ const ManageHostsPage = ({
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = async (newTableQuery: ITableQueryProps) => {
     if (isEqual(newTableQuery, tableQueryData)) {
-      return false;
+      return;
     }
-
-    setIsHostsLoading(true);
 
     setTableQueryData({ ...newTableQuery });
 

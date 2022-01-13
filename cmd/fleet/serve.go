@@ -573,14 +573,6 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
 		}
-		err = ds.CleanupOrphanScheduledQueryStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
-		}
-		err = ds.CleanupOrphanLabelMembership(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
-		}
 		err = ds.UpdateQueryAggregatedStats(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "aggregating query stats", "details", err)

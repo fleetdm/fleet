@@ -28,13 +28,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
-[Feature flags](./product.md#feature-flags)
-
-[Fleet docs](./product.md#fleet-docs)
+[Product design process](./product.md#product-design-process)
 
 [Product quality](./product.md#product-quality)
 
+[Fleet docs](./product.md#fleet-docs)
+
 [UI design](./product.md#ui-design)
+
+[Release](./product.md#release)
+
+[Feature flags](./product.md#feature-flags)
 
 ### Growth
 
