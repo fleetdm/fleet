@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -291,6 +293,29 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 
 	// test available teams for user assigned to team role
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", user.ID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, user.ID, getResp.User.ID)
+	assert.Nil(t, getResp.User.GlobalRole)
+	assert.Len(t, getResp.User.Teams, 1)
+	assert.Equal(t, getResp.User.Teams[0].Name, "Available Team")
+	assert.Len(t, getResp.AvailableTeams, 1)
+	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
+
+	// test available teams returned by `/me` endpoint
+	key := make([]byte, 64)
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
+		UserID:     user.ID,
+		Key:        sessionKey,
+		AccessedAt: time.Now().UTC(),
+	}
+
+	_, err = s.ds.NewSession(context.Background(), session)
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+	})
+	err = json.NewDecoder(resp.Body).Decode(&getResp)
+	require.NoError(t, err)
 	assert.Equal(t, user.ID, getResp.User.ID)
 	assert.Nil(t, getResp.User.GlobalRole)
 	assert.Len(t, getResp.User.Teams, 1)

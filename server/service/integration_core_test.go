@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -1896,6 +1897,27 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", "/api/v1/fleet/users", nil, http.StatusOK, &listResp)
 	assert.Len(t, listResp.Users, len(s.users))
 
+	// test available teams returned by `/me` endpoint for existing user
+	var getMeResp getUserResponse
+	key := make([]byte, 64)
+	sessionKey := base64.StdEncoding.EncodeToString(key)
+	session := &fleet.Session{
+		UserID:     uint(1),
+		Key:        sessionKey,
+		AccessedAt: time.Now().UTC(),
+	}
+	_, err := s.ds.NewSession(context.Background(), session)
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("GET", "/api/v1/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", sessionKey),
+	})
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Len(t, getMeResp.User.Teams, 0)
+	assert.Len(t, getMeResp.AvailableTeams, 0)
+
 	// create a new user
 	var createResp createUserResponse
 	params := fleet.UserPayload{
@@ -1911,10 +1933,11 @@ func (s *integrationTestSuite) TestUsers() {
 	// login as that user and check that teams info is empty
 	var loginResp loginResponse
 	s.DoJSON("POST", "/api/v1/fleet/login", params, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
 	assert.Len(t, loginResp.User.Teams, 0)
 	assert.Len(t, loginResp.AvailableTeams, 0)
 
-	// get that user and check that teams info is empty
+	// get that user from `/users` endpoint and check that teams info is empty
 	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
