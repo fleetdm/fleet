@@ -38,8 +38,6 @@ import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
-import { useDebouncedCallback } from "use-debounce/lib";
-import { current } from "@reduxjs/toolkit";
 
 const baseClass = "manage-policies-page";
 

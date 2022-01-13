@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IPolicy, IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import { IPolicyFormData, IPolicyStats } from "interfaces/policy";
 
 export interface IGlobalPoliciesStatsResponse {
   policies: IPolicyStats[];
