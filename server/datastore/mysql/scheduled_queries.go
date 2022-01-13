@@ -128,7 +128,24 @@ func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *flee
 }
 
 func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	return d.deleteEntity(ctx, scheduledQueriesTable, id)
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, `DELETE FROM scheduled_queries WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries")
+		}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries: rows affeted")
+		}
+		if rowsAffected == 0 {
+			return ctxerr.Wrap(ctx, notFound("ScheduledQuery").WithID(id))
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete scheduled_queries_stats")
+		}
+		return nil
+	})
 }
 
 func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
@@ -164,16 +181,4 @@ func (d *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	}
 
 	return sq, nil
-}
-
-func (d *Datastore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
-	_, err := d.writer.ExecContext(ctx, `DELETE FROM scheduled_query_stats where scheduled_query_id not in (select id from scheduled_queries where id=scheduled_query_id)`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning orphan scheduled_query_stats by scheduled_query")
-	}
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM scheduled_query_stats where host_id not in (select id from hosts where id=host_id)`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning orphan scheduled_query_stats by host")
-	}
-	return nil
 }

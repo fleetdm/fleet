@@ -311,8 +311,6 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupOrphanScheduledQueryStats(ctx context.Context) error
-	CleanupOrphanLabelMembership(ctx context.Context) error
 	CleanupExpiredHosts(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

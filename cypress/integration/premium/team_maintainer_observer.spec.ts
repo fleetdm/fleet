@@ -228,10 +228,7 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-      cy.visit("/schedule/manage");
-
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/detect presence/i).should("exist");
+      cy.get(".flash-message--success").should("exist");
 
       cy.visit("/hosts/manage");
       cy.contains(".table-container .data-table__table th", "Team").should(

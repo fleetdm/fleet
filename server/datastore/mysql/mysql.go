@@ -69,15 +69,13 @@ type entity struct {
 }
 
 var (
-	hostsTable            = entity{"hosts"}
-	invitesTable          = entity{"invites"}
-	labelsTable           = entity{"labels"}
-	packsTable            = entity{"packs"}
-	queriesTable          = entity{"queries"}
-	scheduledQueriesTable = entity{"scheduled_queries"}
-	sessionsTable         = entity{"sessions"}
-	teamsTable            = entity{"teams"}
-	usersTable            = entity{"users"}
+	hostsTable    = entity{"hosts"}
+	invitesTable  = entity{"invites"}
+	packsTable    = entity{"packs"}
+	queriesTable  = entity{"queries"}
+	sessionsTable = entity{"sessions"}
+	teamsTable    = entity{"teams"}
+	usersTable    = entity{"users"}
 )
 
 // retryableError determines whether a MySQL error can be retried. By default
