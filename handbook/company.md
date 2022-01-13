@@ -21,6 +21,8 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ## Values
 
+_Fleet's company values are a work in progress, with [an upcoming overhaul](https://gist.github.com/mikermcneil/f776a8e2010a2deb5274c2bcedc96cfe)._
+
 ### Quickly with craft
 
 #### Iterate by taking baby steps. 
