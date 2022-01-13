@@ -114,7 +114,7 @@ func NewHost(t *testing.T, ds fleet.Datastore, name, ip, key, uuid string, now t
 
 	require.NoError(t, err)
 	require.NotZero(t, h.ID)
-	require.NoError(t, ds.MarkHostSeen(context.Background(), h, now))
+	require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, now))
 
 	return h
 }

@@ -1,18 +1,17 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import paths from "router/paths";
-import { Link } from "react-router";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
-import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import sortUtils from "utilities/sort";
 
 import TeamsDropdown from "components/TeamsDropdown";
-import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 import InfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -20,7 +19,6 @@ import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
-import LinkArrow from "../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -40,7 +38,9 @@ const Homepage = (): JSX.Element => {
     config,
     currentTeam,
     isPremiumTier,
+    isFreeTier,
     isPreviewMode,
+    isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
 
@@ -53,15 +53,29 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
+  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
+    false
+  );
+  const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
+  const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
+  const [isLoadingHostsSummary, setIsLoadingHostsSummary] = useState<boolean>(
+    true
+  ); // Opaque UI on subsequent loads
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<
-    ITeamsResponse,
-    Error,
-    ITeam[]
-  >(["teams"], () => teamsAPI.loadAll(), {
-    enabled: !!isPremiumTier,
-    select: (data: ITeamsResponse) => data.teams,
-  });
+  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: !!isPremiumTier,
+      select: (data: ITeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams) => {
+        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+          setCurrentTeam(responseTeams[0]);
+        }
+      },
+    }
+  );
 
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
@@ -71,6 +85,7 @@ const Homepage = (): JSX.Element => {
   useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam],
     () => {
+      setIsLoadingHostsSummary(true);
       return hostSummaryAPI.getSummary(currentTeam?.id);
     },
     {
@@ -88,74 +103,100 @@ const Homepage = (): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
+        setIsLoadingHostsSummary(false);
+        setShowHostsUI(true);
       },
     }
   );
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__header-wrap`}>
-        <div className={`${baseClass}__header`}>
-          {isPremiumTier ? (
-            <TeamsDropdown
-              currentTeamId={currentTeam?.id || 0}
-              isLoading={isLoadingTeams}
-              teams={teams || []}
-              onChange={(newSelectedValue: number) =>
-                handleTeamSelect(newSelectedValue)
-              }
-            />
-          ) : (
-            <h1 className={`${baseClass}__title`}>
-              <span>{config?.org_name}</span>
-            </h1>
-          )}
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header`}>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isFreeTier && <h1>{config?.org_name}</h1>}
+                {isPremiumTier &&
+                  teams &&
+                  (teams.length > 1 || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      selectedTeamId={currentTeam?.id || 0}
+                      currentUserTeams={teams || []}
+                      onChange={(newSelectedValue: number) =>
+                        handleTeamSelect(newSelectedValue)
+                      }
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  teams &&
+                  teams.length === 1 && <h1>{teams[0].name}</h1>}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className={`${baseClass}__section one-column`}>
-        <InfoCard
-          title="Hosts"
-          action={{
-            type: "link",
-            to:
-              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
-            text: "View all hosts",
-          }}
-          total_host_count={totalCount}
+        <div className="host-sections">
+          <>
+            {isLoadingHostsSummary && (
+              <div className="spinner">
+                <Spinner />
+              </div>
+            )}
+            <div className={`${baseClass}__section one-column`}>
+              <InfoCard
+                title="Hosts"
+                action={{
+                  type: "link",
+                  to:
+                    MANAGE_HOSTS +
+                    TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam?.id),
+                  text: "View all hosts",
+                }}
+                total_host_count={
+                  !isLoadingHostsSummary ? totalCount : undefined
+                }
+                showTitle
+              >
+                <HostsSummary
+                  currentTeamId={currentTeam?.id}
+                  macCount={macCount}
+                  windowsCount={windowsCount}
+                  setIsLoadingHostsSummary={setIsLoadingHostsSummary}
+                  isLoadingHostsSummary={isLoadingHostsSummary}
+                  showHostsUI={showHostsUI}
+                />
+              </InfoCard>
+            </div>
+            <div className={`${baseClass}__section one-column`}>
+              <InfoCard title="">
+                <HostsStatus
+                  onlineCount={onlineCount}
+                  offlineCount={offlineCount}
+                  newCount={newCount}
+                  isLoadingHosts={isLoadingHostsSummary}
+                  showHostsUI={showHostsUI}
+                />
+              </InfoCard>
+            </div>
+          </>
+        </div>
+        {isPreviewMode && (
+          <div className={`${baseClass}__section two-column`}>
+            <InfoCard title="Welcome to Fleet">
+              <WelcomeHost />
+            </InfoCard>
+            <InfoCard title="Learn how to use Fleet">
+              <LearnFleet />
+            </InfoCard>
+          </div>
+        )}
+        <div
+          className={`
+          ${baseClass}__section 
+          ${currentTeam ? "one" : "two"}-column
+        `}
         >
-          <HostsSummary
-            currentTeamId={currentTeam?.id}
-            macCount={macCount}
-            windowsCount={windowsCount}
-          />
-        </InfoCard>
-      </div>
-      <div className={`${baseClass}__section one-column`}>
-        <InfoCard title="">
-          <HostsStatus
-            onlineCount={onlineCount}
-            offlineCount={offlineCount}
-            newCount={newCount}
-          />
-        </InfoCard>
-      </div>
-      {isPreviewMode && (
-        <div className={`${baseClass}__section two-column`}>
-          <InfoCard title="Welcome to Fleet">
-            <WelcomeHost />
-          </InfoCard>
-          <InfoCard title="Learn how to use Fleet">
-            <LearnFleet />
-          </InfoCard>
-        </div>
-      )}
-      <div
-        className={`
-        ${baseClass}__section 
-        ${currentTeam ? "one" : "two"}-column
-      `}
-      >
-        {!currentTeam && (
           <InfoCard
             title="Software"
             action={{
@@ -163,18 +204,24 @@ const Homepage = (): JSX.Element => {
               text: "View all software",
               onClick: () => setIsSoftwareModalOpen(true),
             }}
+            showTitle={showSoftwareUI}
           >
             <Software
+              currentTeamId={currentTeam?.id}
               isModalOpen={isSoftwareModalOpen}
               setIsSoftwareModalOpen={setIsSoftwareModalOpen}
+              setShowSoftwareUI={setShowSoftwareUI}
+              showSoftwareUI={showSoftwareUI}
             />
           </InfoCard>
-        )}
-        {!isPreviewMode && !currentTeam && (
-          <InfoCard title="Activity">
-            <ActivityFeed />
-          </InfoCard>
-        )}
+          {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
+            <InfoCard title="Activity" showTitle={showActivityFeedTitle}>
+              <ActivityFeed
+                setShowActivityFeedTitle={setShowActivityFeedTitle}
+              />
+            </InfoCard>
+          )}
+        </div>
       </div>
     </div>
   );

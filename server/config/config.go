@@ -63,6 +63,8 @@ type RedisConfig struct {
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
+	WriteTimeout    time.Duration `yaml:"write_timeout"`
+	ReadTimeout     time.Duration `yaml:"read_timeout"`
 }
 
 const (
@@ -346,6 +348,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
 	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
+	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -381,8 +385,8 @@ func (man Manager) addConfigs() {
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 4*time.Hour,
-		"Duration session keys remain valid (i.e. 24h)")
+	man.addConfigDuration("session.duration", 24*time.Hour,
+		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
 	man.addConfigInt("osquery.node_key_size", 24,
@@ -438,7 +442,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.disable_banner", false,
 		"Disable startup banner")
 	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
-		"Amount of time to keep errors")
+		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -514,7 +518,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
 
 	// Vulnerability processing
-	man.addConfigString("vulnerabilities.databases_path", "",
+	man.addConfigString("vulnerabilities.databases_path", "/tmp/vulndbs",
 		"Path where Fleet will download the data feeds to check CVEs")
 	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
 		"How much time to wait between processing software for vulnerabilities.")
@@ -580,6 +584,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
 			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),

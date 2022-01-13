@@ -1,5 +1,6 @@
 .home-software {
   margin-top: $pad-large;
+  position: relative;
 
   .software-link {
     img {
@@ -8,6 +9,9 @@
       width: auto;
       vertical-align: middle;
     }
+  }
+  .table-container {
+    min-height: 435px;
   }
   .data-table__wrapper {
     overflow-x: auto;
@@ -19,6 +23,8 @@
     display: none;
   }
   &__software-modal {
+    width: 780px;
+
     .data-table__wrapper {
       margin-top: $pad-large;
     }
@@ -80,5 +86,61 @@
       padding-left: $pad-large;
       font-size: $small !important;
     }
+  }
+  .data-table-container {
+    .data-table__table {
+      table-layout: fixed;
+
+      thead {
+        .vulnerabilities__header {
+          width: 4%;
+          border-right: 0;
+          padding-right: 0;
+        }
+        .name__header {
+          width: 60%;
+        }
+        .version__header {
+          width: 30%;
+          border-right: 0; // Remove this when hosts column returns
+          padding-right: 0; // Remove this when hosts column returns
+        }
+        // Commented out until hosts column returns
+        // .host_count__header {
+        //   border-right: 0;
+        //   padding-right: 0;
+        //   width: 60px;
+        // }
+        .id__header {
+          padding: 0;
+          border-left: 0;
+          width: 40px;
+        }
+      }
+
+      tbody {
+        .name__cell,
+        .version__cell {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .id__cell {
+          padding: 0;
+          width: 40px;
+        }
+        .vulnerabilities__cell {
+          img {
+            transform: scale(0.5);
+          }
+        }
+      }
+    }
+  }
+  .count-loading {
+    color: $ui-fleet-black-50;
+  }
+  .count-error {
+    color: $ui-error;
   }
 }

@@ -28,7 +28,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
 };
 
 const platformOptions = [
-  { label: "All Platforms", value: "" },
+  { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Ubuntu", value: "ubuntu" },
@@ -187,7 +187,7 @@ const LabelForm = ({
       {isEdit && platform && (
         <div className={`${baseClass}__label-platform`}>
           <p className="title">Platform</p>
-          <p>{!platform ? "All platforms" : PLATFORM_STRINGS[platform]}</p>
+          <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
           <p className="hint">
             Label platforms are immutable. To change the platform, delete this
             label and create a new one.

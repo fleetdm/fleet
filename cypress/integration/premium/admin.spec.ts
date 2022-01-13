@@ -10,6 +10,7 @@ describe(
       cy.seedPremium();
       cy.setupSMTP();
       cy.seedQueries();
+      cy.seedPolicies("apples");
       cy.addDockerHost("apples");
       cy.logout();
     });
@@ -28,13 +29,10 @@ describe(
         cy.login("anna@organization.com", "user123#");
         cy.visit("/hosts/manage");
 
-        // Ensure the hosts page is loaded
-        cy.contains("All hosts");
-
         // On the hosts page, they should…
 
         // See the “Teams” column in the Hosts table
-        cy.get("thead").contains(/team/i).should("exist");
+        cy.getAttached("thead").contains(/team/i).should("exist");
 
         // See and select the “Generate installer” button
         cy.contains("button", /generate installer/i).click();
@@ -63,6 +61,8 @@ describe(
         cy.get(".transfer-action-btn").click();
         cy.findByText(/transferred to oranges/i).should("exist");
         cy.findByText(/team/i).next().contains("Oranges");
+        // See and select operating system
+        // TODO
 
         // TODO - Fix tests according to improved query experience - MP
         // On the Queries - new / edit / run page, they should…
@@ -188,7 +188,7 @@ describe(
         // End e2e test for schedules
 
         cy.visit("/queries/manage");
-
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.findByText(/query all window crashes/i)
           .parent()
           .parent()
@@ -206,7 +206,42 @@ describe(
 
         cy.findByText(/successfully removed query/i).should("be.visible");
 
-        cy.findByText(/query all/i).should("not.exist");
+        // On the policies manage page, they should…
+        cy.contains("a", "Policies").click();
+        // See and select the "Manage automations" button
+        cy.findByRole("button", { name: /manage automations/i }).click();
+        cy.findByRole("button", { name: /cancel/i }).click();
+
+        // See and select the "Add a policy", "delete", and "edit" policy
+        cy.findByRole("button", { name: /add a policy/i })
+          .should("exist")
+          .click();
+        cy.get(".modal__ex").within(() => {
+          cy.findByRole("button").click();
+        });
+
+        // No global policies seeded, switch to team apples to create, delete, edit
+        cy.findByText(/ask yes or no questions/i).should("exist");
+        cy.findByText(/all teams/i).click();
+        cy.findByText(/apples/i).click();
+
+        cy.get("tbody").within(() => {
+          cy.get("tr")
+            .first()
+            .within(() => {
+              cy.get(".fleet-checkbox__input").check({ force: true });
+            });
+        });
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.get(".remove-policies-modal").within(() => {
+          cy.findByRole("button", { name: /delete/i }).should("exist");
+          cy.findByRole("button", { name: /cancel/i }).click();
+        });
+        cy.findByText(/filevault enabled/i).click();
+        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("exist");
+          cy.findByRole("button", { name: /save/i }).should("exist");
+        });
 
         // On the Packs pages (manage, new, and edit), they should…
         // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
@@ -214,9 +249,13 @@ describe(
         // On the Settings pages, they should…
         // See the “Teams” navigation item and access the Settings - Teams page
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         cy.get(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();
         });
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+
         // Access the Settings - Team details page
         cy.findByText(/apples/i).click();
         cy.findByText(/apples/i).should("exist");
@@ -224,6 +263,7 @@ describe(
 
         // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
         cy.visit("/settings/organization");
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
         cy.get(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });
@@ -233,10 +273,13 @@ describe(
         // On the Profile page, they should…
         // See Global in the Team section and Admin in the Role section
         cy.visit("/profile");
-        cy.findByText(/team/i)
-          .next()
-          .contains(/global/i);
-        cy.findByText("Role").next().contains(/admin/i);
+
+        cy.getAttached(".user-settings__additional").within(() => {
+          cy.findByText(/team/i)
+            .next()
+            .contains(/global/i);
+          cy.findByText("Role").next().contains(/admin/i);
+        });
       }
     );
   }

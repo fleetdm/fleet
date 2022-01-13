@@ -22,15 +22,23 @@
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&family=Nunito:wght@300;400;500;600;700;800;900&display=swap&Source+Code+Pro&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,900&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
-    <% /* Google Analytics, Google Tag Manager, etc. */ %>
+    <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
     <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');</script>
+    <%/* Snitcher analytics code */%>
+    <script>
+        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
+        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
+        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
+        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
+
+        snid('verify', '8416878');
+    </script>
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */
@@ -50,6 +58,7 @@
     <!--STYLES-->
     <link rel="stylesheet" href="/dependencies/bootstrap-4/bootstrap-4.css">
     <link rel="stylesheet" href="/dependencies/fontawesome.css">
+    <link rel="stylesheet" href="/dependencies/nunito-webfonts.css">
     <link rel="stylesheet" href="/styles/importer.css">
     <!--STYLES END-->
   </head>
@@ -136,7 +145,7 @@
           <div class="d-flex flex-grow-1 flex-column">
             <div purpose="footer-nav" class="justify-content-between justify-content-sm-end order-l pb-xl-2 px-lg-0">
               <div class="flex-column">
-                <a href="/get-started" class="d-block pr-md-5 pr-sm-3 pb-2">Get started</a>
+                <a href="/customers/dashboard" class="d-block pr-md-5 pr-sm-3 pb-2">Customers</a>
                 <a href="/docs" class="d-block pr-md-5 pr-sm-3 pb-2">Docs</a>
                 <a href="/transparency" class="d-block pr-md-5 pr-sm-3 pb-2 pb-xl-0">Transparency</a>
               </div>
@@ -160,7 +169,7 @@
             <div style="font-size: 11px; line-height: 18px;" class="d-flex flex-column justify-content-start flex-sm-row pr-sm-0">
               <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" />
               <div class="pl-sm-3 pt-sm-0 pt-1 pl-0 text-sm-nowrap d-block d-sm-inline">
-                © 2021 Fleet Device Management Inc.
+                © 2022 Fleet Device Management Inc.
                 <span purpose="legal-nav">
                   <a style="text-decoration: underline;" href="/legal/privacy">Privacy</a>
                   <a style="text-decoration: underline;" class="pl-3" target="_blank" href="https://osquery.io">What is osquery?</a>
@@ -238,6 +247,8 @@
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
+    <script src="/js/pages/customers/dashboard.page.js"></script>
+    <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/dashboard/welcome.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>

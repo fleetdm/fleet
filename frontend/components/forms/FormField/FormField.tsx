@@ -22,7 +22,7 @@ const FormField = ({
   label,
   name,
   type,
-}: IFormFieldProps) => {
+}: IFormFieldProps): JSX.Element => {
   const renderLabel = () => {
     const labelWrapperClasses = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !isEmpty(error),

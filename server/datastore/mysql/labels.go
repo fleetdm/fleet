@@ -226,7 +226,27 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 
 // DeleteLabel deletes a fleet.Label
 func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, labelsTable, name)
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var labelID uint
+		err := sqlx.GetContext(ctx, tx, &labelID, `select id FROM labels WHERE name = ?`, name)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+			}
+			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete label")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete label_membership")
+		}
+		return nil
+	})
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
@@ -235,7 +255,7 @@ func (d *Datastore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 }
 
 func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label, error) {
-	sql := `
+	stmt := `
 		SELECT
 		       l.*,
 		       (SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id) AS host_count
@@ -244,7 +264,10 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 	`
 	label := &fleet.Label{}
 
-	if err := sqlx.GetContext(ctx, q, label, sql, lid); err != nil {
+	if err := sqlx.GetContext(ctx, q, label, stmt, lid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithID(lid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
 
@@ -424,7 +447,10 @@ func (d *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.L
 // with fleet.Label referened by Label ID
 func (d *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	query := `
-			SELECT h.*, hst.seen_time, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+			SELECT
+				h.*,
+				COALESCE(hst.seen_time, h.created_at) as seen_time,
+				(SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 			FROM label_membership lm
 			JOIN hosts h ON (lm.host_id = h.id)
 			LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
@@ -682,14 +708,6 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 	return labelIDs, nil
 }
 
-func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
-	_, err := d.writer.ExecContext(ctx, `DELETE FROM label_membership where not exists (select 1 from labels where id=label_id) or not exists (select 1 from hosts where id=host_id)`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning orphan label_membership by label")
-	}
-	return nil
-}
-
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the
 // batch of label_id + host_id tuples represented by the [2]uint array.
 func (d *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
@@ -756,4 +774,13 @@ func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []ui
 		_, err := tx.ExecContext(ctx, query, args...)
 		return ctxerr.Wrap(ctx, err, "update hosts.label_updated_at")
 	})
+}
+
+func amountLabelsDB(db sqlx.Queryer) (int, error) {
+	var amount int
+	err := sqlx.Get(db, &amount, `SELECT count(*) FROM labels`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
 }

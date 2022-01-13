@@ -9,7 +9,8 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
-      cy.addDockerHost();
+      cy.seedPolicies("apples");
+      cy.addDockerHost("apples");
       cy.logout();
     });
 
@@ -20,14 +21,7 @@ describe(
     it("Can perform the appropriate basic global maintainer actions", () => {
       cy.login("mary@organization.com", "user123#");
       cy.visit("/hosts/manage");
-
-      // Ensure page is loaded
-      cy.contains("All hosts");
-
-      // Host manage page: Teams column, select a team
-      cy.visit("/hosts/manage");
-
-      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
 
       // See the "Manage" enroll secret” button. A modal appears after the user selects the button
       cy.contains("button", /manage enroll secret/i).click();
@@ -59,6 +53,8 @@ describe(
       cy.contains("button", /delete/i).should("exist");
       cy.contains("button", /query/i).click();
       cy.contains("button", /create custom query/i).should("exist");
+      // See and select operating system
+      // TODO
 
       // Query pages: Can see teams UI for create, edit, and run query
       cy.visit("/queries/manage");
@@ -84,6 +80,40 @@ describe(
       //   cy.findByText(/teams/i).should("exist");
       // });
 
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+      // See and select the "Manage automations" button
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.findByRole("button", { name: /cancel/i }).click();
+
+      // See and select the "Add a policy", "delete", and "edit" policy
+      cy.findByRole("button", { name: /add a policy/i }).click();
+      cy.get(".modal__ex").within(() => {
+        cy.findByRole("button").click();
+      });
+
+      // No global policies seeded, switch to team apples to create, delete, edit
+      cy.findByText(/ask yes or no questions/i).should("exist");
+      cy.findByText(/all teams/i).click();
+      cy.findByText(/apples/i).click();
+
+      cy.get("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").check({ force: true });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.get(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+      cy.findByText(/filevault enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
       // On the Packs pages (manage, new, and edit), they should…
       // On the Schedule pages (manage, new, and edit), they should…
       // ^^General maintainer functionality for packs page is being tested in free/maintainer.spec.ts
@@ -91,12 +121,15 @@ describe(
       // On the Profile page, they should…
       // See Global in the Team section and Maintainer in the Role section
       cy.visit("/profile");
-      cy.findByText(/team/i)
-        .next()
-        .contains(/global/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/maintainer/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText(/team/i)
+          .next()
+          .contains(/global/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/maintainer/i);
+      });
     });
   }
 );

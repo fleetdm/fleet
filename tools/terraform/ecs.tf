@@ -147,6 +147,13 @@ resource "aws_ecs_task_definition" "backend" {
             awslogs-stream-prefix = "fleet"
           }
         },
+        ulimits = [
+          {
+            name      = "nofile"
+            softLimit = 999999
+            hardLimit = 999999
+          }
+        ],
         secrets = [
           {
             name      = "FLEET_MYSQL_PASSWORD"
@@ -209,10 +216,6 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_SERVER_TLS"
             value = "false"
-          },
-          {
-            name  = "FLEET_BETA_SOFTWARE_INVENTORY"
-            value = var.software_inventory
           },
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"

@@ -12,7 +12,7 @@ import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 
 // @ts-ignore
-import TargetsInput from "pages/queries/QueryPage/components/TargetsInput";
+import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
@@ -98,7 +98,7 @@ const SelectTargets = ({
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
-}: ISelectTargetsProps) => {
+}: ISelectTargetsProps): JSX.Element => {
   const [targetsTotalCount, setTargetsTotalCount] = useState<number | null>(
     null
   );
@@ -114,7 +114,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState<string>("");
   const [relatedHosts, setRelatedHosts] = useState<IHost[]>([]);
 
-  const { isLoading: isTargetsLoading, isError: isTargetsError } = useQuery(
+  const { isFetching: isTargetsFetching, isError: isTargetsError } = useQuery(
     // triggers query on change
     ["targetsFromSearch", searchText, [...selectedTargets]],
     () =>
@@ -190,6 +190,11 @@ const SelectTargets = ({
     }
   );
 
+  const handleClickCancel = () => {
+    setSelectedTargets([]);
+    goToQueryEditor();
+  };
+
   const handleSelectedLabels = (selectedLabel: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
   ): void => {
@@ -264,7 +269,7 @@ const SelectTargets = ({
     );
   };
 
-  if (isEmpty(searchText) && isTargetsLoading) {
+  if (isEmpty(searchText) && isTargetsFetching) {
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
@@ -320,7 +325,7 @@ const SelectTargets = ({
         tabIndex={inputTabIndex}
         searchText={searchText}
         relatedHosts={[...relatedHosts]}
-        isTargetsLoading={isTargetsLoading}
+        isTargetsLoading={isTargetsFetching}
         selectedTargets={[...selectedTargets]}
         hasFetchError={isTargetsError}
         setSearchText={setSearchText}
@@ -330,7 +335,7 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={goToQueryEditor}
+          onClick={handleClickCancel}
           variant="text-link"
         >
           Cancel

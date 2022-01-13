@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/database"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -27,6 +27,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -114,17 +115,33 @@ func main() {
 			return nil
 		}
 
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
-		if logfile := c.String("log-file"); logfile != "" {
-			f, err := secure.OpenFile(logfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-			if err != nil {
-				return fmt.Errorf("open logfile: %w", err)
+		var logFile io.Writer
+		if logf := c.String("log-file"); logf != "" {
+			if logDir := filepath.Dir(logf); logDir != "." {
+				if err := secure.MkdirAll(logDir, constant.DefaultDirMode); err != nil {
+					panic(err)
+				}
 			}
-			log.Logger = log.Output(zerolog.MultiLevelWriter(
-				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-				zerolog.ConsoleWriter{Out: f, TimeFormat: time.RFC3339Nano, NoColor: true},
-			))
+			logFile = &lumberjack.Logger{
+				Filename:   logf,
+				MaxSize:    25, // megabytes
+				MaxBackups: 3,
+				MaxAge:     28, // days
+			}
+			if runtime.GOOS == "windows" {
+				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
+				// "write /dev/stderr: The handle is invalid" (see #3100). Thus, we log to the logFile only.
+				log.Logger = log.Output(zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true})
+			} else {
+				log.Logger = log.Output(zerolog.MultiLevelWriter(
+					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				))
+			}
+		} else {
+			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
 		}
+
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 		if c.Bool("debug") {
@@ -153,25 +170,6 @@ func main() {
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
-
-		dbPath := filepath.Join(c.String("root-dir"), "orbit.db")
-		db, err := database.Open(dbPath)
-		if err != nil {
-			if errors.Is(err, badger.ErrTruncateNeeded) {
-				db, err = database.OpenTruncate(dbPath)
-				if err != nil {
-					return err
-				}
-				log.Warn().Msg("Open badger required truncate. Data loss is possible.")
-			} else {
-				return err
-			}
-		}
-		defer func() {
-			if err := db.Close(); err != nil {
-				log.Error().Err(err).Msg("Close badger")
-			}
-		}()
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
@@ -231,6 +229,11 @@ func main() {
 		var options []func(*osquery.Runner) error
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 
+		if logFile != nil {
+			// If set, redirect osqueryd's stderr to the logFile.
+			options = append(options, osquery.WithStderr(logFile))
+		}
+
 		fleetURL := c.String("fleet-url")
 		if !strings.HasPrefix(fleetURL, "http") {
 			fleetURL = "https://" + fleetURL
@@ -240,7 +243,7 @@ func main() {
 		if enrollSecret != "" {
 			const enrollSecretEnvName = "ENROLL_SECRET"
 			options = append(options,
-				osquery.WithEnv([]string{enrollSecretEnvName, enrollSecret}),
+				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
 		}
@@ -363,7 +366,6 @@ func main() {
 		r, _ := osquery.NewRunner(osquerydPath, options...)
 		g.Add(r.Execute, r.Interrupt)
 
-		// Extension tables not yet supported on Windows.
 		ext := table.NewRunner(r.ExtensionSocketPath())
 		g.Add(ext.Execute, ext.Interrupt)
 

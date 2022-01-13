@@ -59,28 +59,41 @@ type htmlPage interface {
 	error() error
 }
 
-func idFromRequest(r *http.Request, name string) (uint, error) {
+func uintFromRequest(r *http.Request, name string) (uint64, error) {
 	vars := mux.Vars(r)
-	id, ok := vars[name]
+	s, ok := vars[name]
 	if !ok {
 		return 0, errBadRoute
 	}
-	uid, err := strconv.Atoi(id)
+	u, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "idFromRequest")
+		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
 	}
-	return uint(uid), nil
+	return u, nil
 }
 
-func nameFromRequest(r *http.Request, varName string) (string, error) {
+func intFromRequest(r *http.Request, name string) (int64, error) {
 	vars := mux.Vars(r)
-	name, ok := vars[varName]
+	s, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	u, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, ctxerr.Wrap(r.Context(), err, "intFromRequest")
+	}
+	return u, nil
+}
+
+func stringFromRequest(r *http.Request, name string) (string, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
 	if !ok {
 		return "", errBadRoute
 	}
-	unescaped, err := url.PathUnescape(name)
+	unescaped, err := url.PathUnescape(s)
 	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape name in path")
+		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
 	}
 	return unescaped, nil
 }
@@ -96,6 +109,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	perPageString := r.URL.Query().Get("per_page")
 	orderKey := r.URL.Query().Get("order_key")
 	orderDirectionString := r.URL.Query().Get("order_direction")
+	afterString := r.URL.Query().Get("after")
 
 	var page int
 	if pageString != "" {
@@ -155,6 +169,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     query,
+		After:          afterString,
 	}, nil
 }
 
@@ -227,7 +242,37 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
+	if disableFailingPolicies != "" {
+		boolVal, err := strconv.ParseBool(disableFailingPolicies)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DisableFailingPolicies = boolVal
+	}
+
 	return hopt, nil
+}
+
+func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.CarveListOptions{}, err
+	}
+
+	copt := fleet.CarveListOptions{ListOptions: opt}
+
+	expired := r.URL.Query().Get("expired")
+	// TODO(mna): allow the same bool encodings as strconv.ParseBool and use it?
+	switch expired {
+	case "1", "true":
+		copt.Expired = true
+	case "0", "":
+		copt.Expired = false
+	default:
+		return copt, ctxerr.Errorf(r.Context(), "invalid expired value %s", expired)
+	}
+	return copt, nil
 }
 
 func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
@@ -254,11 +299,11 @@ func decodeNoParamsRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 type getGenericSpecRequest struct {
-	Name string
+	Name string `url:"name"`
 }
 
 func decodeGetGenericSpecRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	name, err := nameFromRequest(r, "name")
+	name, err := stringFromRequest(r, "name")
 	if err != nil {
 		return nil, err
 	}

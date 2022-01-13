@@ -176,9 +176,6 @@ type Service interface {
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
 
-	// ListLabelsForHost returns the labels that the given host is in.
-	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryService
 
@@ -254,6 +251,11 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// ListHostDeviceMapping returns the list of device-mapping of user's email address
+	// for the host.
+	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -415,9 +417,10 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
-	NewGlobalPolicy(ctx context.Context, queryID uint, resolution string) (*Policy, error)
+	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
+	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 
@@ -426,12 +429,14 @@ type Service interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
-	NewTeamPolicy(ctx context.Context, teamID uint, queryID uint, resolution string) (*Policy, error)
+	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
+	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 }

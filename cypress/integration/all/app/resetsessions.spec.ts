@@ -8,6 +8,7 @@ describe("Reset user sessions flow", () => {
   it("Resets a user's API tokens", () => {
     // visit user's profile page and get current API token
     cy.visit("/profile");
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     cy.findByRole("button", { name: /get api token/i }).click();
     cy.findByText(/reveal token/i).click();
@@ -17,6 +18,7 @@ describe("Reset user sessions flow", () => {
 
     // reset user sessions via the admin user management page
     cy.visit("/settings/users");
+    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
     // first select the table cell with the user's email address then go back up to the containing row
     // so we can select reset sessions from actions dropdown
@@ -37,9 +39,14 @@ describe("Reset user sessions flow", () => {
     cy.login();
 
     cy.visit("/profile");
-    cy.findByRole("button", { name: /get api token/i }).click();
-    cy.findByText(/reveal token/i).click();
-    cy.get(".user-settings__secret-input").within(() => {
+
+    cy.getAttached(".user-settings__additional").within(() => {
+      cy.findByRole("button", { name: /get api token/i }).click();
+    });
+    cy.getAttached(".modal__content").within(() => {
+      cy.findByText(/reveal token/i).click();
+    });
+    cy.getAttached(".user-settings__secret-input").within(() => {
       cy.get("input").invoke("val").as("token2");
     });
 

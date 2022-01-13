@@ -233,14 +233,13 @@ const MembersPage = ({
     setIsFormSubmitting(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
-      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
       const requestData = {
         ...formData,
         invited_by: formData.currentUserId,
       };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
-      delete requestData.password; // this field is not needed for the request
+      delete requestData.currentUserId;
+      delete requestData.newUserType;
+      delete requestData.password;
       dispatch(inviteActions.create(requestData))
         .then(() => {
           dispatch(
@@ -270,12 +269,11 @@ const MembersPage = ({
           setIsFormSubmitting(false);
         });
     } else {
-      // Do some data formatting deleteing uncessary fields
       const requestData = {
         ...formData,
       };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
+      delete requestData.currentUserId;
+      delete requestData.newUserType;
       dispatch(userActions.createUserWithoutInvitation(requestData))
         .then(() => {
           dispatch(
@@ -325,8 +323,6 @@ const MembersPage = ({
         .then(() => {
           dispatch(renderFlash("success", `Successfully edited ${userName}.`));
           if (currentUser && userEditing && currentUser.id === userEditing.id) {
-            // If user edits self and removes "admin" role,
-            // redirect to home
             const currentTeam = formData.teams.filter(
               (thisTeam) => thisTeam.id === teamId
             );
@@ -354,17 +350,17 @@ const MembersPage = ({
   );
 
   useEffect(() => {
+    // Fetch users when Redux team_id state changes
     fetchUsers(tableQueryData);
   }, [team_id]);
 
-  // NOTE: this will fire on initial render, so we use this to get the list of
-  // users for this team, as well as use it as a handler when the table query
-  // changes.
   const onQueryChange = useCallback(
     (queryData) => {
-      setSearchString(queryData.searchQuery);
-      tableQueryData = { ...queryData, teamId };
-      fetchUsers(queryData);
+      if (users) {
+        setSearchString(queryData.searchQuery);
+        tableQueryData = { ...queryData, teamId };
+        fetchUsers(queryData);
+      }
     },
     [fetchUsers, teamId, setSearchString]
   );
@@ -448,7 +444,6 @@ const MembersPage = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={memberIds.length > 0 || searchString !== ""}
-          isClientSideSearch
         />
       )}
       {showAddMemberModal ? (

@@ -36,7 +36,7 @@ const (
 )
 
 // Matches all non-word and '-' characters for replacement
-var columnCharsRegexp = regexp.MustCompile(`[^\w-]`)
+var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
 // dbReader is an interface that defines the methods required for reads.
 type dbReader interface {
@@ -69,15 +69,13 @@ type entity struct {
 }
 
 var (
-	hostsTable            = entity{"hosts"}
-	invitesTable          = entity{"invites"}
-	labelsTable           = entity{"labels"}
-	packsTable            = entity{"packs"}
-	queriesTable          = entity{"queries"}
-	scheduledQueriesTable = entity{"scheduled_queries"}
-	sessionsTable         = entity{"sessions"}
-	teamsTable            = entity{"teams"}
-	usersTable            = entity{"users"}
+	hostsTable    = entity{"hosts"}
+	invitesTable  = entity{"invites"}
+	packsTable    = entity{"packs"}
+	queriesTable  = entity{"queries"}
+	sessionsTable = entity{"sessions"}
+	teamsTable    = entity{"teams"}
+	usersTable    = entity{"users"}
 )
 
 // retryableError determines whether a MySQL error can be retried. By default
@@ -361,12 +359,14 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	missingTable, unknownTable, equalTable := compareVersions(
 		getVersionsFromMigrations(knownTable),
 		appliedTable,
+		knownUnknownTableMigrations,
 	)
 
 	knownData := data.MigrationClient.Migrations
 	missingData, unknownData, equalData := compareVersions(
 		getVersionsFromMigrations(knownData),
 		appliedData,
+		knownUnknownDataMigrations,
 	)
 
 	if equalData && equalTable {
@@ -393,9 +393,39 @@ func (d *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	}, nil
 }
 
+var (
+	knownUnknownTableMigrations = map[int64]struct{}{
+		// This migration was introduced incorrectly in fleet-v4.4.0 and its
+		// timestamp was changed in fleet-v4.4.1.
+		20210924114500: {},
+	}
+	knownUnknownDataMigrations = map[int64]struct{}{
+		// This migration was present in 2.0.0, and was removed on a subsequent release.
+		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
+		// column doesn't exist anymore).
+		20171212182459: {},
+		// Deleted in
+		// https://github.com/fleetdm/fleet/commit/fd61dcab67f341c9e47fb6cb968171650c19a681
+		20161223115449: {},
+		20170309091824: {},
+		20171027173700: {},
+		20171212182458: {},
+	}
+)
+
+func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
+	var result []int64
+	for _, t := range in {
+		if _, ok := knownUnknowns[t]; !ok {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // compareVersions returns any missing or extra elements in v2 with respect to v1
 // (v1 or v2 need not be ordered).
-func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bool) {
+func compareVersions(v1, v2 []int64, knownUnknowns map[int64]struct{}) (missing []int64, unknown []int64, equal bool) {
 	v1s := make(map[int64]struct{})
 	for _, m := range v1 {
 		v1s[m] = struct{}{}
@@ -414,6 +444,7 @@ func compareVersions(v1, v2 []int64) (missing []int64, unknown []int64, equal bo
 			unknown = append(unknown, m)
 		}
 	}
+	unknown = unknownUnknowns(unknown, knownUnknowns)
 	if len(missing) == 0 && len(unknown) == 0 {
 		return nil, nil, true
 	}
@@ -499,12 +530,39 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 }
 
 func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
-	if opts.OrderKey != "" {
+	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
+	return sql
+}
+
+func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
+	orderKey := sanitizeColumn(opts.OrderKey)
+
+	if opts.After != "" && orderKey != "" {
+		afterSql := " WHERE "
+		if strings.Contains(strings.ToLower(sql), "where") {
+			afterSql = " AND "
+		}
+		if strings.HasSuffix(orderKey, "id") {
+			i, _ := strconv.Atoi(opts.After)
+			params = append(params, i)
+		} else {
+			params = append(params, opts.After)
+		}
+		direction := ">" // ASC
+		if opts.OrderDirection == fleet.OrderDescending {
+			direction = "<" // DESC
+		}
+		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
+
+		// After existing supersedes Page, so we disable it
+		opts.Page = 0
+	}
+
+	if orderKey != "" {
 		direction := "ASC"
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
-		orderKey := sanitizeColumn(opts.OrderKey)
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
@@ -523,7 +581,7 @@ func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
 		sql = fmt.Sprintf("%s OFFSET %d", sql, offset)
 	}
 
-	return sql
+	return sql, params
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
@@ -730,4 +788,29 @@ func searchLike(sql string, params []interface{}, match string, columns ...strin
 
 	sql += " AND (" + strings.Join(ors, " OR ") + ")"
 	return sql, params
+}
+
+// very loosely checks that a string looks like an email:
+// has no spaces, a single @ character, a part before the @,
+// a part after the @, the part after has at least one dot
+// with something after the dot. I don't think this is perfectly
+// correct as the email format allows any chars including spaces
+// when inside double quotes, but this is an edge case that is
+// unlikely to matter much in practice. Another option that would
+// definitely not cut out any valid address is to just check for
+// the presence of @, which is arguably the most important check
+// in this.
+var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
+
+func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+	base, args := searchLike(sql, params, match, columns...)
+
+	// special-case for hosts: if match looks like an email address, add searching
+	// in host_emails table as an option, in addition to the provided columns.
+	if rxLooseEmail.MatchString(match) {
+		// remove the closing paren and add the email condition to the list
+		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
+		args = append(args, likePattern(match))
+	}
+	return base, args
 }

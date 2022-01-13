@@ -44,10 +44,15 @@ export default class Request {
   send() {
     const { endpoint, requestAttributes } = this;
 
-    return fetch(endpoint, requestAttributes).then((response) => {
-      return response.json().then((jsonResponse) => {
-        return Request.handleResponse(response, jsonResponse);
-      });
+    return fetch(endpoint, requestAttributes).then(async (response) => {
+      let jsonResponse;
+      try {
+        jsonResponse = await response.json();
+      } catch (error) {
+        console.log("Failed to parse response body as JSON: ", error);
+        throw response.statusText || error;
+      }
+      return Request.handleResponse(response, jsonResponse);
     });
   }
 }

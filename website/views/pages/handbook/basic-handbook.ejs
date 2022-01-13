@@ -8,13 +8,15 @@
           <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
           <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/edit/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
         </div>
-        <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
-        <div purpose="subtopics">
-          <ul class="p-0 m-0">
-            <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
-              <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
-            </li>
-          </ul>
+        <div v-if="!isHandbookLandingPage">
+          <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
+          <div purpose="subtopics">
+            <ul class="p-0 m-0">
+              <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
+                <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="border-bottom py-3 d-flex d-md-none"></div>
       </div>
@@ -65,13 +67,15 @@
             <img class="maintainer-image" alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
             <a style="margin-top: 24px;" :href="'https://github.com/fleetdm/fleet/tree/main/handbook/'+thisPage.sectionRelativeRepoPath"> Edit this page</a>
           </div>
-          <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
-          <div purpose="subtopics">
-            <ul class="p-0 m-0">
-              <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
-                <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
-              </li>
-            </ul>
+          <div v-if="!isHandbookLandingPage">
+            <h4 class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</h4>
+            <div purpose="subtopics">
+              <ul class="p-0 m-0">
+                <li v-for="(subtopic, index) in subtopics" class="subtopic" :key="index">
+                  <a :href="subtopic.url" :class="_isCurrentSection(subtopic, this.window.location) ? 'active' : 'pl-md-3'" @click="forceRender()">{{subtopic.title}}</a>
+                </li>
+              </ul>
+            </div>
           </div>
           <div class="border-bottom py-3 d-flex d-md-none"></div>
         </div>

@@ -4,22 +4,41 @@ import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {
   page: number;
-  perPage: number;
+  perPage?: number;
   orderKey: string;
   orderDir: "asc" | "desc";
   query: string;
   vulnerable: boolean;
-  teamId: boolean;
+  teamId?: number;
 }
 
 interface ISoftwareResponse {
   software: ISoftware[];
 }
 
+export interface ISoftwareCountResponse {
+  count: number;
+}
+
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
+
+const buildQueryStringFromParams = (params: ISoftwareParams) => {
+  const filteredParams = Object.entries(params).filter(
+    ([key, value]) => !!value
+  );
+  if (!filteredParams.length) {
+    return "";
+  }
+  return `?${filteredParams
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join("&")}`;
+};
 
 export default {
   load: async ({
@@ -32,7 +51,7 @@ export default {
     teamId,
   }: ISoftwareParams): Promise<ISoftware[]> => {
     const { SOFTWARE } = endpoints;
-    const pagination = `page=${page}&per_page=${perPage}`;
+    const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
     const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
     let path = `${SOFTWARE}?${pagination}&${sort}`;
 
@@ -41,7 +60,7 @@ export default {
     }
 
     if (query) {
-      path += `&query=${query}`;
+      path += `&query=${encodeURIComponent(query)}`;
     }
 
     if (vulnerable) {
@@ -54,5 +73,13 @@ export default {
     } catch (error) {
       throw error;
     }
+  },
+
+  count: async (params: ISoftwareParams): Promise<ISoftwareCountResponse> => {
+    const { SOFTWARE } = endpoints;
+    const path = `${SOFTWARE}/count`;
+    const queryString = buildQueryStringFromParams(params);
+
+    return sendRequest("GET", path.concat(queryString));
   },
 };

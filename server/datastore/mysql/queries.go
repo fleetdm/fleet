@@ -103,7 +103,7 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	result, err := d.writer.ExecContext(ctx, sqlStatement, query.Name, query.Description, query.Query, query.Saved, query.AuthorID, query.ObserverCanRun)
 
 	if err != nil && isDuplicate(err) {
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", 0))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
 	}
@@ -149,7 +149,7 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 
 // Query returns a single Query identified by id, if such exists.
 func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
-	sql := `
+	sqlQuery := `
 		SELECT q.*, COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, COALESCE(u.email, '') AS author_email
 		FROM queries q
 		LEFT JOIN users u
@@ -157,7 +157,10 @@ func (d *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, d.reader, query, sql, id); err != nil {
+	if err := sqlx.GetContext(ctx, d.reader, query, sqlQuery, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 

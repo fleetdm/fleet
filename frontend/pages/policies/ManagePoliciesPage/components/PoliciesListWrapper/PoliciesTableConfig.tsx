@@ -7,8 +7,8 @@ import { memoize } from "lodash";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IPolicy } from "interfaces/policy";
+import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
@@ -42,7 +42,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IPolicy;
+    original: IPolicyStats;
     getToggleRowSelectedProps: () => any; // TODO: do better with types
     toggleRowSelected: () => void;
   };
@@ -72,24 +72,30 @@ const generateTableHeaders = (options: {
     case "inheritedPolicies":
       return [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
       ];
     default: {
       const tableHeaders: IDataColumn[] = [
         {
-          title: "Query",
-          Header: "Query",
+          title: "Name",
+          Header: "Name",
           disableSortBy: true,
-          accessor: "query_name",
+          accessor: "name",
           Cell: (cellProps: ICellProps): JSX.Element => (
-            <TextCell value={cellProps.cell.value} />
+            <LinkCell
+              value={cellProps.cell.value}
+              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+            />
           ),
         },
         {
@@ -141,6 +147,17 @@ const generateTableHeaders = (options: {
           ),
         },
       ];
+      if (!selectedTeamId) {
+        tableHeaders.push({
+          title: "Automations",
+          Header: "Automations",
+          disableSortBy: true,
+          accessor: "webhook",
+          Cell: (cellProps: ICellProps): JSX.Element => (
+            <StatusCell value={cellProps.cell.value} />
+          ),
+        });
+      }
       if (showSelectionColumn) {
         tableHeaders.splice(0, 0, {
           id: "selection",
@@ -169,11 +186,22 @@ const generateTableHeaders = (options: {
   }
 };
 
-const generateDataSet = memoize((policiesList: IPolicy[] = []): IPolicy[] => {
+const generateDataSet = (
+  policiesList: IPolicyStats[] = [],
+  currentAutomatedPolicies?: number[]
+): IPolicyStats[] => {
   policiesList = policiesList.sort((a, b) =>
-    sortUtils.caseInsensitiveAsc(a.query_name, b.query_name)
+    sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
+
+  policiesList.forEach((policy) => {
+    policy.webhook =
+      currentAutomatedPolicies && currentAutomatedPolicies.includes(policy.id)
+        ? "On"
+        : "Off";
+  });
+
   return policiesList;
-});
+};
 
 export { generateTableHeaders, generateDataSet };

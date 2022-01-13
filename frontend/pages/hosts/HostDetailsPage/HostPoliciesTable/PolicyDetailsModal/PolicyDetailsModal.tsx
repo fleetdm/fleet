@@ -2,7 +2,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import { IHostPolicy } from "interfaces/host_policy";
+import { IHostPolicy } from "interfaces/policy";
 
 interface IPolicyDetailsProps {
   onCancel: () => void;
@@ -17,12 +17,12 @@ const PolicyDetailsModal = ({
 }: IPolicyDetailsProps): JSX.Element => {
   return (
     <Modal
-      title={`${policy?.query_name || "Query name"}`}
+      title={`${policy?.name || "Policy name"}`}
       onExit={onCancel}
       className={baseClass}
     >
       <div className={`${baseClass}__modal-body`}>
-        <p>{policy?.query_description}</p>
+        <p>{policy?.description}</p>
         {policy?.resolution && (
           <div className={`${baseClass}__resolution`}>
             <span className={`${baseClass}__resolve-header`}> Resolve:</span>

@@ -1,14 +1,18 @@
 .manage-queries-page {
   &__header-wrap {
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $pad-xxlarge;
   }
 
   &__header {
     display: flex;
     align-items: center;
+
+    .form-field {
+      margin-bottom: 0;
+    }
   }
 
   &__text {
@@ -37,8 +41,7 @@
   }
 
   &__description {
-    margin: 0 0 $pad-medium;
-    padding-top: $pad-xsmall;
+    margin: 0 0 $pad-xxlarge;
 
     h2 {
       text-transform: uppercase;

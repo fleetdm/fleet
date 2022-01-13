@@ -9,6 +9,7 @@ describe(
       cy.login();
       cy.seedPremium();
       cy.seedQueries();
+      cy.seedPolicies("apples");
       cy.addDockerHost("apples");
       cy.addDockerHost("oranges");
       cy.logout();
@@ -26,8 +27,10 @@ describe(
 
       // On the Hosts page, they should…
 
-      // See hosts
-      cy.findByText(/generate installer/i).should("not.exist");
+      // On observing team, not see the "Generate installer" and "Manage enroll secret" buttons
+      cy.contains(/apples/i);
+      cy.contains("button", /generate installer/i).should("not.exist");
+      cy.contains("button", /manage enroll secret/i).should("not.exist");
 
       // See the “Teams” column in the Hosts table
       cy.get("thead").contains(/team/i).should("exist");
@@ -44,6 +47,29 @@ describe(
 
       // NOT see and select "add label"
       cy.findByRole("button", { name: /new label/i }).should("not.exist");
+
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+
+      // On observing team, not see the "Add a policy" and "Manage automations" button
+      cy.findByText(/manage automations/i).should("not.exist");
+      cy.findByText(/add a policy/i).should("not.exist");
+
+      cy.getAttached("tbody").within(() => {
+        cy.get("tr")
+          .first()
+          .within(() => {
+            cy.get(".fleet-checkbox__input").should("not.exist");
+          });
+      });
+
+      // On observing team, cannot save or run policy
+      cy.findByText(/filevault enabled/i).click();
+
+      cy.getAttached(".policy-form__wrapper").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("not.exist");
+        cy.findByRole("button", { name: /save/i }).should("not.exist");
+      });
 
       // On the Host details page, they should…
 
@@ -111,7 +137,7 @@ describe(
       // ^^ TODO confirm if this restriction applies to a dual-role user like Marco
     });
 
-    it("Can perform the appropriate maintainer actions", () => {
+    it("Can perform the appropriate team maintainer actions", () => {
       cy.login("marco@organization.com", "user123#");
       cy.visit("/hosts/manage");
 
@@ -138,21 +164,13 @@ describe(
       // See the “Teams” column in the Hosts table
       cy.get("thead").contains(/team/i).should("exist");
 
-      // See and select the “Generate installer” button
+      // On maintaining team, see the "Generate installer" and "Manage enroll secret" buttons
+      cy.visit("/hosts/manage/?team_id=2");
+      cy.contains(/oranges/i);
       cy.findByRole("button", { name: /generate installer/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
 
-      // See the "Manage" enroll secret” button on team Oranges only
-      cy.findByText(/all teams/i).should("exist");
-      cy.findByText(/manage enroll secret/i).should("not.exist");
-
-      cy.visit("/hosts/manage/?team_id=1");
-      cy.findAllByText(/apples/i).should("exist");
-      cy.findByText(/manage enroll secret/i).should("not.exist");
-
-      // Add secret tests same API as edit and delete
-      cy.visit("/hosts/manage/?team_id=2");
-      cy.findAllByText(/oranges/i).should("exist");
+      // On maintaining team, add secret tests same API as edit and delete
       cy.contains("button", /manage enroll secret/i).click();
       cy.contains("button", /add secret/i).click();
       cy.contains("button", /save/i).click();
@@ -210,25 +228,52 @@ describe(
         .contains("button", /schedule/i)
         .click();
 
-      cy.visit("/schedule/manage");
-
-      cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/detect presence/i).should("exist");
+      cy.get(".flash-message--success").should("exist");
 
       cy.visit("/hosts/manage");
       cy.contains(".table-container .data-table__table th", "Team").should(
         "be.visible"
       );
 
+      // On the policies manage page, they should…
+      cy.contains("a", "Policies").click();
+
+      // On maintaining team, not see the "Manage automations" button
+      cy.findByText(/apples/i).click();
+      cy.findByText(/oranges/i).click();
+      cy.findByText(/manage automations/i).should("not.exist");
+
+      // On maintaining team, should see "add a policy" and "save" a policy
+      // Add a default policy
+      cy.findByText(/add a policy/i).click();
+
+      cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /save policy/i }).click();
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+
+      // Confirm that policy was added successfully
+      cy.findByText(/policy created/i).should("exist");
+
+      // On maintaining team, should see "run" a policy
+      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
+
       // On the Profile page, they should…
       // See 2 Teams in the Team section and Various in the Role section
       cy.visit("/profile");
-      cy.findByText("Teams")
-        .next()
-        .contains(/2 teams/i);
-      cy.findByText("Role")
-        .next()
-        .contains(/various/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText("Teams")
+          .next()
+          .contains(/2 teams/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/various/i);
+      });
     });
   }
 );

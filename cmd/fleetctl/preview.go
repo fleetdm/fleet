@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
@@ -33,6 +34,7 @@ const (
 	licenseKeyFlagName      = "license-key"
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"
+	noHostsFlagName         = "no-hosts"
 )
 
 func previewCommand() *cli.Command {
@@ -63,6 +65,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  previewConfigFlagName,
 				Usage: "Run a specific branch of the preview repository",
 				Value: "production",
+			},
+			&cli.BoolFlag{
+				Name:  noHostsFlagName,
+				Usage: "Start the server without adding any hosts",
+				Value: false,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -219,11 +226,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to apply updated app config: %w", err)
 			}
 
-			fmt.Println("Applying Policies...")
-			if err := loadPolicies(client); err != nil {
-				fmt.Println("WARNING: Couldn't load policies:", err)
-			}
-
 			secrets, err := client.GetEnrollSecretSpec()
 			if err != nil {
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
@@ -241,38 +243,44 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error disabling anonymous analytics collection in app config: %w", err)
 			}
 
-			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
+			fmt.Println("Fleet will now log you into the UI automatically.")
 			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
 			fmt.Println("Email:", email)
 			fmt.Println("Password:", password)
 
-			fmt.Println("Downloading Orbit and osqueryd...")
+			if !c.Bool(noHostsFlagName) {
+				fmt.Println("Enrolling local host...")
 
-			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
-				return fmt.Errorf("downloading orbit and osqueryd: %w", err)
-			}
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
+					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
+				}
 
-			// Give it a bit of time so the current device is the one with id 1
-			fmt.Println("Waiting for current host to enroll...")
-			if err := waitFirstHost(client); err != nil {
-				return fmt.Errorf("wait for current host: %w", err)
-			}
+				// Give it a bit of time so the current device is the one with id 1
+				fmt.Println("Waiting for host to enroll...")
+				if err := waitFirstHost(client); err != nil {
+					return fmt.Errorf("wait for current host: %w", err)
+				}
 
-			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
-				fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
-			}
+				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				}
 
-			fmt.Println("Starting simulated Linux hosts...")
-			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
-			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(os.Environ(),
-				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
-				"FLEET_URL="+address,
-			)
-			out, err = cmd.CombinedOutput()
-			if err != nil {
-				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				fmt.Println("Starting simulated Linux hosts...")
+				cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+				cmd.Dir = filepath.Join(previewDir, "osquery")
+				cmd.Env = append(os.Environ(),
+					"ENROLL_SECRET="+secrets.Secrets[0].Secret,
+					"FLEET_URL="+address,
+				)
+				out, err = cmd.CombinedOutput()
+				if err != nil {
+					fmt.Println(string(out))
+					return errors.New("Failed to run docker-compose")
+				}
+			} else {
+				if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				}
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
@@ -396,11 +404,7 @@ func waitStartup() error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
 
 	if err := backoff.Retry(
 		func() error {
@@ -688,44 +692,6 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	if err := killPID(pid); err != nil {
 		return fmt.Errorf("killing %d: %w", pid, err)
 	}
-	return nil
-}
-
-func loadPolicies(client *service.Client) error {
-	policies := []struct {
-		name, query, description, resolution string
-	}{
-		{
-			"Is Gatekeeper enabled on macOS devices?",
-			"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-			"Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
-			"Run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
-		},
-		{
-			"Is disk encryption enabled on Windows devices?",
-			"SELECT 1 FROM bitlocker_info where protection_status = 1;",
-			"Checks to make sure that device encryption is enabled on Windows devices.",
-			"Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
-		},
-		{
-			"Is Filevault enabled on macOS devices?",
-			`SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
-			"Checks to make sure that the Filevault feature is enabled on macOS devices.",
-			"Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-		},
-	}
-
-	for _, policy := range policies {
-		q, err := client.CreateQuery(policy.name, policy.query, policy.description)
-		if err != nil {
-			return fmt.Errorf("creating query: %w", err)
-		}
-		err = client.CreatePolicy(q.ID, policy.resolution)
-		if err != nil {
-			return fmt.Errorf("creating policy: %w", err)
-		}
-	}
-
 	return nil
 }
 

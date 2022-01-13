@@ -37,7 +37,7 @@ interface ITeamDetailsSubNavItem {
 
 const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   {
-    name: "Member",
+    name: "Members",
     getPathname: PATHS.TEAM_DETAILS_MEMBERS,
   },
   {
@@ -103,7 +103,9 @@ const TeamDetailsWrapper = ({
   location: { pathname },
   params: routeParams,
 }: ITeamDetailsPageProps): JSX.Element => {
-  const { isGlobalAdmin, setCurrentTeam } = useContext(AppContext);
+  const { isGlobalAdmin, isOnGlobalTeam, setCurrentTeam } = useContext(
+    AppContext
+  );
 
   const isLoadingTeams = useSelector(
     (state: IRootState) => state.entities.teams.loading
@@ -213,8 +215,9 @@ const TeamDetailsWrapper = ({
     setTeamMenuIsOpen(false);
   };
 
-  const teamDetailsClasses = classnames(baseClass, {
+  const teamWrapperClasses = classnames(baseClass, {
     "team-select-open": teamMenuIsOpen,
+    "team-settings": !isOnGlobalTeam,
   });
 
   if (isLoadingTeams || team === undefined) {
@@ -232,7 +235,7 @@ const TeamDetailsWrapper = ({
   const adminTeams = isGlobalAdmin ? teams : userAdminTeams;
 
   return (
-    <div className={teamDetailsClasses}>
+    <div className={teamWrapperClasses}>
       <TabsWrapper>
         <>
           {isGlobalAdmin && (
@@ -248,10 +251,10 @@ const TeamDetailsWrapper = ({
               <h1>{team.name}</h1>
             ) : (
               <TeamsDropdown
-                currentTeamId={toNumber(routeParams.team_id)}
-                isLoading={isLoadingTeams}
-                teams={adminTeams || []}
-                hideAllTeamsOption
+                selectedTeamId={toNumber(routeParams.team_id)}
+                currentUserTeams={adminTeams || []}
+                isDisabled={isLoadingTeams}
+                disableAll
                 onChange={(newSelectedValue: number) =>
                   handleTeamSelect(newSelectedValue)
                 }

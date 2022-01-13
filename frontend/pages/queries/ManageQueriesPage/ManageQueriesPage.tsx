@@ -107,8 +107,6 @@ const ManageQueriesPage = (): JSX.Element => {
     "fleet queries by platform",
     () => fleetQueriesAPI.loadAll(),
     {
-      // refetchOnMount: false,
-      // refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       select: (data: IFleetQueriesResponse) => data.queries,
     }
@@ -140,50 +138,33 @@ const ManageQueriesPage = (): JSX.Element => {
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
-  const onRemoveQuerySubmit = useCallback(() => {
+  const onRemoveQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
-    const promises = selectedQueryIds.map((id: number) => {
-      return fleetQueriesAPI.destroy(id);
-    });
+    const removeQueries = selectedQueryIds.map((id) =>
+      fleetQueriesAPI.destroy(id)
+    );
 
-    return Promise.all(promises)
-      .then(() => {
-        dispatch(
-          renderFlash("success", `Successfully removed ${queryOrQueries}.`)
-        );
-        toggleRemoveQueryModal();
-      })
-      .catch((response) => {
-        if (
-          response?.errors?.filter((error: Record<string, string>) =>
-            error.reason?.includes(
-              "the operation violates a foreign key constraint"
-            )
-          ).length
-        ) {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete query because this query is used as a policy. First remove the policy and then try deleting the query again.`
-            )
-          );
-        } else {
-          dispatch(
-            renderFlash(
-              "error",
-              `Unable to remove ${queryOrQueries}. Please try again.`
-            )
-          );
-        }
-      })
-      .finally(() => {
-        refetchFleetQueries();
-        // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
-        // depends on redux state for queries).
-        dispatch(queryActions.loadAll());
-        toggleRemoveQueryModal();
-      });
+    try {
+      await Promise.all(removeQueries);
+      renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+      toggleRemoveQueryModal();
+      refetchFleetQueries();
+      toggleRemoveQueryModal();
+      dispatch(
+        renderFlash("success", `Successfully removed ${queryOrQueries}.`)
+      );
+      // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
+      // depends on redux state for queries).
+      dispatch(queryActions.loadAll());
+    } catch (errorResponse) {
+      dispatch(
+        renderFlash(
+          "error",
+          `There was an error removing your ${queryOrQueries}. Please try again later.`
+        )
+      );
+    }
   }, [dispatch, refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
   const renderPlatformDropdown = () => {
@@ -209,11 +190,6 @@ const ManageQueriesPage = (): JSX.Element => {
               <h1 className={`${baseClass}__title`}>
                 <span>Queries</span>
               </h1>
-              <div className={`${baseClass}__description`}>
-                <p>
-                  Manage queries to ask specific questions about your devices.
-                </p>
-              </div>
             </div>
           </div>
           {!isOnlyObserver && !!fleetQueries?.length && (
@@ -228,6 +204,9 @@ const ManageQueriesPage = (): JSX.Element => {
             </div>
           )}
         </div>
+        <div className={`${baseClass}__description`}>
+          <p>Manage queries to ask specific questions about your devices.</p>
+        </div>
         <div>
           {isTableDataLoading && !fleetQueriesError && <Spinner />}
           {!isTableDataLoading && fleetQueriesError ? (
@@ -241,6 +220,7 @@ const ManageQueriesPage = (): JSX.Element => {
               searchable={!!queriesList}
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
+              isOnlyObserver={isOnlyObserver}
             />
           )}
         </div>

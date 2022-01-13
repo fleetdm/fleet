@@ -2,18 +2,21 @@
 package update
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	"io"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 
+	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/rs/zerolog/log"
@@ -69,11 +72,9 @@ func New(opt Options) (*Updater, error) {
 		opt.Platform = constant.PlatformName
 	}
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: opt.InsecureTransport,
-	}
-	httpClient := &http.Client{Transport: transport}
+	}))
 
 	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, nil, httpClient)
 	if err != nil {
@@ -183,6 +184,46 @@ func (u *Updater) Get(target, channel string) (string, error) {
 	log.Debug().Str("path", localPath).Str("target", target).Str("channel", channel).Msg("found expected target locally")
 
 	return localPath, nil
+}
+
+func writeDevWarningBanner(w io.Writer) {
+	warningColor := color.New(color.FgWhite, color.Bold, color.BgRed)
+	warningColor.Fprintf(w, "WARNING: You are attempting to override orbit with a dev build.\nPress Enter to continue, or Control-c to exit.")
+	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
+	// next line
+	warningColor.DisableColor()
+	warningColor.Fprintln(w)
+	bufio.NewScanner(os.Stdin).Scan()
+}
+
+// CopyDevBuilds uses a development build for the given target+channel.
+//
+// This is just for development, must not be used in production.
+func (u *Updater) CopyDevBuild(target, channel, devBuildPath string) {
+	writeDevWarningBanner(os.Stderr)
+
+	localPath := u.LocalPath(target, channel)
+	if err := secure.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
+		panic(err)
+	}
+	dst, err := secure.OpenFile(localPath, os.O_CREATE|os.O_WRONLY, constant.DefaultExecutableMode)
+	if err != nil {
+		panic(err)
+	}
+	defer dst.Close()
+
+	src, err := secure.OpenFile(devBuildPath, os.O_RDONLY, constant.DefaultExecutableMode)
+	if err != nil {
+		panic(err)
+	}
+	defer src.Close()
+
+	if _, err := src.Stat(); err != nil {
+		panic(err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		panic(err)
+	}
 }
 
 // Download downloads the target to the provided path. The file is deleted and

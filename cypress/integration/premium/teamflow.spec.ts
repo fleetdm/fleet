@@ -102,12 +102,10 @@ describe("Teams flow", () => {
     cy.visit("/schedule/manage");
 
     cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-    cy.findByText(/all teams/i).click();
-    cy.findByText(/valor/i).click();
 
-    cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-    cy.findByText(/query all window crashes/i).should("not.exist");
-    cy.findByText(/inherited query/i).click();
+    cy.get(".component__team-dropdown").click();
+
+    cy.findByText(/valor/i).should("exist");
     cy.findByText(/query all window crashes/i).should("exist");
 
     // Edit Team

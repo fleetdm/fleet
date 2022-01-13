@@ -1,12 +1,13 @@
 # Adding hosts
 - [Osquery installer](#osquery-installer)
+- [Signing installers](#signing-installers)
 - [Plain osquery](#plain-osquery)
 
 Fleet is powered by the open source osquery tool. To add a host to Fleet, you must install osquery on this host.
 
 The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here fleetdm.com](https://fleetdm.com/get-started)
+To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
 
 Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
@@ -25,9 +26,22 @@ fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR E
 
 When you install the generated osquery installer on a host, this host will be automatically enrolled in the specified Fleet instance.
 
+### Signing installers
+
+  >**Note:** Currently, the fleetctl package command does not provide support for signing Windows osquery installers. Windows installers can be signed after building.
+
+The `fleetctl package` command provides suppport for signing and notarizing macOS osquery installers via the
+`--sign-identity` and `--notarize` flags.
+Check out the example below:
+
+```sh
+  fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
+```
+
+
 ### Adding multiple hosts
 
-If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts. 
+If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
 
 You can distribute your osquery installer and add all your hosts to Fleet using your software management tool of choice.
 
@@ -133,7 +147,7 @@ sudo osqueryd \
  --logger_tls_period=10
 ```
 
-If your osquery server certificate is deployed to a path that is not `/etc/osquery/fleet.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enroll secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`. Then, be sure to update the `--enroll_secret_env` environment variable. 
+If your osquery server certificate is deployed to a path that is not `/etc/osquery/fleet.crt`, be sure to update the `--tls_server_certs` flag. Similarly, if your enroll secret is in an environment variable that is not called `OSQUERY_ENROLL_SECRET`. Then, be sure to update the `--enroll_secret_env` environment variable.
 
 If your enroll secret is defined in a local file, specify the file's path with the `--enroll_secret_path` flag instead of using the `--enroll_secret_env` flag.
 
@@ -183,7 +197,7 @@ time, [uninstall the existing
 osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
 
 If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setting for Fleet's
-[osquery_host_identifier](../02-Deploying/02-Configuration.md#osquery-host-identifier)), the new
+[osquery_host_identifier](../02-Deploying/03-Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration functionality configured in the application settings (UI or fleetctl).

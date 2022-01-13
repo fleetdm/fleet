@@ -450,6 +450,79 @@ func TestAuthorizePacks(t *testing.T) {
 	})
 }
 
+func TestAuthorizeTeamPacks(t *testing.T) {
+	t.Parallel()
+
+	runTestCases(t, []authTestCase{
+		// Team maintainer can read packs of the team.
+		{
+			user: test.UserTeamMaintainerTeam1,
+			object: &fleet.Pack{
+				TeamIDs: []uint{1},
+			},
+			action: read,
+			allow:  true,
+		},
+		// Team observer cannot read packs of the team.
+		{
+			user: test.UserTeamObserverTeam1TeamAdminTeam2,
+			object: &fleet.Pack{
+				TeamIDs: []uint{1},
+			},
+			action: read,
+			allow:  false,
+		},
+		// Team observer cannot write packs of the team.
+		{
+			user: test.UserTeamObserverTeam1TeamAdminTeam2,
+			object: &fleet.Pack{
+				TeamIDs: []uint{1},
+			},
+			action: write,
+			allow:  false,
+		},
+		// Members of a team cannot read packs of another team.
+		{
+			user: test.UserTeamAdminTeam1,
+			object: &fleet.Pack{
+				TeamIDs: []uint{2},
+			},
+			action: read,
+			allow:  false,
+		},
+		// Members of a team cannot read packs of another team.
+		{
+			user: test.UserTeamAdminTeam1,
+			object: &fleet.Pack{
+				TeamIDs: []uint{2},
+			},
+			action: read,
+			allow:  false,
+		},
+		// Team maintainers can read global packs.
+		{
+			user:   test.UserTeamMaintainerTeam1,
+			object: &fleet.Pack{},
+			action: read,
+			allow:  true,
+		},
+		// Team admins can read global packs.
+		{
+			user:   test.UserTeamAdminTeam1,
+			object: &fleet.Pack{},
+			action: read,
+			allow:  true,
+		},
+		// Team admins cannot write global packs.
+		{
+			user:   test.UserTeamAdminTeam1,
+			object: &fleet.Pack{},
+			action: write,
+			allow:  false,
+		},
+	})
+}
+
 func TestAuthorizeCarves(t *testing.T) {
 	t.Parallel()
 
@@ -474,7 +547,11 @@ func TestAuthorizePolicies(t *testing.T) {
 	t.Parallel()
 
 	policy := &fleet.Policy{}
-	teamPolicy := &fleet.Policy{TeamID: ptr.Uint(1)}
+	teamPolicy := &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(1),
+		},
+	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: policy, action: write, allow: false},
 

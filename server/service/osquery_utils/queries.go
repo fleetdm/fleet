@@ -1,13 +1,14 @@
 package osquery_utils
 
 import (
+	"context"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -18,8 +19,11 @@ type DetailQuery struct {
 	Query string
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
-	Platforms  []string
+	Platforms []string
+	// IngestFunc translates a query result into an update to the host struct
 	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	// DirectIngestFunc gathers results from a query and directly works with the datastore to persist them
+	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -340,7 +344,7 @@ var detailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  []string{"darwin", "linux", "rhel", "ubuntu", "centos"},
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestDiskSpace,
 	},
 	"disk_space_windows": {
@@ -350,6 +354,18 @@ SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
+	},
+	"mdm": {
+		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
+		DirectIngestFunc: directIngestMDM,
+	},
+	"munki_info": {
+		Query:            `select version from munki_info;`,
+		DirectIngestFunc: directIngestMunkiInfo,
+	},
+	"google_chrome_profiles": {
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		DirectIngestFunc: directIngestChromeProfiles,
 	},
 }
 
@@ -451,7 +467,7 @@ SELECT
   'python_packages' AS source
 FROM python_packages;
 `,
-	Platforms:  []string{"linux", "rhel", "ubuntu", "centos"},
+	Platforms:  fleet.HostLinuxOSs,
 	IngestFunc: ingestSoftware,
 }
 
@@ -518,7 +534,7 @@ FROM python_packages;
 }
 
 var usersQuery = DetailQuery{
-	Query: `SELECT uid, username, type, groupname, shell FROM users u JOIN groups g ON g.gid=u.gid;`,
+	Query: `SELECT uid, username, type, groupname, shell FROM users u LEFT JOIN groups g ON g.gid=u.gid WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
 	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 		var users []fleet.HostUser
 		for _, row := range rows {
@@ -543,6 +559,23 @@ var usersQuery = DetailQuery{
 
 		return nil
 	},
+}
+
+func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		// assume the extension is not there
+		return nil
+	}
+
+	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
+	for _, row := range rows {
+		mapping = append(mapping, &fleet.HostDeviceMapping{
+			HostID: host.ID,
+			Email:  row["email"],
+			Source: "google_chrome_profiles",
+		})
+	}
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
 func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -604,14 +637,56 @@ func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]stri
 	return nil
 }
 
+func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) == 0 || failed {
+		// assume the extension is not there
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+	}
+	enrolledVal := rows[0]["enrolled"]
+	if enrolledVal == "" {
+		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
+	}
+	enrolled, err := strconv.ParseBool(enrolledVal)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing enrolled")
+	}
+	if !enrolled {
+		// A row with enrolled=false and all other columns empty is a host with the osquery
+		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
+		return nil
+	}
+	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	}
+
+	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
+}
+
+func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) == 0 || failed {
+		// assume the extension is not there
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
+			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
+	}
+
+	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
+}
+
 func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
 	}
 
-	softwareInventory := ac != nil && ac.HostSettings.EnableSoftwareInventory
-	if os.Getenv("FLEET_BETA_SOFTWARE_INVENTORY") != "" || softwareInventory {
+	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows

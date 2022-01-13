@@ -37,6 +37,6 @@ func setRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 }
 
 func withUserIDFromRequest(r *http.Request, ctx context.Context) context.Context {
-	id, _ := idFromRequest(r, "id")
-	return context.WithValue(ctx, "request-id", id)
+	id, _ := uintFromRequest(r, "id")
+	return context.WithValue(ctx, "request-id", uint(id))
 }

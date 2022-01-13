@@ -186,7 +186,7 @@ spec:
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](../02-Deploying/02-Configuration.md#s3-file-carving-backend).
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](../02-Deploying/03-Configuration.md#s3-file-carving-backend).
 
 ### Configuration
 
@@ -194,22 +194,29 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 
 ```
 --disable_carver=false
+--carver_disable_function=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=2000000
+--carver_block_size=2097152
 ```
 
 The default flagfile provided in the "Add New Host" dialog also includes this configuration.
 
 #### Carver block size
 
-The `carver_block_size` flag should be configured in osquery. 2MB (`2000000`) is a good starting value.
+The `carver_block_size` flag should be configured in osquery.
 
-The configured value must be less than the value of `max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for MySQL 5.7 is 4MB and for MySQL 8 it is 64MB.
+For the (default) MySQL Backend, the configured value must be less than the value of
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for MySQL 5.7
+is 4MB and for MySQL 8 it is 64MB. 2MiB (`2097152`) is a good starting value.
 
-In case S3 is used as the storage backend, this value must be instead set to be at least 5MB due to the [constraints of S3's multipart uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
+For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
+[constraints of S3's multipart
+uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
 
-Using a smaller value for `carver_block_size` will lead to more HTTP requests during the carving process, resulting in longer carve times and higher load on the Fleet server. If the value is too high, HTTP requests may run long enough to cause server timeouts.
+Using a smaller value for `carver_block_size` will lead to more HTTP requests during the carving
+process, resulting in longer carve times and higher load on the Fleet server. If the value is too
+high, HTTP requests may run long enough to cause server timeouts.
 
 #### Compression
 
@@ -262,7 +269,8 @@ The same is not true if S3 is used as the storage backend. In that scenario, it 
 #### Minio
 
 Configure the following:
-- `FLEET_S3_ENDPOINT_URL=minio_host`
+- `FLEET_S3_ENDPOINT_URL=minio_host:port`
+- `FLEET_S3_BUCKET=minio_bucket_name`
 - `FLEET_S3_SECRET_ACCESS_KEY=your_secret_access_key`
 - `FLEET_S3_ACCESS_KEY_ID=acces_key_id`
 - `FLEET_S3_FORCE_S3_PATH_STYLE=true`
@@ -282,8 +290,19 @@ fleetctl query --labels 'All Hosts' --query 'SELECT * FROM carves'
 
 can be helpful to debug carving problems.
 
-#### Ensure carver_block_size is set appropriately
+#### Ensure `carver_block_size` is set appropriately
 
-This value must be less than the `max_allowed_packet` setting in MySQL. If it is too large, MySQL will reject the writes.
+`carver_block_size` is an osquery flag that sets the size of each part of a file carve that osquery
+sends to the Fleet server.
+
+When using the MySQL backend (default), this value must be less than the `max_allowed_packet`
+setting in MySQL. If it is too large, MySQL will reject the writes.
+
+When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
+sizes are rejected. Additionally [S3
+limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
+parts to 10,000.
 
 The value must be small enough that HTTP requests do not time out.
+
+Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
