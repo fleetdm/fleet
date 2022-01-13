@@ -372,27 +372,42 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
-	err := d.deleteEntity(ctx, hostsTable, hid)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting host with id %d", hid)
+	delHostRef := func(tx sqlx.ExtContext, table string) error {
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting %s for host %d", table, hid)
+		}
+		return nil
 	}
 
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id=?`, hid)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host seen times")
-	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, hid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete host")
+		}
 
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id=?`, hid)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host seen times")
-	}
+		hostRefs := []string{
+			"host_seen_times",
+			"host_software",
+			"host_users",
+			"host_emails",
+			"host_additional",
+			"scheduled_query_stats",
+			"label_membership",
+			"policy_membership",
+			"host_mdm",
+			"host_munki_info",
+		}
 
-	_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id=?`, hid)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host emails")
-	}
+		for _, table := range hostRefs {
+			err := delHostRef(tx, table)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 
-	return nil
 }
 
 func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
@@ -1094,17 +1109,9 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "scanning expired host id")
 		}
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, id)
+		err = d.DeleteHost(ctx, id)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting expired hosts")
-		}
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_software WHERE host_id = ?`, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting expired host software")
-		}
-		_, err = d.writer.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ?`, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting expired host emails")
+			return err
 		}
 	}
 	if err := rows.Err(); err != nil {

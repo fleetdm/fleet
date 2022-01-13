@@ -70,16 +70,17 @@ const TeamManagementPage = (): JSX.Element => {
     [showEditTeamModal, setShowEditTeamModal, setTeamEditing]
   );
 
-  // NOTE: called once on the initial render of this component.
   const onQueryChange = useCallback(
     (queryData) => {
-      setSearchString(queryData.searchQuery);
-      const { pageIndex, pageSize, searchQuery } = queryData;
-      teamsAPI.loadAll({
-        page: pageIndex,
-        perPage: pageSize,
-        globalFilter: searchQuery,
-      });
+      if (teams) {
+        setSearchString(queryData.searchQuery);
+        const { pageIndex, pageSize, searchQuery } = queryData;
+        teamsAPI.loadAll({
+          page: pageIndex,
+          perPage: pageSize,
+          globalFilter: searchQuery,
+        });
+      }
     },
     [dispatch, setSearchString]
   );

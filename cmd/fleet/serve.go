@@ -247,6 +247,8 @@ the way that the Fleet server works.
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
 				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
+				WriteTimeout:              config.Redis.WriteTimeout,
+				ReadTimeout:               config.Redis.ReadTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -570,14 +572,6 @@ func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		_, err = ds.CleanupCarves(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning carves", "details", err)
-		}
-		err = ds.CleanupOrphanScheduledQueryStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
-		}
-		err = ds.CleanupOrphanLabelMembership(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
 		}
 		err = ds.UpdateQueryAggregatedStats(ctx)
 		if err != nil {

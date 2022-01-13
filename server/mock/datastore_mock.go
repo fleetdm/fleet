@@ -250,10 +250,6 @@ type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
 type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupOrphanScheduledQueryStatsFunc func(ctx context.Context) error
-
-type CleanupOrphanLabelMembershipFunc func(ctx context.Context) error
-
 type CleanupExpiredHostsFunc func(ctx context.Context) error
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -717,12 +713,6 @@ type DataStore struct {
 
 	ScheduledQueryFunc        ScheduledQueryFunc
 	ScheduledQueryFuncInvoked bool
-
-	CleanupOrphanScheduledQueryStatsFunc        CleanupOrphanScheduledQueryStatsFunc
-	CleanupOrphanScheduledQueryStatsFuncInvoked bool
-
-	CleanupOrphanLabelMembershipFunc        CleanupOrphanLabelMembershipFunc
-	CleanupOrphanLabelMembershipFuncInvoked bool
 
 	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
 	CleanupExpiredHostsFuncInvoked bool
@@ -1477,16 +1467,6 @@ func (s *DataStore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
 	s.ScheduledQueryFuncInvoked = true
 	return s.ScheduledQueryFunc(ctx, id)
-}
-
-func (s *DataStore) CleanupOrphanScheduledQueryStats(ctx context.Context) error {
-	s.CleanupOrphanScheduledQueryStatsFuncInvoked = true
-	return s.CleanupOrphanScheduledQueryStatsFunc(ctx)
-}
-
-func (s *DataStore) CleanupOrphanLabelMembership(ctx context.Context) error {
-	s.CleanupOrphanLabelMembershipFuncInvoked = true
-	return s.CleanupOrphanLabelMembershipFunc(ctx)
 }
 
 func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {

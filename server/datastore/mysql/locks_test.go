@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,7 +77,37 @@ func testLocksLockUnlock(t *testing.T, ds *Datastore) {
 	assert.True(t, locked)
 }
 
+type mysqlServer int
+
+const (
+	unknownServer mysqlServer = 0
+	mysql5        mysqlServer = 1
+	mysql8        mysqlServer = 3
+	mariaDB_10_6  mysqlServer = 3
+)
+
+func getMySQLServer(t *testing.T, r dbReader) mysqlServer {
+	row := r.QueryRowxContext(context.Background(), "SELECT VERSION()")
+	var version string
+	require.NoError(t, row.Scan(&version))
+	switch {
+	case strings.Contains(version, "MariaDB") && strings.Contains(version, "10.6"):
+		return mariaDB_10_6
+	case strings.HasPrefix(version, "5."):
+		return mysql5
+	case strings.HasPrefix(version, "8."):
+		return mysql8
+	default:
+		t.Fatalf("unsupported mysql server: %s", version)
+		return unknownServer
+	}
+}
+
 func testLocksDBLocks(t *testing.T, ds *Datastore) {
+	if srv := getMySQLServer(t, ds.reader); srv == mysql8 {
+		t.Skip("#3626: DBLocks is not supported for mysql 8 yet.")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 

@@ -583,7 +583,6 @@ const ManagePolicyPage = (managePoliciesPageProps: {
               selectedTeamData={selectedTeamData}
               currentAutomatedPolicies={currentAutomatedPolicies}
             />
-            )
           </div>
         )}
         {showManageAutomationsModal && (
