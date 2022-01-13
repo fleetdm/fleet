@@ -37,7 +37,7 @@ interface ITeamDetailsSubNavItem {
 
 const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   {
-    name: "Member",
+    name: "Members",
     getPathname: PATHS.TEAM_DETAILS_MEMBERS,
   },
   {
@@ -254,6 +254,7 @@ const TeamDetailsWrapper = ({
                 selectedTeamId={toNumber(routeParams.team_id)}
                 currentUserTeams={adminTeams || []}
                 isDisabled={isLoadingTeams}
+                disableAll
                 onChange={(newSelectedValue: number) =>
                   handleTeamSelect(newSelectedValue)
                 }

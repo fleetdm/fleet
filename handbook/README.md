@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please make a merge request with suggested improvements throughout these pages.  
+The Fleet handbook is the central guide for how we run the company. As part of our value of being transparent, the handbook is open to the world. We welcome feedback, and contributions, so please click to edit to suggest improvements throughout these pages.  
 
 ### Company
 
@@ -28,13 +28,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Product
 
-[Feature Flags](./product.md#feature-flags)
-
-[Fleet docs](./product.md#fleet-docs)
+[Product design process](./product.md#product-design-process)
 
 [Product quality](./product.md#product-quality)
 
+[Fleet docs](./product.md#fleet-docs)
+
 [UI design](./product.md#ui-design)
+
+[Release](./product.md#release)
+
+[Feature flags](./product.md#feature-flags)
 
 ### Growth
 
@@ -42,7 +46,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Website](./growth.md#website)
 
-[Grammar guidelines](./growth.md#grammar-guidelines)
+[Communicating as Fleet](./growth.md#communicating-as-fleet)
+
+[Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
 
 ### Customer experience
 

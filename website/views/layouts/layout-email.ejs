@@ -1,22 +1,18 @@
 <% /* Default layout for email templates */ %>
-<div style="background-color: #FAFAFA; width: 100%; font-family: 'Arial', 'Helvetica Neue', 'Helvetica', sans-serif; box-sizing: border-box; padding-bottom: 25px; margin: 0;">
-  <div style="background: transparent; padding-top: 30px; padding-bottom: 20px; text-align: center;">
-    <img style="display: inline-block; height: 30px; width: auto; margin-left: auto; margin-right: auto;" alt="Logo" src="http://via.placeholder.com/200x60/fafafa/000?text=YOUR+LOGO+HERE"/>
-  </div>
-  <div style="background-color: #fff; color: #000; font-size: 1em; border-top: 2px solid #00ACC4; border-bottom: 1px solid #E6E6E6; box-sizing: border-box; padding: 25px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
-
+<div style="width: 100%; font-family: 'Nunito', sans-serif; box-sizing: border-box; padding-bottom: 25px; margin: 0;">
+  <div style="color: #000; font-size: 16px; box-sizing: border-box; padding: 25px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div style="background: transparent; text-align: left;">
+      <a href="https://fleetdm.com"><img style="display: inline-block; width: 162px; height: 92px; width: auto;" alt="Logo" src="https://fleetdm.com/images/logo-blue-162x92@2x.png"/></a>
+    </div>
     <%- body %>
-
+    <hr style="color: #E2E4EA;"/>
+    <div style="display:  inline-flex; padding-top: 32px;">
+      <a href="https://fleetdm.com"><img style="height: 20px; width: 20px; margin-right: 24px;" alt="Fleet logo" src="<%= url.resolve(sails.config.custom.baseUrl,'/images/logo-fleet-20x20@2x.png')%>"></a>
+      <a href="https://twitter.com/fleetctl"><img style="height: 20px; width: 24px; margin-right: 24px;" alt="Follow Fleet on Twitter" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-twitter-50x44@2x.png')%>"></a>
+      <a href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/"><img style="height: 20px; width: 20px;" alt="Join the osquery Slack community" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-slack-24x24@2x.png')%>"></a>
+    </div>
+    <div style="text-align: left; padding-top: 15px; font-size: 12px; color: #3E4771;">
+      <p>© 2022 Fleet Device Management Inc. All trademarks, service marks, and company names are the property of their respective owners.</p>
+    </div>
   </div>
-  <div style="text-align: center; padding-top: 15px; margin-bottom: 15px; font-size: 12px;">
-    <a style="color: #00ACC4;" href="<%= url.resolve(sails.config.custom.baseUrl, '/contact') %>">Help</a>
-    <span style="color: #ccc;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-    <a style="color: #00ACC4;" href="<%= url.resolve(sails.config.custom.baseUrl, '/faq') %>">FAQ</a>
-    <span style="color: #ccc;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-    <a style="color: #00ACC4;" href="<%= url.resolve(sails.config.custom.baseUrl, '/legal/terms') %>">Terms of Service</a>
-    <span style="color: #ccc;">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-    <a style="color: #00ACC4;" href="<%= url.resolve(sails.config.custom.baseUrl, '/legal/privacy') %>">Privacy Policy</a>
-  </div>
-  <p style="color: #777777; padding: 0 25px; max-width: 400px; box-sizing: border-box; margin-left: auto; margin-right: auto; font-size: 10px; text-align: center;">Please do not reply to this email. To get in touch with us, visit our <a style="color: #00ACC4;" href="<%= url.resolve(sails.config.custom.baseUrl, '/contact') %>"> help center.</a> If you have not signed up for an account with us, please disregard this message.</p>
-  <p style="color: #777777; padding: 0 25px; max-width: 400px; box-sizing: border-box; margin-left: auto; margin-right: auto; font-size: 10px; text-align: center;"><em>(built with <a style="color: #00ACC4;" href="https://sailsjs.com">Sails.js</a>)</em></p>
 </div>

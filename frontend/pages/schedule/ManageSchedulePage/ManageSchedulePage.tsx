@@ -195,15 +195,6 @@ const ManageSchedulePage = ({
     handleTeamSelect(teams[0].id);
   }
 
-  // TODO: move team scheduled queries and global scheduled queries into services entities, remove redux
-  useEffect(() => {
-    dispatch(
-      selectedTeamId
-        ? teamScheduledQueryActions.loadAll(selectedTeamId)
-        : globalScheduledQueryActions.loadAll()
-    );
-  }, [dispatch, selectedTeamId]);
-
   const allScheduledQueries = useSelector((state: IRootState) => {
     if (selectedTeamId) {
       return state.entities.team_scheduled_queries;

@@ -226,7 +226,27 @@ func (d *Datastore) SaveLabel(ctx context.Context, label *fleet.Label) (*fleet.L
 
 // DeleteLabel deletes a fleet.Label
 func (d *Datastore) DeleteLabel(ctx context.Context, name string) error {
-	return d.deleteEntityByName(ctx, labelsTable, name)
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var labelID uint
+		err := sqlx.GetContext(ctx, tx, &labelID, `select id FROM labels WHERE name = ?`, name)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+			}
+			return ctxerr.Wrapf(ctx, err, "getting label id to delete")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete label")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, labelID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete label_membership")
+		}
+		return nil
+	})
 }
 
 // Label returns a fleet.Label identified by lid if one exists.
@@ -686,14 +706,6 @@ func (d *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint
 	}
 
 	return labelIDs, nil
-}
-
-func (d *Datastore) CleanupOrphanLabelMembership(ctx context.Context) error {
-	_, err := d.writer.ExecContext(ctx, `DELETE FROM label_membership where not exists (select 1 from labels where id=label_id) or not exists (select 1 from hosts where id=host_id)`)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning orphan label_membership by label")
-	}
-	return nil
 }
 
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the

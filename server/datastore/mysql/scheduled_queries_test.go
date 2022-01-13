@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -24,7 +23,6 @@ func TestScheduledQueries(t *testing.T) {
 		{"Get", testScheduledQueriesGet},
 		{"Delete", testScheduledQueriesDelete},
 		{"CascadingDelete", testScheduledQueriesCascadingDelete},
-		{"CleanupOrphanStats", testScheduledQueriesCleanupOrphanStats},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -228,64 +226,4 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
-}
-
-func testScheduledQueriesCleanupOrphanStats(t *testing.T, ds *Datastore) {
-	u1 := test.NewUser(t, ds, "Admin", "admin@fleet.co", true)
-	q1 := test.NewQuery(t, ds, "foo", "select * from time;", u1.ID, true)
-	h1 := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
-	p1, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "baz",
-		HostIDs: []uint{h1.ID},
-	})
-	require.NoError(t, err)
-	test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "1")
-	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "2")
-
-	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
-                                   host_id, scheduled_query_id, average_memory, denylisted,
-                                   executions, schedule_interval, output_size, system_time,
-                                   user_time, wall_time
-                                ) VALUES (?, ?, 32, false, 4, 4, 4, 4, 4, 4);`, h1.ID, sq1.ID)
-	require.NoError(t, err)
-
-	// Cleanup doesn't remove stats that are ok
-	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
-
-	h1, err = ds.Host(context.Background(), h1.ID, false)
-	require.NoError(t, err)
-	require.Len(t, h1.PackStats, 1)
-
-	// now we insert a bogus stat
-	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
-                                   host_id, scheduled_query_id, average_memory, denylisted, executions
-                               ) VALUES (?, 999, 32, false, 2);`, h1.ID)
-	require.NoError(t, err)
-	// and also for an unknown host
-	_, err = ds.writer.Exec(`INSERT INTO scheduled_query_stats (
-                                   host_id, scheduled_query_id, average_memory, denylisted, executions
-                               ) VALUES (888, 999, 32, true, 4);`)
-	require.NoError(t, err)
-
-	// And we don't see it in the host
-	h1, err = ds.Host(context.Background(), h1.ID, false)
-	require.NoError(t, err)
-	require.Len(t, h1.PackStats, 1)
-
-	// but there are definitely there
-	var count int
-	err = ds.writer.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
-	require.NoError(t, err)
-	assert.Equal(t, 3, count)
-
-	// now we clean it up
-	require.NoError(t, ds.CleanupOrphanScheduledQueryStats(context.Background()))
-
-	err = ds.writer.Get(&count, `SELECT count(*) FROM scheduled_query_stats`)
-	require.NoError(t, err)
-	assert.Equal(t, 1, count)
-
-	h1, err = ds.Host(context.Background(), h1.ID, false)
-	require.NoError(t, err)
-	require.Len(t, h1.PackStats, 1)
 }

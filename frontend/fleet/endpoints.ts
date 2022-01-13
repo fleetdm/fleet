@@ -1,7 +1,3 @@
-import { IPack } from "interfaces/pack";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-
 export default {
   ACTIVITIES: "/v1/fleet/activities",
   CHANGE_PASSWORD: "/v1/fleet/change_password",
