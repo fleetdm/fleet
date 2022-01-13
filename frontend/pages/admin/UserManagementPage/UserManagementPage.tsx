@@ -6,9 +6,8 @@ import { push } from "react-router-redux";
 import memoize from "memoize-one";
 
 import { IApiError } from "interfaces/errors";
-import { IInvite, ICreateInviteFormData } from "interfaces/invite";
-import { IConfig } from "interfaces/config";
-import { IUser, ICreateUserFormData } from "interfaces/user";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
@@ -19,9 +18,6 @@ import invitesAPI from "services/entities/invites";
 import paths from "router/paths";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import { logoutUser } from "redux/nodes/auth/actions";
-
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
 import Modal from "components/Modal";
@@ -435,9 +431,13 @@ const UserManagementPage = (): JSX.Element => {
     usersAPI
       .deleteSessions(userEditing.id, isResettingCurrentUser)
       .then(() => {
-        if (!isResettingCurrentUser) {
-          dispatch(renderFlash("success", "Sessions reset"));
+        if (isResettingCurrentUser) {
+          dispatch({ type: "LOGOUT_SUCCESS" });
+          return;
         }
+        dispatch(
+          renderFlash("success", "Sessions reset for the selected user.")
+        );
       })
       .catch(() => {
         dispatch(
@@ -446,8 +446,10 @@ const UserManagementPage = (): JSX.Element => {
             "Could not reset sessions for the selected user. Please try again."
           )
         );
+      })
+      .finally(() => {
+        toggleResetSessionsUserModal();
       });
-    toggleResetSessionsUserModal();
   };
 
   const resetPassword = (user: IUser) => {
