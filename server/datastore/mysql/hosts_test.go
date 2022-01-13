@@ -116,7 +116,7 @@ func TestHosts(t *testing.T) {
 
 func testHostsSave(t *testing.T, ds *Datastore) {
 	testSaveHost(t, ds, ds.SaveHost)
-	testSaveHost(t, ds, ds.SerialSaveHost)
+	testSaveHost(t, ds, ds.SerialUpdateHost)
 }
 
 func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context, *fleet.Host) error) {

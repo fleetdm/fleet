@@ -96,7 +96,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		}, nil
 	}
 	var gotHost *fleet.Host
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -335,7 +335,7 @@ func TestLabelQueries(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}
@@ -477,7 +477,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListScheduledQueriesInPackLiteFunc = func(ctx context.Context, pid uint) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) ([]*fleet.ScheduledQuery, error) {
 		tru := true
 		fals := false
 		fortytwo := uint(42)
@@ -498,7 +498,7 @@ func TestGetClientConfig(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: ptr.RawMessage(json.RawMessage(`{"config":{"options":{"baz":"bar"}}}`))}, nil
 	}
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
@@ -710,7 +710,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -948,7 +948,7 @@ func TestDetailQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	var gotHost *fleet.Host
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		gotHost = host
 		return nil
 	}
@@ -1152,7 +1152,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		}
 		return host, nil
 	}
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		if host.ID != 1 {
 			return errors.New("not found")
 		}
@@ -1773,7 +1773,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return authz.CheckMissingWithResponse(nil)
 	}
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
@@ -1823,7 +1823,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.SaveHostLiteFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1841,7 +1841,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		map[string]string{},
 	)
 	require.NoError(t, err)
-	assert.True(t, ds.SaveHostLiteFuncInvoked)
+	assert.True(t, ds.UpdateHostFuncInvoked)
 }
 
 func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
@@ -1991,7 +1991,7 @@ func TestPolicyQueries(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}
@@ -2174,7 +2174,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostLiteFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
 	}

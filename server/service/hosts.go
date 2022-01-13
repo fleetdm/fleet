@@ -553,7 +553,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "find host for refetch")
 	}
 
-	// TODO(lucas): Shouldn't this be fleet.ActionWrite?
+	// We verify fleet.ActionRead instead of fleet.ActionWrite because we want to allow
+	// observers to be able to refetch hosts.
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return err
 	}

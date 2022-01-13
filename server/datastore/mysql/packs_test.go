@@ -598,7 +598,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 			case <-ticker.C:
 				pack, _, err := ds.PackByName(context.Background(), "test_pack")
 				require.NoError(t, err)
-				schedQueries, err := ds.ListScheduledQueriesInPack(context.Background(), pack.ID, fleet.ListOptions{})
+				schedQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
 				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))
@@ -649,7 +649,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 				case <-ticker.C:
 					pack, _, err := ds.PackByName(context.Background(), "test_pack")
 					require.NoError(t, err)
-					schedQueries, err := ds.ListScheduledQueriesInPack(context.Background(), pack.ID, fleet.ListOptions{})
+					schedQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), pack.ID, fleet.ListOptions{})
 					require.NoError(t, err)
 
 					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))

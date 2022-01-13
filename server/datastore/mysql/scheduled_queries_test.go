@@ -57,7 +57,7 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.NoError(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	gotQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, gotQueries, 1)
 	assert.Equal(t, uint(60), gotQueries[0].Interval)
@@ -93,7 +93,7 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.NoError(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, gotQueries, 3)
 
@@ -105,7 +105,7 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, gotQueries, 3)
 
@@ -216,14 +216,14 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	err = ds.ApplyPackSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	gotQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	gotQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 3)
 
 	err = ds.DeleteQuery(context.Background(), queries[1].Name)
 	require.Nil(t, err)
 
-	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1, fleet.ListOptions{})
+	gotQueries, err = ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
 }

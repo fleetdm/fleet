@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+func (d *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -27,11 +27,11 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 			sq.denylist,
 			q.query,
 			q.id AS query_id,
-			JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50,
-			JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
-			JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50,
-			JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95,
-			JSON_EXTRACT(json_value, "$.total_executions") as total_executions
+			JSON_EXTRACT(ag.json_value, "$.user_time_p50") as user_time_p50,
+			JSON_EXTRACT(ag.json_value, "$.user_time_p95") as user_time_p95,
+			JSON_EXTRACT(ag.json_value, "$.system_time_p50") as system_time_p50,
+			JSON_EXTRACT(ag.json_value, "$.system_time_p95") as system_time_p95,
+			JSON_EXTRACT(ag.json_value, "$.total_executions") as total_executions
 		FROM scheduled_queries sq
 		JOIN queries q ON (sq.query_name = q.name)
 		LEFT JOIN aggregated_stats ag ON (ag.id=sq.id AND ag.type="scheduled_query")
@@ -47,7 +47,7 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 	return results, nil
 }
 
-func (d *Datastore) ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,

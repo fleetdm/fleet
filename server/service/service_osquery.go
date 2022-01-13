@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -36,6 +37,8 @@ func (e osqueryError) Error() string {
 func (e osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
 }
+
+var counter = int64(0)
 
 func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
@@ -70,6 +73,7 @@ func (svc Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet
 	// tradeoff as an online host will continue to check in and quickly be
 	// marked online again.
 	svc.seenHostSet.addHostID(host.ID)
+	host.SeenTime = svc.clock.Now()
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
@@ -150,13 +154,31 @@ func (svc Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier
 	}
 
 	if save {
-		// TODO(lucas): Do we need serial and async save here?
-		if err := svc.ds.SaveHostLite(ctx, host); err != nil {
-			logging.WithErr(ctx, err)
+		if appConfig.ServerSettings.DeferredSaveHost {
+			go svc.serialUpdateHost(host)
+		} else {
+			if err := svc.ds.UpdateHost(ctx, host); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
+			}
 		}
 	}
 
 	return nodeKey, nil
+}
+
+func (svc Service) serialUpdateHost(host *fleet.Host) {
+	newVal := atomic.AddInt64(&counter, 1)
+	defer func() {
+		atomic.AddInt64(&counter, -1)
+	}()
+	level.Debug(svc.logger).Log("background", newVal)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFunc()
+	err := svc.ds.SerialUpdateHost(ctx, host)
+	if err != nil {
+		level.Error(svc.logger).Log("background-err", err)
+	}
 }
 
 func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -256,7 +278,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	packConfig := fleet.Packs{}
 	for _, pack := range packs {
 		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPackLite(ctx, pack.ID)
+		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
 		if err != nil {
 			return nil, osqueryError{message: "database error: " + err.Error()}
 		}
@@ -335,6 +357,8 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	// We are not doing deferred update host like in other places because the intervals
+	// are not modified often.
 	if intervalsModified {
 		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, host.ID, intervals); err != nil {
 			return nil, osqueryError{message: "internal error: update host intervals: " + err.Error()}
@@ -634,7 +658,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	return nil
 }
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (bool, error) {
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
@@ -689,6 +713,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
 			if !ingested && err == nil {
 				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+				// No err != nil check here because ingestDetailQuery could have updated
+				// successfully some values of host.
 				detailUpdated = true
 			}
 		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
@@ -750,11 +776,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
-	if detailUpdated {
-		host.Modified = true
-		host.DetailUpdatedAt = svc.clock.Now()
-	}
-
 	if additionalUpdated {
 		additionalJSON, err := json.Marshal(additionalResults)
 		if err != nil {
@@ -769,15 +790,27 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages)
 
-	if host.RefetchRequested {
-		host.RefetchRequested = false
-		host.Modified = true
+	if detailUpdated {
+		host.DetailUpdatedAt = svc.clock.Now()
 	}
 
-	if host.Modified {
-		// TODO(lucas): Do we need serial and async save here?
-		if err := svc.ds.SaveHostLite(ctx, host); err != nil {
+	refetchRequested := host.RefetchRequested
+	if refetchRequested {
+		host.RefetchRequested = false
+	}
+
+	if refetchRequested || detailUpdated {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
 			logging.WithErr(ctx, err)
+		} else {
+			if appConfig.ServerSettings.DeferredSaveHost {
+				go svc.serialUpdateHost(host)
+			} else {
+				if err := svc.ds.UpdateHost(ctx, host); err != nil {
+					logging.WithErr(ctx, err)
+				}
+			}
 		}
 	}
 

@@ -120,8 +120,6 @@ type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
-
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
 
 type ListHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error)
@@ -142,17 +140,11 @@ type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error
 
 type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type SerialSaveHostFunc func(ctx context.Context, host *fleet.Host) error
-
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error)
 
-type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
-
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
-
-type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
@@ -178,13 +170,7 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
-type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
-
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
-
-type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
-
-type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
@@ -220,8 +206,6 @@ type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
 type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
-type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
-
 type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
 
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
@@ -240,7 +224,7 @@ type DeleteInviteFunc func(ctx context.Context, id uint) error
 
 type UpdateInviteFunc func(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error)
 
-type ListScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackWithStatsFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
 
 type NewScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
 
@@ -296,10 +280,6 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
 
-type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
-
-type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
-
 type ListGlobalPoliciesFunc func(ctx context.Context) ([]*fleet.Policy, error)
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
@@ -336,25 +316,45 @@ type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
-type HostLiteFunc func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error)
+type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
-type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error
+type HostLiteFunc func(ctx context.Context, hostID uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error)
 
-type TeamAgentOptionsFunc func(ctx context.Context, id uint) (*json.RawMessage, error)
+type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error
+
+type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
+type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error)
+
+type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
+
+type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
+
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
+
+type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
+
 type SaveHostUsersFunc func(ctx context.Context, hostID uint, users []fleet.HostUser) error
 
 type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-type SaveHostLiteFunc func(ctx context.Context, host *fleet.Host) error
+type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
 
-type ListScheduledQueriesInPackLiteFunc func(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error)
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
-type UpdateHostRefetchRequestedFunc func(ctx context.Context, id uint, value bool) error
+type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
+
+type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
+
+type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+
+type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type DataStore struct {
 	NewCarveFunc        NewCarveFunc
@@ -519,9 +519,6 @@ type DataStore struct {
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
 
-	RecordLabelQueryExecutionsFunc        RecordLabelQueryExecutionsFunc
-	RecordLabelQueryExecutionsFuncInvoked bool
-
 	ListLabelsForHostFunc        ListLabelsForHostFunc
 	ListLabelsForHostFuncInvoked bool
 
@@ -552,23 +549,14 @@ type DataStore struct {
 	SaveHostFunc        SaveHostFunc
 	SaveHostFuncInvoked bool
 
-	SerialSaveHostFunc        SerialSaveHostFunc
-	SerialSaveHostFuncInvoked bool
-
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
 
 	HostFunc        HostFunc
 	HostFuncInvoked bool
 
-	EnrollHostFunc        EnrollHostFunc
-	EnrollHostFuncInvoked bool
-
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
-
-	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
-	LoadHostByNodeKeyFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -606,17 +594,8 @@ type DataStore struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
-	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
-	ReplaceHostDeviceMappingFuncInvoked bool
-
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
-
-	SetOrUpdateMunkiVersionFunc        SetOrUpdateMunkiVersionFunc
-	SetOrUpdateMunkiVersionFuncInvoked bool
-
-	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
-	SetOrUpdateMDMDataFuncInvoked bool
 
 	GetMunkiVersionFunc        GetMunkiVersionFunc
 	GetMunkiVersionFuncInvoked bool
@@ -669,9 +648,6 @@ type DataStore struct {
 	SaveAppConfigFunc        SaveAppConfigFunc
 	SaveAppConfigFuncInvoked bool
 
-	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
-	VerifyEnrollSecretFuncInvoked bool
-
 	GetEnrollSecretsFunc        GetEnrollSecretsFunc
 	GetEnrollSecretsFuncInvoked bool
 
@@ -699,8 +675,8 @@ type DataStore struct {
 	UpdateInviteFunc        UpdateInviteFunc
 	UpdateInviteFuncInvoked bool
 
-	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
-	ListScheduledQueriesInPackFuncInvoked bool
+	ListScheduledQueriesInPackWithStatsFunc        ListScheduledQueriesInPackWithStatsFunc
+	ListScheduledQueriesInPackWithStatsFuncInvoked bool
 
 	NewScheduledQueryFunc        NewScheduledQueryFunc
 	NewScheduledQueryFuncInvoked bool
@@ -783,12 +759,6 @@ type DataStore struct {
 	SavePolicyFunc        SavePolicyFunc
 	SavePolicyFuncInvoked bool
 
-	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
-	FlippingPoliciesForHostFuncInvoked bool
-
-	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
-	RecordPolicyQueryExecutionsFuncInvoked bool
-
 	ListGlobalPoliciesFunc        ListGlobalPoliciesFunc
 	ListGlobalPoliciesFuncInvoked bool
 
@@ -843,6 +813,9 @@ type DataStore struct {
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
 
+	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
+	LoadHostByNodeKeyFuncInvoked bool
+
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
 
@@ -858,20 +831,47 @@ type DataStore struct {
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
 
+	UpdateHostFunc        UpdateHostFunc
+	UpdateHostFuncInvoked bool
+
+	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
+	ListScheduledQueriesInPackFuncInvoked bool
+
+	UpdateHostRefetchRequestedFunc        UpdateHostRefetchRequestedFunc
+	UpdateHostRefetchRequestedFuncInvoked bool
+
+	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
+	FlippingPoliciesForHostFuncInvoked bool
+
+	RecordPolicyQueryExecutionsFunc        RecordPolicyQueryExecutionsFunc
+	RecordPolicyQueryExecutionsFuncInvoked bool
+
+	RecordLabelQueryExecutionsFunc        RecordLabelQueryExecutionsFunc
+	RecordLabelQueryExecutionsFuncInvoked bool
+
 	SaveHostUsersFunc        SaveHostUsersFunc
 	SaveHostUsersFuncInvoked bool
 
 	SaveHostAdditionalFunc        SaveHostAdditionalFunc
 	SaveHostAdditionalFuncInvoked bool
 
-	SaveHostLiteFunc        SaveHostLiteFunc
-	SaveHostLiteFuncInvoked bool
+	SetOrUpdateMunkiVersionFunc        SetOrUpdateMunkiVersionFunc
+	SetOrUpdateMunkiVersionFuncInvoked bool
 
-	ListScheduledQueriesInPackLiteFunc        ListScheduledQueriesInPackLiteFunc
-	ListScheduledQueriesInPackLiteFuncInvoked bool
+	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
+	SetOrUpdateMDMDataFuncInvoked bool
 
-	UpdateHostRefetchRequestedFunc        UpdateHostRefetchRequestedFunc
-	UpdateHostRefetchRequestedFuncInvoked bool
+	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
+	ReplaceHostDeviceMappingFuncInvoked bool
+
+	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
+	VerifyEnrollSecretFuncInvoked bool
+
+	EnrollHostFunc        EnrollHostFunc
+	EnrollHostFuncInvoked bool
+
+	SerialUpdateHostFunc        SerialUpdateHostFunc
+	SerialUpdateHostFuncInvoked bool
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1144,11 +1144,6 @@ func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return s.LabelQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
-	s.RecordLabelQueryExecutionsFuncInvoked = true
-	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t, deferredSaveHost)
-}
-
 func (s *DataStore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 	s.ListLabelsForHostFuncInvoked = true
 	return s.ListLabelsForHostFunc(ctx, hid)
@@ -1199,11 +1194,6 @@ func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
 	return s.SaveHostFunc(ctx, host)
 }
 
-func (s *DataStore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
-	s.SerialSaveHostFuncInvoked = true
-	return s.SerialSaveHostFunc(ctx, host)
-}
-
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	s.DeleteHostFuncInvoked = true
 	return s.DeleteHostFunc(ctx, hid)
@@ -1214,19 +1204,9 @@ func (s *DataStore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (
 	return s.HostFunc(ctx, id, skipLoadingExtras)
 }
 
-func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
-}
-
 func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	s.ListHostsFuncInvoked = true
 	return s.ListHostsFunc(ctx, filter, opt)
-}
-
-func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	s.LoadHostByNodeKeyFuncInvoked = true
-	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -1289,24 +1269,9 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
-func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
-	s.ReplaceHostDeviceMappingFuncInvoked = true
-	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
-}
-
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	s.ListPoliciesForHostFuncInvoked = true
 	return s.ListPoliciesForHostFunc(ctx, host)
-}
-
-func (s *DataStore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
-	s.SetOrUpdateMunkiVersionFuncInvoked = true
-	return s.SetOrUpdateMunkiVersionFunc(ctx, hostID, version)
-}
-
-func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
-	s.SetOrUpdateMDMDataFuncInvoked = true
-	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep)
 }
 
 func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
@@ -1394,11 +1359,6 @@ func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 	return s.SaveAppConfigFunc(ctx, info)
 }
 
-func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-	s.VerifyEnrollSecretFuncInvoked = true
-	return s.VerifyEnrollSecretFunc(ctx, secret)
-}
-
 func (s *DataStore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	s.GetEnrollSecretsFuncInvoked = true
 	return s.GetEnrollSecretsFunc(ctx, teamID)
@@ -1444,9 +1404,9 @@ func (s *DataStore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 	return s.UpdateInviteFunc(ctx, id, i)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.ListScheduledQueriesInPackFuncInvoked = true
-	return s.ListScheduledQueriesInPackFunc(ctx, id, opts)
+func (s *DataStore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	s.ListScheduledQueriesInPackWithStatsFuncInvoked = true
+	return s.ListScheduledQueriesInPackWithStatsFunc(ctx, id, opts)
 }
 
 func (s *DataStore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
@@ -1584,16 +1544,6 @@ func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	return s.SavePolicyFunc(ctx, p)
 }
 
-func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
-	s.FlippingPoliciesForHostFuncInvoked = true
-	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
-}
-
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
-	s.RecordPolicyQueryExecutionsFuncInvoked = true
-	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated, deferredSaveHost)
-}
-
 func (s *DataStore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
 	s.ListGlobalPoliciesFuncInvoked = true
 	return s.ListGlobalPoliciesFunc(ctx)
@@ -1684,19 +1634,24 @@ func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	return s.UpdateQueryAggregatedStatsFunc(ctx)
 }
 
-func (s *DataStore) HostLite(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	s.LoadHostByNodeKeyFuncInvoked = true
+	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
+}
+
+func (s *DataStore) HostLite(ctx context.Context, hostID uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 	s.HostLiteFuncInvoked = true
-	return s.HostLiteFunc(ctx, id, opts...)
+	return s.HostLiteFunc(ctx, hostID, opts...)
 }
 
-func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {
+func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error {
 	s.UpdateHostOsqueryIntervalsFuncInvoked = true
-	return s.UpdateHostOsqueryIntervalsFunc(ctx, id, intervals)
+	return s.UpdateHostOsqueryIntervalsFunc(ctx, hostID, intervals)
 }
 
-func (s *DataStore) TeamAgentOptions(ctx context.Context, id uint) (*json.RawMessage, error) {
+func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 	s.TeamAgentOptionsFuncInvoked = true
-	return s.TeamAgentOptionsFunc(ctx, id)
+	return s.TeamAgentOptionsFunc(ctx, teamID)
 }
 
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
@@ -1709,6 +1664,36 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
+func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
+	s.UpdateHostFuncInvoked = true
+	return s.UpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+	s.ListScheduledQueriesInPackFuncInvoked = true
+	return s.ListScheduledQueriesInPackFunc(ctx, packID)
+}
+
+func (s *DataStore) UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error {
+	s.UpdateHostRefetchRequestedFuncInvoked = true
+	return s.UpdateHostRefetchRequestedFunc(ctx, hostID, value)
+}
+
+func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	s.FlippingPoliciesForHostFuncInvoked = true
+	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
+}
+
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+	s.RecordPolicyQueryExecutionsFuncInvoked = true
+	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated, deferredSaveHost)
+}
+
+func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
+	s.RecordLabelQueryExecutionsFuncInvoked = true
+	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t, deferredSaveHost)
+}
+
 func (s *DataStore) SaveHostUsers(ctx context.Context, hostID uint, users []fleet.HostUser) error {
 	s.SaveHostUsersFuncInvoked = true
 	return s.SaveHostUsersFunc(ctx, hostID, users)
@@ -1719,17 +1704,32 @@ func (s *DataStore) SaveHostAdditional(ctx context.Context, hostID uint, additio
 	return s.SaveHostAdditionalFunc(ctx, hostID, additional)
 }
 
-func (s *DataStore) SaveHostLite(ctx context.Context, host *fleet.Host) error {
-	s.SaveHostLiteFuncInvoked = true
-	return s.SaveHostLiteFunc(ctx, host)
+func (s *DataStore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+	s.SetOrUpdateMunkiVersionFuncInvoked = true
+	return s.SetOrUpdateMunkiVersionFunc(ctx, hostID, version)
 }
 
-func (s *DataStore) ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
-	s.ListScheduledQueriesInPackLiteFuncInvoked = true
-	return s.ListScheduledQueriesInPackLiteFunc(ctx, id)
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	s.SetOrUpdateMDMDataFuncInvoked = true
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep)
 }
 
-func (s *DataStore) UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error {
-	s.UpdateHostRefetchRequestedFuncInvoked = true
-	return s.UpdateHostRefetchRequestedFunc(ctx, id, value)
+func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
+	s.ReplaceHostDeviceMappingFuncInvoked = true
+	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+}
+
+func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+	s.VerifyEnrollSecretFuncInvoked = true
+	return s.VerifyEnrollSecretFunc(ctx, secret)
+}
+
+func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	s.EnrollHostFuncInvoked = true
+	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
+}
+
+func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
+	s.SerialUpdateHostFuncInvoked = true
+	return s.SerialUpdateHostFunc(ctx, host)
 }

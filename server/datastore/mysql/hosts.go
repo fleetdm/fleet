@@ -70,7 +70,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 	return host, nil
 }
 
-func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error {
+func (d *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	errCh := make(chan error, 1)
 	defer close(errCh)
 	select {
@@ -86,81 +86,8 @@ func (d *Datastore) SerialSaveHost(ctx context.Context, host *fleet.Host) error 
 }
 
 func (d *Datastore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	sqlStatement := `
-		UPDATE hosts SET
-			detail_updated_at = ?,
-			label_updated_at = ?,
-			policy_updated_at = ?,
-			node_key = ?,
-			hostname = ?,
-			uuid = ?,
-			platform = ?,
-			osquery_version = ?,
-			os_version = ?,
-			uptime = ?,
-			memory = ?,
-			cpu_type = ?,
-			cpu_subtype = ?,
-			cpu_brand = ?,
-			cpu_physical_cores = ?,
-			hardware_vendor = ?,
-			hardware_model = ?,
-			hardware_version = ?,
-			hardware_serial = ?,
-			computer_name = ?,
-			build = ?,
-			platform_like = ?,
-			code_name = ?,
-			cpu_logical_cores = ?,
-			distributed_interval = ?,
-			config_tls_refresh = ?,
-			logger_tls_period = ?,
-			team_id = ?,
-			primary_ip = ?,
-			primary_mac = ?,
-			refetch_requested = ?,
-			gigs_disk_space_available = ?,
-			percent_disk_space_available = ?
-		WHERE id = ?
-	`
-	_, err := d.writer.ExecContext(ctx, sqlStatement,
-		host.DetailUpdatedAt,
-		host.LabelUpdatedAt,
-		host.PolicyUpdatedAt,
-		host.NodeKey,
-		host.Hostname,
-		host.UUID,
-		host.Platform,
-		host.OsqueryVersion,
-		host.OSVersion,
-		host.Uptime,
-		host.Memory,
-		host.CPUType,
-		host.CPUSubtype,
-		host.CPUBrand,
-		host.CPUPhysicalCores,
-		host.HardwareVendor,
-		host.HardwareModel,
-		host.HardwareVersion,
-		host.HardwareSerial,
-		host.ComputerName,
-		host.Build,
-		host.PlatformLike,
-		host.CodeName,
-		host.CPULogicalCores,
-		host.DistributedInterval,
-		host.ConfigTLSRefresh,
-		host.LoggerTLSPeriod,
-		host.TeamID,
-		host.PrimaryIP,
-		host.PrimaryMac,
-		host.RefetchRequested,
-		host.GigsDiskSpaceAvailable,
-		host.PercentDiskSpaceAvailable,
-		host.ID,
-	)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	if err := d.UpdateHost(ctx, host); err != nil {
+		return err
 	}
 
 	// Save host pack stats only if it is non-nil. Empty stats should be
@@ -407,7 +334,6 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		}
 		return nil
 	})
-
 }
 
 func (d *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
@@ -1367,7 +1293,7 @@ func (d *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, val
 	return nil
 }
 
-func (d *Datastore) SaveHostLite(ctx context.Context, host *fleet.Host) error {
+func (d *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
