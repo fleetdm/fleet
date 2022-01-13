@@ -83,7 +83,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - be valuable (consider business impact)
 - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand why
+  - understand why, or tell me why I'm wrong
   - agree, or disagree and commit anyway
 - make time for self-care (to help you bring your best self when communicating with others, making decisions, etc)
    - consider taking a break and going for a walk
