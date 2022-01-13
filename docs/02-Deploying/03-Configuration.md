@@ -2109,3 +2109,18 @@ Click _Continue_ at the bottom of the page.
 Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs, or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+
+#### Sentry
+
+##### dsn
+
+If set then `fleet serve` will capture errors and panics and push them to Sentry.
+
+- Default value: `""`
+- Environment variable: `FLEET_SENTRY_DSN`
+- Config file format:
+
+  ```
+  sentry:
+    dsn: "https://somedsnprovidedby.sentry.com/"
+  ```
