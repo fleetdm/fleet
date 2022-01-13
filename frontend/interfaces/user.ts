@@ -49,7 +49,7 @@ export interface IUserFormErrors {
   sso_enabled: boolean | null;
 }
 
-export interface ICreateUserFormDataNoInvite {
+export interface ICreateUserFormData {
   email: string;
   global_role: string | null;
   name: string;

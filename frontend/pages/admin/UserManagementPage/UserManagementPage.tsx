@@ -8,7 +8,7 @@ import memoize from "memoize-one";
 import { IApiError } from "interfaces/errors";
 import { IInvite, ICreateInviteFormData } from "interfaces/invite";
 import { IConfig } from "interfaces/config";
-import { IUser, ICreateUserFormDataNoInvite } from "interfaces/user";
+import { IUser, ICreateUserFormData } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 
 import { AppContext } from "context/app";
@@ -34,19 +34,6 @@ import CreateUserModal from "./components/CreateUserModal";
 import EditUserModal from "./components/EditUserModal";
 
 const baseClass = "user-management";
-
-interface ISortBy {
-  id: boolean;
-  sorting: IConfig;
-  currentUser: IUser;
-  loadingTableData: boolean;
-  invites: IInvite[];
-  inviteErrors: { base: string; email: string };
-  isPremiumTier: boolean;
-  users: IUser[];
-  userErrors: { base: string; name: string };
-  teams: ITeam[];
-}
 
 interface ITeamsResponse {
   teams: ITeam[];
@@ -148,7 +135,6 @@ const UserManagementPage = (): JSX.Element => {
     [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
   );
 
-  // added IInvite and undefined due to toggleeditusermodal being used later
   const toggleEditUserModal = useCallback(
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
@@ -202,28 +188,10 @@ const UserManagementPage = (): JSX.Element => {
       sortBy = [{ id: sortHeader, direction: sortDirection }];
     }
 
-    // if (!searchQuery) {
-    //   setQuerySearchText("");
-    //   return;
-    // }
-
     setQuerySearchText(searchQuery);
-    console.log("searchQuery", searchQuery);
 
     refetchUsers();
     refetchInvites();
-    // usersAPI.loadAll({
-    //   page: pageIndex,
-    //   perPage: pageSize,
-    //   globalFilter: searchQuery,
-    //   sortBy,
-    // });
-    // invitesAPI.loadAll({
-    //   page: pageIndex,
-    //   perPage: pageSize,
-    //   globalFilter: searchQuery,
-    //   sortBy,
-    // });
   };
 
   const onActionSelect = (value: string, user: IUser | IInvite) => {
@@ -496,8 +464,6 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderEditUserModal = () => {
-    if (!showEditUserModal) return null;
-
     const userData = getUser(userEditing.type, userEditing.id);
 
     return (
@@ -527,8 +493,6 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderCreateUserModal = () => {
-    if (!showCreateUserModal) return null;
-
     return (
       <CreateUserModal
         createUserErrors={createUserErrors}
@@ -547,8 +511,6 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderDeleteUserModal = () => {
-    if (!showDeleteUserModal) return null;
-
     return (
       <Modal
         title={"Delete user"}
@@ -565,8 +527,6 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderResetPasswordModal = () => {
-    if (!showResetPasswordModal) return null;
-
     return (
       <ResetPasswordModal
         user={userEditing}
@@ -578,8 +538,6 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderResetSessionsModal = () => {
-    if (!showResetSessionsModal) return null;
-
     return (
       <ResetSessionsModal
         user={userEditing}
@@ -631,11 +589,11 @@ const UserManagementPage = (): JSX.Element => {
           isAllPagesSelected={false}
         />
       )}
-      {renderCreateUserModal()}
-      {renderEditUserModal()}
-      {renderDeleteUserModal()}
-      {renderResetSessionsModal()}
-      {renderResetPasswordModal()}
+      {showCreateUserModal && renderCreateUserModal()}
+      {showEditUserModal && renderEditUserModal()}
+      {showDeleteUserModal && renderDeleteUserModal()}
+      {showResetSessionsModal && renderResetSessionsModal()}
+      {showResetPasswordModal && renderResetPasswordModal()}
     </div>
   );
 };

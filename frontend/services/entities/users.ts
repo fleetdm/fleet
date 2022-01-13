@@ -3,7 +3,7 @@ import sendRequest from "services";
 import endpoints from "fleet/endpoints";
 import helpers from "fleet/helpers";
 import {
-  ICreateUserFormDataNoInvite,
+  ICreateUserFormData,
   IUpdateUserFormData,
   IUser,
 } from "interfaces/user";
@@ -21,20 +21,16 @@ interface IForgotPassword {
   email: string;
 }
 
-interface IUpdateAdmin {
-  admin: boolean;
-}
-
 interface IRequirePasswordReset {
   require: boolean;
 }
 
 export default {
-  createUserWithoutInvitation: (formData: ICreateUserFormDataNoInvite) => {
+  createUserWithoutInvitation: (formData: ICreateUserFormData) => {
     const { USERS_ADMIN } = endpoints;
 
-    return sendRequest("POST", USERS_ADMIN, formData).then(
-      (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
+    return sendRequest("POST", USERS_ADMIN, formData).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
     );
   },
   deleteSessions: (userId: number) => {
