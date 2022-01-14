@@ -80,7 +80,6 @@ describe("Hosts flow", () => {
         cy.location("pathname").should("match", /hosts\/[0-9]/i);
         cy.getAttached(".status--online").should("exist");
         // Run policy on host
-        let policyname = "";
         cy.contains("a", "Policies").click();
         cy.getAttached("tbody").within(() => {
           cy.get(".button--text-link").first().as("policyLink");
@@ -88,7 +87,7 @@ describe("Hosts flow", () => {
         cy.getAttached("@policyLink")
           // Set policyname variable for later assertions
           .then((el) => {
-            policyname = el.text();
+            console.log(el);
             return el;
           });
         cy.findByText(/filevault/i)
