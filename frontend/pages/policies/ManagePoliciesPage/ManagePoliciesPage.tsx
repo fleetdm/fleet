@@ -286,7 +286,12 @@ const ManagePolicyPage = ({
     (!teamId && !globalPoliciesError && !!globalPolicies?.length);
 
   const showInheritedPoliciesButton =
-    !!teamId && !!globalPolicies?.length && !globalPoliciesError;
+    !!teamId &&
+    !isLoadingTeamPolicies &&
+    !teamPoliciesError &&
+    !isLoadingGlobalPolicies &&
+    !globalPoliciesError &&
+    !!globalPolicies?.length;
 
   const inheritedPoliciesButtonText = (
     showPolicies: boolean,
@@ -400,24 +405,27 @@ const ManagePolicyPage = ({
           </InfoBanner>
         )}
         <div>
-          {!!teamId &&
-            (teamPoliciesError ? (
-              <TableDataError />
-            ) : (
-              <PoliciesListWrapper
-                policiesList={teamPolicies || []}
-                isLoading={
-                  isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
-                }
-                onRemovePoliciesClick={onRemovePoliciesClick}
-                canAddOrRemovePolicy={canAddOrRemovePolicy}
-                currentTeam={currentTeam}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-              />
-            ))}
+          {!!teamId && teamPoliciesError && <TableDataError />}
+          {!!teamId && !teamPoliciesError && teamPolicies === undefined && (
+            <Spinner />
+          )}
+          {!!teamId && !teamPoliciesError && teamPolicies !== undefined && (
+            <PoliciesListWrapper
+              policiesList={teamPolicies || []}
+              isLoading={
+                isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
+              }
+              onRemovePoliciesClick={onRemovePoliciesClick}
+              canAddOrRemovePolicy={canAddOrRemovePolicy}
+              currentTeam={currentTeam}
+              currentAutomatedPolicies={currentAutomatedPolicies}
+            />
+          )}
+          {!teamId && globalPoliciesError && <TableDataError />}
           {!teamId &&
-            (globalPoliciesError ? (
-              <TableDataError />
+            !globalPoliciesError &&
+            (globalPolicies === undefined ? (
+              <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
@@ -458,18 +466,24 @@ const ManagePolicyPage = ({
         )}
         {showInheritedPoliciesButton && showInheritedPolicies && (
           <div className={`${baseClass}__inherited-policies-table`}>
-            <PoliciesListWrapper
-              isLoading={
-                isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
-              }
-              policiesList={globalPolicies || []}
-              onRemovePoliciesClick={noop}
-              resultsTitle="policies"
-              canAddOrRemovePolicy={canAddOrRemovePolicy}
-              tableType="inheritedPolicies"
-              currentTeam={currentTeam}
-              currentAutomatedPolicies={currentAutomatedPolicies}
-            />
+            {globalPoliciesError && <TableDataError />}
+            {!globalPoliciesError &&
+              (globalPolicies === undefined ? (
+                <Spinner />
+              ) : (
+                <PoliciesListWrapper
+                  isLoading={
+                    isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
+                  }
+                  policiesList={globalPolicies || []}
+                  onRemovePoliciesClick={noop}
+                  resultsTitle="policies"
+                  canAddOrRemovePolicy={canAddOrRemovePolicy}
+                  tableType="inheritedPolicies"
+                  currentTeam={currentTeam}
+                  currentAutomatedPolicies={currentAutomatedPolicies}
+                />
+              ))}
           </div>
         )}
         {showManageAutomationsModal && (

@@ -21,6 +21,7 @@ import paths from "router/paths";
 import { IRedirectLocation } from "interfaces/redirect_location";
 import { IUser } from "interfaces/user";
 import { ISSOSettings } from "interfaces/ssoSettings";
+import { ITeamSummary } from "interfaces/team";
 import { AppContext } from "context/app";
 
 interface ILoginPageProps {
@@ -37,6 +38,11 @@ interface ILoginPageProps {
   ssoSettings: ISSOSettings;
 }
 
+export interface ILoginUserResponse {
+  user: IUser;
+  availableTeams: ITeamSummary[];
+}
+
 const LoginPage = ({
   dispatch,
   errors,
@@ -48,7 +54,9 @@ const LoginPage = ({
   user,
   ssoSettings,
 }: ILoginPageProps) => {
-  const { setCurrentUser, setCurrentTeam } = useContext(AppContext);
+  const { setAvailableTeams, setCurrentUser, setCurrentTeam } = useContext(
+    AppContext
+  );
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
   useEffect(() => {
@@ -71,7 +79,7 @@ const LoginPage = ({
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then((returnedUser: IUser) => {
+      .then(({ user: returnedUser, availableTeams }: ILoginUserResponse) => {
         setLoginVisible(false);
 
         // Redirect to password reset page if user is forced to reset password.
@@ -82,6 +90,7 @@ const LoginPage = ({
 
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
+        setAvailableTeams(availableTeams);
 
         // Ensure team is undefined on login
         setCurrentTeam(undefined);
