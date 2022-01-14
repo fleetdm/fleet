@@ -182,6 +182,7 @@ export const frontendFormattedConfig = (config: any) => {
     webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
     update_interval: updateInterval,
     license,
+    logging,
   } = config;
 
   if (config.agent_options) {
@@ -197,6 +198,7 @@ export const frontendFormattedConfig = (config: any) => {
     ...webhookSettings,
     ...updateInterval,
     ...license,
+    ...logging,
     agent_options: config.agent_options,
   };
 };
