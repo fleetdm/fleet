@@ -48,7 +48,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
 
-### Customer experience
+### Customers
 
 [Customer succcess](./customer-experience.md#customer-success)
 
