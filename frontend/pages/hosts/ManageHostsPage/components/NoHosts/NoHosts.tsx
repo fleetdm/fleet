@@ -25,8 +25,8 @@ const NoHosts = ({
         <div>
           <h1>No hosts match the current criteria</h1>
           <p>
-            Expecting to see new hosts? Try again in a few seconds as
-            the system catches up.
+            Expecting to see new hosts? Try again in a few seconds as the system
+            catches up.
           </p>
         </div>
       );
@@ -46,23 +46,24 @@ const NoHosts = ({
           </div>
         </div>
       );
-    } else {
-      return (
-        <div>
-          <h2>Devices will show up here once they’re added to Fleet.</h2>
-          <p>
-            Expecting to see devices? Try again in a few seconds as the system
-            catches up.
-          </p>
-        </div>
-      );
     }
+    return (
+      <div>
+        <h2>Devices will show up here once they’re added to Fleet.</h2>
+        <p>
+          Expecting to see devices? Try again in a few seconds as the system
+          catches up.
+        </p>
+      </div>
+    );
   };
 
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
-        {!includesSoftwareOrPolicyFilter && <img src={RoboDogImage} alt="No Hosts" />}
+        {!includesSoftwareOrPolicyFilter && (
+          <img src={RoboDogImage} alt="No Hosts" />
+        )}
         {renderContent()}
       </div>
     </div>
