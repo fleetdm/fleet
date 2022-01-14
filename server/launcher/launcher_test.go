@@ -23,7 +23,6 @@ func TestLauncherEnrollment(t *testing.T) {
 	assert.True(t, tls.EnrollAgentFuncInvoked)
 	assert.False(t, invalid)
 	assert.Equal(t, "noop", nodeKey)
-
 }
 
 func TestLauncherRequestConfig(t *testing.T) {
@@ -62,7 +61,7 @@ func TestLauncherPublishResults(t *testing.T) {
 	assert.False(t, invalid)
 
 	// test with result
-	var result = map[string]string{"key": "value"}
+	result := map[string]string{"key": "value"}
 	tls.SubmitDistributedQueryResultsFunc = func(
 		ctx context.Context,
 		results fleet.OsqueryDistributedQueryResults,
@@ -112,16 +111,13 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		) (nodeKey string, err error) {
 			nodeKey = "noop"
 			return
-
 		},
 
 		AuthenticateHostFunc: func(
 			ctx context.Context,
 			nodeKey string,
 		) (host *fleet.Host, debug bool, err error) {
-			return &fleet.Host{
-				NodeKey: nodeKey,
-			}, false, nil
+			return nil, false, nil
 		},
 		GetClientConfigFunc: func(
 			ctx context.Context,

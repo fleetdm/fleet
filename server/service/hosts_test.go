@@ -65,6 +65,12 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
+		if id == 1 {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
 	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
@@ -99,6 +105,14 @@ func TestHostAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
+		return nil
+	}
+	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+		if id == 1 {
+			teamHost.RefetchRequested = true
+		} else {
+			globalHost.RefetchRequested = true
+		}
 		return nil
 	}
 
@@ -208,6 +222,7 @@ func TestHostAuth(t *testing.T) {
 
 	// List, GetHostSummary, FlushSeenHost work for all
 }
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
@@ -357,19 +372,20 @@ func TestRefetchHost(t *testing.T) {
 
 	host := &fleet.Host{ID: 3}
 
-	ds.HostFunc = func(ctx context.Context, hid uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		assert.True(t, host.RefetchRequested)
+	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+		assert.Equal(t, host.ID, id)
+		assert.True(t, value)
 		return nil
 	}
 
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserAdmin), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserObserver), host.ID))
 	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserMaintainer), host.ID))
-	assert.True(t, ds.HostFuncInvoked)
-	assert.True(t, ds.SaveHostFuncInvoked)
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
 func TestRefetchHostUserInTeams(t *testing.T) {
@@ -378,11 +394,12 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
-	ds.HostFunc = func(ctx context.Context, hid uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostLiteFunc = func(ctx context.Context, id uint, opts ...fleet.HostLoadOpt) (*fleet.Host, error) {
 		return host, nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		assert.True(t, host.RefetchRequested)
+	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+		assert.Equal(t, host.ID, id)
+		assert.True(t, value)
 		return nil
 	}
 
@@ -395,9 +412,9 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 		},
 	}
 	require.NoError(t, svc.RefetchHost(test.UserContext(maintainer), host.ID))
-	assert.True(t, ds.HostFuncInvoked)
-	assert.True(t, ds.SaveHostFuncInvoked)
-	ds.HostFuncInvoked, ds.SaveHostFuncInvoked = false, false
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+	ds.HostLiteFuncInvoked, ds.UpdateHostRefetchRequestedFuncInvoked = false, false
 
 	observer := &fleet.User{
 		Teams: []fleet.UserTeam{
@@ -408,6 +425,6 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 		},
 	}
 	require.NoError(t, svc.RefetchHost(test.UserContext(observer), host.ID))
-	assert.True(t, ds.HostFuncInvoked)
-	assert.True(t, ds.SaveHostFuncInvoked)
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }

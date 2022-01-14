@@ -92,7 +92,7 @@ func TestHosts(t *testing.T) {
 		{"ListByPolicy", testHostsListByPolicy},
 		{"SaveTonsOfUsers", testHostsSaveTonsOfUsers},
 		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
-		{"AuthenticateHostLoadsDisk", testAuthenticateHostLoadsDisk},
+		{"HostLiteWithDetailsLoadsDisk", testHostLiteWithDetailsLoadsDisk},
 		{"HostsListBySoftware", testHostsListBySoftware},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -150,7 +150,7 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	host.Additional = &additionalJSON
 
 	require.NoError(t, saveHostFunc(context.Background(), host))
-	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host))
+	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, host.ID, host.Additional))
 
 	host, err = ds.Host(context.Background(), host.ID, false)
 	require.NoError(t, err)
@@ -637,7 +637,7 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	// Add additional
 	additional := json.RawMessage(`{"field1": "v1", "field2": "v2"}`)
 	h.Additional = &additional
-	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h))
+	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h.ID, h.Additional))
 
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1)
 	assert.Nil(t, hosts[0].Additional)
@@ -830,15 +830,15 @@ func testHostsAuthenticate(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		returned, err := ds.AuthenticateHost(context.Background(), h.NodeKey)
+		returned, err := ds.LoadHostByNodeKey(context.Background(), h.NodeKey)
 		require.NoError(t, err)
-		assert.Equal(t, h.NodeKey, returned.NodeKey)
+		assert.Equal(t, h, returned)
 	}
 
-	_, err := ds.AuthenticateHost(context.Background(), "7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
+	_, err := ds.LoadHostByNodeKey(context.Background(), "7B1A9DC9-B042-489F-8D5A-EEC2412C95AA")
 	assert.Error(t, err)
 
-	_, err = ds.AuthenticateHost(context.Background(), "")
+	_, err = ds.LoadHostByNodeKey(context.Background(), "")
 	assert.Error(t, err)
 }
 
@@ -848,7 +848,7 @@ func testHostsAuthenticateCaseSensitive(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		_, err = ds.AuthenticateHost(context.Background(), strings.ToUpper(h.NodeKey))
+		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(h.NodeKey))
 		require.Error(t, err, "node key authentication should be case sensitive")
 	}
 }
@@ -1368,7 +1368,7 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostsByName[0], hosts[0].ID)
 }
 
-func testAuthenticateHostLoadsDisk(t *testing.T, ds *Datastore) {
+func testHostLiteWithDetailsLoadsDisk(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1384,17 +1384,14 @@ func testAuthenticateHostLoadsDisk(t *testing.T, ds *Datastore) {
 	h.GigsDiskSpaceAvailable = 1.24
 	h.PercentDiskSpaceAvailable = 42.0
 	require.NoError(t, ds.SaveHost(context.Background(), h))
-	h, err = ds.Host(context.Background(), h.ID, false)
-	require.NoError(t, err)
-
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID, fleet.WithDetails())
 	require.NoError(t, err)
 	assert.NotZero(t, h.GigsDiskSpaceAvailable)
 	assert.NotZero(t, h.PercentDiskSpaceAvailable)
 }
 
 func testHostsAdditional(t *testing.T, ds *Datastore) {
-	_, err := ds.NewHost(context.Background(), &fleet.Host{
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -1406,7 +1403,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	h, err := ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
@@ -1419,10 +1416,10 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	// Add additional
 	additional := json.RawMessage(`{"additional": "result"}`)
 	h.Additional = &additional
-	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h))
+	require.NoError(t, saveHostAdditionalDB(context.Background(), ds.writer, h.ID, h.Additional))
 
-	// Additional should not be loaded for authenticatehost
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	// Additional should not be loaded for HostLite
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
@@ -1432,13 +1429,13 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, &additional, h.Additional)
 
 	// Update besides additional. Additional should be unchanged.
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	h.Hostname = "baz.local"
 	err = ds.SaveHost(context.Background(), h)
 	require.NoError(t, err)
 
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
@@ -1449,13 +1446,13 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 
 	// Update additional
 	additional = json.RawMessage(`{"other": "additional"}`)
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	h.Additional = &additional
-	err = saveHostAdditionalDB(context.Background(), ds.writer, h)
+	err = saveHostAdditionalDB(context.Background(), ds.writer, h.ID, h.Additional)
 	require.NoError(t, err)
 
-	h, err = ds.AuthenticateHost(context.Background(), "nodekey")
+	h, err = ds.HostLite(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -184,10 +185,9 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
-	// AuthenticateHost authenticates and returns host metadata by node key. This method should not return the host
-	// "additional" information as this is not typically necessary for the operations performed by the osquery
-	// endpoints.
-	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
+	// LoadHostByNodeKey loads the whole host identified by the node key.
+	// If the node key is invalid it returns a NotFoundError.
+	LoadHostByNodeKey(ctx context.Context, nodeKey string) (*Host, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
@@ -425,6 +425,49 @@ type Datastore interface {
 
 	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
+
+	HostLite(ctx context.Context, id uint, opts ...HostLoadOpt) (*Host, error)
+
+	UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *HostOsqueryIntervals) error
+
+	TeamAgentOptions(ctx context.Context, id uint) (*json.RawMessage, error)
+
+	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
+	SaveHostUsers(ctx context.Context, hostID uint, users []HostUser) error
+	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
+	SaveHostLite(ctx context.Context, host *Host) error
+
+	ListScheduledQueriesInPackLite(ctx context.Context, id uint) ([]*ScheduledQuery, error)
+
+	UpdateHostRefetchRequested(ctx context.Context, id uint, value bool) error
+
+	///////////////////////////////////////////////////////////////////////////////
+}
+
+type HostLoadOpts struct {
+	WithDetails bool
+}
+
+// HostLoadOpt allows configuring host loading.
+type HostLoadOpt func(*HostLoadOpts)
+
+// WithDetails loads the host details into the returned *Host.
+//
+// By default, HostLite won't load the details.
+func WithDetails() HostLoadOpt {
+	return func(h *HostLoadOpts) {
+		h.WithDetails = true
+	}
+}
+
+// HostOsqueryIntervals holds an osquery host's osquery interval configurations.
+type HostOsqueryIntervals struct {
+	DistributedInterval uint `json:"distributed_interval" db:"distributed_interval"`
+	ConfigTLSRefresh    uint `json:"config_tls_refresh" db:"config_tls_refresh"`
+	LoggerTLSPeriod     uint `json:"logger_tls_period" db:"logger_tls_period"`
 }
 
 type MigrationStatus struct {
