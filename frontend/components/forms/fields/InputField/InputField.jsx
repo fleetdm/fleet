@@ -59,9 +59,8 @@ class InputField extends Component {
     const { value, name } = evt.target;
     const { onChange, target } = this.props;
 
-    console.log("name", name);
-    console.log("value", value);
     if (target) {
+      // New pattern returns both name and value
       return onChange({ value, name });
     }
 

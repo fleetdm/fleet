@@ -3,10 +3,7 @@ import { syntaxHighlight } from "fleet/helpers";
 import { size } from "lodash";
 
 import yaml from "js-yaml";
-// @ts-ignore
-import validate from "components/forms/admin/AppConfigForm/validate";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
+
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
@@ -23,15 +20,17 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 // @ts-ignore
+import validateYaml from "components/forms/validators/validate_yaml";
+// @ts-ignore
 import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
-import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 import { string } from "prop-types";
 import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
+import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -92,8 +91,7 @@ const AppConfigFormFunctional = ({
   enrollSecret,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
-  // █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀
-  // ▄█ ░█░ █▀█ ░█░ ██▄
+  // STATE
   const [
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
@@ -103,8 +101,7 @@ const AppConfigFormFunctional = ({
     setShowUsageStatsPreviewModal,
   ] = useState<boolean>(false);
 
-  // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ ▀█▀ ▄▀█ ▀█▀ █▀▀
-  // █▀░ █▄█ █▀▄ █░▀░█   ▄█ ░█░ █▀█ ░█░ ██▄
+  // FORM STATE
   const [iterateFormData, setIterateFormData] = useState<any>({
     // Organization info
     orgName: formData.org_info.org_name || "",
@@ -194,16 +191,16 @@ const AppConfigFormFunctional = ({
   // OLD
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  // █▀▀ █▀█ █▀█ █▀▄▀█   █▀▀ █░█ ▄▀█ █▄░█ █▀▀ █▀▀
-  // █▀░ █▄█ █▀▄ █░▀░█   █▄▄ █▀█ █▀█ █░▀█ █▄█ ██▄
+  // FORM CHANGE
   const handleInputChange = ({ name, value }: IFormField) => {
+    console.log("name", name);
+    console.log("value", value);
     setIterateFormData({ ...iterateFormData, [name]: value });
   };
 
   console.log("iterateFormData", iterateFormData);
 
-  // ▀█▀ █▀█ █▀▀ █▀▀ █░░ █▀▀   █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
-  // ░█░ █▄█ █▄█ █▄█ █▄▄ ██▄   █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
+  // TOGGLE MODALS
 
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
@@ -215,8 +212,7 @@ const AppConfigFormFunctional = ({
     return false;
   };
 
-  // █▀▀ █▀█ █▀█ █▀▄▀█   █▀ █░█ █▄▄ █▀▄▀█ █ ▀█▀
-  // █▀░ █▄█ █▀▄ █░▀░█   ▄█ █▄█ █▄█ █░▀░█ █ ░█░
+  // FORM SUBMIT
   const onFormSubmit = () => {
     // Validators
     const errors: any = {};
@@ -321,7 +317,7 @@ const AppConfigFormFunctional = ({
         password: smtpPassword,
         enable_ssl_tls: smtpEnableSSLTLS,
         authentication_method: smtpAuthenticationMethod,
-        domain: domain,
+        domain,
         verify_ssl_certs: verifySSLCerts,
         enable_start_tls: enableStartTLS,
       },
@@ -329,7 +325,7 @@ const AppConfigFormFunctional = ({
         entity_id: entityID,
         issuer_uri: issuerURI,
         idp_image_url: idpImageURL,
-        metadata: metadata,
+        metadata,
         metadata_url: metadataURL,
         idp_name: idpName,
         enable_sso: enableSSO,
@@ -350,12 +346,10 @@ const AppConfigFormFunctional = ({
       },
     };
     console.log("formDataToSubmit", formDataToSubmit);
-    debugger;
     handleSubmit(formDataToSubmit);
   };
 
-  // █▀ █▀▀ █▀▀ ▀█▀ █ █▀█ █▄░█ █▀
-  // ▄█ ██▄ █▄▄ ░█░ █ █▄█ █░▀█ ▄█
+  // SECTIONS
   const renderOrganizationInfoSection = () => {
     return (
       <div className={`${baseClass}__section`}>
@@ -675,7 +669,14 @@ const AppConfigFormFunctional = ({
         </div>
 
         <div className={`${baseClass}__inputs`}>
-          <Dropdown label="Authentication type" options={authTypeOptions} />
+          <Dropdown
+            label="Authentication type"
+            options={authTypeOptions}
+            onChange={handleInputChange}
+            target
+            name="smtpAuthenticationType"
+            value={smtpAuthenticationType}
+          />
           {renderSmtpSection()}
         </div>
         <div className={`${baseClass}__details`}>
@@ -745,8 +746,8 @@ const AppConfigFormFunctional = ({
           <YamlAce
             onChange={handleInputChange}
             target
-            name="agentOptions" //TODO
-            value={agentOptions} //TODO
+            name="agentOptions" // TODO
+            value={agentOptions} // TODO
             error={formErrors.agent_options}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
           />
@@ -1015,8 +1016,8 @@ const AppConfigFormFunctional = ({
     );
   };
 
-  // █▀▄▀█ █▀█ █▀▄ ▄▀█ █░░ █▀
-  // █░▀░█ █▄█ █▄▀ █▀█ █▄▄ ▄█
+  // MODALS
+
   const renderHostStatusWebhookPreviewModal = () => {
     if (!showHostStatusWebhookPreviewModal) {
       return null;
@@ -1094,8 +1095,7 @@ const AppConfigFormFunctional = ({
     );
   };
 
-  // █▀█ █▀▀ █▄░█ █▀▄ █▀▀ █▀█
-  // █▀▄ ██▄ █░▀█ █▄▀ ██▄ █▀▄
+  // RENDER
   return (
     <>
       <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">

@@ -34,6 +34,7 @@ const Checkbox = (props: ICheckboxProps) => {
 
   const handleChange = () => {
     if (target) {
+      // New pattern returns both name and value
       return onChange({ name, value: !value });
     }
 

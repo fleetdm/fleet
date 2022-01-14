@@ -60,24 +60,17 @@ class Dropdown extends Component {
   handleChange = (selected) => {
     const { multi, onChange, clearable, name, target } = this.props;
 
-    console.log("onchange dropdown!");
-    console.log("target", target);
-    console.log("name", name);
-    console.log("selected.value", selected.value);
     if (target) {
-      if (clearable && selected === null) {
-        onChange(name, null);
-      } else {
-        onChange(name, selected.value);
-      }
+      // New pattern returns both name and value
+      return onChange({ value: selected.value, name });
+    }
+
+    if (clearable && selected === null) {
+      onChange(null);
+    } else if (multi) {
+      onChange(selected.map((obj) => obj.value).join(","));
     } else {
-      if (clearable && selected === null) {
-        onChange(null);
-      } else if (multi) {
-        onChange(selected.map((obj) => obj.value).join(","));
-      } else {
-        onChange(selected.value);
-      }
+      onChange(selected.value);
     }
   };
 

@@ -51,26 +51,6 @@ const AppSettingsPage = (): JSX.Element => {
   //   return false;
   // };
 
-  const onFormSubmit = async (formData: any) => {
-    console.log("onFormSubmit formData", formData);
-    try {
-      // const diff = deepDifference(formData, appConfig);
-
-      // console.log("appConfig", appConfig);
-      // console.log("diff", diff);
-      // debugger;
-      const request = configAPI.update(formData);
-      await request.then(() => {
-        dispatch(renderFlash("success", "Successfully updated settings."));
-        refetchConfig();
-      });
-    } catch (errors: any) {
-      if (errors.base) {
-        dispatch(renderFlash("error", errors.base));
-      }
-    }
-  };
-
   const {
     data: appConfig,
     isLoading: isLoadingConfig,
@@ -97,6 +77,26 @@ const AppSettingsPage = (): JSX.Element => {
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
+
+  const onFormSubmit = async (formData: any) => {
+    console.log("onFormSubmit formData", formData);
+    try {
+      // const diff = deepDifference(formData, appConfig);
+
+      // console.log("appConfig", appConfig);
+      // console.log("diff", diff);
+      // debugger;
+      const request = configAPI.update(formData);
+      await request.then(() => {
+        dispatch(renderFlash("success", "Successfully updated settings."));
+        refetchConfig();
+      });
+    } catch (errors: any) {
+      if (errors.base) {
+        dispatch(renderFlash("error", errors.base));
+      }
+    }
+  };
 
   return (
     <div className={`${baseClass} body-wrap`}>
