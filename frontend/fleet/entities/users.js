@@ -63,7 +63,6 @@ export default (client) => {
         .authenticatedPost(endpoint, JSON.stringify({ enabled }))
         .then((response) => helpers.addGravatarUrlToResource(response.user));
     },
-
     loadAll: ({
       page = 0,
       perPage = 100,

@@ -29,6 +29,8 @@ func NewRunner(socket string) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
+	log.Debug().Msg("start osquery extension")
+
 	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
@@ -75,7 +77,7 @@ func (r *Runner) Execute() error {
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Msg("interrupt osquery extension")
+	log.Debug().Err(err).Msg("interrupt osquery extension")
 	r.cancel()
 
 	if r.srv != nil {

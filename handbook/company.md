@@ -2,8 +2,15 @@
 
 ## About Fleet
 
-Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet.
-We are dedicated to making Fleet the best management platform for [osquery](https://osquery.io), the leading open source endpoint agent.
+Fleet Device Management Inc is an open core company that sells subscriptions that offer more features and support for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
+
+We are dedicated to:
+- 💍 growing the adoption of osquery (one agent to rule them all)
+- 👁️ remaining the freshest, simplest source of truth for every kind of device and OS
+- 🧑‍🚀 making IT developer-friendly
+- 🪟 open source, as a more private, transparent, and trustworthy future for humanity
+- 💻 building a better way to manage computers
+
 
 ## History
 
@@ -83,7 +90,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 - be valuable (consider business impact)
 - work on things that matter
   - fast forward 12 months, consider total cost of ownership (the eternity of maintenance)
-  - understand why
+  - understand why, or tell me why I'm wrong
   - agree, or disagree and commit anyway
 - make time for self-care (to help you bring your best self when communicating with others, making decisions, etc)
    - consider taking a break and going for a walk
@@ -99,9 +106,11 @@ The majority of the code, documentation, and content we create at Fleet is publi
   - finish what you start, or at least throw it away loudly in case someone wants it
   - focus on fewer tasks at one time
 - legendary execution
-- 
 
 ### 出来 Think, fast
+
+Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+
 - think for yourself (only you can)
 - from first principles
 - use reason
