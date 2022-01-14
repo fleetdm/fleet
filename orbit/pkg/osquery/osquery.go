@@ -121,7 +121,7 @@ func WithLogPath(path string) func(*Runner) error {
 // process may not be restarted after exit. Instead create a new one with
 // NewRunner.
 func (r *Runner) Execute() error {
-	log.Info().Str("cmd", r.cmd.String()).Msg("run osqueryd")
+	log.Info().Str("cmd", r.cmd.String()).Msg("start osqueryd")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	r.cancel = cancel
@@ -139,7 +139,7 @@ func (r *Runner) Execute() error {
 
 // Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Msg("interrupt osquery")
+	log.Debug().Err(err).Msg("interrupt osquery")
 	r.cancel()
 }
 

@@ -382,7 +382,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error().Err(err).Msg("")
+		log.Error().Err(err).Msg("run orbit failed")
 	}
 }
 
