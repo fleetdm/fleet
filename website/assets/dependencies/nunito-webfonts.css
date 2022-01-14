@@ -31,31 +31,5 @@
     font-weight: 800;
     font-style: normal;
 }
-@font-face{
-    font-family:'Nunito';
-    src:url('/fonts/nunito/Nunito-Italic.eot') format('embedded-opentype'),
-        url('/fonts/nunito/Nunito-Italic.woff') format('woff'),
-        url('/fonts/nunito/Nunito-Italic.ttf') format('truetype');
-    font-weight: 400;
-    font-style: italic;
-}
-@font-face{
-    font-family:'Nunito';
-    src:url('/fonts/nunito/Nunito-Regular.eot') format('embedded-opentype'),
-        url('/fonts/nunito/Nunito-Regular.woff') format('woff'),
-        url('/fonts/nunito/Nunito-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-
-}
-@font-face{
-    font-family:'Nunito';
-    src:url('/fonts/nunito/Nunito-Bold.eot') format('embedded-opentype'),
-        url('/fonts/nunito/Nunito-Bold.woff') format('woff'),
-        url('/fonts/nunito/Nunito-Bold.ttf') format('truetype');
-    font-weight: 700;
-    font-style: normal;
-}
-
 
 
