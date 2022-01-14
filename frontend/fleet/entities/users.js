@@ -109,9 +109,13 @@ export default (client) => {
       const { ME } = endpoints;
       const endpoint = client.baseURL + ME;
 
-      return client
-        .authenticatedGet(endpoint)
-        .then((response) => helpers.addGravatarUrlToResource(response.user));
+      return client.authenticatedGet(endpoint).then((response) => {
+        const { user, available_teams: availableTeams } = response;
+        return {
+          user: helpers.addGravatarUrlToResource(user),
+          availableTeams,
+        };
+      });
     },
     performRequiredPasswordReset: ({ password }) => {
       // Perform a password reset for the currently logged in user that has had a reset required

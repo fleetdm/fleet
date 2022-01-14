@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { memoize } from "lodash";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -193,7 +192,6 @@ const generateDataSet = (
   policiesList = policiesList.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
-  console.log("before: ", JSON.stringify(policiesList));
 
   policiesList.forEach((policy) => {
     policy.webhook =
@@ -201,7 +199,6 @@ const generateDataSet = (
         ? "On"
         : "Off";
   });
-  console.log("after: ", JSON.stringify(policiesList));
 
   return policiesList;
 };
