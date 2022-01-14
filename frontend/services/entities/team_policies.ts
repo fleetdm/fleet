@@ -46,7 +46,7 @@ export default {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
     if (!team_id) {
-      return Promise.reject("Invalid team id");
+      throw new Error("Invalid team id");
     }
 
     return sendRequest("GET", path);
