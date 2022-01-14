@@ -7,7 +7,6 @@ import {
   IUpdateUserFormData,
   IUser,
 } from "interfaces/user";
-import { IInvite } from "interfaces/invite";
 import { ITeamSummary } from "interfaces/team";
 
 interface IUserSearchOptions {
@@ -39,7 +38,7 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  deleteSessions: (userId: number, isResettingCurrentUser: boolean) => {
+  deleteSessions: (userId: number) => {
     const { USER_SESSIONS } = endpoints;
     const path = USER_SESSIONS(userId);
 

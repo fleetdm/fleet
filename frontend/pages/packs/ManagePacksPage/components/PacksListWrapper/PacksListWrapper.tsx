@@ -22,12 +22,6 @@ interface IPacksListWrapperProps {
   isLoading: boolean;
 }
 
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-}
-
 const PacksListWrapper = ({
   onRemovePackClick,
   onEnablePackClick,
@@ -36,9 +30,6 @@ const PacksListWrapper = ({
   packs,
   isLoading,
 }: IPacksListWrapperProps): JSX.Element => {
-  const currentUser = useSelector((state: IRootState) => state.auth.user);
-  const isOnlyObserver = permissionUtils.isOnlyObserver(currentUser);
-
   const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
     packs
   );
@@ -99,7 +90,7 @@ const PacksListWrapper = ({
     );
   }, [searchString]);
 
-  const tableHeaders = generateTableHeaders(isOnlyObserver);
+  const tableHeaders = generateTableHeaders();
 
   const secondarySelectActions: IActionButtonProps[] = [
     {

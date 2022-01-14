@@ -57,7 +57,7 @@ interface IPackTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (isOnlyObserver = true): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       id: "selection",

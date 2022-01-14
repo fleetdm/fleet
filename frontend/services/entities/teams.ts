@@ -1,21 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
+import { INewMembersBody, IRemoveMembersBody } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-
-interface ILoadAllTeamsResponse {
-  teams: ITeam[];
-}
-
-interface ILoadTeamResponse {
-  team: ITeam;
-}
-
-interface ITeamEnrollSecretsResponse {
-  secrets: IEnrollSecret[];
-}
 
 interface ITeamSearchOptions {
   page?: number;

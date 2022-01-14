@@ -25,30 +25,11 @@ interface IEditPackForm {
   onAddPackQuery: () => void;
   onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
   onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
-  onPackQueryFormSubmit: (
-    formData: IPackQueryFormData,
-    editQuery: IScheduledQuery | undefined
-  ) => boolean;
-  packId: number;
-  packTargets?: ITarget[];
   targetsCount?: number;
   isPremiumTier?: boolean;
   formData: IEditPackFormData;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
-}
-
-interface IPackQueryFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  removed: boolean;
-  snapshot: boolean;
-  pack_id: number;
-  platform: string;
-  version: string;
 }
 
 interface IEditPackFormData {
@@ -65,8 +46,6 @@ const EditPackForm = ({
   onAddPackQuery,
   onEditPackQuery,
   onRemovePackQueries,
-  onPackQueryFormSubmit,
-  packId,
   scheduledQueries,
   isLoadingPackQueries,
   targetsCount,
@@ -153,9 +132,7 @@ const EditPackForm = ({
         onAddPackQuery={onAddPackQuery}
         onEditPackQuery={onEditPackQuery}
         onRemovePackQueries={onRemovePackQueries}
-        onPackQueryFormSubmit={onPackQueryFormSubmit}
         scheduledQueries={scheduledQueries}
-        packId={packId}
         isLoadingPackQueries={isLoadingPackQueries}
       />
       <div className={`${baseClass}__pack-buttons`}>

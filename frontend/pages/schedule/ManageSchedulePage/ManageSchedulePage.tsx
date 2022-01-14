@@ -1,6 +1,10 @@
 /* Conditionally renders global schedule and team schedules */
 
+<<<<<<< HEAD
 import React, { useCallback, useContext, useEffect, useState } from "react";
+=======
+import React, { useState, useCallback, useContext } from "react";
+>>>>>>> 88e3567ac (Clean up 38 lint warnings, mostly unused variables)
 import { useQuery } from "react-query";
 import { useDispatch } from "react-redux";
 import { AppContext } from "context/app";

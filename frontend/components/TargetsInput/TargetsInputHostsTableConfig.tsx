@@ -18,7 +18,7 @@ export const generateTableHeaders = (showDelete: boolean): IDataColumn[] => {
         {
           id: "delete",
           Header: "",
-          Cell: (cellProps: Cell): JSX.Element => (
+          Cell: (): JSX.Element => (
             <div>
               <img alt="Remove" src={RemoveIcon} />
             </div>

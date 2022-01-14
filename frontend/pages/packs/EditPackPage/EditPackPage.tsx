@@ -249,9 +249,7 @@ const EditPacksPage = ({
           onAddPackQuery={togglePackQueryEditorModal}
           onEditPackQuery={onEditPackQueryClick}
           onRemovePackQueries={onRemovePackQueriesClick}
-          onPackQueryFormSubmit={onPackQueryEditorSubmit}
           scheduledQueries={storedPackQueries}
-          packId={packId}
           isLoadingPackQueries={isStoredPackQueriesLoading}
         />
       )}

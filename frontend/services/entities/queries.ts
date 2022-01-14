@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import { IQueryFormData } from "interfaces/query";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {

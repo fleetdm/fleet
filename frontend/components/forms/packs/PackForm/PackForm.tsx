@@ -20,7 +20,6 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
-  formData: IEditPackFormData;
   baseError: any;
 }
 
@@ -28,10 +27,6 @@ interface IEditPackFormData {
   name: string;
   description: string;
   targets: ITarget[];
-}
-
-interface IFormErrors {
-  name?: string;
 }
 
 const EditPackForm = ({
