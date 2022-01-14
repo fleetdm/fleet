@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import paths from "router/paths";
 import { AppContext } from "context/app";
@@ -6,7 +6,7 @@ import { find } from "lodash";
 
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI from "services/entities/teams";
-import { IHostSummary, IHostSummaryPlatform } from "interfaces/host_summary";
+import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 
@@ -32,16 +32,6 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-const LINUX_PLATFORMS = ["ubuntu", "rhel", "debian"];
-
-const getLinuxCount = (platforms: IHostSummaryPlatform[] | null) =>
-  platforms?.reduce((count, p) => {
-    if (LINUX_PLATFORMS.includes(p.platform)) {
-      count += p.hosts_count;
-    }
-    return count;
-  }, 0) || [];
-
 const Homepage = (): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
   const {
@@ -60,7 +50,6 @@ const Homepage = (): JSX.Element => {
   const [totalCount, setTotalCount] = useState<string | undefined>();
   const [macCount, setMacCount] = useState<string>("0");
   const [windowsCount, setWindowsCount] = useState<string>("0");
-  const [linuxCount, setLinuxCount] = useState<string>("0");
   const [onlineCount, setOnlineCount] = useState<string | undefined>();
   const [offlineCount, setOfflineCount] = useState<string | undefined>();
   const [newCount, setNewCount] = useState<string | undefined>();
@@ -101,17 +90,17 @@ const Homepage = (): JSX.Element => {
     },
     {
       select: (data: IHostSummary) => data,
-      onSuccess: (data: IHostSummary) => {
+      onSuccess: (data: any) => {
         setTotalCount(data.totals_hosts_count.toLocaleString("en-US"));
         setOnlineCount(data.online_count.toLocaleString("en-US"));
         setOfflineCount(data.offline_count.toLocaleString("en-US"));
         setNewCount(data.new_count.toLocaleString("en-US"));
         const macHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatform) => platform.platform === "darwin"
+          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
         setMacCount(macHosts.hosts_count.toLocaleString("en-US"));
         const windowsHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatform) => platform.platform === "windows"
+          (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
         setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
         setIsLoadingHostsSummary(false);
