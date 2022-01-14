@@ -42,8 +42,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Growth
 
-[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
-
 [Website](./growth.md#website)
 
 [Communicating as Fleet](./growth.md#communicating-as-fleet)
@@ -57,6 +55,12 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Support process](./customer-experience.md#support-process)
 
 ### Community
+
+[Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
+
+[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+
+[Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
 
