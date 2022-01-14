@@ -3,7 +3,7 @@ import { noop } from "lodash";
 import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
-import { ITeam } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
@@ -26,7 +26,7 @@ interface IPoliciesListWrapperProps {
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
-  currentTeam: ITeam | undefined;
+  currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
 }
 

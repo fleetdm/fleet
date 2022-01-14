@@ -2,7 +2,7 @@ import React, { createContext, useReducer, ReactNode } from "react";
 
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
-import { ITeam } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 import permissions from "utilities/permissions";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
@@ -11,9 +11,10 @@ type Props = {
 };
 
 type InitialStateType = {
+  availableTeams: ITeamSummary[] | undefined;
   config: IConfig | null;
   currentUser: IUser | null;
-  currentTeam: ITeam | undefined;
+  currentTeam: ITeamSummary | undefined;
   enrollSecret: IEnrollSecret[] | null;
   isPreviewMode: boolean | undefined;
   isFreeTier: boolean | undefined;
@@ -30,13 +31,15 @@ type InitialStateType = {
   isAnyTeamAdmin: boolean | undefined;
   isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
-  setCurrentTeam: (team: ITeam | undefined) => void;
+  setCurrentTeam: (team: ITeamSummary | undefined) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
 
 const initialState = {
+  availableTeams: undefined,
   config: null,
   currentUser: null,
   currentTeam: undefined,
@@ -56,6 +59,7 @@ const initialState = {
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
+  setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
   setConfig: () => null,
@@ -63,6 +67,7 @@ const initialState = {
 };
 
 const actions = {
+  SET_AVAILABLE_TEAMS: "SET_AVAILABLE_TEAMS",
   SET_CURRENT_USER: "SET_CURRENT_USER",
   SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
   SET_CONFIG: "SET_CONFIG",
@@ -105,9 +110,15 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
+    case actions.SET_AVAILABLE_TEAMS:
+      return {
+        ...state,
+        availableTeams: action.availableTeams,
+      };
     case actions.SET_CURRENT_USER:
       return {
         ...state,
+        availableTeams: action.availableTeams,
         currentUser: action.currentUser,
         ...setPermissions(action.currentUser, state.config),
       };
@@ -143,6 +154,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {
+    availableTeams: state.availableTeams,
     config: state.config,
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
@@ -162,10 +174,13 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
+    setAvailableTeams: (availableTeams: ITeamSummary[]) => {
+      dispatch({ type: actions.SET_AVAILABLE_TEAMS, availableTeams });
+    },
     setCurrentUser: (currentUser: IUser) => {
       dispatch({ type: actions.SET_CURRENT_USER, currentUser });
     },
-    setCurrentTeam: (currentTeam: ITeam | undefined) => {
+    setCurrentTeam: (currentTeam: ITeamSummary | undefined) => {
       dispatch({ type: actions.SET_CURRENT_TEAM, currentTeam });
     },
     setConfig: (config: IConfig) => {
