@@ -26,12 +26,17 @@ interface IQueryRow {
   id: string;
   original: IQuery;
 }
+
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
   toggleRowSelected: (id: string, value?: boolean) => void;
   rows: IQueryRow[];
