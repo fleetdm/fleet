@@ -108,7 +108,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 
 ### 出来 Think, fast
 
-Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_(philosophy)).
+Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
 - think for yourself (only you can)
 - from first principles
