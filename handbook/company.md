@@ -143,6 +143,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - speak computer to computers (assume it's your fault)
 - question yourself (why do I think this?)
 - use the scientific method when something isn't working
+  - when something isn't working, don't make assumptions
 - listen intently, and genuinely try to understand
 - facts, over commentary
 - ask great questions & take the time to truly listen
