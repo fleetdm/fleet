@@ -1,6 +1,6 @@
 # Self-managed agent updates 
 
-Fleet's [Orbit osquery updater](https://github.com/fleetdm/orbit) by default utilizes the public Fleet update repository.
+Fleet's [Orbit osquery updater](https://github.com/fleetdm/fleet/tree/main/orbit) by default utilizes the public Fleet update repository.
 
 For users who would like to self-manage an update server, this capability is available with a Fleet Premium subscription.
 

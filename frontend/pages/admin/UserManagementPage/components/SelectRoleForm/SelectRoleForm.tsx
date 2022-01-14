@@ -8,7 +8,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 interface ISelectRoleFormProps {
   defaultTeamRole: string;
-  currentTeam: ITeam;
+  currentTeam?: ITeam;
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
 }
@@ -35,12 +35,12 @@ const roles: IRole[] = [
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],
-  updatedTeam: ITeam
+  updatedTeam?: any
 ): ITeam[] => {
   const filtered = allTeams.map(
     (teamItem): ITeam => {
       const teamRole =
-        teamItem.id === updatedTeam.id ? updatedTeam.role : teamItem.role;
+        teamItem.id === updatedTeam?.id ? updatedTeam.role : teamItem.role;
       return {
         description: teamItem.description,
         id: teamItem.id,

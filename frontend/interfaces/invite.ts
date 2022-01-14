@@ -24,3 +24,22 @@ export interface IInvite {
   global_role: string | null;
   teams: ITeam[];
 }
+
+export interface ICreateInviteFormData {
+  email: string;
+  global_role: string | null;
+  invited_by?: number;
+  name: string;
+  sso_enabled?: boolean;
+  teams: ITeam[];
+}
+
+export interface IEditInviteFormData {
+  currentUserId?: number;
+  email?: string;
+  global_role: string | null;
+  name?: string;
+  password: null;
+  sso_enabled: boolean;
+  teams?: ITeam[];
+}

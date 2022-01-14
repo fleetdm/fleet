@@ -52,7 +52,7 @@ export interface INewMembersBody {
   users: INewMember[];
 }
 export interface IRemoveMembersBody {
-  users: { id: number }[];
+  users: { id?: number }[];
 }
 interface INewTeamSecret {
   team_id: number;
