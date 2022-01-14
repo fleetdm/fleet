@@ -335,11 +335,6 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				// by the client
 				return
 			}
-			// Update status
-			if err := updateStatus(); err != nil {
-				svc.logger.Log("msg", "error updating status", "err", err)
-				return
-			}
 		}
 	}
 }
