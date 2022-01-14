@@ -66,6 +66,8 @@ func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
 
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
+	log.Debug().Msg("start updater")
+
 	ticker := time.NewTicker(r.opt.CheckInterval)
 	defer ticker.Stop()
 
@@ -150,5 +152,5 @@ func (r *Runner) updateTarget(target, channel string) error {
 
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Debug().Msg("interrupt updater")
+	log.Debug().Err(err).Msg("interrupt updater")
 }

@@ -3,9 +3,14 @@ import React from "react";
 interface IHeaderCellProps {
   value: string;
   isSortedDesc?: boolean;
+  disableSortBy?: boolean;
 }
 
-const HeaderCell = ({ value, isSortedDesc }: IHeaderCellProps): JSX.Element => {
+const HeaderCell = ({
+  value,
+  isSortedDesc,
+  disableSortBy,
+}: IHeaderCellProps): JSX.Element => {
   let sortArrowClass = "";
   if (isSortedDesc === undefined) {
     sortArrowClass = "";
@@ -18,10 +23,12 @@ const HeaderCell = ({ value, isSortedDesc }: IHeaderCellProps): JSX.Element => {
   return (
     <div className={`header-cell ${sortArrowClass}`}>
       <span>{value}</span>
-      <div className="sort-arrows">
-        <span className="ascending-arrow" />
-        <span className="descending-arrow" />
-      </div>
+      {!disableSortBy && (
+        <div className="sort-arrows">
+          <span className="ascending-arrow" />
+          <span className="descending-arrow" />
+        </div>
+      )}
     </div>
   );
 };

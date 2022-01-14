@@ -211,6 +211,28 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	return svc.ds.ListTeams(ctx, filter, opt)
 }
 
+func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	availableTeams := []*fleet.TeamSummary{}
+	if user.GlobalRole != nil {
+		ts, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		availableTeams = append(availableTeams, ts...)
+	} else {
+		for _, t := range user.Teams {
+			// Convert from UserTeam to TeamSummary (i.e. omit the role, counts, agent options)
+			availableTeams = append(availableTeams, &fleet.TeamSummary{ID: t.ID, Name: t.Name, Description: t.Description})
+		}
+	}
+
+	return availableTeams, nil
+}
+
 func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return err

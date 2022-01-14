@@ -1,0 +1,1 @@
+* Fix anonymous usage statistics to send missing `numLabels` field

@@ -1387,10 +1387,6 @@ const ManageHostsPage = ({
   };
 
   const renderSidePanel = () => {
-    if (!labels) {
-      return null;
-    }
-
     let SidePanel;
 
     if (isAddLabel) {
@@ -1410,6 +1406,7 @@ const ManageHostsPage = ({
           onLabelClick={onLabelClick}
           selectedFilter={getLabelSelected() || getStatusSelected()}
           canAddNewLabel={canAddNewLabels as boolean}
+          isLabelsLoading={isLabelsLoading}
         />
       );
     }
@@ -1595,7 +1592,7 @@ const ManageHostsPage = ({
           {config && (!isPremiumTier || teams) ? renderTable() : <Spinner />}
         </div>
       )}
-      {!isLabelsLoading && renderSidePanel()}
+      {renderSidePanel()}
       {renderDeleteSecretModal()}
       {renderSecretEditorModal()}
       {renderEnrollSecretModal()}
