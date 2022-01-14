@@ -45,6 +45,9 @@ When creating a new issue, ensure the following:
 - Is there a key date or timeframe that the customer is hoping to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan, and for the sake of visibility, so other folks who weren't directly involved are up to speed?  (e.g. "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")
 
+## Customer Codenames
+Occasionally we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this Wikipedia page (https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
+
 ## Generating a trial license key
 Fleet's self-service license dispenser (coming soon) is the best way to generate trial license keys for Fleet Premium.
 
