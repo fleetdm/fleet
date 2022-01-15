@@ -32,7 +32,7 @@ interface ISecretResponse {
 interface IRootState {
   auth: {
     user: IUser;
-    availableTeams: ITeamSummary[];
+    available_teams: ITeamSummary[];
   };
 }
 
@@ -40,7 +40,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
   const availableTeams = useSelector(
-    (state: IRootState) => state.auth.availableTeams
+    (state: IRootState) => state.auth.available_teams
   );
   const queryClient = new QueryClient();
   const {

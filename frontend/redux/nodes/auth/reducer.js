@@ -24,7 +24,7 @@ export const initialState = {
   loading: false,
   errors: {},
   user: null,
-  availableTeams: null,
+  available_teams: null,
   ssoRedirectURL: "",
   ssoSettings: {},
 };
@@ -56,7 +56,7 @@ const reducer = (state = initialState, action) => {
         ...state,
         loading: false,
         user: action.payload.user,
-        availableTeams: action.payload.availableTeams,
+        available_teams: action.payload.available_teams,
       };
     case SSO_REDIRECT_SUCCESS:
       return {

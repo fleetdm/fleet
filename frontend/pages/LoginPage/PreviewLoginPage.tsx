@@ -32,12 +32,12 @@ const PreviewLoginPage = () => {
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then(({ user: returnedUser, availableTeams }: ILoginUserResponse) => {
+      .then(({ user: returnedUser, available_teams }: ILoginUserResponse) => {
         setLoginVisible(false);
 
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
-        setAvailableTeams(availableTeams);
+        setAvailableTeams(available_teams);
 
         setTimeout(() => {
           return dispatch(push(HOME));

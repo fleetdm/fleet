@@ -30,12 +30,12 @@ export const SSO_SETTINGS_FAILURE = "SSO_SETTINGS_FAILURE";
 
 export const clearAuthErrors = { type: CLEAR_AUTH_ERRORS };
 export const loginRequest = { type: LOGIN_REQUEST };
-export const loginSuccess = ({ user, availableTeams, token }) => {
+export const loginSuccess = ({ user, available_teams, token }) => {
   return {
     type: LOGIN_SUCCESS,
     payload: {
       user,
-      availableTeams,
+      available_teams,
       token,
     },
   };

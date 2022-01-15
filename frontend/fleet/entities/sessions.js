@@ -10,13 +10,13 @@ export default (client) => {
 
       return Base.post(endpoint, JSON.stringify({ email, password })).then(
         (response) => {
-          const { user, available_teams: availableTeams } = response;
+          const { user, available_teams } = response;
           const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
 
           return {
             ...response,
             user: userWithGravatarUrl,
-            availableTeams,
+            available_teams,
           };
         }
       );

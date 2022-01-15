@@ -40,7 +40,7 @@ interface ILoginPageProps {
 
 export interface ILoginUserResponse {
   user: IUser;
-  availableTeams: ITeamSummary[];
+  available_teams: ITeamSummary[];
 }
 
 const LoginPage = ({
@@ -79,7 +79,7 @@ const LoginPage = ({
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then(({ user: returnedUser, availableTeams }: ILoginUserResponse) => {
+      .then(({ user: returnedUser, available_teams }: ILoginUserResponse) => {
         setLoginVisible(false);
 
         // Redirect to password reset page if user is forced to reset password.
@@ -90,7 +90,7 @@ const LoginPage = ({
 
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
-        setAvailableTeams(availableTeams);
+        setAvailableTeams(available_teams);
 
         // Ensure team is undefined on login
         setCurrentTeam(undefined);

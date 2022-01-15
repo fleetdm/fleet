@@ -109,10 +109,10 @@ export default (client) => {
       const endpoint = client.baseURL + ME;
 
       return client.authenticatedGet(endpoint).then((response) => {
-        const { user, available_teams: availableTeams } = response;
+        const { user, available_teams } = response;
         return {
           user: helpers.addGravatarUrlToResource(user),
-          availableTeams,
+          available_teams,
         };
       });
     },
