@@ -329,7 +329,7 @@ An example release blog post issue can be found [here](https://github.com/fleetd
 
 ### Customer announcement
 
-The product team is responsible for providing the [customer success team](./customer-experience.md) with necessary information
+The product team is responsible for providing the [customer success team](./customers.md) with necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 
