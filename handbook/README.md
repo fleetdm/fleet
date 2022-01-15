@@ -54,8 +54,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Support process](./customers.md#support-process)
 
-[Generating a trial license key](./customers.md#generating-a-trial-license-key)
-
 ### Community
 
 [Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
