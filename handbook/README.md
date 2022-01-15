@@ -50,9 +50,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Customers
 
-[Customer succcess](./customer-experience.md#customer-success)
+[Customer succcess](./customers.md#customer-success)
 
-[Support process](./customer-experience.md#support-process)
+[Support process](./customers.md#support-process)
+
+[Generating a trial license key](./customers.md#generating-a-trial-license-key)
 
 ### Community
 
