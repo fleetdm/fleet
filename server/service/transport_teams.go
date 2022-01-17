@@ -6,20 +6,6 @@ import (
 	"net/http"
 )
 
-func decodeModifyTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	id, err := uintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	req := modifyTeamRequest{ID: uint(id)}
-	err = json.NewDecoder(r.Body).Decode(&req.payload)
-	if err != nil {
-		return nil, err
-	}
-	req.ID = uint(id)
-	return req, nil
-}
-
 func decodeModifyTeamAgentOptionsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := uintFromRequest(r, "id")
 	if err != nil {

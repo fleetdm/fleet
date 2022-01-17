@@ -68,7 +68,6 @@ type FleetEndpoints struct {
 	StatusResultStore                     endpoint.Endpoint
 	StatusLiveQuery                       endpoint.Endpoint
 	Version                               endpoint.Endpoint
-	ModifyTeam                            endpoint.Endpoint
 	ModifyTeamAgentOptions                endpoint.Endpoint
 	DeleteTeam                            endpoint.Endpoint
 	ListTeamUsers                         endpoint.Endpoint
@@ -129,7 +128,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
 		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
 		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
-		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
 		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
 		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
 		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
@@ -202,7 +200,6 @@ type fleetHandlers struct {
 	StatusResultStore                     http.Handler
 	StatusLiveQuery                       http.Handler
 	Version                               http.Handler
-	ModifyTeam                            http.Handler
 	ModifyTeamAgentOptions                http.Handler
 	DeleteTeam                            http.Handler
 	ListTeamUsers                         http.Handler
@@ -262,7 +259,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
 		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
 		Version:                               newServer(e.Version, decodeNoParamsRequest),
-		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
 		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
 		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
 		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
@@ -486,7 +482,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
@@ -511,7 +506,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
 	e.POST("/api/_version_/fleet/teams", createTeamEndpoint, createTeamRequest{})
 	e.GET("/api/_version_/fleet/teams", listTeamsEndpoint, listTeamsRequest{})
-	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
+	e.PATCH("/api/v1/fleet/teams/{id:[0-9]+}", modifyTeamEndpoint, modifyTeamRequest{})
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")

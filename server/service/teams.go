@@ -81,6 +81,33 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Modify Team
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyTeamRequest struct {
+	ID      uint `json:"-" url:"id"`
+	payload fleet.TeamPayload
+}
+
+func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyTeamRequest)
+	team, err := svc.ModifyTeam(ctx, req.ID, req.payload)
+	if err != nil {
+		return teamResponse{Err: err}, nil
+	}
+
+	return teamResponse{Team: team}, err
+}
+
+func (svc *Service) ModifyTeam(ctx context.Context, id uint, payload fleet.TeamPayload) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Apply Team Specs
 ////////////////////////////////////////////////////////////////////////////////
 

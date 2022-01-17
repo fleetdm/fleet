@@ -9,27 +9,6 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Modify Team
-////////////////////////////////////////////////////////////////////////////////
-
-type modifyTeamRequest struct {
-	ID      uint
-	payload fleet.TeamPayload
-}
-
-func makeModifyTeamEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(modifyTeamRequest)
-		team, err := svc.ModifyTeam(ctx, req.ID, req.payload)
-		if err != nil {
-			return teamResponse{Err: err}, nil
-		}
-
-		return teamResponse{Team: team}, err
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Modify Team Agent Options
 ////////////////////////////////////////////////////////////////////////////////
 
