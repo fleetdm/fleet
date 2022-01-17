@@ -1,6 +1,6 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useEffect, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { pull } from "lodash";
 import { AppContext } from "context/app";
 
