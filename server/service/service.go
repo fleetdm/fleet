@@ -97,23 +97,23 @@ func NewService(
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (svc *Service) updateJitterSeedRand() error {
+func (s *Service) updateJitterSeedRand() error {
 	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
 	if err != nil {
 		return err
 	}
 	n := nBig.Int64()
-	atomic.StoreInt64(&svc.jitterSeed, n)
+	atomic.StoreInt64(&s.jitterSeed, n)
 	return nil
 }
 
-func (svc *Service) updateJitterSeed(ctx context.Context) {
+func (s *Service) updateJitterSeed(ctx context.Context) {
 	for {
 		select {
 		case <-time.Tick(1 * time.Hour):
-			err := svc.updateJitterSeedRand()
+			err := s.updateJitterSeedRand()
 			if err != nil {
-				level.Info(svc.logger).Log("jitter-seed-err", err)
+				level.Info(s.logger).Log("jitter-seed-err", err)
 				continue
 			}
 		case <-ctx.Done():
@@ -122,8 +122,8 @@ func (svc *Service) updateJitterSeed(ctx context.Context) {
 	}
 }
 
-func (svc *Service) getJitterSeed() int64 {
-	return atomic.LoadInt64(&svc.jitterSeed)
+func (s *Service) getJitterSeed() int64 {
+	return atomic.LoadInt64(&s.jitterSeed)
 }
 
 func (s Service) SendEmail(mail fleet.Email) error {
