@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 
 import { INotifications } from "interfaces/notification";
@@ -28,7 +27,7 @@ const FlashMessage = ({
   isPersistent,
   onRemoveFlash,
   onUndoActionClick,
-}: IFlashMessage) => {
+}: IFlashMessage): JSX.Element | null => {
   const { alertType, isVisible, message, undoAction } = notification;
   const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
     [`${baseClass}--full-width`]: fullWidth,
