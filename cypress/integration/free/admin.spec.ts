@@ -5,6 +5,7 @@ describe(
   },
   () => {
     before(() => {
+      Cypress.session.clearAllSavedSessions();
       cy.setup();
       cy.login();
       cy.setupSMTP();
@@ -14,10 +15,10 @@ describe(
       cy.addDockerHost();
     });
 
-    // after(() => {
-    //   cy.logout();
-    //   cy.stopDockerHost();
-    // });
+    after(() => {
+      cy.logout();
+      cy.stopDockerHost();
+    });
 
     describe("Mange hosts tests", () => {
       beforeEach(() => {
