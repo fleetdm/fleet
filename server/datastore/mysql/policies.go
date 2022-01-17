@@ -443,13 +443,15 @@ func amountPoliciesDB(db sqlx.Queryer) (int, error) {
 	return amount, nil
 }
 
-// AsyncBatchInsertPolicyMembership inserts into the policy_membership_history
-// table the batch of policy membership results.
+// AsyncBatchInsertPolicyMembership inserts into the policy_membership table
+// the batch of policy membership results.
 func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
 	// NOTE: this is tested via the server/service/async package tests.
 
-	// TODO: INSERT IGNORE, to avoid failing if policy / host does not exist?
-	sql := `INSERT INTO policy_membership (policy_id, host_id, passes) VALUES `
+	// INSERT IGNORE, to avoid failing if policy / host does not exist (as this
+	// runs asynchronously, they could get deleted in between the data being
+	// received and being upserted).
+	sql := `INSERT IGNORE INTO policy_membership (policy_id, host_id, passes) VALUES `
 	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
 	sql = strings.TrimSuffix(sql, ",")
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
