@@ -24,7 +24,6 @@ import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
-import permissions from "utilities/permissions";
 
 const baseClass = "policy-form";
 
@@ -98,14 +97,6 @@ const PolicyForm = ({
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
-  console.log("Policy Form");
-  console.log("currentUser: ", currentUser);
-  console.log("currentTeam: ", currentTeam);
-  console.log(
-    "isTeamObserver? ",
-    !!currentUser &&
-      permissions.isTeamObserver(currentUser, currentTeam?.id || 0)
-  );
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
