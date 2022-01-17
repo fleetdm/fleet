@@ -245,6 +245,122 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options
 	return nil, fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// List Team Users
+////////////////////////////////////////////////////////////////////////////////
+
+type listTeamUsersRequest struct {
+	TeamID      uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listTeamUsersRequest)
+	users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
+	if err != nil {
+		return listUsersResponse{Err: err}, nil
+	}
+
+	resp := listUsersResponse{Users: []fleet.User{}}
+	for _, user := range users {
+		resp.Users = append(resp.Users, *user)
+	}
+	return resp, nil
+}
+
+func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Add / Delete Team Users
+////////////////////////////////////////////////////////////////////////////////
+
+// same request struct for add and delete
+type modifyTeamUsersRequest struct {
+	TeamID uint `json:"-" url:"id"`
+	// User ID and role must be specified for add users, user ID must be
+	// specified for delete users.
+	Users []fleet.TeamUser `json:"users"`
+}
+
+func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyTeamUsersRequest)
+	team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
+	if err != nil {
+		return teamResponse{Err: err}, nil
+	}
+
+	return teamResponse{Team: team}, err
+}
+
+func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyTeamUsersRequest)
+	team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
+	if err != nil {
+		return teamResponse{Err: err}, nil
+	}
+
+	return teamResponse{Team: team}, err
+}
+
+func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get enroll secrets for team
+////////////////////////////////////////////////////////////////////////////////
+
+type teamEnrollSecretsRequest struct {
+	TeamID uint `url:"id"`
+}
+
+type teamEnrollSecretsResponse struct {
+	Secrets []*fleet.EnrollSecret `json:"secrets"`
+	Err     error                 `json:"error,omitempty"`
+}
+
+func (r teamEnrollSecretsResponse) error() error { return r.Err }
+
+func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*teamEnrollSecretsRequest)
+	secrets, err := svc.TeamEnrollSecrets(ctx, req.TeamID)
+	if err != nil {
+		return teamEnrollSecretsResponse{Err: err}, nil
+	}
+
+	return teamEnrollSecretsResponse{Secrets: secrets}, err
+}
+
+func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Modify enroll secrets for team
+////////////////////////////////////////////////////////////////////////////////
+
 type modifyTeamEnrollSecretsRequest struct {
 	TeamID  uint                 `url:"team_id"`
 	Secrets []fleet.EnrollSecret `json:"secrets"`
@@ -258,4 +374,12 @@ func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, s
 	}
 
 	return teamEnrollSecretsResponse{Secrets: secrets}, err
+}
+
+func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
