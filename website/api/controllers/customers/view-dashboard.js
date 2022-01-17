@@ -34,7 +34,7 @@ module.exports = {
 
     // Respond with view.
     return {
-      stripePublishableKey: sails.config.custom.enableBillingFeatures? sails.config.custom.stripePublishableKey : undefined,
+      stripePublishableKey: sails.config.custom.enableBillingFeatures ? sails.config.custom.stripePublishableKey : undefined,
       thisSubscription,
     };
 

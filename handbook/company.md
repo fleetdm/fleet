@@ -122,6 +122,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - even boring tasks are more motivating, fun, and effective when you care
   - motivate yourself intrinsically with self-talk
   - understand "why?"
+- be crafty
 - take pride in your results
   - reread anything you write for users
   - you don't need permission to be thoughtful
