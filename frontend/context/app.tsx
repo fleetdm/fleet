@@ -118,9 +118,12 @@ const reducer = (state: any, action: any) => {
     case actions.SET_CURRENT_USER:
       return {
         ...state,
-        availableTeams: action.availableTeams,
         currentUser: action.currentUser,
-        ...setPermissions(action.currentUser, state.config),
+        ...setPermissions(
+          action.currentUser,
+          state.config,
+          state.currentTeam?.id
+        ),
       };
     case actions.SET_CURRENT_TEAM:
       return {
