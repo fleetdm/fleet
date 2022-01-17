@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 
 import React from "react";
-import { Cell } from "react-table";
 
 import { IDataColumn } from "interfaces/datatable_config";
 

@@ -65,10 +65,6 @@ const PackQueryEditorModal = ({
   editQuery,
   packId,
 }: IPackQueryEditorModalProps): JSX.Element => {
-  const [loggingConfig, setLoggingConfig] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
-
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
@@ -95,20 +91,6 @@ const PackQueryEditorModal = ({
   const [selectedShard, setSelectedShard] = useState<string>(
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
-
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
 
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
