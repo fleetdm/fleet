@@ -13,8 +13,6 @@ import {
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import configAPI from "services/entities/config";
 // @ts-ignore
-import deepDifference from "utilities/deep_difference";
-// @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 // @ts-ignore
 
@@ -23,80 +21,43 @@ export const baseClass = "app-settings";
 const AppSettingsPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
-  // ===== local state
-
-  // Unused if we take out configured/enable_smtp replacement in UI
-  // const [smtpConfigured, setSmtpConfigured] = useState<any>();
-  // const [formData, setFormData] = useState<any>();
-
-  // Old onSubmit function
-  // const onFormSubmit = (formData: IFormData) => {
-  // const diff = deepDifference(formData, appConfig);
-
-  // dispatch(updateConfig(diff))
-  //   .then(() => {
-  //     dispatch(renderFlash("success", "Settings updated."));
-
-  //     return false;
-  //   })
-  //   .catch((errors: any) => {
-  //     // TODO: Check out this error handling REP
-  //     if (errors.base) {
-  //       dispatch(renderFlash("error", errors.base));
-  //     }
-
-  //     return false;
-  //   });
-
-  //   return false;
-  // };
-
   const {
     data: appConfig,
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
   } = useQuery<any, Error, any>(["config"], () => configAPI.loadAll(), {
     select: (data: any) => data,
-    // Original configured key replacing the enable_smtp key on frontend
-    // onSuccess: (response: any) => {
-    // setSmtpConfigured(response.configured);
-    // setFormData({ ...response, enable_smtp: smtpConfigured });
-    // },
   });
 
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    error: loadingGlobalSecretsError,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      enabled: true,
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
+  const { data: globalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: true,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
+
+  const onFormSubmit = useCallback(
+    (formData: any) => {
+      console.log("AppSettingsPage formData", formData);
+      debugger;
+      configAPI
+        .update(formData)
+        .then(() => {
+          dispatch(renderFlash("success", "Successfully updated settings."));
+        })
+        .catch((errors: any) => {
+          if (errors.base) {
+            dispatch(renderFlash("error", errors.base));
+          }
+        })
+        .finally(() => {
+          refetchConfig();
+        });
+    },
+    [dispatch]
   );
-
-  const onFormSubmit = async (formData: any) => {
-    console.log("onFormSubmit formData", formData);
-    try {
-      // const diff = deepDifference(formData, appConfig);
-
-      // console.log("appConfig", appConfig);
-      // console.log("diff", diff);
-      // debugger;
-      const request = configAPI.update(formData);
-      await request.then(() => {
-        dispatch(renderFlash("success", "Successfully updated settings."));
-        refetchConfig();
-      });
-    } catch (errors: any) {
-      if (errors.base) {
-        dispatch(renderFlash("error", errors.base));
-      }
-    }
-  };
 
   return (
     <div className={`${baseClass} body-wrap`}>

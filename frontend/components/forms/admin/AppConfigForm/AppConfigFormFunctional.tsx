@@ -311,7 +311,7 @@ const AppConfigFormFunctional = ({
         enable_smtp: enableSMTP,
         sender_address: smtpSenderAddress,
         server: smtpServer,
-        port: smtpPort,
+        port: Number(smtpPort),
         authentication_type: smtpAuthenticationType,
         user_name: smtpUsername,
         password: smtpPassword,
@@ -333,7 +333,7 @@ const AppConfigFormFunctional = ({
       },
       host_expiry_settings: {
         host_expiry_enabled: enableHostExpiry,
-        host_expiry_window: hostExpiryWindow,
+        host_expiry_window: Number(hostExpiryWindow),
       },
       agent_options: agentOptions,
       webhook_settings: {
@@ -396,7 +396,7 @@ const AppConfigFormFunctional = ({
             }
             onChange={handleInputChange}
             target
-            name="serverurl"
+            name="serverURL"
             value={serverURL}
             error={formErrors.server_url}
           />
@@ -432,6 +432,8 @@ const AppConfigFormFunctional = ({
           <InputField
             label="Identity provider name"
             onChange={handleInputChange}
+            target
+            name="idpName"
             value={idpName}
             error={formErrors.idp_name}
           />
