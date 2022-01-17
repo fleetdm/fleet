@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -31,7 +32,7 @@ func NewRunner(socket string) *Runner {
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
 
-	if err := waitForSocket(r.socket, 1*time.Minute); err != nil {
+	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
@@ -85,28 +86,53 @@ func (r *Runner) Interrupt(err error) {
 	}
 }
 
-// waitForSocket waits for the osquery socket to exist.
+// waitExtensionSocket waits until the osquery extension manager socket is ready.
 //
-// This method was copied from osquery-go because we can't rely on option.ServerTimeout.
-// Such timeout is used both for waiting for the socket and for the thrift transport.
-func waitForSocket(sockPath string, timeout time.Duration) error {
+// We can't rely on osquery-go's option.ServerTimeout. Such timeout is used both for waiting
+// for the socket and for the thrift transport.
+func waitExtensionSocket(sockPath string, timeout time.Duration) error {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+FOR_LOOP:
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return errors.New("extension socket stat timeout")
 		case <-ticker.C:
 			switch _, err := os.Stat(sockPath); {
 			case err == nil:
-				return nil
+				break FOR_LOOP
 			case os.IsNotExist(err):
 				continue
 			default:
 				return fmt.Errorf("stat socket %s failed: %w", sockPath, err)
 			}
+		}
+	}
+
+	serverClient, err := osquery.NewClient(sockPath, 3*time.Second)
+	if err != nil {
+		return err
+	}
+	defer serverClient.Close()
+
+	for {
+		status, err := serverClient.Ping()
+		if err == nil && status.Code == 0 {
+			log.Debug().Msg("extension manager checked")
+			return nil
+		}
+		log.Debug().Msgf(
+			"extension socket ping failed: {code: %d, message: %s, err: %s}, retrying...",
+			status.Code, status.Message, err,
+		)
+		select {
+		case <-ctx.Done():
+			return errors.New("extension socket ping timeout")
+		case <-ticker.C:
+			// OK
 		}
 	}
 }
