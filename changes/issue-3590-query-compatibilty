@@ -1,0 +1,1 @@
+* Exclude tables defined via common table expression from UI compatibility check

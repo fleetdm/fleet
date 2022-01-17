@@ -44,8 +44,11 @@ export const listCompatiblePlatforms = (tablesList) => {
   return compatiblePlatforms.length ? compatiblePlatforms : ["None"];
 };
 
-export const parseSqlTables = (sqlString) => {
-  const tablesList = [];
+export const parseSqlTables = (sqlString, inludeCteTables = false) => {
+  let results = [];
+
+  // Tables defined via common table expression will be excluded from results by default
+  const cteTables = [];
 
   const _callback = (node) => {
     if (node) {
@@ -53,8 +56,14 @@ export const parseSqlTables = (sqlString) => {
         throw new Error(
           "Invalid usage: `recursive` is not supported by `parseSqlTables`"
         );
+      } else if (
+        node.variant === "common" &&
+        node.format === "table" &&
+        node.type === "expression"
+      ) {
+        cteTables.push(node.target?.name);
       } else if (node.variant === "table") {
-        tablesList.push(node.name);
+        results.push(node.name);
       }
     }
   };
@@ -63,7 +72,13 @@ export const parseSqlTables = (sqlString) => {
     const sqlTree = sqliteParser(sqlString);
     _visit(sqlTree, _callback);
 
-    return tablesList.length ? tablesList : ["No tables in query AST"];
+    if (cteTables.length) {
+      // console.log("cteTables: ", cteTables);
+      results = results.filter((t) => !cteTables.includes(t));
+    }
+    // console.log("results: ", results);
+
+    return results.length ? results : ["No tables in query AST"];
   } catch (err) {
     // console.log(`Invalid query syntax: ${err.message}\n\n${sqlString}`);
 
