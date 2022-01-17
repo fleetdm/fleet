@@ -4,7 +4,7 @@ describe(
     defaultCommandTimeout: 20000,
   },
   () => {
-    beforeEach(() => {
+    before(() => {
       cy.setup();
       cy.login();
       cy.setupSMTP();
@@ -12,72 +12,99 @@ describe(
       cy.seedQueries();
       cy.seedPolicies();
       cy.addDockerHost();
-      cy.logout();
-    });
-    afterEach(() => {
-      cy.stopDockerHost();
     });
 
-    it("Can perform the appropriate free-tier admin actions", () => {
-      cy.login("anna@organization.com", "user123#");
-      cy.visit("/hosts/manage");
-      cy.get(".manage-hosts").should("contain", /hostname/i); // Ensures page load
+    // after(() => {
+    //   cy.logout();
+    //   cy.stopDockerHost();
+    // });
 
-      // On the hosts page, they should…
+    describe("Mange hosts tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/hosts/manage");
+      });
+      
+      it("Can verify user is on the Manage Hosts page", () => {
+        cy.getAttached(".manage-hosts").within(() => {
+          cy.findByText(/edit columns/i).should("exist");
+        });
+      });
+  
+      it("Can see correct global navigation items", () => {
+        cy.getAttached("nav").within(() => {
+          cy.findByText(/hosts/i).should("exist");
+          cy.findByText(/queries/i).should("exist");
+          cy.findByText(/schedule/i).should("exist");
+          cy.findByText(/settings/i).should("exist");
+        });
+      });
+      
+      it("Can verify teams is disabled on the Manage Hosts page", () => {
+        cy.contains(/team/i).should("not.exist");
+      });
+        
+      it("Can see and click the 'Generate installer' button on the Manage Hosts page", () => {
+        cy.findByRole("button", { name: /generate installer/i }).click();
+        cy.contains(/team/i).should("not.exist");
+        cy.contains("button", /done/i).click();
+      });
+  
+      it("Can see and click the 'Manage enroll secret' button on the Manage Hosts page", () => {
+        cy.contains("button", /manage enroll secret/i).click();
+        cy.contains("button", /add secret/i).click();
+        cy.contains("button", /save/i).click();
+        cy.contains("button", /done/i).click();
+      });
+  
+      it("Can see and click the 'Add label' button on the Manage Hosts page", () => {
+        cy.findByRole("button", { name: /add label/i }).click();
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+    });
 
-      // Not see "team" anywhere on the page
-      cy.contains(/team/i).should("not.exist");
+    describe("Host details tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/hosts/1");
+      });
+      
+      it("Can verify teams is disabled on the Host Details page", () => {
+        cy.findByText(/team/i).should("not.exist");
+        cy.contains("button", /transfer/i).should("not.exist");
+      });
+  
+      it("Can see and click the 'Delete' button on the Host Details page", () => {
+        cy.visit("/hosts/1");
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.findByText(/delete host/i).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+  
+      it("Can see and click the 'Query' button on the Host Details page", () => {
+        cy.visit("/hosts/1");
+        cy.findByRole("button", { name: /query/i }).click();
+        cy.findByRole("button", { name: /create custom query/i }).should("exist");
+        cy.getAttached(".modal__ex").within(() => {
+          cy.findByRole("button").click();
+        });
+      });
+    });
 
-      // See all navigation items
-      cy.get("nav").within(() => {
-        cy.findByText(/hosts/i).should("exist");
-        cy.findByText(/queries/i).should("exist");
-        cy.findByText(/schedule/i).should("exist");
-        cy.findByText(/settings/i).should("exist");
+    describe("Queries tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/queries/manage");
       });
 
-      // See and select "generate installer"
-      cy.findByRole("button", { name: /generate installer/i }).click();
-      cy.contains(/team/i).should("not.exist");
-      cy.contains("button", /done/i).click();
-
-      // See the "Manage" enroll secret” button. A modal appears after the user selects the button
-      // Add secret tests same API as edit and delete
-      cy.contains("button", /manage enroll secret/i).click();
-      cy.contains("button", /add secret/i).click();
-      cy.contains("button", /save/i).click();
-      cy.contains("button", /done/i).click();
-
-      // See and select "add label"
-      cy.findByRole("button", { name: /add label/i }).click();
-      cy.findByRole("button", { name: /cancel/i }).click();
-
-      // On the Host details page, they should…
-      cy.visit("/hosts/1");
-
-      // Not see "team" information or transfer button
-      cy.findByText(/team/i).should("not.exist");
-      cy.contains("button", /transfer/i).should("not.exist");
-
-      // See and select the “Delete” button
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.findByText(/delete host/i).should("exist");
-      cy.findByRole("button", { name: /cancel/i }).click();
-
-      // See and select the “Query” button
-      cy.findByRole("button", { name: /query/i }).click();
-      cy.findByRole("button", { name: /create custom query/i }).should("exist");
-      cy.get(".modal__ex").within(() => {
-        cy.findByRole("button").click();
+      it("Can see the 'Observer can run' column on the queries table", () => {
+        cy.contains(/observer can run/i);
       });
-
-      // On the queries manage page, they should…
-      cy.contains("a", "Queries").click();
-      // See the "observer can run column"
-      cy.contains(/observer can run/i);
-      // See and select the "create new query" button
-      cy.findByRole("button", { name: /new query/i }).click();
-
+      
+      it("Can see and click the 'Add new query' button", () => {
+        cy.findByRole("button", { name: /new query/i }).click();
+      });
+      
       // TODO - Fix tests according to improved query experience - MP
       // On the Queries - new/edit/run page, they should…
       // Edit the “Query name,” “SQL,” “Description,” “Observers can run,” and “Select targets” input fields.
@@ -85,7 +112,7 @@ describe(
       //   .click()
       //   .type("Cypress test query");
       // // ACE editor requires special handling to get typing to work sometimes
-      // cy.get(".ace_text-input")
+      // cy.getAttached(".ace_text-input")
       //   .first()
       //   .click({ force: true })
       //   .type("{selectall}{backspace}SELECT * FROM cypress;", { force: true });
@@ -93,77 +120,116 @@ describe(
       //   .click()
       //   .type("Cypress test of create new query flow.");
       // cy.findByLabelText(/observers can run/i).click({ force: true });
-
+  
       // // See and select the “Save changes,” “Save as new,” and “Run” buttons.
       // cy.findByRole("button", { name: /save/i }).click();
       // cy.findByRole("button", { name: /new/i }).click();
       // cy.findByRole("button", { name: /run/i }).should("exist");
-
+  
       // // NOT see the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
-      // cy.get(".target-select").within(() => {
+      // cy.getAttached(".target-select").within(() => {
       //   cy.findByText(/Label name, host name, IP address, etc./i).click();
       //   cy.findByText(/teams/i).should("not.exist");
       // });
-
+  
       // cy.contains("a", /back to queries/i).click({ force: true });
       // cy.findByText(/cypress test query/i).click({ force: true });
       // cy.findByText(/edit & run query/i).should("exist");
+    });
 
-      // On the Packs pages (manage, new, and edit), they should…
-      // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
-
-      // On the policies manage page, they should…
-      cy.contains("a", "Policies").click();
-      // See and select the "Manage automations" button
-      cy.findByRole("button", { name: /manage automations/i }).click();
-      cy.findByRole("button", { name: /cancel/i }).click();
-
-      // See and select the "Add a policy", "delete", and "edit" policy
-      cy.findByRole("button", { name: /add a policy/i }).click();
-      cy.get(".modal__ex").within(() => {
-        cy.findByRole("button").click();
+    describe("Policies tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/policies/manage");
       });
 
-      cy.get("tbody").within(() => {
-        cy.get("tr")
-          .first()
-          .within(() => {
-            cy.get(".fleet-checkbox__input").check({ force: true });
-          });
-      });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.get(".remove-policies-modal").within(() => {
-        cy.findByRole("button", { name: /delete/i }).should("exist");
+      it("Can see and click the 'Manage automations' button", () => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-      cy.findByText(/filevault enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).should("exist");
+      
+      it("Can open and close the 'Add a policy' modal", () => {
+        cy.findByRole("button", { name: /add a policy/i }).click();
+        cy.getAttached(".modal__ex").within(() => {
+          cy.findByRole("button").click();
+        });
+      });
+      
+      it("Can open and close the 'Delete' modal", () => {
+        // select checkmark on table
+        cy.getAttached("tbody").within(() => {
+          cy.getAttached("tr")
+            .first()
+            .within(() => {
+              cy.getAttached(".fleet-checkbox__input").check({ force: true });
+            });
+        });
+        
+        cy.findByRole("button", { name: /delete/i }).click();
+        cy.getAttached(".remove-policies-modal").within(() => {
+          cy.findByRole("button", { name: /delete/i }).should("exist");
+          cy.findByRole("button", { name: /cancel/i }).click();
+        });
+      });
+      
+      it("Can select a policy and verify user can run and save", () => {
+        cy.getAttached(".data-table__table").within(() => {
+          cy.findByRole("button", { name: /filevault enabled/i }).click();
+        });
+        cy.getAttached(".policy-form__button-wrap--new-policy").within(() => {
+          cy.findByRole("button", { name: /run/i }).should("exist");
+          cy.findByRole("button", { name: /save/i }).should("exist");
+        });
+      });
+    });
+    
+    describe("Settings tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/settings/users");
       });
 
-      // On the Settings pages, they should…
-      // See everything except for the “Teams” pages
-      cy.visit("/settings/organization");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-      cy.findByText(/teams/i).should("not.exist");
-      cy.get(".react-tabs").within(() => {
-        cy.findByText(/organization settings/i).should("exist");
-        cy.findByText(/users/i).click();
-      });
-      cy.findByRole("button", { name: /create user/i }).click();
-      cy.findByText(/team/i).should("not.exist");
-      cy.visit("/settings/teams");
-      cy.findByText(/you do not have permissions/i).should("exist");
-
-      // On the Profile page, they should…
-      // See Admin in Role section, and no Team section
-      cy.visit("/profile");
-
-      cy.getAttached(".user-settings__additional").within(() => {
+      it("Can verify teams is disabled on the Settings page", () => {
         cy.findByText(/teams/i).should("not.exist");
-        cy.findByText("Role").next().contains(/admin/i);
+      });
+  
+      it("Can verify all other suboptions exist", () => {
+        cy.getAttached(".react-tabs").within(() => {
+          cy.findByText(/organization settings/i).should("exist");
+          cy.findByText(/users/i).click();
+        });
+      });
+      
+      it("Can see and click the 'Create user' button", () => {
+        cy.findByRole("button", { name: /create user/i }).click();
+      });
+      
+      it("Can verify teams is disabled for creating a user", () => {
+        cy.findByText(/team/i).should("not.exist");
+      });
+      
+      it("Can verify user is not autorized to use the Team Settings page", () => {
+        cy.visit("/settings/teams");
+        cy.findByText(/you do not have permissions/i).should("exist");
+      });
+    });
+
+    describe("Profile tests", () => {
+      beforeEach(() => {
+        cy.login("anna@organization.com", "user123#");  
+        cy.visit("/profile");
+      });
+
+      it("Can verify teams is disabled for the Profile page", () => {
+        cy.getAttached(".user-settings__additional").within(() => {
+          cy.findByText(/teams/i).should("not.exist");
+        });
+      });
+      
+      it("Can verify the role of the user is admin", () => {
+        cy.getAttached(".user-settings__additional").within(() => {
+          cy.findByText("Role").next().contains(/admin/i);
+        });
       });
     });
   }
