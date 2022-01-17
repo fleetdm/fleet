@@ -51,37 +51,6 @@ func makeModifyTeamAgentOptionsEndpoint(svc fleet.Service) endpoint.Endpoint {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// List Teams
-////////////////////////////////////////////////////////////////////////////////
-
-type listTeamsRequest struct {
-	ListOptions fleet.ListOptions
-}
-
-type listTeamsResponse struct {
-	Teams []fleet.Team `json:"teams"`
-	Err   error        `json:"error,omitempty"`
-}
-
-func (r listTeamsResponse) error() error { return r.Err }
-
-func makeListTeamsEndpoint(svc fleet.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(listTeamsRequest)
-		teams, err := svc.ListTeams(ctx, req.ListOptions)
-		if err != nil {
-			return listTeamsResponse{Err: err}, nil
-		}
-
-		resp := listTeamsResponse{Teams: []fleet.Team{}}
-		for _, team := range teams {
-			resp.Teams = append(resp.Teams, *team)
-		}
-		return resp, nil
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Delete Team
 ////////////////////////////////////////////////////////////////////////////////
 

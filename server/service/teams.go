@@ -10,6 +10,43 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
+// List Teams
+////////////////////////////////////////////////////////////////////////////////
+
+type listTeamsRequest struct {
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listTeamsResponse struct {
+	Teams []fleet.Team `json:"teams"`
+	Err   error        `json:"error,omitempty"`
+}
+
+func (r listTeamsResponse) error() error { return r.Err }
+
+func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*listTeamsRequest)
+	teams, err := svc.ListTeams(ctx, req.ListOptions)
+	if err != nil {
+		return listTeamsResponse{Err: err}, nil
+	}
+
+	resp := listTeamsResponse{Teams: []fleet.Team{}}
+	for _, team := range teams {
+		resp.Teams = append(resp.Teams, *team)
+	}
+	return resp, nil
+}
+
+func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Create Team
 ////////////////////////////////////////////////////////////////////////////////
 

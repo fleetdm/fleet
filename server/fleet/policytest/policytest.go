@@ -29,6 +29,8 @@ func RunFailingPolicySetTests(t *testing.T, r fleet.FailingPolicySet) {
 		}
 		fetchedHosts, err := r.ListHosts(policyID1k)
 		require.NoError(t, err)
+		require.Len(t, fetchedHosts, len(hosts))
+
 		sort.Slice(fetchedHosts, func(i, j int) bool {
 			return fetchedHosts[i].ID < fetchedHosts[j].ID
 		})

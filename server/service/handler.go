@@ -71,7 +71,6 @@ type FleetEndpoints struct {
 	ModifyTeam                            endpoint.Endpoint
 	ModifyTeamAgentOptions                endpoint.Endpoint
 	DeleteTeam                            endpoint.Endpoint
-	ListTeams                             endpoint.Endpoint
 	ListTeamUsers                         endpoint.Endpoint
 	AddTeamUsers                          endpoint.Endpoint
 	DeleteTeamUsers                       endpoint.Endpoint
@@ -133,7 +132,6 @@ func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore th
 		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
 		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
 		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:                             authenticatedUser(svc, makeListTeamsEndpoint(svc)),
 		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
 		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
 		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
@@ -207,7 +205,6 @@ type fleetHandlers struct {
 	ModifyTeam                            http.Handler
 	ModifyTeamAgentOptions                http.Handler
 	DeleteTeam                            http.Handler
-	ListTeams                             http.Handler
 	ListTeamUsers                         http.Handler
 	AddTeamUsers                          http.Handler
 	DeleteTeamUsers                       http.Handler
@@ -268,7 +265,6 @@ func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandle
 		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
 		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
 		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
-		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
 		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
 		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
 		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
@@ -490,7 +486,6 @@ func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
 	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
 	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
 
-	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
 	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
@@ -515,8 +510,7 @@ func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kitht
 	e.POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
 	e.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
 	e.POST("/api/_version_/fleet/teams", createTeamEndpoint, createTeamRequest{})
-	//r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
-	//r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
+	e.GET("/api/_version_/fleet/teams", listTeamsEndpoint, listTeamsRequest{})
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
 	//r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")

@@ -47,14 +47,6 @@ func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.Li
 	return nil, fleet.ErrMissingLicense
 }
 
-func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Team, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
 func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.User) ([]*fleet.TeamSummary, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.

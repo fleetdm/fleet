@@ -33,14 +33,6 @@ func decodeModifyTeamAgentOptionsRequest(ctx context.Context, r *http.Request) (
 	return req, nil
 }
 
-func decodeListTeamsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	opt, err := listOptionsFromRequest(r)
-	if err != nil {
-		return nil, err
-	}
-	return listTeamsRequest{ListOptions: opt}, nil
-}
-
 func decodeDeleteTeamRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	id, err := uintFromRequest(r, "id")
 	if err != nil {
