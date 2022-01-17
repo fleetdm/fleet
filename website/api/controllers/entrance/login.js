@@ -64,6 +64,10 @@ and exposed as \`req.me\`.)`
       // To customize the response for _only this_ action, replace `responseType` with
       // something else.  For example, you might set `statusCode: 498` and change the
       // implementation below accordingly (see http://sailsjs.com/docs/concepts/controllers).
+    },
+    noUser: {
+      description: `The provided email does not match any user in the database.`,
+      responseType: 'unauthorized'
     }
 
   },
@@ -78,9 +82,9 @@ and exposed as \`req.me\`.)`
       emailAddress: emailAddress.toLowerCase(),
     });
 
-    // If there was no matching user, respond thru the "badCombo" exit.
+    // If there was no matching user, respond thru the "noUser" exit.
     if(!userRecord) {
-      throw 'badCombo';
+      throw 'noUser';
     }
 
     // If the password doesn't match, then also exit thru "badCombo".
