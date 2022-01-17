@@ -456,7 +456,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	var jitter time.Duration
 	if svc.config.Osquery.MaxJitterPercent > 0 {
 		maxJitter := int64(svc.config.Osquery.MaxJitterPercent) * interval.Milliseconds() / 100.0
-		jitter = time.Duration((int64(hostID) + svc.getJitterSeed()) % maxJitter)
+		jitter = time.Duration((int64(hostID)+svc.getJitterSeed())%maxJitter) * time.Millisecond
 	}
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
