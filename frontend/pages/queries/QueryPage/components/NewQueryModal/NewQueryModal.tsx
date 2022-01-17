@@ -34,7 +34,7 @@ const NewQueryModal = ({
   onCreateQuery,
   setIsSaveModalOpen,
   backendValidators,
-}: INewQueryModalProps) => {
+}: INewQueryModalProps): JSX.Element => {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [observerCanRun, setObserverCanRun] = useState<boolean>(false);

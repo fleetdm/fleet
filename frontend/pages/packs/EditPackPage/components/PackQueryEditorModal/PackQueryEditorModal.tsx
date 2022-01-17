@@ -1,8 +1,6 @@
 /* This component is used for creating and editing pack queries */
 
-import React, { useState, useEffect } from "react";
-// @ts-ignore
-import Fleet from "fleet";
+import React, { useState } from "react";
 import { pull } from "lodash";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";

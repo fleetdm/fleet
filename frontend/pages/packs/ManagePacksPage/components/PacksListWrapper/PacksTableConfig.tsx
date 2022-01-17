@@ -19,6 +19,9 @@ import { IPack } from "interfaces/pack";
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
 }
 
 interface IHeaderProps {
@@ -36,7 +39,7 @@ interface ICellProps {
   };
   row: {
     original: IPack;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -68,6 +71,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
         const props = cellProps.getToggleAllRowsSelectedProps();
+        console.log("props", props);
         const checkboxProps = {
           value: props.checked,
           indeterminate: props.indeterminate,

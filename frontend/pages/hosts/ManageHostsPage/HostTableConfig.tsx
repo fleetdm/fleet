@@ -27,6 +27,9 @@ import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
 }
 interface IHeaderProps {
   column: {
@@ -43,7 +46,7 @@ interface ICellProps {
   };
   row: {
     original: IHost;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }

@@ -16,6 +16,9 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
+  title: string;
+  onChange: () => any;
+  style: { cursor: string };
 }
 interface IHeaderProps {
   column: {
@@ -32,7 +35,7 @@ interface ICellProps {
   };
   row: {
     original: IScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
 }
@@ -61,6 +64,8 @@ const generateTableHeaders = (
       id: "selection",
       Header: (cellProps: IHeaderProps): JSX.Element => {
         const props = cellProps.getToggleAllRowsSelectedProps();
+        console.log("props", props);
+        console.log("props.onChange", props.onChange);
         const checkboxProps = {
           value: props.checked,
           indeterminate: props.indeterminate,

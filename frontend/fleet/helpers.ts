@@ -32,7 +32,7 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-const labelSlug = (label: any): string => {
+const labelSlug = (label: ILabel): string => {
   const { id, name } = label;
 
   if (name === "All Hosts") {

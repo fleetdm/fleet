@@ -25,7 +25,7 @@ const QuerySidePanel = ({
   selectedOsqueryTable,
   onOsqueryTableSelect,
   onClose,
-}: IQuerySidePanel) => {
+}: IQuerySidePanel): JSX.Element => {
   const displayTypeForDataType = (dataType: string) => {
     switch (dataType) {
       case "TEXT_TYPE":
