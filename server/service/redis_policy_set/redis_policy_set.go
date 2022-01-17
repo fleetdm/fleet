@@ -30,16 +30,12 @@ const (
 	policySetsSetKey = "policies:failing_sets"
 )
 
-// for tests, applies a key prefix to prevent race between the different uses of
-// the policy keys when running all the repo's tests in parallel.
-var testRedisKeyPrefix = ""
-
 // ListSets lists all the policy sets.
 func (r *redisFailingPolicySet) ListSets() ([]uint, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	ids, err := redigo.Ints(conn.Do("SMEMBERS", policySetOfSetsKey()))
+	ids, err := redigo.Ints(conn.Do("SMEMBERS", policySetsSetKey))
 	if err != nil && err != redigo.ErrNil {
 		return nil, err
 	}
@@ -175,7 +171,7 @@ func addPolicyToSetOfSets(pool fleet.RedisPool, policyID uint) error {
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
 
-	if _, err := conn.Do("SADD", policySetOfSetsKey(), policyID); err != nil {
+	if _, err := conn.Do("SADD", policySetsSetKey, policyID); err != nil {
 		return fmt.Errorf("add policy id to set of failing sets: %w", err)
 	}
 	return nil
@@ -185,18 +181,14 @@ func removePolicyFromSetOfSets(pool fleet.RedisPool, policyID uint) error {
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
 
-	if _, err := conn.Do("SREM", policySetOfSetsKey(), policyID); err != nil {
+	if _, err := conn.Do("SREM", policySetsSetKey, policyID); err != nil {
 		return fmt.Errorf("remove policy id from set of failing sets: %w", err)
 	}
 	return nil
 }
 
 func policySetKey(policyID uint) string {
-	return testRedisKeyPrefix + policySetKeyPrefix + strconv.Itoa(int(policyID))
-}
-
-func policySetOfSetsKey() string {
-	return testRedisKeyPrefix + policySetsSetKey
+	return policySetKeyPrefix + strconv.Itoa(int(policyID))
 }
 
 func hostEntry(host fleet.PolicySetHost) string {

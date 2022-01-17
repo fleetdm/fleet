@@ -15,12 +15,10 @@ import (
 
 func TestRedisFailingPolicySet(t *testing.T) {
 	for _, f := range []func(*testing.T, fleet.FailingPolicySet){
-		policytest.RunFailingPolicySetTests,
+		policytest.RunFailingBasic,
+		policytest.RunFailing1000hosts,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
-			testRedisKeyPrefix = t.Name() + ":"
-			t.Cleanup(func() { testRedisKeyPrefix = "" })
-
 			t.Run("standalone", func(t *testing.T) {
 				store := setupRedis(t, false, false)
 				f(t, store)
