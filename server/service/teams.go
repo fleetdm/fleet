@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -85,13 +86,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamRequest struct {
-	ID      uint `json:"-" url:"id"`
-	payload fleet.TeamPayload
+	ID uint `json:"-" url:"id"`
+	fleet.TeamPayload
 }
 
 func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyTeamRequest)
-	team, err := svc.ModifyTeam(ctx, req.ID, req.payload)
+	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
@@ -105,6 +106,37 @@ func (svc *Service) ModifyTeam(ctx context.Context, id uint, payload fleet.TeamP
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Team
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteTeamRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteTeamResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteTeamResponse) error() error { return r.Err }
+
+func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteTeamRequest)
+	err := svc.DeleteTeam(ctx, req.ID)
+	if err != nil {
+		return deleteTeamResponse{Err: err}, nil
+	}
+	return deleteTeamResponse{}, nil
+}
+
+func (svc *Service) DeleteTeam(ctx context.Context, tid uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +216,33 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Modify Team Agent Options
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyTeamAgentOptionsRequest struct {
+	ID uint `json:"-" url:"id"`
+	json.RawMessage
+}
+
+func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*modifyTeamAgentOptionsRequest)
+	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage)
+	if err != nil {
+		return teamResponse{Err: err}, nil
+	}
+
+	return teamResponse{Team: team}, err
+}
+
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*fleet.Team, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 type modifyTeamEnrollSecretsRequest struct {
