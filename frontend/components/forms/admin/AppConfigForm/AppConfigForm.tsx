@@ -32,7 +32,9 @@ import {
   authTypeOptions,
   percentageOfHosts,
   numberOfDays,
-} from "./helpers";
+  hostStatusPreview,
+  usageStatsPreview,
+} from "./constants";
 
 const baseClass = "app-config-form";
 
@@ -991,16 +993,6 @@ const AppConfigFormFunctional = ({
       return null;
     }
 
-    const json = {
-      text:
-        "More than X% of your hosts have not checked into Fleet for more than Y days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
-      data: {
-        unseen_hosts: 1,
-        total_hosts: 2,
-        days_unseen: 3,
-      },
-    };
-
     return (
       <Modal
         title="Host status webhook"
@@ -1012,7 +1004,11 @@ const AppConfigFormFunctional = ({
             An example request sent to your configured <b>Destination URL</b>.
           </p>
           <div className={`${baseClass}__host-status-webhook-preview`}>
-            <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+            <pre
+              dangerouslySetInnerHTML={{
+                __html: syntaxHighlight(hostStatusPreview),
+              }}
+            />
           </div>
           <div className="flex-end">
             <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
@@ -1029,21 +1025,6 @@ const AppConfigFormFunctional = ({
       return null;
     }
 
-    const stats = {
-      anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
-      fleetVersion: "x.x.x",
-      licenseTier: "free",
-      numHostsEnrolled: 12345,
-      numUsers: 12,
-      numTeams: 3,
-      numPolicies: 5,
-      numLabels: 20,
-      softwareInventoryEnabled: true,
-      vulnDetectionEnabled: true,
-      systemUsersEnabled: true,
-      hostStatusWebhookEnabled: true,
-    };
-
     return (
       <Modal
         title="Usage statistics"
@@ -1052,7 +1033,11 @@ const AppConfigFormFunctional = ({
       >
         <>
           <p>An example JSON payload sent to Fleet Device Management Inc.</p>
-          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(stats) }} />
+          <pre
+            dangerouslySetInnerHTML={{
+              __html: syntaxHighlight(usageStatsPreview),
+            }}
+          />
           <div className="flex-end">
             <Button type="button" onClick={toggleUsageStatsPreviewModal}>
               Done

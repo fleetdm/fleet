@@ -53,9 +53,35 @@ export const numberOfDays = [
   { label: "14 days", value: 14 },
 ];
 
+export const hostStatusPreview = {
+  text:
+    "More than X% of your hosts have not checked into Fleet for more than Y days. You’ve been sent this message because the Host status webhook is enabled in your Fleet instance.",
+  data: {
+    unseen_hosts: 1,
+    total_hosts: 2,
+    days_unseen: 3,
+  },
+};
+export const usageStatsPreview = {
+  anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
+  fleetVersion: "x.x.x",
+  licenseTier: "free",
+  numHostsEnrolled: 12345,
+  numUsers: 12,
+  numTeams: 3,
+  numPolicies: 5,
+  numLabels: 20,
+  softwareInventoryEnabled: true,
+  vulnDetectionEnabled: true,
+  systemUsersEnabled: true,
+  hostStatusWebhookEnabled: true,
+};
+
 export default {
   authMethodOptions,
   authTypeOptions,
   percentageOfHosts,
   numberOfDays,
+  hostStatusPreview,
+  usageStatsPreview,
 };
