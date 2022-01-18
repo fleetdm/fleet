@@ -20,6 +20,9 @@ import (
 
 var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
 
+// NewHost creates a new host on the datastore.
+//
+// Currently only used for testing.
 func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	sqlStatement := `
 	INSERT INTO hosts (
@@ -35,9 +38,13 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		os_version,
 		uptime,
 		memory,
-		team_id
+		team_id,
+		distributed_interval,
+		logger_tls_period,
+		config_tls_refresh,
+		refetch_requested
 	)
-	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,? )
+	VALUES( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )
 	`
 	result, err := d.writer.ExecContext(
 		ctx,
@@ -55,6 +62,10 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 		host.Uptime,
 		host.Memory,
 		host.TeamID,
+		host.DistributedInterval,
+		host.LoggerTLSPeriod,
+		host.ConfigTLSRefresh,
+		host.RefetchRequested,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host")
@@ -1260,7 +1271,7 @@ func (d *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error) 
 }
 
 // UpdateHostOsqueryIntervals updates the osquery intervals of a host.
-func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals *fleet.HostOsqueryIntervals) error {
+func (d *Datastore) UpdateHostOsqueryIntervals(ctx context.Context, id uint, intervals fleet.HostOsqueryIntervals) error {
 	sqlStatement := `
 		UPDATE hosts SET
 			distributed_interval = ?,

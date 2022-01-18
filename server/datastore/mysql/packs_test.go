@@ -200,7 +200,6 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 					Interval:  600,
 					Removed:   ptr.Bool(false),
 					Shard:     ptr.Uint(73),
-					Platform:  ptr.String("foobar"),
 					Version:   ptr.String("0.0.0.0.0.1"),
 					Denylist:  ptr.Bool(true),
 				},
@@ -236,7 +235,6 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 					Interval:  600,
 					Removed:   ptr.Bool(false),
 					Shard:     ptr.Uint(73),
-					Platform:  ptr.String("foobar"),
 					Version:   ptr.String("0.0.0.0.0.1"),
 				},
 			},
@@ -537,10 +535,8 @@ func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
-func randomPackStatsForHost(packID uint, scheduledQueries []*fleet.ScheduledQuery) []fleet.PackStats {
+func randomPackStatsForHost(packID uint, packName string, packType string, scheduledQueries []*fleet.ScheduledQuery, amount int) []fleet.PackStats {
 	var queryStats []fleet.ScheduledQueryStats
-
-	amount := rand.Intn(5000)
 
 	for i := 0; i < amount; i++ {
 		sq := scheduledQueries[rand.Intn(len(scheduledQueries))]
@@ -563,6 +559,8 @@ func randomPackStatsForHost(packID uint, scheduledQueries []*fleet.ScheduledQuer
 	}
 	return []fleet.PackStats{
 		{
+			PackName:   packName,
+			Type:       packType,
 			PackID:     packID,
 			QueryStats: queryStats,
 		},
@@ -601,7 +599,8 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 				schedQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), pack.ID, fleet.ListOptions{})
 				require.NoError(t, err)
 
-				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))
+				amount := rand.Intn(5000)
+				require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 			}
 		}
 	}()
@@ -652,7 +651,8 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 					schedQueries, err := ds.ListScheduledQueriesInPackWithStats(context.Background(), pack.ID, fleet.ListOptions{})
 					require.NoError(t, err)
 
-					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, schedQueries)))
+					amount := rand.Intn(5000)
+					require.NoError(t, saveHostPackStatsDB(context.Background(), ds.writer, host.ID, randomPackStatsForHost(pack.ID, pack.Name, *pack.Type, schedQueries, amount)))
 				}
 			}
 		}()

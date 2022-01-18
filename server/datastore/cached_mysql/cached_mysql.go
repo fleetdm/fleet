@@ -13,6 +13,9 @@ type cachedMysql struct {
 	fleet.Datastore
 
 	c *cache.Cache
+
+	packsExp            time.Duration
+	scheduledQueriesExp time.Duration
 }
 
 const (
@@ -24,11 +27,31 @@ const (
 	defaultScheduledQueriesExpiration = 1 * time.Minute
 )
 
-func New(ds fleet.Datastore) fleet.Datastore {
-	return &cachedMysql{
-		Datastore: ds,
-		c:         cache.New(5*time.Minute, 10*time.Minute),
+type Option func(*cachedMysql)
+
+func WithPacksExpiration(t time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.packsExp = t
 	}
+}
+
+func WithScheduledQueriesExpiration(t time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.scheduledQueriesExp = t
+	}
+}
+
+func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
+	c := &cachedMysql{
+		Datastore:           ds,
+		c:                   cache.New(5*time.Minute, 10*time.Minute),
+		packsExp:            defaultPacksExpiration,
+		scheduledQueriesExp: defaultScheduledQueriesExpiration,
+	}
+	for _, fn := range opts {
+		fn(c)
+	}
+	return c
 }
 
 func (ds *cachedMysql) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
@@ -84,7 +107,7 @@ func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet
 		return nil, err
 	}
 
-	ds.c.Set(key, packs, defaultPacksExpiration)
+	ds.c.Set(key, packs, ds.packsExp)
 
 	return packs, nil
 }
@@ -104,7 +127,7 @@ func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, id uint) 
 		return nil, err
 	}
 
-	ds.c.Set(key, scheduledQueries, defaultScheduledQueriesExpiration)
+	ds.c.Set(key, scheduledQueries, ds.scheduledQueriesExp)
 
 	return scheduledQueries, nil
 }

@@ -1621,12 +1621,12 @@ func TestUpdateHostIntervals(t *testing.T) {
 			}
 
 			updateIntervalsCalled := false
-			ds.UpdateHostOsqueryIntervalsFunc = func(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error {
+			ds.UpdateHostOsqueryIntervalsFunc = func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error {
 				if hostID != 1 {
 					return errors.New("not found")
 				}
 				updateIntervalsCalled = true
-				assert.Equal(t, tt.finalIntervals, *intervals)
+				assert.Equal(t, tt.finalIntervals, intervals)
 				return nil
 			}
 

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -87,6 +88,7 @@ func TestHosts(t *testing.T) {
 		{"ByIdentifier", testHostsByIdentifier},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
+		{"SaveHostUsers", testHostsSaveHostUsers},
 		{"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
 		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
 		{"ListByPolicy", testHostsListByPolicy},
@@ -104,6 +106,9 @@ func TestHosts(t *testing.T) {
 		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
+		{"HostLite", testHostsLite},
+		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
+		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3299,4 +3304,171 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, enrolled)
 	assert.Equal(t, "url2", serverURL)
 	assert.True(t, installedFromDep)
+}
+
+func testHostsLite(t *testing.T, ds *Datastore) {
+	_, err := ds.HostLite(context.Background(), 1)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.True(t, errors.As(err, &nfe))
+
+	now := time.Now()
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  1,
+		OsqueryHostID:       "foobar",
+		NodeKey:             "nodekey",
+		Hostname:            "foobar.local",
+		UUID:                "uuid",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    true,
+
+		SeenTime: now,
+
+		CPUType: "cpuType",
+	})
+	require.NoError(t, err)
+
+	h, err = ds.HostLite(context.Background(), h.ID)
+	require.NoError(t, err)
+	// HostLite does not load host details.
+	require.Empty(t, h.CPUType)
+	// HostLite does not load host seen time.
+	require.Empty(t, h.SeenTime)
+
+	require.Equal(t, uint(1), h.ID)
+	require.NotEmpty(t, h.CreatedAt)
+	require.NotEmpty(t, h.UpdatedAt)
+	require.Equal(t, "foobar", h.OsqueryHostID)
+	require.Equal(t, "nodekey", h.NodeKey)
+	require.Equal(t, "foobar.local", h.Hostname)
+	require.Equal(t, "uuid", h.UUID)
+	require.Equal(t, "darwin", h.Platform)
+	require.Nil(t, h.TeamID)
+	require.Equal(t, uint(60), h.DistributedInterval)
+	require.Equal(t, uint(50), h.LoggerTLSPeriod)
+	require.Equal(t, uint(40), h.ConfigTLSRefresh)
+	require.WithinDuration(t, now.UTC(), h.DetailUpdatedAt, 1*time.Second)
+	require.WithinDuration(t, now.UTC(), h.LabelUpdatedAt, 1*time.Second)
+	require.WithinDuration(t, now.UTC(), h.PolicyUpdatedAt, 1*time.Second)
+	require.WithinDuration(t, now.UTC(), h.LastEnrolledAt, 1*time.Second)
+	require.True(t, h.RefetchRequested)
+}
+
+func testUpdateOsqueryIntervals(t *testing.T, ds *Datastore) {
+	now := time.Now()
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  1,
+		OsqueryHostID:       "foobar",
+		NodeKey:             "nodekey",
+		Hostname:            "foobar.local",
+		UUID:                "uuid",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    true,
+		SeenTime:            now,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostOsqueryIntervals(context.Background(), h.ID, fleet.HostOsqueryIntervals{
+		DistributedInterval: 120,
+		LoggerTLSPeriod:     110,
+		ConfigTLSRefresh:    100,
+	})
+	require.NoError(t, err)
+
+	h, err = ds.HostLite(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(120), h.DistributedInterval)
+	require.Equal(t, uint(110), h.LoggerTLSPeriod)
+	require.Equal(t, uint(100), h.ConfigTLSRefresh)
+}
+
+func testUpdateRefetchRequested(t *testing.T, ds *Datastore) {
+	now := time.Now()
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  1,
+		OsqueryHostID:       "foobar",
+		NodeKey:             "nodekey",
+		Hostname:            "foobar.local",
+		UUID:                "uuid",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    false,
+		SeenTime:            now,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostRefetchRequested(context.Background(), h.ID, true)
+	require.NoError(t, err)
+
+	h, err = ds.HostLite(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.True(t, h.RefetchRequested)
+
+	err = ds.UpdateHostRefetchRequested(context.Background(), h.ID, false)
+	require.NoError(t, err)
+
+	h, err = ds.HostLite(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.False(t, h.RefetchRequested)
+}
+
+func testHostsSaveHostUsers(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	users := []fleet.HostUser{
+		{
+			Uid:       42,
+			Username:  "user",
+			Type:      "aaa",
+			GroupName: "group",
+			Shell:     "shell",
+		},
+		{
+			Uid:       43,
+			Username:  "user2",
+			Type:      "aaa",
+			GroupName: "group",
+			Shell:     "shell",
+		},
+	}
+
+	err = ds.SaveHostUsers(context.Background(), host.ID, users)
+	require.NoError(t, err)
+
+	host, err = ds.Host(context.Background(), host.ID, false)
+	require.NoError(t, err)
+	require.Len(t, host.Users, 2)
+	test.ElementsMatchSkipID(t, users, host.Users)
 }

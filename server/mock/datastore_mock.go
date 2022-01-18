@@ -318,7 +318,7 @@ type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Hos
 
 type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
-type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error
+type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error
 
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
@@ -1634,7 +1634,7 @@ func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, err
 	return s.HostLiteFunc(ctx, hostID)
 }
 
-func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals *fleet.HostOsqueryIntervals) error {
+func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error {
 	s.UpdateHostOsqueryIntervalsFuncInvoked = true
 	return s.UpdateHostOsqueryIntervalsFunc(ctx, hostID, intervals)
 }

@@ -326,7 +326,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 
 	// Save interval values if they have been updated.
 	intervalsModified := false
-	intervals := &fleet.HostOsqueryIntervals{
+	intervals := fleet.HostOsqueryIntervals{
 		DistributedInterval: host.DistributedInterval,
 		ConfigTLSRefresh:    host.ConfigTLSRefresh,
 		LoggerTLSPeriod:     host.LoggerTLSPeriod,

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ func TestTeams(t *testing.T) {
 		{"List", testTeamsList},
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
+		{"TeamAgentOptions", testTeamsAgentOptions},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -35,7 +37,7 @@ func TestTeams(t *testing.T) {
 }
 
 func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
-	var createTests = []struct {
+	createTests := []struct {
 		name, description string
 	}{
 		{"foo_team", "foobar is the description"},
@@ -234,4 +236,26 @@ func testTeamsEnrollSecrets(t *testing.T, ds *Datastore) {
 		justSecrets = append(justSecrets, &fleet.EnrollSecret{Secret: secret.Secret})
 	}
 	test.ElementsMatchSkipTimestampsID(t, secrets, justSecrets)
+}
+
+func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions1, err := ds.TeamAgentOptions(context.Background(), team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, teamAgentOptions1)
+
+	agentOptions := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name:         "team2",
+		AgentOptions: &agentOptions,
+	})
+	require.NoError(t, err)
+
+	teamAgentOptions2, err := ds.TeamAgentOptions(context.Background(), team2.ID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(agentOptions), string(*teamAgentOptions2))
 }

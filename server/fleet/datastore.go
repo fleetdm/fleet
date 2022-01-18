@@ -414,7 +414,7 @@ type Datastore interface {
 	HostLite(ctx context.Context, hostID uint) (*Host, error)
 
 	// UpdateHostOsqueryIntervals updates the osquery intervals of a host.
-	UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals *HostOsqueryIntervals) error
+	UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals HostOsqueryIntervals) error
 
 	// TeamAgentOptions loads the agents options of a team.
 	TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error)
