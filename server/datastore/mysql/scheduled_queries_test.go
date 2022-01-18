@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,7 +20,7 @@ func TestScheduledQueries(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ListInPackWithStats", testScheduledQueriesListInPackWithStats},
-		{"ListInPackWith", testScheduledQueriesListInPack},
+		{"ListInPack", testScheduledQueriesListInPack},
 		{"New", testScheduledQueriesNew},
 		{"Get", testScheduledQueriesGet},
 		{"Delete", testScheduledQueriesDelete},
@@ -205,6 +206,10 @@ func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	gotQueries, err = ds.ListScheduledQueriesInPack(context.Background(), 1)
 	require.NoError(t, err)
 	require.Len(t, gotQueries, 3)
+
+	sort.Slice(gotQueries, func(i, j int) bool {
+		return gotQueries[i].ID < gotQueries[j].ID
+	})
 
 	require.Equal(t, "foo", gotQueries[0].Name)
 	require.Equal(t, "foo", gotQueries[0].QueryName)
