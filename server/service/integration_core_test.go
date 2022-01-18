@@ -68,6 +68,17 @@ func (s *integrationTestSuite) TearDownTest() {
 			require.NoError(t, err)
 		}
 	}
+
+	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	if len(globalPolicies) > 0 {
+		var globalPolicyIDs []uint
+		for _, gp := range globalPolicies {
+			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
+		}
+		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
+	}
 }
 
 func TestIntegrations(t *testing.T) {
@@ -1997,6 +2008,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	}
 	gpResp := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"webhook_settings": {
@@ -2031,7 +2043,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
-		Name:        "team1",
+		Name:        "team_for_global_policies_browsing",
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
@@ -2042,6 +2054,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	}
 	gpResp0 := globalPolicyResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams0, http.StatusOK, &gpResp0)
+	require.NotNil(t, gpResp0.Policy)
 
 	email := "team.observer@example.com"
 	teamObserver := &fleet.User{
@@ -2060,7 +2073,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	_, err = s.ds.NewUser(context.Background(), teamObserver)
 	require.NoError(t, err)
 
+	oldToken := s.token
 	s.token = s.getTestToken(email, password)
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
