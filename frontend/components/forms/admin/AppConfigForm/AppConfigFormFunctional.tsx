@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { syntaxHighlight } from "fleet/helpers";
 import { size } from "lodash";
 
@@ -7,6 +7,7 @@ import yaml from "js-yaml";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
+import errors from "interfaces/errors";
 import { IConfigNested, IConfigFormData } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
@@ -28,12 +29,10 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
-import { string } from "prop-types";
 import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 // @ts-ignore
 import GlobalAgentOptions from "./GlobalAgentOptions";
-import errors from "interfaces/errors";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -200,10 +199,8 @@ const AppConfigFormFunctional = ({
 
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
-    console.log("currentErrors START", errors);
-    console.log("smtpAuthenticationType", smtpAuthenticationType);
 
-    if (orgName === "") {
+    if (!orgName) {
       errors.org_name = "Organization name must be present";
     }
 
@@ -219,38 +216,29 @@ const AppConfigFormFunctional = ({
         errors.entity_id = "Entity ID must be present";
       }
       if (!idpName) {
-        errors.idp_name = "Identity Provider Name must be present";
+        errors.idp_name = "Identity provider name must be present";
       }
     }
 
-    console.log("enableSMTP", enableSMTP);
-    console.log("smtpSenderAddress", smtpSenderAddress);
-    console.log("smtpServer", smtpServer);
     if (enableSMTP) {
-      // TODO: Check this out in more depth, seems backwards.
-      if (smtpSenderAddress === "") {
+      if (!smtpSenderAddress) {
         errors.sender_address = "SMTP sender address must be present";
       }
-
-      if (smtpServer === "") {
+      if (!smtpServer) {
         errors.server = "SMTP server must be present";
       }
-
-      if (smtpPort === "") {
+      if (!smtpPort) {
         errors.server = "SMTP server port must be present";
         errors.server_port = "Port";
       }
-
-      if (smtpServer === "" && smtpPort === "") {
+      if (!smtpServer && !smtpPort) {
         errors.server = "SMTP server and server port must be present";
         errors.server_port = "Port";
       }
-
       if (smtpAuthenticationType === "authtype_username_password") {
         if (smtpUsername === "") {
           errors.user_name = "SMTP username must be present";
         }
-
         if (smtpPassword === "") {
           errors.password = "SMTP password must be present";
         }
@@ -264,7 +252,7 @@ const AppConfigFormFunctional = ({
     }
 
     if (enableHostExpiry) {
-      if (isNaN(hostExpiryWindow) || Number(hostExpiryWindow) <= 0) {
+      if (!hostExpiryWindow) {
         errors.host_expiry_window =
           "Host expiry window must be a positive number";
       }
@@ -278,18 +266,19 @@ const AppConfigFormFunctional = ({
       }
     }
 
-    console.log("errors END", errors);
-
     setFormErrors(errors);
   };
 
-  // TODO: WANT THIS TO SET FIRST, AND THEN VALIDATE
-  const handleInputChangeAndValidate = ({ name, value }: IFormField) => {
-    console.log("handleInputChangeAndValidate");
-    handleInputChange({ name, value }).then(() => {
-      validateForm();
-    });
-  };
+  // Validates forms when certain checkboxes and dropdowns are selected
+  useEffect(() => {
+    validateForm();
+  }, [
+    enableSSO,
+    enableSMTP,
+    smtpAuthenticationType,
+    enableHostStatusWebhook,
+    enableHostExpiry,
+  ]);
 
   // TOGGLE MODALS
 
@@ -360,22 +349,6 @@ const AppConfigFormFunctional = ({
     handleSubmit(formDataToSubmit);
   };
 
-  //   metadata_url?: string | null; DONE
-  // entity_id?: string | null; DONE
-  // idp_name?: string | null; DONE
-  // server_url?: string | null; DONE
-  // org_name?: string | null; DONE
-  // sender_address?: string | null;
-  // server?: string | null;
-  // user_name?: string | null;
-  // password?: string | null;
-  // destination_url?: string | null;
-  // host_percentage?: string | null;
-  // days_count?: string | null;
-  // host_expiry_window?: string | null;
-  // agent_options?: string | null;
-
-  console.log("formErrors.org_name", formErrors.org_name);
   // SECTIONS
   const renderOrganizationInfoSection = () => {
     return (
@@ -589,8 +562,6 @@ const AppConfigFormFunctional = ({
     );
   };
 
-  console.log("formErrors", formErrors);
-
   const renderSMTPOptionsSection = () => {
     const renderSmtpSection = () => {
       if (smtpAuthenticationType === "authtype_none") {
@@ -720,7 +691,7 @@ const AppConfigFormFunctional = ({
           <Dropdown
             label="Authentication type"
             options={authTypeOptions}
-            onChange={handleInputChangeAndValidate}
+            onChange={handleInputChange}
             target
             name="smtpAuthenticationType"
             value={smtpAuthenticationType}
@@ -1036,8 +1007,10 @@ const AppConfigFormFunctional = ({
                   name="hostExpiryWindow"
                   value={hostExpiryWindow}
                   disabled={!enableHostExpiry}
-                  label="Host Expiry Window"
+                  label="Host expiry window"
                   type="number"
+                  onBlur={validateForm}
+                  error={formErrors.host_expiry_window}
                 />
                 <IconToolTip
                   isHtml
