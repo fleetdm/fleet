@@ -51,8 +51,6 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 ## Slack
 
-## Slack
-
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
 
 We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
