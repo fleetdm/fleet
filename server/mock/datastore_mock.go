@@ -248,6 +248,8 @@ type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
+type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
+
 type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
@@ -708,6 +710,9 @@ type DataStore struct {
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
+
+	TeamsSummaryFunc        TeamsSummaryFunc
+	TeamsSummaryFuncInvoked bool
 
 	SearchTeamsFunc        SearchTeamsFunc
 	SearchTeamsFuncInvoked bool
@@ -1457,6 +1462,11 @@ func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, e
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	s.ListTeamsFuncInvoked = true
 	return s.ListTeamsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, error) {
+	s.TeamsSummaryFuncInvoked = true
+	return s.TeamsSummaryFunc(ctx)
 }
 
 func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {

@@ -9,39 +9,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func RunFailingPolicySetTests(t *testing.T, r fleet.FailingPolicySet) {
-	t.Run("basic", func(t *testing.T) {
-		testBasic(t, r)
-	})
-
-	t.Run("1000-hosts", func(t *testing.T) {
-		hosts := make([]fleet.PolicySetHost, 1000)
-		for i := range hosts {
-			hosts[i] = fleet.PolicySetHost{
-				ID:       uint(i + 1),
-				Hostname: fmt.Sprintf("test.hostname.%d", i+1),
-			}
+func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
+	hosts := make([]fleet.PolicySetHost, 1000)
+	for i := range hosts {
+		hosts[i] = fleet.PolicySetHost{
+			ID:       uint(i + 1),
+			Hostname: fmt.Sprintf("test.hostname.%d", i+1),
 		}
-		policyID1k := uint(999)
-		for i := range hosts {
-			err := r.AddHost(policyID1k, hosts[i])
-			require.NoError(t, err)
-		}
-		fetchedHosts, err := r.ListHosts(policyID1k)
+	}
+	policyID1k := uint(999)
+	for i := range hosts {
+		err := r.AddHost(policyID1k, hosts[i])
 		require.NoError(t, err)
-		sort.Slice(fetchedHosts, func(i, j int) bool {
-			return fetchedHosts[i].ID < fetchedHosts[j].ID
-		})
-		require.Equal(t, hosts, fetchedHosts)
-		err = r.RemoveHosts(policyID1k, hosts)
-		require.NoError(t, err)
-		fetchedHosts, err = r.ListHosts(policyID1k)
-		require.NoError(t, err)
-		require.Empty(t, fetchedHosts)
+	}
+	fetchedHosts, err := r.ListHosts(policyID1k)
+	require.NoError(t, err)
+	sort.Slice(fetchedHosts, func(i, j int) bool {
+		return fetchedHosts[i].ID < fetchedHosts[j].ID
 	})
+	require.Equal(t, hosts, fetchedHosts)
+	err = r.RemoveHosts(policyID1k, hosts)
+	require.NoError(t, err)
+	fetchedHosts, err = r.ListHosts(policyID1k)
+	require.NoError(t, err)
+	require.Empty(t, fetchedHosts)
 }
 
-func testBasic(t *testing.T, r fleet.FailingPolicySet) {
+func RunFailingBasic(t *testing.T, r fleet.FailingPolicySet) {
 	policyID1 := uint(1)
 
 	// Test listing policy sets with no sets.

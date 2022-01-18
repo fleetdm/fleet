@@ -23,7 +23,7 @@ type User struct {
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 
-	// Teams is the teams this user has roles in.
+	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
 }
 

@@ -38,6 +38,8 @@ Check out the example below:
   fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
+The above command should be run on a macOS device as notarizing and signing of macOS osquery installers can only be done on macOS devices.
+
 
 ### Adding multiple hosts
 

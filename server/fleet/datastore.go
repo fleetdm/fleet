@@ -310,6 +310,8 @@ type Datastore interface {
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
+	// TeamsSummary lists id, name and description for all teams.
+	TeamsSummary(ctx context.Context) ([]*TeamSummary, error)
 	// SearchTeams searches teams using the provided query and ommitting the provided existing selection.
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.

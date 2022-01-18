@@ -42,21 +42,25 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### Growth
 
-[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
-
 [Website](./growth.md#website)
 
 [Communicating as Fleet](./growth.md#communicating-as-fleet)
 
 [Voice and grammar guidelines](./growth.md#voice-and-grammar-guidelines)
 
-### Customer experience
+### Customers
 
-[Customer succcess](./customer-experience.md#customer-success)
+[Customer succcess](./customers.md#customer-success)
 
-[Support process](./customer-experience.md#support-process)
+[Support process](./customers.md#support-process)
 
 ### Community
+
+[Posting on social media as Fleet](./community.md#posting-on-social-media-as-fleet)
+
+[Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
+
+[Press releases](./community.md#press-releases)
 
 [Community contributions (pull requests)](./community.md#community-contributions-pull-requests)
 
@@ -65,6 +69,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [About the handbook](./handbook.md#about-the-handbook)
 
 [Handbook style guide](./handbook.md#handbook-style-guide)
+
+[Contributing to the handbook](./handbook.md#contributing-to-the-handbook)
 
 
 <meta name="maintainedBy" value="mikermcneil">

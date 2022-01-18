@@ -21,7 +21,16 @@ Keep headings brief and organize them in a logical order:
 
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
+## Contributing to the handbook
 
+To contribute to a handbook page:
+1. Click "Edit this page"
+2. Make your changes in the browser.  (The language is [markdown](https://github.github.com/gfm/).)
+3. Click "Propose changes"
+4. Request a reviewer by clicking the gear and picking only one.  Choose the reviewer whose face is on the handbook page when you view it on fleetdm.com
+5. Click "Create pull request".
+
+All done!
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

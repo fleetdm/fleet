@@ -1,9 +1,9 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
+import { useQuery } from "react-query";
+
 // @ts-ignore
-import memoize from "memoize-one";
 import PATHS from "router/paths";
-import { IConfig } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { Link } from "react-router";
@@ -11,11 +11,10 @@ import { AppContext } from "context/app";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
-import userActions from "redux/nodes/entities/users/actions";
-import teamActions from "redux/nodes/entities/teams/actions";
-// @ts-ignore
-import inviteActions from "redux/nodes/entities/invites/actions";
+import usersAPI from "services/entities/users";
+import inviteAPI from "services/entities/invites";
+import teamsAPI from "services/entities/teams";
+
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/TableDataError";
@@ -33,6 +32,7 @@ import RemoveMemberModal from "./components/RemoveMemberModal";
 import {
   generateTableHeaders,
   generateDataSet,
+  IMembersTableData,
 } from "./MembersPageTableConfig";
 
 const baseClass = "members";
@@ -44,35 +44,15 @@ interface IMembersPageProps {
   };
 }
 
-interface IRootState {
-  app: {
-    config: IConfig;
-  };
-  entities: {
-    users: {
-      loading: boolean;
-      data: { [id: number]: IUser };
-      errors: { name: string; reason: string }[];
-    };
-    teams: {
-      data: { [id: number]: ITeam };
-    };
-  };
-}
-
 interface IFetchParams {
   pageIndex?: number;
   pageSize?: number;
   searchQuery?: string;
 }
 
-const getTeams = (data: { [id: string]: ITeam }) => {
-  return Object.keys(data).map((teamId) => {
-    return data[teamId];
-  });
-};
-
-const memoizedGetTeams = memoize(getTeams);
+interface ITeamsResponse {
+  teams: ITeam[];
+}
 
 // This is used to cache the table query data and make a request for the
 // members data at a future time. Practically, this allows us to re-fetch the users
@@ -85,54 +65,29 @@ const MembersPage = ({
   const teamId = parseInt(team_id, 10);
   const dispatch = useDispatch();
 
-  const { isGlobalAdmin, currentUser } = useContext(AppContext);
-
-  const isPremiumTier = useSelector((state: IRootState) => {
-    return state.app.config.tier === "premium";
-  });
-  const loadingTableData = useSelector(
-    (state: IRootState) => state.entities.users.loading
+  const { config, isGlobalAdmin, currentUser, isPremiumTier } = useContext(
+    AppContext
   );
 
-  const users = useSelector((state: IRootState) =>
-    generateDataSet(teamId, state.entities.users.data)
+  const smtpConfigured = config?.configured || false;
+  const canUseSso = config?.enable_sso || false;
+
+  const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
+    false
   );
-
-  const usersError = useSelector(
-    (state: IRootState) => state.entities.users.errors
+  const [showEditUserModal, setShowEditUserModal] = useState<boolean>(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
+    false
   );
-
-  const team = useSelector((state: IRootState) => {
-    return state.entities.teams.data[teamId];
-  });
-  const teams = useSelector((state: IRootState) => {
-    return memoizedGetTeams(state.entities.teams.data);
-  });
-  const memberIds = users.map((member) => {
-    return member.id;
-  });
-
-  const smtpConfigured = useSelector((state: IRootState) => {
-    return state.app.config.configured;
-  });
-
-  const canUseSso = useSelector((state: IRootState) => {
-    return state.app.config.enable_sso;
-  });
-
-  const config = useSelector((state: IRootState) => {
-    return state.app.config;
-  });
-
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
-  const [showEditUserModal, setShowEditUserModal] = useState(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
+  const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
   const [createUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
   const [editUserErrors] = useState(DEFAULT_CREATE_USER_ERRORS);
+  const [members, setMembers] = useState<IMembersTableData[]>([]);
+  const [memberIds, setMemberIds] = useState<number[]>([]);
+  const [currentTeam, setCurrentTeam] = useState<ITeam>();
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddMemberModal(!showAddMemberModal);
@@ -145,6 +100,42 @@ const MembersPage = ({
     },
     [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
   );
+
+  // API CALLS
+
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: loadingUsersError,
+    refetch: refetchUsers,
+  } = useQuery<IUser[], Error, IMembersTableData[]>(
+    ["users", teamId, searchString],
+    () => usersAPI.loadAll({ teamId, globalFilter: searchString }),
+    {
+      select: (data: IUser[]) => generateDataSet(teamId, data),
+      onSuccess: (data) => {
+        setMembers(data);
+        setMemberIds(data.map((member) => member.id));
+      },
+    }
+  );
+
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    error: loadingTeamsError,
+  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+    ["teams", teamId],
+    () => teamsAPI.loadAll(),
+    {
+      select: (data: ITeamsResponse) => data.teams,
+      onSuccess: (data) => {
+        setCurrentTeam(data.find((team) => team.id === teamId));
+      },
+    }
+  );
+
+  // TOGGLE MODALS
 
   const toggleEditMemberModal = useCallback(
     (user?: IUser) => {
@@ -166,9 +157,12 @@ const MembersPage = ({
     setShowAddMemberModal,
   ]);
 
+  // FUNCTIONS
+
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
-    dispatch(teamActions.removeMembers(teamId, removedUsers))
+    teamsAPI
+      .removeMembers(teamId, removedUsers)
       .then(() => {
         dispatch(
           renderFlash("success", `Successfully removed ${userEditing?.name}`)
@@ -183,24 +177,29 @@ const MembersPage = ({
         dispatch(
           renderFlash("error", "Unable to remove members. Please try again.")
         )
-      );
-    toggleRemoveMemberModal();
+      )
+      .finally(() => {
+        toggleRemoveMemberModal();
+        refetchUsers();
+      });
   }, [
     dispatch,
     teamId,
     userEditing?.id,
     userEditing?.name,
     toggleRemoveMemberModal,
+    refetchUsers,
   ]);
 
   const onAddMemberSubmit = useCallback(
     (newMembers: INewMembersBody) => {
-      dispatch(teamActions.addMembers(teamId, newMembers))
+      teamsAPI
+        .addMembers(teamId, newMembers)
         .then(() => {
           dispatch(
             renderFlash(
               "success",
-              `${newMembers.users.length} members successfully added to ${team.name}.`
+              `${newMembers.users.length} members successfully added to ${currentTeam?.name}.`
             )
           );
         })
@@ -208,23 +207,24 @@ const MembersPage = ({
           dispatch(
             renderFlash("error", "Could not add members. Please try again.")
           );
+        })
+        .finally(() => {
+          toggleAddUserModal();
+          refetchUsers();
         });
-      toggleAddUserModal();
     },
-    [dispatch, teamId, toggleAddUserModal, team.name]
+    [dispatch, teamId, toggleAddUserModal, currentTeam?.name, refetchUsers]
   );
 
   const fetchUsers = useCallback(
     (fetchParams: IFetchParams) => {
       const { pageIndex, pageSize, searchQuery } = fetchParams;
-      dispatch(
-        userActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-          teamId,
-        })
-      );
+      usersAPI.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
+        teamId,
+      });
     },
     [dispatch, teamId]
   );
@@ -240,12 +240,13 @@ const MembersPage = ({
       delete requestData.currentUserId;
       delete requestData.newUserType;
       delete requestData.password;
-      dispatch(inviteActions.create(requestData))
+      inviteAPI
+        .create(requestData)
         .then(() => {
           dispatch(
             renderFlash(
               "success",
-              `An invitation email was sent from ${config.sender_address} to ${formData.email}.`
+              `An invitation email was sent from ${config?.sender_address} to ${formData.email}.`
             )
           );
           fetchUsers(tableQueryData);
@@ -274,7 +275,8 @@ const MembersPage = ({
       };
       delete requestData.currentUserId;
       delete requestData.newUserType;
-      dispatch(userActions.createUserWithoutInvitation(requestData))
+      usersAPI
+        .createUserWithoutInvitation(requestData)
         .then(() => {
           dispatch(
             renderFlash("success", `Successfully created ${requestData.name}.`)
@@ -319,50 +321,57 @@ const MembersPage = ({
       setIsFormSubmitting(true);
 
       const userName = userEditing?.name;
-      dispatch(userActions.update(userEditing, updatedAttrs))
-        .then(() => {
-          dispatch(renderFlash("success", `Successfully edited ${userName}.`));
-          if (currentUser && userEditing && currentUser.id === userEditing.id) {
-            const currentTeam = formData.teams.filter(
-              (thisTeam) => thisTeam.id === teamId
+
+      userEditing &&
+        usersAPI
+          .update(userEditing.id, updatedAttrs)
+          .then(() => {
+            dispatch(
+              renderFlash("success", `Successfully edited ${userName}.`)
             );
-            if (currentTeam && currentTeam[0].role !== "admin") {
-              window.location.href = "/";
+
+            if (
+              currentUser &&
+              userEditing &&
+              currentUser.id === userEditing.id
+            ) {
+              // If user edits self and removes "admin" role,
+              // redirect to home
+              const selectedTeam = formData.teams.filter(
+                (thisTeam) => thisTeam.id === teamId
+              );
+              if (selectedTeam && selectedTeam[0].role !== "admin") {
+                window.location.href = "/";
+              }
+            } else {
+              refetchUsers(tableQueryData);
             }
-          } else {
-            fetchUsers(tableQueryData);
-          }
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userName}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
-          setIsFormSubmitting(false);
-        });
+          })
+          .catch(() => {
+            dispatch(
+              renderFlash(
+                "error",
+                `Could not edit ${userName}. Please try again.`
+              )
+            );
+          })
+          .finally(() => {
+            setIsFormSubmitting(false);
+          });
       toggleEditMemberModal();
     },
-    [dispatch, toggleEditMemberModal, userEditing, fetchUsers]
+    [dispatch, toggleEditMemberModal, userEditing, refetchUsers]
   );
-
-  useEffect(() => {
-    // Fetch users when Redux team_id state changes
-    fetchUsers(tableQueryData);
-  }, [team_id]);
 
   const onQueryChange = useCallback(
     (queryData) => {
-      if (users) {
+      if (members) {
         setSearchString(queryData.searchQuery);
         tableQueryData = { ...queryData, teamId };
-        fetchUsers(queryData);
+        refetchUsers(queryData);
       }
     },
-    [fetchUsers, teamId, setSearchString]
+    [refetchUsers, teamId, setSearchString]
   );
 
   const onActionSelection = (action: string, user: IUser): void => {
@@ -424,14 +433,16 @@ const MembersPage = ({
           </Link>
         )}
       </p>
-      {Object.keys(usersError).length > 0 ? (
+      {loadingUsersError ||
+      loadingTeamsError ||
+      (!currentTeam && !isLoadingTeams && !isLoadingUsers) ? (
         <TableDataError />
       ) : (
         <TableContainer
           resultsTitle={"members"}
           columns={tableHeaders}
-          data={users}
-          isLoading={loadingTableData}
+          data={members}
+          isLoading={isLoadingUsers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           onActionButtonClick={toggleAddUserModal}
@@ -446,9 +457,9 @@ const MembersPage = ({
           searchable={memberIds.length > 0 || searchString !== ""}
         />
       )}
-      {showAddMemberModal ? (
+      {showAddMemberModal && currentTeam ? (
         <AddMemberModal
-          team={team}
+          team={currentTeam}
           disabledMembers={memberIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddMemberSubmit}
@@ -457,7 +468,7 @@ const MembersPage = ({
       ) : null}
       {showEditUserModal ? (
         <EditUserModal
-          serverErrors={editUserErrors}
+          editUserErrors={editUserErrors}
           onCancel={toggleEditMemberModal}
           onSubmit={onEditMemberSubmit}
           defaultName={userEditing?.name}
@@ -465,36 +476,36 @@ const MembersPage = ({
           defaultGlobalRole={userEditing?.global_role}
           defaultTeamRole={userEditing?.role}
           defaultTeams={userEditing?.teams}
-          availableTeams={teams}
-          isPremiumTier={isPremiumTier}
+          availableTeams={teams || []}
+          isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          currentTeam={team}
+          currentTeam={currentTeam}
         />
       ) : null}
       {showCreateUserModal ? (
         <CreateUserModal
-          serverErrors={createUserErrors}
+          createUserErrors={createUserErrors}
           onCancel={toggleCreateMemberModal}
           onSubmit={onCreateMemberSubmit}
           defaultGlobalRole={userEditing?.global_role}
           defaultTeamRole={userEditing?.role}
           defaultTeams={userEditing?.teams}
           availableTeams={teams}
-          isPremiumTier={isPremiumTier}
+          isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}
           canUseSso={canUseSso}
-          currentTeam={team}
+          currentTeam={currentTeam}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           isFormSubmitting={isFormSubmitting}
         />
       ) : null}
-      {showRemoveMemberModal ? (
+      {showRemoveMemberModal && currentTeam ? (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
-          teamName={team.name}
+          teamName={currentTeam.name}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />

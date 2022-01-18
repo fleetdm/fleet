@@ -1,0 +1,243 @@
+name: Test Orbit & Preview
+
+on:
+  workflow_dispatch: # Manual
+  schedule:
+  - cron: '0 2 * * *' # Nightly 2AM UTC
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    outputs:
+      subdomain: ${{ steps.gen.outputs.subdomain }}
+      address: ${{ steps.gen.outputs.address }}
+    steps:
+    - id: gen
+      run: |
+        UUID=$(uuidgen)
+        echo "::set-output name=subdomain::fleet-test-$UUID"
+        echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+  
+  run-server:
+    runs-on: ubuntu-latest
+    needs: gen
+    steps:
+    - name: Start tunnel
+      env: 
+        CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+      run: |
+        # Install cloudflared
+        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+        # Add secret
+        echo "$CERT_PEM" | base64 -d > cert.pem
+        # Start tunnel
+        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
+        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
+          echo "Awaiting tunnel ready..."
+          sleep 5
+        done
+
+    # Download fleet and fleetctl binaries from last successful build on main
+    - name: Download binaries
+      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      with:
+        workflow: build-binaries.yaml
+        branch: main
+        name: build
+        path: build
+        check_artifacts: true
+
+    - name: Run Fleet server
+      timeout-minutes: 15
+      env:
+        # Use instance identifier to allow for duplicate UUIDs
+        FLEET_OSQUERY_HOST_IDENTIFIER: instance
+      run: |
+        chmod +x ./build/fleetctl
+        ./build/fleetctl preview --no-hosts
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        ./build/fleetctl get enroll-secret
+        docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
+        # Wait for all of the hosts to be enrolled
+        EXPECTED=12
+        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+          echo -n "Waiting for hosts to enroll: "
+          cat hostcount | xargs echo -n
+          echo " / $EXPECTED"
+          sleep 10
+        done
+        ./build/fleetctl get hosts
+        echo "Success! $EXPECTED hosts enrolled."
+
+    - name: Cleanup tunnel
+      if: always()
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
+
+  login:
+   runs-on: ubuntu-latest
+   needs: gen
+   outputs:
+     token: ${{ steps.login.outputs.token }}
+   steps:
+    # Download fleet and fleetctl binaries from last successful build on main
+    - name: Download binaries
+      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      with:
+        workflow: build-binaries.yaml
+        branch: main
+        name: build
+        path: build
+        check_artifacts: true
+    
+    # Login only here and share the token because otherwise we could hit rate limits.
+    - id: login
+      name: Attempt login
+      timeout-minutes: 5
+      run: |
+        chmod +x ./build/fleetctl
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        until ./build/fleetctl login --email admin@example.com --password admin123#
+        do
+          echo "Retrying in 5s..."
+          sleep 5
+        done
+        TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
+        echo "::set-output name=token::$TOKEN"
+      
+  orbit-macos:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
+    runs-on: macos-latest
+    needs: [gen, login]
+    steps:
+    - name: Install dependencies
+      run: |
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
+    - name: Install Orbit
+      run: |
+        sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        echo "Hostname: $(hostname -s)"
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        sudo installer -pkg fleet-osquery.pkg -target /
+        until fleetctl get hosts | grep -iF $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sleep 1
+        done
+
+  orbit-ubuntu:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
+    runs-on: ubuntu-latest
+    needs: [gen, login]
+    steps:
+    - name: Install dependencies
+      run: |
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
+    - name: Download binaries
+      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      with:
+        workflow: build-binaries.yaml
+        branch: main
+        name: build
+        path: build
+        check_artifacts: true
+
+    - name: Install Orbit
+      run: |
+        sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
+        chmod +x ./build/fleetctl
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        echo "Hostname: $(hostname -s)"
+        ./build/fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        sudo dpkg -i fleet-osquery*
+        until fleetctl get hosts | grep -iF $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sudo systemctl status orbit.service || true
+          sleep 1
+        done
+
+  orbit-windows-build:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
+    runs-on: ubuntu-latest
+    needs: [gen, login]
+    steps:
+    - name: Install dependencies
+      run: |
+        docker pull fleetdm/wix:latest &
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
+
+    - name: Build Orbit
+      run: |
+        SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
+        echo $SECRET_JSON
+        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
+        echo "Secret: $SECRET"
+        echo "Hostname: $(hostname -s)"
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+
+    - name: Upload MSI
+      uses: actions/upload-artifact@v2
+      with:
+        name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+        path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+
+    - name: Debug on failure
+      if: failure()
+      uses: mxschmitt/action-tmate@v3
+
+  orbit-windows:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        orbit-channel: [ 'stable', 'edge' ]
+        osqueryd-channel: ['stable', 'edge' ]
+    needs: [gen, login, orbit-windows-build]
+    runs-on: windows-latest
+    steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm install -g fleetctl
+        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+
+    - name: Download MSI
+      id: download
+      uses: actions/download-artifact@v2
+      with:
+        name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
+    
+
+    - name: Install Orbit
+      run: |
+        msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi /quiet /passive /lv log.txt
+        sleep 30
+
+    # We can't very accurately check the install on these Windows hosts since the hostnames tend to
+    # overlap and we can't control the hostnames. Instead we just return and have the run-server job
+    # wait until the expected number of hosts enroll.

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"html/template"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -105,8 +106,9 @@ type getUserRequest struct {
 }
 
 type getUserResponse struct {
-	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
+	User           *fleet.User          `json:"user,omitempty"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	Err            error                `json:"error,omitempty"`
 }
 
 func (r getUserResponse) error() error { return r.Err }
@@ -117,7 +119,15 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	if err != nil {
 		return getUserResponse{Err: err}, nil
 	}
-	return getUserResponse{User: user}, nil
+	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+	if err != nil {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			availableTeams = []*fleet.TeamSummary{}
+		} else {
+			return getUserResponse{Err: err}, nil
+		}
+	}
+	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
 }
 
 func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {

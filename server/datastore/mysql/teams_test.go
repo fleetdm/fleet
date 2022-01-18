@@ -24,6 +24,7 @@ func TestTeams(t *testing.T) {
 		{"GetSetDelete", testTeamsGetSetDelete},
 		{"Users", testTeamsUsers},
 		{"List", testTeamsList},
+		{"Summary", testTeamsSummary},
 		{"Search", testTeamsSearch},
 		{"EnrollSecrets", testTeamsEnrollSecrets},
 		{"TeamAgentOptions", testTeamsAgentOptions},
@@ -180,6 +181,20 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "team2", teams[1].Name)
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
+}
+
+func testTeamsSummary(t *testing.T, ds *Datastore) {
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "ts1"})
+	require.NoError(t, err)
+	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: "ts2"})
+	require.NoError(t, err)
+
+	teams, err := ds.TeamsSummary(context.Background())
+	require.NoError(t, err)
+	sort.Slice(teams, func(i, j int) bool { return teams[i].Name < teams[j].Name })
+
+	assert.Equal(t, "ts1", teams[0].Name)
+	assert.Equal(t, "ts2", teams[1].Name)
 }
 
 func testTeamsSearch(t *testing.T, ds *Datastore) {

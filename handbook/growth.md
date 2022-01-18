@@ -1,10 +1,5 @@
 # Growth
 
-## Promoting blog posts on social media
-
-Once a blog post has been written, approved, and published, please ensure that it has been promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
-
-
 ## Fleet website
 
 ### How to export images
@@ -51,8 +46,8 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 ## Voice and grammar guidelines
 
 ### How to write headings & subheadings
-Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
-In sentence case, we write titles as if they were sentences. For example:
+Fleet uses **sentence case** capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
+In **sentence case**, we write titles as if they were sentences. For example:
 > **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS
 
 As we are using sentence case, only the first word of a heading and subheading is capitalized. However, if a word in the sentence would normally be capitalized (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) these words should also be capitalized in the heading.

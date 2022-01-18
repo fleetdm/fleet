@@ -19,6 +19,9 @@ interface IInfoCardProps {
         onClick?: () => void;
       };
   total_host_count?: string;
+  isLoadingSoftware?: boolean;
+  isLoadingActivityFeed?: boolean;
+  showTitle?: boolean;
 }
 
 const baseClass = "homepage-info-card";
@@ -28,6 +31,9 @@ const InfoCard = ({
   children,
   action,
   total_host_count,
+  isLoadingSoftware,
+  isLoadingActivityFeed,
+  showTitle,
 }: IInfoCardProps) => {
   const renderAction = () => {
     if (action) {
@@ -57,15 +63,18 @@ const InfoCard = ({
     return null;
   };
 
+  const ok = false;
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section-title-cta`}>
-        <div className={`${baseClass}__section-title`}>
-          <h2>{title}</h2>
-          {total_host_count && <span>{total_host_count}</span>}
+      {showTitle && (
+        <div className={`${baseClass}__section-title-cta`}>
+          <div className={`${baseClass}__section-title`}>
+            <h2>{title}</h2>
+            {total_host_count && <span>{total_host_count}</span>}
+          </div>
+          {renderAction()}
         </div>
-        {renderAction()}
-      </div>
+      )}
       {children}
     </div>
   );

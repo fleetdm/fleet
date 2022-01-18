@@ -160,9 +160,11 @@ describe(
       // On the Profile page, they should…
       // See Admin in Role section, and no Team section
       cy.visit("/profile");
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.findByText(/teams/i).should("not.exist");
-      cy.findByText("Role").next().contains(/admin/i);
+
+      cy.getAttached(".user-settings__additional").within(() => {
+        cy.findByText(/teams/i).should("not.exist");
+        cy.findByText("Role").next().contains(/admin/i);
+      });
     });
   }
 );
