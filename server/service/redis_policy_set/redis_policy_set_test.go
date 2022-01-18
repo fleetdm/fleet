@@ -14,24 +14,24 @@ import (
 )
 
 func TestRedisFailingPolicySet(t *testing.T) {
-	for _, f := range []func(*testing.T, fleet.FailingPolicySet, fleet.RedisPool){
+	for _, f := range []func(*testing.T, fleet.FailingPolicySet){
 		policytest.RunFailingBasic,
 		policytest.RunFailing1000hosts,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
 				store := setupRedis(t, false, false)
-				f(t, store, store.pool)
+				f(t, store)
 			})
 
 			t.Run("cluster", func(t *testing.T) {
 				store := setupRedis(t, true, true)
-				f(t, store, store.pool)
+				f(t, store)
 			})
 
 			t.Run("cluster-no-redir", func(t *testing.T) {
 				store := setupRedis(t, true, false)
-				f(t, store, store.pool)
+				f(t, store)
 			})
 		})
 	}
