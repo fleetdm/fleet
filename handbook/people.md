@@ -51,9 +51,22 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 ## Slack
 
-* At Fleet, we prefer using threads in Slack, to limit noise for other people following the channel.
-* We reduce notification overload and ensure everyone knows when they can get in touch with others by configuring our working hours in Slack.
-* We have specific channels for specific topics, but also have team/group channels, starting with the *g* prefix.
-* Other prefixes in use include: *oooh-*, used to discuss shiny things, *help-*, for help on specific topics, and *at* or *fleet-at* for customer channels.
+## Slack
+
+At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
+
+We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
+
+We configure our working hours in Slack to ensure everyone knows when they can get in touch with others.
+
+### Slack Channels
+
+We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
+
+We use these prefixes to organize the Fleet Slack:
+ * ***g-***: for team/group channels. *(Note: "g-" is short for "grupo")*
+ * ***oooh-***: used to discuss and share interesting information about a topic.
+ * ***help-***: for asking for help on specific topics.
+ * ***at*** or ***fleet-at***: for customer channels.
 
 <meta name="maintainedBy" value="eashaw">
