@@ -97,25 +97,20 @@ func NewService(
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (s *Service) updateJitterSeedRand() error {
+func (s *Service) updateJitterSeedRand() {
 	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
 	if err != nil {
-		return err
+		panic(err)
 	}
 	n := nBig.Int64()
 	atomic.StoreInt64(&s.jitterSeed, n)
-	return nil
 }
 
 func (s *Service) updateJitterSeed(ctx context.Context) {
 	for {
 		select {
 		case <-time.Tick(1 * time.Hour):
-			err := s.updateJitterSeedRand()
-			if err != nil {
-				level.Info(s.logger).Log("jitter-seed-err", err)
-				continue
-			}
+			s.updateJitterSeedRand()
 		case <-ctx.Done():
 			return
 		}
