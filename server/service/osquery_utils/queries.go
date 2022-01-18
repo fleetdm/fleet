@@ -371,7 +371,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 
 var softwareMacOS = DetailQuery{
 	Query: `
-WITH cached_users AS MATERIALIZED (SELECT * FROM users)
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   bundle_short_version AS version,
@@ -434,7 +434,7 @@ FROM homebrew_packages;
 
 var softwareLinux = DetailQuery{
 	Query: `
-WITH cached_users AS MATERIALIZED (SELECT * FROM users)
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   version AS version,
@@ -497,7 +497,7 @@ FROM python_packages;
 
 var softwareWindows = DetailQuery{
 	Query: `
-WITH cached_users AS MATERIALIZED (SELECT * FROM users)
+WITH cached_users AS (SELECT * FROM users)
 SELECT
   name AS name,
   version AS version,
