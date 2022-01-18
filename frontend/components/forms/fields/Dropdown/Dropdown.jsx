@@ -61,17 +61,21 @@ class Dropdown extends Component {
     const { multi, onChange, clearable, name, parseTarget } = this.props;
 
     if (parseTarget) {
-      // New pattern returns both name and value
+      // Returns both name and value
       return onChange({ value: selected.value, name });
     }
 
     if (clearable && selected === null) {
       onChange(null);
-    } else if (multi) {
-      onChange(selected.map((obj) => obj.value).join(","));
-    } else {
-      onChange(selected.value);
+      return;
     }
+
+    if (multi) {
+      onChange(selected.map((obj) => obj.value).join(","));
+      return;
+    }
+
+    onChange(selected.value);
   };
 
   renderLabel = () => {

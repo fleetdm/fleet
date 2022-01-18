@@ -62,7 +62,7 @@ class InputField extends Component {
     const { onChange, parseTarget } = this.props;
 
     if (parseTarget) {
-      // New pattern returns both name and value
+      // Returns both name and value
       return onChange({ value, name });
     }
 
