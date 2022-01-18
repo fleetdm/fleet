@@ -49,6 +49,10 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 * It's okay to spend the first minute or two of a meeting to be present and make small talk, if you want.  Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Why not use this time together during the first minute to say "hi".  Then you can jump right in to the topics being discussed?
 * Turning on your camera allows for more complete and intuitive verbal and non-verbal communication.  When joining meetings with new participants who you might not be familiar with yet, feel free to leave your camera on or to turn it off.  When you lead or cohost a meeting, turn your camera on.
 
+## Slack
 
+* At Fleet, we prefer using threads in Slack, to limit noise for other people following the channel.
+* We reduce notification overload and ensure everyone knows when they can get in touch with others by configuring our working hours in Slack.
+* We have specific channels for specific topics, but also have team/group channels, starting with the *g* prefix.
 
 <meta name="maintainedBy" value="eashaw">
