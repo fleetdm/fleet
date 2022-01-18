@@ -30,7 +30,9 @@ const NoHosts = ({
           </p>
         </div>
       );
-    } else if (canEnrollHosts) {
+    }
+
+    if (canEnrollHosts) {
       return (
         <div>
           <h2>Add your devices to Fleet</h2>
@@ -47,6 +49,7 @@ const NoHosts = ({
         </div>
       );
     }
+
     return (
       <div>
         <h2>Devices will show up here once they’re added to Fleet.</h2>
