@@ -537,6 +537,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	newP, err := s.ds.Pack(context.Background(), p.ID)
 	require.NoError(t, err)
 	require.Empty(t, newP.Hosts)
+	require.NoError(t, s.ds.DeletePack(context.Background(), newP.Name))
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
