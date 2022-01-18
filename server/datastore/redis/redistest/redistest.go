@@ -35,7 +35,7 @@ func NopRedis() fleet.RedisPool {
 	return nopRedis{}
 }
 
-func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool {
+func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readReplica bool) fleet.RedisPool {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")
 	}
@@ -73,13 +73,26 @@ func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		tb.Log(">>>>>> flushing redis DB")
-		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
-			_, err := conn.Do("FLUSHDB")
-			return err
-		})
-		require.NoError(tb, err)
-		tb.Log(">>>>>> flushing redis DB DONE")
+		if cleanupKeyPrefix != "" {
+			keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
+			require.NoError(tb, err)
+			for _, k := range keys {
+				func() {
+					conn := pool.Get()
+					defer conn.Close()
+					if _, err := conn.Do("DEL", k); err != nil {
+						require.NoError(tb, err)
+					}
+				}()
+			}
+		} else {
+			err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
+				_, err := conn.Do("FLUSHDB")
+				return err
+			})
+			require.NoError(tb, err)
+			panic(">>>>> did flush redis db")
+		}
 		pool.Close()
 	})
 

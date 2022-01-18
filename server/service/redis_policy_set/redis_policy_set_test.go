@@ -38,8 +38,7 @@ func TestRedisFailingPolicySet(t *testing.T) {
 }
 
 func setupRedis(t testing.TB, cluster, redir bool) *redisFailingPolicySet {
-	t.Log(">>>>> setupRedis, key prefix:", t.Name())
-	pool := redistest.SetupRedis(t, cluster, redir, true)
+	pool := redistest.SetupRedis(t, t.Name(), cluster, redir, true)
 	return NewFailingTest(t, pool)
 }
 

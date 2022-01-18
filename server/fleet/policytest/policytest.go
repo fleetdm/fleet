@@ -11,6 +11,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func countSetMembers(t *testing.T, pool fleet.RedisPool, key string) int {
+	if pool != nil {
+		conn := pool.Get()
+		defer conn.Close()
+
+		count, err := redis.Int(conn.Do("SCARD", key))
+		require.NoError(t, err)
+		return count
+	}
+	return -1
+}
+
 func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet, pool fleet.RedisPool) {
 	// note: pool will be nil for in-memory tests
 
@@ -21,21 +33,21 @@ func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet, pool fleet.Redi
 			Hostname: fmt.Sprintf("test.hostname.%d", i+1),
 		}
 	}
+
 	policyID1k := uint(9999)
-	for _, h := range hosts {
+	key := t.Name() + ":policies:failing:" + strconv.Itoa(int(policyID1k))
+
+	for i, h := range hosts {
 		err := r.AddHost(policyID1k, h)
 		require.NoError(t, err)
+		if pool != nil && i%100 == 0 {
+			require.Equal(t, i+1, countSetMembers(t, pool, key))
+		}
 	}
 	require.Len(t, hosts, 1000)
 
 	if pool != nil {
-		key := t.Name() + ":policies:failing:" + strconv.Itoa(int(policyID1k))
-		conn := pool.Get()
-		defer conn.Close()
-		count, err := redis.Int(conn.Do("SCARD", key))
-		t.Log(">>>> redis key ", key)
-		require.NoError(t, err)
-		require.Equal(t, count, len(hosts)+1)
+		require.Equal(t, len(hosts), countSetMembers(t, pool, key))
 	}
 
 	fetchedHosts, err := r.ListHosts(policyID1k)
