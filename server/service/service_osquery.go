@@ -446,13 +446,25 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	var jitter time.Duration
-	if svc.config.Osquery.MaxJitterPercent > 0 {
-		maxJitter := int64(svc.config.Osquery.MaxJitterPercent) * int64(interval) / 100.0
-		jitter = time.Duration((int64(hostID) + svc.getJitterSeed()) % maxJitter)
-	}
+	jitter := jitterForHost(
+		svc.config.Osquery.MaxJitterPercent,
+		svc.getJitterSeed(),
+		interval,
+		hostID,
+	)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
+}
+
+func jitterForHost(maxJitterPercent int, jitterSeed int64, interval time.Duration, hostID uint) time.Duration {
+	var jitter time.Duration
+	if maxJitterPercent > 0 {
+		maxJitter := int64(maxJitterPercent) * int64(interval) / 100.0
+		// Spread the hosts in buckets of minutes.
+		jitterMinutes := (int64(hostID) + jitterSeed) % int64(time.Duration(maxJitter).Minutes())
+		jitter = time.Duration(jitterMinutes) * time.Minute
+	}
+	return jitter
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
