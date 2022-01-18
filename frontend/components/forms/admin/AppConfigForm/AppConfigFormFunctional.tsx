@@ -7,9 +7,10 @@ import yaml from "js-yaml";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
-import { IConfigNested, IConfigFormData } from "interfaces/config";
+import { IConfigNested } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
+import FleetAce from "components/FleetAce";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -195,6 +196,11 @@ const AppConfigFormFunctional = ({
   const handleInputChange = ({ name, value }: IFormField) => {
     console.log("name and value", name, value);
     setFormData({ ...formData, [name]: value });
+  };
+
+  const handleAceInputChange = (cool: any) => {
+    console.log("cool", cool);
+    setFormData({ ...formData, agent_options: cool.value });
   };
 
   const validateForm = () => {
@@ -761,15 +767,24 @@ const AppConfigFormFunctional = ({
           <p className={`${baseClass}__component-label`}>
             <b>YAML</b>
           </p>
-          {/* <GlobalAgentOptions /> */}
+          {/* <GlobalAgentOptions fields={agentOptions} /> */}
           <YamlAce
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            onChange={handleInputChange}
+            onChange={handleAceInputChange}
             name="agentOptions" // TODO
             value={agentOptions} // TODO
             target
             onBlur={validateForm}
             error={formErrors.agent_options}
+          />
+          <FleetAce
+            error={formErrors.agent_options}
+            onChange={handleAceInputChange}
+            name="agentOptions" // TODO
+            value={agentOptions} // TODO
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            // target
+            // onBlur={validateForm}
           />
           {/* this might be tricky */}
         </div>

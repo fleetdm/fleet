@@ -12,7 +12,7 @@ import "./mode";
 import "./theme";
 
 export interface IFleetAceProps {
-  error?: string;
+  error?: string | null; // added null 1/18
   fontSize?: number;
   label?: string;
   name?: string;

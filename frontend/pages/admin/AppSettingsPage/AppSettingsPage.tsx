@@ -41,34 +41,9 @@ const AppSettingsPage = (): JSX.Element => {
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
+  console.log("appConfig", appConfig);
   const onFormSubmit = useCallback(
     (formData: IConfigNested) => {
-      // console.log(
-      //   "AppSettingsPage formData.server_settings",
-      //   formData.server_settings
-      // );
-      // console.log(
-      //   "AppSettingsPage appConfig.server_settings",
-      //   appConfig.server_settings
-      // );
-
-      // console.log(
-      //   "AppSettingsPage formData.smtp_settings",
-      //   formData.smtp_settings
-      // );
-      // console.log(
-      //   "AppSettingsPage appConfig.smtp_settings",
-      //   appConfig.smtp_settings
-      // );
-      // console.log(
-      //   "AppSettingsPage formData.webhook_settings",
-      //   formData.webhook_settings
-      // );
-      // console.log(
-      //   "AppSettingsPage appConfig.webhook_settings",
-      //   appConfig.webhook_settings
-      // );
-
       const diff = deepDifference(formData, appConfig);
 
       console.log("diff", diff);
