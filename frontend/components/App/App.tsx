@@ -8,13 +8,14 @@ import { authToken } from "utilities/local"; // @ts-ignore
 import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
 import { fetchCurrentUser } from "redux/nodes/auth/actions"; // @ts-ignore
 import { getConfig, getEnrollSecret } from "redux/nodes/app/actions";
-import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
+import { IEnrollSecret } from "interfaces/enroll_secret";
+import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import { AppContext } from "context/app";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
 import Spinner from "components/Spinner";
 
@@ -31,14 +32,19 @@ interface ISecretResponse {
 interface IRootState {
   auth: {
     user: IUser;
+    available_teams: ITeamSummary[];
   };
 }
 
 const App = ({ children }: IAppProps): JSX.Element => {
   const dispatch = useDispatch();
   const user = useSelector((state: IRootState) => state.auth.user);
+  const availableTeams = useSelector(
+    (state: IRootState) => state.auth.available_teams
+  );
   const queryClient = new QueryClient();
   const {
+    setAvailableTeams,
     setCurrentUser,
     setConfig,
     setEnrollSecret,
@@ -59,6 +65,7 @@ const App = ({ children }: IAppProps): JSX.Element => {
     if (user) {
       setIsLoading(true);
       setCurrentUser(user);
+      setAvailableTeams(availableTeams);
       dispatch(getConfig())
         .then((config: IConfig) => {
           setConfig(config);
