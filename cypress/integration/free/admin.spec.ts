@@ -7,7 +7,7 @@ describe(
     before(() => {
       Cypress.session.clearAllSavedSessions();
       cy.setup();
-      cy.login();
+      cy.loginWithCySession();
       cy.setupSMTP();
       cy.seedFree();
       cy.seedQueries();
@@ -22,7 +22,7 @@ describe(
 
     describe("Mange hosts tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/hosts/manage");
       });
       
@@ -66,7 +66,7 @@ describe(
 
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/hosts/1");
       });
       
@@ -92,7 +92,7 @@ describe(
 
     describe("Queries tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/queries/manage");
       });
 
@@ -138,7 +138,7 @@ describe(
 
     describe("Policies tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/policies/manage");
       });
 
@@ -184,7 +184,7 @@ describe(
     
     describe("Settings tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/settings/users");
       });
 
@@ -215,7 +215,7 @@ describe(
 
     describe("Profile tests", () => {
       beforeEach(() => {
-        cy.login("anna@organization.com", "user123#");  
+        cy.loginWithCySession("anna@organization.com", "user123#");  
         cy.visit("/profile");
       });
 

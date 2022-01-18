@@ -14,6 +14,12 @@ declare namespace Cypress {
     login(email?: string, password?: string): Chainable<Element>;
 
     /**
+     * Custom command to login the user programmatically using the fleet API
+     * but with a Cypress session wrapper.
+     */
+    loginWithCySession(email?: string, password?: string): Chainable<Element>;
+
+    /**
      * Custom command to log out the current user.
      */
     logout(): Chainable<Element>;
