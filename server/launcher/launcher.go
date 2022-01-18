@@ -156,7 +156,7 @@ func (svc *launcherWrapper) authenticateHost(ctx context.Context, nodeKey string
 		return ctx, false, err
 	}
 
-	ctx = host.NewContext(ctx, *node)
+	ctx = host.NewContext(ctx, node)
 	return ctx, false, nil
 }
 

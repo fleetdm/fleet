@@ -196,8 +196,8 @@ func TestAuthenticatedHost(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.AuthenticateHostFunc = func(ctx context.Context, secret string) (*fleet.Host, error) {
-		switch secret {
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		switch nodeKey {
 		case goodNodeKey:
 			return &expectedHost, nil
 		default:
@@ -212,7 +212,7 @@ func TestAuthenticatedHost(t *testing.T) {
 		func(ctx context.Context, request interface{}) (interface{}, error) {
 			host, ok := hostctx.FromContext(ctx)
 			assert.True(t, ok)
-			assert.Equal(t, expectedHost, host)
+			assert.Equal(t, &expectedHost, host)
 			return nil, nil
 		},
 	)
