@@ -993,7 +993,7 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 
 	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type=? AND target_id in (?)`, fleet.TargetHost, ids)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete host_emails query")
+		return ctxerr.Wrapf(ctx, err, "building delete pack_targets query")
 	}
 
 	_, err = d.writer.ExecContext(ctx, query, args...)
