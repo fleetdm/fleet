@@ -186,4 +186,4 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 ## Can orbit run alongside osquery?
 
-The Osquery instance that orbit runs uses its own database directory that is stored within the orbit directory. So orbit can run alongside plain osquery.
+Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
