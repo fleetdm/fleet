@@ -363,6 +363,14 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 		}
 	}
 
+	// NOTE: the insert/delete of label membership that follows must be kept in
+	// sync with the async implementations in
+	// AsyncBatch{Insert,Delete}LabelMembership, and the update of the
+	// label_updated_at timestamp in sync with the
+	// AsyncBatchUpdateLabelTimestamp method (that is, their processing must be
+	// semantically equivalent, even though here it processes a single host and
+	// in async mode it processes a batch of hosts).
+
 	err := d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Complete inserts if necessary
 		if len(vals) > 0 {
@@ -755,7 +763,7 @@ func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [
 	})
 }
 
-// AsyncBatchUpdateLabelTimestamp updates the  table the hosts' label_updated_at timestamp
+// AsyncBatchUpdateLabelTimestamp updates the hosts' label_updated_at timestamp
 // for the batch of host ids provided.
 func (d *Datastore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
 	// NOTE: this is tested via the server/service/async package tests.
