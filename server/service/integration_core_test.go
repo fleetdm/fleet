@@ -2031,3 +2031,56 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
+
+func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
+	t := s.T()
+
+	// list teams, none
+	var listResp listTeamsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
+	assert.Len(t, listResp.Teams, 0)
+
+	// create team
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/v1/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// modify team
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team
+	var delResp deleteTeamResponse
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
+
+	// apply team specs - does succeed unlike others, no license required for this one
+	var specResp applyTeamSpecsResponse
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	s.DoJSON("POST", "/api/v1/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+	// modify team agent options
+	s.DoJSON("POST", "/api/v1/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// list team users
+	var usersResp listUsersResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
+	assert.Len(t, usersResp.Users, 0)
+
+	// add team users
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// delete team users
+	s.DoJSON("DELETE", "/api/v1/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	assert.Nil(t, tmResp.Team)
+
+	// get team enroll secrets
+	var secResp teamEnrollSecretsResponse
+	s.DoJSON("GET", "/api/v1/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+
+	// modify team enroll secrets
+	s.DoJSON("PATCH", "/api/v1/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
+	assert.Len(t, secResp.Secrets, 0)
+}
