@@ -10,7 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+// ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
+func (d *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 	query := `
 		SELECT
 			sq.id,
@@ -27,11 +28,11 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 			sq.denylist,
 			q.query,
 			q.id AS query_id,
-			JSON_EXTRACT(json_value, "$.user_time_p50") as user_time_p50,
-			JSON_EXTRACT(json_value, "$.user_time_p95") as user_time_p95,
-			JSON_EXTRACT(json_value, "$.system_time_p50") as system_time_p50,
-			JSON_EXTRACT(json_value, "$.system_time_p95") as system_time_p95,
-			JSON_EXTRACT(json_value, "$.total_executions") as total_executions
+			JSON_EXTRACT(ag.json_value, "$.user_time_p50") as user_time_p50,
+			JSON_EXTRACT(ag.json_value, "$.user_time_p95") as user_time_p95,
+			JSON_EXTRACT(ag.json_value, "$.system_time_p50") as system_time_p50,
+			JSON_EXTRACT(ag.json_value, "$.system_time_p95") as system_time_p95,
+			JSON_EXTRACT(ag.json_value, "$.total_executions") as total_executions
 		FROM scheduled_queries sq
 		JOIN queries q ON (sq.query_name = q.name)
 		LEFT JOIN aggregated_stats ag ON (ag.id=sq.id AND ag.type="scheduled_query")
@@ -40,6 +41,36 @@ func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint, opt
 	query = appendListOptionsToSQL(query, opts)
 	results := []*fleet.ScheduledQuery{}
 
+	if err := sqlx.SelectContext(ctx, d.reader, &results, query, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
+	}
+
+	return results, nil
+}
+
+// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
+func (d *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+	query := `
+		SELECT
+			sq.id,
+			sq.pack_id,
+			sq.name,
+			sq.query_name,
+			sq.description,
+			sq.interval,
+			sq.snapshot,
+			sq.removed,
+			sq.platform,
+			sq.version,
+			sq.shard,
+			sq.denylist,
+			q.query,
+			q.id AS query_id
+		FROM scheduled_queries sq
+		JOIN queries q ON (sq.query_name = q.name)
+		WHERE sq.pack_id = ?
+	`
+	results := []*fleet.ScheduledQuery{}
 	if err := sqlx.SelectContext(ctx, d.reader, &results, query, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
 	}

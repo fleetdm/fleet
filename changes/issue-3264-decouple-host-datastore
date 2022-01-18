@@ -1,0 +1,2 @@
+* Refactorization of datastore APIs for osquery hosts.
+* Cache results of `ListPacksForHost` and `ListScheduledQueriesInPack` in memory for 1 minute.

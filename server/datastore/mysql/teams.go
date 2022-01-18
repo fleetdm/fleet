@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -272,4 +273,14 @@ func amountTeamsDB(db sqlx.Queryer) (int, error) {
 		return 0, err
 	}
 	return amount, nil
+}
+
+// TeamAgentOptions loads the agents options of a team.
+func (d *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
+	sql := `SELECT agent_options FROM teams WHERE id = ?`
+	var agentOptions *json.RawMessage
+	if err := sqlx.GetContext(ctx, d.reader, &agentOptions, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team")
+	}
+	return agentOptions, nil
 }

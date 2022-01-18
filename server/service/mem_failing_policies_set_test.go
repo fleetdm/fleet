@@ -8,5 +8,7 @@ import (
 
 func TestMemFailingPolicySet(t *testing.T) {
 	m := NewMemFailingPolicySet()
-	policytest.RunFailingPolicySetTests(t, m)
+	policytest.RunFailing1000hosts(t, m)
+	m = NewMemFailingPolicySet()
+	policytest.RunFailingBasic(t, m)
 }

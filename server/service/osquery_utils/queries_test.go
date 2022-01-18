@@ -3,11 +3,13 @@ package osquery_utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,11 +98,22 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
-	host := fleet.Host{}
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
 
-	ingest := GetDetailQueries(nil)["scheduled_query_stats"].IngestFunc
+	var gotPackStats []fleet.PackStats
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+		if hostID != host.ID {
+			return errors.New("not found")
+		}
+		gotPackStats = stats
+		return nil
+	}
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	ingest := GetDetailQueries(nil)["scheduled_query_stats"].DirectIngestFunc
+
+	ctx := context.Background()
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -181,13 +194,13 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
-	assert.Len(t, host.PackStats, 2)
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, rows, false))
+	assert.Len(t, gotPackStats, 2)
+	sort.Slice(gotPackStats, func(i, j int) bool {
+		return gotPackStats[i].PackName < gotPackStats[j].PackName
 	})
-	assert.Equal(t, host.PackStats[0].PackName, "pack-2")
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats,
+	assert.Equal(t, gotPackStats[0].PackName, "pack-2")
+	assert.ElementsMatch(t, gotPackStats[0].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "time",
@@ -204,8 +217,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 			},
 		},
 	)
-	assert.Equal(t, host.PackStats[1].PackName, "test")
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats,
+	assert.Equal(t, gotPackStats[1].PackName, "test")
+	assert.ElementsMatch(t, gotPackStats[1].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "osquery info",
@@ -262,8 +275,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
-	assert.Len(t, host.PackStats, 0)
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
+	assert.Len(t, gotPackStats, 0)
 }
 
 func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []string) {

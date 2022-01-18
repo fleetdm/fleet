@@ -1,0 +1,1 @@
+* Refactor async host processing (`--enable_async_host_processing`) to avoid relying on slow redis SCAN keys.

@@ -51,7 +51,7 @@ func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts
 		return nil, err
 	}
 
-	return svc.ds.ListScheduledQueriesInPack(ctx, id, opts)
+	return svc.ds.ListScheduledQueriesInPackWithStats(ctx, id, opts)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,11 +115,10 @@ func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.Sch
 			return nil, ctxerr.Wrap(ctx, err, "lookup name for query")
 		}
 
-		packQueries, err := svc.ds.ListScheduledQueriesInPack(ctx, sq.PackID, fleet.ListOptions{})
+		packQueries, err := svc.ds.ListScheduledQueriesInPackWithStats(ctx, sq.PackID, fleet.ListOptions{})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "find existing scheduled queries")
 		}
-		_ = packQueries
 
 		sq.Name = findNextNameForQuery(query.Name, packQueries)
 		sq.QueryName = query.Name
