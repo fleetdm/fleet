@@ -574,7 +574,6 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
-            onFocus={validateForm}
             name="enableSMTP"
             value={enableSMTP}
             parseTarget
