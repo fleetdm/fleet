@@ -288,6 +288,10 @@ type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[s
 
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
+type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
+
+type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
+
 type MigrateTablesFunc func(ctx context.Context) error
 
 type MigrateDataFunc func(ctx context.Context) error
@@ -770,6 +774,12 @@ type DataStore struct {
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
+
+	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
+	AsyncBatchInsertPolicyMembershipFuncInvoked bool
+
+	AsyncBatchUpdatePolicyTimestampFunc        AsyncBatchUpdatePolicyTimestampFunc
+	AsyncBatchUpdatePolicyTimestampFuncInvoked bool
 
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
@@ -1562,6 +1572,16 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	s.ApplyPolicySpecsFuncInvoked = true
 	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
+}
+
+func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
+	s.AsyncBatchInsertPolicyMembershipFuncInvoked = true
+	return s.AsyncBatchInsertPolicyMembershipFunc(ctx, batch)
+}
+
+func (s *DataStore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	s.AsyncBatchUpdatePolicyTimestampFuncInvoked = true
+	return s.AsyncBatchUpdatePolicyTimestampFunc(ctx, ids, ts)
 }
 
 func (s *DataStore) MigrateTables(ctx context.Context) error {

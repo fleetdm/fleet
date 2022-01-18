@@ -231,3 +231,9 @@ type PolicySetHost struct {
 	// Hostname is the host's name.
 	Hostname string
 }
+
+type PolicyMembershipResult struct {
+	HostID   uint
+	PolicyID uint
+	Passes   *bool
+}

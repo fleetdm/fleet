@@ -468,7 +468,8 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 }
 
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, nil
 	}
 	policyQueries, err := svc.ds.PolicyQueriesForHost(ctx, host)
@@ -740,14 +741,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		if ac.ServerSettings.DeferredSaveHost {
-			if err := svc.ds.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), true); err != nil {
-				logging.WithErr(ctx, err)
-			}
-		} else {
-			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now()); err != nil {
-				logging.WithErr(ctx, err)
-			}
+		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -765,10 +760,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
+		// NOTE(mna): currently, failing policies webhook wouldn't see the new
+		// flipped policies on the next run if async processing is enabled and the
+		// collection has not been done yet (not persisted in mysql). Should
+		// FlippingPoliciesForHost take pending redis data into consideration, or
+		// maybe we should impose restrictions between async collection interval
+		// and policy update interval?
 
-		host.PolicyUpdatedAt = svc.clock.Now()
-		err = svc.ds.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost)
-		if err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
