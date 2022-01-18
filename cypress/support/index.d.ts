@@ -99,5 +99,15 @@ declare namespace Cypress {
      * Custom command to stop any running Docker hosts.
      */
     stopDockerHost(): Chainable;
+
+    /**
+     * Custom command to clear downloaded files from test machine.
+     */
+    clearDownloads(): Chainable;
+
+    /**
+     * Custom command to get any element describe only if it is attached to the DOM.
+     */
+    getAttached(selector: string): Chainable;
   }
 }

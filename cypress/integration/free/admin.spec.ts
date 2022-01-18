@@ -41,24 +41,24 @@ describe(
         });
       });
       
-      it("Can verify teams is disabled on the Manage Hosts page", () => {
+      it("Can verify teams is disabled", () => {
         cy.contains(/team/i).should("not.exist");
       });
         
-      it("Can see and click the 'Generate installer' button on the Manage Hosts page", () => {
+      it("Can see and click the 'Generate installer' button", () => {
         cy.findByRole("button", { name: /generate installer/i }).click();
         cy.contains(/team/i).should("not.exist");
         cy.contains("button", /done/i).click();
       });
   
-      it("Can see and click the 'Manage enroll secret' button on the Manage Hosts page", () => {
+      it("Can manage and add enroll secret", () => {
         cy.contains("button", /manage enroll secret/i).click();
         cy.contains("button", /add secret/i).click();
         cy.contains("button", /save/i).click();
         cy.contains("button", /done/i).click();
       });
   
-      it("Can see and click the 'Add label' button on the Manage Hosts page", () => {
+      it("Can open the 'Add label' form", () => {
         cy.findByRole("button", { name: /add label/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
@@ -70,20 +70,18 @@ describe(
         cy.visit("/hosts/1");
       });
       
-      it("Can verify teams is disabled on the Host Details page", () => {
+      it("Can verify teams is disabled", () => {
         cy.findByText(/team/i).should("not.exist");
         cy.contains("button", /transfer/i).should("not.exist");
       });
   
-      it("Can see and click the 'Delete' button on the Host Details page", () => {
-        cy.visit("/hosts/1");
+      it("Can delete a query", () => {
         cy.findByRole("button", { name: /delete/i }).click();
         cy.findByText(/delete host/i).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
   
-      it("Can see and click the 'Query' button on the Host Details page", () => {
-        cy.visit("/hosts/1");
+      it("Can create a new query", () => {
         cy.findByRole("button", { name: /query/i }).click();
         cy.findByRole("button", { name: /create custom query/i }).should("exist");
         cy.getAttached(".modal__ex").within(() => {
@@ -102,7 +100,7 @@ describe(
         cy.contains(/observer can run/i);
       });
       
-      it("Can see and click the 'Add new query' button", () => {
+      it("Can add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
       });
       
@@ -144,19 +142,19 @@ describe(
         cy.visit("/policies/manage");
       });
 
-      it("Can see and click the 'Manage automations' button", () => {
+      it("Can manage automations", () => {
         cy.findByRole("button", { name: /manage automations/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
       
-      it("Can open and close the 'Add a policy' modal", () => {
+      it("Can add a policy", () => {
         cy.findByRole("button", { name: /add a policy/i }).click();
         cy.getAttached(".modal__ex").within(() => {
           cy.findByRole("button").click();
         });
       });
       
-      it("Can open and close the 'Delete' modal", () => {
+      it("Can delete a policy", () => {
         // select checkmark on table
         cy.getAttached("tbody").within(() => {
           cy.getAttached("tr")
