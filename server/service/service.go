@@ -108,7 +108,7 @@ func (s *Service) updateJitterSeedRand() {
 func (s *Service) updateJitterSeed(ctx context.Context) {
 	for {
 		select {
-		case <-time.Tick(1 * time.Hour):
+		case <-time.After(1 * time.Hour):
 			s.updateJitterSeedRand()
 		case <-ctx.Done():
 			return
