@@ -43,7 +43,7 @@ class AppSettingsPage extends Component {
   render() {
     const { appConfig, error, enrollSecret } = this.props;
     const { onFormSubmit } = this;
-    const { configured: smtpConfigured } = appConfig;
+    const { configured: smtpConfigured } = appConfig; // there's a interface for config to find these
 
     if (!size(appConfig)) {
       return false;
@@ -110,7 +110,7 @@ class AppSettingsPage extends Component {
           <AppConfigForm
             formData={formData}
             handleSubmit={onFormSubmit}
-            serverErrors={error}
+            serverErrors={error} // this will be handled in the form itself with local state
             smtpConfigured={smtpConfigured}
             enrollSecret={enrollSecret}
           />
@@ -121,7 +121,7 @@ class AppSettingsPage extends Component {
 }
 
 const mapStateToProps = ({ app }) => {
-  const { config: appConfig, error, enrollSecret } = app;
+  const { config: appConfig, error, enrollSecret } = app; // props coming from redux, enrollsecret added with generateinstaller modal
 
   return { appConfig, error, enrollSecret };
 };

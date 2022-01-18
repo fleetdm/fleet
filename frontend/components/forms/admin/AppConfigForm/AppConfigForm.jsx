@@ -40,7 +40,9 @@ const numberOfDays = [
   { label: "14 days", value: 14 },
 ];
 
+// consider breaking this up into components
 const baseClass = "app-config-form";
+// these will all be states...
 const formFields = [
   "authentication_method",
   "authentication_type",
@@ -77,6 +79,7 @@ const formFields = [
   "enable_analytics",
 ];
 class AppConfigForm extends Component {
+  // prop types will be completely removed and replaed with reference to IConfig
   static propTypes = {
     fields: PropTypes.shape({
       authentication_method: formFieldInterface.isRequired,
@@ -120,12 +123,25 @@ class AppConfigForm extends Component {
   constructor(props) {
     super(props);
 
+    // move this to useState
     this.state = {
       showHostStatusWebhookPreviewModal: false,
       showUsageStatsPreviewModal: false,
     };
   }
 
+  // don't need this with evt.preventDefault
+  onToggleAdvancedOptions = (evt) => {
+    evt.preventDefault();
+
+    const { showAdvancedOptions } = this.state;
+
+    this.setState({ showAdvancedOptions: !showAdvancedOptions });
+
+    return false;
+  };
+
+  // refactor to setShow...
   toggleHostStatusWebhookPreviewModal = () => {
     const { showHostStatusWebhookPreviewModal } = this.state;
     this.setState({
@@ -133,6 +149,7 @@ class AppConfigForm extends Component {
     });
   };
 
+  // refactor to setShow...
   toggleUsageStatsPreviewModal = () => {
     const { showUsageStatsPreviewModal } = this.state;
     this.setState({
@@ -140,6 +157,10 @@ class AppConfigForm extends Component {
     });
   };
 
+  /*
+  - remove spread operator of fields
+  - use local states with their hooks to remember form 
+  */
   renderAdvancedOptions = () => {
     const { fields } = this.props;
 
@@ -591,6 +612,7 @@ class AppConfigForm extends Component {
                 error={fields.agent_options.error}
                 wrapperClassName={`${baseClass}__text-editor-wrapper`}
               />
+              {/* this might be tricky */}
             </div>
           </div>
 
@@ -725,6 +747,7 @@ class AppConfigForm extends Component {
           <Button type="submit" variant="brand">
             Update settings
           </Button>
+          {/* this should rerender the page or scroll to top */}
         </form>
         {renderUsageStatsPreviewModal()}
         {renderHostStatusWebhookPreviewModal()}
