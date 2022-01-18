@@ -12,10 +12,12 @@ type Props = {
 
 type InitialStateType = {
   selectedOsqueryTable: IOsqueryTable;
+  lastEditedQueryId: number | null;
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
+  setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
@@ -25,10 +27,12 @@ type InitialStateType = {
 
 const initialState = {
   selectedOsqueryTable: find(osqueryTables, { name: "users" }),
+  lastEditedQueryId: null,
   lastEditedQueryName: DEFAULT_QUERY.name,
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
+  setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
@@ -51,6 +55,10 @@ const reducer = (state: any, action: any) => {
     case actions.SET_LAST_EDITED_QUERY_INFO:
       return {
         ...state,
+        lastEditedQueryId:
+          typeof action.lastEditedQueryId === "undefined"
+            ? state.lastEditedQueryId
+            : action.lastEditedQueryId,
         lastEditedQueryName:
           typeof action.lastEditedQueryName === "undefined"
             ? state.lastEditedQueryName
@@ -80,10 +88,17 @@ const QueryProvider = ({ children }: Props) => {
 
   const value = {
     selectedOsqueryTable: state.selectedOsqueryTable,
+    lastEditedQueryId: state.lastEditedQueryId,
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
+    setLastEditedQueryId: (lastEditedQueryId: number) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryId,
+      });
+    },
     setLastEditedQueryName: (lastEditedQueryName: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
