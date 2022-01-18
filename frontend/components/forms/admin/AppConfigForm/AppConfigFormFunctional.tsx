@@ -7,7 +7,6 @@ import yaml from "js-yaml";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
-import errors from "interfaces/errors";
 import { IConfigNested, IConfigFormData } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
@@ -61,7 +60,7 @@ const numberOfDays = [
 const baseClass = "app-config-form";
 
 interface IAppConfigFormProps {
-  formData: IConfigNested;
+  appConfig: IConfigNested;
   enrollSecret: IEnrollSecret[] | undefined;
   handleSubmit: any;
 }
@@ -88,7 +87,7 @@ interface IAppConfigFormErrors {
 }
 
 const AppConfigFormFunctional = ({
-  formData,
+  appConfig,
   enrollSecret,
   handleSubmit,
 }: IAppConfigFormProps): JSX.Element => {
@@ -103,55 +102,56 @@ const AppConfigFormFunctional = ({
   ] = useState<boolean>(false);
 
   // FORM STATE
-  const [iterateFormData, setIterateFormData] = useState<any>({
+  const [formData, setFormData] = useState<any>({
+    // Formatting of UI not API
     // Organization info
-    orgName: formData.org_info.org_name || "",
-    orgLogoURL: formData.org_info.org_logo_url || "",
+    orgName: appConfig.org_info.org_name || "",
+    orgLogoURL: appConfig.org_info.org_logo_url || "",
     // Fleet web address
-    serverURL: formData.server_settings.server_url || "",
+    serverURL: appConfig.server_settings.server_url || "",
     // SAML single sign on options
-    enableSSO: formData.sso_settings.enable_sso || false,
-    idpName: formData.sso_settings.idp_name || "",
-    entityID: formData.sso_settings.entity_id || "",
-    issuerURI: formData.sso_settings.issuer_uri || "",
-    idpImageURL: formData.sso_settings.idp_image_url || "",
-    metadata: formData.sso_settings.metadata || "",
-    metadataURL: formData.sso_settings.metadata_url || "",
-    enableSSOIDPLogin: formData.sso_settings.enable_sso_idp_login || false,
+    enableSSO: appConfig.sso_settings.enable_sso || false,
+    idpName: appConfig.sso_settings.idp_name || "",
+    entityID: appConfig.sso_settings.entity_id || "",
+    issuerURI: appConfig.sso_settings.issuer_uri || "",
+    idpImageURL: appConfig.sso_settings.idp_image_url || "",
+    metadata: appConfig.sso_settings.metadata || "",
+    metadataURL: appConfig.sso_settings.metadata_url || "",
+    enableSSOIDPLogin: appConfig.sso_settings.enable_sso_idp_login || false,
     // SMTP options
-    enableSMTP: formData.smtp_settings.enable_smtp || false,
-    smtpSenderAddress: formData.smtp_settings.sender_address || "",
-    smtpServer: formData.smtp_settings.server || "",
-    smtpPort: formData.smtp_settings.port,
-    smtpEnableSSLTLS: formData.smtp_settings.enable_ssl_tls || false,
-    smtpAuthenticationType: formData.smtp_settings.authentication_type || "",
-    smtpUsername: formData.smtp_settings.user_name || "",
-    smtpPassword: formData.smtp_settings.password || "",
+    enableSMTP: appConfig.smtp_settings.enable_smtp || false,
+    smtpSenderAddress: appConfig.smtp_settings.sender_address || "",
+    smtpServer: appConfig.smtp_settings.server || "",
+    smtpPort: appConfig.smtp_settings.port,
+    smtpEnableSSLTLS: appConfig.smtp_settings.enable_ssl_tls || false,
+    smtpAuthenticationType: appConfig.smtp_settings.authentication_type || "",
+    smtpUsername: appConfig.smtp_settings.user_name || "",
+    smtpPassword: appConfig.smtp_settings.password || "",
     smtpAuthenticationMethod:
-      formData.smtp_settings.authentication_method || "",
+      appConfig.smtp_settings.authentication_method || "",
     // Global agent options
-    agentOptions: yaml.dump(formData.agent_options) || {},
+    agentOptions: yaml.dump(appConfig.agent_options) || {},
     // Host status webhook
     enableHostStatusWebhook:
-      formData.webhook_settings.host_status_webhook
+      appConfig.webhook_settings.host_status_webhook
         .enable_host_status_webhook || false,
     hostStatusWebhookDestinationURL:
-      formData.webhook_settings.host_status_webhook.destination_url || "",
+      appConfig.webhook_settings.host_status_webhook.destination_url || "",
     hostStatusWebhookHostPercentage:
-      formData.webhook_settings.host_status_webhook.host_percentage ||
+      appConfig.webhook_settings.host_status_webhook.host_percentage ||
       undefined,
     hostStatusWebhookDaysCount:
-      formData.webhook_settings.host_status_webhook.days_count || undefined,
+      appConfig.webhook_settings.host_status_webhook.days_count || undefined,
     // Usage statistics
-    enableUsageStatistics: formData.server_settings.enable_analytics,
+    enableUsageStatistics: appConfig.server_settings.enable_analytics,
     // Advanced options
-    domain: formData.smtp_settings.domain || "",
-    verifySSLCerts: formData.smtp_settings.verify_ssl_certs || false,
-    enableStartTLS: formData.smtp_settings.enable_start_tls,
+    domain: appConfig.smtp_settings.domain || "",
+    verifySSLCerts: appConfig.smtp_settings.verify_ssl_certs || false,
+    enableStartTLS: appConfig.smtp_settings.enable_start_tls,
     enableHostExpiry:
-      formData.host_expiry_settings.host_expiry_enabled || false,
-    hostExpiryWindow: formData.host_expiry_settings.host_expiry_window || 0,
-    disableLiveQuery: formData.server_settings.live_query_disabled || false,
+      appConfig.host_expiry_settings.host_expiry_enabled || false,
+    hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
+    disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
   });
 
   const {
@@ -187,14 +187,14 @@ const AppConfigFormFunctional = ({
     enableHostExpiry,
     hostExpiryWindow,
     disableLiveQuery,
-  } = iterateFormData;
+  } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  // FORM CHANGE AND BLUR
+  // FORM CHANGE AND VALIDATIONS
   const handleInputChange = ({ name, value }: IFormField) => {
     console.log("name and value", name, value);
-    setIterateFormData({ ...iterateFormData, [name]: value });
+    setFormData({ ...formData, [name]: value });
   };
 
   const validateForm = () => {
@@ -260,7 +260,6 @@ const AppConfigFormFunctional = ({
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
-
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }
@@ -296,7 +295,7 @@ const AppConfigFormFunctional = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    // formDataToSubmit mirrors formatting of API not UI
+    // Formatting of API not UI
     const formDataToSubmit = {
       org_info: {
         org_logo_url: orgLogoURL,
@@ -354,15 +353,15 @@ const AppConfigFormFunctional = ({
     return (
       <div className={`${baseClass}__section`}>
         <h2>
-          <a id="organization-info">Organization info?</a>
+          <a id="organization-info">Organization info</a>
         </h2>
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Organization name"
             onChange={handleInputChange}
-            target
             name="orgName"
             value={orgName}
+            target
             onBlur={validateForm}
             error={formErrors.org_name}
           />
@@ -370,8 +369,8 @@ const AppConfigFormFunctional = ({
             label="Organization avatar URL"
             onChange={handleInputChange}
             name="orgLogoURL"
-            target
             value={orgLogoURL}
+            target
           />
         </div>
         <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
@@ -396,9 +395,9 @@ const AppConfigFormFunctional = ({
               </span>
             }
             onChange={handleInputChange}
-            target
             name="serverURL"
             value={serverURL}
+            target
             onBlur={validateForm}
             error={formErrors.server_url}
           />
@@ -422,9 +421,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
-            target
             name="enableSSO"
             value={enableSSO}
+            target
           >
             Enable single sign on
           </Checkbox>
@@ -434,9 +433,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="Identity provider name"
             onChange={handleInputChange}
-            target
             name="idpName"
             value={idpName}
+            target
             onBlur={validateForm}
             error={formErrors.idp_name}
           />
@@ -459,9 +458,9 @@ const AppConfigFormFunctional = ({
               </span>
             }
             onChange={handleInputChange}
-            target
             name="entityID"
             value={entityID}
+            target
             onBlur={validateForm}
             error={formErrors.entity_id}
           />
@@ -478,9 +477,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="Issuer URI"
             onChange={handleInputChange}
-            target
             name="issuerURI"
             value={issuerURI}
+            target
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -493,9 +492,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="IDP image URL"
             onChange={handleInputChange}
-            target
             name="idpImageURL"
             value={idpImageURL}
+            target
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -511,9 +510,9 @@ const AppConfigFormFunctional = ({
             label="Metadata"
             type="textarea"
             onChange={handleInputChange}
-            target
             name="metadata"
             value={metadata}
+            target
             onBlur={validateForm}
           />
         </div>
@@ -535,9 +534,9 @@ const AppConfigFormFunctional = ({
               </span>
             }
             onChange={handleInputChange}
-            target
             name="metadataURL"
             value={metadataURL}
+            target
             onBlur={validateForm}
             error={formErrors.metadata_url}
           />
@@ -551,9 +550,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
-            target
             name="enableSSOIDPLogin"
             value={enableSSOIDPLogin}
+            target
           >
             Allow SSO login initiated by Identity Provider
           </Checkbox>
@@ -573,9 +572,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="SMTP username"
             onChange={handleInputChange}
-            target
             name="smtpUsername"
             value={smtpUsername}
+            target
             onBlur={validateForm}
             error={formErrors.user_name}
           />
@@ -583,9 +582,9 @@ const AppConfigFormFunctional = ({
             label="SMTP password"
             type="password"
             onChange={handleInputChange}
-            target
             name="smtpPassword"
             value={smtpPassword}
+            target
             onBlur={validateForm}
             error={formErrors.password}
           />
@@ -594,9 +593,9 @@ const AppConfigFormFunctional = ({
             options={authMethodOptions}
             placeholder=""
             onChange={handleInputChange}
-            target
             name="smtpAuthenticationMethod"
             value={smtpAuthenticationMethod}
+            target
           />
         </div>
       );
@@ -609,14 +608,14 @@ const AppConfigFormFunctional = ({
             SMTP options{" "}
             <small
               className={`smtp-options smtp-options--${
-                formData.smtp_settings.configured
+                appConfig.smtp_settings.configured
                   ? "configured"
                   : "notconfigured"
               }`}
             >
               STATUS:{" "}
               <em>
-                {formData.smtp_settings.configured
+                {appConfig.smtp_settings.configured
                   ? "CONFIGURED"
                   : "NOT CONFIGURED"}
               </em>
@@ -627,9 +626,9 @@ const AppConfigFormFunctional = ({
           <Checkbox
             onChange={handleInputChange}
             onFocus={validateForm}
-            target
             name="enableSMTP"
             value={enableSMTP}
+            target
           >
             Enable SMTP
           </Checkbox>
@@ -639,9 +638,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="Sender address"
             onChange={handleInputChange}
-            target
             name="smtpSenderAddress"
             value={smtpSenderAddress}
+            target
             onBlur={validateForm}
             error={formErrors.sender_address}
           />
@@ -654,9 +653,9 @@ const AppConfigFormFunctional = ({
           <InputField
             label="SMTP server"
             onChange={handleInputChange}
-            target
             name="smtpServer"
             value={smtpServer}
+            target
             onBlur={validateForm}
             error={formErrors.server}
           />
@@ -664,17 +663,17 @@ const AppConfigFormFunctional = ({
             label="&nbsp;"
             type="number"
             onChange={handleInputChange}
-            target
             name="smtpPort"
+            value={smtpPort}
+            target
             onBlur={validateForm}
             error={formErrors.server_port}
-            value={smtpPort}
           />
           <Checkbox
             onChange={handleInputChange}
-            target
             name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
+            target
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>
@@ -692,9 +691,9 @@ const AppConfigFormFunctional = ({
             label="Authentication type"
             options={authTypeOptions}
             onChange={handleInputChange}
-            target
             name="smtpAuthenticationType"
             value={smtpAuthenticationType}
+            target
           />
           {renderSmtpSection()}
         </div>
@@ -764,13 +763,13 @@ const AppConfigFormFunctional = ({
           </p>
           {/* <GlobalAgentOptions /> */}
           <YamlAce
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={handleInputChange}
-            target
             name="agentOptions" // TODO
             value={agentOptions} // TODO
+            target
             onBlur={validateForm}
             error={formErrors.agent_options}
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
           />
           {/* this might be tricky */}
         </div>
@@ -790,9 +789,9 @@ const AppConfigFormFunctional = ({
           </p>
           <Checkbox
             onChange={handleInputChange}
-            target
             name="enableHostStatusWebhook"
             value={enableHostStatusWebhook}
+            target
           >
             Enable host status webhook
           </Checkbox>
@@ -816,9 +815,9 @@ const AppConfigFormFunctional = ({
             placeholder="https://server.com/example"
             label="Destination URL"
             onChange={handleInputChange}
-            target
             name="hostStatusWebhookDestinationURL"
             value={hostStatusWebhookDestinationURL}
+            target
             onBlur={validateForm}
             error={formErrors.destination_url}
           />
@@ -838,9 +837,9 @@ const AppConfigFormFunctional = ({
             label="Percentage of hosts"
             options={percentageOfHosts}
             onChange={handleInputChange}
-            target
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
+            target
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -858,9 +857,9 @@ const AppConfigFormFunctional = ({
             label="Number of days"
             options={numberOfDays}
             onChange={handleInputChange}
-            target
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
+            target
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -905,9 +904,9 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
           <Checkbox
             onChange={handleInputChange}
-            target
             name="enableUsageStatistics"
             value={enableUsageStatistics}
+            target
           >
             Enable usage statistics
           </Checkbox>
@@ -941,9 +940,9 @@ const AppConfigFormFunctional = ({
                 <InputField
                   label="Domain"
                   onChange={handleInputChange}
-                  target
                   name="domain"
                   value={domain}
+                  target
                 />
                 <IconToolTip
                   isHtml
@@ -955,9 +954,9 @@ const AppConfigFormFunctional = ({
               <div className="tooltip-wrap">
                 <Checkbox
                   onChange={handleInputChange}
-                  target
                   name="verifySSLCerts"
                   value={verifySSLCerts}
+                  target
                 >
                   Verify SSL certs
                 </Checkbox>
@@ -971,9 +970,9 @@ const AppConfigFormFunctional = ({
               <div className="tooltip-wrap">
                 <Checkbox
                   onChange={handleInputChange}
-                  target
                   name="enableStartTLS"
                   value={enableStartTLS}
+                  target
                 >
                   Enable STARTTLS
                 </Checkbox>
@@ -987,9 +986,9 @@ const AppConfigFormFunctional = ({
               <div className="tooltip-wrap">
                 <Checkbox
                   onChange={handleInputChange}
-                  target
                   name="enableHostExpiry"
                   value={enableHostExpiry}
+                  target
                 >
                   Host expiry
                 </Checkbox>
@@ -1002,13 +1001,13 @@ const AppConfigFormFunctional = ({
               </div>
               <div className="tooltip-wrap tooltip-wrap--input">
                 <InputField
-                  onChange={handleInputChange}
-                  target
-                  name="hostExpiryWindow"
-                  value={hostExpiryWindow}
-                  disabled={!enableHostExpiry}
                   label="Host expiry window"
                   type="number"
+                  disabled={!enableHostExpiry}
+                  onChange={handleInputChange}
+                  name="hostExpiryWindow"
+                  value={hostExpiryWindow}
+                  target
                   onBlur={validateForm}
                   error={formErrors.host_expiry_window}
                 />
@@ -1022,9 +1021,9 @@ const AppConfigFormFunctional = ({
               <div className="tooltip-wrap">
                 <Checkbox
                   onChange={handleInputChange}
-                  target
                   name="disableLiveQuery"
                   value={disableLiveQuery}
+                  target
                 >
                   Disable live queries
                 </Checkbox>
@@ -1134,7 +1133,11 @@ const AppConfigFormFunctional = ({
         {renderHostStatusWebhookSection()}
         {renderUsageStatistics()}
         {renderAdvancedOptions()}
-        <Button type="submit" variant="brand">
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={Object.keys(formErrors).length > 0}
+        >
           Update settings
         </Button>
       </form>

@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from "react";
-import { connect, useDispatch } from "react-redux";
+import React, { useCallback } from "react";
+import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { size } from "lodash";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
+import { IConfigNested, IConfigFormData } from "interfaces/config";
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
 import {
@@ -28,7 +29,7 @@ const AppSettingsPage = (): JSX.Element => {
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
   } = useQuery<any, Error, any>(["config"], () => configAPI.loadAll(), {
-    select: (data: any) => data,
+    select: (data: IConfigNested) => data,
   });
 
   const { data: globalSecrets } = useQuery<
@@ -41,8 +42,32 @@ const AppSettingsPage = (): JSX.Element => {
   });
 
   const onFormSubmit = useCallback(
-    (formData: any) => {
-      console.log("AppSettingsPage formData", formData);
+    (formData: IConfigNested) => {
+      // console.log(
+      //   "AppSettingsPage formData.server_settings",
+      //   formData.server_settings
+      // );
+      // console.log(
+      //   "AppSettingsPage appConfig.server_settings",
+      //   appConfig.server_settings
+      // );
+
+      // console.log(
+      //   "AppSettingsPage formData.smtp_settings",
+      //   formData.smtp_settings
+      // );
+      // console.log(
+      //   "AppSettingsPage appConfig.smtp_settings",
+      //   appConfig.smtp_settings
+      // );
+      // console.log(
+      //   "AppSettingsPage formData.webhook_settings",
+      //   formData.webhook_settings
+      // );
+      // console.log(
+      //   "AppSettingsPage appConfig.webhook_settings",
+      //   appConfig.webhook_settings
+      // );
 
       const diff = deepDifference(formData, appConfig);
 
@@ -62,7 +87,7 @@ const AppSettingsPage = (): JSX.Element => {
           refetchConfig();
         });
     },
-    [dispatch]
+    [dispatch, appConfig]
   );
 
   return (
@@ -107,7 +132,7 @@ const AppSettingsPage = (): JSX.Element => {
         </nav>
         {isLoadingConfig ? null : (
           <AppConfigForm
-            formData={appConfig}
+            appConfig={appConfig}
             handleSubmit={onFormSubmit}
             enrollSecret={globalSecrets}
           />
