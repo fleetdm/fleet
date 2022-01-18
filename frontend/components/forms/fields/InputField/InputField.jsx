@@ -17,6 +17,7 @@ class InputField extends Component {
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onBlur: PropTypes.func,
     onFocus: PropTypes.func,
     placeholder: PropTypes.string,
     type: PropTypes.string,
@@ -36,6 +37,7 @@ class InputField extends Component {
     label: null,
     labelClassName: "",
     onFocus: noop,
+    onBlur: noop,
     type: "text",
     blockAutoComplete: false,
     value: "",
@@ -76,6 +78,7 @@ class InputField extends Component {
       inputWrapperClass,
       name,
       onFocus,
+      onBlur,
       placeholder,
       type,
       blockAutoComplete,
@@ -125,6 +128,7 @@ class InputField extends Component {
           id={name}
           onChange={onInputChange}
           onFocus={onFocus}
+          onBlur={onBlur}
           className={inputClasses}
           placeholder={placeholder}
           ref={(r) => {

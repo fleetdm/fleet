@@ -31,6 +31,9 @@ import Modal from "components/Modal";
 import { string } from "prop-types";
 import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
+// @ts-ignore
+import GlobalAgentOptions from "./GlobalAgentOptions";
+import errors from "interfaces/errors";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -77,11 +80,10 @@ interface IAppConfigFormErrors {
   org_name?: string | null;
   sender_address?: string | null;
   server?: string | null;
+  server_port?: string | null;
   user_name?: string | null;
   password?: string | null;
   destination_url?: string | null;
-  host_percentage?: string | null;
-  days_count?: string | null;
   host_expiry_window?: string | null;
   agent_options?: string | null;
 }
@@ -188,37 +190,29 @@ const AppConfigFormFunctional = ({
     disableLiveQuery,
   } = iterateFormData;
 
-  // OLD
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
-  // FORM CHANGE
+  // FORM CHANGE AND BLUR
   const handleInputChange = ({ name, value }: IFormField) => {
-    console.log("name", name);
-    console.log("value", value);
+    console.log("name and value", name, value);
     setIterateFormData({ ...iterateFormData, [name]: value });
   };
 
-  console.log("iterateFormData", iterateFormData);
+  const validateForm = () => {
+    const errors: IAppConfigFormErrors = {};
+    console.log("currentErrors START", errors);
+    console.log("smtpAuthenticationType", smtpAuthenticationType);
 
-  // TOGGLE MODALS
+    if (orgName === "") {
+      errors.org_name = "Organization name must be present";
+    }
 
-  const toggleHostStatusWebhookPreviewModal = () => {
-    setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
-    return false;
-  };
-
-  const toggleUsageStatsPreviewModal = () => {
-    setShowUsageStatsPreviewModal(!showUsageStatsPreviewModal);
-    return false;
-  };
-
-  // FORM SUBMIT
-  const onFormSubmit = () => {
-    // Validators
-    const errors: any = {};
+    if (!serverURL) {
+      errors.server_url = "Fleet server URL must be present";
+    }
 
     if (enableSSO) {
-      if (!metadata && !metadataURL) {
+      if (metadata === "" && metadataURL === "") {
         errors.metadata_url = "Metadata URL must be present";
       }
       if (!entityID) {
@@ -229,33 +223,35 @@ const AppConfigFormFunctional = ({
       }
     }
 
-    if (!serverURL) {
-      errors.server_url = "Fleet server URL must be present";
-    }
-
-    if (!orgName) {
-      errors.org_name = "Organization name must be present";
-    }
-
+    console.log("enableSMTP", enableSMTP);
+    console.log("smtpSenderAddress", smtpSenderAddress);
+    console.log("smtpServer", smtpServer);
     if (enableSMTP) {
-      if (!smtpSenderAddress) {
+      // TODO: Check this out in more depth, seems backwards.
+      if (smtpSenderAddress === "") {
         errors.sender_address = "SMTP sender address must be present";
       }
 
-      if (!smtpServer) {
+      if (smtpServer === "") {
         errors.server = "SMTP server must be present";
       }
 
-      if (!smtpPort) {
+      if (smtpPort === "") {
         errors.server = "SMTP server port must be present";
+        errors.server_port = "Port";
       }
 
-      if (smtpAuthenticationType !== "authtype_none") {
-        if (!smtpUsername) {
+      if (smtpServer === "" && smtpPort === "") {
+        errors.server = "SMTP server and server port must be present";
+        errors.server_port = "Port";
+      }
+
+      if (smtpAuthenticationType === "authtype_username_password") {
+        if (smtpUsername === "") {
           errors.user_name = "SMTP username must be present";
         }
 
-        if (!smtpPassword) {
+        if (smtpPassword === "") {
           errors.password = "SMTP password must be present";
         }
       }
@@ -264,14 +260,6 @@ const AppConfigFormFunctional = ({
     if (enableHostStatusWebhook) {
       if (!hostStatusWebhookDestinationURL) {
         errors.destination_url = "Destination URL must be present";
-      }
-
-      if (!hostStatusWebhookHostPercentage) {
-        errors.host_percentage = "Host percentage must be present";
-      }
-
-      if (!hostStatusWebhookDaysCount) {
-        errors.days_count = "Days count must be present";
       }
     }
 
@@ -290,11 +278,34 @@ const AppConfigFormFunctional = ({
       }
     }
 
-    setFormErrors(errors);
+    console.log("errors END", errors);
 
-    if (Object.keys(errors).length !== 0) {
-      return false;
-    }
+    setFormErrors(errors);
+  };
+
+  // TODO: WANT THIS TO SET FIRST, AND THEN VALIDATE
+  const handleInputChangeAndValidate = ({ name, value }: IFormField) => {
+    console.log("handleInputChangeAndValidate");
+    handleInputChange({ name, value }).then(() => {
+      validateForm();
+    });
+  };
+
+  // TOGGLE MODALS
+
+  const toggleHostStatusWebhookPreviewModal = () => {
+    setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
+    return false;
+  };
+
+  const toggleUsageStatsPreviewModal = () => {
+    setShowUsageStatsPreviewModal(!showUsageStatsPreviewModal);
+    return false;
+  };
+
+  // FORM SUBMIT
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
 
     // formDataToSubmit mirrors formatting of API not UI
     const formDataToSubmit = {
@@ -349,6 +360,22 @@ const AppConfigFormFunctional = ({
     handleSubmit(formDataToSubmit);
   };
 
+  //   metadata_url?: string | null; DONE
+  // entity_id?: string | null; DONE
+  // idp_name?: string | null; DONE
+  // server_url?: string | null; DONE
+  // org_name?: string | null; DONE
+  // sender_address?: string | null;
+  // server?: string | null;
+  // user_name?: string | null;
+  // password?: string | null;
+  // destination_url?: string | null;
+  // host_percentage?: string | null;
+  // days_count?: string | null;
+  // host_expiry_window?: string | null;
+  // agent_options?: string | null;
+
+  console.log("formErrors.org_name", formErrors.org_name);
   // SECTIONS
   const renderOrganizationInfoSection = () => {
     return (
@@ -363,6 +390,7 @@ const AppConfigFormFunctional = ({
             target
             name="orgName"
             value={orgName}
+            onBlur={validateForm}
             error={formErrors.org_name}
           />
           <InputField
@@ -398,6 +426,7 @@ const AppConfigFormFunctional = ({
             target
             name="serverURL"
             value={serverURL}
+            onBlur={validateForm}
             error={formErrors.server_url}
           />
         </div>
@@ -435,6 +464,7 @@ const AppConfigFormFunctional = ({
             target
             name="idpName"
             value={idpName}
+            onBlur={validateForm}
             error={formErrors.idp_name}
           />
         </div>
@@ -459,6 +489,7 @@ const AppConfigFormFunctional = ({
             target
             name="entityID"
             value={entityID}
+            onBlur={validateForm}
             error={formErrors.entity_id}
           />
         </div>
@@ -510,6 +541,7 @@ const AppConfigFormFunctional = ({
             target
             name="metadata"
             value={metadata}
+            onBlur={validateForm}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -533,6 +565,7 @@ const AppConfigFormFunctional = ({
             target
             name="metadataURL"
             value={metadataURL}
+            onBlur={validateForm}
             error={formErrors.metadata_url}
           />
         </div>
@@ -556,6 +589,8 @@ const AppConfigFormFunctional = ({
     );
   };
 
+  console.log("formErrors", formErrors);
+
   const renderSMTPOptionsSection = () => {
     const renderSmtpSection = () => {
       if (smtpAuthenticationType === "authtype_none") {
@@ -570,6 +605,8 @@ const AppConfigFormFunctional = ({
             target
             name="smtpUsername"
             value={smtpUsername}
+            onBlur={validateForm}
+            error={formErrors.user_name}
           />
           <InputField
             label="SMTP password"
@@ -578,6 +615,8 @@ const AppConfigFormFunctional = ({
             target
             name="smtpPassword"
             value={smtpPassword}
+            onBlur={validateForm}
+            error={formErrors.password}
           />
           <Dropdown
             label="Auth method"
@@ -616,6 +655,7 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
+            onFocus={validateForm}
             target
             name="enableSMTP"
             value={enableSMTP}
@@ -631,6 +671,8 @@ const AppConfigFormFunctional = ({
             target
             name="smtpSenderAddress"
             value={smtpSenderAddress}
+            onBlur={validateForm}
+            error={formErrors.sender_address}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -644,6 +686,8 @@ const AppConfigFormFunctional = ({
             target
             name="smtpServer"
             value={smtpServer}
+            onBlur={validateForm}
+            error={formErrors.server}
           />
           <InputField
             label="&nbsp;"
@@ -651,6 +695,8 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             target
             name="smtpPort"
+            onBlur={validateForm}
+            error={formErrors.server_port}
             value={smtpPort}
           />
           <Checkbox
@@ -674,7 +720,7 @@ const AppConfigFormFunctional = ({
           <Dropdown
             label="Authentication type"
             options={authTypeOptions}
-            onChange={handleInputChange}
+            onChange={handleInputChangeAndValidate}
             target
             name="smtpAuthenticationType"
             value={smtpAuthenticationType}
@@ -745,11 +791,13 @@ const AppConfigFormFunctional = ({
           <p className={`${baseClass}__component-label`}>
             <b>YAML</b>
           </p>
+          {/* <GlobalAgentOptions /> */}
           <YamlAce
             onChange={handleInputChange}
             target
             name="agentOptions" // TODO
             value={agentOptions} // TODO
+            onBlur={validateForm}
             error={formErrors.agent_options}
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
           />
@@ -800,6 +848,8 @@ const AppConfigFormFunctional = ({
             target
             name="hostStatusWebhookDestinationURL"
             value={hostStatusWebhookDestinationURL}
+            onBlur={validateForm}
+            error={formErrors.destination_url}
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -987,6 +1037,7 @@ const AppConfigFormFunctional = ({
                   value={hostExpiryWindow}
                   disabled={!enableHostExpiry}
                   label="Host Expiry Window"
+                  type="number"
                 />
                 <IconToolTip
                   isHtml

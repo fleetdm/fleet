@@ -2,6 +2,8 @@ import React, { useState, useCallback } from "react";
 import { connect, useDispatch } from "react-redux";
 import { useQuery } from "react-query";
 import { size } from "lodash";
+// @ts-ignore
+import deepDifference from "utilities/deep_difference";
 
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
@@ -41,9 +43,13 @@ const AppSettingsPage = (): JSX.Element => {
   const onFormSubmit = useCallback(
     (formData: any) => {
       console.log("AppSettingsPage formData", formData);
-      debugger;
+
+      const diff = deepDifference(formData, appConfig);
+
+      console.log("diff", diff);
+
       configAPI
-        .update(formData)
+        .update(diff)
         .then(() => {
           dispatch(renderFlash("success", "Successfully updated settings."));
         })
