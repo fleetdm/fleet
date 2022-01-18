@@ -83,6 +83,9 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	if err := d.deleteEntity(ctx, teamsTable, tid); err != nil {
 		return ctxerr.Wrapf(ctx, err, "delete team id %d", tid)
 	}
+
+	// TODO: delete pack_targets where type=<team type> and id=id
+
 	return nil
 }
 
