@@ -4,14 +4,17 @@ import { push } from "react-router-redux";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
-import { IUser } from "interfaces/user"; // @ts-ignore
-import { loginUser } from "redux/nodes/auth/actions"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+// @ts-ignore
+import { loginUser } from "redux/nodes/auth/actions";
+// @ts-ignore
+import debounce from "utilities/debounce";
 
 // @ts-ignore
 import LoginSuccessfulPage from "pages/LoginSuccessfulPage"; // @ts-ignore
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper"; // @ts-ignore
 import LoginForm from "components/forms/LoginForm"; // @ts-ignore
+
+import { ILoginUserResponse } from "./LoginPage";
 
 interface ILoginData {
   email: string;
@@ -20,18 +23,21 @@ interface ILoginData {
 
 const PreviewLoginPage = () => {
   const dispatch = useDispatch();
-  const { isPreviewMode, setCurrentUser } = useContext(AppContext);
+  const { isPreviewMode, setAvailableTeams, setCurrentUser } = useContext(
+    AppContext
+  );
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
 
   const onSubmit = debounce((formData: ILoginData) => {
     const { HOME } = paths;
     const redirectTime = 1500;
     return dispatch(loginUser(formData))
-      .then((returnedUser: IUser) => {
+      .then(({ user: returnedUser, available_teams }: ILoginUserResponse) => {
         setLoginVisible(false);
 
         // transitioning to context API - 9/1/21 MP
         setCurrentUser(returnedUser);
+        setAvailableTeams(available_teams);
 
         setTimeout(() => {
           return dispatch(push(HOME));
