@@ -249,9 +249,8 @@ describe(
         // On the Settings pages, they should…
         // See the “Teams” navigation item and access the Settings - Teams page
         cy.visit("/settings/organization");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
 
-        cy.get(".react-tabs").within(() => {
+        cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/teams/i).click();
         });
         cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
@@ -263,8 +262,8 @@ describe(
 
         // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
         cy.visit("/settings/organization");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.get(".react-tabs").within(() => {
+
+        cy.getAttached(".react-tabs").within(() => {
           cy.findByText(/users/i).click();
         });
         cy.findByRole("button", { name: /create user/i }).click();

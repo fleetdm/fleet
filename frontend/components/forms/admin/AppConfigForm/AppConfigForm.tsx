@@ -3,6 +3,7 @@ import { syntaxHighlight } from "fleet/helpers";
 
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
+import yaml from "js-yaml";
 
 import { IConfigFormData } from "interfaces/config";
 
@@ -82,7 +83,7 @@ const AppConfigFormFunctional = ({
     smtpAuthenticationMethod:
       appConfig.smtp_settings.authentication_method || "",
     // Global agent options
-    agentOptions: appConfig.agent_options || {},
+    agentOptions: yaml.dump(appConfig.agent_options) || {},
     // Host status webhook
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
@@ -290,7 +291,7 @@ const AppConfigFormFunctional = ({
         host_expiry_enabled: enableHostExpiry,
         host_expiry_window: Number(hostExpiryWindow),
       },
-      agent_options: agentOptions,
+      agent_options: yaml.load(agentOptions),
       webhook_settings: {
         host_status_webhook: {
           enable_host_status_webhook: enableHostStatusWebhook,
@@ -710,10 +711,9 @@ const AppConfigFormFunctional = ({
           <YamlAce
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={handleAceInputChange}
-            name="agentOptions" // TODO
-            value={agentOptions} // TODO
+            name="agentOptions"
+            value={agentOptions}
             parseTarget
-            onBlur={validateForm}
             error={formErrors.agent_options}
           />
         </div>
