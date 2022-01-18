@@ -765,10 +765,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
-		// TODO(mna): is it an issue for the webhook if the policy executions are
-		// temporarily recorded in redis? Obviously it wouldn't see the new flipped
-		// policies on the next run, but would it typically run before the redis
-		// async data is collected and persisted in mysql? Should
+		// NOTE(mna): currently, failing policies webhook wouldn't see the new
+		// flipped policies on the next run if async processing is enabled and the
+		// collection has not been done yet (not persisted in mysql). Should
 		// FlippingPoliciesForHost take pending redis data into consideration, or
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
