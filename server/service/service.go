@@ -3,9 +3,15 @@
 package service
 
 import (
+	"context"
+	"crypto/rand"
 	"fmt"
 	"html/template"
+	"math"
+	"math/big"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -39,10 +45,13 @@ type Service struct {
 	failingPolicySet fleet.FailingPolicySet
 
 	authz *authz.Authorizer
+
+	jitterSeed int64
 }
 
 // NewService creates a new service from the config struct
 func NewService(
+	ctx context.Context,
 	ds fleet.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
@@ -57,14 +66,12 @@ func NewService(
 	license fleet.LicenseInfo,
 	failingPolicySet fleet.FailingPolicySet,
 ) (fleet.Service, error) {
-	var svc fleet.Service
-
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	svc = &Service{
+	svc := &Service{
 		ds:               ds,
 		task:             task,
 		carveStore:       carveStore,
@@ -81,8 +88,36 @@ func NewService(
 		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
 	}
-	svc = validationMiddleware{svc, ds, sso}
-	return svc, nil
+
+	// Try setting a first seed
+	svc.updateJitterSeedRand()
+	go svc.updateJitterSeed(ctx)
+
+	return validationMiddleware{svc, ds, sso}, nil
+}
+
+func (s *Service) updateJitterSeedRand() {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt))
+	if err != nil {
+		panic(err)
+	}
+	n := nBig.Int64()
+	atomic.StoreInt64(&s.jitterSeed, n)
+}
+
+func (s *Service) updateJitterSeed(ctx context.Context) {
+	for {
+		select {
+		case <-time.After(1 * time.Hour):
+			s.updateJitterSeedRand()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Service) getJitterSeed() int64 {
+	return atomic.LoadInt64(&s.jitterSeed)
 }
 
 func (s Service) SendEmail(mail fleet.Email) error {

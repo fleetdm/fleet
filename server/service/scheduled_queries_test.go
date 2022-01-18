@@ -17,7 +17,7 @@ func TestScheduledQueriesAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(ds, nil, nil)
 
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
 	ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
@@ -36,7 +36,7 @@ func TestScheduledQueriesAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool
@@ -135,7 +135,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
 			{
@@ -170,7 +170,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		require.Equal(t, expectedQuery.QueryID, qid)
 		return &fleet.Query{Name: expectedQuery.QueryName}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
 			{
@@ -192,7 +192,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 }
 
 func TestFindNextNameForQuery(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		name      string
 		scheduled []*fleet.ScheduledQuery
 		expected  string
@@ -210,7 +210,8 @@ func TestFindNextNameForQuery(t *testing.T) {
 				},
 			},
 			expected: "foobar-1",
-		}, {
+		},
+		{
 			name: "foobar",
 			scheduled: []*fleet.ScheduledQuery{
 				{

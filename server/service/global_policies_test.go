@@ -93,7 +93,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			"team observer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
-			true,
+			false,
 		},
 	}
 	for _, tt := range testCases {
