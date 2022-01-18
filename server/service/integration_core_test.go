@@ -2024,3 +2024,47 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
+
+// TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
+func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	gpParams0 := globalPolicyRequest{
+		Name:  "global policy",
+		Query: "select * from osquery;",
+	}
+	gpResp0 := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/global/policies", gpParams0, http.StatusOK, &gpResp0)
+
+	email := "team.observer@example.com"
+	teamObserver := &fleet.User{
+		Name:       "team observer user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	password := "p4ssw0rd."
+	require.NoError(t, teamObserver.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), teamObserver)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(email, password)
+
+	policiesResponse := listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/global/policies", nil, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
+	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
+}
