@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 )
 
 // Service is the struct implementing fleet.Service. Create a new one with NewService.
@@ -91,7 +90,7 @@ func NewService(
 	}
 
 	// Try setting a first seed
-	_ = svc.updateJitterSeedRand()
+	svc.updateJitterSeedRand()
 	go svc.updateJitterSeed(ctx)
 
 	return validationMiddleware{svc, ds, sso}, nil
