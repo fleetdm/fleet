@@ -14,7 +14,6 @@ export interface ICheckboxProps {
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
   onBlur?: any;
-  onFocus?: any;
   value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
@@ -29,7 +28,6 @@ const Checkbox = (props: ICheckboxProps) => {
     name,
     onChange = noop,
     onBlur = noop,
-    onFocus = noop,
     value,
     wrapperClassName,
     indeterminate,
@@ -68,7 +66,6 @@ const Checkbox = (props: ICheckboxProps) => {
           name={name}
           onChange={handleChange}
           onBlur={onBlur}
-          onFocus={onFocus}
           type="checkbox"
           ref={(element) => {
             element && indeterminate && (element.indeterminate = indeterminate);

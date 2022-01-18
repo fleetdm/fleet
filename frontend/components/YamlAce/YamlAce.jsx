@@ -15,7 +15,6 @@ class YamlAce extends Component {
     onChange: PropTypes.func.isRequired,
     value: PropTypes.string,
     wrapperClassName: PropTypes.string,
-    target: PropTypes.bool,
   };
 
   renderLabel = () => {
@@ -36,7 +35,6 @@ class YamlAce extends Component {
       value,
       error,
       wrapperClassName,
-      target,
     } = this.props;
 
     const { renderLabel } = this;
@@ -61,7 +59,6 @@ class YamlAce extends Component {
           onChange={onChange}
           name={name}
           label={label}
-          target={target}
         />
       </div>
     );
