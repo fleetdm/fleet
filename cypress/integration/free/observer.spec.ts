@@ -17,7 +17,7 @@ describe("Free tier - Observer user", () => {
 
   describe("Mange hosts tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/hosts/manage");
     });
 
@@ -43,7 +43,7 @@ describe("Free tier - Observer user", () => {
     it("Can verify teams is disabled", () => {
       cy.findByText(/teams/i).should("not.exist");
     });
-    
+
     it("Can verify user cannot generate an installer", () => {
       cy.contains("button", /generate installer/i).should("not.exist");
     });
@@ -59,26 +59,26 @@ describe("Free tier - Observer user", () => {
 
   describe("Host details tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/hosts/1");
     });
 
     it("Can verify teams is disabled", () => {
       cy.findByText(/team/i).should("not.exist");
     });
-    
+
     it("Can verify user cannot transfer host", () => {
       cy.contains("button", /transfer/i).should("not.exist");
     });
-    
+
     it("Can verify user cannot delete host", () => {
       cy.contains("button", /delete/i).should("not.exist");
     });
-    
+
     it("Can verify user cannot query host", () => {
       cy.contains("button", /query/i).click();
     });
-    
+
     it("Can verify user cannot create query", () => {
       cy.contains("button", /create custom query/i).should("not.exist");
     });
@@ -86,7 +86,7 @@ describe("Free tier - Observer user", () => {
 
   describe("Queries tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");
     });
 
@@ -97,7 +97,9 @@ describe("Free tier - Observer user", () => {
     });
 
     it("Can verify that user cannot create a query", () => {
-      cy.findByRole("button", { name: /create new query/i }).should("not.exist");
+      cy.findByRole("button", { name: /create new query/i }).should(
+        "not.exist"
+      );
     });
 
     it("Can verify that user can select a query and only run it", () => {
@@ -116,12 +118,14 @@ describe("Free tier - Observer user", () => {
 
   describe("Policies tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/policies/manage");
     });
 
     it("Can verify user cannot manage automations", () => {
-      cy.findByRole("button", { name: /manage automations/i }).should("not.exist");
+      cy.findByRole("button", { name: /manage automations/i }).should(
+        "not.exist"
+      );
     });
 
     it("Can verify user cannot add a policy", () => {
@@ -129,7 +133,7 @@ describe("Free tier - Observer user", () => {
     });
 
     it("Can verify user cannot run, edit, or delete a policy", () => {
-        cy.getAttached("tbody").within(() => {
+      cy.getAttached("tbody").within(() => {
         cy.get("tr")
           .first()
           .within(() => {
@@ -144,10 +148,10 @@ describe("Free tier - Observer user", () => {
       });
     });
   });
-  
+
   describe("Settings tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/settings/users");
     });
 
@@ -159,7 +163,7 @@ describe("Free tier - Observer user", () => {
 
   describe("Profile tests", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");  
+      cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/profile");
     });
 
@@ -168,10 +172,12 @@ describe("Free tier - Observer user", () => {
         cy.findByText(/teams/i).should("not.exist");
       });
     });
-    
+
     it("Can verify the role of the user is observer", () => {
       cy.getAttached(".user-settings__additional").within(() => {
-        cy.findByText("Role").next().contains(/observer/i);
+        cy.findByText("Role")
+          .next()
+          .contains(/observer/i);
       });
     });
   });

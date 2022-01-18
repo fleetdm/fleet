@@ -22,7 +22,7 @@ describe(
 
     describe("Mange hosts tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/hosts/manage");
       });
 
@@ -35,7 +35,7 @@ describe(
       it("Can verify teams is disabled", () => {
         cy.contains(/team/i).should("not.exist");
       });
-        
+
       it("Can see and click the 'Generate installer' button", () => {
         cy.findByRole("button", { name: /generate installer/i }).click();
         cy.contains(/team/i).should("not.exist");
@@ -55,7 +55,7 @@ describe(
 
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/hosts/1");
       });
 
@@ -63,16 +63,18 @@ describe(
         cy.findByText(/team/i).should("not.exist");
         cy.contains("button", /transfer/i).should("not.exist");
       });
-  
+
       it("Can delete a query", () => {
         cy.findByRole("button", { name: /delete/i }).click();
         cy.findByText(/delete host/i).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-  
+
       it("Can create a new query", () => {
         cy.findByRole("button", { name: /query/i }).click();
-        cy.findByRole("button", { name: /create custom query/i }).should("exist");
+        cy.findByRole("button", { name: /create custom query/i }).should(
+          "exist"
+        );
         cy.getAttached(".modal__ex").within(() => {
           cy.findByRole("button").click();
         });
@@ -81,18 +83,18 @@ describe(
 
     describe("Queries tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/queries/manage");
       });
 
       it("Can see the 'Observer can run' column on the queries table", () => {
         cy.contains(/observer can run/i);
       });
-      
+
       it("Can add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
       });
-      
+
       // TODO - Fix tests according to improved query experience - MP
       // On the Queries - new/edit/run page, they should…
       // Edit the “Query name,” “SQL,” “Description,” “Observers can run,” and “Select targets” input fields.
@@ -108,18 +110,18 @@ describe(
       //   .click()
       //   .type("Cypress test of create new query flow.");
       // cy.findByLabelText(/observers can run/i).click({ force: true });
-  
+
       // // See and select the “Save changes,” “Save as new,” and “Run” buttons.
       // cy.findByRole("button", { name: /save/i }).click();
       // cy.findByRole("button", { name: /new/i }).click();
       // cy.findByRole("button", { name: /run/i }).should("exist");
-  
+
       // // NOT see the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
       // cy.getAttached(".target-select").within(() => {
       //   cy.findByText(/Label name, host name, IP address, etc./i).click();
       //   cy.findByText(/teams/i).should("not.exist");
       // });
-  
+
       // cy.contains("a", /back to queries/i).click({ force: true });
       // cy.findByText(/cypress test query/i).click({ force: true });
       // cy.findByText(/edit & run query/i).should("exist");
@@ -127,7 +129,7 @@ describe(
 
     describe("Policies tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/policies/manage");
       });
 
@@ -135,14 +137,14 @@ describe(
         cy.findByRole("button", { name: /manage automations/i }).click();
         cy.findByRole("button", { name: /cancel/i }).click();
       });
-      
+
       it("Can add a policy", () => {
         cy.findByRole("button", { name: /add a policy/i }).click();
         cy.getAttached(".modal__ex").within(() => {
           cy.findByRole("button").click();
         });
       });
-      
+
       it("Can delete a policy", () => {
         // select checkmark on table
         cy.getAttached("tbody").within(() => {
@@ -152,14 +154,14 @@ describe(
               cy.getAttached(".fleet-checkbox__input").check({ force: true });
             });
         });
-        
+
         cy.findByRole("button", { name: /delete/i }).click();
         cy.getAttached(".remove-policies-modal").within(() => {
           cy.findByRole("button", { name: /delete/i }).should("exist");
           cy.findByRole("button", { name: /cancel/i }).click();
         });
       });
-      
+
       it("Can select a policy and verify user can run and save", () => {
         cy.getAttached(".data-table__table").within(() => {
           cy.findByRole("button", { name: /filevault enabled/i }).click();
@@ -170,10 +172,10 @@ describe(
         });
       });
     });
-    
+
     describe("Packs tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/packs/manage");
       });
 
@@ -211,7 +213,7 @@ describe(
 
     describe("Settings tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/settings/users");
       });
 
@@ -223,19 +225,21 @@ describe(
 
     describe("Profile tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");  
+        cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/profile");
       });
-      
+
       it("Can verify teams is disabled for the Profile page", () => {
         cy.getAttached(".user-settings__additional").within(() => {
           cy.findByText(/teams/i).should("not.exist");
         });
       });
-      
+
       it("Can verify the role of the user is maintainer", () => {
         cy.getAttached(".user-settings__additional").within(() => {
-          cy.findByText("Role").next().contains(/maintainer/i);
+          cy.findByText("Role")
+            .next()
+            .contains(/maintainer/i);
         });
       });
     });
