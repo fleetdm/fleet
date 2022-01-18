@@ -370,6 +370,11 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 }
 
 var softwareMacOS = DetailQuery{
+	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
+	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
+	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
+	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
+	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
 	Query: `
 WITH cached_users AS (SELECT * FROM users)
 SELECT
