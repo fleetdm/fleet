@@ -44,15 +44,52 @@ func (q Query) AuthzType() string {
 	return "query"
 }
 
+// Verify verifies the query payload is valid.
+func (q *QueryPayload) Verify() error {
+	if q.Name != nil {
+		if err := verifyQueryName(*q.Name); err != nil {
+			return err
+		}
+	}
+	if q.Query != nil {
+		if err := verifyQuerySQL(*q.Query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Verify verifies the query fields are valid.
+func (q *Query) Verify() error {
+	if err := verifyQueryName(q.Name); err != nil {
+		return err
+	}
+	if err := verifyQuerySQL(q.Query); err != nil {
+		return err
+	}
+	return nil
+}
+
 var (
-	validateSQLRegexp = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
+	validateSQLRegexp  = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
+	errQueryEmptyName  = errors.New("query name cannot be empty")
+	errQueryEmptyQuery = errors.New("query's SQL query cannot be empty")
+	errQueryInvalidSQL = errors.New("invalid query's SQL")
 )
 
-// ValidateSQL performs security validations on the input query. It does not
-// actually determine whether the query is well formed.
-func (q Query) ValidateSQL() error {
-	if validateSQLRegexp.MatchString(q.Query) {
-		return errors.New("ATTACH not allowed in queries")
+func verifyQueryName(name string) error {
+	if emptyString(name) {
+		return errQueryEmptyName
+	}
+	return nil
+}
+
+func verifyQuerySQL(query string) error {
+	if emptyString(query) {
+		return errQueryEmptyQuery
+	}
+	if validateSQLRegexp.MatchString(query) {
+		return errQueryInvalidSQL
 	}
 	return nil
 }

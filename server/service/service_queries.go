@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -43,8 +44,10 @@ func (svc Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec
 	}
 
 	for _, query := range queries {
-		if err := query.ValidateSQL(); err != nil {
-			return err
+		if err := query.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, &badRequestError{
+				message: fmt.Sprintf("query payload verification: %s", err),
+			})
 		}
 	}
 
@@ -143,6 +146,12 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	if err := p.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
+			message: fmt.Sprintf("query payload verification: %s", err),
+		})
+	}
+
 	query := &fleet.Query{Saved: true}
 
 	if p.Name != nil {
@@ -170,10 +179,6 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.AuthorEmail = vc.Email()
 	}
 
-	if err := query.ValidateSQL(); err != nil {
-		return nil, err
-	}
-
 	query, err := svc.ds.NewQuery(ctx, query)
 	if err != nil {
 		return nil, err
@@ -195,6 +200,12 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	// First make sure the user can read queries
 	if err := svc.authz.Authorize(ctx, &fleet.Query{}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if err := p.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
+			message: fmt.Sprintf("query payload verification: %s", err),
+		})
 	}
 
 	query, err := svc.ds.Query(ctx, id)
@@ -223,10 +234,6 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
-	}
-
-	if err := query.ValidateSQL(); err != nil {
-		return nil, err
 	}
 
 	if err := svc.ds.SaveQuery(ctx, query); err != nil {
