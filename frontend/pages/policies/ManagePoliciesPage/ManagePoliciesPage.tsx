@@ -135,11 +135,9 @@ const ManagePolicyPage = ({
   );
 
   const refetchPolicies = (id?: number) => {
+    refetchGlobalPolicies();
     if (id) {
       refetchTeamPolicies();
-      refetchGlobalPolicies();
-    } else {
-      refetchGlobalPolicies();
     }
   };
 
@@ -308,19 +306,26 @@ const ManagePolicyPage = ({
     !globalPoliciesError &&
     !!globalPolicies?.length;
 
-  // Validate team_id from URL query params and redirect invalid cases to default policy page
+  // If team_id from URL query params is not valid, we instead use a default team
+  // either the current team (if any) or all teams (for global users) or
+  // the first available team (for non-global users)
+  const getValidatedTeamId = () => {
+    if (findAvailableTeam(teamId)) {
+      return teamId;
+    }
+    if (!teamId && currentTeam) {
+      return currentTeam.id;
+    }
+    if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
+      return availableTeams[0]?.id;
+    }
+    return 0;
+  };
+
+  // If team_id or currentTeam doesn't match validated id, switch to validated id
   useEffect(() => {
-    if (availableTeams !== null && availableTeams !== undefined) {
-      let validatedId: number;
-      if (findAvailableTeam(teamId)) {
-        validatedId = teamId;
-      } else if (!teamId && currentTeam) {
-        validatedId = currentTeam.id;
-      } else if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-        validatedId = availableTeams[0]?.id;
-      } else {
-        validatedId = 0;
-      }
+    if (availableTeams) {
+      const validatedId = getValidatedTeamId();
 
       if (validatedId !== currentTeam?.id || validatedId !== teamId) {
         handleTeamSelect(validatedId);
@@ -411,37 +416,39 @@ const ManagePolicyPage = ({
         )}
         <div>
           {!!teamId && teamPoliciesError && <TableDataError />}
-          {!!teamId && !teamPoliciesError && isLoadingTeamPolicies && (
-            <Spinner />
-          )}
-          {!!teamId && !teamPoliciesError && !isLoadingTeamPolicies && (
-            <PoliciesListWrapper
-              policiesList={teamPolicies || []}
-              isLoading={
-                isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
-              }
-              onRemovePoliciesClick={onRemovePoliciesClick}
-              canAddOrRemovePolicy={canAddOrRemovePolicy}
-              currentTeam={currentTeam}
-              currentAutomatedPolicies={currentAutomatedPolicies}
-            />
-          )}
+          {!!teamId &&
+            !teamPoliciesError &&
+            (isLoadingTeamPolicies ? (
+              <Spinner />
+            ) : (
+              <PoliciesListWrapper
+                policiesList={teamPolicies || []}
+                isLoading={
+                  isLoadingTeamPolicies && isLoadingFailingPoliciesWebhook
+                }
+                onRemovePoliciesClick={onRemovePoliciesClick}
+                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                currentTeam={currentTeam}
+                currentAutomatedPolicies={currentAutomatedPolicies}
+              />
+            ))}
           {!teamId && globalPoliciesError && <TableDataError />}
-          {!teamId && !globalPoliciesError && isLoadingGlobalPolicies && (
-            <Spinner />
-          )}
-          {!teamId && !globalPoliciesError && !isLoadingGlobalPolicies && (
-            <PoliciesListWrapper
-              policiesList={globalPolicies || []}
-              isLoading={
-                isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
-              }
-              onRemovePoliciesClick={onRemovePoliciesClick}
-              canAddOrRemovePolicy={canAddOrRemovePolicy}
-              currentTeam={currentTeam}
-              currentAutomatedPolicies={currentAutomatedPolicies}
-            />
-          )}
+          {!teamId &&
+            !globalPoliciesError &&
+            (isLoadingGlobalPolicies ? (
+              <Spinner />
+            ) : (
+              <PoliciesListWrapper
+                policiesList={globalPolicies || []}
+                isLoading={
+                  isLoadingGlobalPolicies && isLoadingFailingPoliciesWebhook
+                }
+                onRemovePoliciesClick={onRemovePoliciesClick}
+                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                currentTeam={currentTeam}
+                currentAutomatedPolicies={currentAutomatedPolicies}
+              />
+            ))}
         </div>
         {showInheritedPoliciesButton && (
           <span>
@@ -472,7 +479,7 @@ const ManagePolicyPage = ({
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
             {!globalPoliciesError &&
-              (globalPolicies === undefined ? (
+              (isLoadingGlobalPolicies ? (
                 <Spinner />
               ) : (
                 <PoliciesListWrapper

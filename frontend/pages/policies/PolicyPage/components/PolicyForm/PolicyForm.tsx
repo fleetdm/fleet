@@ -535,9 +535,6 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
-  console.log("isTeamObserver: ", isTeamObserver);
-  console.log("isGlobalObserver: ", isGlobalObserver);
-
   if (
     isTeamObserver ||
     isGlobalObserver ||
