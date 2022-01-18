@@ -546,21 +546,21 @@ func TestAuthorizeCarves(t *testing.T) {
 func TestAuthorizePolicies(t *testing.T) {
 	t.Parallel()
 
-	policy := &fleet.Policy{}
+	globalPolicy := &fleet.Policy{}
 	teamPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(1),
 		},
 	}
 	runTestCases(t, []authTestCase{
-		{user: test.UserNoRoles, object: policy, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalPolicy, action: write, allow: false},
 
-		{user: test.UserAdmin, object: policy, action: write, allow: true},
-		{user: test.UserAdmin, object: policy, action: read, allow: true},
-		{user: test.UserMaintainer, object: policy, action: write, allow: true},
-		{user: test.UserMaintainer, object: policy, action: read, allow: true},
-		{user: test.UserObserver, object: policy, action: write, allow: false},
-		{user: test.UserObserver, object: policy, action: read, allow: true},
+		{user: test.UserAdmin, object: globalPolicy, action: write, allow: true},
+		{user: test.UserAdmin, object: globalPolicy, action: read, allow: true},
+		{user: test.UserMaintainer, object: globalPolicy, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalPolicy, action: read, allow: true},
+		{user: test.UserObserver, object: globalPolicy, action: write, allow: false},
+		{user: test.UserObserver, object: globalPolicy, action: read, allow: true},
 
 		{user: test.UserAdmin, object: teamPolicy, action: write, allow: true},
 		{user: test.UserAdmin, object: teamPolicy, action: read, allow: true},
@@ -583,6 +583,11 @@ func TestAuthorizePolicies(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: teamPolicy, action: read, allow: true},
 		{user: test.UserTeamObserverTeam2, object: teamPolicy, action: write, allow: false},
 		{user: test.UserTeamObserverTeam2, object: teamPolicy, action: read, allow: false},
+
+		// Team observers cannot write global policies.
+		{user: test.UserTeamObserverTeam1, object: globalPolicy, action: write, allow: false},
+		// Team observers can read global policies.
+		{user: test.UserTeamObserverTeam1, object: globalPolicy, action: read, allow: true},
 	})
 }
 
