@@ -14,6 +14,8 @@ import (
 )
 
 func TestCachedAppConfig(t *testing.T) {
+	t.Parallel()
+
 	mockedDS := new(mock.Store)
 	ds := New(mockedDS)
 
@@ -84,4 +86,102 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NotNil(t, ac.HostSettings.AdditionalQueries)
 		assert.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.HostSettings.AdditionalQueries)
 	})
+}
+
+func TestCachedPacksforHost(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithPacksExpiration(1*time.Second))
+
+	dbPacks := []*fleet.Pack{
+		{
+			ID:   1,
+			Name: "test-pack-1",
+		},
+		{
+			ID:   2,
+			Name: "test-pack-2",
+		},
+	}
+	called := 0
+	mockedDS.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		called++
+		return dbPacks, nil
+	}
+
+	packs, err := ds.ListPacksForHost(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, dbPacks, packs)
+
+	// change "stored" dbPacks.
+	dbPacks = []*fleet.Pack{
+		{
+			ID:   1,
+			Name: "test-pack-1",
+		},
+		{
+			ID:   3,
+			Name: "test-pack-3",
+		},
+	}
+
+	packs2, err := ds.ListPacksForHost(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, packs, packs2) // returns the old cached value
+	require.Equal(t, 1, called)
+
+	time.Sleep(2 * time.Second)
+
+	packs3, err := ds.ListPacksForHost(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, dbPacks, packs3) // returns the old cached value
+	require.Equal(t, 2, called)
+}
+
+func TestCachedListScheduledQueriesInPack(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithScheduledQueriesExpiration(1*time.Second))
+
+	dbScheduledQueries := []*fleet.ScheduledQuery{
+		{
+			ID:   1,
+			Name: "test-schedule-1",
+		},
+		{
+			ID:   2,
+			Name: "test-schedule-2",
+		},
+	}
+	called := 0
+	mockedDS.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+		called++
+		return dbScheduledQueries, nil
+	}
+
+	scheduledQueries, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, dbScheduledQueries, scheduledQueries)
+
+	// change "stored" dbScheduledQueries.
+	dbScheduledQueries = []*fleet.ScheduledQuery{
+		{
+			ID:   3,
+			Name: "test-schedule-3",
+		},
+	}
+
+	scheduledQueries2, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, scheduledQueries, scheduledQueries2) // returns the new db entry
+	require.Equal(t, 1, called)
+
+	time.Sleep(2 * time.Second)
+
+	scheduledQueries3, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, dbScheduledQueries, scheduledQueries3) // returns the new db entry
+	require.Equal(t, 2, called)
 }

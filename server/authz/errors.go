@@ -63,8 +63,8 @@ type CheckMissing struct {
 	response interface{}
 }
 
-// CheckMissingWithResponse creats a new error indicating the authorization
-// check was missed, and including the response for further anaylis by the error
+// CheckMissingWithResponse creates a new error indicating the authorization
+// check was missed, and including the response for further analysis by the error
 // encoder.
 func CheckMissingWithResponse(response interface{}) *CheckMissing {
 	return &CheckMissing{response: response}

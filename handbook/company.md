@@ -27,12 +27,6 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 
-## Culture
-
-### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
-
-
 ## Values
 
 ### 允 Openness
@@ -122,6 +116,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - even boring tasks are more motivating, fun, and effective when you care
   - motivate yourself intrinsically with self-talk
   - understand "why?"
+- be crafty
 - take pride in your results
   - reread anything you write for users
   - you don't need permission to be thoughtful
@@ -143,6 +138,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - speak computer to computers (assume it's your fault)
 - question yourself (why do I think this?)
 - use the scientific method when something isn't working
+  - when something isn't working, don't make assumptions
 - listen intently, and genuinely try to understand
 - facts, over commentary
 - ask great questions & take the time to truly listen
@@ -151,6 +147,15 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 - beware sunk cost fallacy (avoid getting attached to something just because you invested time working on it, or came up with it)
 - be curious
 - legendary rigour
+
+
+
+
+## Culture
+
+### All remote
+Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 7 time zones.  The wider team of contributors from [all over the world](https://github.com/fleetdm/fleet/graphs/contributors) submit patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+
 
 
 

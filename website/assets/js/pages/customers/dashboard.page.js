@@ -70,6 +70,7 @@ parasails.registerPage('dashboard', {
     clickCopyLicenseKey: function() {
       $('[purpose="copied-notification"]').finish();
       $('[purpose="copied-notification"]').fadeIn(100).delay(2000).fadeOut(500);
+      // https://caniuse.com/mdn-api_clipboard_writetext
       navigator.clipboard.writeText(this.thisSubscription.fleetLicenseKey);
     },
 
@@ -100,6 +101,7 @@ parasails.registerPage('dashboard', {
       this.modal = '';
       await this._resetForms();
     },
+
     submittedUpdateProfileForm: async function() {
       this.syncing = true;
       Object.assign(this.me, _.pick(this.formData, ['firstName', 'lastName', 'organization', 'emailAddress']));

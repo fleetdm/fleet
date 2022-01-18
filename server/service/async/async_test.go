@@ -43,9 +43,6 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 
 	hostIDs := createHosts(t, ds, 4, time.Now().Add(-24*time.Hour))
 	hid := func(id int) int {
-		if id < 0 {
-			return id
-		}
 		return int(hostIDs[id-1])
 	}
 
@@ -53,9 +50,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 	// previous one's state, so they are not run as distinct sub-tests.
 	cases := []struct {
 		name string
-		// map of host ID to label IDs to insert (true) or delete (false), a
-		// negative host id is stored as an invalid redis key that should be
-		// ignored.
+		// map of host ID to label IDs to insert (true) or delete (false)
 		reported map[int]map[int]bool
 		want     []labelMembership
 	}{
@@ -135,23 +130,12 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 			},
 		},
 		{
-			"report host -99 labels 1, ignored",
-			map[int]map[int]bool{hid(-99): {1: true}},
-			[]labelMembership{
-				{HostID: hid(1), LabelID: 1},
-				{HostID: hid(1), LabelID: 2},
-				{HostID: hid(2), LabelID: 2},
-				{HostID: hid(2), LabelID: 3},
-			},
-		},
-		{
-			"report hosts 1, 2, 3, 4, -99 labels 1, 2, -3, 4",
+			"report hosts 1, 2, 3, 4 labels 1, 2, -3, 4",
 			map[int]map[int]bool{
-				hid(1):   {1: true, 2: true, 3: false, 4: true},
-				hid(2):   {1: true, 2: true, 3: false, 4: true},
-				hid(3):   {1: true, 2: true, 3: false, 4: true},
-				hid(4):   {1: true, 2: true, 3: false, 4: true},
-				hid(-99): {1: true, 2: true, 3: false, 4: true},
+				hid(1): {1: true, 2: true, 3: false, 4: true},
+				hid(2): {1: true, 2: true, 3: false, 4: true},
+				hid(3): {1: true, 2: true, 3: false, 4: true},
+				hid(4): {1: true, 2: true, 3: false, 4: true},
 			},
 			[]labelMembership{
 				{HostID: hid(1), LabelID: 1},
@@ -192,13 +176,16 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 				}
 				_, err := conn.Do("ZADD", args...)
 				require.NoError(t, err)
+				_, err = conn.Do("ZADD", labelMembershipActiveHostIDsKey, time.Now().Unix(), hostID)
+				require.NoError(t, err)
 			}
-			wantStats.Keys++
-			if hostID >= 0 {
-				wantStats.Items += len(res)
-				wantStats.RedisCmds++
-				wantStats.RedisCmds += len(res) / batchSizes
-			}
+
+			cnt, err := redigo.Int(conn.Do("ZCARD", labelMembershipActiveHostIDsKey))
+			require.NoError(t, err)
+			wantStats.Keys = cnt
+			wantStats.Items += len(res)
+			wantStats.RedisCmds++
+			wantStats.RedisCmds += len(res) / batchSizes
 		}
 		return wantStats
 	}
@@ -305,6 +292,9 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
 		return nil
 	}
+	ds.AsyncBatchUpdateLabelTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
+		return nil
+	}
 
 	t.Run("standalone", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, false, false, false)
@@ -313,7 +303,7 @@ func TestRecordLabelQueryExecutions(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, true, true, false)
 		t.Run("sync", func(t *testing.T) { testRecordLabelQueryExecutionsSync(t, ds, pool) })
 		t.Run("async", func(t *testing.T) { testRecordLabelQueryExecutionsAsync(t, ds, pool) })
 	})
@@ -347,7 +337,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	require.True(t, ds.RecordLabelQueryExecutionsFuncInvoked)
 	ds.RecordLabelQueryExecutionsFuncInvoked = false
 
-	conn := pool.Get()
+	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
 	defer conn.Do("DEL", keySet, keyTs)
 
@@ -356,6 +346,10 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	require.Equal(t, 0, n)
 
 	n, err = redigo.Int(conn.Do("EXISTS", keyTs))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	n, err = redigo.Int(conn.Do("ZCARD", labelMembershipActiveHostIDsKey))
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -380,6 +374,12 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 		Datastore:    ds,
 		Pool:         pool,
 		AsyncEnabled: true,
+
+		InsertBatch:        3,
+		UpdateBatch:        3,
+		DeleteBatch:        3,
+		RedisPopCount:      3,
+		RedisScanKeysCount: 10,
 	}
 
 	labelReportedAt := task.GetHostLabelReportedAt(ctx, host)
@@ -389,7 +389,7 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	require.NoError(t, err)
 	require.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
 
-	conn := pool.Get()
+	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
 	defer conn.Do("DEL", keySet, keyTs)
 
@@ -402,12 +402,31 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	require.NoError(t, err)
 	require.Equal(t, now.Unix(), ts)
 
+	count, err := redigo.Int(conn.Do("ZCARD", labelMembershipActiveHostIDsKey))
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	tsActive, err := redigo.Int64(conn.Do("ZSCORE", labelMembershipActiveHostIDsKey, host.ID))
+	require.NoError(t, err)
+	require.Equal(t, tsActive, ts)
+
 	labelReportedAt = task.GetHostLabelReportedAt(ctx, host)
 	// because we transition via unix epoch (seconds), not exactly equal
 	require.WithinDuration(t, now, labelReportedAt, time.Second)
 	// host's LabelUpdatedAt field hasn't been updated yet, because the label
 	// results are in redis, not in mysql yet.
 	require.True(t, host.LabelUpdatedAt.Equal(lastYear))
+
+	// running the collector removes the host from the active set
+	var stats collectorExecStats
+	err = task.collectLabelQueryExecutions(ctx, ds, pool, &stats)
+	require.NoError(t, err)
+	require.Equal(t, 1, stats.Keys)
+	require.Equal(t, 0, stats.Items) // zero because we cleared the host's set with ZPOPMIN above
+	require.False(t, stats.Failed)
+
+	count, err = redigo.Int(conn.Do("ZCARD", labelMembershipActiveHostIDsKey))
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
 }
 
 func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []uint {

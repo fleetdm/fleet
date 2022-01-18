@@ -10,7 +10,7 @@ parasails.registerPage('new-license', {
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
 
-    qutoeFormRules: {
+    quoteFormRules: {
       numberOfHosts: {required: true},
     },
 
@@ -82,10 +82,9 @@ parasails.registerPage('new-license', {
 
     clickResetForm: async function() {
       // When the "X" is clicked...
-      this.formData.numberOfHosts = undefined;
       this.formErrors = {};
       this.showBillingForm = false;
-      this.showQuotedPrice = false;
+      this.numberOfHostsQuoted = undefined;
       // When the input field has been rendered back into existence, focus it for our friendly user.
       await this.forceRender();
       this.$focus('[purpose="quote-input"]');
