@@ -16,7 +16,6 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import configAPI from "services/entities/config";
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
-// @ts-ignore
 
 export const baseClass = "app-settings";
 

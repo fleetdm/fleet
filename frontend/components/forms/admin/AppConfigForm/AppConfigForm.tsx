@@ -4,8 +4,7 @@ import { syntaxHighlight } from "fleet/helpers";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
-import { IConfigNested, IConfigFormData } from "interfaces/config";
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import { IConfigFormData } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -25,57 +24,17 @@ import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
 import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
-
-const authMethodOptions = [
-  { label: "Plain", value: "authmethod_plain" },
-  { label: "Cram MD5", value: "authmethod_cram_md5" },
-  { label: "Login", value: "authmethod_login" },
-];
-const authTypeOptions = [
-  { label: "Username and Password", value: "authtype_username_password" },
-  { label: "None", value: "authtype_none" },
-];
-const percentageOfHosts = [
-  { label: "1%", value: 1 },
-  { label: "5%", value: 5 },
-  { label: "10%", value: 10 },
-  { label: "25%", value: 25 },
-];
-const numberOfDays = [
-  { label: "1 day", value: 1 },
-  { label: "3 days", value: 3 },
-  { label: "7 days", value: 7 },
-  { label: "14 days", value: 14 },
-];
+import {
+  IAppConfigFormProps,
+  IFormField,
+  IAppConfigFormErrors,
+  authMethodOptions,
+  authTypeOptions,
+  percentageOfHosts,
+  numberOfDays,
+} from "./helpers";
 
 const baseClass = "app-config-form";
-
-interface IAppConfigFormProps {
-  appConfig: IConfigNested;
-  enrollSecret: IEnrollSecret[] | undefined;
-  handleSubmit: any;
-}
-
-interface IFormField {
-  name: string;
-  value: string | boolean | number;
-}
-
-interface IAppConfigFormErrors {
-  metadata_url?: string | null;
-  entity_id?: string | null;
-  idp_name?: string | null;
-  server_url?: string | null;
-  org_name?: string | null;
-  sender_address?: string | null;
-  server?: string | null;
-  server_port?: string | null;
-  user_name?: string | null;
-  password?: string | null;
-  destination_url?: string | null;
-  host_expiry_window?: string | null;
-  agent_options?: string | null;
-}
 
 const AppConfigFormFunctional = ({
   appConfig,
@@ -271,6 +230,7 @@ const AppConfigFormFunctional = ({
     smtpAuthenticationType,
     enableHostStatusWebhook,
     enableHostExpiry,
+    agentOptions,
   ]);
 
   // TOGGLE MODALS
@@ -411,7 +371,6 @@ const AppConfigFormFunctional = ({
         <h2>
           <a id="saml">SAML single sign on options</a>
         </h2>
-
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
@@ -422,7 +381,6 @@ const AppConfigFormFunctional = ({
             Enable single sign on
           </Checkbox>
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Identity provider name"
@@ -441,7 +399,6 @@ const AppConfigFormFunctional = ({
             }
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Entity ID"
@@ -466,7 +423,6 @@ const AppConfigFormFunctional = ({
             }
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Issuer URI"
@@ -481,7 +437,6 @@ const AppConfigFormFunctional = ({
             text={"The issuer URI supplied by the identity provider."}
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="IDP image URL"
@@ -498,7 +453,6 @@ const AppConfigFormFunctional = ({
             }
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata"
@@ -517,7 +471,6 @@ const AppConfigFormFunctional = ({
             }
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata URL"
@@ -627,7 +580,6 @@ const AppConfigFormFunctional = ({
             Enable SMTP
           </Checkbox>
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Sender address"
@@ -642,7 +594,6 @@ const AppConfigFormFunctional = ({
         <div className={`${baseClass}__details`}>
           <IconToolTip text={"The sender address for emails from Fleet."} />
         </div>
-
         <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
           <InputField
             label="SMTP server"
@@ -679,7 +630,6 @@ const AppConfigFormFunctional = ({
             }
           />
         </div>
-
         <div className={`${baseClass}__inputs`}>
           <Dropdown
             label="Authentication type"
