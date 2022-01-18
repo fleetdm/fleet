@@ -1,12 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import { get } from "lodash";
 
 import sendRequest from "services";
 import endpoints from "fleet/endpoints";
-import helpers from "fleet/helpers";
-// import { IConfig } from "interfaces/host";
 
-// TODO add other methods from "fleet/entities/config"
+// TODO: add other methods from "fleet/entities/config"
 
 export default {
   loadAll: () => {
@@ -36,22 +33,6 @@ export default {
   update: (formData: any) => {
     const { CONFIG } = endpoints;
 
-    // Failing policies webhook does not use flatten <> nest config helper
-    // if (formData.webhook_settings.failing_policies_webhook) {
-    //   return sendRequest("PATCH", CONFIG, formData);
-    // }
-
-    console.log("config update formData", formData);
-
     return sendRequest("PATCH", CONFIG, formData);
-    // const configData = helpers.formatConfigDataForServer(formData);
-
-    // if (get(configData, "smtp_settings.port")) {
-    //   configData.smtp_settings.port = parseInt(
-    //     configData.smtp_settings.port,
-    //     10
-    //   );
-    // }
-    // return sendRequest("PATCH", CONFIG, configData);
   },
 };

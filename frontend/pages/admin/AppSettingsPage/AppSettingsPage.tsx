@@ -1,11 +1,10 @@
 import React, { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useQuery } from "react-query";
-import { size } from "lodash";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
-import { IConfigNested, IConfigFormData } from "interfaces/config";
+import { IConfigNested } from "interfaces/config";
 // @ts-ignore
 import AppConfigForm from "components/forms/admin/AppConfigForm";
 import {
@@ -28,9 +27,13 @@ const AppSettingsPage = (): JSX.Element => {
     data: appConfig,
     isLoading: isLoadingConfig,
     refetch: refetchConfig,
-  } = useQuery<any, Error, any>(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfigNested) => data,
-  });
+  } = useQuery<IConfigNested, Error, IConfigNested>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfigNested) => data,
+    }
+  );
 
   const { data: globalSecrets } = useQuery<
     IEnrollSecretsResponse,
@@ -41,12 +44,9 @@ const AppSettingsPage = (): JSX.Element => {
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
-  console.log("appConfig", appConfig);
   const onFormSubmit = useCallback(
     (formData: IConfigNested) => {
       const diff = deepDifference(formData, appConfig);
-
-      console.log("diff", diff);
 
       configAPI
         .update(diff)
@@ -105,7 +105,7 @@ const AppSettingsPage = (): JSX.Element => {
             </li>
           </ul>
         </nav>
-        {isLoadingConfig ? null : (
+        {!isLoadingConfig && appConfig && (
           <AppConfigForm
             appConfig={appConfig}
             handleSubmit={onFormSubmit}

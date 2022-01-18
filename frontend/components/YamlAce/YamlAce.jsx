@@ -41,20 +41,10 @@ class YamlAce extends Component {
 
     const { renderLabel } = this;
 
-    const onChangeFunction = () => {
-      if (target) {
-        onChange({ name, value });
-      } else {
-        onChange();
-      }
-    };
-
     const wrapperClass = classnames(wrapperClassName, {
       [`${baseClass}__wrapper--error`]: error,
     });
 
-    console.log("name", name);
-    console.log("value", value);
     return (
       <div className={wrapperClass}>
         {renderLabel()}
@@ -68,7 +58,7 @@ class YamlAce extends Component {
           editorProps={{ $blockScrolling: Infinity }}
           value={value}
           tabSize={2}
-          onChange={onChangeFunction}
+          onChange={onChange}
           name={name}
           label={label}
           target={target}

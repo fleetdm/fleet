@@ -1,1 +1,1 @@
-export { default } from "./AppConfigFormFunctional";
+export { default } from "./AppConfigForm";

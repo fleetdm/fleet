@@ -1,8 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { syntaxHighlight } from "fleet/helpers";
-import { size } from "lodash";
-
-import yaml from "js-yaml";
 
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
@@ -10,7 +7,6 @@ import constructErrorString from "utilities/yaml";
 import { IConfigNested } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
-import FleetAce from "components/FleetAce";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -22,8 +18,6 @@ import InputField from "components/forms/fields/InputField";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
-// @ts-ignore
-import validate from "components/forms/admin/AppConfigForm/validate";
 import IconToolTip from "components/IconToolTip";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
@@ -31,8 +25,6 @@ import YamlAce from "components/YamlAce";
 import Modal from "components/Modal";
 import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
-// @ts-ignore
-import GlobalAgentOptions from "./GlobalAgentOptions";
 
 const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
@@ -55,8 +47,6 @@ const numberOfDays = [
   { label: "7 days", value: 7 },
   { label: "14 days", value: 14 },
 ];
-
-// TODO: consider breaking this up into separate components/files
 
 const baseClass = "app-config-form";
 
@@ -131,7 +121,7 @@ const AppConfigFormFunctional = ({
     smtpAuthenticationMethod:
       appConfig.smtp_settings.authentication_method || "",
     // Global agent options
-    agentOptions: yaml.dump(appConfig.agent_options) || {},
+    agentOptions: appConfig.agent_options || {},
     // Host status webhook
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
@@ -194,13 +184,11 @@ const AppConfigFormFunctional = ({
 
   // FORM CHANGE AND VALIDATIONS
   const handleInputChange = ({ name, value }: IFormField) => {
-    console.log("name and value", name, value);
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleAceInputChange = (cool: any) => {
-    console.log("cool", cool);
-    setFormData({ ...formData, agent_options: cool.value });
+  const handleAceInputChange = (value: string) => {
+    setFormData({ ...formData, agentOptions: value });
   };
 
   const validateForm = () => {
@@ -350,7 +338,7 @@ const AppConfigFormFunctional = ({
         },
       },
     };
-    console.log("formDataToSubmit", formDataToSubmit);
+
     handleSubmit(formDataToSubmit);
   };
 
@@ -777,16 +765,6 @@ const AppConfigFormFunctional = ({
             onBlur={validateForm}
             error={formErrors.agent_options}
           />
-          <FleetAce
-            error={formErrors.agent_options}
-            onChange={handleAceInputChange}
-            name="agentOptions" // TODO
-            value={agentOptions} // TODO
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            // target
-            // onBlur={validateForm}
-          />
-          {/* this might be tricky */}
         </div>
       </div>
     );
