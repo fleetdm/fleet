@@ -44,6 +44,10 @@ export interface IHostPolicy extends IPolicy {
   response: string;
 }
 
+export interface ILoadAllPoliciesResponse {
+  policies: IPolicyStats[];
+}
+
 export interface IPolicyFormData {
   description?: string | number | boolean | any[] | undefined;
   resolution?: string | number | boolean | any[] | undefined;

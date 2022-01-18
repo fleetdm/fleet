@@ -87,6 +87,7 @@ const PolicyForm = ({
   } = useContext(PolicyContext);
 
   const {
+    currentTeam,
     currentUser,
     isTeamObserver,
     isGlobalObserver,

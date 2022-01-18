@@ -1,13 +1,13 @@
 import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
 import { AppContext } from "context/app";
-import { ITeam } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
 const generateDropdownOptions = (
-  teams: ITeam[] | undefined,
+  teams: ITeamSummary[] | undefined,
   includeAll: boolean | undefined
 ) => {
   if (!teams) {
@@ -32,7 +32,7 @@ const generateDropdownOptions = (
 };
 
 interface ITeamsDropdownProps {
-  currentUserTeams: ITeam[];
+  currentUserTeams: ITeamSummary[];
   selectedTeamId: number;
   includeAll?: boolean; // Include "All Teams" option for all users
   disableAll?: boolean; // Disable "All Teams" option for global users

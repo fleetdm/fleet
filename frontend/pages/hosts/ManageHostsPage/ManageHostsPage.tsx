@@ -302,10 +302,12 @@ const ManageHostsPage = ({
     }
   );
 
-  const generateInstallerTeam = currentTeam || {
-    name: "No team",
-    secrets: globalSecrets || null,
-  };
+  const generateInstallerTeam = currentTeam
+    ? { name: currentTeam.name, secrets: teamSecrets || null }
+    : {
+        name: "No team",
+        secrets: globalSecrets || null,
+      };
 
   const {
     data: teams,
