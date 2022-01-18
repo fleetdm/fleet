@@ -66,14 +66,11 @@ export const parseSqlTables = (sqlString, inludeCteTables = false) => {
 
   try {
     const sqlTree = sqliteParser(sqlString);
-    // console.log("sqlTree: ", JSON.stringify(sqlTree));
     _visit(sqlTree, _callback);
 
     if (cteTables.length) {
-      // console.log("cteTables: ", cteTables);
       results = results.filter((t) => !cteTables.includes(t));
     }
-    // console.log("results: ", results);
 
     return results.length ? results : ["No tables in query AST"];
   } catch (err) {
