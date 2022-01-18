@@ -3,13 +3,17 @@ package policytest
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
-func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
+func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet, pool fleet.RedisPool) {
+	// note: pool will be nil for in-memory tests
+
 	hosts := make([]fleet.PolicySetHost, 1000)
 	for i := range hosts {
 		hosts[i] = fleet.PolicySetHost{
@@ -17,13 +21,28 @@ func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
 			Hostname: fmt.Sprintf("test.hostname.%d", i+1),
 		}
 	}
-	policyID1k := uint(999)
-	for i := range hosts {
-		err := r.AddHost(policyID1k, hosts[i])
+	policyID1k := uint(9999)
+	for _, h := range hosts {
+		err := r.AddHost(policyID1k, h)
 		require.NoError(t, err)
 	}
+	require.Len(t, hosts, 1000)
+
+	if pool != nil {
+		key := t.Name() + ":policies:failing:" + strconv.Itoa(int(policyID1k))
+		conn := pool.Get()
+		defer conn.Close()
+		count, err := redis.Int(conn.Do("SCARD", key))
+		t.Log(">>>> redis key ", key)
+		require.NoError(t, err)
+		require.Equal(t, count, len(hosts)+1)
+	}
+
 	fetchedHosts, err := r.ListHosts(policyID1k)
 	require.NoError(t, err)
+
+	require.Len(t, fetchedHosts, len(hosts))
+
 	sort.Slice(fetchedHosts, func(i, j int) bool {
 		return fetchedHosts[i].ID < fetchedHosts[j].ID
 	})
@@ -35,7 +54,7 @@ func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
 	require.Empty(t, fetchedHosts)
 }
 
-func RunFailingBasic(t *testing.T, r fleet.FailingPolicySet) {
+func RunFailingBasic(t *testing.T, r fleet.FailingPolicySet, pool fleet.RedisPool) {
 	policyID1 := uint(1)
 
 	// Test listing policy sets with no sets.

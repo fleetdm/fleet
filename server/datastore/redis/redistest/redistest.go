@@ -73,11 +73,13 @@ func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
+		tb.Log(">>>>>> flushing redis DB")
 		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 			_, err := conn.Do("FLUSHDB")
 			return err
 		})
 		require.NoError(tb, err)
+		tb.Log(">>>>>> flushing redis DB DONE")
 		pool.Close()
 	})
 
