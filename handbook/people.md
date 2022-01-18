@@ -54,5 +54,6 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 * At Fleet, we prefer using threads in Slack, to limit noise for other people following the channel.
 * We reduce notification overload and ensure everyone knows when they can get in touch with others by configuring our working hours in Slack.
 * We have specific channels for specific topics, but also have team/group channels, starting with the *g* prefix.
+* Other prefixes in use include: *oooh-*, used to discuss shiny things, and *help-*, for help on specific topics.
 
 <meta name="maintainedBy" value="eashaw">
