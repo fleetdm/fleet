@@ -52,12 +52,8 @@ export const parseSqlTables = (sqlString, inludeCteTables = false) => {
 
   const _callback = (node) => {
     if (node) {
-      if (node.variant === "recursive") {
-        throw new Error(
-          "Invalid usage: `recursive` is not supported by `parseSqlTables`"
-        );
-      } else if (
-        node.variant === "common" &&
+      if (
+        (node.variant === "common" || node.variant === "recursive") &&
         node.format === "table" &&
         node.type === "expression"
       ) {
@@ -70,6 +66,7 @@ export const parseSqlTables = (sqlString, inludeCteTables = false) => {
 
   try {
     const sqlTree = sqliteParser(sqlString);
+    // console.log("sqlTree: ", JSON.stringify(sqlTree));
     _visit(sqlTree, _callback);
 
     if (cteTables.length) {
