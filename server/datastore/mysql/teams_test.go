@@ -64,8 +64,18 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			assert.Equal(t, tt.name, team.Name)
 			assert.Equal(t, tt.description, team.Description)
 
+			p, err := ds.NewPack(context.Background(), &fleet.Pack{
+				Name:    tt.name,
+				TeamIDs: []uint{team.ID},
+			})
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
+
+			newP, err := ds.Pack(context.Background(), p.ID)
+			require.NoError(t, err)
+			require.Empty(t, newP.Teams)
 
 			team, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)

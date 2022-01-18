@@ -80,13 +80,19 @@ func saveTeamSecretsDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet
 }
 
 func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
-	if err := d.deleteEntity(ctx, teamsTable, tid); err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete team id %d", tid)
-	}
+	return d.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
+		}
 
-	// TODO: delete pack_targets where type=<team type> and id=id
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetTeam, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func (d *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {

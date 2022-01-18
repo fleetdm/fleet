@@ -500,6 +500,17 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
+	p, err := s.ds.NewPack(context.Background(), &fleet.Pack{
+		Name: t.Name(),
+		Hosts: []fleet.Target{
+			{
+				Type:     fleet.TargetHost,
+				TargetID: hosts[0].ID,
+			},
+		},
+	})
+	require.NoError(t, err)
+
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
@@ -522,6 +533,10 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
 	require.NoError(t, err)
+
+	newP, err := s.ds.Pack(context.Background(), p.ID)
+	require.NoError(t, err)
+	require.Empty(t, newP.Hosts)
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
