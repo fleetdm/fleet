@@ -86,12 +86,16 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 				}()
 			}
 		} else {
+			// NOTE: it's definitely best to avoid this - can create random failures for other
+			// packages' tests when run in parallel (their keys will suddenly disappear).
+			// Try to use a common prefix for you test's redis keys, or if it doesn't use any
+			// key per se (e.g. just publish-listen), make it not delete anything by providing
+			// an improbable prefix (e.g. zz).
 			err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
 				_, err := conn.Do("FLUSHDB")
 				return err
 			})
 			require.NoError(tb, err)
-			panic(">>>>> did flush redis db")
 		}
 		pool.Close()
 	})
