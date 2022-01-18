@@ -4,7 +4,7 @@ import { syntaxHighlight } from "fleet/helpers";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 
-import { IConfigNested } from "interfaces/config";
+import { IConfigNested, IConfigFormData } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Button from "components/buttons/Button";
@@ -93,7 +93,7 @@ const AppConfigFormFunctional = ({
   ] = useState<boolean>(false);
 
   // FORM STATE
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IConfigFormData>({
     // Formatting of UI not API
     // Organization info
     orgName: appConfig.org_info.org_name || "",
@@ -355,7 +355,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="orgName"
             value={orgName}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.org_name}
           />
@@ -364,7 +364,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="orgLogoURL"
             value={orgLogoURL}
-            target
+            parseTarget
           />
         </div>
         <div className={`${baseClass}__details ${baseClass}__avatar-preview`}>
@@ -391,7 +391,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="serverURL"
             value={serverURL}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.server_url}
           />
@@ -417,7 +417,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="enableSSO"
             value={enableSSO}
-            target
+            parseTarget
           >
             Enable single sign on
           </Checkbox>
@@ -429,7 +429,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="idpName"
             value={idpName}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.idp_name}
           />
@@ -454,7 +454,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="entityID"
             value={entityID}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.entity_id}
           />
@@ -473,7 +473,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="issuerURI"
             value={issuerURI}
-            target
+            parseTarget
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -488,7 +488,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="idpImageURL"
             value={idpImageURL}
-            target
+            parseTarget
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -506,7 +506,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="metadata"
             value={metadata}
-            target
+            parseTarget
             onBlur={validateForm}
           />
         </div>
@@ -530,7 +530,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="metadataURL"
             value={metadataURL}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.metadata_url}
           />
@@ -546,7 +546,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="enableSSOIDPLogin"
             value={enableSSOIDPLogin}
-            target
+            parseTarget
           >
             Allow SSO login initiated by Identity Provider
           </Checkbox>
@@ -568,7 +568,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpUsername"
             value={smtpUsername}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.user_name}
           />
@@ -578,7 +578,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpPassword"
             value={smtpPassword}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.password}
           />
@@ -589,7 +589,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpAuthenticationMethod"
             value={smtpAuthenticationMethod}
-            target
+            parseTarget
           />
         </div>
       );
@@ -622,7 +622,7 @@ const AppConfigFormFunctional = ({
             onFocus={validateForm}
             name="enableSMTP"
             value={enableSMTP}
-            target
+            parseTarget
           >
             Enable SMTP
           </Checkbox>
@@ -634,7 +634,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpSenderAddress"
             value={smtpSenderAddress}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.sender_address}
           />
@@ -649,7 +649,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpServer"
             value={smtpServer}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.server}
           />
@@ -659,7 +659,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpPort"
             value={smtpPort}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.server_port}
           />
@@ -667,7 +667,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
-            target
+            parseTarget
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>
@@ -687,7 +687,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="smtpAuthenticationType"
             value={smtpAuthenticationType}
-            target
+            parseTarget
           />
           {renderSmtpSection()}
         </div>
@@ -761,7 +761,7 @@ const AppConfigFormFunctional = ({
             onChange={handleAceInputChange}
             name="agentOptions" // TODO
             value={agentOptions} // TODO
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.agent_options}
           />
@@ -784,7 +784,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="enableHostStatusWebhook"
             value={enableHostStatusWebhook}
-            target
+            parseTarget
           >
             Enable host status webhook
           </Checkbox>
@@ -810,7 +810,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="hostStatusWebhookDestinationURL"
             value={hostStatusWebhookDestinationURL}
-            target
+            parseTarget
             onBlur={validateForm}
             error={formErrors.destination_url}
           />
@@ -832,7 +832,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
-            target
+            parseTarget
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -852,7 +852,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
-            target
+            parseTarget
           />
         </div>
         <div className={`${baseClass}__details`}>
@@ -899,7 +899,7 @@ const AppConfigFormFunctional = ({
             onChange={handleInputChange}
             name="enableUsageStatistics"
             value={enableUsageStatistics}
-            target
+            parseTarget
           >
             Enable usage statistics
           </Checkbox>
@@ -935,7 +935,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="domain"
                   value={domain}
-                  target
+                  parseTarget
                 />
                 <IconToolTip
                   isHtml
@@ -949,7 +949,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="verifySSLCerts"
                   value={verifySSLCerts}
-                  target
+                  parseTarget
                 >
                   Verify SSL certs
                 </Checkbox>
@@ -965,7 +965,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="enableStartTLS"
                   value={enableStartTLS}
-                  target
+                  parseTarget
                 >
                   Enable STARTTLS
                 </Checkbox>
@@ -981,7 +981,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="enableHostExpiry"
                   value={enableHostExpiry}
-                  target
+                  parseTarget
                 >
                   Host expiry
                 </Checkbox>
@@ -1000,7 +1000,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="hostExpiryWindow"
                   value={hostExpiryWindow}
-                  target
+                  parseTarget
                   onBlur={validateForm}
                   error={formErrors.host_expiry_window}
                 />
@@ -1016,7 +1016,7 @@ const AppConfigFormFunctional = ({
                   onChange={handleInputChange}
                   name="disableLiveQuery"
                   value={disableLiveQuery}
-                  target
+                  parseTarget
                 >
                   Disable live queries
                 </Checkbox>

@@ -18,7 +18,7 @@ export interface ICheckboxProps {
   value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
-  target?: boolean;
+  parseTarget?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -33,11 +33,11 @@ const Checkbox = (props: ICheckboxProps) => {
     value,
     wrapperClassName,
     indeterminate,
-    target,
+    parseTarget,
   } = props;
 
   const handleChange = () => {
-    if (target) {
+    if (parseTarget) {
       // New pattern returns both name and value
       return onChange({ name, value: !value });
     }

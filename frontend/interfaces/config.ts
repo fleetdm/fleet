@@ -137,38 +137,38 @@ export interface IConfig {
 }
 
 export interface IConfigFormData {
-  authentication_method: string;
-  authentication_type: string;
+  smtpAuthenticationMethod: string;
+  smtpAuthenticationType: string;
   domain: string;
-  enable_ssl_tls: boolean;
-  enable_start_tls: boolean;
-  server_url: string;
-  org_logo_url: string;
-  org_name: string;
-  password: string;
-  port?: number;
-  sender_address: string;
-  server: string;
-  user_name: string;
-  verify_ssl_certs: boolean;
-  entity_id: number;
-  issuer_uri: string;
-  idp_image_url: string;
+  smtpEnableSSLTLS: boolean;
+  enableStartTLS: boolean;
+  serverURL: string;
+  orgLogoURL: string;
+  orgName: string;
+  smtpPassword: string;
+  smtpPort?: number;
+  smtpSenderAddress: string;
+  smtpServer: string;
+  smtpUsername: string;
+  verifySSLCerts: boolean;
+  entityID: string;
+  issuerURI: string;
+  idpImageURL: string;
   metadata: string;
-  metadata_url: string;
-  idp_name: string;
-  enable_sso: boolean;
-  enable_sso_idp_login: boolean;
-  enable_smtp: boolean;
-  host_expiry_enabled: boolean;
-  host_expiry_window: number;
-  live_query_disabled: boolean;
-  agent_options: any;
-  enable_host_status_webhook: boolean;
-  destination_url?: string;
-  host_percentage?: number;
-  days_count?: number;
-  enable_analytics: boolean;
+  metadataURL: string;
+  idpName: string;
+  enableSSO: boolean;
+  enableSSOIDPLogin: boolean;
+  enableSMTP: boolean;
+  enableHostExpiry: boolean;
+  hostExpiryWindow: number;
+  disableLiveQuery: boolean;
+  agentOptions: any;
+  enableHostStatusWebhook: boolean;
+  hostStatusWebhookDestinationURL?: string;
+  hostStatusWebhookHostPercentage?: number;
+  hostStatusWebhookDaysCount?: number;
+  enableUsageStatistics: boolean;
 }
 
 export interface IConfigNested {

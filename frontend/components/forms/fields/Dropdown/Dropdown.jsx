@@ -31,7 +31,7 @@ class Dropdown extends Component {
       PropTypes.number,
     ]),
     wrapperClassName: PropTypes.string,
-    target: PropTypes.bool,
+    parseTarget: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -44,7 +44,7 @@ class Dropdown extends Component {
     multi: false,
     name: "targets",
     placeholder: "Select One...",
-    target: false,
+    parseTarget: false,
   };
 
   onMenuOpen = () => {
@@ -58,9 +58,9 @@ class Dropdown extends Component {
   };
 
   handleChange = (selected) => {
-    const { multi, onChange, clearable, name, target } = this.props;
+    const { multi, onChange, clearable, name, parseTarget } = this.props;
 
-    if (target) {
+    if (parseTarget) {
       // New pattern returns both name and value
       return onChange({ value: selected.value, name });
     }
