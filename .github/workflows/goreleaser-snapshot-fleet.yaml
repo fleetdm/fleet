@@ -3,20 +3,14 @@ name: Docker publish
 on: push
 
 jobs:
-  # If the secrets are available, build and publish a Docker image.
   publish:
+    # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
+    # Docker will not be available.
     if: github.repository_owner == 'fleetdm' 
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
-      - name: Checkout (PR)
-        if: ${{ github.event.pull_request.head.sha }}
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      
-      - name: Checkout (main)
-        if: ${{ !github.event.pull_request.head.sha }}
+      - name: Checkout
         uses: actions/checkout@v2
 
       - name: Login to Docker Hub
@@ -43,7 +37,6 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       
       - name: Tag image with branch name
-        if: ${{ !github.event.pull_request.head.sha }}
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
