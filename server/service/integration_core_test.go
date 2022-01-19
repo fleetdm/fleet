@@ -2281,6 +2281,56 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/sessions/%d", ssn.ID), nil, http.StatusInternalServerError, &delResp)
 }
 
+func (s *integrationTestSuite) TestAppConfig() {
+	t := s.T()
+
+	// get the app config
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, "free", acResp.License.Tier)
+	assert.Equal(t, "", acResp.OrgInfo.OrgName)
+
+	// no server settings set for the URL, so not possible to test the
+	// certificate endpoint
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+    "org_info": {
+        "org_name": "test"
+    }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
+
+	var verResp versionResponse
+	s.DoJSON("GET", "/api/v1/fleet/version", nil, http.StatusOK, &verResp)
+	assert.NotEmpty(t, verResp.Branch)
+
+	// get enroll secrets, none yet
+	var specResp getEnrollSecretSpecResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
+	assert.Empty(t, specResp.Spec.Secrets)
+
+	// apply spec, one secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/v1/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// get enroll secrets, one
+	s.DoJSON("GET", "/api/v1/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
+	require.Len(t, specResp.Spec.Secrets, 1)
+	assert.Equal(t, "XYZ", specResp.Spec.Secrets[0].Secret)
+
+	// remove secret just to prevent affecting other tests
+	s.DoJSON("POST", "/api/v1/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{},
+	}, http.StatusOK, &applyResp)
+
+	s.DoJSON("GET", "/api/v1/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
+	require.Len(t, specResp.Spec.Secrets, 0)
+}
+
 // creates a session and returns it, its key is to be passed as authorization header.
 func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 	key := make([]byte, 64)
