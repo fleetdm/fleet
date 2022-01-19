@@ -1,0 +1,1 @@
+* Optimize users detail query to improve performance when running on system with a large number of users (particularly Windows Domain Controllers).

@@ -499,7 +499,15 @@ FROM python_packages;
 }
 
 var usersQuery = DetailQuery{
-	Query:            `SELECT uid, username, type, groupname, shell FROM users u LEFT JOIN groups g ON g.gid=u.gid WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
+	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
+	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
+	// with many user accounts and groups, this query could be very expensive as the `groups` table
+	// was generated once for each user.
+	Query: `
+WITH cached_groups AS (select * from groups)
+SELECT uid, username, type, groupname, shell
+FROM users LEFT JOIN cached_groups USING (gid)
+WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
 	DirectIngestFunc: directIngestUsers,
 }
 
