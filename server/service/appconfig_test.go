@@ -105,6 +105,79 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 }
 
+func TestEnrollSecretAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(ds, nil, nil)
+
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, tid *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, tid *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+
+	testCases := []struct {
+		name            string
+		user            *fleet.User
+		shouldFailWrite bool
+		shouldFailRead  bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+		},
+		{
+			"team admin",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+		},
+		{
+			"team maintainer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"user",
+			&fleet.User{ID: 777},
+			true,
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
+			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			_, err = svc.GetEnrollSecretSpec(ctx)
+			checkAuthErr(t, tt.shouldFailRead, err)
+		})
+	}
+}
+
 func TestCertificateChain(t *testing.T) {
 	server, teardown := setupCertificateChain(t)
 	defer teardown()
