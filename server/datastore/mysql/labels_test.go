@@ -59,6 +59,7 @@ func TestLabels(t *testing.T) {
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"DeleteLabel", testDeleteLabel},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -752,4 +753,26 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.Nil(t, err)
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
+}
+
+func testDeleteLabel(t *testing.T, db *Datastore) {
+	l, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:  t.Name(),
+		Query: "query1",
+	})
+	require.NoError(t, err)
+
+	p, err := db.NewPack(context.Background(), &fleet.Pack{
+		Name:     t.Name(),
+		LabelIDs: []uint{l.ID},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, db.DeleteLabel(context.Background(), l.Name))
+
+	newP, err := db.Pack(context.Background(), p.ID)
+	require.NoError(t, err)
+	require.Empty(t, newP.Labels)
+
+	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
 }

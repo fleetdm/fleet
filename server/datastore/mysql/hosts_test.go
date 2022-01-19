@@ -170,12 +170,24 @@ func testSaveHost(t *testing.T, ds *Datastore, saveHostFunc func(context.Context
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
+	p, err := ds.NewPack(context.Background(), &fleet.Pack{
+		Name:    t.Name(),
+		HostIDs: []uint{host.ID},
+	})
+	require.NoError(t, err)
+
 	err = ds.DeleteHost(context.Background(), host.ID)
 	assert.Nil(t, err)
+
+	newP, err := ds.Pack(context.Background(), p.ID)
+	require.NoError(t, err)
+	require.Empty(t, newP.Hosts)
 
 	host, err = ds.Host(context.Background(), host.ID, false)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
+
+	require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 }
 
 func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
