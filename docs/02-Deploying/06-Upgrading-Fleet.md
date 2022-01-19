@@ -49,7 +49,7 @@ Run database migrations:
 fleet prepare db
 ```
 
-## Serve the new version:
+## Serve the new version
 
 Once Fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
 
