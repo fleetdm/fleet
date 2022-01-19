@@ -26,19 +26,17 @@ describe(
 
       cy.getAttached(".name__cell > .button--text-link").click();
 
-      cy.findByLabelText(/name/i)
-        .click()
-        .type("{selectall}{backspace}Server errors");
+      cy.findByLabelText(/name/i).clear().type("Server errors");
 
       cy.findByLabelText(/description/i)
-        .click()
-        .type("{selectall}{backspace}See all server errors.");
+        .clear()
+        .type("See all server errors.");
 
       cy.findByRole("button", { name: /save/i }).click();
 
       cy.visit("/packs/manage");
 
-      cy.get(".fleet-checkbox__input").check({ force: true });
+      cy.getAttached(".fleet-checkbox__input").check({ force: true });
 
       cy.getAttached(".selection__header .fleet-checkbox__tick").click();
 
