@@ -457,6 +457,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 			buckets:     make(map[int]int),
 			cache:       make(map[uint]time.Duration),
 		}
+		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
 	}
 
 	jitter := svc.jitterH[interval].jitterForHost(hostID)
