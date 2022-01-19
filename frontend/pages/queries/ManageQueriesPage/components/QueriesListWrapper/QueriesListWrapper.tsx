@@ -23,6 +23,7 @@ interface IQueriesListWrapperProps {
   searchable: boolean;
   customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
+  clearSelectionCount?: number;
   isOnlyObserver?: boolean;
 }
 
@@ -34,6 +35,7 @@ const QueriesListWrapper = ({
   searchable,
   customControl,
   selectedDropdownFilter,
+  clearSelectionCount,
   isOnlyObserver,
 }: IQueriesListWrapperProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
@@ -102,28 +104,29 @@ const QueriesListWrapper = ({
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
-        resultsTitle={"queries"}
         columns={tableHeaders}
         data={queriesList}
         isLoading={isLoading}
+        selectedDropdownFilter={selectedDropdownFilter}
+        clearSelectionCount={clearSelectionCount}
+        resultsTitle={"queries"}
         defaultSortHeader={"updated_at"}
         defaultSortDirection={"desc"}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        disablePagination
-        onPrimarySelectActionClick={onRemoveQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}
+        searchQueryColumn="name"
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        isClientSidePagination
+        isClientSideFilter
+        disablePagination
+        onPrimarySelectActionClick={onRemoveQueryClick}
         emptyComponent={NoQueriesComponent}
         customControl={customControl}
-        isClientSideFilter
-        searchQueryColumn="name"
-        selectedDropdownFilter={selectedDropdownFilter}
-        isClientSidePagination
+        onQueryChange={handleSearchChange}
       />
     </div>
   ) : null;

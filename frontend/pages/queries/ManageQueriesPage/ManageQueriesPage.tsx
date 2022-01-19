@@ -97,6 +97,7 @@ const ManageQueriesPage = (): JSX.Element => {
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+  const [clearSelectionCount, setClearSelectionCount] = useState<number>(0);
 
   const {
     data: fleetQueries,
@@ -154,6 +155,7 @@ const ManageQueriesPage = (): JSX.Element => {
       dispatch(
         renderFlash("success", `Successfully removed ${queryOrQueries}.`)
       );
+      setClearSelectionCount(clearSelectionCount + 1);
       // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
       // depends on redux state for queries).
       dispatch(queryActions.loadAll());
@@ -221,6 +223,7 @@ const ManageQueriesPage = (): JSX.Element => {
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
+              clearSelectionCount={clearSelectionCount}
             />
           )}
         </div>

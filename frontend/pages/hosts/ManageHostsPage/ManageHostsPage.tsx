@@ -377,6 +377,7 @@ const ManageHostsPage = ({
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
+    console.log("toggleAll: ", shouldSelect);
     if (typeof shouldSelect !== "undefined") {
       setIsAllMatchingHostsSelected(shouldSelect);
     } else {
@@ -926,13 +927,19 @@ const ManageHostsPage = ({
     }
   };
 
+  useEffect(() => {
+    console.log("selectedHostIds: ", selectedHostIds);
+  }, [selectedHostIds]);
+
   const onTransferToTeamClick = (hostIds: number[]) => {
     toggleTransferHostModal();
+    console.log("onTransferToTeamClick: ", hostIds);
     setSelectedHostIds(hostIds);
   };
 
   const onDeleteHostsClick = (hostIds: number[]) => {
     toggleDeleteHostModal();
+    console.log("onDeleteHostsClick: ", hostIds);
     setSelectedHostIds(hostIds);
   };
 
@@ -1029,6 +1036,7 @@ const ManageHostsPage = ({
       toggleDeleteHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
+      setClearSelectionCount(clearSelectionCount + 1);
     } catch (error) {
       dispatch(
         renderFlash(
