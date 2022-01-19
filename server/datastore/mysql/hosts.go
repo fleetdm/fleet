@@ -343,6 +343,12 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 				return err
 			}
 		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type=? AND target_id=?`, fleet.TargetHost, hid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
+		}
+
 		return nil
 	})
 }
@@ -984,6 +990,17 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host emails")
 	}
+
+	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type=? AND target_id in (?)`, fleet.TargetHost, ids)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "building delete pack_targets query")
+	}
+
+	_, err = d.writer.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts")
+	}
+
 	return nil
 }
 
