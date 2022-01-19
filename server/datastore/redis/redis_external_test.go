@@ -18,7 +18,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	const prefix = "TestRedisPoolConfigureDoer:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -39,7 +39,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true, false)
+		pool := redistest.SetupRedis(t, prefix, true, true, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -101,12 +101,12 @@ func TestEachNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 		runTest(t, pool)
 	})
 }
@@ -115,7 +115,7 @@ func TestBindConn(t *testing.T) {
 	const prefix = "TestBindConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -131,7 +131,7 @@ func TestBindConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -155,7 +155,7 @@ func TestPublishHasListeners(t *testing.T) {
 	const prefix = "TestPublishHasListeners:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -203,7 +203,7 @@ func TestPublishHasListeners(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -253,7 +253,7 @@ func TestReadOnlyConn(t *testing.T) {
 	const prefix = "TestReadOnlyConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, true)
+		pool := redistest.SetupRedis(t, prefix, false, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -262,7 +262,7 @@ func TestReadOnlyConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, true)
+		pool := redistest.SetupRedis(t, prefix, true, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -274,12 +274,12 @@ func TestReadOnlyConn(t *testing.T) {
 
 func TestRedisMode(t *testing.T) {
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, "zz", false, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisStandalone)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, "zz", true, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisCluster)
 	})
 }
