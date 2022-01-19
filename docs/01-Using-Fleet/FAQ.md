@@ -25,7 +25,7 @@ The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor versi
 
 Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for FleetDM Fleet versions.
 
-To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Updating Fleet section](./08-Updating-Fleet.md) of the documentation.
+To migrate from Kolide Fleet to FleetDM Fleet, please follow the steps outlined in the [Upgrading Fleet section](../02-Deploying/06-Upgrading-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
 
@@ -142,12 +142,6 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
 [Team enroll secrets](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/10-Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
-
-## How do I resolve an "unknown column" error when upgrading Fleet?
-
-The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
-
-Check out the [documentation on running database migrations](./08-Updating-Fleet.md#running-database-migrations) to resolve this issue.
 
 ## Why my host is not updating a policy's response.
 

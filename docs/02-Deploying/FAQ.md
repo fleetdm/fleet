@@ -220,3 +220,9 @@ complete.
 
 A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
 are managed in the team yaml.
+
+## How do I resolve an "unknown column" error when upgrading Fleet?
+
+The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
+
+Check out the [documentation on running database migrations](./06-Upgrading-Fleet.md#running-database-migrations) to resolve this issue.
