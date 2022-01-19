@@ -184,6 +184,6 @@ You are probably running an old version of Docker. You should download the insta
 
 Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
 
-## Can orbit run alongside osquery?
+## Can Orbit run alongside osquery?
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
