@@ -461,12 +461,6 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	}
 
 	jitter := svc.jitterH[interval].jitterForHost(hostID)
-	//jitter := jitterForHost(
-	//	svc.config.Osquery.MaxJitterPercent,
-	//	svc.getJitterSeed(),
-	//	interval,
-	//	hostID,
-	//)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
 }
@@ -521,17 +515,6 @@ func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
 
 	jh.mu.Unlock()
 	return jh.jitterForHost(hostID)
-}
-
-func jitterForHost(maxJitterPercent int, jitterSeed int64, interval time.Duration, hostID uint) time.Duration {
-	var jitter time.Duration
-	if maxJitterPercent > 0 {
-		maxJitter := int64(maxJitterPercent) * int64(interval) / 100.0
-		// Spread the hosts in buckets of minutes.
-		jitterMinutes := (int64(hostID) + jitterSeed) % int64(time.Duration(maxJitter).Minutes())
-		jitter = time.Duration(jitterMinutes) * time.Minute
-	}
-	return jitter
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
