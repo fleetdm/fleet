@@ -2248,3 +2248,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
 }
+
+func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
+	t := s.T()
+
+	teamPoliciesResponse := listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
+	require.Len(t, teamPoliciesResponse.Policies, 0)
+}
