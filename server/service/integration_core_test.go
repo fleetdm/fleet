@@ -1180,6 +1180,12 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			query:      "select 1;",
 		},
 		{
+			tname:      "empty with space",
+			testUpdate: true,
+			name:       " ", // #3704
+			query:      "select 1;",
+		},
+		{
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
@@ -2051,6 +2057,94 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 
 	config = s.getConfig()
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+}
+
+func (s *integrationTestSuite) TestQueriesBadRequests() {
+	t := s.T()
+
+	reqQuery := &fleet.QueryPayload{
+		Name:  ptr.String("existing query"),
+		Query: ptr.String("select 42;"),
+	}
+	createQueryResp := createQueryResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
+	require.NotNil(t, createQueryResp.Query)
+	existingQueryID := createQueryResp.Query.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+		query string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+			query: "select 42;",
+		},
+		{
+			tname: "empty query",
+			name:  "Some name",
+			query: "",
+		},
+		{
+			tname: "Invalid query",
+			name:  "Invalid query",
+			query: "ATTACH 'foo' AS bar;",
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			createQueryResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
+			require.Nil(t, createQueryResp.Query)
+
+			payload := fleet.QueryPayload{
+				Name:  ptr.String(tc.name),
+				Query: ptr.String(tc.query),
+			}
+			mResp := modifyQueryResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
+			require.Nil(t, mResp.Query)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestPacksBadRequests() {
+	t := s.T()
+
+	reqPacks := &fleet.PackPayload{
+		Name: ptr.String("existing pack"),
+	}
+	createPackResp := createPackResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/packs", reqPacks, http.StatusOK, &createPackResp)
+	existingPackID := createPackResp.Pack.ID
+
+	for _, tc := range []struct {
+		tname string
+		name  string
+	}{
+		{
+			tname: "empty name",
+			name:  " ", // #3704
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			reqQuery := &fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			createPackResp := createQueryResponse{}
+			s.DoJSON("POST", "/api/v1/fleet/packs", reqQuery, http.StatusBadRequest, &createPackResp)
+
+			payload := fleet.PackPayload{
+				Name: ptr.String(tc.name),
+			}
+			mResp := modifyPackResponse{}
+			s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
