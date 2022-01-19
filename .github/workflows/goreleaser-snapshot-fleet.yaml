@@ -3,38 +3,14 @@ name: Docker publish
 on: push
 
 jobs:
-  # This check-secrets job is used to gate execution of the main job. External PRs will not have
-  # access to the necessary secrets for pushing an image, so we want to skip that job if the secret
-  # is unavailable.
-  check-secrets:
-    environment: Docker Hub
-    runs-on: ubuntu-latest
-    outputs:
-      available: ${{ steps.check-secrets.outputs.available }}
-    steps:
-      - name: Check Secrets availability
-        id: check-secrets
-        run: |
-          if [ ! -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
-            echo "::set-output name=available::true"
-          fi
-
-  # If the secrets are available, build and publish a Docker image.
   publish:
-    needs:
-      - check-secrets
-    if: ${{ needs.check-secrets.outputs.available == 'true' }}
+    # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
+    # Docker will not be available.
+    if: github.repository_owner == 'fleetdm' 
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
-      - name: Checkout (PR)
-        if: ${{ github.event.pull_request.head.sha }}
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      
-      - name: Checkout (main)
-        if: ${{ !github.event.pull_request.head.sha }}
+      - name: Checkout
         uses: actions/checkout@v2
 
       - name: Login to Docker Hub
@@ -48,11 +24,8 @@ jobs:
         with:
           go-version: 1.17.2
 
-      - name: Install JS Dependencies
-        run: make deps-js
-
-      - name: Install Go Dependencies
-        run: make deps-go
+      - name: Install Dependencies
+        run: make deps
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@ac067437f516133269923265894e77920c3dce18 # v2.6.1
@@ -64,7 +37,6 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       
       - name: Tag image with branch name
-        if: ${{ !github.event.pull_request.head.sha }}
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
