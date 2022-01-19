@@ -5,7 +5,7 @@ on: push
 jobs:
   # If the secrets are available, build and publish a Docker image.
   publish:
-    if: ${{ secrets.DOCKERHUB_USERNAME }} != ""
+    if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
