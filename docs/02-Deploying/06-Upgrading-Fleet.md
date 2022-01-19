@@ -2,7 +2,7 @@
 
 This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](./02-Server-Installation.md).
 
-There are three steps to perform a typical Fleet upgrade. 
+There are three steps to perform a typical Fleet upgrade:
 
 1. [Installing the latest version](#install-the-latest-version-of-fleet)
 2. [Preparing the database](#running-database-migrations)
@@ -51,7 +51,7 @@ fleet prepare db
 
 ## Serve the new version:
 
-Once fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
+Once Fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
 
 ```
 fleet serve

@@ -27,10 +27,19 @@
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
-    <% /* Google Analytics, Google Tag Manager, etc. */ %>
+    <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
     <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');</script>
+    <%/* Snitcher analytics code */%>
+    <script>
+        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
+        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
+        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
+        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
+
+        snid('verify', '8416878');
+    </script>
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */

@@ -85,15 +85,6 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	// TODO gate behind a flag and allow copying a local orbit
-	// if err := file.Copy(
-	// 	"./orbit",
-	// 	filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
-	// 	0755,
-	// ); err != nil {
-	// 	return errors.Wrap(err, "write orbit")
-	// }
-
 	// Build package
 
 	if err := xarBom(opt, tmpDir); err != nil {

@@ -586,6 +586,34 @@ running in cluster mode.
   	conn_wait_timeout: 1s
   ```
 
+##### redis_read_timeout
+
+Maximum amount of time to wait to receive a response from a Redis server.
+A value of 0 means no timeout.
+
+- Default value: 10s
+- Environment variable: `FLEET_REDIS_READ_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	read_timeout: 5s
+  ```
+
+##### redis_write_timeout
+
+Maximum amount of time to wait to send a command to a Redis server.
+A value of 0 means no timeout.
+
+- Default value: 10s
+- Environment variable: `FLEET_REDIS_WRITE_TIMEOUT`
+- Config file format:
+
+  ```
+  redis:
+  	write_timeout: 5s
+  ```
+
 #### Server
 
 ##### server_address

@@ -1,15 +1,15 @@
 <div id="signup" v-cloak>
-  <div style="max-width: 890px; padding-top: 80px;" class="container-fluid pb-5 px-lg-0 px-5">
+  <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3">
     <h1>Welcome to Fleet Premium</h1>
     <p class="pb-2">We just need a few details in order to get you a Fleet Premium license key.</p>
     <div class="mx-auto">
       <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
-        <div class="order-first flex-grow-1 pr-md-4">
+        <div class="order-first flex-grow-1">
           <div class="card card-body">
             <ajax-form action="signup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
               <div class="form-group">
                 <label for="email-address">Email</label>
-                <span style="float: right" class="text-right"><a href="/customers/login">I have an account</a></span>
+                <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>
                 <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
                 <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
               </div>
@@ -27,14 +27,14 @@
                   <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
                 </div>
                 <div class="row">
-                  <div class="col-6">
+                  <div class="col-12 col-sm-6 pr-sm-2">
                     <div class="form-group">
                       <label for="first-name">First name</label>
                       <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
                       <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
                     </div>
                   </div>
-                  <div class="col-6">
+                  <div class="col-12 col-sm-6 pl-sm-2">
                     <div class="form-group">
                       <label for="last-name">Last name</label>
                       <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
@@ -47,7 +47,7 @@
                 <p>This email is already linked to a Fleet account.<br> Please <a href="/customers/login">sign in</a> with your email and password.</p>
               </cloud-error>
               <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
-              <p>By signing up you agree to our <a href="/legal/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
+              <p class="small">By signing up you agree to our <a href="/legal/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
               <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="!cloudError">Agree and continue</ajax-button>
               <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
             </ajax-form>
