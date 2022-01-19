@@ -2153,8 +2153,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	pool := redistest.SetupRedis(t, false, false, false)
-	failingPolicySet := redis_policy_set.NewFailing(pool)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
 	svc := newTestServiceWithConfig(ds, testConfig, nil, lq, TestServerOpts{
 		FailingPolicySet: failingPolicySet,

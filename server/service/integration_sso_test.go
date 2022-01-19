@@ -27,7 +27,7 @@ type integrationSSOTestSuite struct {
 func (s *integrationSSOTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationSSOTestSuite")
 
-	pool := redistest.SetupRedis(s.T(), false, false, false)
+	pool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Pool: pool})
 	s.server = server
 	s.users = users
