@@ -35,12 +35,15 @@ func NopRedis() fleet.RedisPool {
 	return nopRedis{}
 }
 
-func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool {
+func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readReplica bool) fleet.RedisPool {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")
 	}
 	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 		tb.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+	if cleanupKeyPrefix == "" {
+		tb.Fatal("missing cleanup key prefix: all redis tests need to specify a key prefix to delete on test cleanup, otherwise different packages' tests running concurrently might delete other tests' keys")
 	}
 
 	var (
@@ -73,11 +76,17 @@ func SetupRedis(tb testing.TB, cluster, redir, readReplica bool) fleet.RedisPool
 	require.Nil(tb, err)
 
 	tb.Cleanup(func() {
-		err := redis.EachNode(pool, false, func(conn redigo.Conn) error {
-			_, err := conn.Do("FLUSHDB")
-			return err
-		})
+		keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
 		require.NoError(tb, err)
+		for _, k := range keys {
+			func() {
+				conn := pool.Get()
+				defer conn.Close()
+				if _, err := conn.Do("DEL", k); err != nil {
+					require.NoError(tb, err)
+				}
+			}()
+		}
 		pool.Close()
 	})
 

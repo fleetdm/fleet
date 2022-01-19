@@ -21,6 +21,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -28,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -2151,7 +2153,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := new(live_query.MockLiveQuery)
-	failingPolicySet := NewMemFailingPolicySet()
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
 	svc := newTestServiceWithConfig(ds, testConfig, nil, lq, TestServerOpts{
 		FailingPolicySet: failingPolicySet,
