@@ -11,11 +11,12 @@ import { push } from "react-router-redux";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
+import { TableContext } from "context/table";
 import { performanceIndicator } from "fleet/helpers";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 // @ts-ignore
-import queryActions from "redux/nodes/entities/queries/actions"; // TODO: Delete this after redux dependencies have been removed.
+// import queryActions from "redux/nodes/entities/queries/actions"; // TODO: Delete this after redux dependencies have been removed.
 // @ts-ignore
 import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
@@ -86,6 +87,7 @@ const ManageQueriesPage = (): JSX.Element => {
   const dispatch = useDispatch();
 
   const { isOnlyObserver } = useContext(AppContext);
+  const { setResetSelectedRows } = useContext(TableContext);
 
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
@@ -146,17 +148,16 @@ const ManageQueriesPage = (): JSX.Element => {
     );
 
     try {
-      await Promise.all(removeQueries);
-      renderFlash("success", `Successfully removed ${queryOrQueries}.`);
-      toggleRemoveQueryModal();
-      refetchFleetQueries();
-      toggleRemoveQueryModal();
+      await Promise.all(removeQueries).then(() => {
+        dispatch(
+          renderFlash("success", `Successfully removed ${queryOrQueries}.`)
+        );
+        setResetSelectedRows(true);
+        refetchFleetQueries();
+      });
       dispatch(
         renderFlash("success", `Successfully removed ${queryOrQueries}.`)
       );
-      // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
-      // depends on redux state for queries).
-      dispatch(queryActions.loadAll());
     } catch (errorResponse) {
       dispatch(
         renderFlash(
@@ -164,6 +165,8 @@ const ManageQueriesPage = (): JSX.Element => {
           `There was an error removing your ${queryOrQueries}. Please try again later.`
         )
       );
+    } finally {
+      toggleRemoveQueryModal();
     }
   }, [dispatch, refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
