@@ -75,20 +75,28 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 	_, err = conn.Do("PING")
 	require.Nil(tb, err)
 
+	// We run a cleanup before running the tests in case a previous
+	// run failed to run the cleanup (e.g. Ctrl+C while running tests).
+	cleanup(tb, pool, cleanupKeyPrefix)
+
 	tb.Cleanup(func() {
-		keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
-		require.NoError(tb, err)
-		for _, k := range keys {
-			func() {
-				conn := pool.Get()
-				defer conn.Close()
-				if _, err := conn.Do("DEL", k); err != nil {
-					require.NoError(tb, err)
-				}
-			}()
-		}
+		cleanup(tb, pool, cleanupKeyPrefix)
 		pool.Close()
 	})
 
 	return pool
+}
+
+func cleanup(tb testing.TB, pool fleet.RedisPool, cleanupKeyPrefix string) {
+	keys, err := redis.ScanKeys(pool, cleanupKeyPrefix+"*", 1000)
+	require.NoError(tb, err)
+	for _, k := range keys {
+		func() {
+			conn := pool.Get()
+			defer conn.Close()
+			if _, err := conn.Do("DEL", k); err != nil {
+				require.NoError(tb, err)
+			}
+		}()
+	}
 }

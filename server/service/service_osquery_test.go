@@ -2303,7 +2303,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			}},
 		})
 		return err == nil
-	}, 5*time.Second, 250*time.Millisecond)
+	}, 1*time.Minute, 250*time.Millisecond)
 	require.NoError(t, err)
 
 	noPolicyResults := func(queries map[string]string) {
@@ -2368,7 +2368,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			3: {},
 		})
 		return err == nil
-	}, 5*time.Second, 250*time.Millisecond)
+	}, 1*time.Minute, 250*time.Millisecond)
 	require.NoError(t, err)
 
 	// Simulate webhook trigger by removing the hosts.
@@ -2408,7 +2408,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			3: {},
 		})
 		return err == nil
-	}, 5*time.Second, 250*time.Millisecond)
+	}, 1*time.Minute, 250*time.Millisecond)
 	require.NoError(t, err)
 }
 
