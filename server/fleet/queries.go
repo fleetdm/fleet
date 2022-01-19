@@ -88,6 +88,13 @@ func verifyQuerySQL(query string) error {
 	if emptyString(query) {
 		return errQueryEmptyQuery
 	}
+	if err := verifySQL(query); err != nil {
+		return err
+	}
+	return nil
+}
+
+func verifySQL(query string) error {
 	if validateSQLRegexp.MatchString(query) {
 		return errQueryInvalidSQL
 	}

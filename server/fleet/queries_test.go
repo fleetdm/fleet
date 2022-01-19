@@ -127,7 +127,7 @@ func TestValidateSQL(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.sql, func(t *testing.T) {
-			err := verifyQuerySQL(tt.sql)
+			err := verifySQL(tt.sql)
 			if tt.shouldErr {
 				require.Error(t, err)
 			} else {
