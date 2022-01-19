@@ -2469,7 +2469,7 @@ func TestShouldUpdate(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
-		jitter := jitterForHost(50, v.Int64(), 1*time.Hour, uint(hostID.Int64()))
+		jitter := jitterForHost(50, v.Int64(), 1*time.Hour, uint(hostID.Int64()+10000))
 		jitterMinutes := int64(jitter.Minutes())
 		histogram[jitterMinutes]++
 	}
@@ -2498,7 +2498,7 @@ func TestJitterForHost(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
-		jitter := jh.jitterForHost(uint(hostID.Int64()))
+		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000))
 		jitterMinutes := int64(jitter.Minutes())
 		histogram[jitterMinutes]++
 	}

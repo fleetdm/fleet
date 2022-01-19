@@ -453,7 +453,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	if svc.jitterH[interval] == nil {
 		svc.jitterH[interval] = &jitterHashTable{
 			maxCapacity: 1,
-			bucketCount: int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval) / 100.0),
+			bucketCount: int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0),
 			buckets:     make(map[int]int),
 			cache:       make(map[uint]time.Duration),
 		}
