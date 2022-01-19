@@ -44,7 +44,9 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Se
 		return nil, err
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionRead); err != nil {
+	// TODO(mna): this seemed incorrect, the `id` is a session ID, used to retrieve the session above,
+	// but here we use it as user id to check auth?
+	if err := svc.authz.Authorize(ctx, session, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

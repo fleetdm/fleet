@@ -435,6 +435,11 @@ func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{
 }
 
 func (svc *Service) GetInfoAboutSessionsForUser(ctx context.Context, id uint) ([]*fleet.Session, error) {
+	// TODO(mna): should that be ActionRead? It does update the session's access time, but the
+	// same-ish access in GetInfoAboutSession is an ActionRead. Also, I think this doesn't validate as
+	// the comment in the rego file - it doesn't limit one to write (or read) their own sessions,
+	// it only checks that the user has the right to access the session entity in general, which
+	// everyone does?
 	if err := svc.authz.Authorize(ctx, &fleet.Session{UserID: id}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
