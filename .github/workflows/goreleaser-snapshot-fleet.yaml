@@ -24,7 +24,7 @@ jobs:
         with:
           go-version: 1.17.2
 
-      - name: Install JS Dependencies
+      - name: Install Dependencies
         run: make deps
 
       - name: Run GoReleaser
