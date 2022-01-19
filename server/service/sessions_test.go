@@ -74,11 +74,10 @@ func TestSessionAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			// TODO: I think the auth in this one is wrong, see TODO comment over there.
-			//_, err := svc.GetInfoAboutSessionsForUser(ctx, tt.user.ID)
-			//checkAuthErr(t, tt.shouldFailWrite, err)
+			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
+			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err := svc.GetInfoAboutSession(ctx, 1)
+			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			err = svc.DeleteSession(ctx, 1)
