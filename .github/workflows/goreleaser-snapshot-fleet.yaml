@@ -5,7 +5,6 @@ on: push
 jobs:
   # If the secrets are available, build and publish a Docker image.
   publish:
-    if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
@@ -20,23 +19,24 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Login to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9 # v1.10.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
         uses: actions/setup-go@v2
         with:
           go-version: 1.17.2
 
       - name: Install JS Dependencies
-        run: make deps-js
-
-      - name: Install Go Dependencies
-        run: make deps-go
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
+        run: make deps
 
       - name: Run GoReleaser
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
         uses: goreleaser/goreleaser-action@ac067437f516133269923265894e77920c3dce18 # v2.6.1
         with:
           distribution: goreleaser-pro
@@ -46,9 +46,10 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
       
       - name: Tag image with branch name
-        if: ${{ !github.event.pull_request.head.sha }}
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" && !github.event.pull_request.head.sha }}
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
+        if: ${{ secrets.DOCKERHUB_USERNAME != "" }}
         run: docker push fleetdm/fleet --all-tags
