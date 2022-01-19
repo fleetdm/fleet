@@ -388,8 +388,8 @@ const HostDetailsPage = ({
   const operatingSystemVersion = host?.os_version.slice(
     host?.os_version.lastIndexOf(" ") + 1
   );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch = '${operatingSystemVersion}';`;
+  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
+  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -434,7 +434,7 @@ const HostDetailsPage = ({
       : setLastEditedQueryName(osPolicyLabel);
     setPolicyTeamId(host?.team_id ? host?.team_id : 0);
     setLastEditedQueryDescription(
-      "Checks to see if the exact operating system and version are installed on a host."
+      "Checks to see if the required mimimum operating system version is installed."
     );
     setLastEditedQueryBody(osPolicy);
     setLastEditedQueryResolution("");
